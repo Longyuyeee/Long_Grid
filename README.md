@@ -2,7 +2,7 @@
 
 Long Grid 是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：已进入 Phase 0。桌面/Shell 数据链、图像资源、DesktopHost 原生窗口模型、静态双屏混合 DPI、CCD 路径、Core 恢复规划、显示变化稳定器、真实隐藏消息窗口、Core/Win32 Bounds、Window Region、DirectComposition/UIA 代次发布及四层复合补偿事务已经完成；可见输入门、完整无障碍 Fragment 树与真实显示器动态切换矩阵尚未关闭。正式 MVP 尚未开始。
+> 当前状态：处于 Phase 0 后半程。桌面/Shell 数据链、图像资源、DesktopHost 原生窗口模型、静态双屏混合 DPI、CCD 路径、Core 恢复规划、四层补偿事务、可见输入门、UIA Fragment 树及首个可交互宿主切片已有 Conditional Pass 证据；17 个串联草稿 PR 尚待依次集成，真实键鼠/触控/拖放/Narrator/系统表面与显示硬件动态矩阵尚未关闭。正式 MVP 尚未开始。
 
 ## 产品原则
 
@@ -24,6 +24,7 @@ Long Grid 是一款面向 Windows 10/11 的桌面整理与工作空间管理工�
 - [核心 Windows 能力实现审计](docs/08-core-windows-implementation-audit.md)
 - [交互设计审计与体验规范](docs/09-interaction-design-audit.md)
 - [开发流程与交付规范](docs/10-development-workflow.md)
+- [当前开发状态与后续方向审计](docs/11-development-status-and-direction-audit.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
 - [Long助手兼容协议交付包](docs/protocol/README.md)
@@ -34,7 +35,7 @@ Long Grid 是一款面向 Windows 10/11 的桌面整理与工作空间管理工�
 
 ## 建议的下一步
 
-继续 Phase 0 双轨验证：交互轨建立首次整理、拖放语义和撤销原型；技术轨在受控实验室验证 Win+D、全屏、无障碍、负坐标、旋转、缩放、拔插和 RDP，并补充缩略图工作进程恢复。只有体验与技术风险同时通过，再进入 MVP 开发。
+先按顺序集成 PR #1-#17，让 `main` 成为唯一可信基线；再继续 Phase 0 双轨验证。交互轨完成首次整理、引用/移动语义、撤销和 5 人可用性测试，技术轨完成键鼠/触控/拖放/Narrator、Win+D、全屏、Explorer 重启、动态显示、文件安全、配置恢复与性能矩阵。负责人确认许可证、支持矩阵和首版整理模式并批准 ADR-0001 后，才建立第一个只读 MVP 垂直切片。详见[当前开发状态与后续方向审计](docs/11-development-status-and-direction-audit.md)。
 
 ## 开发与验证
 
