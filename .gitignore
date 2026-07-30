@@ -1,0 +1,42 @@
+# Build output
+bin/
+obj/
+artifacts/
+TestResults/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Test and coverage
+coverage/
+coverage.*
+*.coverage
+*.coveragexml
+
+# Packages and publishing
+*.nupkg
+*.snupkg
+AppPackages/
+publish/
+
+# Local logs and diagnostics
+*.log
+diagnostics/
+
+# Signing and secrets
+*.pfx
+*.p12
+*.cer
+*.key
+*.secrets.json
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
