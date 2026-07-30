@@ -2,7 +2,7 @@
 
 Long Grid 是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：已进入 Phase 0。基础 .NET 8 解决方案、Core、测试和 CI 已建立；物理桌面、Shell Namespace、稳定文件身份和快捷方式双重身份探针已经通过当前机器验证。正式 DesktopHost 与 MVP 尚未开始。
+> 当前状态：已进入 Phase 0。基础工程、桌面/Shell 发现、稳定身份和 Shell 变化通知最终对账探针已经通过当前机器验证。正式 DesktopHost 与 MVP 尚未开始。
 
 ## 产品原则
 
@@ -34,7 +34,7 @@ Long Grid 是一款面向 Windows 10/11 的桌面整理与工作空间管理工�
 
 ## 建议的下一步
 
-继续 Phase 0 双轨验证：交互轨建立首次整理、拖放语义和撤销原型；技术轨下一步验证 Shell 变更通知与最终一致性，并开始 DesktopHost HWND 模型对比。只有体验与技术风险同时通过，再进入 MVP 开发。
+继续 Phase 0 双轨验证：交互轨建立首次整理、拖放语义和撤销原型；技术轨下一步验证图标/缩略图异步提取与句柄稳定性，并开始 DesktopHost HWND 模型对比。只有体验与技术风险同时通过，再进入 MVP 开发。
 
 ## 开发与验证
 
@@ -60,9 +60,12 @@ dotnet run --project probes/LongGrid.Spikes.ShellDesktopCatalog `
 
 dotnet run --project probes/LongGrid.Spikes.FileIdentity `
   --configuration Release -- --json
+
+dotnet run --project probes/LongGrid.Spikes.ShellChangeNotifications `
+  --configuration Release -- --json
 ```
 
-真实桌面始终只读；P0-01c 的重命名和复制仅发生在自动清理的临时沙箱。报告默认不输出桌面项目名称、路径或稳定 ID。详见[Phase 0 探针报告目录](docs/spikes/README.md)。
+真实桌面始终只读；变化压力测试仅发生在自动清理的临时沙箱。报告默认不输出桌面项目名称、路径、PIDL 或稳定 ID。详见[Phase 0 探针报告目录](docs/spikes/README.md)。
 
 ## 项目边界
 
