@@ -45,6 +45,10 @@ try
         "bounded-write-lease-retry",
         VerifyBoundedWriteLeaseRetryAsync,
         results);
+    await RunScenarioAsync(
+        "latest-wins-save-queue",
+        VerifyLatestWinsSaveQueueAsync,
+        results);
     await RunScenarioAsync("schema-migration-and-rollback", VerifySchemaMigrationAndRollbackAsync, results);
     await RunScenarioAsync("read-only-file-recovery", VerifyReadOnlyFileRecoveryAsync, results);
     await RunScenarioAsync("simulated-disk-full-recovery", VerifyDiskFullRecoveryAsync, results);
@@ -708,6 +712,114 @@ async Task VerifyWriteLeaseRetryCancellationAsync(string directory)
     RequireProbe(
         (await store.LoadAsync()).Document?.Containers[0].Name == "recovered",
         "lease-retry-cancellation-recovery-not-committed");
+}
+
+async Task VerifyLatestWinsSaveQueueAsync(string directory)
+{
+    string successDirectory = Path.Combine(directory, "success");
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> store =
+        CreateStore(successDirectory);
+    TaskCompletionSource firstSaveStarted = new(
+        TaskCreationOptions.RunContinuationsAsynchronously);
+    TaskCompletionSource releaseFirstSave = new(
+        TaskCreationOptions.RunContinuationsAsynchronously);
+    int physicalSaveCount = 0;
+    LatestWinsConfigurationSaveCoordinator<ProbeConfigurationDocument> queue = new(
+        async (document, cancellationToken) =>
+        {
+            int saveNumber = Interlocked.Increment(ref physicalSaveCount);
+            if (saveNumber == 1)
+            {
+                firstSaveStarted.TrySetResult();
+                await releaseFirstSave.Task.WaitAsync(cancellationToken);
+            }
+
+            await store.SaveAsync(document, cancellationToken: cancellationToken);
+        });
+
+    Task first = queue.EnqueueAsync(CreateDocument("version-0"));
+    await firstSaveStarted.Task;
+    List<Task> coalescedWaiters = [];
+    for (int version = 1; version <= 500; version++)
+    {
+        coalescedWaiters.Add(queue.EnqueueAsync(CreateDocument($"version-{version}")));
+    }
+
+    using CancellationTokenSource cancelledWaiter = new();
+    Task cancelled = queue.EnqueueAsync(
+        CreateDocument("version-501"),
+        cancelledWaiter.Token);
+    cancelledWaiter.Cancel();
+    releaseFirstSave.TrySetResult();
+
+    await first;
+    await Task.WhenAll(coalescedWaiters);
+    bool cancellationObserved = false;
+    try
+    {
+        await cancelled;
+    }
+    catch (OperationCanceledException)
+    {
+        cancellationObserved = true;
+    }
+
+    RequireProbe(cancellationObserved, "save-queue-cancellation-not-observed");
+    RequireProbe(physicalSaveCount == 2, "save-queue-did-not-coalesce");
+    RequireProbe(
+        (await store.LoadAsync()).Document?.Containers[0].Name == "version-501",
+        "save-queue-latest-not-committed");
+    ProbeConfigurationDocument backup =
+        JsonSerializer.Deserialize<ProbeConfigurationDocument>(
+            await File.ReadAllTextAsync(store.BackupPath),
+            ProbeJsonOptions.Configuration)
+        ?? throw new ProbeAssertionException("save-queue-backup-invalid");
+    RequireProbe(
+        backup.Containers[0].Name == "version-0",
+        "save-queue-backup-invalid");
+
+    string failureDirectory = Path.Combine(directory, "failure");
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> recoveryStore =
+        CreateStore(failureDirectory);
+    TaskCompletionSource failingSaveStarted = new(
+        TaskCreationOptions.RunContinuationsAsynchronously);
+    TaskCompletionSource releaseFailingSave = new(
+        TaskCreationOptions.RunContinuationsAsynchronously);
+    int recoverySaveCount = 0;
+    LatestWinsConfigurationSaveCoordinator<ProbeConfigurationDocument> recoveryQueue = new(
+        async (document, cancellationToken) =>
+        {
+            int saveNumber = Interlocked.Increment(ref recoverySaveCount);
+            if (saveNumber == 1)
+            {
+                failingSaveStarted.TrySetResult();
+                await releaseFailingSave.Task.WaitAsync(cancellationToken);
+                throw new IOException("injected-save-queue-failure");
+            }
+
+            await recoveryStore.SaveAsync(document, cancellationToken: cancellationToken);
+        });
+
+    Task failed = recoveryQueue.EnqueueAsync(CreateDocument("must-fail"));
+    await failingSaveStarted.Task;
+    Task recovered = recoveryQueue.EnqueueAsync(CreateDocument("recovered"));
+    releaseFailingSave.TrySetResult();
+    bool failureObserved = false;
+    try
+    {
+        await failed;
+    }
+    catch (IOException exception) when (exception.Message == "injected-save-queue-failure")
+    {
+        failureObserved = true;
+    }
+
+    await recovered;
+    RequireProbe(failureObserved, "save-queue-failure-not-observed");
+    RequireProbe(recoverySaveCount == 2, "save-queue-failure-stopped-worker");
+    RequireProbe(
+        (await recoveryStore.LoadAsync()).Document?.Containers[0].Name == "recovered",
+        "save-queue-recovery-not-committed");
 }
 
 async Task VerifyReadOnlyFileRecoveryAsync(string directory)
