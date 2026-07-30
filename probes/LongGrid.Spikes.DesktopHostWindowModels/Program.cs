@@ -102,6 +102,38 @@ internal static class Program
                 : 2;
         }
 
+        if (options.CompositionUiaGeneration)
+        {
+            CompositionUiaGenerationReport compositionReport =
+                CompositionUiaGenerationProbe.Run(
+                    perMonitorV2Requested);
+            if (options.Json)
+            {
+                Console.WriteLine(
+                    JsonSerializer.Serialize(
+                        compositionReport,
+                        JsonOptions));
+            }
+            else
+            {
+                Console.WriteLine(compositionReport.Probe);
+                Console.WriteLine(
+                    $"Applied generation: "
+                    + $"{compositionReport.AppliedGeneration}");
+                Console.WriteLine(
+                    $"Superseded rollback: "
+                    + $"{compositionReport.SupersededRollbackVerified}");
+                Console.WriteLine(
+                    $"UIA client verified: "
+                    + $"{compositionReport.UiaClientVerified}");
+                Console.WriteLine($"Result: {compositionReport.Result}");
+            }
+
+            return compositionReport.Result == "Conditional Pass"
+                ? 0
+                : 2;
+        }
+
         ProbeScenario scenario = WindowModelProbe.CreateScenario();
         _ = WindowModelProbe.Run(DesktopHostWindowModel.PerDisplay, scenario);
         GC.Collect();
@@ -215,6 +247,7 @@ internal static class Program
             Options:
               --batch-transaction  Run the hidden HWND batch/rollback probe.
               --region-transaction Run the Window Region ownership/rollback probe.
+              --composition-uia     Run the DirectComposition/UIA generation probe.
               --json               Write a machine-readable report.
               --help               Show this help.
             """);
@@ -225,7 +258,8 @@ internal sealed record ProbeOptions(
     bool Json,
     bool ShowHelp,
     bool BatchTransaction,
-    bool RegionTransaction)
+    bool RegionTransaction,
+    bool CompositionUiaGeneration)
 {
     internal static ProbeOptions Parse(IEnumerable<string> args)
     {
@@ -233,6 +267,7 @@ internal sealed record ProbeOptions(
         bool showHelp = false;
         bool batchTransaction = false;
         bool regionTransaction = false;
+        bool compositionUiaGeneration = false;
 
         foreach (string argument in args)
         {
@@ -251,12 +286,17 @@ internal sealed record ProbeOptions(
                 case "--region-transaction":
                     regionTransaction = true;
                     break;
+                case "--composition-uia":
+                    compositionUiaGeneration = true;
+                    break;
                 default:
                     throw new ArgumentException($"Unknown option: {argument}");
             }
         }
 
-        if (batchTransaction && regionTransaction)
+        if ((batchTransaction ? 1 : 0)
+            + (regionTransaction ? 1 : 0)
+            + (compositionUiaGeneration ? 1 : 0) > 1)
         {
             throw new ArgumentException(
                 "Choose only one transaction probe mode.");
@@ -266,7 +306,8 @@ internal sealed record ProbeOptions(
             json,
             showHelp,
             batchTransaction,
-            regionTransaction);
+            regionTransaction,
+            compositionUiaGeneration);
     }
 }
 

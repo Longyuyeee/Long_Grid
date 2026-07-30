@@ -17,6 +17,8 @@ internal static class NativeMethods
     internal const int RgnCopy = 5;
     internal const uint GrGdiObjects = 0;
     internal const uint GrUserObjects = 1;
+    internal const uint WmDestroy = 0x0002;
+    internal const uint WmGetObject = 0x003D;
     internal static readonly nint HwndTop = nint.Zero;
     internal static readonly nint PerMonitorAwareV2 = new(-4);
 
@@ -104,6 +106,10 @@ internal static class NativeMethods
     internal static extern bool IsWindowVisible(nint window);
 
     [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool IsWindow(nint window);
+
+    [DllImport("user32.dll")]
     internal static extern nint WindowFromPoint(NativePoint point);
 
     [DllImport("user32.dll")]
@@ -142,6 +148,20 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     internal static extern uint GetGuiResources(nint process, uint flags);
+
+    [DllImport("dcomp.dll", PreserveSig = true)]
+    internal static extern int DCompositionCreateDevice(
+        nint renderingDevice,
+        ref Guid iid,
+        [MarshalAs(UnmanagedType.Interface)]
+        out IDCompositionDevice device);
+
+    [DllImport("uiautomationcore.dll")]
+    internal static extern nint UiaReturnRawElementProvider(
+        nint window,
+        nint wordParameter,
+        nint longParameter,
+        nint provider);
 
     [DllImport("gdi32.dll", SetLastError = true)]
     internal static extern nint CreateRectRgn(

@@ -660,6 +660,8 @@ Portal：
 
 Region 更新是逐窗立即生效的，中间态可能短暂改变命中区域。DesktopHost 在 Bounds/Region/Composition/UIA 同代事务开始前必须先关闭交互路由；只有全部层验证成功后才重新开放输入。任一层失败时保持输入关闭直至补偿完成；补偿失败则隐藏受影响宿主，不能留下透明的整屏点击拦截层。
 
+DirectComposition/UIA 探针进一步确认：DComp 的原子 Commit 不会同时冻结 HWND Bounds、Region 或 UIA 客户端读取。交互层必须把 generation 作为发布令牌；事务期间关闭指针、键盘、拖放和 UIA 操作入口，Wait 完成并复读全部层后才开放。辅助技术读取到旧 generation 时保留旧布局语义，不能把新的 Bounds 与旧的容器树混用。
+
 系统变化后不得静默把所有容器堆到主屏。
 
 ## 11. 外观与任务栏交互

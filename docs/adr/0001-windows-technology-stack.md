@@ -86,6 +86,8 @@ P0-07b2b2b2a 已在两个隐藏、同线程、探针自有 HWND 上验证 `Begin
 
 P0-07b2b2b2b1 已验证 Window Region 的独立捕获、系统所有权转移、逐窗部分失败补偿、代次失效补偿和 GDI 闭环。Region 没有跨 HWND 原子提交能力，因此生产事务必须先关闭输入并保留完整快照；DirectComposition 与 UIA provider 仍未通过，ADR 继续保持 Proposed。
 
+P0-07b2b2b2b2 已验证真实 DirectComposition Root 的 `Commit/WaitForCommitCompletion`、真实 HWND UIA Provider 和 `AutomationElement` 客户端读取。只有 DComp Wait 完成且 generation 仍有效才发布不可变 UIA 快照；失效时重交旧 Root 并恢复 HWND Bounds。DComp 原子性只覆盖同一 device，不能覆盖 Win32 Bounds、Region 或 UIA；可见渲染、Fragment 树、四层故障编排和硬件动态矩阵尚未通过，因此 ADR 继续保持 Proposed。
+
 ## 参考
 
 - [Windows 应用开发文档](https://learn.microsoft.com/windows/apps/)

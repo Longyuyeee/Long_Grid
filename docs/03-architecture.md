@@ -146,6 +146,8 @@ P0-07b2b2b2a 已用两个始终隐藏、同线程、探针自有的顶层 HWND �
 
 P0-07b2b2b2b1 已验证两个隐藏自有 HWND 的真实 Window Region 事务。每次提交前用 `GetWindowRgn` 获取独立副本；`SetWindowRgn` 成功后立即放弃调用方所有权，回滚验证使用转移前另行复制的 HRGN，绝不读取已转移句柄。Region 是逐窗立即生效而非批量原子 API，因此任何中途失败或代次过期都会恢复全部窗口并逐一 `EqualRgn` 验证；窗口销毁前显式设为 NULL Region。DirectComposition 的 device `Commit/WaitForCommitCompletion` 和真实 UIA provider 发布仍由 P0-07b2b2b2b2 验证。
 
+P0-07b2b2b2b2 已在隐藏自有 HWND 上建立真实 DirectComposition device/target/visual 和 `IRawElementProviderSimple`。新 Root 必须完成 `Commit/WaitForCommitCompletion` 且显示 generation 仍有效，才能一次替换不可变 UIA 快照；若 Commit 后 generation 失效，则重新提交旧 Root、恢复旧 HWND Bounds，且不发布新 UIA generation。真实 `AutomationElement` 客户端已复读 generation、AutomationId 和物理屏幕 BoundingRectangle。该结果不把 Bounds、Region、DComp 与 UIA 描述为共同的系统原子事务；四层生产编排和硬件动态矩阵仍由 P0-07b2b2b2b3 验证。
+
 ## 6. 规则引擎
 
 ```text
