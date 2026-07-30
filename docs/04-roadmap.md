@@ -42,7 +42,8 @@
 - [x] P0-07b2b2b2b1 Window Region 捕获、所有权转移、部分失败/代次回滚与 GDI 闭环（Conditional Pass）。
 - [x] P0-07b2b2b2b2 DirectComposition Root Commit/Wait、真实 HWND UIA provider、客户端读取与代次失效补偿（Conditional Pass）。
 - [x] P0-07b2b2b2b3 Bounds/Region/DComp/UIA 固定顺序、全层快照、四层失败逆序补偿、最终复读和紧急隐藏（Conditional Pass）。
-- [ ] P0-07b2b2b2b4 可见输入门、UIA Fragment/Narrator，以及热切换、旋转、拔插、RDP 和 WM_DPICHANGED 动态矩阵。
+- [x] P0-07b2b2b2b4a 短时可见宿主输入开/关/重开、跨进程穿透和真实 UIA Raw View Fragment 树（Conditional Pass）。
+- [ ] P0-07b2b2b2b4b Narrator、真实鼠标/键盘/触控/拖放，以及热切换、旋转、拔插、RDP 和 WM_DPICHANGED 人工动态矩阵。
 - [ ] 其余探针与交互验证。
 
 退出门槛：

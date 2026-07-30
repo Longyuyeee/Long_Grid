@@ -28,3 +28,4 @@
 - [P0-07b2b2b2b1：Window Region 所有权、部分失败与补偿事务](P0-07b2b2b2b1-window-region-transaction.md)
 - [P0-07b2b2b2b2：DirectComposition 提交、UIA Provider 与代次发布](P0-07b2b2b2b2-directcomposition-uia-generation.md)
 - [P0-07b2b2b2b3：DesktopHost 四层复合事务与紧急隐藏](P0-07b2b2b2b3-composite-desktop-host-transaction.md)
+- [P0-07b2b2b2b4a：可见输入门与 UIA Fragment 树](P0-07b2b2b2b4a-visible-input-uia-fragment.md)

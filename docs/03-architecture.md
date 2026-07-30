@@ -148,7 +148,9 @@ P0-07b2b2b2b1 已验证两个隐藏自有 HWND 的真实 Window Region 事务。
 
 P0-07b2b2b2b2 已在隐藏自有 HWND 上建立真实 DirectComposition device/target/visual 和 `IRawElementProviderSimple`。新 Root 必须完成 `Commit/WaitForCommitCompletion` 且显示 generation 仍有效，才能一次替换不可变 UIA 快照；若 Commit 后 generation 失效，则重新提交旧 Root、恢复旧 HWND Bounds，且不发布新 UIA generation。真实 `AutomationElement` 客户端已复读 generation、AutomationId 和物理屏幕 BoundingRectangle。该结果不把 Bounds、Region、DComp 与 UIA 描述为共同的系统原子事务；四层生产编排和硬件动态矩阵仍由 P0-07b2b2b2b3 验证。
 
-P0-07b2b2b2b3 已建立固定 `Bounds → Region → Composition → UI Automation` 的复合协调器。事务先关闭输入并捕获全部快照；每层 Apply 后局部验证，全部应用后再做四层最终复读。任一层失败或 generation 失效时，从当前失败层开始逆序 Restore；所有 Restore 完成后才能正序 VerifyRestored，因为 UIA HWND Provider 的 BoundingRectangle 依赖最终 Bounds。补偿或输入重开失败时保持输入关闭并隐藏宿主。隐藏真实 HWND 的四层强制失败和紧急隐藏已通过；可见输入、Fragment 树和硬件动态矩阵仍由 P0-07b2b2b2b4 验证。
+P0-07b2b2b2b3 已建立固定 `Bounds → Region → Composition → UI Automation` 的复合协调器。事务先关闭输入并捕获全部快照；每层 Apply 后局部验证，全部应用后再做四层最终复读。任一层失败或 generation 失效时，从当前失败层开始逆序 Restore；所有 Restore 完成后才能正序 VerifyRestored，因为 UIA HWND Provider 的 BoundingRectangle 依赖最终 Bounds。补偿或输入重开失败时保持输入关闭并隐藏宿主。隐藏真实 HWND 的四层强制失败和紧急隐藏已通过；后续验证拆分为自动化 b4a 与人工受控 b4b。
+
+P0-07b2b2b2b4a 已在短时可见、alpha=1、非激活且非 Topmost 的自有 HWND 上验证真实输入门。复杂 Window Region 开启时两个容器岛 `2/2` 命中宿主，空 Region 关闭时 `2/2` 精确穿透到创建前的外部进程 HWND，重开后 `2/2` 恢复；不移动光标或注入输入。每显示器 HWND 作为 `IRawElementProviderFragmentRoot`，容器作为 Group Fragment，真实 `AutomationElement` Raw View 客户端验证父子/兄弟导航、稳定不透明 RuntimeId、AutomationId 和物理屏幕 Bounds。输入关闭时 Fragment 仍可读但 `IsEnabled=false`，根的点分派返回空，UIA 点查询不得返回子 Fragment。Narrator、真实输入与显示动态矩阵继续由 P0-07b2b2b2b4b 人工验证。
 
 ## 6. 规则引擎
 

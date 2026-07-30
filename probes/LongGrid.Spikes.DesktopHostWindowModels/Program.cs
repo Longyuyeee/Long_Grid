@@ -167,6 +167,40 @@ internal static class Program
                 : 2;
         }
 
+        if (options.VisibleInputUiaFragment)
+        {
+            VisibleInputUiaFragmentReport visibleReport =
+                VisibleInputUiaFragmentProbe.Run(
+                    perMonitorV2Requested);
+            if (options.Json)
+            {
+                Console.WriteLine(
+                    JsonSerializer.Serialize(
+                        visibleReport,
+                        JsonOptions));
+            }
+            else
+            {
+                Console.WriteLine(visibleReport.Probe);
+                Console.WriteLine(
+                    $"Input open hits: "
+                    + $"{visibleReport.OpenHitCount}"
+                    + $"/{visibleReport.ContainerCount}");
+                Console.WriteLine(
+                    $"Input closed escapes: "
+                    + $"{visibleReport.ClosedEscapeCount}"
+                    + $"/{visibleReport.ContainerCount}");
+                Console.WriteLine(
+                    $"UIA Fragment tree: "
+                    + $"{visibleReport.UiaTreeVerified}");
+                Console.WriteLine($"Result: {visibleReport.Result}");
+            }
+
+            return visibleReport.Result == "Conditional Pass"
+                ? 0
+                : 2;
+        }
+
         ProbeScenario scenario = WindowModelProbe.CreateScenario();
         _ = WindowModelProbe.Run(DesktopHostWindowModel.PerDisplay, scenario);
         GC.Collect();
@@ -283,6 +317,7 @@ internal static class Program
               --composition-uia     Run the DirectComposition/UIA generation probe.
               --composite-transaction
                                     Run the four-layer compensation probe.
+              --visible-input-uia   Run the visible input/UIA Fragment probe.
               --json               Write a machine-readable report.
               --help               Show this help.
             """);
@@ -295,7 +330,8 @@ internal sealed record ProbeOptions(
     bool BatchTransaction,
     bool RegionTransaction,
     bool CompositionUiaGeneration,
-    bool CompositeTransaction)
+    bool CompositeTransaction,
+    bool VisibleInputUiaFragment)
 {
     internal static ProbeOptions Parse(IEnumerable<string> args)
     {
@@ -305,6 +341,7 @@ internal sealed record ProbeOptions(
         bool regionTransaction = false;
         bool compositionUiaGeneration = false;
         bool compositeTransaction = false;
+        bool visibleInputUiaFragment = false;
 
         foreach (string argument in args)
         {
@@ -329,6 +366,9 @@ internal sealed record ProbeOptions(
                 case "--composite-transaction":
                     compositeTransaction = true;
                     break;
+                case "--visible-input-uia":
+                    visibleInputUiaFragment = true;
+                    break;
                 default:
                     throw new ArgumentException($"Unknown option: {argument}");
             }
@@ -337,7 +377,8 @@ internal sealed record ProbeOptions(
         if ((batchTransaction ? 1 : 0)
             + (regionTransaction ? 1 : 0)
             + (compositionUiaGeneration ? 1 : 0)
-            + (compositeTransaction ? 1 : 0) > 1)
+            + (compositeTransaction ? 1 : 0)
+            + (visibleInputUiaFragment ? 1 : 0) > 1)
         {
             throw new ArgumentException(
                 "Choose only one transaction probe mode.");
@@ -349,7 +390,8 @@ internal sealed record ProbeOptions(
             batchTransaction,
             regionTransaction,
             compositionUiaGeneration,
-            compositeTransaction);
+            compositeTransaction,
+            visibleInputUiaFragment);
     }
 }
 

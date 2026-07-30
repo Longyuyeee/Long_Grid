@@ -278,7 +278,9 @@ P0-07b2b2b2b1 当前证据：三轮各在 2 个隐藏、自有 HWND 上执行 7 
 
 P0-07b2b2b2b2 当前证据：隐藏自有 HWND 建立真实 DComp target/visual，正常和代次补偿路径各执行 `SetRoot`、`Commit`、`WaitForCommitCompletion`；真实 `WM_GETOBJECT` Provider 由 `AutomationElement` 客户端复读 generation、AutomationId 和负坐标物理屏幕 BoundingRectangle。Commit 后代次失效会重新提交旧 Root、恢复旧 HWND Bounds，generation 3 未进入 UIA 快照。首版手写 Visual 重载 vtable 发生访问冲突，已删除不必要的属性互操作并改用 Root 切换；第二版因 UIA HWND Host 返回真实窗口 Bounds 而正确 Fail，随后将自有 HWND Bounds 纳入补偿且未放宽判定。正式三轮均为 USER `2→4→2`、GDI `0→0→0`、进程句柄 `329→329→329`。可见内容、Fragment 树、Narrator、四层复合失败和硬件动态仍未验证。
 
-P0-07b2b2b2b3 当前证据：Core 新增 20 个测试，总数 82；固定 Bounds/Region/DComp/UIA 顺序、输入门、全层快照、失败层补偿、四层最终复读、逆序恢复、适配器异常收敛和紧急隐藏。真实隐藏 HWND 三轮分别在四层完成实际改变后注入失败，`4/4` 均 RolledBack；Composition Commit/Wait 后代次失效也恢复，紧急恢复验证失败保持输入关闭并隐藏。首轮真实预热发现 UIA 恢复后立即验证会因 Bounds 尚未恢复而误判，修正为先完成全部逆序 Restore，再统一正序 VerifyRestored。三轮均为 USER `2→4→2`、GDI `6→6→6`、进程句柄 `340→340→340`。可见输入、Fragment/Narrator、多 HWND 和硬件动态仍未验证。
+P0-07b2b2b2b3 当前证据：Core 新增 20 个测试，总数 82；固定 Bounds/Region/DComp/UIA 顺序、输入门、全层快照、失败层补偿、四层最终复读、逆序恢复、适配器异常收敛和紧急隐藏。真实隐藏 HWND 三轮分别在四层完成实际改变后注入失败，`4/4` 均 RolledBack；Composition Commit/Wait 后代次失效也恢复，紧急恢复验证失败保持输入关闭并隐藏。首轮真实预热发现 UIA 恢复后立即验证会因 Bounds 尚未恢复而误判，修正为先完成全部逆序 Restore，再统一正序 VerifyRestored。三轮均为 USER `2→4→2`、GDI `6→6→6`、进程句柄 `340→340→340`。其后的可见输入与 Fragment 自动验证见 b4a，Narrator、真实输入、多 HWND 和硬件动态仍未验证。
+
+P0-07b2b2b2b4a 当前证据：一个短时可见、alpha=1、`WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE`、非 Topmost 的自有 HWND，在不移动光标和不注入输入的前提下，三轮均完成 Region 输入门 Open `2/2`、Close 精确跨进程穿透 `2/2`、Reopen `2/2`。真实 `IRawElementProviderFragmentRoot` 暴露两个 Group Fragment，`AutomationElement` Raw View 客户端验证树导航、AutomationId、不透明 RuntimeId 稳定性和物理屏幕 Bounds；关闭时 Provider 点分派为空、UIA 点查询不返回子 Fragment。三轮 USER `2→4→2`、GDI `3→3→3`、进程句柄 `350→350→350`，前台保持。Narrator、真实输入、跨进程辅助技术、多 HWND 和硬件/会话动态仍未验证。
 
 ## 6. 自有窗口与视觉效果
 

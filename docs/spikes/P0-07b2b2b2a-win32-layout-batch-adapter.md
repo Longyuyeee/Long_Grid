@@ -114,4 +114,4 @@ SWP_NOACTIVATE
 
 隐藏、同线程、自有顶层 HWND 的 Win32 批量适配边界可以进入下一原型。生产实现仍必须保留 Core 事务协调器，不能把 `EndDeferWindowPos` 成功直接当成业务提交成功。
 
-P0-07b2b2b2b1 已继续验证 Window Region 的真实所有权、部分失败补偿和代次回滚；P0-07b2b2b2b2 又验证了 DirectComposition `Commit/WaitForCommitCompletion`、真实 UIA provider、客户端复读和失效 generation 不发布；P0-07b2b2b2b3 已完成四层复合故障编排。P0-07b2b2b2b4 仍需在人工受控环境执行可见输入和显示动态矩阵。在该门禁完成前，无人确认的自动窗口恢复继续关闭。
+P0-07b2b2b2b1 已继续验证 Window Region 的真实所有权、部分失败补偿和代次回滚；P0-07b2b2b2b2 又验证了 DirectComposition `Commit/WaitForCommitCompletion`、真实 UIA provider、客户端复读和失效 generation 不发布；P0-07b2b2b2b3 已完成四层复合故障编排，P0-07b2b2b2b4a 已完成可见输入/UIA Fragment 自动验证。P0-07b2b2b2b4b 仍需在人工受控环境执行 Narrator、真实输入和显示动态矩阵。在该门禁完成前，无人确认的自动窗口恢复继续关闭。

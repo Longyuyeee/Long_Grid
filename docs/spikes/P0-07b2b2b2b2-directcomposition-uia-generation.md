@@ -128,4 +128,4 @@ capture old Bounds / Root / UIA snapshot
 
 **Conditional Pass**
 
-DirectComposition Commit/Wait 和真实 HWND UIA Provider 可进入生产原型，但不能声称四层更新具有系统级原子性。P0-07b2b2b2b3 已继续验证 Bounds、Region、DComp、UIA 强制失败编排；下一步 P0-07b2b2b2b4 在人工受控机器执行可见输入和显示动态矩阵。在这些门禁关闭前，无人确认的自动恢复和可见桌面接管继续保持关闭。
+DirectComposition Commit/Wait 和真实 HWND UIA Provider 可进入生产原型，但不能声称四层更新具有系统级原子性。P0-07b2b2b2b3 已继续验证 Bounds、Region、DComp、UIA 强制失败编排；后续 b4a 自动验证可见输入/UIA Fragment，b4b 在人工受控机器执行 Narrator、真实输入和显示动态矩阵。在这些门禁关闭前，无人确认的自动恢复和可见桌面接管继续保持关闭。

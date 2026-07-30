@@ -133,4 +133,4 @@ Rollback
 
 Window Region 可进入下一原型，但它是逐窗立即生效的操作，不能被描述成系统原子事务。生产 DesktopHost 必须在复合事务前关闭输入，全部 Bounds/Region/Composition/UIA 验证后再开放；补偿失败时隐藏宿主。
 
-P0-07b2b2b2b2 已建立真实 DirectComposition target/visual 的 Commit/Wait 探针和真实 UIA provider；P0-07b2b2b2b3 已完成 Bounds/Region/DComp/UIA 四层编排。下一步 P0-07b2b2b2b4 进行可见输入与受控硬件动态矩阵。
+P0-07b2b2b2b2 已建立真实 DirectComposition target/visual 的 Commit/Wait 探针和真实 UIA provider；P0-07b2b2b2b3 已完成 Bounds/Region/DComp/UIA 四层编排，P0-07b2b2b2b4a 已完成可见输入/UIA Fragment 自动验证。下一步 P0-07b2b2b2b4b 进行 Narrator、真实输入与受控硬件动态矩阵。

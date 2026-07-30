@@ -82,6 +82,9 @@ dotnet run --project probes/LongGrid.Spikes.DesktopHostWindowModels `
 dotnet run --project probes/LongGrid.Spikes.DesktopHostWindowModels `
   --configuration Release -- --composite-transaction --json
 
+dotnet run --project probes/LongGrid.Spikes.DesktopHostWindowModels `
+  --configuration Release -- --visible-input-uia --json
+
 dotnet run --project probes/LongGrid.Spikes.DisplayTopology `
   --configuration Release -- --json
 

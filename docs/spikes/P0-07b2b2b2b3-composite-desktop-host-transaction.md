@@ -165,4 +165,4 @@ Core 测试总数由 62 增至 82。新增覆盖：
 
 **Conditional Pass**
 
-四层复合编排可进入 DesktopHost 垂直切片，但无人确认的自动恢复和可见桌面接管仍保持关闭。下一步 `P0-07b2b2b2b4` 必须在人工受控环境执行真实显示动态矩阵，并补充可见输入门和 UIA Fragment/Narrator 验证。
+四层复合编排可进入 DesktopHost 垂直切片，但无人确认的自动恢复和可见桌面接管仍保持关闭。后续拆分为 `P0-07b2b2b2b4a` 安全自动化的可见输入/UIA Fragment 验证，以及 `P0-07b2b2b2b4b` 人工受控的 Narrator、真实输入和显示动态矩阵。
