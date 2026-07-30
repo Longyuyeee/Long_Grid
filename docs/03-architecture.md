@@ -140,6 +140,8 @@ P0-07b2b1 已实现纯 Core 显示变化稳定器：默认以 750 ms 静默期�
 
 P0-07b2b2a 已建立真实隐藏顶层消息窗口，接入公开显示/DPI/设备/电源/WTS 消息，并把 CCD/monitor/DPI 快照放到单一专用线程；completion 通过私有 `WM_APP` 返回并校验代次。三轮静态观察均以两次后台快照进入 Ready，WTS/窗口类成对注销，USER/GDI/进程句柄回到稳定基线。线程池不用于创建 DPI 探测 HWND，避免工作线程消息队列使 USER 资源上限漂移。真实动态事件和窗口事务仍由 P0-07b2b2b 验证。
 
+P0-07b2b2b1 已建立纯 Core 布局事务协调器：Blocked 和未批准的 ReviewRequired 在触碰窗口前拒绝；提交前、原位置快照后、批量应用后和最终验证后均核对显示代次。适配器批量应用后必须重新读取每个容器的物理像素 Bounds；应用失败、Bounds 不一致或代次过期都会补偿回滚，并再次读取验证回滚。`Begin/Defer/EndDeferWindowPos` 只作为 Win32 同刷新周期批量适配机制，不被视为原子业务事务。真实 HWND 适配器、Region/Composition/UIA 同代更新和硬件动态矩阵仍由 P0-07b2b2b2 验证。
+
 ## 6. 规则引擎
 
 ```text

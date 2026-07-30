@@ -80,6 +80,8 @@ P0-07b2b1 已完成不依赖真实定时器的显示变化稳定器，验证事�
 
 P0-07b2b2a 已验证真实隐藏顶层消息窗口、当前会话 WTS 注册、系统 Timer、专用 CCD/DPI 采样线程和资源闭环。当前只观察到 Startup 稳定链，没有诱发真实显示、电源或会话变化，也没有执行 DesktopHost 事务，因此 ADR 继续保持 Proposed。
 
+P0-07b2b2b1 已验证纯 Core 布局事务协调器的审批门禁、四阶段代次核对、提交后逐窗复读以及补偿回滚/回滚验证。Win32 适配器可使用 `BeginDeferWindowPos`/`DeferWindowPos`/`EndDeferWindowPos` 降低多窗口刷新撕裂，但仍必须保留应用前快照和补偿路径；真实 HWND、Region/Composition/UIA 与显示动态矩阵未通过，因此 ADR 继续保持 Proposed。
+
 ## 参考
 
 - [Windows 应用开发文档](https://learn.microsoft.com/windows/apps/)
