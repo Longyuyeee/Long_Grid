@@ -10,6 +10,11 @@ if (args.Length > 0 && args[0] == "--child-save")
     return await RunChildSaveAsync(args);
 }
 
+if (args.Length > 0 && args[0] == "--child-acl-save")
+{
+    return await RunChildAclSaveAsync(args);
+}
+
 bool jsonOutput = args.Contains("--json", StringComparer.Ordinal);
 int iterations = ParseIterations(args);
 int killIterations = ParseBoundedOption(args, "--kill-iterations", defaultValue: 3, maximum: 1000);
@@ -50,6 +55,10 @@ try
     await RunScenarioAsync(
         "inherited-replace-acl-recovery",
         VerifyInheritedReplaceAclRecoveryAsync,
+        results);
+    await RunScenarioAsync(
+        "acl-change-process-termination-recovery",
+        directory => VerifyAclChangeProcessTerminationRecoveryAsync(directory, killIterations),
         results);
     await RunScenarioAsync("stale-temp-is-ignored", VerifyStaleTemporaryFileIsIgnoredAsync, results);
     await RunScenarioAsync("unknown-fields-survive", VerifyUnknownFieldsSurviveAsync, results);
@@ -1109,6 +1118,182 @@ async Task VerifyInheritedReplaceAclRecoveryAsync(string directory)
     RequireProbe(!File.Exists(store.TemporaryPath), "acl-inherited-temp-not-cleaned");
 }
 
+async Task VerifyAclChangeProcessTerminationRecoveryAsync(string directory, int count)
+{
+    if (!OperatingSystem.IsWindows())
+    {
+        throw new PlatformNotSupportedException(
+            "The ACL change process termination scenario requires Windows.");
+    }
+
+    for (int iteration = 0; iteration < count; iteration++)
+    {
+        string iterationDirectory = Path.Combine(
+            directory,
+            iteration.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        AtomicJsonConfigurationStore<ProbeConfigurationDocument> store =
+            CreateStore(iterationDirectory);
+        await store.SaveAsync(CreateDocument("previous"));
+        await store.SaveAsync(CreateDocument("baseline"));
+        byte[] primaryBefore = await File.ReadAllBytesAsync(store.PrimaryPath);
+        byte[] backupBefore = await File.ReadAllBytesAsync(store.BackupPath);
+
+        DirectoryInfo directoryInfo = new(iterationDirectory);
+        FileInfo primaryInfo = new(store.PrimaryPath);
+        FileInfo backupInfo = new(store.BackupPath);
+        DirectorySecurity originalDirectorySecurity = FileSystemAclExtensions.GetAccessControl(
+            directoryInfo,
+            AccessControlSections.Access);
+        FileSecurity originalPrimarySecurity = FileSystemAclExtensions.GetAccessControl(
+            primaryInfo,
+            AccessControlSections.Access);
+        FileSecurity originalBackupSecurity = FileSystemAclExtensions.GetAccessControl(
+            backupInfo,
+            AccessControlSections.Access);
+        byte[] originalDirectoryDescriptor =
+            originalDirectorySecurity.GetSecurityDescriptorBinaryForm();
+        byte[] originalPrimaryDescriptor =
+            originalPrimarySecurity.GetSecurityDescriptorBinaryForm();
+        byte[] originalBackupDescriptor =
+            originalBackupSecurity.GetSecurityDescriptorBinaryForm();
+        string[] originalDirectoryRules = GetCanonicalAccessRules(originalDirectorySecurity);
+        string[] originalPrimaryRules = GetCanonicalAccessRules(originalPrimarySecurity);
+        string[] originalBackupRules = GetCanonicalAccessRules(originalBackupSecurity);
+
+        using WindowsIdentity currentIdentity = WindowsIdentity.GetCurrent();
+        SecurityIdentifier currentUser = currentIdentity.User
+            ?? throw new InvalidOperationException("The current Windows user has no SID.");
+        string readyPath = Path.Combine(iterationDirectory, "acl-child.ready");
+        string candidateName = $"candidate-{iteration}";
+        ProcessStartInfo startInfo = CreateAclChildStartInfo(
+            iterationDirectory,
+            candidateName,
+            readyPath);
+        using Process process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("The ACL persistence child process did not start.");
+
+        try
+        {
+            await WaitForChildReadyAsync(process, readyPath);
+            RequireProbe(
+                HasDenyRule(
+                    FileSystemAclExtensions.GetAccessControl(
+                        primaryInfo,
+                        AccessControlSections.Access),
+                    currentUser,
+                    FileSystemRights.Delete,
+                    requireInherited: true),
+                "acl-kill-primary-rule-missing");
+            RequireProbe(
+                HasDenyRule(
+                    FileSystemAclExtensions.GetAccessControl(
+                        backupInfo,
+                        AccessControlSections.Access),
+                    currentUser,
+                    FileSystemRights.Delete,
+                    requireInherited: true),
+                "acl-kill-backup-rule-missing");
+            RequireProbe(File.Exists(store.TemporaryPath), "acl-kill-temp-missing");
+            RequireProbe(
+                HasDenyRule(
+                    FileSystemAclExtensions.GetAccessControl(
+                        new FileInfo(store.TemporaryPath),
+                        AccessControlSections.Access),
+                    currentUser,
+                    FileSystemRights.Delete,
+                    requireInherited: true),
+                "acl-kill-temp-rule-missing");
+            ProbeConfigurationDocument staged =
+                JsonSerializer.Deserialize<ProbeConfigurationDocument>(
+                    await File.ReadAllTextAsync(store.TemporaryPath),
+                    ProbeJsonOptions.Configuration)
+                ?? throw new ProbeAssertionException("acl-kill-temp-invalid");
+            RequireProbe(
+                staged.Containers[0].Name == candidateName,
+                "acl-kill-temp-invalid");
+            RequireProbe(
+                primaryBefore.SequenceEqual(await File.ReadAllBytesAsync(store.PrimaryPath)),
+                "acl-kill-primary-changed-before-termination");
+            RequireProbe(
+                backupBefore.SequenceEqual(await File.ReadAllBytesAsync(store.BackupPath)),
+                "acl-kill-backup-changed-before-termination");
+
+            ConfigurationLoadResult<ProbeConfigurationDocument> duringChange =
+                await store.LoadAsync();
+            RequireProbe(
+                duringChange.Status == ConfigurationLoadStatus.LoadedPrimary
+                    && duringChange.Document?.Containers[0].Name == "baseline",
+                "acl-kill-temp-was-loaded");
+
+            process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync();
+        }
+        finally
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync();
+            }
+
+            DirectorySecurity restoredDirectorySecurity = new();
+            restoredDirectorySecurity.SetSecurityDescriptorBinaryForm(
+                originalDirectoryDescriptor,
+                AccessControlSections.Access);
+            FileSystemAclExtensions.SetAccessControl(directoryInfo, restoredDirectorySecurity);
+
+            FileSecurity restoredPrimarySecurity = new();
+            restoredPrimarySecurity.SetSecurityDescriptorBinaryForm(
+                originalPrimaryDescriptor,
+                AccessControlSections.Access);
+            FileSystemAclExtensions.SetAccessControl(primaryInfo, restoredPrimarySecurity);
+
+            FileSecurity restoredBackupSecurity = new();
+            restoredBackupSecurity.SetSecurityDescriptorBinaryForm(
+                originalBackupDescriptor,
+                AccessControlSections.Access);
+            FileSystemAclExtensions.SetAccessControl(backupInfo, restoredBackupSecurity);
+
+            RestoreTemporaryAclIfPresent(
+                store.TemporaryPath,
+                originalPrimaryDescriptor);
+            RestoreTemporaryAclIfPresent(
+                readyPath,
+                originalPrimaryDescriptor);
+        }
+
+        RequireProbe(process.ExitCode != 0, "acl-kill-child-not-terminated");
+        await WaitForWriteLeaseReleaseAsync(store.WriteLeasePath);
+        RequireProbe(
+            primaryBefore.SequenceEqual(await File.ReadAllBytesAsync(store.PrimaryPath)),
+            "acl-kill-primary-changed");
+        RequireProbe(
+            backupBefore.SequenceEqual(await File.ReadAllBytesAsync(store.BackupPath)),
+            "acl-kill-backup-changed");
+        RequireProbe(
+            GetCanonicalAccessRules(FileSystemAclExtensions.GetAccessControl(
+                directoryInfo,
+                AccessControlSections.Access)).SequenceEqual(originalDirectoryRules),
+            "acl-kill-directory-rules-not-restored");
+        RequireProbe(
+            GetCanonicalAccessRules(FileSystemAclExtensions.GetAccessControl(
+                primaryInfo,
+                AccessControlSections.Access)).SequenceEqual(originalPrimaryRules),
+            "acl-kill-primary-rules-not-restored");
+        RequireProbe(
+            GetCanonicalAccessRules(FileSystemAclExtensions.GetAccessControl(
+                backupInfo,
+                AccessControlSections.Access)).SequenceEqual(originalBackupRules),
+            "acl-kill-backup-rules-not-restored");
+
+        await store.SaveAsync(CreateDocument("recovered"));
+        RequireProbe(
+            (await store.LoadAsync()).Document?.Containers[0].Name == "recovered",
+            "acl-kill-recovery-not-committed");
+        RequireProbe(!File.Exists(store.TemporaryPath), "acl-kill-temp-not-cleaned");
+    }
+}
+
 async Task VerifyReadOnlyPathAsync(
     string directory,
     Func<AtomicJsonConfigurationStore<ProbeConfigurationDocument>, string> targetSelector,
@@ -1290,6 +1475,38 @@ static ProcessStartInfo CreateChildStartInfo(
     return startInfo;
 }
 
+static ProcessStartInfo CreateAclChildStartInfo(
+    string directory,
+    string candidateName,
+    string readyPath)
+{
+    string processPath = Environment.ProcessPath
+        ?? throw new InvalidOperationException("The current process path is unavailable.");
+    ProcessStartInfo startInfo = new(processPath)
+    {
+        CreateNoWindow = true,
+        RedirectStandardError = true,
+        RedirectStandardOutput = true,
+        UseShellExecute = false,
+        WindowStyle = ProcessWindowStyle.Hidden,
+    };
+
+    if (string.Equals(
+        Path.GetFileNameWithoutExtension(processPath),
+        "dotnet",
+        StringComparison.OrdinalIgnoreCase))
+    {
+        string entryAssemblyPath = Environment.GetCommandLineArgs()[0];
+        startInfo.ArgumentList.Add(entryAssemblyPath);
+    }
+
+    startInfo.ArgumentList.Add("--child-acl-save");
+    startInfo.ArgumentList.Add(directory);
+    startInfo.ArgumentList.Add(candidateName);
+    startInfo.ArgumentList.Add(readyPath);
+    return startInfo;
+}
+
 static async Task WaitForChildReadyAsync(Process process, string readyPath)
 {
     using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(15));
@@ -1369,6 +1586,84 @@ static async Task<int> RunChildSaveAsync(string[] arguments)
         });
 
     return 0;
+}
+
+static async Task<int> RunChildAclSaveAsync(string[] arguments)
+{
+    if (arguments.Length != 4 || !OperatingSystem.IsWindows())
+    {
+        return 2;
+    }
+
+    string directory = arguments[1];
+    string candidateName = arguments[2];
+    string readyPath = arguments[3];
+    string fullDirectory = Path.GetFullPath(directory);
+    string fullReadyPath = Path.GetFullPath(readyPath);
+
+    if (!string.Equals(
+        Path.GetDirectoryName(fullReadyPath),
+        fullDirectory,
+        StringComparison.OrdinalIgnoreCase))
+    {
+        return 2;
+    }
+
+    DirectoryInfo directoryInfo = new(fullDirectory);
+    DirectorySecurity originalDirectorySecurity = FileSystemAclExtensions.GetAccessControl(
+        directoryInfo,
+        AccessControlSections.Access);
+    using WindowsIdentity currentIdentity = WindowsIdentity.GetCurrent();
+    SecurityIdentifier currentUser = currentIdentity.User
+        ?? throw new InvalidOperationException("The current Windows user has no SID.");
+    FileSystemAccessRule denyDeleteChildren = new(
+        currentUser,
+        FileSystemRights.DeleteSubdirectoriesAndFiles,
+        InheritanceFlags.None,
+        PropagationFlags.None,
+        AccessControlType.Deny);
+    FileSystemAccessRule inheritDeleteFile = new(
+        currentUser,
+        FileSystemRights.Delete,
+        InheritanceFlags.ObjectInherit,
+        PropagationFlags.InheritOnly,
+        AccessControlType.Deny);
+    originalDirectorySecurity.AddAccessRule(denyDeleteChildren);
+    originalDirectorySecurity.AddAccessRule(inheritDeleteFile);
+    FileSystemAclExtensions.SetAccessControl(directoryInfo, originalDirectorySecurity);
+
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> store = CreateStore(fullDirectory);
+    await store.SaveAsync(
+        CreateDocument(candidateName),
+        checkpointObserver: async (current, cancellationToken) =>
+        {
+            if (current != AtomicConfigurationSaveCheckpoint.BeforeCommit)
+            {
+                return;
+            }
+
+            await File.WriteAllTextAsync(
+                fullReadyPath,
+                current.ToString(),
+                cancellationToken);
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        });
+
+    return 0;
+}
+
+static void RestoreTemporaryAclIfPresent(string path, byte[] securityDescriptor)
+{
+    if (!OperatingSystem.IsWindows() || !File.Exists(path))
+    {
+        return;
+    }
+
+    FileSecurity restoredSecurity = new();
+    restoredSecurity.SetSecurityDescriptorBinaryForm(
+        securityDescriptor,
+        AccessControlSections.Access);
+    FileSystemAclExtensions.SetAccessControl(new FileInfo(path), restoredSecurity);
 }
 
 static async Task RequireNormalSaveRefusedAsync(
