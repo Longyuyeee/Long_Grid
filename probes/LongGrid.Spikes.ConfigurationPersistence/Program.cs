@@ -23,6 +23,11 @@ if (args.Length > 0 && args[0] == "--child-hold-lease")
 bool jsonOutput = args.Contains("--json", StringComparer.Ordinal);
 int iterations = ParseIterations(args);
 int killIterations = ParseBoundedOption(args, "--kill-iterations", defaultValue: 3, maximum: 1000);
+int aclKillIterations = ParseBoundedOption(
+    args,
+    "--acl-kill-iterations",
+    defaultValue: killIterations,
+    maximum: 1000);
 List<ScenarioResult> results = [];
 string sandbox = Path.Combine(
     Path.GetTempPath(),
@@ -71,7 +76,7 @@ try
         results);
     await RunScenarioAsync(
         "acl-change-process-termination-recovery",
-        directory => VerifyAclChangeProcessTerminationRecoveryAsync(directory, killIterations),
+        directory => VerifyAclChangeProcessTerminationRecoveryAsync(directory, aclKillIterations),
         results);
     await RunScenarioAsync("stale-temp-is-ignored", VerifyStaleTemporaryFileIsIgnoredAsync, results);
     await RunScenarioAsync("unknown-fields-survive", VerifyUnknownFieldsSurviveAsync, results);
@@ -105,6 +110,7 @@ if (jsonOutput)
             passed,
             iterations,
             killIterations,
+            aclKillIterations,
             scenarios = results,
         },
         ProbeJsonOptions.Output));

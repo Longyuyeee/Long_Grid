@@ -54,6 +54,7 @@ jobs:
           --
           --iterations 100
           --kill-iterations 2
+          --acl-kill-iterations 2
           --json
 
       - name: Dependency vulnerability gate
