@@ -9,6 +9,8 @@ internal static class NativeMethods
     internal const uint WsExNoActivate = 0x08000000;
     internal const uint LwaAlpha = 0x00000002;
     internal const uint SwpNoActivate = 0x0010;
+    internal const uint SwpNoZOrder = 0x0004;
+    internal const uint SwpNoOwnerZOrder = 0x0200;
     internal const uint SwpShowWindow = 0x0040;
     internal const int GwlExStyle = -20;
     internal const int RgnOr = 2;
@@ -71,6 +73,34 @@ internal static class NativeMethods
         int width,
         int height,
         uint flags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern nint BeginDeferWindowPos(int windowCount);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern nint DeferWindowPos(
+        nint windowPosition,
+        nint window,
+        nint insertAfter,
+        int x,
+        int y,
+        int width,
+        int height,
+        uint flags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool EndDeferWindowPos(nint windowPosition);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetWindowRect(
+        nint window,
+        out NativeRect rectangle);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool IsWindowVisible(nint window);
 
     [DllImport("user32.dll")]
     internal static extern nint WindowFromPoint(NativePoint point);

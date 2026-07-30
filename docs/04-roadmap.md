@@ -38,7 +38,8 @@
 - [x] P0-07b2b1 显示变化静默合并、连续稳定采样、暂停/恢复、超时与代次失效（Conditional Pass）。
 - [x] P0-07b2b2a 隐藏顶层消息窗口、WTS 生命周期、后台 CCD 调度和启动稳定链（Conditional Pass）。
 - [x] P0-07b2b2b1 Core 批量提交、代次门禁、提交后验证与补偿回滚协调器（Conditional Pass）。
-- [ ] P0-07b2b2b2 Win32 批量窗口适配器、真实动态事件、负坐标、热切换、旋转、拔插、RDP、WM_DPICHANGED、Region/Composition/UIA 同代提交。
+- [x] P0-07b2b2b2a 隐藏测试 HWND、Win32 批量适配、负坐标复读、代次/部分失败补偿与资源闭环（Conditional Pass）。
+- [ ] P0-07b2b2b2b Region/Composition/UIA 同代提交，以及真实热切换、旋转、拔插、RDP 和 WM_DPICHANGED 动态矩阵。
 - [ ] 其余探针与交互验证。
 
 退出门槛：

@@ -82,6 +82,8 @@ P0-07b2b2a 已验证真实隐藏顶层消息窗口、当前会话 WTS 注册、�
 
 P0-07b2b2b1 已验证纯 Core 布局事务协调器的审批门禁、四阶段代次核对、提交后逐窗复读以及补偿回滚/回滚验证。Win32 适配器可使用 `BeginDeferWindowPos`/`DeferWindowPos`/`EndDeferWindowPos` 降低多窗口刷新撕裂，但仍必须保留应用前快照和补偿路径；真实 HWND、Region/Composition/UIA 与显示动态矩阵未通过，因此 ADR 继续保持 Proposed。
 
+P0-07b2b2b2a 已在两个隐藏、同线程、探针自有 HWND 上验证 `BeginDeferWindowPos`/`DeferWindowPos`/`EndDeferWindowPos` 正常批量路径、逐窗复读、提交后代次失效补偿和部分变更补偿。负坐标、焦点、被动样式和资源闭环通过，但可见渲染、Region/Composition/UIA、跨线程窗口和真实硬件动态矩阵尚未通过，因此 ADR 继续保持 Proposed。
+
 ## 参考
 
 - [Windows 应用开发文档](https://learn.microsoft.com/windows/apps/)

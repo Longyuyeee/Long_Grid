@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using LongGrid.Core.DesktopHost;
 
 internal static class Program
@@ -7,6 +8,7 @@ internal static class Program
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() },
     };
 
     [STAThread]
@@ -39,6 +41,36 @@ internal static class Program
         bool perMonitorV2Requested =
             NativeMethods.SetProcessDpiAwarenessContext(
                 NativeMethods.PerMonitorAwareV2);
+        if (options.BatchTransaction)
+        {
+            WindowBatchTransactionReport transactionReport =
+                WindowBatchTransactionProbe.Run(perMonitorV2Requested);
+            if (options.Json)
+            {
+                Console.WriteLine(
+                    JsonSerializer.Serialize(
+                        transactionReport,
+                        JsonOptions));
+            }
+            else
+            {
+                Console.WriteLine(transactionReport.Probe);
+                Console.WriteLine(
+                    $"Applied: {transactionReport.AppliedStatus}");
+                Console.WriteLine(
+                    $"Generation rollback: "
+                    + $"{transactionReport.GenerationRollbackStatus}");
+                Console.WriteLine(
+                    $"Partial rollback: "
+                    + $"{transactionReport.PartialFailureRollbackStatus}");
+                Console.WriteLine($"Result: {transactionReport.Result}");
+            }
+
+            return transactionReport.Result == "Conditional Pass"
+                ? 0
+                : 2;
+        }
+
         ProbeScenario scenario = WindowModelProbe.CreateScenario();
         _ = WindowModelProbe.Run(DesktopHostWindowModel.PerDisplay, scenario);
         GC.Collect();
@@ -150,18 +182,23 @@ internal static class Program
               dotnet run --project probes/LongGrid.Spikes.DesktopHostWindowModels -- [options]
 
             Options:
-              --json  Write a machine-readable report.
-              --help  Show this help.
+              --batch-transaction  Run the hidden HWND batch/rollback probe.
+              --json               Write a machine-readable report.
+              --help               Show this help.
             """);
     }
 }
 
-internal sealed record ProbeOptions(bool Json, bool ShowHelp)
+internal sealed record ProbeOptions(
+    bool Json,
+    bool ShowHelp,
+    bool BatchTransaction)
 {
     internal static ProbeOptions Parse(IEnumerable<string> args)
     {
         bool json = false;
         bool showHelp = false;
+        bool batchTransaction = false;
 
         foreach (string argument in args)
         {
@@ -174,12 +211,18 @@ internal sealed record ProbeOptions(bool Json, bool ShowHelp)
                 case "-h":
                     showHelp = true;
                     break;
+                case "--batch-transaction":
+                    batchTransaction = true;
+                    break;
                 default:
                     throw new ArgumentException($"Unknown option: {argument}");
             }
         }
 
-        return new ProbeOptions(json, showHelp);
+        return new ProbeOptions(
+            json,
+            showHelp,
+            batchTransaction);
     }
 }
 

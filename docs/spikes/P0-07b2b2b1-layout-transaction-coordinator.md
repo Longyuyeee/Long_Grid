@@ -117,13 +117,12 @@ ILayoutRecoveryWindowBatchAdapter
 
 ## 7. P0-07b2b2b2
 
-下一探针应创建完全隔离的临时 Long Grid 测试 HWND：
+P0-07b2b2b2a 已创建完全隔离且始终隐藏的临时 Long Grid 测试 HWND，完成同线程 Win32 批量适配、负坐标、代次失效补偿和真实部分变更补偿。后续 P0-07b2b2b2b 仍需：
 
-1. 在窗口所属 UI 线程实现 Win32 批量适配器；
-2. 使用 `SWP_NOACTIVATE | SWP_NOZORDER`，不显示、不置顶、不触碰第三方窗口；
-3. 对排队失败、`EndDeferWindowPos` 失败、窗口约束导致的 Bounds 偏差执行补偿；
-4. 把 Window Region、Composition 和 UIA 更新纳入同一 generation；
-5. 先完成合成失败注入，再由人工受控执行负坐标、DPI、旋转、插拔、投影、睡眠和 RDP 矩阵；
-6. 分别记录 Windows build、GPU、DPI、拓扑、焦点、Z-order、资源和恢复结果。
+1. 验证跨线程窗口拒绝/调度策略；
+2. 对真实排队失败、`EndDeferWindowPos` 失败和窗口约束偏差保留诊断；
+3. 把 Window Region、Composition 和 UIA 更新纳入同一 generation；
+4. 先完成合成失败注入，再由人工受控执行 DPI、旋转、插拔、投影、睡眠和 RDP 矩阵；
+5. 分别记录 Windows build、GPU、DPI、拓扑、焦点、Z-order、资源和恢复结果。
 
-在 P0-07b2b2b2 完成前，不启用无人确认的真实窗口自动恢复。
+在 P0-07b2b2b2b 完成前，不启用无人确认的真实窗口自动恢复。
