@@ -33,7 +33,8 @@
 - [x] P0-04/P0-05a 每容器/每显示器 HWND 的原生命中与资源对比（Conditional Pass；下一原型采用每显示器 HWND + 显式交互区域）。
 - [ ] P0-04/P0-05b Win+D、全屏、Alt+Tab、任务视图、拖放和无障碍交互矩阵。
 - [x] P0-07a 静态双屏拓扑、混合 DPI、隐私安全指纹与资源稳定性（Conditional Pass）。
-- [ ] P0-07b QueryDisplayConfig、负坐标、热切换、旋转、拔插、RDP 与布局恢复。
+- [x] P0-07b1 QueryDisplayConfig 活动路径、virtual-mode 索引、rotation 与 monitor 一一关联（Conditional Pass）。
+- [ ] P0-07b2 负坐标、热切换、旋转、拔插、RDP、WM_DPICHANGED 与布局恢复。
 - [ ] 其余探针与交互验证。
 
 退出门槛：

@@ -72,7 +72,7 @@ Phase 0 首选：
 
 P0-04/P0-05a 已完成原生命中、Passive 样式和资源子集：当前证据支持下一原型采用“每显示器 HWND + 显式 Window Region”，但 Alt+Tab 实际 UI、Win+D、全屏和 UI Automation/Narrator 尚未验证，因此本 ADR 保持 Proposed，上述验证项不勾选。
 
-P0-07a 已完成静态双屏混合 DPI、拓扑指纹和资源稳定性子集；热切换、旋转、负坐标、休眠/RDP 和 `WM_DPICHANGED` 尚未验证，因此多显示器验证项继续保持未勾选。
+P0-07a 已完成静态双屏混合 DPI、拓扑指纹和资源稳定性子集；P0-07b1 已完成 CCD 活动路径、virtual-mode 索引、rotation 和 monitor 一一关联。热切换、真实旋转、负坐标、休眠/RDP 和 `WM_DPICHANGED` 尚未验证，因此多显示器验证项继续保持未勾选。
 
 ## 参考
 

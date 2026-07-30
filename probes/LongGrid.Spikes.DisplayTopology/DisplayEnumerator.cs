@@ -6,11 +6,15 @@ using LongGrid.Core.DesktopHost;
 
 internal static class DisplayEnumerator
 {
-    internal static DisplayEnumerationResult Enumerate()
+    internal static DisplayEnumerationResult Enumerate(
+        IReadOnlyDictionary<string, DisplayConfigurationPath>? pathsBySource =
+            null)
     {
         var displays = new List<DisplayTopologyNode>();
         int strongIdentityCount = 0;
         int fallbackIdentityCount = 0;
+        int displayConfigMappingCount = 0;
+        int sourceBoundsMatchCount = 0;
         Exception? callbackException = null;
 
         bool Callback(
@@ -21,7 +25,9 @@ internal static class DisplayEnumerator
         {
             try
             {
-                MonitorReadResult result = ReadMonitor(monitor);
+                MonitorReadResult result = ReadMonitor(
+                    monitor,
+                    pathsBySource);
                 displays.Add(result.Display);
                 if (result.UsedStableDeviceIdentity)
                 {
@@ -30,6 +36,16 @@ internal static class DisplayEnumerator
                 else
                 {
                     fallbackIdentityCount++;
+                }
+
+                if (result.MappedToDisplayConfig)
+                {
+                    displayConfigMappingCount++;
+                }
+
+                if (result.SourceBoundsMatch)
+                {
+                    sourceBoundsMatchCount++;
                 }
 
                 return true;
@@ -64,7 +80,9 @@ internal static class DisplayEnumerator
         return new DisplayEnumerationResult(
             displays,
             strongIdentityCount,
-            fallbackIdentityCount);
+            fallbackIdentityCount,
+            displayConfigMappingCount,
+            sourceBoundsMatchCount);
     }
 
     internal static PixelRect GetVirtualScreenBounds() =>
@@ -74,7 +92,9 @@ internal static class DisplayEnumerator
             NativeMethods.GetSystemMetrics(NativeMethods.SmCxVirtualScreen),
             NativeMethods.GetSystemMetrics(NativeMethods.SmCyVirtualScreen));
 
-    private static MonitorReadResult ReadMonitor(nint monitor)
+    private static MonitorReadResult ReadMonitor(
+        nint monitor,
+        IReadOnlyDictionary<string, DisplayConfigurationPath>? pathsBySource)
     {
         var info = new MonitorInfoEx
         {
@@ -99,9 +119,16 @@ internal static class DisplayEnumerator
             0,
             ref device,
             0);
+        DisplayConfigurationPath? displayConfigPath = null;
+        pathsBySource?.TryGetValue(info.DeviceName, out displayConfigPath);
         string identitySource;
         bool stableIdentity;
-        if (deviceRead && !string.IsNullOrWhiteSpace(device.DeviceId))
+        if (displayConfigPath is not null)
+        {
+            identitySource = displayConfigPath.StableTargetId;
+            stableIdentity = displayConfigPath.HasMonitorDevicePath;
+        }
+        else if (deviceRead && !string.IsNullOrWhiteSpace(device.DeviceId))
         {
             identitySource = device.DeviceId;
             stableIdentity = true;
@@ -120,11 +147,13 @@ internal static class DisplayEnumerator
         PixelRect bounds = ToPixelRect(info.Monitor);
         PixelRect workArea = ToPixelRect(info.WorkArea);
         uint dpi = ReadWindowDpi(bounds);
-        DisplayRotation rotation = bounds.Width >= bounds.Height
-            ? DisplayRotation.Landscape
-            : DisplayRotation.Portrait;
-        string stableId = Convert.ToHexString(
-            SHA256.HashData(Encoding.UTF8.GetBytes(identitySource)));
+        DisplayRotation rotation = displayConfigPath?.Rotation
+            ?? (bounds.Width >= bounds.Height
+                ? DisplayRotation.Landscape
+                : DisplayRotation.Portrait);
+        string stableId = displayConfigPath?.StableTargetId
+            ?? Convert.ToHexString(
+                SHA256.HashData(Encoding.UTF8.GetBytes(identitySource)));
 
         return new MonitorReadResult(
             new DisplayTopologyNode(
@@ -134,7 +163,9 @@ internal static class DisplayEnumerator
                 dpi,
                 rotation,
                 (info.Flags & NativeMethods.MonitorInfoPrimary) != 0),
-            stableIdentity);
+            stableIdentity,
+            displayConfigPath is not null,
+            displayConfigPath?.SourceBounds == bounds);
     }
 
     private static uint ReadWindowDpi(PixelRect bounds)
@@ -181,8 +212,12 @@ internal static class DisplayEnumerator
 internal sealed record DisplayEnumerationResult(
     IReadOnlyList<DisplayTopologyNode> Displays,
     int StrongIdentityCount,
-    int FallbackIdentityCount);
+    int FallbackIdentityCount,
+    int DisplayConfigMappingCount,
+    int SourceBoundsMatchCount);
 
 internal sealed record MonitorReadResult(
     DisplayTopologyNode Display,
-    bool UsedStableDeviceIdentity);
+    bool UsedStableDeviceIdentity,
+    bool MappedToDisplayConfig,
+    bool SourceBoundsMatch);

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using LongGrid.Core.DesktopHost;
 
 internal static class Program
@@ -9,6 +10,7 @@ internal static class Program
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() },
     };
 
     public static int Main(string[] args)
@@ -40,7 +42,7 @@ internal static class Program
         bool perMonitorV2Requested =
             NativeMethods.SetProcessDpiAwarenessContext(
                 NativeMethods.PerMonitorAwareV2);
-        _ = DisplayEnumerator.Enumerate();
+        _ = CaptureSnapshot();
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
@@ -48,21 +50,30 @@ internal static class Program
         using Process process = Process.GetCurrentProcess();
         ResourceSnapshot resourcesBefore = ResourceSnapshot.Capture(process);
         var fingerprints = new HashSet<string>(StringComparer.Ordinal);
+        var pathFingerprints = new HashSet<string>(StringComparer.Ordinal);
         var durations = new long[IterationCount];
-        DisplayEnumerationResult? last = null;
+        int maximumBufferAttempts = 0;
+        CombinedDisplaySnapshot? last = null;
 
         for (int index = 0; index < IterationCount; index++)
         {
             long started = Stopwatch.GetTimestamp();
-            last = DisplayEnumerator.Enumerate();
+            last = CaptureSnapshot();
             fingerprints.Add(
-                DisplayTopologyFingerprint.Compute(last.Displays));
+                DisplayTopologyFingerprint.Compute(last.Displays.Displays));
+            pathFingerprints.Add(
+                ComputePathFingerprint(last.Configuration.ActivePaths));
+            maximumBufferAttempts = Math.Max(
+                maximumBufferAttempts,
+                last.Configuration.BufferAttempts);
             durations[index] = Stopwatch.GetTimestamp() - started;
         }
 
         ResourceSnapshot resourcesAfter = ResourceSnapshot.Capture(process);
-        DisplayEnumerationResult result = last
+        CombinedDisplaySnapshot snapshot = last
             ?? throw new InvalidOperationException("No display snapshot was captured.");
+        DisplayEnumerationResult result = snapshot.Displays;
+        DisplayConfigurationResult configuration = snapshot.Configuration;
         PixelRect virtualScreen = DisplayEnumerator.GetVirtualScreenBounds();
         PixelRect displayBoundingBox = Union(result.Displays.Select(display =>
             display.Bounds));
@@ -74,7 +85,7 @@ internal static class Program
         Array.Sort(durations);
 
         var report = new ProbeReport(
-            Probe: "P0-07a-display-topology-and-dpi",
+            Probe: "P0-07b1-displayconfig-path-identity",
             TimestampUtc: DateTimeOffset.UtcNow,
             OperatingSystem: Environment.OSVersion.VersionString,
             Architecture: RuntimeInformation.OSArchitecture.ToString(),
@@ -86,6 +97,22 @@ internal static class Program
             StrongIdentityCount: result.StrongIdentityCount,
             FallbackIdentityCount: result.FallbackIdentityCount,
             DistinctTopologyFingerprints: fingerprints.Count,
+            ActiveDisplayPathCount: configuration.ActivePaths.Count,
+            DisplayConfigMappingCount: result.DisplayConfigMappingCount,
+            SourceBoundsMatchCount: result.SourceBoundsMatchCount,
+            AvailableTargetCount: configuration.ActivePaths.Count(path =>
+                path.TargetAvailable),
+            TargetDevicePathCount: configuration.ActivePaths.Count(path =>
+                path.HasMonitorDevicePath),
+            VirtualModePathCount: configuration.ActivePaths.Count(path =>
+                path.UsesVirtualMode),
+            DistinctPathFingerprints: pathFingerprints.Count,
+            MaximumBufferAttempts: maximumBufferAttempts,
+            Rotations: configuration.ActivePaths
+                .Select(path => path.Rotation)
+                .Distinct()
+                .Order()
+                .ToArray(),
             EffectiveDpiValues: dpiValues,
             MixedDpi: dpiValues.Length > 1,
             HasNegativeVirtualCoordinates: result.Displays.Any(display =>
@@ -107,13 +134,14 @@ internal static class Program
             [
                 "No display name, PNP identifier, device path, serial-like value, or raw topology fingerprint is printed.",
                 "Device identity is hashed in memory and used only to compare snapshots within this local process.",
+                "DisplayConfig adapter LUIDs, target IDs, monitor paths, GDI source names, EDID values, and path fingerprints are not printed.",
                 "The probe is read-only and does not change resolution, scale, orientation, topology, brightness, or color settings.",
             ],
             Limitations:
             [
-                "The current static topology was sampled; no monitor was attached, detached, rotated, or rescaled.",
-                "Landscape versus portrait is inferred from bounds; flipped orientation requires QueryDisplayConfig or display settings data.",
-                "Device ID or device-key availability is provider-dependent and is not guaranteed across driver reinstall, RDP, or virtualization.",
+                "The current static session was measured; no display transition was induced.",
+                "Adapter LUID and target IDs are session-scoped correlation data, not durable hardware identities.",
+                "Monitor device paths may change across driver reinstall, RDP, virtualization, or hardware replacement.",
                 "WM_DPICHANGED handling, suggested rectangles, negative-coordinate movement, and live layout remapping remain P0-07b.",
                 "Only the current Windows build, session, GPU driver, and hardware topology were measured.",
             ]);
@@ -131,12 +159,45 @@ internal static class Program
             && result.Displays.Count > 0
             && report.PrimaryMonitorCount == 1
             && report.DistinctTopologyFingerprints == 1
+            && report.DistinctPathFingerprints == 1
+            && report.ActiveDisplayPathCount == result.Displays.Count
+            && report.DisplayConfigMappingCount == result.Displays.Count
+            && report.SourceBoundsMatchCount == result.Displays.Count
+            && report.AvailableTargetCount == result.Displays.Count
+            && report.TargetDevicePathCount == result.Displays.Count
             && report.WorkAreasInsideMonitorBounds == result.Displays.Count
             && report.VirtualScreenMatchesMonitorBoundingBox
             && resourcesAfter.UserObjects <= resourcesBefore.UserObjects + 1
             && resourcesAfter.GdiObjects <= resourcesBefore.GdiObjects + 1
             && resourcesAfter.ProcessHandles <= resourcesBefore.ProcessHandles + 2;
         return passed ? 0 : 2;
+    }
+
+    private static CombinedDisplaySnapshot CaptureSnapshot()
+    {
+        DisplayConfigurationResult configuration =
+            DisplayConfigurationEnumerator.EnumerateActivePaths();
+        var pathsBySource = configuration.ActivePaths.ToDictionary(
+            path => path.SourceName,
+            StringComparer.OrdinalIgnoreCase);
+        DisplayEnumerationResult displays =
+            DisplayEnumerator.Enumerate(pathsBySource);
+        return new CombinedDisplaySnapshot(configuration, displays);
+    }
+
+    private static string ComputePathFingerprint(
+        IEnumerable<DisplayConfigurationPath> paths)
+    {
+        string canonical = string.Join(
+            "|",
+            paths
+                .OrderBy(path => path.StableTargetId, StringComparer.Ordinal)
+                .Select(path => string.Create(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    $"{path.StableTargetId}:{path.Rotation}:{path.SourceBounds.Left},{path.SourceBounds.Top},{path.SourceBounds.Width},{path.SourceBounds.Height}:{path.TargetAvailable}:{path.UsesVirtualMode}")));
+        return Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(canonical)));
     }
 
     private static PixelRect Union(IEnumerable<PixelRect> rectangles)
@@ -175,6 +236,9 @@ internal static class Program
         Console.WriteLine($"Monitors: {report.MonitorCount}");
         Console.WriteLine(
             $"Topology fingerprints: {report.DistinctTopologyFingerprints}");
+        Console.WriteLine($"Active display paths: {report.ActiveDisplayPathCount}");
+        Console.WriteLine(
+            $"DisplayConfig mappings: {report.DisplayConfigMappingCount}");
         Console.WriteLine(
             $"DPI values: {string.Join(", ", report.EffectiveDpiValues)}");
         Console.WriteLine(
@@ -189,8 +253,8 @@ internal static class Program
             """
             LongGrid.Spikes.DisplayTopology
 
-            P0-07a read-only display topology, effective DPI, identity fallback,
-            fingerprint stability, coordinate, and native-resource audit.
+            P0-07b1 read-only DisplayConfig adapter/target path correlation,
+            rotation, buffer-race handling, and privacy audit.
 
             Usage:
               dotnet run --project probes/LongGrid.Spikes.DisplayTopology -- [options]
@@ -245,6 +309,10 @@ internal sealed record ResourceSnapshot(
             process.HandleCount);
 }
 
+internal sealed record CombinedDisplaySnapshot(
+    DisplayConfigurationResult Configuration,
+    DisplayEnumerationResult Displays);
+
 internal sealed record ProbeReport(
     string Probe,
     DateTimeOffset TimestampUtc,
@@ -257,6 +325,15 @@ internal sealed record ProbeReport(
     int StrongIdentityCount,
     int FallbackIdentityCount,
     int DistinctTopologyFingerprints,
+    int ActiveDisplayPathCount,
+    int DisplayConfigMappingCount,
+    int SourceBoundsMatchCount,
+    int AvailableTargetCount,
+    int TargetDevicePathCount,
+    int VirtualModePathCount,
+    int DistinctPathFingerprints,
+    int MaximumBufferAttempts,
+    IReadOnlyList<DisplayRotation> Rotations,
     IReadOnlyList<uint> EffectiveDpiValues,
     bool MixedDpi,
     bool HasNegativeVirtualCoordinates,
