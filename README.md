@@ -2,7 +2,7 @@
 
 Long Grid 是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：已进入 Phase 0。基础工程、桌面/Shell 发现、稳定身份、Shell 变化通知，以及图标/缓存缩略图资源稳定性探针已经完成当前机器验证。正式 DesktopHost 与 MVP 尚未开始。
+> 当前状态：已进入 Phase 0。基础工程、桌面/Shell 数据链和图像资源探针已完成；DesktopHost 原生窗口模型子探针暂定“每显示器 HWND + 显式交互区域”，但交互/无障碍矩阵尚未关闭。正式 MVP 尚未开始。
 
 ## 产品原则
 
@@ -34,7 +34,7 @@ Long Grid 是一款面向 Windows 10/11 的桌面整理与工作空间管理工�
 
 ## 建议的下一步
 
-继续 Phase 0 双轨验证：交互轨建立首次整理、拖放语义和撤销原型；技术轨下一步比较每容器 HWND 与每显示器 HWND，并补充缩略图工作进程的硬超时/崩溃恢复。只有体验与技术风险同时通过，再进入 MVP 开发。
+继续 Phase 0 双轨验证：交互轨建立首次整理、拖放语义和撤销原型；技术轨下一步验证 DesktopHost 的 Win+D、全屏、拖放、混合 DPI 和无障碍矩阵，并补充缩略图工作进程的硬超时/崩溃恢复。只有体验与技术风险同时通过，再进入 MVP 开发。
 
 ## 开发与验证
 
@@ -65,6 +65,9 @@ dotnet run --project probes/LongGrid.Spikes.ShellChangeNotifications `
   --configuration Release -- --json
 
 dotnet run --project probes/LongGrid.Spikes.ShellItemImages `
+  --configuration Release -- --json
+
+dotnet run --project probes/LongGrid.Spikes.DesktopHostWindowModels `
   --configuration Release -- --json
 ```
 

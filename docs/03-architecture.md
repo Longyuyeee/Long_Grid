@@ -20,7 +20,7 @@
 
 微软当前将 WinUI 3 + Windows App SDK 推荐给新的原生 Windows 应用；Windows App SDK 同时允许现有桌面框架使用现代 API。版本应固定到开发时的 Stable 通道，而不是 Preview/Experimental。
 
-这里的推荐只确定设置应用和共享窗口基础。DesktopHost 是否继续使用 WinUI 3 尚未确定，必须比较“每容器一个 HWND”和“每显示器一个 HWND”的 Z-order、透明命中、Win+D、DPI、无障碍和资源结果。不得使用未文档化的 `Progman`/`WorkerW` 嵌入作为发布架构。
+这里的推荐只确定设置应用和共享窗口基础。P0-04/P0-05a 的原生窗口探针表明，在 100 容器场景下，“每显示器一个 HWND + 显式交互区域”能以更少 USER 资源实现准确跨进程空白区穿透，因此作为下一 DesktopHost 原型；Win+D、全屏、DPI、拖放和无障碍尚未通过，不能升级为最终技术栈决策。不得使用未文档化的 `Progman`/`WorkerW` 嵌入作为发布架构。
 
 参考：[Windows 应用开发平台选择](https://learn.microsoft.com/windows/apps/)、[Windows App SDK](https://learn.microsoft.com/windows/apps/windows-app-sdk/)、[.NET 支持策略](https://dotnet.microsoft.com/platform/support/policy)
 
@@ -165,7 +165,7 @@ P0-02 已验证 Shell 会强烈合并高频变化：1,100 次沙箱操作每轮�
 
 | 探针 | 通过标准 |
 |---|---|
-| 桌面层与 Z-order | 显示桌面、Win+D、全屏和 Explorer 重启后行为可预测 |
+| 桌面层与 Z-order | 原生命中/资源子探针通过；显示桌面、Win+D、全屏和 Explorer 重启后行为仍需验证 |
 | 拖放与 Shell 项目 | 文件、文件夹、快捷方式、URL、OneDrive 占位均可识别 |
 | 多显示器/DPI | 100%–400%、拔插/旋转/休眠后不丢失布局 |
 | 透明容器性能 | 100 容器/500 项目下拖动流畅、空闲预算达标 |

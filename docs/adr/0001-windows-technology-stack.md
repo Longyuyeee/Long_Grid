@@ -70,6 +70,8 @@ Phase 0 首选：
 - [ ] MSIX 安装、升级、开机启动和卸载。
 - [ ] UI Automation/Narrator 支持。
 
+P0-04/P0-05a 已完成原生命中、Passive 样式和资源子集：当前证据支持下一原型采用“每显示器 HWND + 显式 Window Region”，但 Alt+Tab 实际 UI、Win+D、全屏和 UI Automation/Narrator 尚未验证，因此本 ADR 保持 Proposed，上述验证项不勾选。
+
 ## 参考
 
 - [Windows 应用开发文档](https://learn.microsoft.com/windows/apps/)
