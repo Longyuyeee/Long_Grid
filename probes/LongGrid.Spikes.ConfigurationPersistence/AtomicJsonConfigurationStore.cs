@@ -58,6 +58,67 @@ public sealed class InjectedDiskFullException(ConfigurationDiskFullCheckpoint ch
 public sealed class ConfigurationWriteLeaseException(IOException innerException)
     : IOException("The configuration write lease is unavailable.", innerException);
 
+public sealed class ConfigurationWriteLeaseRetryPolicy
+{
+    private static readonly TimeSpan MinimumDelay = TimeSpan.FromMilliseconds(1);
+
+    public ConfigurationWriteLeaseRetryPolicy(
+        TimeSpan timeout,
+        TimeSpan initialDelay,
+        TimeSpan maximumDelay)
+    {
+        if (timeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(timeout),
+                timeout,
+                "The write lease retry timeout must be positive.");
+        }
+
+        if (initialDelay < MinimumDelay)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(initialDelay),
+                initialDelay,
+                "The initial write lease retry delay must be at least one millisecond.");
+        }
+
+        if (maximumDelay < initialDelay)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maximumDelay),
+                maximumDelay,
+                "The maximum write lease retry delay must not be shorter than the initial delay.");
+        }
+
+        Timeout = timeout;
+        InitialDelay = initialDelay;
+        MaximumDelay = maximumDelay;
+    }
+
+    public TimeSpan Timeout { get; }
+
+    public TimeSpan InitialDelay { get; }
+
+    public TimeSpan MaximumDelay { get; }
+
+    internal TimeSpan GetDelay(int failedAttempts)
+    {
+        long delayTicks = InitialDelay.Ticks;
+
+        for (int attempt = 1;
+             attempt < failedAttempts && delayTicks < MaximumDelay.Ticks;
+             attempt++)
+        {
+            delayTicks = delayTicks > MaximumDelay.Ticks / 2
+                ? MaximumDelay.Ticks
+                : Math.Min(delayTicks * 2, MaximumDelay.Ticks);
+        }
+
+        return TimeSpan.FromTicks(delayTicks);
+    }
+}
+
 public sealed class AtomicJsonConfigurationStore<T>
     where T : class
 {
@@ -122,6 +183,7 @@ public sealed class AtomicJsonConfigurationStore<T>
         AtomicConfigurationSaveCheckpoint? injectedFailure = null,
         Func<AtomicConfigurationSaveCheckpoint, CancellationToken, Task>? checkpointObserver = null,
         ConfigurationDiskFullCheckpoint? injectedDiskFull = null,
+        ConfigurationWriteLeaseRetryPolicy? writeLeaseRetryPolicy = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -133,7 +195,9 @@ public sealed class AtomicJsonConfigurationStore<T>
         }
 
         Directory.CreateDirectory(DirectoryPath);
-        using FileStream writeLease = AcquireWriteLease();
+        using FileStream writeLease = await AcquireWriteLeaseAsync(
+            writeLeaseRetryPolicy,
+            cancellationToken).ConfigureAwait(false);
 
         ConfigurationLoadResult<T> existing = await LoadAsync(cancellationToken).ConfigureAwait(false);
         if (existing.Status is ConfigurationLoadStatus.RecoveredFromBackup
@@ -351,22 +415,60 @@ public sealed class AtomicJsonConfigurationStore<T>
         CancellationToken cancellationToken) =>
         observer?.Invoke(checkpoint, cancellationToken) ?? Task.CompletedTask;
 
-    private FileStream AcquireWriteLease()
+    private async Task<FileStream> AcquireWriteLeaseAsync(
+        ConfigurationWriteLeaseRetryPolicy? retryPolicy,
+        CancellationToken cancellationToken)
     {
-        try
+        System.Diagnostics.Stopwatch elapsed = System.Diagnostics.Stopwatch.StartNew();
+        int failedAttempts = 0;
+        IOException? lastException = null;
+
+        while (true)
         {
-            FileStreamOptions options = new()
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (failedAttempts > 0
+                && retryPolicy is not null
+                && elapsed.Elapsed >= retryPolicy.Timeout)
             {
-                Access = FileAccess.ReadWrite,
-                Mode = FileMode.OpenOrCreate,
-                Options = FileOptions.None,
-                Share = FileShare.None,
-            };
-            return new FileStream(WriteLeasePath, options);
-        }
-        catch (IOException exception)
-        {
-            throw new ConfigurationWriteLeaseException(exception);
+                throw new ConfigurationWriteLeaseException(lastException!);
+            }
+
+            try
+            {
+                FileStreamOptions options = new()
+                {
+                    Access = FileAccess.ReadWrite,
+                    Mode = FileMode.OpenOrCreate,
+                    Options = FileOptions.None,
+                    Share = FileShare.None,
+                };
+                return new FileStream(WriteLeasePath, options);
+            }
+            catch (IOException exception)
+            {
+                lastException = exception;
+                failedAttempts++;
+
+                if (retryPolicy is null || elapsed.Elapsed >= retryPolicy.Timeout)
+                {
+                    throw new ConfigurationWriteLeaseException(exception);
+                }
+
+                TimeSpan remaining = retryPolicy.Timeout - elapsed.Elapsed;
+                TimeSpan delay = retryPolicy.GetDelay(failedAttempts);
+                if (delay > remaining)
+                {
+                    delay = remaining;
+                }
+
+                if (delay <= TimeSpan.Zero)
+                {
+                    throw new ConfigurationWriteLeaseException(exception);
+                }
+
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 

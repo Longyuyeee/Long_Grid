@@ -15,6 +15,11 @@ if (args.Length > 0 && args[0] == "--child-acl-save")
     return await RunChildAclSaveAsync(args);
 }
 
+if (args.Length > 0 && args[0] == "--child-hold-lease")
+{
+    return await RunChildHoldLeaseAsync(args);
+}
+
 bool jsonOutput = args.Contains("--json", StringComparer.Ordinal);
 int iterations = ParseIterations(args);
 int killIterations = ParseBoundedOption(args, "--kill-iterations", defaultValue: 3, maximum: 1000);
@@ -36,6 +41,10 @@ try
         directory => VerifyProcessTerminationCheckpointsAsync(directory, killIterations),
         results);
     await RunScenarioAsync("concurrent-writer-lease", VerifyConcurrentWriterLeaseAsync, results);
+    await RunScenarioAsync(
+        "bounded-write-lease-retry",
+        VerifyBoundedWriteLeaseRetryAsync,
+        results);
     await RunScenarioAsync("schema-migration-and-rollback", VerifySchemaMigrationAndRollbackAsync, results);
     await RunScenarioAsync("read-only-file-recovery", VerifyReadOnlyFileRecoveryAsync, results);
     await RunScenarioAsync("simulated-disk-full-recovery", VerifyDiskFullRecoveryAsync, results);
@@ -470,6 +479,205 @@ async Task VerifyConcurrentWriterLeaseAsync(string directory)
         recovered.Document?.Containers[0].Name == "after-lease-release",
         "The post-termination writer did not commit.");
     Require(!File.Exists(store.TemporaryPath), "The abandoned staged file was not cleaned.");
+}
+
+async Task VerifyBoundedWriteLeaseRetryAsync(string directory)
+{
+    ConfigurationWriteLeaseRetryPolicy sequencePolicy = new(
+        timeout: TimeSpan.FromSeconds(1),
+        initialDelay: TimeSpan.FromMilliseconds(20),
+        maximumDelay: TimeSpan.FromMilliseconds(100));
+    long[] expectedDelayMilliseconds = [20, 40, 80, 100, 100];
+    for (int attempt = 1; attempt <= expectedDelayMilliseconds.Length; attempt++)
+    {
+        RequireProbe(
+            sequencePolicy.GetDelay(attempt)
+                == TimeSpan.FromMilliseconds(expectedDelayMilliseconds[attempt - 1]),
+            "lease-retry-sequence-invalid");
+    }
+
+    bool subMillisecondDelayRejected = false;
+    try
+    {
+        _ = new ConfigurationWriteLeaseRetryPolicy(
+            timeout: TimeSpan.FromSeconds(1),
+            initialDelay: TimeSpan.FromTicks(1),
+            maximumDelay: TimeSpan.FromMilliseconds(1));
+    }
+    catch (ArgumentOutOfRangeException)
+    {
+        subMillisecondDelayRejected = true;
+    }
+
+    RequireProbe(subMillisecondDelayRejected, "lease-retry-busy-loop-policy-accepted");
+
+    await VerifyWriteLeaseRetrySuccessAsync(Path.Combine(directory, "success"));
+    await VerifyWriteLeaseRetryTimeoutAsync(Path.Combine(directory, "timeout"));
+    await VerifyWriteLeaseRetryCancellationAsync(Path.Combine(directory, "cancellation"));
+}
+
+async Task VerifyWriteLeaseRetrySuccessAsync(string directory)
+{
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> store = CreateStore(directory);
+    await store.SaveAsync(CreateDocument("baseline"));
+    byte[] primaryBefore = await File.ReadAllBytesAsync(store.PrimaryPath);
+    string readyPath = Path.Combine(directory, "holder.ready");
+    string releasePath = Path.Combine(directory, "holder.release");
+    using Process process = Process.Start(CreateLeaseHolderStartInfo(
+        directory,
+        readyPath,
+        releasePath))
+        ?? throw new InvalidOperationException("The write lease holder process did not start.");
+
+    try
+    {
+        await WaitForChildReadyAsync(process, readyPath);
+        ConfigurationWriteLeaseRetryPolicy retryPolicy = new(
+            timeout: TimeSpan.FromSeconds(3),
+            initialDelay: TimeSpan.FromMilliseconds(20),
+            maximumDelay: TimeSpan.FromMilliseconds(100));
+        Task queuedSave = store.SaveAsync(
+            CreateDocument("queued"),
+            writeLeaseRetryPolicy: retryPolicy);
+
+        await Task.Delay(TimeSpan.FromMilliseconds(150));
+        RequireProbe(!queuedSave.IsCompleted, "lease-retry-did-not-wait");
+        RequireProbe(
+            primaryBefore.SequenceEqual(await File.ReadAllBytesAsync(store.PrimaryPath)),
+            "lease-retry-primary-changed-while-waiting");
+
+        await ReleaseLeaseHolderAsync(process, releasePath);
+        await queuedSave;
+    }
+    finally
+    {
+        await ReleaseLeaseHolderAsync(process, releasePath);
+    }
+
+    RequireProbe(
+        (await store.LoadAsync()).Document?.Containers[0].Name == "queued",
+        "lease-retry-success-not-committed");
+    ProbeConfigurationDocument backup =
+        JsonSerializer.Deserialize<ProbeConfigurationDocument>(
+            await File.ReadAllTextAsync(store.BackupPath),
+            ProbeJsonOptions.Configuration)
+        ?? throw new ProbeAssertionException("lease-retry-success-backup-invalid");
+    RequireProbe(
+        backup.Containers[0].Name == "baseline",
+        "lease-retry-success-backup-invalid");
+}
+
+async Task VerifyWriteLeaseRetryTimeoutAsync(string directory)
+{
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> store = CreateStore(directory);
+    await store.SaveAsync(CreateDocument("baseline"));
+    byte[] primaryBefore = await File.ReadAllBytesAsync(store.PrimaryPath);
+    string readyPath = Path.Combine(directory, "holder.ready");
+    string releasePath = Path.Combine(directory, "holder.release");
+    using Process process = Process.Start(CreateLeaseHolderStartInfo(
+        directory,
+        readyPath,
+        releasePath))
+        ?? throw new InvalidOperationException("The write lease holder process did not start.");
+
+    try
+    {
+        await WaitForChildReadyAsync(process, readyPath);
+        ConfigurationWriteLeaseRetryPolicy retryPolicy = new(
+            timeout: TimeSpan.FromMilliseconds(250),
+            initialDelay: TimeSpan.FromMilliseconds(25),
+            maximumDelay: TimeSpan.FromMilliseconds(50));
+        Stopwatch elapsed = Stopwatch.StartNew();
+        bool timedOut = false;
+
+        try
+        {
+            await store.SaveAsync(
+                CreateDocument("must-not-commit"),
+                writeLeaseRetryPolicy: retryPolicy);
+        }
+        catch (ConfigurationWriteLeaseException)
+        {
+            timedOut = true;
+        }
+
+        elapsed.Stop();
+        RequireProbe(timedOut, "lease-retry-timeout-not-enforced");
+        RequireProbe(
+            elapsed.Elapsed >= TimeSpan.FromMilliseconds(150)
+                && elapsed.Elapsed < TimeSpan.FromSeconds(3),
+            "lease-retry-timeout-out-of-bounds");
+        RequireProbe(
+            primaryBefore.SequenceEqual(await File.ReadAllBytesAsync(store.PrimaryPath)),
+            "lease-retry-timeout-changed-primary");
+        RequireProbe(!File.Exists(store.TemporaryPath), "lease-retry-timeout-created-temp");
+    }
+    finally
+    {
+        await ReleaseLeaseHolderAsync(process, releasePath);
+    }
+
+    await store.SaveAsync(CreateDocument("recovered"));
+    RequireProbe(
+        (await store.LoadAsync()).Document?.Containers[0].Name == "recovered",
+        "lease-retry-timeout-recovery-not-committed");
+}
+
+async Task VerifyWriteLeaseRetryCancellationAsync(string directory)
+{
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> store = CreateStore(directory);
+    await store.SaveAsync(CreateDocument("baseline"));
+    byte[] primaryBefore = await File.ReadAllBytesAsync(store.PrimaryPath);
+    string readyPath = Path.Combine(directory, "holder.ready");
+    string releasePath = Path.Combine(directory, "holder.release");
+    using Process process = Process.Start(CreateLeaseHolderStartInfo(
+        directory,
+        readyPath,
+        releasePath))
+        ?? throw new InvalidOperationException("The write lease holder process did not start.");
+
+    try
+    {
+        await WaitForChildReadyAsync(process, readyPath);
+        ConfigurationWriteLeaseRetryPolicy retryPolicy = new(
+            timeout: TimeSpan.FromSeconds(3),
+            initialDelay: TimeSpan.FromMilliseconds(25),
+            maximumDelay: TimeSpan.FromMilliseconds(100));
+        using CancellationTokenSource cancellation = new(TimeSpan.FromMilliseconds(150));
+        Stopwatch elapsed = Stopwatch.StartNew();
+        bool cancelled = false;
+
+        try
+        {
+            await store.SaveAsync(
+                CreateDocument("must-not-commit"),
+                writeLeaseRetryPolicy: retryPolicy,
+                cancellationToken: cancellation.Token);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            cancelled = true;
+        }
+
+        elapsed.Stop();
+        RequireProbe(cancelled, "lease-retry-cancellation-not-observed");
+        RequireProbe(
+            elapsed.Elapsed < TimeSpan.FromSeconds(3),
+            "lease-retry-cancellation-out-of-bounds");
+        RequireProbe(
+            primaryBefore.SequenceEqual(await File.ReadAllBytesAsync(store.PrimaryPath)),
+            "lease-retry-cancellation-changed-primary");
+        RequireProbe(!File.Exists(store.TemporaryPath), "lease-retry-cancellation-created-temp");
+    }
+    finally
+    {
+        await ReleaseLeaseHolderAsync(process, releasePath);
+    }
+
+    await store.SaveAsync(CreateDocument("recovered"));
+    RequireProbe(
+        (await store.LoadAsync()).Document?.Containers[0].Name == "recovered",
+        "lease-retry-cancellation-recovery-not-committed");
 }
 
 async Task VerifyReadOnlyFileRecoveryAsync(string directory)
@@ -1507,6 +1715,38 @@ static ProcessStartInfo CreateAclChildStartInfo(
     return startInfo;
 }
 
+static ProcessStartInfo CreateLeaseHolderStartInfo(
+    string directory,
+    string readyPath,
+    string releasePath)
+{
+    string processPath = Environment.ProcessPath
+        ?? throw new InvalidOperationException("The current process path is unavailable.");
+    ProcessStartInfo startInfo = new(processPath)
+    {
+        CreateNoWindow = true,
+        RedirectStandardError = true,
+        RedirectStandardOutput = true,
+        UseShellExecute = false,
+        WindowStyle = ProcessWindowStyle.Hidden,
+    };
+
+    if (string.Equals(
+        Path.GetFileNameWithoutExtension(processPath),
+        "dotnet",
+        StringComparison.OrdinalIgnoreCase))
+    {
+        string entryAssemblyPath = Environment.GetCommandLineArgs()[0];
+        startInfo.ArgumentList.Add(entryAssemblyPath);
+    }
+
+    startInfo.ArgumentList.Add("--child-hold-lease");
+    startInfo.ArgumentList.Add(directory);
+    startInfo.ArgumentList.Add(readyPath);
+    startInfo.ArgumentList.Add(releasePath);
+    return startInfo;
+}
+
 static async Task WaitForChildReadyAsync(Process process, string readyPath)
 {
     using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(15));
@@ -1521,6 +1761,18 @@ static async Task WaitForChildReadyAsync(Process process, string readyPath)
 
         await Task.Delay(TimeSpan.FromMilliseconds(20), timeout.Token);
     }
+}
+
+static async Task ReleaseLeaseHolderAsync(Process process, string releasePath)
+{
+    if (!process.HasExited)
+    {
+        await File.WriteAllTextAsync(releasePath, "release");
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(5));
+        await process.WaitForExitAsync(timeout.Token);
+    }
+
+    RequireProbe(process.ExitCode == 0, "lease-holder-exit-failed");
 }
 
 static async Task WaitForWriteLeaseReleaseAsync(string writeLeasePath)
@@ -1648,6 +1900,51 @@ static async Task<int> RunChildAclSaveAsync(string[] arguments)
                 cancellationToken);
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         });
+
+    return 0;
+}
+
+static async Task<int> RunChildHoldLeaseAsync(string[] arguments)
+{
+    if (arguments.Length != 4)
+    {
+        return 2;
+    }
+
+    string fullDirectory = Path.GetFullPath(arguments[1]);
+    string fullReadyPath = Path.GetFullPath(arguments[2]);
+    string fullReleasePath = Path.GetFullPath(arguments[3]);
+
+    if (!string.Equals(
+            Path.GetDirectoryName(fullReadyPath),
+            fullDirectory,
+            StringComparison.OrdinalIgnoreCase)
+        || !string.Equals(
+            Path.GetDirectoryName(fullReleasePath),
+            fullDirectory,
+            StringComparison.OrdinalIgnoreCase))
+    {
+        return 2;
+    }
+
+    Directory.CreateDirectory(fullDirectory);
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> store = CreateStore(fullDirectory);
+    FileStreamOptions options = new()
+    {
+        Access = FileAccess.ReadWrite,
+        Mode = FileMode.OpenOrCreate,
+        Options = FileOptions.None,
+        Share = FileShare.None,
+    };
+
+    using FileStream writeLease = new(store.WriteLeasePath, options);
+    await File.WriteAllTextAsync(fullReadyPath, "ready");
+    using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(15));
+
+    while (!File.Exists(fullReleasePath))
+    {
+        await Task.Delay(TimeSpan.FromMilliseconds(20), timeout.Token);
+    }
 
     return 0;
 }
