@@ -43,6 +43,10 @@ try
         "replace-acl-denial-recovery",
         VerifyReplaceAclDenialRecoveryAsync,
         results);
+    await RunScenarioAsync(
+        "primary-write-acl-semantics",
+        VerifyPrimaryWriteAclSemanticsAsync,
+        results);
     await RunScenarioAsync("stale-temp-is-ignored", VerifyStaleTemporaryFileIsIgnoredAsync, results);
     await RunScenarioAsync("unknown-fields-survive", VerifyUnknownFieldsSurviveAsync, results);
     await RunScenarioAsync("bounded-document-size", VerifyBoundedDocumentSizeAsync, results);
@@ -811,6 +815,124 @@ async Task VerifyReplaceAclDenialRecoveryAsync(string directory)
         "acl-replace-recovery-not-committed");
 }
 
+async Task VerifyPrimaryWriteAclSemanticsAsync(string directory)
+{
+    if (!OperatingSystem.IsWindows())
+    {
+        throw new PlatformNotSupportedException(
+            "The primary write ACL semantics scenario requires Windows.");
+    }
+
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> store = CreateStore(directory);
+    await store.SaveAsync(CreateDocument("previous"));
+    await store.SaveAsync(CreateDocument("baseline"));
+
+    FileInfo primaryInfo = new(store.PrimaryPath);
+    FileInfo backupInfo = new(store.BackupPath);
+    FileSecurity originalPrimarySecurity = FileSystemAclExtensions.GetAccessControl(
+        primaryInfo,
+        AccessControlSections.Access);
+    FileSecurity originalBackupSecurity = FileSystemAclExtensions.GetAccessControl(
+        backupInfo,
+        AccessControlSections.Access);
+    byte[] originalPrimaryDescriptor = originalPrimarySecurity.GetSecurityDescriptorBinaryForm();
+    byte[] originalBackupDescriptor = originalBackupSecurity.GetSecurityDescriptorBinaryForm();
+    string[] originalPrimaryRules = GetCanonicalAccessRules(originalPrimarySecurity);
+    string[] originalBackupRules = GetCanonicalAccessRules(originalBackupSecurity);
+
+    using WindowsIdentity currentIdentity = WindowsIdentity.GetCurrent();
+    SecurityIdentifier currentUser = currentIdentity.User
+        ?? throw new InvalidOperationException("The current Windows user has no SID.");
+    FileSystemAccessRule denyWriteData = new(
+        currentUser,
+        FileSystemRights.WriteData,
+        AccessControlType.Deny);
+    FileSecurity deniedPrimarySecurity = new();
+    deniedPrimarySecurity.SetSecurityDescriptorBinaryForm(
+        originalPrimaryDescriptor,
+        AccessControlSections.Access);
+    deniedPrimarySecurity.AddAccessRule(denyWriteData);
+    bool primaryDenialApplied = false;
+
+    try
+    {
+        FileSystemAclExtensions.SetAccessControl(primaryInfo, deniedPrimarySecurity);
+        primaryDenialApplied = true;
+
+        ConfigurationLoadResult<ProbeConfigurationDocument> loaded = await store.LoadAsync();
+        RequireProbe(
+            loaded.Status == ConfigurationLoadStatus.LoadedPrimary
+                && loaded.Document?.Containers[0].Name == "baseline",
+            "acl-write-primary-not-loaded");
+
+        try
+        {
+            await store.SaveAsync(CreateDocument("candidate"));
+        }
+        catch (IOException)
+        {
+            throw new ProbeAssertionException("acl-write-replacement-blocked");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw new ProbeAssertionException("acl-write-replacement-blocked");
+        }
+
+        RequireProbe(
+            (await store.LoadAsync()).Document?.Containers[0].Name == "candidate",
+            "acl-write-primary-invalid");
+        ProbeConfigurationDocument backup =
+            JsonSerializer.Deserialize<ProbeConfigurationDocument>(
+                await File.ReadAllTextAsync(store.BackupPath),
+                ProbeJsonOptions.Configuration)
+            ?? throw new ProbeAssertionException("acl-write-backup-invalid");
+        RequireProbe(
+            backup.Containers[0].Name == "baseline",
+            "acl-write-backup-invalid");
+        RequireProbe(
+            HasDenyRule(
+                FileSystemAclExtensions.GetAccessControl(
+                    primaryInfo,
+                    AccessControlSections.Access),
+                currentUser,
+                FileSystemRights.WriteData),
+            "acl-write-denial-not-preserved");
+    }
+    finally
+    {
+        if (primaryDenialApplied)
+        {
+            FileSecurity restoredPrimarySecurity = new();
+            restoredPrimarySecurity.SetSecurityDescriptorBinaryForm(
+                originalPrimaryDescriptor,
+                AccessControlSections.Access);
+            FileSystemAclExtensions.SetAccessControl(primaryInfo, restoredPrimarySecurity);
+
+            FileSecurity restoredBackupSecurity = new();
+            restoredBackupSecurity.SetSecurityDescriptorBinaryForm(
+                originalBackupDescriptor,
+                AccessControlSections.Access);
+            FileSystemAclExtensions.SetAccessControl(backupInfo, restoredBackupSecurity);
+        }
+    }
+
+    RequireProbe(
+        GetCanonicalAccessRules(FileSystemAclExtensions.GetAccessControl(
+            primaryInfo,
+            AccessControlSections.Access)).SequenceEqual(originalPrimaryRules),
+        "acl-write-primary-rules-not-restored");
+    RequireProbe(
+        GetCanonicalAccessRules(FileSystemAclExtensions.GetAccessControl(
+            backupInfo,
+            AccessControlSections.Access)).SequenceEqual(originalBackupRules),
+        "acl-write-backup-rules-not-restored");
+
+    await store.SaveAsync(CreateDocument("recovered"));
+    RequireProbe(
+        (await store.LoadAsync()).Document?.Containers[0].Name == "recovered",
+        "acl-write-recovery-not-committed");
+}
+
 async Task VerifyReadOnlyPathAsync(
     string directory,
     Func<AtomicJsonConfigurationStore<ProbeConfigurationDocument>, string> targetSelector,
@@ -1141,6 +1263,32 @@ static string[] GetCanonicalAccessRules(FileSystemSecurity security)
 
     rules.Sort(StringComparer.Ordinal);
     return [.. rules];
+}
+
+static bool HasDenyRule(
+    FileSystemSecurity security,
+    SecurityIdentifier identity,
+    FileSystemRights requiredRights)
+{
+    if (!OperatingSystem.IsWindows())
+    {
+        throw new PlatformNotSupportedException("DACL inspection requires Windows.");
+    }
+
+    foreach (FileSystemAccessRule rule in security.GetAccessRules(
+        includeExplicit: true,
+        includeInherited: true,
+        typeof(SecurityIdentifier)))
+    {
+        if (rule.AccessControlType == AccessControlType.Deny
+            && rule.IdentityReference.Equals(identity)
+            && (rule.FileSystemRights & requiredRights) == requiredRights)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static async Task RequireDiskFullAsync(

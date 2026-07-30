@@ -2,7 +2,7 @@
 
 执行日期：2026-07-30 至 2026-07-31
 
-结果：**Conditional Pass（应用级原子替换、备份恢复、安全模式、四检查点子进程强杀、跨进程单写租约、确定性示例迁移回滚、只读文件恢复、受控磁盘满注入、创建/替换 ACL 拒绝恢复和目录只读属性语义通过；1,000 次强杀、断电、真实卷磁盘满/只读与完整权限矩阵仍待关闭）**
+结果：**Conditional Pass（应用级原子替换、备份恢复、安全模式、四检查点子进程强杀、跨进程单写租约、确定性示例迁移回滚、只读文件恢复、受控磁盘满注入、创建/替换/内容写入 ACL 语义和目录只读属性语义通过；1,000 次强杀、断电、真实卷磁盘满/只读与完整权限矩阵仍待关闭）**
 
 ## 1. 目标
 
@@ -24,6 +24,7 @@
 14. 临时目录拒绝当前用户新建文件时保存失败且不改变已提交版本；恢复原 DACL 后可继续写入，不申请管理员权限。
 15. Windows 目录 `FileAttributes.ReadOnly` 不得误判为写权限拒绝；属性存在时以真实保存结果为准，恢复原属性后仍可写入。
 16. 同时拒绝主/备份文件 `Delete` 和父目录 `DeleteSubdirectoriesAndFiles` 时，完整候选不得越过 `File.Replace` 提交边界；恢复三处 DACL 后可重试。
+17. 仅拒绝现有主文件的 `WriteData`、保留删除/替换授权时，原子替换仍应提交完整候选、保留上一版备份与目标拒绝 DACL；恢复原 DACL 后可继续写入。
 
 探针只写入自动创建并最终清理的临时沙箱，不读取或修改真实 Long Grid 配置、桌面文件或用户文档。
 
@@ -84,7 +85,7 @@ dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
   --iterations 1000 --kill-iterations 10 --json
 ```
 
-十五类自动化场景全部通过：
+十六类自动化场景全部通过：
 
 | 场景 | 结果 |
 |---|---|
@@ -99,6 +100,7 @@ dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
 | 临时目录 DACL 拒绝当前用户新建文件，失败不发布、原 DACL 规则语义恢复后重试成功 | Pass |
 | Windows 目录 `ReadOnly` 属性不阻止原子保存与备份更新，原属性恢复后继续写入 | Pass |
 | 文件 `Delete` 与父目录 `DeleteSubdirectoriesAndFiles` 同时拒绝，替换失败不发布、三处 DACL 恢复后重试成功 | Pass |
+| 仅拒绝现有主文件 `WriteData` 时仍通过 `File.Replace` 提交，备份正确且目标拒绝 DACL 保留，恢复规则后继续写入 | Pass |
 | 遗留 `.new` 不参与加载 | Pass |
 | 根级和容器级未知字段往返保留 | Pass |
 | 超大文档在反序列化前拒绝 | Pass |
@@ -123,6 +125,7 @@ dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
 - Windows 临时沙箱的 DACL 只增加当前用户 `CreateFiles` 拒绝，不拒绝读取、删除或修改权限；保存失败后主/备份字节不变，`finally` 恢复原 DACL，并按 SID、类型、权限、继承与传播标志组成的规范化规则集合比较，随后重试成功；失败只输出固定错误码，不输出 SID 或路径；
 - Windows 目录 `FileAttributes.ReadOnly` 是目录自定义/Explorer 语义，不是写访问控制；属性存在时 `.new`、`File.Replace` 和 `.bak` 正常工作，生产代码必须以实际 I/O/ACL/卷错误判断可写性；
 - 替换权限矩阵同时拒绝主/备份的 `Delete` 与父目录的 `DeleteSubdirectoriesAndFiles`，堵住 Windows 删除授权的两条路径；候选完成暂存后替换失败，主/备份字节不变、`.new` 被清理，三处 DACL 规则恢复后重试成功；
+- 仅对现有主文件拒绝当前用户 `WriteData` 不会阻止本实现的 `File.Replace`：候选成为完整主配置，原主配置成为正确备份，替换后的主文件仍保留该拒绝规则；因此“不能改写文件内容”不能推导为“不能原子替换”，删除与父目录替换权限必须单独验证；
 - 无效、空、超大和不支持 schema 的文档不会作为成功配置返回；
 - 探针输出不包含沙箱路径或配置内容。
 
@@ -130,7 +133,7 @@ dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
 
 - 目标 1,000 次真实进程强杀；当前只有 40 次本地和每次 CI 8 次证据；
 - 物理断电、磁盘缓存丢失、真实卷配额/空间耗尽、`File.Replace` 内部空间不足和只读卷/挂载点；
-- 已有文件内容改写拒绝、父目录继承变化、非 NTFS 权限模型，以及 ACL 修改期间进程终止；创建/替换拒绝通过不代表完整权限矩阵通过；
+- 父目录继承变化、非 NTFS 权限模型，以及 ACL 修改期间进程终止；创建/替换/内容写入语义通过不代表完整权限矩阵通过；
 - OneDrive、网络盘、FAT/exFAT 和非本地文件系统；
 - 完整应用单实例激活、写入排队/退避策略和高并发长时间压力；
 - 正式产品 v2 schema、多步迁移链、降级兼容期限和大配置迁移性能；
@@ -142,7 +145,7 @@ dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
 ## 7. 下一步
 
 1. 将四检查点真实强杀累计到 1,000 次，并记录耗时、失败分布和残留文件；
-2. 在隔离的配额卷或等价受控环境补真实空间耗尽、只读卷与替换内部失败；增加文件内容写拒绝、继承 ACL、ACL 修改期间终止和写入排队/退避矩阵；
+2. 在隔离的配额卷或等价受控环境补真实空间耗尽、只读卷与替换内部失败；增加继承 ACL、ACL 修改期间终止和写入排队/退避矩阵；
 3. 在产品合同确定后定义正式 v2 schema，补多步迁移、降级期限和真实大配置性能矩阵；
 4. 在首个只读 MVP 垂直切片中，以相同状态合同实现正式 Infrastructure 适配器；
 5. 安全模式 UI 必须允许导出脱敏诊断、选择备份和显式重试，不能自动清空配置。

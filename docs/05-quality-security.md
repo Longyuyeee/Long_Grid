@@ -86,6 +86,8 @@ MVP 不执行无人确认的自动真实文件移动。规则默认只改变 Lon
 
 Windows 目录的 `FileAttributes.ReadOnly` 不等同于写权限拒绝，不能单独作为“只读目录”判定。矩阵中的只读必须由实际 ACL、共享/卷策略或 I/O 失败证明，并验证应用不会发布部分结果。
 
+Windows 文件的内容写入权与原子替换权也不是同一权限边界：拒绝现有文件 `WriteData` 时，若文件删除或父目录替换授权仍存在，`File.Replace` 仍可能成功。权限测试必须分别覆盖内容改写、文件 `Delete`、父目录 `DeleteSubdirectoriesAndFiles`，并验证替换后目标 DACL。
+
 ### 交互与无障碍
 
 - 键盘-only、触控、鼠标、多种输入法。
