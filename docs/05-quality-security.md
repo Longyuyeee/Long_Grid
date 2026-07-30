@@ -88,6 +88,8 @@ Windows 目录的 `FileAttributes.ReadOnly` 不等同于写权限拒绝，不能
 
 Windows 文件的内容写入权与原子替换权也不是同一权限边界：拒绝现有文件 `WriteData` 时，若文件删除或父目录替换授权仍存在，`File.Replace` 仍可能成功。权限测试必须分别覆盖内容改写、文件 `Delete`、父目录 `DeleteSubdirectoriesAndFiles`，并验证替换后目标 DACL。
 
+父目录 ACL 变化还会把可继承规则传播到已有和新建子文件。若继承的文件 `Delete` 拒绝与父目录 `DeleteSubdirectoriesAndFiles` 拒绝同时存在，失败清理也可能暂时无法删除完整 `.new`；加载器必须忽略该暂存文件，权限恢复后的下一次保存必须先安全清理再提交。
+
 ### 交互与无障碍
 
 - 键盘-only、触控、鼠标、多种输入法。

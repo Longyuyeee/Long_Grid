@@ -47,6 +47,10 @@ try
         "primary-write-acl-semantics",
         VerifyPrimaryWriteAclSemanticsAsync,
         results);
+    await RunScenarioAsync(
+        "inherited-replace-acl-recovery",
+        VerifyInheritedReplaceAclRecoveryAsync,
+        results);
     await RunScenarioAsync("stale-temp-is-ignored", VerifyStaleTemporaryFileIsIgnoredAsync, results);
     await RunScenarioAsync("unknown-fields-survive", VerifyUnknownFieldsSurviveAsync, results);
     await RunScenarioAsync("bounded-document-size", VerifyBoundedDocumentSizeAsync, results);
@@ -933,6 +937,178 @@ async Task VerifyPrimaryWriteAclSemanticsAsync(string directory)
         "acl-write-recovery-not-committed");
 }
 
+async Task VerifyInheritedReplaceAclRecoveryAsync(string directory)
+{
+    if (!OperatingSystem.IsWindows())
+    {
+        throw new PlatformNotSupportedException(
+            "The inherited replacement ACL recovery scenario requires Windows.");
+    }
+
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> store = CreateStore(directory);
+    await store.SaveAsync(CreateDocument("previous"));
+    await store.SaveAsync(CreateDocument("baseline"));
+    byte[] primaryBefore = await File.ReadAllBytesAsync(store.PrimaryPath);
+    byte[] backupBefore = await File.ReadAllBytesAsync(store.BackupPath);
+
+    DirectoryInfo directoryInfo = new(directory);
+    FileInfo primaryInfo = new(store.PrimaryPath);
+    FileInfo backupInfo = new(store.BackupPath);
+    DirectorySecurity originalDirectorySecurity = FileSystemAclExtensions.GetAccessControl(
+        directoryInfo,
+        AccessControlSections.Access);
+    FileSecurity originalPrimarySecurity = FileSystemAclExtensions.GetAccessControl(
+        primaryInfo,
+        AccessControlSections.Access);
+    FileSecurity originalBackupSecurity = FileSystemAclExtensions.GetAccessControl(
+        backupInfo,
+        AccessControlSections.Access);
+    byte[] originalDirectoryDescriptor =
+        originalDirectorySecurity.GetSecurityDescriptorBinaryForm();
+    byte[] originalPrimaryDescriptor = originalPrimarySecurity.GetSecurityDescriptorBinaryForm();
+    byte[] originalBackupDescriptor = originalBackupSecurity.GetSecurityDescriptorBinaryForm();
+    string[] originalDirectoryRules = GetCanonicalAccessRules(originalDirectorySecurity);
+    string[] originalPrimaryRules = GetCanonicalAccessRules(originalPrimarySecurity);
+    string[] originalBackupRules = GetCanonicalAccessRules(originalBackupSecurity);
+
+    using WindowsIdentity currentIdentity = WindowsIdentity.GetCurrent();
+    SecurityIdentifier currentUser = currentIdentity.User
+        ?? throw new InvalidOperationException("The current Windows user has no SID.");
+    FileSystemAccessRule denyDeleteChildren = new(
+        currentUser,
+        FileSystemRights.DeleteSubdirectoriesAndFiles,
+        InheritanceFlags.None,
+        PropagationFlags.None,
+        AccessControlType.Deny);
+    FileSystemAccessRule inheritDeleteFile = new(
+        currentUser,
+        FileSystemRights.Delete,
+        InheritanceFlags.ObjectInherit,
+        PropagationFlags.InheritOnly,
+        AccessControlType.Deny);
+    DirectorySecurity deniedDirectorySecurity = new();
+    deniedDirectorySecurity.SetSecurityDescriptorBinaryForm(
+        originalDirectoryDescriptor,
+        AccessControlSections.Access);
+    deniedDirectorySecurity.AddAccessRule(denyDeleteChildren);
+    deniedDirectorySecurity.AddAccessRule(inheritDeleteFile);
+    bool directoryDenialApplied = false;
+
+    try
+    {
+        FileSystemAclExtensions.SetAccessControl(directoryInfo, deniedDirectorySecurity);
+        directoryDenialApplied = true;
+
+        RequireProbe(
+            HasDenyRule(
+                FileSystemAclExtensions.GetAccessControl(
+                    primaryInfo,
+                    AccessControlSections.Access),
+                currentUser,
+                FileSystemRights.Delete,
+                requireInherited: true),
+            "acl-inherited-primary-rule-missing");
+        RequireProbe(
+            HasDenyRule(
+                FileSystemAclExtensions.GetAccessControl(
+                    backupInfo,
+                    AccessControlSections.Access),
+                currentUser,
+                FileSystemRights.Delete,
+                requireInherited: true),
+            "acl-inherited-backup-rule-missing");
+
+        await RequireFileSystemSaveFailureAsync(
+            () => store.SaveAsync(CreateDocument("must-not-commit")),
+            unexpectedSuccessCode: "acl-inherited-denial-not-enforced");
+        RequireProbe(
+            primaryBefore.SequenceEqual(await File.ReadAllBytesAsync(store.PrimaryPath)),
+            "acl-inherited-primary-changed");
+        RequireProbe(
+            backupBefore.SequenceEqual(await File.ReadAllBytesAsync(store.BackupPath)),
+            "acl-inherited-backup-changed");
+        RequireProbe(File.Exists(store.TemporaryPath), "acl-inherited-temp-not-retained");
+        RequireProbe(
+            HasDenyRule(
+                FileSystemAclExtensions.GetAccessControl(
+                    new FileInfo(store.TemporaryPath),
+                    AccessControlSections.Access),
+                currentUser,
+                FileSystemRights.Delete,
+                requireInherited: true),
+            "acl-inherited-temp-rule-missing");
+        ProbeConfigurationDocument staged =
+            JsonSerializer.Deserialize<ProbeConfigurationDocument>(
+                await File.ReadAllTextAsync(store.TemporaryPath),
+                ProbeJsonOptions.Configuration)
+            ?? throw new ProbeAssertionException("acl-inherited-temp-invalid");
+        RequireProbe(
+            staged.Containers[0].Name == "must-not-commit",
+            "acl-inherited-temp-invalid");
+        ConfigurationLoadResult<ProbeConfigurationDocument> loaded = await store.LoadAsync();
+        RequireProbe(
+            loaded.Status == ConfigurationLoadStatus.LoadedPrimary
+                && loaded.Document?.Containers[0].Name == "baseline",
+            "acl-inherited-temp-was-loaded");
+    }
+    finally
+    {
+        if (directoryDenialApplied)
+        {
+            DirectorySecurity restoredDirectorySecurity = new();
+            restoredDirectorySecurity.SetSecurityDescriptorBinaryForm(
+                originalDirectoryDescriptor,
+                AccessControlSections.Access);
+            FileSystemAclExtensions.SetAccessControl(directoryInfo, restoredDirectorySecurity);
+
+            FileSecurity restoredPrimarySecurity = new();
+            restoredPrimarySecurity.SetSecurityDescriptorBinaryForm(
+                originalPrimaryDescriptor,
+                AccessControlSections.Access);
+            FileSystemAclExtensions.SetAccessControl(primaryInfo, restoredPrimarySecurity);
+
+            FileSecurity restoredBackupSecurity = new();
+            restoredBackupSecurity.SetSecurityDescriptorBinaryForm(
+                originalBackupDescriptor,
+                AccessControlSections.Access);
+            FileSystemAclExtensions.SetAccessControl(backupInfo, restoredBackupSecurity);
+
+            if (File.Exists(store.TemporaryPath))
+            {
+                FileSecurity restoredTemporarySecurity = new();
+                restoredTemporarySecurity.SetSecurityDescriptorBinaryForm(
+                    originalPrimaryDescriptor,
+                    AccessControlSections.Access);
+                FileSystemAclExtensions.SetAccessControl(
+                    new FileInfo(store.TemporaryPath),
+                    restoredTemporarySecurity);
+            }
+        }
+    }
+
+    RequireProbe(
+        GetCanonicalAccessRules(FileSystemAclExtensions.GetAccessControl(
+            directoryInfo,
+            AccessControlSections.Access)).SequenceEqual(originalDirectoryRules),
+        "acl-inherited-directory-rules-not-restored");
+    RequireProbe(
+        GetCanonicalAccessRules(FileSystemAclExtensions.GetAccessControl(
+            primaryInfo,
+            AccessControlSections.Access)).SequenceEqual(originalPrimaryRules),
+        "acl-inherited-primary-rules-not-restored");
+    RequireProbe(
+        GetCanonicalAccessRules(FileSystemAclExtensions.GetAccessControl(
+            backupInfo,
+            AccessControlSections.Access)).SequenceEqual(originalBackupRules),
+        "acl-inherited-backup-rules-not-restored");
+
+    await store.SaveAsync(CreateDocument("recovered"));
+    RequireProbe(
+        (await store.LoadAsync()).Document?.Containers[0].Name == "recovered",
+        "acl-inherited-recovery-not-committed");
+    RequireProbe(!File.Exists(store.TemporaryPath), "acl-inherited-temp-not-cleaned");
+}
+
 async Task VerifyReadOnlyPathAsync(
     string directory,
     Func<AtomicJsonConfigurationStore<ProbeConfigurationDocument>, string> targetSelector,
@@ -1268,7 +1444,8 @@ static string[] GetCanonicalAccessRules(FileSystemSecurity security)
 static bool HasDenyRule(
     FileSystemSecurity security,
     SecurityIdentifier identity,
-    FileSystemRights requiredRights)
+    FileSystemRights requiredRights,
+    bool requireInherited = false)
 {
     if (!OperatingSystem.IsWindows())
     {
@@ -1284,7 +1461,10 @@ static bool HasDenyRule(
             && rule.IdentityReference.Equals(identity)
             && (rule.FileSystemRights & requiredRights) == requiredRights)
         {
-            return true;
+            if (!requireInherited || rule.IsInherited)
+            {
+                return true;
+            }
         }
     }
 
