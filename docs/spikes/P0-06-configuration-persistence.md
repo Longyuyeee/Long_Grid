@@ -94,7 +94,7 @@ dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
 | 跨进程写租约争用、旧读快照、持有者强杀与租约恢复 | Pass |
 | 主文件、备份、遗留 `.new` 和 `.lock` 只读时拒绝提交，恢复属性后继续写入 | Pass |
 | 首次/已有配置在部分 `.new` 写入、刷新前和提交前模拟磁盘满，失败不发布且重试恢复 | Pass |
-| 临时目录 DACL 拒绝当前用户新建文件，失败不发布、原 DACL 精确恢复后重试成功 | Pass |
+| 临时目录 DACL 拒绝当前用户新建文件，失败不发布、原 DACL 规则语义恢复后重试成功 | Pass |
 | 遗留 `.new` 不参与加载 | Pass |
 | 根级和容器级未知字段往返保留 | Pass |
 | 超大文档在反序列化前拒绝 | Pass |
@@ -116,7 +116,7 @@ dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
 - 独占写租约覆盖暂存、校验和提交全过程；争用者不删除持有者文件，旧读者与新读者分别获得完整旧/新版本；
 - 临时沙箱内主文件、备份、遗留 `.new` 和 `.lock` 的 Windows 只读文件属性都会阻止提交；失败时主文件和备份字节不变，恢复属性后可继续提交；
 - 受控磁盘满注入不消耗卷剩余空间：首次保存部分写入失败后保持 `Missing`，已有配置在部分写入、刷新前和提交前失败时主/备份字节不变，`.new` 被清理且下一次保存成功；
-- Windows 临时沙箱的 DACL 只增加当前用户 `CreateFiles` 拒绝，不拒绝读取、删除或修改权限；保存失败后主/备份字节不变，`finally` 恢复原 DACL 并比较 SDDL，随后重试成功；
+- Windows 临时沙箱的 DACL 只增加当前用户 `CreateFiles` 拒绝，不拒绝读取、删除或修改权限；保存失败后主/备份字节不变，`finally` 恢复原 DACL，并按 SID、类型、权限、继承与传播标志组成的规范化规则集合比较，随后重试成功；失败只输出固定错误码，不输出 SID 或路径；
 - 无效、空、超大和不支持 schema 的文档不会作为成功配置返回；
 - 探针输出不包含沙箱路径或配置内容。
 

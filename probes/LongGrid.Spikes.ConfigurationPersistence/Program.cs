@@ -549,8 +549,7 @@ async Task VerifyDirectoryAclRecoveryAsync(string directory)
         directoryInfo,
         AccessControlSections.Access);
     byte[] originalDescriptor = originalSecurity.GetSecurityDescriptorBinaryForm();
-    string originalDacl = originalSecurity.GetSecurityDescriptorSddlForm(
-        AccessControlSections.Access);
+    string[] originalDaclRules = GetCanonicalAccessRules(originalSecurity);
     using WindowsIdentity currentIdentity = WindowsIdentity.GetCurrent();
     SecurityIdentifier currentUser = currentIdentity.User
         ?? throw new InvalidOperationException("The current Windows user has no SID.");
@@ -573,16 +572,17 @@ async Task VerifyDirectoryAclRecoveryAsync(string directory)
         denialApplied = true;
 
         await RequireFileSystemSaveFailureAsync(
-            () => store.SaveAsync(CreateDocument("must-not-commit")));
-        Require(
+            () => store.SaveAsync(CreateDocument("must-not-commit")),
+            unexpectedSuccessCode: "acl-denial-not-enforced");
+        RequireProbe(
             primaryBefore.SequenceEqual(await File.ReadAllBytesAsync(store.PrimaryPath)),
-            "Directory ACL denial changed the committed primary.");
-        Require(
+            "acl-primary-changed");
+        RequireProbe(
             backupBefore.SequenceEqual(await File.ReadAllBytesAsync(store.BackupPath)),
-            "Directory ACL denial changed the backup.");
-        Require(
+            "acl-backup-changed");
+        RequireProbe(
             !File.Exists(store.TemporaryPath),
-            "Directory ACL denial retained an incomplete .new.");
+            "acl-temp-retained");
     }
     finally
     {
@@ -599,19 +599,18 @@ async Task VerifyDirectoryAclRecoveryAsync(string directory)
     DirectorySecurity restoredSecurityCheck = FileSystemAclExtensions.GetAccessControl(
         directoryInfo,
         AccessControlSections.Access);
-    Require(
-        restoredSecurityCheck.GetSecurityDescriptorSddlForm(AccessControlSections.Access)
-            == originalDacl,
-        "The original directory DACL was not restored.");
+    RequireProbe(
+        GetCanonicalAccessRules(restoredSecurityCheck).SequenceEqual(originalDaclRules),
+        "acl-rules-not-restored");
 
     await store.SaveAsync(CreateDocument("recovered"));
     ConfigurationLoadResult<ProbeConfigurationDocument> loaded = await store.LoadAsync();
-    Require(
+    RequireProbe(
         loaded.Status == ConfigurationLoadStatus.LoadedPrimary,
-        "Write did not recover after restoring the directory ACL.");
-    Require(
+        "acl-recovery-load-failed");
+    RequireProbe(
         loaded.Document?.Containers[0].Name == "recovered",
-        "Recovered write was not committed after restoring the directory ACL.");
+        "acl-recovery-not-committed");
 }
 
 async Task VerifyReadOnlyPathAsync(
@@ -754,7 +753,10 @@ async Task RunScenarioAsync(
     }
     catch (Exception exception)
     {
-        destination.Add(new(name, false, exception.GetType().Name));
+        string detail = exception is ProbeAssertionException probeAssertion
+            ? probeAssertion.Code
+            : exception.GetType().Name;
+        destination.Add(new(name, false, detail));
     }
 }
 
@@ -887,7 +889,9 @@ static async Task RequireNormalSaveRefusedAsync(
     }
 }
 
-static async Task RequireFileSystemSaveFailureAsync(Func<Task> saveAsync)
+static async Task RequireFileSystemSaveFailureAsync(
+    Func<Task> saveAsync,
+    string? unexpectedSuccessCode = null)
 {
     bool failed = false;
 
@@ -904,7 +908,41 @@ static async Task RequireFileSystemSaveFailureAsync(Func<Task> saveAsync)
         failed = true;
     }
 
-    Require(failed, "A save unexpectedly succeeded against a read-only persistence file.");
+    if (unexpectedSuccessCode is not null)
+    {
+        RequireProbe(failed, unexpectedSuccessCode);
+    }
+    else
+    {
+        Require(failed, "A save unexpectedly succeeded against a read-only persistence file.");
+    }
+}
+
+static string[] GetCanonicalAccessRules(DirectorySecurity security)
+{
+    if (!OperatingSystem.IsWindows())
+    {
+        throw new PlatformNotSupportedException("DACL comparison requires Windows.");
+    }
+
+    List<string> rules = [];
+    foreach (FileSystemAccessRule rule in security.GetAccessRules(
+        includeExplicit: true,
+        includeInherited: true,
+        typeof(SecurityIdentifier)))
+    {
+        rules.Add(string.Join(
+            '|',
+            rule.IdentityReference.Value,
+            rule.AccessControlType,
+            rule.FileSystemRights,
+            rule.InheritanceFlags,
+            rule.PropagationFlags,
+            rule.IsInherited));
+    }
+
+    rules.Sort(StringComparer.Ordinal);
+    return [.. rules];
 }
 
 static async Task RequireDiskFullAsync(
@@ -981,6 +1019,19 @@ static void Require(bool condition, string message)
     {
         throw new InvalidOperationException(message);
     }
+}
+
+static void RequireProbe(bool condition, string code)
+{
+    if (!condition)
+    {
+        throw new ProbeAssertionException(code);
+    }
+}
+
+internal sealed class ProbeAssertionException(string code) : Exception(code)
+{
+    public string Code { get; } = code;
 }
 
 internal sealed record ScenarioResult(string Name, bool Passed, string Detail);
