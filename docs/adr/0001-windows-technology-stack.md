@@ -84,6 +84,8 @@ P0-07b2b2b1 已验证纯 Core 布局事务协调器的审批门禁、四阶段�
 
 P0-07b2b2b2a 已在两个隐藏、同线程、探针自有 HWND 上验证 `BeginDeferWindowPos`/`DeferWindowPos`/`EndDeferWindowPos` 正常批量路径、逐窗复读、提交后代次失效补偿和部分变更补偿。负坐标、焦点、被动样式和资源闭环通过，但可见渲染、Region/Composition/UIA、跨线程窗口和真实硬件动态矩阵尚未通过，因此 ADR 继续保持 Proposed。
 
+P0-07b2b2b2b1 已验证 Window Region 的独立捕获、系统所有权转移、逐窗部分失败补偿、代次失效补偿和 GDI 闭环。Region 没有跨 HWND 原子提交能力，因此生产事务必须先关闭输入并保留完整快照；DirectComposition 与 UIA provider 仍未通过，ADR 继续保持 Proposed。
+
 ## 参考
 
 - [Windows 应用开发文档](https://learn.microsoft.com/windows/apps/)

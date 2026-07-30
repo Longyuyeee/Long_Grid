@@ -144,6 +144,8 @@ P0-07b2b2b1 已建立纯 Core 布局事务协调器：Blocked 和未批准的 Re
 
 P0-07b2b2b2a 已用两个始终隐藏、同线程、探针自有的顶层 HWND 验证 Win32 批量适配器。适配器按官方合同沿用每次 `DeferWindowPos` 返回的新句柄，使用 `SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER`，并以 `GetWindowRect` 复读物理像素 Bounds。三轮均完成正常提交、幂等跳过、提交后代次失效回滚和真实单窗部分变更后的补偿回滚；负坐标、焦点、非 topmost/ToolWindow 样式和资源闭环通过。真实 `DeferWindowPos`/`EndDeferWindowPos` 资源失败没有被制造，Region/Composition/UIA 与硬件动态矩阵仍由 P0-07b2b2b2b 验证。
 
+P0-07b2b2b2b1 已验证两个隐藏自有 HWND 的真实 Window Region 事务。每次提交前用 `GetWindowRgn` 获取独立副本；`SetWindowRgn` 成功后立即放弃调用方所有权，回滚验证使用转移前另行复制的 HRGN，绝不读取已转移句柄。Region 是逐窗立即生效而非批量原子 API，因此任何中途失败或代次过期都会恢复全部窗口并逐一 `EqualRgn` 验证；窗口销毁前显式设为 NULL Region。DirectComposition 的 device `Commit/WaitForCommitCompletion` 和真实 UIA provider 发布仍由 P0-07b2b2b2b2 验证。
+
 ## 6. 规则引擎
 
 ```text

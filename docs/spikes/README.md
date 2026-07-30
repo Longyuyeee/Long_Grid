@@ -25,3 +25,4 @@
 - [P0-07b2b2a：隐藏消息窗口、后台 CCD 调度与生命周期闭环](P0-07b2b2a-display-message-window.md)
 - [P0-07b2b2b1：布局批量提交、代次门禁与补偿回滚](P0-07b2b2b1-layout-transaction-coordinator.md)
 - [P0-07b2b2b2a：隐藏 HWND Win32 批量适配与真实补偿回滚](P0-07b2b2b2a-win32-layout-batch-adapter.md)
+- [P0-07b2b2b2b1：Window Region 所有权、部分失败与补偿事务](P0-07b2b2b2b1-window-region-transaction.md)

@@ -14,6 +14,7 @@ internal static class NativeMethods
     internal const uint SwpShowWindow = 0x0040;
     internal const int GwlExStyle = -20;
     internal const int RgnOr = 2;
+    internal const int RgnCopy = 5;
     internal const uint GrGdiObjects = 0;
     internal const uint GrUserObjects = 1;
     internal static readonly nint HwndTop = nint.Zero;
@@ -123,6 +124,11 @@ internal static class NativeMethods
         [MarshalAs(UnmanagedType.Bool)] bool redraw);
 
     [DllImport("user32.dll", SetLastError = true)]
+    internal static extern int GetWindowRgn(
+        nint window,
+        nint region);
+
+    [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool SystemParametersInfo(
         uint action,
@@ -150,6 +156,12 @@ internal static class NativeMethods
         nint sourceOne,
         nint sourceTwo,
         int combineMode);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool EqualRgn(
+        nint first,
+        nint second);
 
     [DllImport("gdi32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

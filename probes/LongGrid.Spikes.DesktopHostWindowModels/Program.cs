@@ -71,6 +71,37 @@ internal static class Program
                 : 2;
         }
 
+        if (options.RegionTransaction)
+        {
+            WindowRegionTransactionReport regionReport =
+                WindowRegionTransactionProbe.Run(
+                    perMonitorV2Requested);
+            if (options.Json)
+            {
+                Console.WriteLine(
+                    JsonSerializer.Serialize(
+                        regionReport,
+                        JsonOptions));
+            }
+            else
+            {
+                Console.WriteLine(regionReport.Probe);
+                Console.WriteLine(
+                    $"Applied: {regionReport.AppliedStatus}");
+                Console.WriteLine(
+                    $"Generation rollback: "
+                    + $"{regionReport.GenerationRollbackStatus}");
+                Console.WriteLine(
+                    $"Partial rollback: "
+                    + $"{regionReport.PartialRollbackStatus}");
+                Console.WriteLine($"Result: {regionReport.Result}");
+            }
+
+            return regionReport.Result == "Conditional Pass"
+                ? 0
+                : 2;
+        }
+
         ProbeScenario scenario = WindowModelProbe.CreateScenario();
         _ = WindowModelProbe.Run(DesktopHostWindowModel.PerDisplay, scenario);
         GC.Collect();
@@ -183,6 +214,7 @@ internal static class Program
 
             Options:
               --batch-transaction  Run the hidden HWND batch/rollback probe.
+              --region-transaction Run the Window Region ownership/rollback probe.
               --json               Write a machine-readable report.
               --help               Show this help.
             """);
@@ -192,13 +224,15 @@ internal static class Program
 internal sealed record ProbeOptions(
     bool Json,
     bool ShowHelp,
-    bool BatchTransaction)
+    bool BatchTransaction,
+    bool RegionTransaction)
 {
     internal static ProbeOptions Parse(IEnumerable<string> args)
     {
         bool json = false;
         bool showHelp = false;
         bool batchTransaction = false;
+        bool regionTransaction = false;
 
         foreach (string argument in args)
         {
@@ -214,15 +248,25 @@ internal sealed record ProbeOptions(
                 case "--batch-transaction":
                     batchTransaction = true;
                     break;
+                case "--region-transaction":
+                    regionTransaction = true;
+                    break;
                 default:
                     throw new ArgumentException($"Unknown option: {argument}");
             }
         }
 
+        if (batchTransaction && regionTransaction)
+        {
+            throw new ArgumentException(
+                "Choose only one transaction probe mode.");
+        }
+
         return new ProbeOptions(
             json,
             showHelp,
-            batchTransaction);
+            batchTransaction,
+            regionTransaction);
     }
 }
 
