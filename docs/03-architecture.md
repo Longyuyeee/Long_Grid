@@ -134,6 +134,8 @@ P0-07a 当前静态证据：双屏有效 DPI 为 192/240，三轮各 100 次枚�
 
 P0-07b1 已用 `QDC_ONLY_ACTIVE_PATHS | QDC_VIRTUAL_MODE_AWARE` 补齐 CCD source/target 路径：三轮各 100 次均取得 2 条活动路径，与 2 个 monitor 一一映射，source mode Bounds 2/2 一致，路径/拓扑指纹稳定且无资源增长。生产适配器必须保留缓冲不足有界重试；adapter LUID/target ID 只用于会话关联，monitor device path 的散列也不得进入日志。负坐标、旋转变化、缩放/拔插/RDP、`WM_DPICHANGED` 和恢复事务仍需 P0-07b2，完成前不能启用无人确认的自动布局恢复。
 
+P0-07b2a 已实现纯 Core 恢复规划：只有拓扑指纹等价、全部精确身份映射且没有可见性纠正时才产生 `Automatic`；DPI/工作区/方向变化、唯一相似映射或最小位移产生 `ReviewRequired`；缺屏和对称歧义产生 `Blocked`。容器以工作区相对 DIP 保存，在目标 DPI 下转换为物理像素；规划器只生成 requested/proposed 差异，不提交窗口变化。事件合并、真实动态矩阵和 Region/Composition/UIA 同代事务仍由 P0-07b2b 验证。
+
 ## 6. 规则引擎
 
 ```text

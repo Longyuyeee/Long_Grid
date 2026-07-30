@@ -74,6 +74,8 @@ P0-04/P0-05a 已完成原生命中、Passive 样式和资源子集：当前证�
 
 P0-07a 已完成静态双屏混合 DPI、拓扑指纹和资源稳定性子集；P0-07b1 已完成 CCD 活动路径、virtual-mode 索引、rotation 和 monitor 一一关联。热切换、真实旋转、负坐标、休眠/RDP 和 `WM_DPICHANGED` 尚未验证，因此多显示器验证项继续保持未勾选。
 
+P0-07b2a 已完成不依赖 UI 框架的恢复规划器，验证精确/相似映射、歧义阻断、DIP 重映射和最小可见性纠正；它只证明 Core 决策合同，不替代真实窗口事务与动态显示矩阵，因此 ADR 仍保持 Proposed。
+
 ## 参考
 
 - [Windows 应用开发文档](https://learn.microsoft.com/windows/apps/)

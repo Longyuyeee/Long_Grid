@@ -264,6 +264,8 @@ P0-07a 当前证据：在有效 DPI 192/240 的双屏环境中，三轮各 100 �
 
 P0-07b1 当前证据：三轮各 100 次 `QueryDisplayConfig` 联合枚举都得到 2 条 active/virtual-mode 路径，与 2 个 monitor 达到 2/2 source-name 映射和 2/2 source Bounds 匹配；路径与拓扑指纹均稳定，当前两个 target 可用、rotation 为 Landscape，且无资源净增长。实现已按官方竞态要求对缓冲不足做最多 8 次重新查询。adapter LUID、target ID、source name、EDID 和 monitor path 均不输出。该结果仍是静态子集；真实旋转、负坐标、缩放/拔插/RDP、`WM_DPICHANGED` 和布局恢复由 P0-07b2 验证。
 
+P0-07b2a 当前证据：Core 恢复规划器的 9 个测试覆盖等价拓扑、整体平移、DPI 变化、唯一相似映射、对称歧义、缺屏、DIP 缩放、最小可见性纠正和非法显示器引用。只有零差异精确映射允许自动计划；相似映射和任何位置纠正必须预览；未解析显示器阻断整个提交。当前实现只生成计划，不代表真实 `WM_DISPLAYCHANGE`/`WM_DPICHANGED`、Window Region、Composition、UIA 或回滚已经通过。
+
 ## 6. 自有窗口与视觉效果
 
 ### 6.1 设置应用
@@ -452,7 +454,7 @@ COM/Win32 类型不能泄漏到 Core。
 | P0-04 | 每容器 HWND | 原生命中/资源已测；Win+D、输入、Alt+Tab、全屏可预测 | 不作为普通容器首选；保留特殊短生命周期窗口 |
 | P0-05 | 每显示器 HWND | Window Region 跨进程穿透已测；交互矩阵通过 | Region/无障碍失败则回退每容器或重做输入层 |
 | P0-06 | Explorer 重启 | 10 秒内恢复且无重复实例 | DesktopHost 不可发布 |
-| P0-07 | Per-Monitor V2 | 静态双屏混合 DPI 与 CCD 路径关联已测；100%–300% 热切换、负坐标、旋转/拔插不漂移 | 重做坐标层 |
+| P0-07 | Per-Monitor V2 | 静态双屏、CCD 路径与 Core 恢复规划已测；100%–300% 热切换、负坐标、旋转/拔插与事务回滚仍需验证 | 重做坐标层 |
 | P0-08 | IFileOperation | 移动、冲突、取消、回滚报告正确 | 托管目录退出首版 |
 | P0-09 | 原生图标位置 | 读取/恢复稳定，且不依赖 WorkerW | 否则只保留实验记录 |
 | P0-10 | 任务栏透明助手 | 支持 build 上可恢复、零 Explorer 崩溃 | 不发布实验模块 |
