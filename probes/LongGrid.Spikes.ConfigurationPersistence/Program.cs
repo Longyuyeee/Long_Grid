@@ -39,6 +39,10 @@ try
         "directory-read-only-attribute-semantics",
         VerifyDirectoryReadOnlyAttributeSemanticsAsync,
         results);
+    await RunScenarioAsync(
+        "replace-acl-denial-recovery",
+        VerifyReplaceAclDenialRecoveryAsync,
+        results);
     await RunScenarioAsync("stale-temp-is-ignored", VerifyStaleTemporaryFileIsIgnoredAsync, results);
     await RunScenarioAsync("unknown-fields-survive", VerifyUnknownFieldsSurviveAsync, results);
     await RunScenarioAsync("bounded-document-size", VerifyBoundedDocumentSizeAsync, results);
@@ -669,6 +673,144 @@ async Task VerifyDirectoryReadOnlyAttributeSemanticsAsync(string directory)
         "directory-attribute-recovery-not-committed");
 }
 
+async Task VerifyReplaceAclDenialRecoveryAsync(string directory)
+{
+    if (!OperatingSystem.IsWindows())
+    {
+        throw new PlatformNotSupportedException(
+            "The replacement ACL recovery scenario requires Windows.");
+    }
+
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> store = CreateStore(directory);
+    await store.SaveAsync(CreateDocument("previous"));
+    await store.SaveAsync(CreateDocument("baseline"));
+    byte[] primaryBefore = await File.ReadAllBytesAsync(store.PrimaryPath);
+    byte[] backupBefore = await File.ReadAllBytesAsync(store.BackupPath);
+
+    DirectoryInfo directoryInfo = new(directory);
+    FileInfo primaryInfo = new(store.PrimaryPath);
+    FileInfo backupInfo = new(store.BackupPath);
+    DirectorySecurity originalDirectorySecurity = FileSystemAclExtensions.GetAccessControl(
+        directoryInfo,
+        AccessControlSections.Access);
+    FileSecurity originalPrimarySecurity = FileSystemAclExtensions.GetAccessControl(
+        primaryInfo,
+        AccessControlSections.Access);
+    FileSecurity originalBackupSecurity = FileSystemAclExtensions.GetAccessControl(
+        backupInfo,
+        AccessControlSections.Access);
+    byte[] originalDirectoryDescriptor =
+        originalDirectorySecurity.GetSecurityDescriptorBinaryForm();
+    byte[] originalPrimaryDescriptor = originalPrimarySecurity.GetSecurityDescriptorBinaryForm();
+    byte[] originalBackupDescriptor = originalBackupSecurity.GetSecurityDescriptorBinaryForm();
+    string[] originalDirectoryRules = GetCanonicalAccessRules(originalDirectorySecurity);
+    string[] originalPrimaryRules = GetCanonicalAccessRules(originalPrimarySecurity);
+    string[] originalBackupRules = GetCanonicalAccessRules(originalBackupSecurity);
+
+    using WindowsIdentity currentIdentity = WindowsIdentity.GetCurrent();
+    SecurityIdentifier currentUser = currentIdentity.User
+        ?? throw new InvalidOperationException("The current Windows user has no SID.");
+    FileSystemAccessRule denyDeleteChildren = new(
+        currentUser,
+        FileSystemRights.DeleteSubdirectoriesAndFiles,
+        InheritanceFlags.None,
+        PropagationFlags.None,
+        AccessControlType.Deny);
+    FileSystemAccessRule denyDeleteFile = new(
+        currentUser,
+        FileSystemRights.Delete,
+        AccessControlType.Deny);
+    DirectorySecurity deniedDirectorySecurity = new();
+    deniedDirectorySecurity.SetSecurityDescriptorBinaryForm(
+        originalDirectoryDescriptor,
+        AccessControlSections.Access);
+    deniedDirectorySecurity.AddAccessRule(denyDeleteChildren);
+    FileSecurity deniedPrimarySecurity = new();
+    deniedPrimarySecurity.SetSecurityDescriptorBinaryForm(
+        originalPrimaryDescriptor,
+        AccessControlSections.Access);
+    deniedPrimarySecurity.AddAccessRule(denyDeleteFile);
+    FileSecurity deniedBackupSecurity = new();
+    deniedBackupSecurity.SetSecurityDescriptorBinaryForm(
+        originalBackupDescriptor,
+        AccessControlSections.Access);
+    deniedBackupSecurity.AddAccessRule(denyDeleteFile);
+    bool directoryDenialApplied = false;
+    bool primaryDenialApplied = false;
+    bool backupDenialApplied = false;
+
+    try
+    {
+        FileSystemAclExtensions.SetAccessControl(directoryInfo, deniedDirectorySecurity);
+        directoryDenialApplied = true;
+        FileSystemAclExtensions.SetAccessControl(primaryInfo, deniedPrimarySecurity);
+        primaryDenialApplied = true;
+        FileSystemAclExtensions.SetAccessControl(backupInfo, deniedBackupSecurity);
+        backupDenialApplied = true;
+
+        await RequireFileSystemSaveFailureAsync(
+            () => store.SaveAsync(CreateDocument("must-not-commit")),
+            unexpectedSuccessCode: "acl-replace-denial-not-enforced");
+        RequireProbe(
+            primaryBefore.SequenceEqual(await File.ReadAllBytesAsync(store.PrimaryPath)),
+            "acl-replace-primary-changed");
+        RequireProbe(
+            backupBefore.SequenceEqual(await File.ReadAllBytesAsync(store.BackupPath)),
+            "acl-replace-backup-changed");
+        RequireProbe(!File.Exists(store.TemporaryPath), "acl-replace-temp-retained");
+    }
+    finally
+    {
+        if (backupDenialApplied)
+        {
+            FileSecurity restoredBackupSecurity = new();
+            restoredBackupSecurity.SetSecurityDescriptorBinaryForm(
+                originalBackupDescriptor,
+                AccessControlSections.Access);
+            FileSystemAclExtensions.SetAccessControl(backupInfo, restoredBackupSecurity);
+        }
+
+        if (primaryDenialApplied)
+        {
+            FileSecurity restoredPrimarySecurity = new();
+            restoredPrimarySecurity.SetSecurityDescriptorBinaryForm(
+                originalPrimaryDescriptor,
+                AccessControlSections.Access);
+            FileSystemAclExtensions.SetAccessControl(primaryInfo, restoredPrimarySecurity);
+        }
+
+        if (directoryDenialApplied)
+        {
+            DirectorySecurity restoredDirectorySecurity = new();
+            restoredDirectorySecurity.SetSecurityDescriptorBinaryForm(
+                originalDirectoryDescriptor,
+                AccessControlSections.Access);
+            FileSystemAclExtensions.SetAccessControl(directoryInfo, restoredDirectorySecurity);
+        }
+    }
+
+    RequireProbe(
+        GetCanonicalAccessRules(FileSystemAclExtensions.GetAccessControl(
+            directoryInfo,
+            AccessControlSections.Access)).SequenceEqual(originalDirectoryRules),
+        "acl-replace-directory-rules-not-restored");
+    RequireProbe(
+        GetCanonicalAccessRules(FileSystemAclExtensions.GetAccessControl(
+            primaryInfo,
+            AccessControlSections.Access)).SequenceEqual(originalPrimaryRules),
+        "acl-replace-primary-rules-not-restored");
+    RequireProbe(
+        GetCanonicalAccessRules(FileSystemAclExtensions.GetAccessControl(
+            backupInfo,
+            AccessControlSections.Access)).SequenceEqual(originalBackupRules),
+        "acl-replace-backup-rules-not-restored");
+
+    await store.SaveAsync(CreateDocument("recovered"));
+    RequireProbe(
+        (await store.LoadAsync()).Document?.Containers[0].Name == "recovered",
+        "acl-replace-recovery-not-committed");
+}
+
 async Task VerifyReadOnlyPathAsync(
     string directory,
     Func<AtomicJsonConfigurationStore<ProbeConfigurationDocument>, string> targetSelector,
@@ -974,7 +1116,7 @@ static async Task RequireFileSystemSaveFailureAsync(
     }
 }
 
-static string[] GetCanonicalAccessRules(DirectorySecurity security)
+static string[] GetCanonicalAccessRules(FileSystemSecurity security)
 {
     if (!OperatingSystem.IsWindows())
     {
