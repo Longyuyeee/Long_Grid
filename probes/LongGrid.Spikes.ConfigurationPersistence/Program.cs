@@ -28,6 +28,7 @@ try
         "process-termination-checkpoints",
         directory => VerifyProcessTerminationCheckpointsAsync(directory, killIterations),
         results);
+    await RunScenarioAsync("concurrent-writer-lease", VerifyConcurrentWriterLeaseAsync, results);
     await RunScenarioAsync("schema-migration-and-rollback", VerifySchemaMigrationAndRollbackAsync, results);
     await RunScenarioAsync("stale-temp-is-ignored", VerifyStaleTemporaryFileIsIgnoredAsync, results);
     await RunScenarioAsync("unknown-fields-survive", VerifyUnknownFieldsSurviveAsync, results);
@@ -354,6 +355,89 @@ async Task VerifySchemaMigrationAndRollbackAsync(string directory)
     Require(
         conflictingSource.ToJsonString(ProbeJsonOptions.Configuration) == conflictingBefore,
         "Rejected field conflict mutated the source document.");
+}
+
+async Task VerifyConcurrentWriterLeaseAsync(string directory)
+{
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> store = CreateStore(directory);
+    await store.SaveAsync(CreateDocument("baseline"));
+
+    string readyPath = Path.Combine(directory, "lease-holder.ready");
+    ProcessStartInfo startInfo = CreateChildStartInfo(
+        directory,
+        "child-candidate",
+        AtomicConfigurationSaveCheckpoint.AfterTempFlush,
+        readyPath);
+
+    using Process process = Process.Start(startInfo)
+        ?? throw new InvalidOperationException("The lease-holder child process did not start.");
+
+    try
+    {
+        await WaitForChildReadyAsync(process, readyPath);
+        Require(File.Exists(store.TemporaryPath), "The lease holder did not stage a .new file.");
+
+        try
+        {
+            await store.SaveAsync(CreateDocument("competing-writer"));
+            throw new InvalidOperationException("A competing writer acquired the active lease.");
+        }
+        catch (ConfigurationWriteLeaseException)
+        {
+        }
+
+        Require(
+            File.Exists(store.TemporaryPath),
+            "The rejected writer removed the lease holder's staged file.");
+        ConfigurationLoadResult<ProbeConfigurationDocument> duringContention =
+            await store.LoadAsync();
+        Require(
+            duringContention.Status == ConfigurationLoadStatus.LoadedPrimary,
+            "A reader could not load the committed primary during contention.");
+        Require(
+            duringContention.Document?.Containers[0].Name == "baseline",
+            "A reader observed uncommitted concurrent content.");
+
+        process.Kill(entireProcessTree: true);
+        await process.WaitForExitAsync();
+    }
+    finally
+    {
+        if (!process.HasExited)
+        {
+            process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync();
+        }
+    }
+
+    FileStreamOptions oldReaderOptions = new()
+    {
+        Access = FileAccess.Read,
+        Mode = FileMode.Open,
+        Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
+        Share = FileShare.Read | FileShare.Delete,
+    };
+
+    await using FileStream oldReader = new(store.PrimaryPath, oldReaderOptions);
+    await store.SaveAsync(CreateDocument("after-lease-release"));
+    ProbeConfigurationDocument oldSnapshot =
+        await JsonSerializer.DeserializeAsync<ProbeConfigurationDocument>(
+            oldReader,
+            ProbeJsonOptions.Configuration)
+        ?? throw new InvalidDataException("The pre-commit reader snapshot did not deserialize.");
+
+    Require(
+        oldSnapshot.Containers[0].Name == "baseline",
+        "An existing reader did not retain the pre-replacement snapshot.");
+
+    ConfigurationLoadResult<ProbeConfigurationDocument> recovered = await store.LoadAsync();
+    Require(
+        recovered.Status == ConfigurationLoadStatus.LoadedPrimary,
+        "The write lease was not reusable after process termination.");
+    Require(
+        recovered.Document?.Containers[0].Name == "after-lease-release",
+        "The post-termination writer did not commit.");
+    Require(!File.Exists(store.TemporaryPath), "The abandoned staged file was not cleaned.");
 }
 
 async Task VerifyStaleTemporaryFileIsIgnoredAsync(string directory)

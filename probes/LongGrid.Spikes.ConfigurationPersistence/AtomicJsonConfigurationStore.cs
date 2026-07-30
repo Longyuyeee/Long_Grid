@@ -42,6 +42,9 @@ public sealed class InjectedSaveFailureException(AtomicConfigurationSaveCheckpoi
     public AtomicConfigurationSaveCheckpoint Checkpoint { get; } = checkpoint;
 }
 
+public sealed class ConfigurationWriteLeaseException(IOException innerException)
+    : IOException("The configuration write lease is unavailable.", innerException);
+
 public sealed class AtomicJsonConfigurationStore<T>
     where T : class
 {
@@ -79,6 +82,7 @@ public sealed class AtomicJsonConfigurationStore<T>
         PrimaryPath = Path.Combine(DirectoryPath, fileName);
         BackupPath = PrimaryPath + ".bak";
         TemporaryPath = PrimaryPath + ".new";
+        WriteLeasePath = PrimaryPath + ".lock";
         this.validator = validator;
         this.maximumDocumentBytes = maximumDocumentBytes;
         this.serializerOptions = serializerOptions ?? new JsonSerializerOptions
@@ -98,6 +102,8 @@ public sealed class AtomicJsonConfigurationStore<T>
 
     public string TemporaryPath { get; }
 
+    public string WriteLeasePath { get; }
+
     public async Task SaveAsync(
         T document,
         AtomicConfigurationSaveCheckpoint? injectedFailure = null,
@@ -112,6 +118,9 @@ public sealed class AtomicJsonConfigurationStore<T>
             throw new InvalidDataException($"Configuration validation failed: {validationFailure}.");
         }
 
+        Directory.CreateDirectory(DirectoryPath);
+        using FileStream writeLease = AcquireWriteLease();
+
         ConfigurationLoadResult<T> existing = await LoadAsync(cancellationToken).ConfigureAwait(false);
         if (existing.Status is ConfigurationLoadStatus.RecoveredFromBackup
             or ConfigurationLoadStatus.SafeMode)
@@ -120,7 +129,6 @@ public sealed class AtomicJsonConfigurationStore<T>
                 "Normal save refuses to overwrite damaged configuration evidence.");
         }
 
-        Directory.CreateDirectory(DirectoryPath);
         TryDeleteTemporaryFile();
 
         try
@@ -246,7 +254,7 @@ public sealed class AtomicJsonConfigurationStore<T>
                 Access = FileAccess.Read,
                 Mode = FileMode.Open,
                 Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
-                Share = FileShare.Read,
+                Share = FileShare.Read | FileShare.Delete,
             };
 
             await using FileStream stream = new(path, streamOptions);
@@ -304,6 +312,25 @@ public sealed class AtomicJsonConfigurationStore<T>
         AtomicConfigurationSaveCheckpoint checkpoint,
         CancellationToken cancellationToken) =>
         observer?.Invoke(checkpoint, cancellationToken) ?? Task.CompletedTask;
+
+    private FileStream AcquireWriteLease()
+    {
+        try
+        {
+            FileStreamOptions options = new()
+            {
+                Access = FileAccess.ReadWrite,
+                Mode = FileMode.OpenOrCreate,
+                Options = FileOptions.None,
+                Share = FileShare.None,
+            };
+            return new FileStream(WriteLeasePath, options);
+        }
+        catch (IOException exception)
+        {
+            throw new ConfigurationWriteLeaseException(exception);
+        }
+    }
 
     private void TryDeleteTemporaryFile()
     {
