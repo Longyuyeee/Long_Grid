@@ -14,3 +14,4 @@
 
 - [P0-01a：物理桌面目录发现](P0-01a-desktop-directory-discovery.md)
 - [P0-01b：Shell Desktop Namespace 枚举与对账](P0-01b-shell-desktop-namespace.md)
+- [P0-01c：稳定文件身份与快捷方式双重身份](P0-01c-stable-file-and-shortcut-identity.md)
