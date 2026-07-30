@@ -201,6 +201,33 @@ internal static class Program
                 : 2;
         }
 
+        if (options.InteractiveSliceSmoke)
+        {
+            InteractiveDesktopHostSliceReport sliceReport =
+                InteractiveDesktopHostSliceProbe.RunSmoke(
+                    perMonitorV2Requested);
+            Console.WriteLine(
+                options.Json
+                    ? JsonSerializer.Serialize(
+                        sliceReport,
+                        JsonOptions)
+                    : $"{sliceReport.Probe}{Environment.NewLine}"
+                        + $"UIA tree: {sliceReport.UiaTreeVerified}"
+                        + $"{Environment.NewLine}"
+                        + $"Patterns: {sliceReport.PatternsVerified}"
+                        + $"{Environment.NewLine}"
+                        + $"Result: {sliceReport.Result}");
+            return sliceReport.Result == "Conditional Pass"
+                ? 0
+                : 2;
+        }
+
+        if (options.InteractiveSlice)
+        {
+            return InteractiveDesktopHostSliceProbe.RunInteractive(
+                perMonitorV2Requested);
+        }
+
         ProbeScenario scenario = WindowModelProbe.CreateScenario();
         _ = WindowModelProbe.Run(DesktopHostWindowModel.PerDisplay, scenario);
         GC.Collect();
@@ -318,6 +345,10 @@ internal static class Program
               --composite-transaction
                                     Run the four-layer compensation probe.
               --visible-input-uia   Run the visible input/UIA Fragment probe.
+              --interactive-slice  Run the manual visible DesktopHost slice;
+                                   use keyboard/mouse and press Esc to close.
+              --interactive-slice-smoke
+                                   Run its non-input automated smoke probe.
               --json               Write a machine-readable report.
               --help               Show this help.
             """);
@@ -331,7 +362,9 @@ internal sealed record ProbeOptions(
     bool RegionTransaction,
     bool CompositionUiaGeneration,
     bool CompositeTransaction,
-    bool VisibleInputUiaFragment)
+    bool VisibleInputUiaFragment,
+    bool InteractiveSlice,
+    bool InteractiveSliceSmoke)
 {
     internal static ProbeOptions Parse(IEnumerable<string> args)
     {
@@ -342,6 +375,8 @@ internal sealed record ProbeOptions(
         bool compositionUiaGeneration = false;
         bool compositeTransaction = false;
         bool visibleInputUiaFragment = false;
+        bool interactiveSlice = false;
+        bool interactiveSliceSmoke = false;
 
         foreach (string argument in args)
         {
@@ -369,6 +404,12 @@ internal sealed record ProbeOptions(
                 case "--visible-input-uia":
                     visibleInputUiaFragment = true;
                     break;
+                case "--interactive-slice":
+                    interactiveSlice = true;
+                    break;
+                case "--interactive-slice-smoke":
+                    interactiveSliceSmoke = true;
+                    break;
                 default:
                     throw new ArgumentException($"Unknown option: {argument}");
             }
@@ -378,7 +419,9 @@ internal sealed record ProbeOptions(
             + (regionTransaction ? 1 : 0)
             + (compositionUiaGeneration ? 1 : 0)
             + (compositeTransaction ? 1 : 0)
-            + (visibleInputUiaFragment ? 1 : 0) > 1)
+            + (visibleInputUiaFragment ? 1 : 0)
+            + (interactiveSlice ? 1 : 0)
+            + (interactiveSliceSmoke ? 1 : 0) > 1)
         {
             throw new ArgumentException(
                 "Choose only one transaction probe mode.");
@@ -391,7 +434,9 @@ internal sealed record ProbeOptions(
             regionTransaction,
             compositionUiaGeneration,
             compositeTransaction,
-            visibleInputUiaFragment);
+            visibleInputUiaFragment,
+            interactiveSlice,
+            interactiveSliceSmoke);
     }
 }
 

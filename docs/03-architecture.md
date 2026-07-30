@@ -154,6 +154,8 @@ P0-07b2b2b2b4a 已在短时可见、alpha=1、非激活且非 Topmost 的自有 
 
 P0-07b2b2b2b4b1 在既有隐藏消息窗口上增加受控矩阵验收层。固定场景把 scale/rotate/attach/detach/projection/lock-RDP/sleep-resume 映射为允许的公开消息组合；窗口过程仍只记录变化并调度后台快照，不执行系统修改。最终只有消息窗口/WTS/资源生命周期闭环、预期事件出现且稳定器回到 Ready 才为 `Observed Pass`；缺事件为 `Inconclusive`，采样或生命周期失败为 `Fail`。默认 JSON 不包含硬件、显示器、会话或拓扑标识。自动 baseline 和无事件防假阳性已通过；真实场景与 Narrator/输入继续由 b4b2 执行。
 
+P0-04/P0-05b1 已建立首个 GDI 系统色的可见 DesktopHost 交互切片：一个 ToolWindow 内含 List 容器和三个内存项目，统一处理鼠标选择、Tab/方向键、Enter/Space Invoke 与 Esc 退出。窗口初次用 `SWP_NOACTIVATE` 展示但不永久设置 `WS_EX_NOACTIVATE`，因此初次检查点不抢焦点，同时允许用户或辅助技术显式聚焦。真实 UIA 客户端已验证 Pane/List/ListItem 树、Selection/SelectionItem/Invoke Pattern 和 Selection/Invoke 事件；三轮资源精确闭环。原型不读桌面、不打开外部内容，最终 DirectComposition 视觉、DPI/高对比和人工输入/Narrator/系统表面矩阵仍未通过。
+
 ## 6. 规则引擎
 
 ```text

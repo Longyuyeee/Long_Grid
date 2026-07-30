@@ -19,7 +19,38 @@ internal static class NativeMethods
     internal const uint GrGdiObjects = 0;
     internal const uint GrUserObjects = 1;
     internal const uint WmDestroy = 0x0002;
+    internal const uint WmSetFocus = 0x0007;
+    internal const uint WmKillFocus = 0x0008;
+    internal const uint WmPaint = 0x000F;
+    internal const uint WmClose = 0x0010;
     internal const uint WmGetObject = 0x003D;
+    internal const uint WmKeyDown = 0x0100;
+    internal const uint WmLeftButtonDown = 0x0201;
+    internal const int VkTab = 0x09;
+    internal const int VkReturn = 0x0D;
+    internal const int VkShift = 0x10;
+    internal const int VkEscape = 0x1B;
+    internal const int VkSpace = 0x20;
+    internal const int VkEnd = 0x23;
+    internal const int VkHome = 0x24;
+    internal const int VkLeft = 0x25;
+    internal const int VkUp = 0x26;
+    internal const int VkRight = 0x27;
+    internal const int VkDown = 0x28;
+    internal const int ColorWindow = 5;
+    internal const int ColorWindowText = 8;
+    internal const int ColorHighlight = 13;
+    internal const int ColorHighlightText = 14;
+    internal const int ColorBtnFace = 15;
+    internal const int ColorBtnText = 18;
+    internal const int ColorGrayText = 17;
+    internal const int DefaultGuiFont = 17;
+    internal const int TransparentBackground = 1;
+    internal const uint DtLeft = 0x0000;
+    internal const uint DtCenter = 0x0001;
+    internal const uint DtVCenter = 0x0004;
+    internal const uint DtSingleLine = 0x0020;
+    internal const uint DtEndEllipsis = 0x8000;
     internal static readonly nint HwndTop = nint.Zero;
     internal static readonly nint PerMonitorAwareV2 = new(-4);
 
@@ -123,6 +154,15 @@ internal static class NativeMethods
     internal static extern nint GetForegroundWindow();
 
     [DllImport("user32.dll")]
+    internal static extern nint SetFocus(nint window);
+
+    [DllImport("user32.dll")]
+    internal static extern nint GetFocus();
+
+    [DllImport("user32.dll")]
+    internal static extern short GetKeyState(int virtualKey);
+
+    [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool GetCursorPos(out NativePoint point);
 
@@ -144,6 +184,79 @@ internal static class NativeMethods
     internal static extern int GetWindowRgn(
         nint window,
         nint region);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetClientRect(
+        nint window,
+        out NativeRect rectangle);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool InvalidateRect(
+        nint window,
+        nint rectangle,
+        [MarshalAs(UnmanagedType.Bool)] bool erase);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool UpdateWindow(nint window);
+
+    [DllImport("user32.dll")]
+    internal static extern nint BeginPaint(
+        nint window,
+        out PaintStruct paint);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool EndPaint(
+        nint window,
+        ref PaintStruct paint);
+
+    [DllImport("user32.dll")]
+    internal static extern int FillRect(
+        nint deviceContext,
+        ref NativeRect rectangle,
+        nint brush);
+
+    [DllImport("user32.dll")]
+    internal static extern int FrameRect(
+        nint deviceContext,
+        ref NativeRect rectangle,
+        nint brush);
+
+    [DllImport("user32.dll")]
+    internal static extern nint GetSysColorBrush(int index);
+
+    [DllImport("user32.dll")]
+    internal static extern uint GetSysColor(int index);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    internal static extern int DrawText(
+        nint deviceContext,
+        string text,
+        int characterCount,
+        ref NativeRect rectangle,
+        uint format);
+
+    [DllImport("user32.dll")]
+    internal static extern void PostQuitMessage(int exitCode);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern int GetMessage(
+        out WindowMessage message,
+        nint window,
+        uint minimumMessage,
+        uint maximumMessage);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool TranslateMessage(
+        ref WindowMessage message);
+
+    [DllImport("user32.dll")]
+    internal static extern nint DispatchMessage(
+        ref WindowMessage message);
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -197,6 +310,24 @@ internal static class NativeMethods
     [DllImport("gdi32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool DeleteObject(nint objectHandle);
+
+    [DllImport("gdi32.dll")]
+    internal static extern nint GetStockObject(int objectIndex);
+
+    [DllImport("gdi32.dll")]
+    internal static extern nint SelectObject(
+        nint deviceContext,
+        nint graphicsObject);
+
+    [DllImport("gdi32.dll")]
+    internal static extern int SetBkMode(
+        nint deviceContext,
+        int mode);
+
+    [DllImport("gdi32.dll")]
+    internal static extern uint SetTextColor(
+        nint deviceContext,
+        uint color);
 }
 
 [UnmanagedFunctionPointer(CallingConvention.Winapi)]
@@ -228,3 +359,35 @@ internal readonly record struct NativePoint(int X, int Y);
 
 [StructLayout(LayoutKind.Sequential)]
 internal readonly record struct NativeRect(int Left, int Top, int Right, int Bottom);
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct PaintStruct
+{
+    internal nint DeviceContext;
+
+    [MarshalAs(UnmanagedType.Bool)]
+    internal bool Erase;
+
+    internal NativeRect PaintRectangle;
+
+    [MarshalAs(UnmanagedType.Bool)]
+    internal bool Restore;
+
+    [MarshalAs(UnmanagedType.Bool)]
+    internal bool IncrementalUpdate;
+
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+    internal byte[] Reserved;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct WindowMessage
+{
+    internal nint Window;
+    internal uint Message;
+    internal nuint WordParameter;
+    internal nint LongParameter;
+    internal uint Time;
+    internal NativePoint Point;
+    internal uint Private;
+}

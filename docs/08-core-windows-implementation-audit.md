@@ -284,6 +284,8 @@ P0-07b2b2b2b4a 当前证据：一个短时可见、alpha=1、`WS_EX_TOOLWINDOW |
 
 P0-07b2b2b2b4b1 当前证据：既有 DisplayChange 消息窗口新增 9 个固定受控场景和 5–900 秒观察窗口。baseline 取得 Startup、两次一致快照、FinalState Ready、USER `1→1`、GDI `0→0`、进程句柄 `253→253`，为 `Observed Pass`；声明 scale 但不改系统时预期事件缺失，明确返回 `Inconclusive`/exit 4，证明无假阳性。动态模式允许并统计 generation 变化导致的旧快照丢弃，但仍要求快照零失败、最终 Ready、WTS/窗口类/资源闭环。探针只读且报告不含 monitor/GDI 名称、设备路径、adapter/source/target、会话 ID 或拓扑指纹。真实硬件/会话事件、视觉恢复和 Narrator/输入仍未执行。
 
+P0-04/P0-05b1 当前证据：一个可见、非 Topmost、初次不激活但可由用户显式聚焦的 ToolWindow，渲染一个 List 容器和三个内存演示项目。真实 UIA 客户端三轮均验证 Pane/List/ListItem Raw View、Selection/SelectionItem/Invoke Pattern、选择/调用状态以及两类事件；初次展示后和隐藏自动 Pattern 操作后两个检查点均非前台，USER `44→46→44`、GDI `80→80→80`、进程句柄 `614→614→614`。连续运行首轮曾因外部前台自然变化触发相等性假失败；后续又观察到可激活 HWND 在 UIA Pattern 期间可能成为前台，因此自动调用前先隐藏宿主。原型不枚举桌面、不打开外部内容、不注入输入；实际键鼠、Narrator、触控、拖放、DPI/高对比和系统表面仍未验证。
+
 ## 6. 自有窗口与视觉效果
 
 ### 6.1 设置应用

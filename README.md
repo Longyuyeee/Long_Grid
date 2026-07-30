@@ -85,6 +85,13 @@ dotnet run --project probes/LongGrid.Spikes.DesktopHostWindowModels `
 dotnet run --project probes/LongGrid.Spikes.DesktopHostWindowModels `
   --configuration Release -- --visible-input-uia --json
 
+dotnet run --project probes/LongGrid.Spikes.DesktopHostWindowModels `
+  --configuration Release -- --interactive-slice-smoke --json
+
+# 人工交互原型；点击聚焦，Esc 退出
+dotnet run --project probes/LongGrid.Spikes.DesktopHostWindowModels `
+  --configuration Release -- --interactive-slice
+
 dotnet run --project probes/LongGrid.Spikes.DisplayTopology `
   --configuration Release -- --json
 
