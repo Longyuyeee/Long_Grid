@@ -42,6 +42,40 @@ internal static class Program
         bool perMonitorV2Requested =
             NativeMethods.SetProcessDpiAwarenessContext(
                 NativeMethods.PerMonitorAwareV2);
+        if (options.MatrixScenario is not null)
+        {
+            ControlledDisplayMatrixReport matrixReport =
+                ControlledDisplayMatrixProbe.Run(
+                    options.MatrixScenario.Value,
+                    options.WatchSeconds!.Value);
+            if (options.Json)
+            {
+                Console.WriteLine(
+                    JsonSerializer.Serialize(
+                        matrixReport,
+                        JsonOptions));
+            }
+            else
+            {
+                Console.WriteLine(matrixReport.Probe);
+                Console.WriteLine(
+                    $"Scenario: {matrixReport.Scenario}");
+                Console.WriteLine(
+                    $"Expected signals observed: "
+                    + $"{matrixReport.ExpectedSignalsObserved}");
+                Console.WriteLine(
+                    $"Final state: {matrixReport.FinalState}");
+                Console.WriteLine($"Result: {matrixReport.Result}");
+            }
+
+            return perMonitorV2Requested
+                && matrixReport.Result == "Observed Pass"
+                ? 0
+                : matrixReport.Result == "Inconclusive"
+                    ? 4
+                    : 2;
+        }
+
         if (options.WatchSeconds is not null)
         {
             DisplayChangeMessageProbeReport messageReport =
@@ -291,6 +325,12 @@ internal static class Program
               --json             Write a machine-readable, redacted report.
               --watch-seconds N  Observe the real hidden message window for
                                  2-30 seconds without changing display state.
+              --matrix-scenario S
+                                 Run a controlled, operator-triggered matrix
+                                 observation. Requires --watch-seconds (5-900).
+                                 S: baseline, scale, rotate, attach, detach,
+                                 projection, lock-unlock, remote-session,
+                                 or sleep-resume.
               --help             Show this help.
             """);
     }
@@ -299,7 +339,8 @@ internal static class Program
 internal sealed record ProbeOptions(
     bool Json,
     bool ShowHelp,
-    int? WatchSeconds)
+    int? WatchSeconds,
+    ControlledDisplayScenario? MatrixScenario)
 {
     internal static ProbeOptions Parse(IEnumerable<string> args)
     {
@@ -307,6 +348,7 @@ internal sealed record ProbeOptions(
         bool json = false;
         bool showHelp = false;
         int? watchSeconds = null;
+        ControlledDisplayScenario? matrixScenario = null;
 
         for (int index = 0; index < values.Length; index++)
         {
@@ -327,20 +369,51 @@ internal sealed record ProbeOptions(
                             System.Globalization.NumberStyles.None,
                             System.Globalization.CultureInfo.InvariantCulture,
                             out int parsed)
-                        || parsed is < 2 or > 30)
+                        || parsed < 2)
                     {
                         throw new ArgumentException(
-                            "--watch-seconds requires an integer from 2 through 30.");
+                            "--watch-seconds requires an integer of at least 2.");
                     }
 
                     watchSeconds = parsed;
+                    break;
+                case "--matrix-scenario":
+                    if (index + 1 >= values.Length
+                        || !ControlledDisplayMatrixProbe.TryParseScenario(
+                            values[++index],
+                            out ControlledDisplayScenario parsedScenario))
+                    {
+                        throw new ArgumentException(
+                            "--matrix-scenario requires baseline, scale, rotate, attach, detach, projection, lock-unlock, remote-session, or sleep-resume.");
+                    }
+
+                    matrixScenario = parsedScenario;
                     break;
                 default:
                     throw new ArgumentException($"Unknown option: {argument}");
             }
         }
 
-        return new ProbeOptions(json, showHelp, watchSeconds);
+        if (matrixScenario is null
+            && watchSeconds is > 30)
+        {
+            throw new ArgumentException(
+                "--watch-seconds without --matrix-scenario must be from 2 through 30.");
+        }
+
+        if (matrixScenario is not null
+            && (watchSeconds is null
+                || watchSeconds is < 5 or > 900))
+        {
+            throw new ArgumentException(
+                "--matrix-scenario requires --watch-seconds from 5 through 900.");
+        }
+
+        return new ProbeOptions(
+            json,
+            showHelp,
+            watchSeconds,
+            matrixScenario);
     }
 }
 

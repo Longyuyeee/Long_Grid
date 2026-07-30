@@ -282,6 +282,8 @@ P0-07b2b2b2b3 当前证据：Core 新增 20 个测试，总数 82；固定 Bound
 
 P0-07b2b2b2b4a 当前证据：一个短时可见、alpha=1、`WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE`、非 Topmost 的自有 HWND，在不移动光标和不注入输入的前提下，三轮均完成 Region 输入门 Open `2/2`、Close 精确跨进程穿透 `2/2`、Reopen `2/2`。真实 `IRawElementProviderFragmentRoot` 暴露两个 Group Fragment，`AutomationElement` Raw View 客户端验证树导航、AutomationId、不透明 RuntimeId 稳定性和物理屏幕 Bounds；关闭时 Provider 点分派为空、UIA 点查询不返回子 Fragment。三轮 USER `2→4→2`、GDI `3→3→3`、进程句柄 `350→350→350`，前台保持。Narrator、真实输入、跨进程辅助技术、多 HWND 和硬件/会话动态仍未验证。
 
+P0-07b2b2b2b4b1 当前证据：既有 DisplayChange 消息窗口新增 9 个固定受控场景和 5–900 秒观察窗口。baseline 取得 Startup、两次一致快照、FinalState Ready、USER `1→1`、GDI `0→0`、进程句柄 `253→253`，为 `Observed Pass`；声明 scale 但不改系统时预期事件缺失，明确返回 `Inconclusive`/exit 4，证明无假阳性。动态模式允许并统计 generation 变化导致的旧快照丢弃，但仍要求快照零失败、最终 Ready、WTS/窗口类/资源闭环。探针只读且报告不含 monitor/GDI 名称、设备路径、adapter/source/target、会话 ID 或拓扑指纹。真实硬件/会话事件、视觉恢复和 Narrator/输入仍未执行。
+
 ## 6. 自有窗口与视觉效果
 
 ### 6.1 设置应用

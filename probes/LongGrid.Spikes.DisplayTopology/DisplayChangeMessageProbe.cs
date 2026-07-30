@@ -13,12 +13,14 @@ internal sealed class DisplayChangeMessageProbe : IDisposable
     private static DisplayChangeMessageProbe? _active;
 
     private readonly TimeSpan _duration;
+    private readonly bool _dynamicChangesExpected;
     private readonly Stopwatch _stopwatch = new();
     private readonly DateTimeOffset _startedAtUtc = DateTimeOffset.UtcNow;
     private readonly DisplayTopologyStabilizer _stabilizer = new();
     private readonly ConcurrentQueue<SnapshotCompletion> _completions = new();
     private readonly BlockingCollection<long> _snapshotRequests = new();
     private readonly Dictionary<DisplayChangeReason, int> _reasonCounts = [];
+    private readonly List<ObservedDisplaySignal> _observedSignals = [];
     private nint _window;
     private nint _instance;
     private bool _classRegistered;
@@ -38,15 +40,22 @@ internal sealed class DisplayChangeMessageProbe : IDisposable
     private int _readyTransitions;
     private int _dpiSuggestedRectsApplied;
     private bool _disposed;
+    private DateTimeOffset? _settleDeadlineAt;
 
-    private DisplayChangeMessageProbe(TimeSpan duration)
+    private DisplayChangeMessageProbe(
+        TimeSpan duration,
+        bool dynamicChangesExpected = false)
     {
         _duration = duration;
+        _dynamicChangesExpected = dynamicChangesExpected;
     }
 
-    internal static DisplayChangeMessageProbeReport Run(int watchSeconds)
+    internal static DisplayChangeMessageProbeReport Run(
+        int watchSeconds,
+        bool dynamicChangesExpected = false)
     {
-        if (watchSeconds is < 2 or > 30)
+        int maximumSeconds = dynamicChangesExpected ? 900 : 30;
+        if (watchSeconds < 2 || watchSeconds > maximumSeconds)
         {
             throw new ArgumentOutOfRangeException(nameof(watchSeconds));
         }
@@ -58,7 +67,8 @@ internal sealed class DisplayChangeMessageProbe : IDisposable
         }
 
         using var probe = new DisplayChangeMessageProbe(
-            TimeSpan.FromSeconds(watchSeconds));
+            TimeSpan.FromSeconds(watchSeconds),
+            dynamicChangesExpected);
         WarmUpNativeLifecycle();
         return probe.RunCore();
     }
@@ -167,7 +177,7 @@ internal sealed class DisplayChangeMessageProbe : IDisposable
             && final.State == DisplayTopologyStabilizationState.Ready
             && _snapshotAttempts >= 2
             && _snapshotFailures == 0
-            && _staleSnapshots == 0
+            && (_dynamicChangesExpected || _staleSnapshots == 0)
             && after.UserObjects == before.UserObjects
             && after.GdiObjects == before.GdiObjects
             && after.ProcessHandles <= before.ProcessHandles + 2;
@@ -188,10 +198,12 @@ internal sealed class DisplayChangeMessageProbe : IDisposable
             SnapshotFailures: _snapshotFailures,
             StaleSnapshots: _staleSnapshots,
             ReadyTransitions: _readyTransitions,
+            DynamicChangesExpected: _dynamicChangesExpected,
             DpiSuggestedRectsApplied: _dpiSuggestedRectsApplied,
             ObservedReasonCounts: _reasonCounts
                 .OrderBy(pair => pair.Key)
                 .ToDictionary(pair => pair.Key, pair => pair.Value),
+            ObservedSignals: _observedSignals.ToArray(),
             UserObjectsBefore: before.UserObjects,
             UserObjectsAfter: after.UserObjects,
             GdiObjectsBefore: before.GdiObjects,
@@ -206,11 +218,19 @@ internal sealed class DisplayChangeMessageProbe : IDisposable
                 "CCD and DPI sampling runs outside WindowProc and returns through a private WM_APP message.",
             ],
             Limitations:
-            [
-                "The current session was observed without inducing a display, DPI, device, power, or session transition.",
-                "Real rotation, scaling, attach/detach, projection, sleep, RDP, and rollback remain controlled-lab gates.",
-                "SetTimer is approximate; the observed timing is a correctness smoke test, not a performance budget.",
-            ]);
+            _dynamicChangesExpected
+                ?
+                [
+                    "System changes are performed manually outside the probe; the probe never requests display, device, power, or session mutation.",
+                    "Observed messages prove notification and stabilization behavior on this machine, not all GPU drivers, docks, displays, sessions, or Windows builds.",
+                    "SetTimer is approximate; the observed timing is a correctness smoke test, not a performance budget.",
+                ]
+                :
+                [
+                    "The current session was observed without inducing a display, DPI, device, power, or session transition.",
+                    "Real rotation, scaling, attach/detach, projection, sleep, RDP, and rollback remain controlled-lab gates.",
+                    "SetTimer is approximate; the observed timing is a correctness smoke test, not a performance budget.",
+                ]);
     }
 
     private void CreateMessageWindow()
@@ -353,9 +373,21 @@ internal sealed class DisplayChangeMessageProbe : IDisposable
     private void OnTimer()
     {
         _timerTicks++;
+        DisplayTopologyStabilizationResult current = _stabilizer.Current;
         if (_stopwatch.Elapsed >= _duration)
         {
-            _stopRequested = true;
+            if (!_dynamicChangesExpected
+                || current.State is DisplayTopologyStabilizationState.Ready
+                    or DisplayTopologyStabilizationState.TimedOut)
+            {
+                _stopRequested = true;
+            }
+            else if (current.State
+                != DisplayTopologyStabilizationState.Paused)
+            {
+                _settleDeadlineAt ??= Now + TimeSpan.FromSeconds(15);
+                _stopRequested = Now >= _settleDeadlineAt.Value;
+            }
         }
 
         if (_stopRequested)
@@ -368,7 +400,6 @@ internal sealed class DisplayChangeMessageProbe : IDisposable
             return;
         }
 
-        DisplayTopologyStabilizationResult current = _stabilizer.Current;
         if (current.State is not (
             DisplayTopologyStabilizationState.WaitingQuietPeriod
             or DisplayTopologyStabilizationState.Sampling)
@@ -550,6 +581,9 @@ internal sealed class DisplayChangeMessageProbe : IDisposable
     {
         _reasonCounts.TryGetValue(reason, out int count);
         _reasonCounts[reason] = checked(count + 1);
+        _observedSignals.Add(new ObservedDisplaySignal(
+            reason,
+            _stopwatch.Elapsed.TotalMilliseconds));
     }
 
     private DateTimeOffset Now =>
@@ -627,6 +661,10 @@ internal sealed record SnapshotCompletion(
     string? Fingerprint,
     Exception? Error);
 
+internal sealed record ObservedDisplaySignal(
+    DisplayChangeReason Reason,
+    double ElapsedMilliseconds);
+
 internal sealed record DisplayChangeMessageProbeReport(
     string Probe,
     DateTimeOffset TimestampUtc,
@@ -643,8 +681,10 @@ internal sealed record DisplayChangeMessageProbeReport(
     int SnapshotFailures,
     int StaleSnapshots,
     int ReadyTransitions,
+    bool DynamicChangesExpected,
     int DpiSuggestedRectsApplied,
     IReadOnlyDictionary<DisplayChangeReason, int> ObservedReasonCounts,
+    IReadOnlyList<ObservedDisplaySignal> ObservedSignals,
     uint UserObjectsBefore,
     uint UserObjectsAfter,
     uint GdiObjectsBefore,

@@ -90,6 +90,10 @@ dotnet run --project probes/LongGrid.Spikes.DisplayTopology `
 
 dotnet run --project probes/LongGrid.Spikes.DisplayTopology `
   --configuration Release -- --watch-seconds 3 --json
+
+dotnet run --project probes/LongGrid.Spikes.DisplayTopology `
+  --configuration Release -- `
+  --matrix-scenario baseline --watch-seconds 5 --json
 ```
 
 真实桌面始终只读；变化压力测试仅发生在自动清理的临时沙箱，图像探针不把位图写入磁盘。报告默认不输出桌面项目名称、路径、扩展名、PIDL、稳定 ID 或逐项错误。详见[Phase 0 探针报告目录](docs/spikes/README.md)。

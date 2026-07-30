@@ -43,7 +43,8 @@
 - [x] P0-07b2b2b2b2 DirectComposition Root Commit/Wait、真实 HWND UIA provider、客户端读取与代次失效补偿（Conditional Pass）。
 - [x] P0-07b2b2b2b3 Bounds/Region/DComp/UIA 固定顺序、全层快照、四层失败逆序补偿、最终复读和紧急隐藏（Conditional Pass）。
 - [x] P0-07b2b2b2b4a 短时可见宿主输入开/关/重开、跨进程穿透和真实 UIA Raw View Fragment 树（Conditional Pass）。
-- [ ] P0-07b2b2b2b4b Narrator、真实鼠标/键盘/触控/拖放，以及热切换、旋转、拔插、RDP 和 WM_DPICHANGED 人工动态矩阵。
+- [x] P0-07b2b2b2b4b1 显示/设备/电源/会话动态矩阵只读采证工具、脱敏场景判定与无事件防假阳性（Conditional Pass）。
+- [ ] P0-07b2b2b2b4b2 在受控实机执行 Narrator、真实鼠标/键盘/触控/拖放，以及缩放、旋转、拔插、投影、睡眠、RDP 和 WM_DPICHANGED 动态矩阵。
 - [ ] 其余探针与交互验证。
 
 退出门槛：

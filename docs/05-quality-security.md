@@ -128,6 +128,7 @@ MVP 不执行无人确认的自动真实文件移动。规则默认只改变 Lon
 - Win32 批量适配器忽略 `DeferWindowPos` 返回的新句柄、排队失败后仍调用 `EndDeferWindowPos`，或提交时意外改变焦点/Z-order。
 - `SetWindowRgn` 成功后继续读取/删除已转移的 HRGN，或 Region 部分应用失败后留下整窗输入遮挡。
 - Bounds/Region/DComp/UIA 复合事务未先关闭输入、未捕获全层快照、遗漏失败层本身的补偿、在全部 Restore 完成前验证跨层状态，或补偿失败后未保持输入关闭并隐藏宿主。
+- 显示/设备/电源/会话动态矩阵缺少预期公开事件、最终未回到稳定 Ready、采样失败或资源未闭环，却仍标记为 Pass；`Inconclusive` 不得改写成通过。
 - 隐藏消息窗口出现在 Alt+Tab/任务栏、抢焦点，或 WTS/Timer/窗口类未成对注销。
 - 在线程池工作线程反复创建 DPI 探测 HWND，导致 USER 消息队列上限随线程数漂移。
 - 安装包未签名或升级无法回滚。
