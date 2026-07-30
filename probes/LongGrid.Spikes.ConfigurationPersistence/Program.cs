@@ -31,6 +31,7 @@ try
     await RunScenarioAsync("concurrent-writer-lease", VerifyConcurrentWriterLeaseAsync, results);
     await RunScenarioAsync("schema-migration-and-rollback", VerifySchemaMigrationAndRollbackAsync, results);
     await RunScenarioAsync("read-only-file-recovery", VerifyReadOnlyFileRecoveryAsync, results);
+    await RunScenarioAsync("simulated-disk-full-recovery", VerifyDiskFullRecoveryAsync, results);
     await RunScenarioAsync("stale-temp-is-ignored", VerifyStaleTemporaryFileIsIgnoredAsync, results);
     await RunScenarioAsync("unknown-fields-survive", VerifyUnknownFieldsSurviveAsync, results);
     await RunScenarioAsync("bounded-document-size", VerifyBoundedDocumentSizeAsync, results);
@@ -463,6 +464,69 @@ async Task VerifyReadOnlyFileRecoveryAsync(string directory)
         createTargetAsync: _ => Task.CompletedTask);
 }
 
+async Task VerifyDiskFullRecoveryAsync(string directory)
+{
+    string firstSaveDirectory = Path.Combine(directory, "first-save");
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> firstSaveStore =
+        CreateStore(firstSaveDirectory);
+
+    await RequireDiskFullAsync(
+        () => firstSaveStore.SaveAsync(
+            CreateDocument("must-not-commit"),
+            injectedDiskFull: ConfigurationDiskFullCheckpoint.DuringTempWrite),
+        ConfigurationDiskFullCheckpoint.DuringTempWrite);
+    Require(!File.Exists(firstSaveStore.PrimaryPath), "Failed first save published a primary.");
+    Require(!File.Exists(firstSaveStore.BackupPath), "Failed first save published a backup.");
+    Require(!File.Exists(firstSaveStore.TemporaryPath), "Failed first save retained a partial .new.");
+    ConfigurationLoadResult<ProbeConfigurationDocument> missing = await firstSaveStore.LoadAsync();
+    Require(missing.Status == ConfigurationLoadStatus.Missing, "Failed first save was not missing.");
+    await firstSaveStore.SaveAsync(CreateDocument("first-save-recovered"));
+    Require(
+        (await firstSaveStore.LoadAsync()).Document?.Containers[0].Name == "first-save-recovered",
+        "First save did not recover after simulated disk full.");
+
+    foreach (ConfigurationDiskFullCheckpoint checkpoint
+        in Enum.GetValues<ConfigurationDiskFullCheckpoint>())
+    {
+        string checkpointDirectory = Path.Combine(directory, checkpoint.ToString());
+        AtomicJsonConfigurationStore<ProbeConfigurationDocument> store =
+            CreateStore(checkpointDirectory);
+        await store.SaveAsync(CreateDocument("previous"));
+        await store.SaveAsync(CreateDocument("baseline"));
+        byte[] primaryBefore = await File.ReadAllBytesAsync(store.PrimaryPath);
+        byte[] backupBefore = await File.ReadAllBytesAsync(store.BackupPath);
+
+        await RequireDiskFullAsync(
+            () => store.SaveAsync(
+                CreateDocument("must-not-commit"),
+                injectedDiskFull: checkpoint),
+            checkpoint);
+
+        Require(
+            primaryBefore.SequenceEqual(await File.ReadAllBytesAsync(store.PrimaryPath)),
+            $"Disk full at {checkpoint} changed the committed primary.");
+        Require(
+            backupBefore.SequenceEqual(await File.ReadAllBytesAsync(store.BackupPath)),
+            $"Disk full at {checkpoint} changed the backup.");
+        Require(
+            !File.Exists(store.TemporaryPath),
+            $"Disk full at {checkpoint} retained an incomplete .new.");
+
+        ConfigurationLoadResult<ProbeConfigurationDocument> loaded = await store.LoadAsync();
+        Require(
+            loaded.Status == ConfigurationLoadStatus.LoadedPrimary,
+            $"Disk full at {checkpoint} left no valid primary.");
+        Require(
+            loaded.Document?.Containers[0].Name == "baseline",
+            $"Disk full at {checkpoint} exposed uncommitted content.");
+
+        await store.SaveAsync(CreateDocument("recovered"));
+        Require(
+            (await store.LoadAsync()).Document?.Containers[0].Name == "recovered",
+            $"Write did not recover after disk full at {checkpoint}.");
+    }
+}
+
 async Task VerifyReadOnlyPathAsync(
     string directory,
     Func<AtomicJsonConfigurationStore<ProbeConfigurationDocument>, string> targetSelector,
@@ -754,6 +818,21 @@ static async Task RequireFileSystemSaveFailureAsync(Func<Task> saveAsync)
     }
 
     Require(failed, "A save unexpectedly succeeded against a read-only persistence file.");
+}
+
+static async Task RequireDiskFullAsync(
+    Func<Task> saveAsync,
+    ConfigurationDiskFullCheckpoint expectedCheckpoint)
+{
+    try
+    {
+        await saveAsync();
+        throw new InvalidOperationException(
+            $"Disk full at {expectedCheckpoint} did not fail the save.");
+    }
+    catch (InjectedDiskFullException exception) when (exception.Checkpoint == expectedCheckpoint)
+    {
+    }
 }
 
 static AtomicJsonConfigurationStore<ProbeConfigurationDocument> CreateStore(

@@ -30,6 +30,13 @@ public enum AtomicConfigurationSaveCheckpoint
     AfterCommit,
 }
 
+public enum ConfigurationDiskFullCheckpoint
+{
+    DuringTempWrite,
+    BeforeTempFlush,
+    BeforeCommit,
+}
+
 public sealed record ConfigurationLoadResult<T>(
     ConfigurationLoadStatus Status,
     T? Document,
@@ -40,6 +47,12 @@ public sealed class InjectedSaveFailureException(AtomicConfigurationSaveCheckpoi
     : IOException($"Injected configuration save failure at {checkpoint}.")
 {
     public AtomicConfigurationSaveCheckpoint Checkpoint { get; } = checkpoint;
+}
+
+public sealed class InjectedDiskFullException(ConfigurationDiskFullCheckpoint checkpoint)
+    : IOException($"Injected disk-full failure at {checkpoint}.")
+{
+    public ConfigurationDiskFullCheckpoint Checkpoint { get; } = checkpoint;
 }
 
 public sealed class ConfigurationWriteLeaseException(IOException innerException)
@@ -108,6 +121,7 @@ public sealed class AtomicJsonConfigurationStore<T>
         T document,
         AtomicConfigurationSaveCheckpoint? injectedFailure = null,
         Func<AtomicConfigurationSaveCheckpoint, CancellationToken, Task>? checkpointObserver = null,
+        ConfigurationDiskFullCheckpoint? injectedDiskFull = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -141,15 +155,23 @@ public sealed class AtomicJsonConfigurationStore<T>
                 Share = FileShare.None,
             };
 
-            await using (FileStream stream = new(TemporaryPath, streamOptions))
+            await using (FileStream fileStream = new(TemporaryPath, streamOptions))
             {
+                Stream serializationStream =
+                    injectedDiskFull == ConfigurationDiskFullCheckpoint.DuringTempWrite
+                        ? new DiskFullWriteStream(fileStream, maximumBytes: 32)
+                        : fileStream;
+
                 await JsonSerializer.SerializeAsync(
-                    stream,
+                    serializationStream,
                     document,
                     serializerOptions,
                     cancellationToken).ConfigureAwait(false);
-                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-                stream.Flush(flushToDisk: true);
+                ThrowIfDiskFull(
+                    injectedDiskFull,
+                    ConfigurationDiskFullCheckpoint.BeforeTempFlush);
+                await serializationStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                fileStream.Flush(flushToDisk: true);
             }
 
             await NotifyCheckpointAsync(
@@ -181,6 +203,9 @@ public sealed class AtomicJsonConfigurationStore<T>
                     AtomicConfigurationSaveCheckpoint.BeforeCommit,
                     cancellationToken).ConfigureAwait(false);
                 ThrowIfRequested(injectedFailure, AtomicConfigurationSaveCheckpoint.BeforeCommit);
+                ThrowIfDiskFull(
+                    injectedDiskFull,
+                    ConfigurationDiskFullCheckpoint.BeforeCommit);
                 File.Replace(TemporaryPath, PrimaryPath, BackupPath, ignoreMetadataErrors: false);
             }
             else
@@ -190,6 +215,9 @@ public sealed class AtomicJsonConfigurationStore<T>
                     AtomicConfigurationSaveCheckpoint.BeforeCommit,
                     cancellationToken).ConfigureAwait(false);
                 ThrowIfRequested(injectedFailure, AtomicConfigurationSaveCheckpoint.BeforeCommit);
+                ThrowIfDiskFull(
+                    injectedDiskFull,
+                    ConfigurationDiskFullCheckpoint.BeforeCommit);
                 File.Move(TemporaryPath, PrimaryPath);
             }
 
@@ -307,6 +335,16 @@ public sealed class AtomicJsonConfigurationStore<T>
         }
     }
 
+    private static void ThrowIfDiskFull(
+        ConfigurationDiskFullCheckpoint? requested,
+        ConfigurationDiskFullCheckpoint current)
+    {
+        if (requested == current)
+        {
+            throw new InjectedDiskFullException(current);
+        }
+    }
+
     private static Task NotifyCheckpointAsync(
         Func<AtomicConfigurationSaveCheckpoint, CancellationToken, Task>? observer,
         AtomicConfigurationSaveCheckpoint checkpoint,
@@ -357,5 +395,78 @@ public sealed class AtomicJsonConfigurationStore<T>
 
         public static ReadAttempt<TDocument> Failed(ConfigurationValidationFailure failure) =>
             new(false, null, failure);
+    }
+
+    private sealed class DiskFullWriteStream(Stream inner, long maximumBytes) : Stream
+    {
+        private long remainingBytes = maximumBytes;
+
+        public override bool CanRead => false;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => true;
+
+        public override long Length => inner.Length;
+
+        public override long Position
+        {
+            get => inner.Position;
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() => inner.Flush();
+
+        public override Task FlushAsync(CancellationToken cancellationToken) =>
+            inner.FlushAsync(cancellationToken);
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
+
+        public override long Seek(long offset, SeekOrigin origin) =>
+            throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            Write(buffer.AsSpan(offset, count));
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            int allowedBytes = GetAllowedByteCount(buffer.Length);
+            if (allowedBytes > 0)
+            {
+                inner.Write(buffer[..allowedBytes]);
+                remainingBytes -= allowedBytes;
+            }
+
+            ThrowIfIncomplete(allowedBytes, buffer.Length);
+        }
+
+        public override async ValueTask WriteAsync(
+            ReadOnlyMemory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            int allowedBytes = GetAllowedByteCount(buffer.Length);
+            if (allowedBytes > 0)
+            {
+                await inner.WriteAsync(buffer[..allowedBytes], cancellationToken).ConfigureAwait(false);
+                remainingBytes -= allowedBytes;
+            }
+
+            ThrowIfIncomplete(allowedBytes, buffer.Length);
+        }
+
+        private int GetAllowedByteCount(int requestedBytes) =>
+            (int)Math.Min(remainingBytes, requestedBytes);
+
+        private static void ThrowIfIncomplete(int allowedBytes, int requestedBytes)
+        {
+            if (allowedBytes < requestedBytes)
+            {
+                throw new InjectedDiskFullException(
+                    ConfigurationDiskFullCheckpoint.DuringTempWrite);
+            }
+        }
     }
 }
