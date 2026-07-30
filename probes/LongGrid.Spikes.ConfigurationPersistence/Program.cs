@@ -511,6 +511,36 @@ async Task VerifyBoundedWriteLeaseRetryAsync(string directory)
 
     RequireProbe(subMillisecondDelayRejected, "lease-retry-busy-loop-policy-accepted");
 
+    bool nonPositiveTimeoutRejected = false;
+    try
+    {
+        _ = new ConfigurationWriteLeaseRetryPolicy(
+            timeout: TimeSpan.Zero,
+            initialDelay: TimeSpan.FromMilliseconds(1),
+            maximumDelay: TimeSpan.FromMilliseconds(1));
+    }
+    catch (ArgumentOutOfRangeException)
+    {
+        nonPositiveTimeoutRejected = true;
+    }
+
+    RequireProbe(nonPositiveTimeoutRejected, "lease-retry-invalid-timeout-accepted");
+
+    bool invertedDelayBoundsRejected = false;
+    try
+    {
+        _ = new ConfigurationWriteLeaseRetryPolicy(
+            timeout: TimeSpan.FromSeconds(1),
+            initialDelay: TimeSpan.FromMilliseconds(2),
+            maximumDelay: TimeSpan.FromMilliseconds(1));
+    }
+    catch (ArgumentOutOfRangeException)
+    {
+        invertedDelayBoundsRejected = true;
+    }
+
+    RequireProbe(invertedDelayBoundsRejected, "lease-retry-inverted-bounds-accepted");
+
     await VerifyWriteLeaseRetrySuccessAsync(Path.Combine(directory, "success"));
     await VerifyWriteLeaseRetryTimeoutAsync(Path.Combine(directory, "timeout"));
     await VerifyWriteLeaseRetryCancellationAsync(Path.Combine(directory, "cancellation"));
