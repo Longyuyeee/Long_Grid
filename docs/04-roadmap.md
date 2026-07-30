@@ -36,7 +36,8 @@
 - [x] P0-07b1 QueryDisplayConfig 活动路径、virtual-mode 索引、rotation 与 monitor 一一关联（Conditional Pass）。
 - [x] P0-07b2a 拓扑精确/相似映射、歧义阻断、DIP 重映射与最小可见性恢复计划（Conditional Pass）。
 - [x] P0-07b2b1 显示变化静默合并、连续稳定采样、暂停/恢复、超时与代次失效（Conditional Pass）。
-- [ ] P0-07b2b2 真实消息接入、负坐标、热切换、旋转、拔插、RDP、WM_DPICHANGED、事务提交与回滚。
+- [x] P0-07b2b2a 隐藏顶层消息窗口、WTS 生命周期、后台 CCD 调度和启动稳定链（Conditional Pass）。
+- [ ] P0-07b2b2b 真实动态事件、负坐标、热切换、旋转、拔插、RDP、WM_DPICHANGED、事务提交与回滚。
 - [ ] 其余探针与交互验证。
 
 退出门槛：

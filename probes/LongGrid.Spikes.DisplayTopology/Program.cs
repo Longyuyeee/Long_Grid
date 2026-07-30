@@ -7,7 +7,7 @@ using LongGrid.Core.DesktopHost;
 internal static class Program
 {
     private const int IterationCount = 100;
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    internal static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
         Converters = { new JsonStringEnumConverter() },
@@ -42,6 +42,34 @@ internal static class Program
         bool perMonitorV2Requested =
             NativeMethods.SetProcessDpiAwarenessContext(
                 NativeMethods.PerMonitorAwareV2);
+        if (options.WatchSeconds is not null)
+        {
+            DisplayChangeMessageProbeReport messageReport =
+                DisplayChangeMessageProbe.Run(
+                    options.WatchSeconds.Value);
+            if (options.Json)
+            {
+                Console.WriteLine(
+                    JsonSerializer.Serialize(
+                        messageReport,
+                        JsonOptions));
+            }
+            else
+            {
+                Console.WriteLine(messageReport.Probe);
+                Console.WriteLine(
+                    $"Final state: {messageReport.FinalState}");
+                Console.WriteLine(
+                    $"Snapshots: {messageReport.SnapshotAttempts}");
+                Console.WriteLine($"Result: {messageReport.Result}");
+            }
+
+            return perMonitorV2Requested
+                && messageReport.Result == "Conditional Pass"
+                ? 0
+                : 2;
+        }
+
         _ = CaptureSnapshot();
         GC.Collect();
         GC.WaitForPendingFinalizers();
@@ -173,7 +201,7 @@ internal static class Program
         return passed ? 0 : 2;
     }
 
-    private static CombinedDisplaySnapshot CaptureSnapshot()
+    internal static CombinedDisplaySnapshot CaptureSnapshot()
     {
         DisplayConfigurationResult configuration =
             DisplayConfigurationEnumerator.EnumerateActivePaths();
@@ -260,21 +288,29 @@ internal static class Program
               dotnet run --project probes/LongGrid.Spikes.DisplayTopology -- [options]
 
             Options:
-              --json  Write a machine-readable, redacted report.
-              --help  Show this help.
+              --json             Write a machine-readable, redacted report.
+              --watch-seconds N  Observe the real hidden message window for
+                                 2-30 seconds without changing display state.
+              --help             Show this help.
             """);
     }
 }
 
-internal sealed record ProbeOptions(bool Json, bool ShowHelp)
+internal sealed record ProbeOptions(
+    bool Json,
+    bool ShowHelp,
+    int? WatchSeconds)
 {
     internal static ProbeOptions Parse(IEnumerable<string> args)
     {
+        string[] values = args.ToArray();
         bool json = false;
         bool showHelp = false;
+        int? watchSeconds = null;
 
-        foreach (string argument in args)
+        for (int index = 0; index < values.Length; index++)
         {
+            string argument = values[index];
             switch (argument)
             {
                 case "--json":
@@ -284,12 +320,27 @@ internal sealed record ProbeOptions(bool Json, bool ShowHelp)
                 case "-h":
                     showHelp = true;
                     break;
+                case "--watch-seconds":
+                    if (index + 1 >= values.Length
+                        || !int.TryParse(
+                            values[++index],
+                            System.Globalization.NumberStyles.None,
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            out int parsed)
+                        || parsed is < 2 or > 30)
+                    {
+                        throw new ArgumentException(
+                            "--watch-seconds requires an integer from 2 through 30.");
+                    }
+
+                    watchSeconds = parsed;
+                    break;
                 default:
                     throw new ArgumentException($"Unknown option: {argument}");
             }
         }
 
-        return new ProbeOptions(json, showHelp);
+        return new ProbeOptions(json, showHelp, watchSeconds);
     }
 }
 

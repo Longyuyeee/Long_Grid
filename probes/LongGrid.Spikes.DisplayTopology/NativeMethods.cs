@@ -17,6 +17,30 @@ internal static class NativeMethods
     internal const uint DisplayConfigPathActive = 0x00000001;
     internal const uint DisplayConfigPathSupportVirtualMode = 0x00000008;
     internal const int ErrorInsufficientBuffer = 122;
+    internal const uint WmDestroy = 0x0002;
+    internal const uint WmDisplayChange = 0x007E;
+    internal const uint WmTimer = 0x0113;
+    internal const uint WmDeviceChange = 0x0219;
+    internal const uint WmPowerBroadcast = 0x0218;
+    internal const uint WmDpiChanged = 0x02E0;
+    internal const uint WmWtsSessionChange = 0x02B1;
+    internal const uint WmAppSnapshotCompleted = 0x8001;
+    internal const uint WmAppWarmup = 0x8002;
+    internal const nuint MessageTimerId = 1;
+    internal const uint NotifyForThisSession = 0;
+    internal const uint PbtApmSuspend = 0x0004;
+    internal const uint PbtApmResumeSuspend = 0x0007;
+    internal const uint PbtApmResumeAutomatic = 0x0012;
+    internal const uint WtsConsoleConnect = 0x1;
+    internal const uint WtsConsoleDisconnect = 0x2;
+    internal const uint WtsRemoteConnect = 0x3;
+    internal const uint WtsRemoteDisconnect = 0x4;
+    internal const uint WtsSessionLock = 0x7;
+    internal const uint WtsSessionUnlock = 0x8;
+    internal const uint WtsSessionDesktopReady = 0xF;
+    internal const uint SwpNoZOrder = 0x0004;
+    internal const uint SwpNoActivate = 0x0010;
+    internal const uint PmNoRemove = 0x0000;
     internal static readonly nint PerMonitorAwareV2 = new(-4);
 
     [DllImport("user32.dll")]
@@ -95,6 +119,96 @@ internal static class NativeMethods
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     internal static extern int DisplayConfigGetDeviceInfo(
         ref DisplayConfigTargetDeviceName request);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    internal static extern nint GetModuleHandle(string? moduleName);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    internal static extern ushort RegisterClassEx(ref WindowClassEx windowClass);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool UnregisterClass(
+        string className,
+        nint instance);
+
+    [DllImport("user32.dll")]
+    internal static extern nint DefWindowProc(
+        nint window,
+        uint message,
+        nuint wParam,
+        nint lParam);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern int GetMessage(
+        out WindowMessage message,
+        nint window,
+        uint minimumMessage,
+        uint maximumMessage);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool PeekMessage(
+        out WindowMessage message,
+        nint window,
+        uint minimumMessage,
+        uint maximumMessage,
+        uint removeMessage);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool TranslateMessage(
+        ref WindowMessage message);
+
+    [DllImport("user32.dll")]
+    internal static extern nint DispatchMessage(
+        ref WindowMessage message);
+
+    [DllImport("user32.dll")]
+    internal static extern void PostQuitMessage(int exitCode);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern nuint SetTimer(
+        nint window,
+        nuint timerId,
+        uint elapsedMilliseconds,
+        nint timerProcedure);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool KillTimer(
+        nint window,
+        nuint timerId);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool PostMessage(
+        nint window,
+        uint message,
+        nuint wParam,
+        nint lParam);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetWindowPos(
+        nint window,
+        nint insertAfter,
+        int x,
+        int y,
+        int width,
+        int height,
+        uint flags);
+
+    [DllImport("wtsapi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool WTSRegisterSessionNotification(
+        nint window,
+        uint flags);
+
+    [DllImport("wtsapi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool WTSUnRegisterSessionNotification(
+        nint window);
 }
 
 [UnmanagedFunctionPointer(CallingConvention.Winapi)]
@@ -105,8 +219,44 @@ internal delegate bool MonitorEnumerationProcedure(
     ref NativeRect monitorRectangle,
     nint data);
 
+[UnmanagedFunctionPointer(CallingConvention.Winapi)]
+internal delegate nint WindowProcedure(
+    nint window,
+    uint message,
+    nuint wParam,
+    nint lParam);
+
 [StructLayout(LayoutKind.Sequential)]
 internal readonly record struct NativeRect(int Left, int Top, int Right, int Bottom);
+
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+internal struct WindowClassEx
+{
+    internal uint Size;
+    internal uint Style;
+    internal WindowProcedure WindowProcedure;
+    internal int ClassExtraBytes;
+    internal int WindowExtraBytes;
+    internal nint Instance;
+    internal nint Icon;
+    internal nint Cursor;
+    internal nint BackgroundBrush;
+    internal string? MenuName;
+    internal string ClassName;
+    internal nint SmallIcon;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct WindowMessage
+{
+    internal nint Window;
+    internal uint Message;
+    internal nuint WParam;
+    internal nint LParam;
+    internal uint Time;
+    internal NativePoint Point;
+    internal uint Private;
+}
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 internal struct MonitorInfoEx

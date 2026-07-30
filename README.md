@@ -2,7 +2,7 @@
 
 Long Grid 是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：已进入 Phase 0。桌面/Shell 数据链、图像资源、DesktopHost 原生窗口模型、静态双屏混合 DPI、CCD 路径、Core 布局恢复规划和显示变化稳定器已经完成；交互/无障碍与真实显示器动态切换矩阵尚未关闭。正式 MVP 尚未开始。
+> 当前状态：已进入 Phase 0。桌面/Shell 数据链、图像资源、DesktopHost 原生窗口模型、静态双屏混合 DPI、CCD 路径、Core 恢复规划、显示变化稳定器和真实隐藏消息窗口已经完成；交互/无障碍与真实显示器动态切换矩阵尚未关闭。正式 MVP 尚未开始。
 
 ## 产品原则
 
@@ -72,6 +72,9 @@ dotnet run --project probes/LongGrid.Spikes.DesktopHostWindowModels `
 
 dotnet run --project probes/LongGrid.Spikes.DisplayTopology `
   --configuration Release -- --json
+
+dotnet run --project probes/LongGrid.Spikes.DisplayTopology `
+  --configuration Release -- --watch-seconds 3 --json
 ```
 
 真实桌面始终只读；变化压力测试仅发生在自动清理的临时沙箱，图像探针不把位图写入磁盘。报告默认不输出桌面项目名称、路径、扩展名、PIDL、稳定 ID 或逐项错误。详见[Phase 0 探针报告目录](docs/spikes/README.md)。

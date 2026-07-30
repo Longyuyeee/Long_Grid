@@ -78,6 +78,8 @@ P0-07b2a 已完成不依赖 UI 框架的恢复规划器，验证精确/相似映
 
 P0-07b2b1 已完成不依赖真实定时器的显示变化稳定器，验证事件静默合并、连续一致采样、暂停/恢复、总超时和代次失效。真实 `WM_DISPLAYCHANGE`、`WM_DPICHANGED`、电源/会话通知接入及动态矩阵尚未通过，因此 ADR 状态不变。
 
+P0-07b2b2a 已验证真实隐藏顶层消息窗口、当前会话 WTS 注册、系统 Timer、专用 CCD/DPI 采样线程和资源闭环。当前只观察到 Startup 稳定链，没有诱发真实显示、电源或会话变化，也没有执行 DesktopHost 事务，因此 ADR 继续保持 Proposed。
+
 ## 参考
 
 - [Windows 应用开发文档](https://learn.microsoft.com/windows/apps/)
