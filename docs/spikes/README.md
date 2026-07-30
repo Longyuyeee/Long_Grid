@@ -16,3 +16,4 @@
 - [P0-01b：Shell Desktop Namespace 枚举与对账](P0-01b-shell-desktop-namespace.md)
 - [P0-01c：稳定文件身份与快捷方式双重身份](P0-01c-stable-file-and-shortcut-identity.md)
 - [P0-02：Shell 变化通知与最终一致性](P0-02-shell-change-notifications-and-reconciliation.md)
+- [P0-03：Shell 图标、缩略图与原生句柄稳定性](P0-03-shell-item-images.md)

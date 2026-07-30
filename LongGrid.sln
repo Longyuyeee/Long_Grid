@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LongGrid.Spikes.FileIdentit
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LongGrid.Spikes.ShellChangeNotifications", "probes\LongGrid.Spikes.ShellChangeNotifications\LongGrid.Spikes.ShellChangeNotifications.csproj", "{A2B20141-05BC-4E30-B846-A043FF812F0F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LongGrid.Spikes.ShellItemImages", "probes\LongGrid.Spikes.ShellItemImages\LongGrid.Spikes.ShellItemImages.csproj", "{C2836CBA-23F6-4BCA-B27C-CED55DE96E48}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -54,6 +56,10 @@ Global
 		{A2B20141-05BC-4E30-B846-A043FF812F0F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A2B20141-05BC-4E30-B846-A043FF812F0F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A2B20141-05BC-4E30-B846-A043FF812F0F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C2836CBA-23F6-4BCA-B27C-CED55DE96E48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C2836CBA-23F6-4BCA-B27C-CED55DE96E48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C2836CBA-23F6-4BCA-B27C-CED55DE96E48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C2836CBA-23F6-4BCA-B27C-CED55DE96E48}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{6FBD98BA-F87F-42CA-AE3B-7D232352B5AB} = {503E6675-B70F-49E3-A811-13C1BBDB95E2}
@@ -62,5 +68,6 @@ Global
 		{B80F9D6F-7429-404C-AEAE-6FEF7F29A17C} = {5F6F60D3-442B-4856-A7D6-B2262AE3CCF8}
 		{F6213B5F-31ED-4C3D-AB65-0B11F30220F9} = {5F6F60D3-442B-4856-A7D6-B2262AE3CCF8}
 		{A2B20141-05BC-4E30-B846-A043FF812F0F} = {5F6F60D3-442B-4856-A7D6-B2262AE3CCF8}
+		{C2836CBA-23F6-4BCA-B27C-CED55DE96E48} = {5F6F60D3-442B-4856-A7D6-B2262AE3CCF8}
 	EndGlobalSection
 EndGlobal
