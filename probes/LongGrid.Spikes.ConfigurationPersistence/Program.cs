@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using LongGrid.Spikes.ConfigurationPersistence;
 
 if (args.Length > 0 && args[0] == "--child-save")
@@ -27,6 +28,7 @@ try
         "process-termination-checkpoints",
         directory => VerifyProcessTerminationCheckpointsAsync(directory, killIterations),
         results);
+    await RunScenarioAsync("schema-migration-and-rollback", VerifySchemaMigrationAndRollbackAsync, results);
     await RunScenarioAsync("stale-temp-is-ignored", VerifyStaleTemporaryFileIsIgnoredAsync, results);
     await RunScenarioAsync("unknown-fields-survive", VerifyUnknownFieldsSurviveAsync, results);
     await RunScenarioAsync("bounded-document-size", VerifyBoundedDocumentSizeAsync, results);
@@ -211,6 +213,147 @@ async Task VerifyProcessTerminationCheckpointsAsync(string directory, int count)
                 $"Process termination at {checkpoint} exposed an unexpected version.");
         }
     }
+}
+
+async Task VerifySchemaMigrationAndRollbackAsync(string directory)
+{
+    const string v1Json = """
+        {
+          "schemaVersion": 1,
+          "profileId": "default",
+          "containers": [
+            {
+              "id": "container-1",
+              "name": "migration-source",
+              "futureContainerProperty": {
+                "enabled": true
+              }
+            }
+          ],
+          "futureRootProperty": [1, 2, 3]
+        }
+        """;
+
+    JsonObject source = JsonNode.Parse(v1Json)?.AsObject()
+        ?? throw new InvalidDataException("The migration fixture did not parse.");
+    string sourceBefore = source.ToJsonString(ProbeJsonOptions.Configuration);
+    AtomicJsonConfigurationStore<JsonObject> store = new(
+        directory,
+        "profile.json",
+        ProbeConfigurationMigration.ValidateVersionedDocument);
+    JsonConfigurationMigrator migrator = ProbeConfigurationMigration.CreateMigrator();
+
+    await store.SaveAsync(source);
+    byte[] committedV1 = await File.ReadAllBytesAsync(store.PrimaryPath);
+
+    foreach (ConfigurationMigrationCheckpoint checkpoint
+        in Enum.GetValues<ConfigurationMigrationCheckpoint>())
+    {
+        try
+        {
+            _ = migrator.Migrate(source, checkpoint);
+            throw new InvalidOperationException(
+                $"Migration checkpoint {checkpoint} did not inject a failure.");
+        }
+        catch (InjectedMigrationFailureException exception)
+            when (exception.Checkpoint == checkpoint)
+        {
+        }
+
+        Require(
+            source.ToJsonString(ProbeJsonOptions.Configuration) == sourceBefore,
+            $"Migration checkpoint {checkpoint} mutated the source document.");
+        Require(
+            committedV1.SequenceEqual(await File.ReadAllBytesAsync(store.PrimaryPath)),
+            $"Migration checkpoint {checkpoint} changed the committed configuration.");
+    }
+
+    ConfigurationMigrationResult first = migrator.Migrate(source);
+    ConfigurationMigrationResult second = migrator.Migrate(source);
+    Require(first.Status == ConfigurationMigrationStatus.Migrated, "v1 was not migrated.");
+    Require(
+        first.Document.ToJsonString(ProbeJsonOptions.Configuration)
+            == second.Document.ToJsonString(ProbeJsonOptions.Configuration),
+        "Repeated migration of the same source was not deterministic.");
+    Require(
+        source.ToJsonString(ProbeJsonOptions.Configuration) == sourceBefore,
+        "Successful migration mutated the source document.");
+    Require(
+        first.Document["futureRootProperty"] is JsonArray,
+        "Migration lost an unknown root property.");
+    Require(
+        first.Document["containers"]?[0]?["futureContainerProperty"] is JsonObject,
+        "Migration lost an unknown nested property.");
+
+    ConfigurationMigrationResult alreadyCurrent = migrator.Migrate(first.Document);
+    Require(
+        alreadyCurrent.Status == ConfigurationMigrationStatus.AlreadyCurrent,
+        "Current schema was not recognized as idempotent.");
+    Require(
+        alreadyCurrent.Document.ToJsonString(ProbeJsonOptions.Configuration)
+            == first.Document.ToJsonString(ProbeJsonOptions.Configuration),
+        "Current-schema migration changed the document.");
+
+    await store.SaveAsync(first.Document);
+    ConfigurationLoadResult<JsonObject> loadedV2 = await store.LoadAsync();
+    Require(
+        loadedV2.Status == ConfigurationLoadStatus.LoadedPrimary,
+        "Migrated v2 document was not committed.");
+    Require(
+        loadedV2.Document?["schemaVersion"]?.GetValue<int>() == 2,
+        "Committed migration did not contain schema v2.");
+
+    JsonObject backupV1 = JsonNode.Parse(await File.ReadAllTextAsync(store.BackupPath))?.AsObject()
+        ?? throw new InvalidDataException("The migration backup did not parse.");
+    Require(
+        backupV1["schemaVersion"]?.GetValue<int>() == 1,
+        "The migration backup did not preserve schema v1.");
+
+    await File.WriteAllTextAsync(store.PrimaryPath, "{ damaged-v2");
+    ConfigurationLoadResult<JsonObject> recovered = await store.LoadAsync();
+    Require(
+        recovered.Status == ConfigurationLoadStatus.RecoveredFromBackup,
+        "Damaged v2 did not recover the committed v1 backup.");
+    Require(
+        recovered.Document?["schemaVersion"]?.GetValue<int>() == 1,
+        "Migration rollback did not return schema v1.");
+
+    JsonObject future = (JsonObject)source.DeepClone();
+    future["schemaVersion"] = 3;
+    string futureBefore = future.ToJsonString(ProbeJsonOptions.Configuration);
+
+    try
+    {
+        _ = migrator.Migrate(future);
+        throw new InvalidOperationException("Future schema was silently downgraded.");
+    }
+    catch (NotSupportedException)
+    {
+    }
+
+    Require(
+        future.ToJsonString(ProbeJsonOptions.Configuration) == futureBefore,
+        "Rejected future schema was mutated.");
+
+    JsonObject conflictingSource = (JsonObject)source.DeepClone();
+    conflictingSource["persistenceProbe"] = new JsonObject
+    {
+        ["ownedByFutureVersion"] = true,
+    };
+    string conflictingBefore = conflictingSource.ToJsonString(ProbeJsonOptions.Configuration);
+
+    try
+    {
+        _ = migrator.Migrate(conflictingSource);
+        throw new InvalidOperationException("Migration silently overwrote an unknown field.");
+    }
+    catch (InvalidDataException)
+    {
+    }
+
+    Require(
+        conflictingSource.ToJsonString(ProbeJsonOptions.Configuration) == conflictingBefore,
+        "Rejected field conflict mutated the source document.");
 }
 
 async Task VerifyStaleTemporaryFileIsIgnoredAsync(string directory)

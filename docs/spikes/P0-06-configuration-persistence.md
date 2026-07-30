@@ -2,7 +2,7 @@
 
 执行日期：2026-07-30
 
-结果：**Conditional Pass（应用级原子替换、备份恢复、安全模式和四检查点子进程强杀通过；1,000 次强杀、断电与迁移回滚仍需受控矩阵）**
+结果：**Conditional Pass（应用级原子替换、备份恢复、安全模式、四检查点子进程强杀和确定性示例迁移回滚通过；1,000 次强杀、断电与正式 schema 矩阵仍待关闭）**
 
 ## 1. 目标
 
@@ -17,6 +17,7 @@
 7. 中断留下的 `.new` 文件不参与启动加载；
 8. 未识别 JSON 字段可在往返保存后保留；
 9. 过大的配置在反序列化前被拒绝。
+10. v1→v2 示例迁移确定、不可原地修改，失败不发布且成功后保留 v1 备份。
 
 探针只写入自动创建并最终清理的临时沙箱，不读取或修改真实 Long Grid 配置、桌面文件或用户文档。
 
@@ -74,7 +75,7 @@ dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
   --iterations 1000 --kill-iterations 10 --json
 ```
 
-八类场景全部通过：
+九类场景全部通过：
 
 | 场景 | 结果 |
 |---|---|
@@ -83,6 +84,7 @@ dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
 | 主文件与备份同时损坏进入安全模式 | Pass |
 | 临时文件落盘后、校验后、提交前和提交后故障点 | Pass |
 | 上述四个检查点各 10 次真实子进程强杀 | Pass（共 40 次） |
+| v1→v2 深拷贝迁移、三检查点失败、确定性、未知字段、未来版本拒绝和 v1 回退 | Pass |
 | 遗留 `.new` 不参与加载 | Pass |
 | 根级和容器级未知字段往返保留 | Pass |
 | 超大文档在反序列化前拒绝 | Pass |
@@ -99,6 +101,8 @@ dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
 - 失败注入前后始终存在可识别的有效版本或明确安全模式；
 - 加载备份不会静默覆盖损坏主文件；
 - 普通保存拒绝覆盖已损坏主文件或安全模式现场，修复必须走未来的显式确认入口；
+- 迁移步骤按相邻版本注册，始终操作深拷贝；同一源产生相同结果，三处失败注入不改变源文件或已提交配置；
+- 成功发布 v2 后保留 v1 备份；v2 损坏时仍可读取 v1，未来版本和未知字段冲突不会被静默覆盖；
 - 无效、空、超大和不支持 schema 的文档不会作为成功配置返回；
 - 探针输出不包含沙箱路径或配置内容。
 
@@ -108,7 +112,7 @@ dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
 - 物理断电、磁盘缓存丢失、磁盘满、只读目录和 ACL 变化；
 - OneDrive、网络盘、FAT/exFAT 和非本地文件系统；
 - 多进程并发写入和单实例锁；
-- schema v1→v2 的不可变迁移、失败回滚和未知嵌套字段策略；
+- 正式产品 v2 schema、多步迁移链、降级兼容期限和大配置迁移性能；
 - 备份轮转、诊断提示和用户确认后的修复写回；
 - 真实生产 `LongGrid.Infrastructure` 模块。
 
@@ -118,6 +122,6 @@ dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
 
 1. 将四检查点真实强杀累计到 1,000 次，并记录耗时、失败分布和残留文件；
 2. 增加磁盘满、无权限、只读和并发写入故障注入；
-3. 定义 v1→v2 示例迁移，证明源文档不被原地修改且失败可回滚；
+3. 在产品合同确定后定义正式 v2 schema，补多步迁移、降级期限和真实大配置性能矩阵；
 4. 在首个只读 MVP 垂直切片中，以相同状态合同实现正式 Infrastructure 适配器；
 5. 安全模式 UI 必须允许导出脱敏诊断、选择备份和显式重试，不能自动清空配置。
