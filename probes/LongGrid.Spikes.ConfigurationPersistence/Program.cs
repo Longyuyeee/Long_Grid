@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using LongGrid.Spikes.ConfigurationPersistence;
@@ -32,6 +34,7 @@ try
     await RunScenarioAsync("schema-migration-and-rollback", VerifySchemaMigrationAndRollbackAsync, results);
     await RunScenarioAsync("read-only-file-recovery", VerifyReadOnlyFileRecoveryAsync, results);
     await RunScenarioAsync("simulated-disk-full-recovery", VerifyDiskFullRecoveryAsync, results);
+    await RunScenarioAsync("directory-acl-denial-recovery", VerifyDirectoryAclRecoveryAsync, results);
     await RunScenarioAsync("stale-temp-is-ignored", VerifyStaleTemporaryFileIsIgnoredAsync, results);
     await RunScenarioAsync("unknown-fields-survive", VerifyUnknownFieldsSurviveAsync, results);
     await RunScenarioAsync("bounded-document-size", VerifyBoundedDocumentSizeAsync, results);
@@ -525,6 +528,90 @@ async Task VerifyDiskFullRecoveryAsync(string directory)
             (await store.LoadAsync()).Document?.Containers[0].Name == "recovered",
             $"Write did not recover after disk full at {checkpoint}.");
     }
+}
+
+async Task VerifyDirectoryAclRecoveryAsync(string directory)
+{
+    if (!OperatingSystem.IsWindows())
+    {
+        throw new PlatformNotSupportedException(
+            "The directory ACL recovery scenario requires Windows.");
+    }
+
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> store = CreateStore(directory);
+    await store.SaveAsync(CreateDocument("previous"));
+    await store.SaveAsync(CreateDocument("baseline"));
+    byte[] primaryBefore = await File.ReadAllBytesAsync(store.PrimaryPath);
+    byte[] backupBefore = await File.ReadAllBytesAsync(store.BackupPath);
+
+    DirectoryInfo directoryInfo = new(directory);
+    DirectorySecurity originalSecurity = FileSystemAclExtensions.GetAccessControl(
+        directoryInfo,
+        AccessControlSections.Access);
+    byte[] originalDescriptor = originalSecurity.GetSecurityDescriptorBinaryForm();
+    string originalDacl = originalSecurity.GetSecurityDescriptorSddlForm(
+        AccessControlSections.Access);
+    using WindowsIdentity currentIdentity = WindowsIdentity.GetCurrent();
+    SecurityIdentifier currentUser = currentIdentity.User
+        ?? throw new InvalidOperationException("The current Windows user has no SID.");
+    FileSystemAccessRule denyFileCreation = new(
+        currentUser,
+        FileSystemRights.CreateFiles,
+        InheritanceFlags.None,
+        PropagationFlags.None,
+        AccessControlType.Deny);
+    DirectorySecurity deniedSecurity = new();
+    deniedSecurity.SetSecurityDescriptorBinaryForm(
+        originalDescriptor,
+        AccessControlSections.Access);
+    deniedSecurity.AddAccessRule(denyFileCreation);
+    bool denialApplied = false;
+
+    try
+    {
+        FileSystemAclExtensions.SetAccessControl(directoryInfo, deniedSecurity);
+        denialApplied = true;
+
+        await RequireFileSystemSaveFailureAsync(
+            () => store.SaveAsync(CreateDocument("must-not-commit")));
+        Require(
+            primaryBefore.SequenceEqual(await File.ReadAllBytesAsync(store.PrimaryPath)),
+            "Directory ACL denial changed the committed primary.");
+        Require(
+            backupBefore.SequenceEqual(await File.ReadAllBytesAsync(store.BackupPath)),
+            "Directory ACL denial changed the backup.");
+        Require(
+            !File.Exists(store.TemporaryPath),
+            "Directory ACL denial retained an incomplete .new.");
+    }
+    finally
+    {
+        if (denialApplied)
+        {
+            DirectorySecurity restoredSecurity = new();
+            restoredSecurity.SetSecurityDescriptorBinaryForm(
+                originalDescriptor,
+                AccessControlSections.Access);
+            FileSystemAclExtensions.SetAccessControl(directoryInfo, restoredSecurity);
+        }
+    }
+
+    DirectorySecurity restoredSecurityCheck = FileSystemAclExtensions.GetAccessControl(
+        directoryInfo,
+        AccessControlSections.Access);
+    Require(
+        restoredSecurityCheck.GetSecurityDescriptorSddlForm(AccessControlSections.Access)
+            == originalDacl,
+        "The original directory DACL was not restored.");
+
+    await store.SaveAsync(CreateDocument("recovered"));
+    ConfigurationLoadResult<ProbeConfigurationDocument> loaded = await store.LoadAsync();
+    Require(
+        loaded.Status == ConfigurationLoadStatus.LoadedPrimary,
+        "Write did not recover after restoring the directory ACL.");
+    Require(
+        loaded.Document?.Containers[0].Name == "recovered",
+        "Recovered write was not committed after restoring the directory ACL.");
 }
 
 async Task VerifyReadOnlyPathAsync(
