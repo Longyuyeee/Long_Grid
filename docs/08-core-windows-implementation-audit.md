@@ -256,9 +256,11 @@ Recovering         Explorer/显示器/DWM 变化后重建
 - XAML 布局使用有效像素/DIP；AppWindow 和 Win32 位置使用物理像素，必须集中转换。
 - 处理 `WM_DPICHANGED` 并采用系统建议矩形。
 - 使用 `QueryDisplayConfig`/`DisplayConfigGetDeviceInfo` 建立显示器拓扑指纹。
-- 指纹包含 adapter/target、友好名、工作区、方向、DPI、相对位置；不能只使用数组序号。
+- 指纹包含 adapter/target、本地稳定连接身份、工作区、方向、DPI、相对位置；友好名只用于 UI，不能作为身份。
 - 显示配置查询返回缓冲不足时重新获取大小并重试。
 - 拔屏时只做最小可见性纠正，不覆盖原拓扑快照。
+
+P0-07a 当前证据：在有效 DPI 192/240 的双屏环境中，三轮各 100 次 `EnumDisplayMonitors`/`GetMonitorInfo`/`GetDpiForWindow` 枚举只产生一个拓扑指纹，虚拟屏幕边界与显示器 Bounds 外接矩形一致，USER/GDI/进程句柄无净增长。设备 ID/Key 只在进程内散列，报告不输出原值或散列。该结果只支持静态枚举；旋转、adapter/target、热切换和 `WM_DPICHANGED` 仍由 P0-07b 验证。
 
 ## 6. 自有窗口与视觉效果
 
@@ -448,7 +450,7 @@ COM/Win32 类型不能泄漏到 Core。
 | P0-04 | 每容器 HWND | 原生命中/资源已测；Win+D、输入、Alt+Tab、全屏可预测 | 不作为普通容器首选；保留特殊短生命周期窗口 |
 | P0-05 | 每显示器 HWND | Window Region 跨进程穿透已测；交互矩阵通过 | Region/无障碍失败则回退每容器或重做输入层 |
 | P0-06 | Explorer 重启 | 10 秒内恢复且无重复实例 | DesktopHost 不可发布 |
-| P0-07 | Per-Monitor V2 | 100%–300% DPI 热切换不漂移 | 重做坐标层 |
+| P0-07 | Per-Monitor V2 | 静态双屏混合 DPI 已测；100%–300% 热切换、负坐标、旋转/拔插不漂移 | 重做坐标层 |
 | P0-08 | IFileOperation | 移动、冲突、取消、回滚报告正确 | 托管目录退出首版 |
 | P0-09 | 原生图标位置 | 读取/恢复稳定，且不依赖 WorkerW | 否则只保留实验记录 |
 | P0-10 | 任务栏透明助手 | 支持 build 上可恢复、零 Explorer 崩溃 | 不发布实验模块 |

@@ -18,3 +18,4 @@
 - [P0-02：Shell 变化通知与最终一致性](P0-02-shell-change-notifications-and-reconciliation.md)
 - [P0-03：Shell 图标、缩略图与原生句柄稳定性](P0-03-shell-item-images.md)
 - [P0-04/P0-05a：DesktopHost 原生窗口模型与跨进程命中](P0-04-P0-05a-desktop-host-window-models.md)
+- [P0-07a：显示器静态拓扑、有效 DPI 与隐私安全指纹](P0-07a-display-topology-and-dpi.md)
