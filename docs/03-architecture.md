@@ -136,6 +136,8 @@ P0-07b1 已用 `QDC_ONLY_ACTIVE_PATHS | QDC_VIRTUAL_MODE_AWARE` 补齐 CCD sourc
 
 P0-07b2a 已实现纯 Core 恢复规划：只有拓扑指纹等价、全部精确身份映射且没有可见性纠正时才产生 `Automatic`；DPI/工作区/方向变化、唯一相似映射或最小位移产生 `ReviewRequired`；缺屏和对称歧义产生 `Blocked`。容器以工作区相对 DIP 保存，在目标 DPI 下转换为物理像素；规划器只生成 requested/proposed 差异，不提交窗口变化。事件合并、真实动态矩阵和 Region/Composition/UIA 同代事务仍由 P0-07b2b 验证。
 
+P0-07b2b1 已实现纯 Core 显示变化稳定器：默认以 750 ms 静默期合并事件，要求相隔至少 250 ms 的两次一致指纹，并以 10 s 总截止时间阻断持续抖动。每个信号递增代次；旧查询、旧计划和 Ready 后漏通知产生的变化都不能覆盖新状态。睡眠或会话不可用时进入 Paused，恢复后从新代次重新采样。真实消息窗口、后台 CCD 调度和窗口事务仍由 P0-07b2b2 验证。
+
 ## 6. 规则引擎
 
 ```text

@@ -21,3 +21,4 @@
 - [P0-07a：显示器静态拓扑、有效 DPI 与隐私安全指纹](P0-07a-display-topology-and-dpi.md)
 - [P0-07b1：DisplayConfig 活动路径、旋转与显示器身份关联](P0-07b1-displayconfig-path-identity.md)
 - [P0-07b2a：拓扑映射、恢复预览与最小可见性纠正](P0-07b2a-layout-recovery-planner.md)
+- [P0-07b2b1：显示变化事件合并、稳定采样与代次失效](P0-07b2b1-display-change-stabilizer.md)
