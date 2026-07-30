@@ -70,7 +70,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
 | 事务补偿 | Bounds/Region/DComp/UIA 快照、代次门禁、逆序回滚、紧急隐藏 | E1-E2 | 正式宿主集成和故障注入矩阵 |
-| 配置持久化 | 版本化 JSON、同目录暂存、落盘校验、原子替换、备份恢复、安全模式和未知字段保留 | E2 / Conditional Pass | 真实强杀、断电、权限、并发和迁移回滚 |
+| 配置持久化 | 版本化 JSON、同目录暂存、落盘校验、原子替换、备份恢复、安全模式、未知字段保留和四检查点子进程强杀 | E2 / Conditional Pass | 1,000 次强杀、断电、权限、并发和迁移回滚 |
 | 交互切片 | 一个可见 List 容器和三个进程内演示项 | E2 / Conditional Pass | 文件语义、拖放、正式持久化和用户测试 |
 
 ### 3.3 仍只是设计或协议的能力

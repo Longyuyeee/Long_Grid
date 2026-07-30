@@ -2,7 +2,7 @@
 
 执行日期：2026-07-30
 
-结果：**Conditional Pass（应用级原子替换、备份恢复和安全模式通过；真实进程强杀、断电与迁移回滚仍需受控矩阵）**
+结果：**Conditional Pass（应用级原子替换、备份恢复、安全模式和四检查点子进程强杀通过；1,000 次强杀、断电与迁移回滚仍需受控矩阵）**
 
 ## 1. 目标
 
@@ -70,10 +70,11 @@
 
 ```powershell
 dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
-  --configuration Release -- --iterations 1000 --json
+  --configuration Release -- `
+  --iterations 1000 --kill-iterations 10 --json
 ```
 
-七类场景全部通过：
+八类场景全部通过：
 
 | 场景 | 结果 |
 |---|---|
@@ -81,12 +82,13 @@ dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
 | 主文件损坏后读取备份且保留损坏现场 | Pass |
 | 主文件与备份同时损坏进入安全模式 | Pass |
 | 临时文件落盘后、校验后、提交前和提交后故障点 | Pass |
+| 上述四个检查点各 10 次真实子进程强杀 | Pass（共 40 次） |
 | 遗留 `.new` 不参与加载 | Pass |
 | 根级和容器级未知字段往返保留 | Pass |
 | 超大文档在反序列化前拒绝 | Pass |
 | 1,000 次重复写入与逐次复读 | Pass |
 
-解决方案构建为 0 warning、0 error。CI 每次 PR 运行 100 次重复写入，1,000 次作为本地/受控矩阵命令。
+解决方案构建为 0 warning、0 error。CI 每次 PR 运行 100 次重复写入和四检查点各 2 次子进程强杀；本地执行 1,000 次重复写入和四检查点各 10 次强杀。
 
 ## 6. 审计边界
 
@@ -102,7 +104,7 @@ dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
 
 尚未验证：
 
-- 真正的进程强杀，而非受控检查点异常注入；
+- 目标 1,000 次真实进程强杀；当前只有 40 次本地和每次 CI 8 次证据；
 - 物理断电、磁盘缓存丢失、磁盘满、只读目录和 ACL 变化；
 - OneDrive、网络盘、FAT/exFAT 和非本地文件系统；
 - 多进程并发写入和单实例锁；
@@ -114,7 +116,7 @@ dotnet run --project probes/LongGrid.Spikes.ConfigurationPersistence `
 
 ## 7. 下一步
 
-1. 增加子进程握手，在 `.new` 落盘、校验完成和替换前执行真实强杀矩阵；
+1. 将四检查点真实强杀累计到 1,000 次，并记录耗时、失败分布和残留文件；
 2. 增加磁盘满、无权限、只读和并发写入故障注入；
 3. 定义 v1→v2 示例迁移，证明源文档不被原地修改且失败可回滚；
 4. 在首个只读 MVP 垂直切片中，以相同状态合同实现正式 Infrastructure 适配器；

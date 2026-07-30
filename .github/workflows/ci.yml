@@ -53,6 +53,7 @@ jobs:
           --no-build
           --
           --iterations 100
+          --kill-iterations 2
           --json
 
       - name: Dependency vulnerability gate

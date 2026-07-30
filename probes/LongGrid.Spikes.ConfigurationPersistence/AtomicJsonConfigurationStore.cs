@@ -101,6 +101,7 @@ public sealed class AtomicJsonConfigurationStore<T>
     public async Task SaveAsync(
         T document,
         AtomicConfigurationSaveCheckpoint? injectedFailure = null,
+        Func<AtomicConfigurationSaveCheckpoint, CancellationToken, Task>? checkpointObserver = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -143,6 +144,10 @@ public sealed class AtomicJsonConfigurationStore<T>
                 stream.Flush(flushToDisk: true);
             }
 
+            await NotifyCheckpointAsync(
+                checkpointObserver,
+                AtomicConfigurationSaveCheckpoint.AfterTempFlush,
+                cancellationToken).ConfigureAwait(false);
             ThrowIfRequested(injectedFailure, AtomicConfigurationSaveCheckpoint.AfterTempFlush);
 
             ReadAttempt<T> stagedDocument = await TryReadAsync(
@@ -155,19 +160,35 @@ public sealed class AtomicJsonConfigurationStore<T>
                     $"Staged configuration validation failed: {stagedDocument.Failure}.");
             }
 
+            await NotifyCheckpointAsync(
+                checkpointObserver,
+                AtomicConfigurationSaveCheckpoint.AfterTempValidation,
+                cancellationToken).ConfigureAwait(false);
             ThrowIfRequested(injectedFailure, AtomicConfigurationSaveCheckpoint.AfterTempValidation);
 
             if (File.Exists(PrimaryPath))
             {
+                await NotifyCheckpointAsync(
+                    checkpointObserver,
+                    AtomicConfigurationSaveCheckpoint.BeforeCommit,
+                    cancellationToken).ConfigureAwait(false);
                 ThrowIfRequested(injectedFailure, AtomicConfigurationSaveCheckpoint.BeforeCommit);
                 File.Replace(TemporaryPath, PrimaryPath, BackupPath, ignoreMetadataErrors: false);
             }
             else
             {
+                await NotifyCheckpointAsync(
+                    checkpointObserver,
+                    AtomicConfigurationSaveCheckpoint.BeforeCommit,
+                    cancellationToken).ConfigureAwait(false);
                 ThrowIfRequested(injectedFailure, AtomicConfigurationSaveCheckpoint.BeforeCommit);
                 File.Move(TemporaryPath, PrimaryPath);
             }
 
+            await NotifyCheckpointAsync(
+                checkpointObserver,
+                AtomicConfigurationSaveCheckpoint.AfterCommit,
+                cancellationToken).ConfigureAwait(false);
             ThrowIfRequested(injectedFailure, AtomicConfigurationSaveCheckpoint.AfterCommit);
         }
         finally
@@ -277,6 +298,12 @@ public sealed class AtomicJsonConfigurationStore<T>
             throw new InjectedSaveFailureException(current);
         }
     }
+
+    private static Task NotifyCheckpointAsync(
+        Func<AtomicConfigurationSaveCheckpoint, CancellationToken, Task>? observer,
+        AtomicConfigurationSaveCheckpoint checkpoint,
+        CancellationToken cancellationToken) =>
+        observer?.Invoke(checkpoint, cancellationToken) ?? Task.CompletedTask;
 
     private void TryDeleteTemporaryFile()
     {

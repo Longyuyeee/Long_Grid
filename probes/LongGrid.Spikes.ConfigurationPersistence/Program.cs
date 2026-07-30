@@ -1,8 +1,15 @@
+using System.Diagnostics;
 using System.Text.Json;
 using LongGrid.Spikes.ConfigurationPersistence;
 
+if (args.Length > 0 && args[0] == "--child-save")
+{
+    return await RunChildSaveAsync(args);
+}
+
 bool jsonOutput = args.Contains("--json", StringComparer.Ordinal);
 int iterations = ParseIterations(args);
+int killIterations = ParseBoundedOption(args, "--kill-iterations", defaultValue: 3, maximum: 1000);
 List<ScenarioResult> results = [];
 string sandbox = Path.Combine(
     Path.GetTempPath(),
@@ -16,6 +23,10 @@ try
     await RunScenarioAsync("round-trip-and-backup", VerifyRoundTripAndBackupAsync, results);
     await RunScenarioAsync("safe-mode-preserves-damage", VerifySafeModePreservesDamageAsync, results);
     await RunScenarioAsync("failure-checkpoints", VerifyFailureCheckpointsAsync, results);
+    await RunScenarioAsync(
+        "process-termination-checkpoints",
+        directory => VerifyProcessTerminationCheckpointsAsync(directory, killIterations),
+        results);
     await RunScenarioAsync("stale-temp-is-ignored", VerifyStaleTemporaryFileIsIgnoredAsync, results);
     await RunScenarioAsync("unknown-fields-survive", VerifyUnknownFieldsSurviveAsync, results);
     await RunScenarioAsync("bounded-document-size", VerifyBoundedDocumentSizeAsync, results);
@@ -47,6 +58,7 @@ if (jsonOutput)
         {
             passed,
             iterations,
+            killIterations,
             scenarios = results,
         },
         ProbeJsonOptions.Output));
@@ -144,6 +156,63 @@ async Task VerifyFailureCheckpointsAsync(string directory)
     }
 }
 
+async Task VerifyProcessTerminationCheckpointsAsync(string directory, int count)
+{
+    foreach (AtomicConfigurationSaveCheckpoint checkpoint in Enum.GetValues<AtomicConfigurationSaveCheckpoint>())
+    {
+        for (int iteration = 0; iteration < count; iteration++)
+        {
+            string checkpointDirectory = Path.Combine(
+                directory,
+                checkpoint.ToString(),
+                iteration.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            AtomicJsonConfigurationStore<ProbeConfigurationDocument> store =
+                CreateStore(checkpointDirectory);
+            await store.SaveAsync(CreateDocument("baseline"));
+
+            string readyPath = Path.Combine(checkpointDirectory, "child.ready");
+            string candidateName = $"candidate-{iteration}";
+            ProcessStartInfo startInfo = CreateChildStartInfo(
+                checkpointDirectory,
+                candidateName,
+                checkpoint,
+                readyPath);
+
+            using Process process = Process.Start(startInfo)
+                ?? throw new InvalidOperationException("The persistence child process did not start.");
+
+            try
+            {
+                await WaitForChildReadyAsync(process, readyPath);
+                process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync();
+            }
+            finally
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    await process.WaitForExitAsync();
+                }
+            }
+
+            Require(process.ExitCode != 0, "The child process was not forcefully terminated.");
+
+            ConfigurationLoadResult<ProbeConfigurationDocument> loaded = await store.LoadAsync();
+            string expectedName = checkpoint == AtomicConfigurationSaveCheckpoint.AfterCommit
+                ? candidateName
+                : "baseline";
+
+            Require(
+                loaded.Status == ConfigurationLoadStatus.LoadedPrimary,
+                $"Process termination at {checkpoint} left no valid primary.");
+            Require(
+                loaded.Document?.Containers[0].Name == expectedName,
+                $"Process termination at {checkpoint} exposed an unexpected version.");
+        }
+    }
+}
+
 async Task VerifyStaleTemporaryFileIsIgnoredAsync(string directory)
 {
     AtomicJsonConfigurationStore<ProbeConfigurationDocument> store = CreateStore(directory);
@@ -236,6 +305,99 @@ async Task RunScenarioAsync(
     }
 }
 
+static ProcessStartInfo CreateChildStartInfo(
+    string directory,
+    string candidateName,
+    AtomicConfigurationSaveCheckpoint checkpoint,
+    string readyPath)
+{
+    string processPath = Environment.ProcessPath
+        ?? throw new InvalidOperationException("The current process path is unavailable.");
+    ProcessStartInfo startInfo = new(processPath)
+    {
+        CreateNoWindow = true,
+        RedirectStandardError = true,
+        RedirectStandardOutput = true,
+        UseShellExecute = false,
+        WindowStyle = ProcessWindowStyle.Hidden,
+    };
+
+    if (string.Equals(
+        Path.GetFileNameWithoutExtension(processPath),
+        "dotnet",
+        StringComparison.OrdinalIgnoreCase))
+    {
+        string entryAssemblyPath = Environment.GetCommandLineArgs()[0];
+        startInfo.ArgumentList.Add(entryAssemblyPath);
+    }
+
+    startInfo.ArgumentList.Add("--child-save");
+    startInfo.ArgumentList.Add(directory);
+    startInfo.ArgumentList.Add(candidateName);
+    startInfo.ArgumentList.Add(checkpoint.ToString());
+    startInfo.ArgumentList.Add(readyPath);
+    return startInfo;
+}
+
+static async Task WaitForChildReadyAsync(Process process, string readyPath)
+{
+    using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(15));
+
+    while (!File.Exists(readyPath))
+    {
+        if (process.HasExited)
+        {
+            throw new InvalidOperationException(
+                $"The persistence child exited before the checkpoint with code {process.ExitCode}.");
+        }
+
+        await Task.Delay(TimeSpan.FromMilliseconds(20), timeout.Token);
+    }
+}
+
+static async Task<int> RunChildSaveAsync(string[] arguments)
+{
+    if (arguments.Length != 5
+        || !Enum.TryParse(
+            arguments[3],
+            ignoreCase: false,
+            out AtomicConfigurationSaveCheckpoint checkpoint))
+    {
+        return 2;
+    }
+
+    string directory = arguments[1];
+    string candidateName = arguments[2];
+    string readyPath = arguments[4];
+    string fullDirectory = Path.GetFullPath(directory);
+    string fullReadyPath = Path.GetFullPath(readyPath);
+
+    if (!string.Equals(
+        Path.GetDirectoryName(fullReadyPath),
+        fullDirectory,
+        StringComparison.OrdinalIgnoreCase))
+    {
+        return 2;
+    }
+
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> store = CreateStore(directory);
+
+    await store.SaveAsync(
+        CreateDocument(candidateName),
+        checkpointObserver: async (current, cancellationToken) =>
+        {
+            if (current != checkpoint)
+            {
+                return;
+            }
+
+            await File.WriteAllTextAsync(fullReadyPath, current.ToString(), cancellationToken);
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        });
+
+    return 0;
+}
+
 static async Task RequireNormalSaveRefusedAsync(
     AtomicJsonConfigurationStore<ProbeConfigurationDocument> store,
     string candidateName)
@@ -250,7 +412,7 @@ static async Task RequireNormalSaveRefusedAsync(
     }
 }
 
-AtomicJsonConfigurationStore<ProbeConfigurationDocument> CreateStore(
+static AtomicJsonConfigurationStore<ProbeConfigurationDocument> CreateStore(
     string directory,
     long maximumDocumentBytes = 4 * 1024 * 1024) =>
     new(
@@ -276,20 +438,31 @@ static ProbeConfigurationDocument CreateDocument(string containerName) =>
 
 static int ParseIterations(string[] arguments)
 {
-    int optionIndex = Array.IndexOf(arguments, "--iterations");
+    return ParseBoundedOption(arguments, "--iterations", defaultValue: 100, maximum: 10_000);
+}
+
+static int ParseBoundedOption(
+    string[] arguments,
+    string optionName,
+    int defaultValue,
+    int maximum)
+{
+    int optionIndex = Array.IndexOf(arguments, optionName);
     if (optionIndex < 0)
     {
-        return 100;
+        return defaultValue;
     }
 
     if (optionIndex + 1 >= arguments.Length
-        || !int.TryParse(arguments[optionIndex + 1], out int iterations)
-        || iterations is < 1 or > 10_000)
+        || !int.TryParse(arguments[optionIndex + 1], out int value)
+        || value < 1
+        || value > maximum)
     {
-        throw new ArgumentException("--iterations must be an integer between 1 and 10000.");
+        throw new ArgumentException(
+            $"{optionName} must be an integer between 1 and {maximum}.");
     }
 
-    return iterations;
+    return value;
 }
 
 static void Require(bool condition, string message)
