@@ -735,7 +735,8 @@ async Task VerifyLatestWinsSaveQueueAsync(string directory)
             }
 
             await store.SaveAsync(document, cancellationToken: cancellationToken);
-        });
+        },
+        CloneDocument);
 
     Task first = queue.EnqueueAsync(CreateDocument("version-0"));
     await firstSaveStarted.Task;
@@ -746,14 +747,53 @@ async Task VerifyLatestWinsSaveQueueAsync(string directory)
     }
 
     using CancellationTokenSource cancelledWaiter = new();
+    List<ProbeContainer> mutableLatestContainers =
+    [
+        new ProbeContainer
+        {
+            Id = "container-1",
+            Name = "version-501",
+        },
+    ];
+    ProbeConfigurationDocument latest = new()
+    {
+        SchemaVersion = 1,
+        ProfileId = "default",
+        Containers = mutableLatestContainers,
+    };
     Task cancelled = queue.EnqueueAsync(
-        CreateDocument("version-501"),
+        latest,
         cancelledWaiter.Token);
+    mutableLatestContainers[0] = new ProbeContainer
+    {
+        Id = "container-1",
+        Name = "mutated-after-enqueue",
+    };
     cancelledWaiter.Cancel();
+
+    using (CancellationTokenSource drainTimeout =
+           new(TimeSpan.FromMilliseconds(100)))
+    {
+        bool drainCancellationObserved = false;
+        try
+        {
+            await queue.CompleteAsync(drainTimeout.Token);
+        }
+        catch (OperationCanceledException) when (drainTimeout.IsCancellationRequested)
+        {
+            drainCancellationObserved = true;
+        }
+
+        RequireProbe(
+            drainCancellationObserved,
+            "save-queue-drain-timeout-not-observed");
+    }
+
     releaseFirstSave.TrySetResult();
 
     await first;
     await Task.WhenAll(coalescedWaiters);
+    await queue.CompleteAsync();
     bool cancellationObserved = false;
     try
     {
@@ -765,6 +805,18 @@ async Task VerifyLatestWinsSaveQueueAsync(string directory)
     }
 
     RequireProbe(cancellationObserved, "save-queue-cancellation-not-observed");
+    bool postCompleteRejected = false;
+    try
+    {
+        await queue.EnqueueAsync(CreateDocument("must-be-rejected"));
+    }
+    catch (InvalidOperationException exception)
+        when (exception.Message == "The configuration save coordinator is complete.")
+    {
+        postCompleteRejected = true;
+    }
+
+    RequireProbe(postCompleteRejected, "save-queue-post-complete-accepted");
     RequireProbe(physicalSaveCount == 2, "save-queue-did-not-coalesce");
     RequireProbe(
         (await store.LoadAsync()).Document?.Containers[0].Name == "version-501",
@@ -798,7 +850,8 @@ async Task VerifyLatestWinsSaveQueueAsync(string directory)
             }
 
             await recoveryStore.SaveAsync(document, cancellationToken: cancellationToken);
-        });
+        },
+        CloneDocument);
 
     Task failed = recoveryQueue.EnqueueAsync(CreateDocument("must-fail"));
     await failingSaveStarted.Task;
@@ -815,12 +868,19 @@ async Task VerifyLatestWinsSaveQueueAsync(string directory)
     }
 
     await recovered;
+    await recoveryQueue.CompleteAsync();
     RequireProbe(failureObserved, "save-queue-failure-not-observed");
     RequireProbe(recoverySaveCount == 2, "save-queue-failure-stopped-worker");
     RequireProbe(
         (await recoveryStore.LoadAsync()).Document?.Containers[0].Name == "recovered",
         "save-queue-recovery-not-committed");
 }
+
+ProbeConfigurationDocument CloneDocument(ProbeConfigurationDocument document) =>
+    JsonSerializer.Deserialize<ProbeConfigurationDocument>(
+        JsonSerializer.Serialize(document, ProbeJsonOptions.Configuration),
+        ProbeJsonOptions.Configuration)
+    ?? throw new InvalidDataException("Configuration snapshot did not parse.");
 
 async Task VerifyReadOnlyFileRecoveryAsync(string directory)
 {
