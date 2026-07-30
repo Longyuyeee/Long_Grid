@@ -30,6 +30,7 @@ try
         results);
     await RunScenarioAsync("concurrent-writer-lease", VerifyConcurrentWriterLeaseAsync, results);
     await RunScenarioAsync("schema-migration-and-rollback", VerifySchemaMigrationAndRollbackAsync, results);
+    await RunScenarioAsync("read-only-file-recovery", VerifyReadOnlyFileRecoveryAsync, results);
     await RunScenarioAsync("stale-temp-is-ignored", VerifyStaleTemporaryFileIsIgnoredAsync, results);
     await RunScenarioAsync("unknown-fields-survive", VerifyUnknownFieldsSurviveAsync, results);
     await RunScenarioAsync("bounded-document-size", VerifyBoundedDocumentSizeAsync, results);
@@ -410,6 +411,8 @@ async Task VerifyConcurrentWriterLeaseAsync(string directory)
         }
     }
 
+    await WaitForWriteLeaseReleaseAsync(store.WriteLeasePath);
+
     FileStreamOptions oldReaderOptions = new()
     {
         Access = FileAccess.Read,
@@ -438,6 +441,78 @@ async Task VerifyConcurrentWriterLeaseAsync(string directory)
         recovered.Document?.Containers[0].Name == "after-lease-release",
         "The post-termination writer did not commit.");
     Require(!File.Exists(store.TemporaryPath), "The abandoned staged file was not cleaned.");
+}
+
+async Task VerifyReadOnlyFileRecoveryAsync(string directory)
+{
+    await VerifyReadOnlyPathAsync(
+        Path.Combine(directory, "primary"),
+        store => store.PrimaryPath,
+        createTargetAsync: _ => Task.CompletedTask);
+    await VerifyReadOnlyPathAsync(
+        Path.Combine(directory, "backup"),
+        store => store.BackupPath,
+        createTargetAsync: store => store.SaveAsync(CreateDocument("second-baseline")));
+    await VerifyReadOnlyPathAsync(
+        Path.Combine(directory, "temporary"),
+        store => store.TemporaryPath,
+        createTargetAsync: store => File.WriteAllTextAsync(store.TemporaryPath, "{ stale"));
+    await VerifyReadOnlyPathAsync(
+        Path.Combine(directory, "lease"),
+        store => store.WriteLeasePath,
+        createTargetAsync: _ => Task.CompletedTask);
+}
+
+async Task VerifyReadOnlyPathAsync(
+    string directory,
+    Func<AtomicJsonConfigurationStore<ProbeConfigurationDocument>, string> targetSelector,
+    Func<AtomicJsonConfigurationStore<ProbeConfigurationDocument>, Task> createTargetAsync)
+{
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> store = CreateStore(directory);
+    await store.SaveAsync(CreateDocument("baseline"));
+    await createTargetAsync(store);
+
+    string targetPath = targetSelector(store);
+    Require(File.Exists(targetPath), $"Read-only target was not created: {Path.GetFileName(targetPath)}.");
+
+    byte[] primaryBefore = await File.ReadAllBytesAsync(store.PrimaryPath);
+    byte[]? backupBefore = File.Exists(store.BackupPath)
+        ? await File.ReadAllBytesAsync(store.BackupPath)
+        : null;
+    FileAttributes originalAttributes = File.GetAttributes(targetPath);
+
+    try
+    {
+        File.SetAttributes(targetPath, originalAttributes | FileAttributes.ReadOnly);
+        await RequireFileSystemSaveFailureAsync(
+            () => store.SaveAsync(CreateDocument("must-not-commit")));
+
+        Require(
+            primaryBefore.SequenceEqual(await File.ReadAllBytesAsync(store.PrimaryPath)),
+            $"Read-only {Path.GetFileName(targetPath)} changed the committed primary.");
+        Require(
+            backupBefore is null
+                ? !File.Exists(store.BackupPath)
+                : backupBefore.SequenceEqual(await File.ReadAllBytesAsync(store.BackupPath)),
+            $"Read-only {Path.GetFileName(targetPath)} changed the backup.");
+    }
+    finally
+    {
+        File.SetAttributes(targetPath, originalAttributes);
+        if (string.Equals(targetPath, store.TemporaryPath, StringComparison.OrdinalIgnoreCase))
+        {
+            File.Delete(targetPath);
+        }
+    }
+
+    await store.SaveAsync(CreateDocument("recovered"));
+    ConfigurationLoadResult<ProbeConfigurationDocument> loaded = await store.LoadAsync();
+    Require(
+        loaded.Status == ConfigurationLoadStatus.LoadedPrimary,
+        $"Write did not recover after restoring {Path.GetFileName(targetPath)}.");
+    Require(
+        loaded.Document?.Containers[0].Name == "recovered",
+        $"Recovered write was not committed after restoring {Path.GetFileName(targetPath)}.");
 }
 
 async Task VerifyStaleTemporaryFileIsIgnoredAsync(string directory)
@@ -582,6 +657,28 @@ static async Task WaitForChildReadyAsync(Process process, string readyPath)
     }
 }
 
+static async Task WaitForWriteLeaseReleaseAsync(string writeLeasePath)
+{
+    using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(5));
+
+    while (true)
+    {
+        try
+        {
+            using FileStream releasedLease = new(
+                writeLeasePath,
+                FileMode.OpenOrCreate,
+                FileAccess.ReadWrite,
+                FileShare.None);
+            return;
+        }
+        catch (IOException) when (!timeout.IsCancellationRequested)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(20), timeout.Token);
+        }
+    }
+}
+
 static async Task<int> RunChildSaveAsync(string[] arguments)
 {
     if (arguments.Length != 5
@@ -637,6 +734,26 @@ static async Task RequireNormalSaveRefusedAsync(
     catch (InvalidDataException)
     {
     }
+}
+
+static async Task RequireFileSystemSaveFailureAsync(Func<Task> saveAsync)
+{
+    bool failed = false;
+
+    try
+    {
+        await saveAsync();
+    }
+    catch (IOException)
+    {
+        failed = true;
+    }
+    catch (UnauthorizedAccessException)
+    {
+        failed = true;
+    }
+
+    Require(failed, "A save unexpectedly succeeded against a read-only persistence file.");
 }
 
 static AtomicJsonConfigurationStore<ProbeConfigurationDocument> CreateStore(
