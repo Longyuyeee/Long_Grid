@@ -120,7 +120,6 @@ capture old Bounds / Root / UIA snapshot
 - 有实际 Surface/SwapChain 内容的可见渲染和帧级撕裂观察；
 - 每显示器 Root + 容器/项目 `IRawElementProviderFragment` 树；
 - UIA Fragment 导航、RuntimeId、焦点、事件和 Narrator；
-- Bounds、Region、DComp、UIA 四层生产编排器的强制失败矩阵；
 - 跨线程 HWND；
 - 100%–300% DPI 热切换、旋转、拔插、投影、睡眠唤醒、Explorer 重启和 RDP；
 - x64 之外的 ARM64 实机验证。
@@ -129,4 +128,4 @@ capture old Bounds / Root / UIA snapshot
 
 **Conditional Pass**
 
-DirectComposition Commit/Wait 和真实 HWND UIA Provider 可进入生产原型，但不能声称四层更新具有系统级原子性。下一步是 `P0-07b2b2b2b3`：把 Bounds、Region、DComp、UIA 纳入一个可强制失败的复合编排器，然后在人工受控机器执行显示动态矩阵。在这些门禁关闭前，无人确认的自动恢复和可见桌面接管继续保持关闭。
+DirectComposition Commit/Wait 和真实 HWND UIA Provider 可进入生产原型，但不能声称四层更新具有系统级原子性。P0-07b2b2b2b3 已继续验证 Bounds、Region、DComp、UIA 强制失败编排；下一步 P0-07b2b2b2b4 在人工受控机器执行可见输入和显示动态矩阵。在这些门禁关闭前，无人确认的自动恢复和可见桌面接管继续保持关闭。

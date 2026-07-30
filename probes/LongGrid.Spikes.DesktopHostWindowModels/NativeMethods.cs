@@ -12,6 +12,7 @@ internal static class NativeMethods
     internal const uint SwpNoZOrder = 0x0004;
     internal const uint SwpNoOwnerZOrder = 0x0200;
     internal const uint SwpShowWindow = 0x0040;
+    internal const int SwHide = 0;
     internal const int GwlExStyle = -20;
     internal const int RgnOr = 2;
     internal const int RgnCopy = 5;
@@ -108,6 +109,12 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool IsWindow(nint window);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool ShowWindow(
+        nint window,
+        int command);
 
     [DllImport("user32.dll")]
     internal static extern nint WindowFromPoint(NativePoint point);

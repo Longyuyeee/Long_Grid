@@ -27,3 +27,4 @@
 - [P0-07b2b2b2a：隐藏 HWND Win32 批量适配与真实补偿回滚](P0-07b2b2b2a-win32-layout-batch-adapter.md)
 - [P0-07b2b2b2b1：Window Region 所有权、部分失败与补偿事务](P0-07b2b2b2b1-window-region-transaction.md)
 - [P0-07b2b2b2b2：DirectComposition 提交、UIA Provider 与代次发布](P0-07b2b2b2b2-directcomposition-uia-generation.md)
+- [P0-07b2b2b2b3：DesktopHost 四层复合事务与紧急隐藏](P0-07b2b2b2b3-composite-desktop-host-transaction.md)

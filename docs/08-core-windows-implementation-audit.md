@@ -278,6 +278,8 @@ P0-07b2b2b2b1 当前证据：三轮各在 2 个隐藏、自有 HWND 上执行 7 
 
 P0-07b2b2b2b2 当前证据：隐藏自有 HWND 建立真实 DComp target/visual，正常和代次补偿路径各执行 `SetRoot`、`Commit`、`WaitForCommitCompletion`；真实 `WM_GETOBJECT` Provider 由 `AutomationElement` 客户端复读 generation、AutomationId 和负坐标物理屏幕 BoundingRectangle。Commit 后代次失效会重新提交旧 Root、恢复旧 HWND Bounds，generation 3 未进入 UIA 快照。首版手写 Visual 重载 vtable 发生访问冲突，已删除不必要的属性互操作并改用 Root 切换；第二版因 UIA HWND Host 返回真实窗口 Bounds 而正确 Fail，随后将自有 HWND Bounds 纳入补偿且未放宽判定。正式三轮均为 USER `2→4→2`、GDI `0→0→0`、进程句柄 `329→329→329`。可见内容、Fragment 树、Narrator、四层复合失败和硬件动态仍未验证。
 
+P0-07b2b2b2b3 当前证据：Core 新增 20 个测试，总数 82；固定 Bounds/Region/DComp/UIA 顺序、输入门、全层快照、失败层补偿、四层最终复读、逆序恢复、适配器异常收敛和紧急隐藏。真实隐藏 HWND 三轮分别在四层完成实际改变后注入失败，`4/4` 均 RolledBack；Composition Commit/Wait 后代次失效也恢复，紧急恢复验证失败保持输入关闭并隐藏。首轮真实预热发现 UIA 恢复后立即验证会因 Bounds 尚未恢复而误判，修正为先完成全部逆序 Restore，再统一正序 VerifyRestored。三轮均为 USER `2→4→2`、GDI `6→6→6`、进程句柄 `340→340→340`。可见输入、Fragment/Narrator、多 HWND 和硬件动态仍未验证。
+
 ## 6. 自有窗口与视觉效果
 
 ### 6.1 设置应用
@@ -466,7 +468,7 @@ COM/Win32 类型不能泄漏到 Core。
 | P0-04 | 每容器 HWND | 原生命中/资源已测；Win+D、输入、Alt+Tab、全屏可预测 | 不作为普通容器首选；保留特殊短生命周期窗口 |
 | P0-05 | 每显示器 HWND | Window Region 跨进程穿透已测；交互矩阵通过 | Region/无障碍失败则回退每容器或重做输入层 |
 | P0-06 | Explorer 重启 | 10 秒内恢复且无重复实例 | DesktopHost 不可发布 |
-| P0-07 | Per-Monitor V2 | 静态双屏、CCD、恢复规划、稳定器、消息基础设施、Core/Win32 Bounds、Window Region、DComp Commit/Wait 与真实 HWND UIA 已测；四层复合失败、Fragment 树、动态消息、100%–300% 热切换、旋转/拔插仍需验证 | 重做坐标层 |
+| P0-07 | Per-Monitor V2 | 静态双屏、CCD、恢复规划、稳定器、消息基础设施、Core/Win32 Bounds、Window Region、DComp/UIA 与四层复合失败已测；可见输入、Fragment 树、动态消息、100%–300% 热切换、旋转/拔插仍需验证 | 重做坐标层 |
 | P0-08 | IFileOperation | 移动、冲突、取消、回滚报告正确 | 托管目录退出首版 |
 | P0-09 | 原生图标位置 | 读取/恢复稳定，且不依赖 WorkerW | 否则只保留实验记录 |
 | P0-10 | 任务栏透明助手 | 支持 build 上可恢复、零 Explorer 崩溃 | 不发布实验模块 |

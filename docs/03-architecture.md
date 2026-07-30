@@ -148,6 +148,8 @@ P0-07b2b2b2b1 已验证两个隐藏自有 HWND 的真实 Window Region 事务。
 
 P0-07b2b2b2b2 已在隐藏自有 HWND 上建立真实 DirectComposition device/target/visual 和 `IRawElementProviderSimple`。新 Root 必须完成 `Commit/WaitForCommitCompletion` 且显示 generation 仍有效，才能一次替换不可变 UIA 快照；若 Commit 后 generation 失效，则重新提交旧 Root、恢复旧 HWND Bounds，且不发布新 UIA generation。真实 `AutomationElement` 客户端已复读 generation、AutomationId 和物理屏幕 BoundingRectangle。该结果不把 Bounds、Region、DComp 与 UIA 描述为共同的系统原子事务；四层生产编排和硬件动态矩阵仍由 P0-07b2b2b2b3 验证。
 
+P0-07b2b2b2b3 已建立固定 `Bounds → Region → Composition → UI Automation` 的复合协调器。事务先关闭输入并捕获全部快照；每层 Apply 后局部验证，全部应用后再做四层最终复读。任一层失败或 generation 失效时，从当前失败层开始逆序 Restore；所有 Restore 完成后才能正序 VerifyRestored，因为 UIA HWND Provider 的 BoundingRectangle 依赖最终 Bounds。补偿或输入重开失败时保持输入关闭并隐藏宿主。隐藏真实 HWND 的四层强制失败和紧急隐藏已通过；可见输入、Fragment 树和硬件动态矩阵仍由 P0-07b2b2b2b4 验证。
+
 ## 6. 规则引擎
 
 ```text

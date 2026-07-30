@@ -88,6 +88,8 @@ P0-07b2b2b2b1 已验证 Window Region 的独立捕获、系统所有权转移、
 
 P0-07b2b2b2b2 已验证真实 DirectComposition Root 的 `Commit/WaitForCommitCompletion`、真实 HWND UIA Provider 和 `AutomationElement` 客户端读取。只有 DComp Wait 完成且 generation 仍有效才发布不可变 UIA 快照；失效时重交旧 Root 并恢复 HWND Bounds。DComp 原子性只覆盖同一 device，不能覆盖 Win32 Bounds、Region 或 UIA；可见渲染、Fragment 树、四层故障编排和硬件动态矩阵尚未通过，因此 ADR 继续保持 Proposed。
 
+P0-07b2b2b2b3 已验证固定四层顺序、全层快照、失败层开始的逆序恢复、全部恢复后的统一复读和回滚失败紧急隐藏。真实探针证明 UIA HWND Bounds 依赖要求补偿采用 Restore/Verify 两阶段，不能逐层恢复后立即判定。该结果支持继续采用 WinUI 3 设置端 + 独立原生 DesktopHost 的方向，但可见 Surface、输入路由、UIA Fragment/Narrator 和硬件动态矩阵尚未通过，因此 ADR 继续保持 Proposed。
+
 ## 参考
 
 - [Windows 应用开发文档](https://learn.microsoft.com/windows/apps/)

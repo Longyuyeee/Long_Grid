@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Automation.Provider;
+using LongGrid.Core.DesktopHost;
 
 internal static class CompositionUiaGenerationProbe
 {
@@ -189,7 +190,7 @@ internal static class CompositionUiaGenerationProbe
         }
     }
 
-    private static UiaClientSnapshot ReadWithUiaClient(
+    internal static UiaClientSnapshot ReadWithUiaClient(
         nint window)
     {
         AutomationElement element =
@@ -226,6 +227,7 @@ internal sealed class CompositionUiaHost : IDisposable
     private readonly WindowProcedure _windowProcedure;
     private readonly IDCompositionDevice _device;
     private readonly IDCompositionTarget _target;
+    private readonly List<IDCompositionVisual> _retiredVisuals = [];
     private IDCompositionVisual _visual;
     private bool _disposed;
 
@@ -264,6 +266,8 @@ internal sealed class CompositionUiaHost : IDisposable
     internal bool LastWaitSucceeded { get; private set; }
 
     internal long CompositionGeneration { get; private set; }
+
+    internal long CompositionRevision { get; private set; }
 
     internal static CompositionUiaHost Create(
         UiaGenerationSnapshot initial)
@@ -385,6 +389,7 @@ internal sealed class CompositionUiaHost : IDisposable
 
             host.RootCommitted = true;
             host.CompositionGeneration = initial.Generation;
+            host.CompositionRevision = 1;
             return host;
         }
         catch
@@ -464,6 +469,100 @@ internal sealed class CompositionUiaHost : IDisposable
         return true;
     }
 
+    internal PixelRect CaptureBounds()
+    {
+        if (!NativeMethods.GetWindowRect(
+            Window,
+            out NativeRect rectangle))
+        {
+            throw new Win32Exception(
+                Marshal.GetLastWin32Error());
+        }
+
+        return new PixelRect(
+            rectangle.Left,
+            rectangle.Top,
+            rectangle.Right - rectangle.Left,
+            rectangle.Bottom - rectangle.Top);
+    }
+
+    internal bool ApplyBounds(PixelRect bounds) =>
+        bounds.HasArea
+        && NativeMethods.SetWindowPos(
+            Window,
+            nint.Zero,
+            bounds.Left,
+            bounds.Top,
+            bounds.Width,
+            bounds.Height,
+            NativeMethods.SwpNoActivate
+            | NativeMethods.SwpNoZOrder
+            | NativeMethods.SwpNoOwnerZOrder);
+
+    internal bool MatchesBounds(PixelRect expected) =>
+        CaptureBounds() == expected;
+
+    internal CompositionVisualSnapshot CaptureVisual() =>
+        new(
+            _visual,
+            CompositionGeneration,
+            CompositionRevision);
+
+    internal bool ApplyVisual(
+        long generation,
+        long revision)
+    {
+        int createResult = _device.CreateVisual(
+            out IDCompositionVisual proposedVisual);
+        if (createResult < 0)
+        {
+            return false;
+        }
+
+        int rootResult = _target.SetRoot(proposedVisual);
+        if (rootResult < 0 || !CommitAndWait())
+        {
+            _ = _target.SetRoot(_visual);
+            _ = CommitAndWait();
+            ReleaseComObject(proposedVisual);
+            return false;
+        }
+
+        _retiredVisuals.Add(_visual);
+        _visual = proposedVisual;
+        CompositionGeneration = generation;
+        CompositionRevision = revision;
+        return true;
+    }
+
+    internal bool MatchesVisual(
+        long generation,
+        long revision) =>
+        CompositionGeneration == generation
+        && CompositionRevision == revision
+        && LastWaitSucceeded;
+
+    internal bool RestoreVisual(
+        CompositionVisualSnapshot snapshot)
+    {
+        if (_target.SetRoot(snapshot.Visual) < 0
+            || !CommitAndWait())
+        {
+            return false;
+        }
+
+        if (!ReferenceEquals(_visual, snapshot.Visual))
+        {
+            ReleaseComObject(_visual);
+            _retiredVisuals.Remove(snapshot.Visual);
+            _visual = snapshot.Visual;
+        }
+
+        CompositionGeneration = snapshot.Generation;
+        CompositionRevision = snapshot.Revision;
+        return true;
+    }
+
     private bool SetWindowBounds(Rect bounds) =>
         NativeMethods.SetWindowPos(
             Window,
@@ -514,6 +613,15 @@ internal sealed class CompositionUiaHost : IDisposable
         finally
         {
             ReleaseComObject(_visual);
+            foreach (IDCompositionVisual visual in _retiredVisuals)
+            {
+                if (!ReferenceEquals(visual, _visual))
+                {
+                    ReleaseComObject(visual);
+                }
+            }
+
+            _retiredVisuals.Clear();
             ReleaseComObject(_target);
             ReleaseComObject(_device);
             bool windowDestroyed =
@@ -641,7 +749,30 @@ internal interface IDCompositionVisual
 
 internal sealed record UiaGenerationSnapshot(
     long Generation,
-    Rect Bounds);
+    Rect Bounds)
+    : IDesktopHostLayerSnapshot
+{
+    public void Dispose()
+    {
+    }
+}
+
+internal sealed class CompositionVisualSnapshot(
+    IDCompositionVisual visual,
+    long generation,
+    long revision)
+    : IDesktopHostLayerSnapshot
+{
+    internal IDCompositionVisual Visual { get; } = visual;
+
+    internal long Generation { get; } = generation;
+
+    internal long Revision { get; } = revision;
+
+    public void Dispose()
+    {
+    }
+}
 
 internal sealed record UiaClientSnapshot(
     long Generation,
