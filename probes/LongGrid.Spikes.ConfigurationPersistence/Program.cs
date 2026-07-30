@@ -35,6 +35,10 @@ try
     await RunScenarioAsync("read-only-file-recovery", VerifyReadOnlyFileRecoveryAsync, results);
     await RunScenarioAsync("simulated-disk-full-recovery", VerifyDiskFullRecoveryAsync, results);
     await RunScenarioAsync("directory-acl-denial-recovery", VerifyDirectoryAclRecoveryAsync, results);
+    await RunScenarioAsync(
+        "directory-read-only-attribute-semantics",
+        VerifyDirectoryReadOnlyAttributeSemanticsAsync,
+        results);
     await RunScenarioAsync("stale-temp-is-ignored", VerifyStaleTemporaryFileIsIgnoredAsync, results);
     await RunScenarioAsync("unknown-fields-survive", VerifyUnknownFieldsSurviveAsync, results);
     await RunScenarioAsync("bounded-document-size", VerifyBoundedDocumentSizeAsync, results);
@@ -611,6 +615,58 @@ async Task VerifyDirectoryAclRecoveryAsync(string directory)
     RequireProbe(
         loaded.Document?.Containers[0].Name == "recovered",
         "acl-recovery-not-committed");
+}
+
+async Task VerifyDirectoryReadOnlyAttributeSemanticsAsync(string directory)
+{
+    if (!OperatingSystem.IsWindows())
+    {
+        throw new PlatformNotSupportedException(
+            "The directory read-only attribute scenario requires Windows.");
+    }
+
+    AtomicJsonConfigurationStore<ProbeConfigurationDocument> store = CreateStore(directory);
+    await store.SaveAsync(CreateDocument("previous"));
+    await store.SaveAsync(CreateDocument("baseline"));
+    FileAttributes originalAttributes = File.GetAttributes(directory);
+
+    try
+    {
+        File.SetAttributes(directory, originalAttributes | FileAttributes.ReadOnly);
+        RequireProbe(
+            File.GetAttributes(directory).HasFlag(FileAttributes.ReadOnly),
+            "directory-read-only-attribute-not-set");
+
+        await store.SaveAsync(CreateDocument("attribute-does-not-deny-write"));
+        ConfigurationLoadResult<ProbeConfigurationDocument> loaded = await store.LoadAsync();
+        RequireProbe(
+            loaded.Status == ConfigurationLoadStatus.LoadedPrimary,
+            "directory-read-only-primary-not-loaded");
+        RequireProbe(
+            loaded.Document?.Containers[0].Name == "attribute-does-not-deny-write",
+            "directory-read-only-blocked-commit");
+
+        ProbeConfigurationDocument backup =
+            JsonSerializer.Deserialize<ProbeConfigurationDocument>(
+                await File.ReadAllTextAsync(store.BackupPath),
+                ProbeJsonOptions.Configuration)
+            ?? throw new InvalidDataException("The directory attribute backup did not parse.");
+        RequireProbe(
+            backup.Containers[0].Name == "baseline",
+            "directory-read-only-backup-invalid");
+    }
+    finally
+    {
+        File.SetAttributes(directory, originalAttributes);
+    }
+
+    RequireProbe(
+        File.GetAttributes(directory) == originalAttributes,
+        "directory-attributes-not-restored");
+    await store.SaveAsync(CreateDocument("restored"));
+    RequireProbe(
+        (await store.LoadAsync()).Document?.Containers[0].Name == "restored",
+        "directory-attribute-recovery-not-committed");
 }
 
 async Task VerifyReadOnlyPathAsync(
