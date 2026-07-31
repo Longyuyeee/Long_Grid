@@ -187,6 +187,8 @@ Collect → Plan → Revalidate → Confirm → Execute → Observe → Journal 
 
 执行前必须再次验证，避免预览后文件被其他进程替换。
 
+P0-08a 已落地纯 Core `FileOrganizationPlanner` 与临时沙箱 `IFileOperation` 探针。安全引用在模型上不产生文件系统动作；托管移动遇到网络、重解析点、云占位、目标冲突或状态缺失时阻断，合法候选仍要求显式批准。真实 Shell 场景已验证同卷成功移动、冲突不执行、回调取消保持源文件，以及两项批处理中一项完成/一项取消。回调取消在本机返回 `ERROR_CANCELLED`，同时 `GetAnyOperationsAborted` 为 false，证明结果判断必须结合总体 HRESULT、aborted、逐项回调与最终复读。Explorer 撤销栈、跨卷和真实故障矩阵仍为 Inconclusive，详见[P0-08 文件操作安全报告](spikes/P0-08-file-operation-safety.md)。
+
 ### 4.3 撤销边界
 
 - 同卷移动：记录新旧身份和路径，优先反向移动。
@@ -475,7 +477,7 @@ COM/Win32 类型不能泄漏到 Core。
 | P0-05 | 每显示器 HWND | Window Region 跨进程穿透已测；交互矩阵通过 | Region/无障碍失败则回退每容器或重做输入层 |
 | P0-06 | Explorer 重启 | 10 秒内恢复且无重复实例 | DesktopHost 不可发布 |
 | P0-07 | Per-Monitor V2 | 静态双屏、CCD、恢复规划、稳定器、消息基础设施、Core/Win32 Bounds、Window Region、DComp/UIA 与四层复合失败已测；可见输入、Fragment 树、动态消息、100%–300% 热切换、旋转/拔插仍需验证 | 重做坐标层 |
-| P0-08 | IFileOperation | 移动、冲突、取消、回滚报告正确 | 托管目录退出首版 |
+| P0-08 | IFileOperation | 同卷移动、冲突、取消和部分成功已测；Explorer 撤销、跨卷与真实故障仍待验证 | 未全部关闭前托管目录退出首版 |
 | P0-09 | 原生图标位置 | 读取/恢复稳定，且不依赖 WorkerW | 否则只保留实验记录 |
 | P0-10 | 任务栏透明助手 | 支持 build 上可恢复、零 Explorer 崩溃 | 不发布实验模块 |
 | P0-11 | 自有 LongBar | 多屏 AppBar 协调、全屏/自动隐藏正确 | 推迟 LongBar |
