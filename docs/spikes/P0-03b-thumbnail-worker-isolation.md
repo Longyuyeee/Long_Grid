@@ -14,7 +14,7 @@
 2. 单请求硬超时后终止整个工作进程，而不是强杀 COM 线程；
 3. 超时后自动启动新进程并继续服务；
 4. 按请求数主动回收，限制第三方提供程序的长期资源累积；
-5. 检测畸形响应和 worker 异常退出，并在回收后继续服务；
+5. 检测超长输入/输出、畸形响应、协议错配和 worker 异常退出，并在回收后继续服务；
 6. 建立 500 请求延迟、CPU、内存、句柄和空闲 CPU 的首个预算；
 7. 不对真实桌面、云文件、网络文件或第三方提供程序触发现场提取。
 
@@ -24,7 +24,7 @@
 
 工作进程返回成功、尺寸和耗时，不传递裸 `HBITMAP`。每个 worker 完成 100 项后关闭并重建。硬超时场景使用确定性的测试请求让 worker 在进入原生提取前挂起；父进程在 250 ms 后终止整个进程树，再用新 worker 提取同一自有 BMP。这样可以证明强制回收链路，而无需在用户机器上故意触发恶意或卡死的真实 provider。
 
-IPC 请求/响应携带协议版本和有界 request ID、路径长度、尺寸；JSON 拒绝未知字段，并校验响应版本与 request ID。故障矩阵让一个 worker 输出畸形 JSON，再让另一个 worker 主动异常退出；父进程分别识别协议错误和 EOF，回收后均由新 worker 成功恢复。
+IPC 请求/响应携带协议版本和有界 request ID、路径长度、尺寸；JSON 拒绝未知字段，并校验响应版本与 request ID。stdin/stdout 均由带 64 KiB 上限的缓冲逐行读取器消费，超限在 JSON 解析前失败。故障矩阵覆盖畸形 JSON、错误协议版本、超长响应、超长请求和 worker 主动异常退出；父进程分别识别协议错误或 EOF，回收后均由新 worker 成功恢复。
 
 ## 3. 实测环境与命令
 
@@ -58,6 +58,9 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 | 强制超时终止 | 1 | 必须终止 | Pass |
 | 超时后恢复 | 成功 | 必须成功 | Pass |
 | 畸形响应检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
+| 错误协议版本检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
+| 超过 64 KiB 响应检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
+| 超过 64 KiB 请求检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
 | 异常退出检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
 | worker 总 CPU | 312.50–703.125 ms | 首轮记录 | Pass |
 | 750 ms 空闲 CPU | 0 ms | ≤50 ms | Pass |
@@ -65,7 +68,7 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 | 峰值句柄 | 403 | ≤512 | Pass |
 | 沙箱清理 | 成功 | 必须成功 | Pass |
 
-加入协议故障矩阵后的代表轮次共启动 9 个 worker：初始/预算回收进程、强制超时及恢复、畸形响应及恢复、异常退出及恢复。报告只输出聚合指标，不输出路径、文件名、图像字节、HRESULT 或 Shell 身份。
+扩展协议故障矩阵后的代表轮次共启动 12 个 worker：初始/预算回收进程、强制超时及恢复、三类协议错误及恢复、超长请求及恢复、异常退出及恢复。报告只输出聚合指标，不输出路径、文件名、图像字节、HRESULT 或 Shell 身份。
 
 首版测量曾在启动 worker 后立即采空闲窗口，其中一次得到 62.5 ms/750 ms 并触发预算失败。审计确认该窗口混入了进程启动、JIT、COM 和 Shell provider 初始化，不是稳定空闲状态。实现因此增加一次成功提取预热，再在同一进程采样；修正后连续两轮均为 0 ms。阈值没有因失败结果而放宽。
 
@@ -75,7 +78,7 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 
 - 不合作调用可以通过终止整个工作进程获得确定性硬超时；
 - 超时不会卡死父进程，下一请求由新 worker 成功处理；
-- 畸形 JSON 和 worker 异常退出不会被接受为结果，下一 worker 可恢复；
+- 超长输入/输出、畸形 JSON、错误协议版本和 worker 异常退出不会被接受为结果，下一 worker 可恢复；
 - 协议版本、响应 request ID 和未知 JSON 字段受到校验；
 - 正常 worker 可按固定请求预算回收；
 - 500 次合成缩略图提取在本机落入暂定延迟、墙钟、内存、句柄和空闲 CPU 预算；
@@ -87,7 +90,7 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 - worker 目前仍使用调用者 token，未降到 AppContainer、低完整性或专用受限 token；
 - IPC 只返回尺寸/状态，尚未实现受控像素缓冲、共享内存、长度校验和解码上限；
 - 500 次是对同一自有 BMP 的隔离/生命周期压力，不等于 500 个不同真实项目的 provider、缓存和渲染预算；
-- 尚未覆盖超长输入在读取前的流级上限、超大响应、协议版本不匹配、父进程退出和孤儿 worker 回收；
+- 尚未覆盖父进程退出和孤儿 worker 回收、连续超时退避，以及像素 IPC 的独立长度/格式校验；
 - 尚未覆盖 OneDrive、网络路径、第三方 provider、恶意文件、x64/ARM64 与支持的 Windows build 矩阵；
 - 暂定预算仅来自当前机器，不能直接升级为发布 SLA。
 
@@ -95,9 +98,8 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 
 ## 6. 下一切片
 
-1. 为 stdin/stdout 增加读取前消息长度上限，并覆盖超大响应与协议版本不匹配；
-2. 选择并验证 AppContainer 或受限 token，明确文件访问 broker/句柄传递边界；
-3. 返回复制后的 BGRA 像素或受控共享内存，不跨进程传递裸 `HBITMAP`；
-4. 加入父进程退出、孤儿回收和连续超时退避；
-5. 在合成不同格式集和专用云/网络/provider 环境执行 500 个不同项目矩阵；
-6. 把支持矩阵实测结果提交负责人批准最终 CPU/内存/响应预算。
+1. 选择并验证 AppContainer 或受限 token，明确文件访问 broker/句柄传递边界；
+2. 返回复制后的 BGRA 像素或受控共享内存，不跨进程传递裸 `HBITMAP`；
+3. 加入父进程退出、孤儿回收和连续超时退避；
+4. 在合成不同格式集和专用云/网络/provider 环境执行 500 个不同项目矩阵；
+5. 把支持矩阵实测结果提交负责人批准最终 CPU/内存/响应预算。

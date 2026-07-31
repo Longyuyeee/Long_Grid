@@ -31,7 +31,7 @@
 - [x] P0-01b Shell Desktop Namespace 枚举与差异对账。
 - [x] P0-01c 稳定文件身份、快捷方式双重身份与重命名跟踪。
 - [x] P0-02 Shell 变化通知、事件合并恢复与最终一致性。
-- [x] P0-03a 图标/缩略图异步加载、排队取消与句柄稳定性；P0-03b 同权限可回收 worker、250 ms 硬超时、畸形响应/异常退出恢复及合成 500 项延迟/CPU/内存/句柄预算（Conditional Pass；低权限 token、像素 IPC 和真实 provider/支持矩阵未关闭）。
+- [x] P0-03a 图标/缩略图异步加载、排队取消与句柄稳定性；P0-03b 同权限可回收 worker、250 ms 硬超时、64 KiB 流级上限、协议/异常退出恢复及合成 500 项延迟/CPU/内存/句柄预算（Conditional Pass；低权限 token、像素 IPC 和真实 provider/支持矩阵未关闭）。
 - [x] P0-04/P0-05a 每容器/每显示器 HWND 的原生命中与资源对比（Conditional Pass；下一原型采用每显示器 HWND + 显式交互区域）。
 - [x] P0-04/P0-05b1 可见容器/项目、选择/调用、UIA SelectionItem/Invoke Pattern 与事件垂直切片（Conditional Pass）。
 - [ ] P0-04/P0-05b2 键盘/鼠标/触控/拖放、Narrator、Win+D、全屏、Alt+Tab、任务视图和 Explorer 重启人工矩阵。
