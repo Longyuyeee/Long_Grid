@@ -6,6 +6,8 @@ internal enum ThumbnailWorkerRequestKind
     Extract,
     Hang,
     MalformedResponse,
+    WrongVersionResponse,
+    OversizedResponse,
     Exit,
 }
 
@@ -29,6 +31,8 @@ internal sealed record ThumbnailWorkerResponse(
 internal static class ThumbnailWorkerServer
 {
     internal const int CurrentProtocolVersion = 1;
+    internal const int MaximumRequestCharacters = 65_536;
+    internal const int MaximumResponseCharacters = 65_536;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -38,8 +42,27 @@ internal static class ThumbnailWorkerServer
 
     internal static async Task<int> RunAsync()
     {
-        while (await Console.In.ReadLineAsync() is { } line)
+        var reader = new BoundedLineReader(
+            Console.In,
+            MaximumRequestCharacters);
+
+        while (true)
         {
+            string? line;
+            try
+            {
+                line = await reader.ReadLineAsync();
+            }
+            catch (InvalidDataException)
+            {
+                return 66;
+            }
+
+            if (line is null)
+            {
+                return 0;
+            }
+
             ThumbnailWorkerRequest? request =
                 JsonSerializer.Deserialize<ThumbnailWorkerRequest>(line, JsonOptions);
             if (request is null)
@@ -63,6 +86,27 @@ internal static class ThumbnailWorkerServer
             if (request.Kind == ThumbnailWorkerRequestKind.MalformedResponse)
             {
                 await Console.Out.WriteLineAsync("{malformed");
+                await Console.Out.FlushAsync();
+                continue;
+            }
+
+            if (request.Kind == ThumbnailWorkerRequestKind.WrongVersionResponse)
+            {
+                await WriteResponseAsync(new ThumbnailWorkerResponse(
+                    CurrentProtocolVersion + 1,
+                    request.RequestId,
+                    Success: true,
+                    HResult: 0,
+                    Width: 0,
+                    Height: 0,
+                    NativeMilliseconds: 0));
+                continue;
+            }
+
+            if (request.Kind == ThumbnailWorkerRequestKind.OversizedResponse)
+            {
+                await Console.Out.WriteLineAsync(
+                    new string('x', MaximumResponseCharacters + 1));
                 await Console.Out.FlushAsync();
                 continue;
             }
@@ -92,11 +136,15 @@ internal static class ThumbnailWorkerServer
                 result.Width,
                 result.Height,
                 result.Duration.TotalMilliseconds);
-            await Console.Out.WriteLineAsync(
-                JsonSerializer.Serialize(response, JsonOptions));
-            await Console.Out.FlushAsync();
+            await WriteResponseAsync(response);
         }
+    }
 
-        return 0;
+    private static async Task WriteResponseAsync(
+        ThumbnailWorkerResponse response)
+    {
+        await Console.Out.WriteLineAsync(
+            JsonSerializer.Serialize(response, JsonOptions));
+        await Console.Out.FlushAsync();
     }
 }

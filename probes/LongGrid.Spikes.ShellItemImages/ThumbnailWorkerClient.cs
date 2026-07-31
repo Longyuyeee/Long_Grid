@@ -13,6 +13,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
 
     private readonly int _maximumRequestsPerProcess;
     private Process? _process;
+    private BoundedLineReader? _outputReader;
     private int _requestsInCurrentProcess;
     private bool _disposed;
 
@@ -64,7 +65,9 @@ internal sealed class ThumbnailWorkerClient : IDisposable
             JsonSerializer.Serialize(request, JsonOptions));
         await process.StandardInput.FlushAsync();
 
-        Task<string?> responseTask = process.StandardOutput.ReadLineAsync();
+        Task<string?> responseTask = (_outputReader
+            ?? throw new InvalidOperationException("The worker output is unavailable."))
+            .ReadLineAsync();
         Task completed = await Task.WhenAny(responseTask, Task.Delay(timeout));
         if (!ReferenceEquals(completed, responseTask))
         {
@@ -80,7 +83,25 @@ internal sealed class ThumbnailWorkerClient : IDisposable
                 stopwatch.Elapsed.TotalMilliseconds);
         }
 
-        string? line = await responseTask;
+        string? line;
+        try
+        {
+            line = await responseTask;
+        }
+        catch (InvalidDataException)
+        {
+            stopwatch.Stop();
+            ProtocolKills++;
+            StopProcess(force: true);
+            return new ThumbnailWorkerCallResult(
+                Completed: false,
+                TimedOut: false,
+                WorkerExited: true,
+                ProtocolError: true,
+                Response: null,
+                stopwatch.Elapsed.TotalMilliseconds);
+        }
+
         stopwatch.Stop();
         if (line is null)
         {
@@ -171,6 +192,9 @@ internal sealed class ThumbnailWorkerClient : IDisposable
         _process?.Dispose();
         _process = Process.Start(CreateStartInfo())
             ?? throw new InvalidOperationException("The thumbnail worker did not start.");
+        _outputReader = new BoundedLineReader(
+            _process.StandardOutput,
+            ThumbnailWorkerServer.MaximumResponseCharacters);
         _requestsInCurrentProcess = 0;
         ProcessesStarted++;
         return _process;
@@ -205,6 +229,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     {
         Process? process = _process;
         _process = null;
+        _outputReader = null;
         _requestsInCurrentProcess = 0;
         if (process is null)
         {

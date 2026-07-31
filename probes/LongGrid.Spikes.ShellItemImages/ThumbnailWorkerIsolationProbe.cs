@@ -46,6 +46,12 @@ internal static class ThumbnailWorkerIsolationProbe
             && report.HardTimeout.RecoverySucceeded
             && report.Resilience.MalformedResponseDetected
             && report.Resilience.MalformedResponseRecoverySucceeded
+            && report.Resilience.WrongVersionDetected
+            && report.Resilience.WrongVersionRecoverySucceeded
+            && report.Resilience.OversizedResponseDetected
+            && report.Resilience.OversizedResponseRecoverySucceeded
+            && report.Resilience.OversizedRequestDetected
+            && report.Resilience.OversizedRequestRecoverySucceeded
             && report.Resilience.UnexpectedExitDetected
             && report.Resilience.UnexpectedExitRecoverySucceeded
             && report.Budget.WithinProvisionalBudget
@@ -125,6 +131,40 @@ internal static class ThumbnailWorkerIsolationProbe
         ThumbnailWorkerCallResult malformedRecovery = await client.ExecuteAsync(
             ExtractRequest(bitmapPath, "malformed-recovery"),
             RequestTimeout);
+        ThumbnailWorkerCallResult wrongVersionResult = await client.ExecuteAsync(
+            FaultRequest(
+                "wrong-version",
+                ThumbnailWorkerRequestKind.WrongVersionResponse),
+            RequestTimeout);
+        ThumbnailWorkerCallResult wrongVersionRecovery = await client.ExecuteAsync(
+            ExtractRequest(bitmapPath, "wrong-version-recovery"),
+            RequestTimeout);
+        ThumbnailWorkerCallResult oversizedResponseResult =
+            await client.ExecuteAsync(
+                FaultRequest(
+                    "oversized-response",
+                    ThumbnailWorkerRequestKind.OversizedResponse),
+                RequestTimeout);
+        ThumbnailWorkerCallResult oversizedResponseRecovery =
+            await client.ExecuteAsync(
+                ExtractRequest(bitmapPath, "oversized-response-recovery"),
+                RequestTimeout);
+        ThumbnailWorkerCallResult oversizedRequestResult =
+            await client.ExecuteAsync(
+                new ThumbnailWorkerRequest(
+                    ThumbnailWorkerServer.CurrentProtocolVersion,
+                    "oversized-request",
+                    ThumbnailWorkerRequestKind.Extract,
+                    new string(
+                        'x',
+                        ThumbnailWorkerServer.MaximumRequestCharacters + 1),
+                    Size: 128,
+                    ShellItemImageFactoryFlags.ThumbnailOnly),
+                RequestTimeout);
+        ThumbnailWorkerCallResult oversizedRequestRecovery =
+            await client.ExecuteAsync(
+                ExtractRequest(bitmapPath, "oversized-request-recovery"),
+                RequestTimeout);
         ThumbnailWorkerCallResult exitResult = await client.ExecuteAsync(
             new ThumbnailWorkerRequest(
                 ThumbnailWorkerServer.CurrentProtocolVersion,
@@ -168,6 +208,20 @@ internal static class ThumbnailWorkerIsolationProbe
             MalformedResponseRecoverySucceeded:
                 malformedRecovery.Completed
                 && malformedRecovery.Response is { Success: true },
+            WrongVersionDetected: wrongVersionResult.ProtocolError,
+            WrongVersionRecoverySucceeded:
+                wrongVersionRecovery.Completed
+                && wrongVersionRecovery.Response is { Success: true },
+            OversizedResponseDetected: oversizedResponseResult.ProtocolError,
+            OversizedResponseRecoverySucceeded:
+                oversizedResponseRecovery.Completed
+                && oversizedResponseRecovery.Response is { Success: true },
+            OversizedRequestDetected:
+                oversizedRequestResult.WorkerExited
+                && !oversizedRequestResult.TimedOut,
+            OversizedRequestRecoverySucceeded:
+                oversizedRequestRecovery.Completed
+                && oversizedRequestRecovery.Response is { Success: true },
             UnexpectedExitDetected:
                 exitResult.WorkerExited
                 && !exitResult.TimedOut
@@ -244,6 +298,17 @@ internal static class ThumbnailWorkerIsolationProbe
             Size: 128,
             ShellItemImageFactoryFlags.ThumbnailOnly
                 | ShellItemImageFactoryFlags.BiggerSizeOk);
+
+    private static ThumbnailWorkerRequest FaultRequest(
+        string requestId,
+        ThumbnailWorkerRequestKind kind) =>
+        new(
+            ThumbnailWorkerServer.CurrentProtocolVersion,
+            requestId,
+            kind,
+            Path: null,
+            Size: 0,
+            Flags: 0);
 
     private static double Percentile(IReadOnlyList<double> values, double percentile)
     {
@@ -379,6 +444,12 @@ internal sealed record ThumbnailWorkerTimeoutResult(
 internal sealed record ThumbnailWorkerResilienceResult(
     bool MalformedResponseDetected,
     bool MalformedResponseRecoverySucceeded,
+    bool WrongVersionDetected,
+    bool WrongVersionRecoverySucceeded,
+    bool OversizedResponseDetected,
+    bool OversizedResponseRecoverySucceeded,
+    bool OversizedRequestDetected,
+    bool OversizedRequestRecoverySucceeded,
     bool UnexpectedExitDetected,
     bool UnexpectedExitRecoverySucceeded,
     int ProtocolKills,
