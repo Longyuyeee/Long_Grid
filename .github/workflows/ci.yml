@@ -37,7 +37,25 @@ jobs:
         run: dotnet build LongGrid.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test LongGrid.sln --configuration Release --no-build --logger "trx;LogFileName=tests.trx"
+        run: >-
+          dotnet test LongGrid.sln
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=tests.trx"
+          --collect "XPlat Code Coverage"
+          --results-directory TestResults
+
+      - name: Configuration persistence probe
+        run: >-
+          dotnet run
+          --project probes/LongGrid.Spikes.ConfigurationPersistence
+          --configuration Release
+          --no-build
+          --
+          --iterations 100
+          --kill-iterations 2
+          --acl-kill-iterations 2
+          --json
 
       - name: Dependency vulnerability gate
         shell: powershell
@@ -47,6 +65,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: test-results
-          path: "**/TestResults/*.trx"
+          name: test-and-coverage-results
+          path: |
+            TestResults/**/*.trx
+            TestResults/**/coverage.cobertura.xml
           if-no-files-found: warn

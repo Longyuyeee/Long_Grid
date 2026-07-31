@@ -35,6 +35,7 @@
 - [x] P0-04/P0-05a 每容器/每显示器 HWND 的原生命中与资源对比（Conditional Pass；下一原型采用每显示器 HWND + 显式交互区域）。
 - [x] P0-04/P0-05b1 可见容器/项目、选择/调用、UIA SelectionItem/Invoke Pattern 与事件垂直切片（Conditional Pass）。
 - [ ] P0-04/P0-05b2 键盘/鼠标/触控/拖放、Narrator、Win+D、全屏、Alt+Tab、任务视图和 Explorer 重启人工矩阵。
+- [x] P0-06 版本化配置、同目录暂存、落盘校验、原子替换、备份恢复、安全模式、四检查点共 1,000 次及 ACL 生效期间子进程强杀、跨进程单写租约、有界可取消退避与具备入队快照/有界排空的 latest-wins 保存协调、确定性 v1→v2 示例迁移回滚、四类只读文件恢复、受控磁盘满注入及权限语义（Conditional Pass；断电、真实卷空间耗尽/只读、真实应用关闭接线、跨进程公平性和产品 schema 矩阵未关闭）。
 - [x] P0-07a 静态双屏拓扑、混合 DPI、隐私安全指纹与资源稳定性（Conditional Pass）。
 - [x] P0-07b1 QueryDisplayConfig 活动路径、virtual-mode 索引、rotation 与 monitor 一一关联（Conditional Pass）。
 - [x] P0-07b2a 拓扑精确/相似映射、歧义阻断、DIP 重映射与最小可见性恢复计划（Conditional Pass）。
@@ -47,15 +48,18 @@
 - [x] P0-07b2b2b2b3 Bounds/Region/DComp/UIA 固定顺序、全层快照、四层失败逆序补偿、最终复读和紧急隐藏（Conditional Pass）。
 - [x] P0-07b2b2b2b4a 短时可见宿主输入开/关/重开、跨进程穿透和真实 UIA Raw View Fragment 树（Conditional Pass）。
 - [x] P0-07b2b2b2b4b1 显示/设备/电源/会话动态矩阵只读采证工具、脱敏场景判定与无事件防假阳性（Conditional Pass）。
+- [x] PR #2–#17 的串联开发提交已进入 `main`，17 条旧功能分支相对主干无独立提交，最新主干 CI 通过。
+- [x] PR #18 CI 通过并采集 TRX/Cobertura；当前 Core 行覆盖率 90.97%、分支覆盖率 75.43%。
+- [ ] 审核并合入 PR #18，关闭 PR #2–#17、删除对应旧分支并启用 `main` 保护。
 - [ ] P0-07b2b2b2b4b2 在受控实机执行缩放、旋转、拔插、投影、睡眠、RDP 和 WM_DPICHANGED 动态矩阵。
 - [ ] 其余探针与交互验证。
 
 当前阶段门禁顺序：
 
-1. 依次审阅并集成串联草稿 PR #1-#17，后续工作从最新 `main` 分支开始；
+1. 审核并合入 PR #18；关闭已被 `main` 包含的 PR #2–#17，删除对应 17 条旧分支，启用主分支保护并建立 Issue/里程碑；
 2. 完成 P0-04/P0-05b2 人工输入、无障碍与系统表面矩阵；
 3. 完成 P0-07b2b2b2b4b2 动态显示硬件矩阵；
-4. 完成文件安全、`IFileOperation`、原子配置恢复、缩略图工作进程和 500 项性能探针；
+4. 完成文件安全、`IFileOperation`、缩略图工作进程和 500 项性能探针；配置仅补真实卷、关闭接线、单实例和正式 schema 边界；
 5. 完成首次整理/引用与移动语义原型、5 人可用性测试和负责人产品决策；
 6. 更新 ADR-0001 后，才进入只读 MVP 垂直切片。
 
@@ -68,6 +72,7 @@
 - DesktopHost 不依赖 `Progman`/`WorkerW` 等未文档化桌面嵌入。
 - 技术栈和许可证得到负责人批准。
 - Phase 0 成果已集成到 `main`，不存在依赖长期串联草稿分支的完成项。
+- `main` 禁止强推并要求 CI 门禁，覆盖率报告可追踪但不以单一百分比替代实机验证。
 
 ## Phase 1：MVP 内测
 
