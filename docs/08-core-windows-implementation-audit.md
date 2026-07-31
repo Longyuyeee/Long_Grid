@@ -147,7 +147,7 @@ P0-02 实测进一步确认通知只能作为提示：1,100 次受控沙箱操�
 - OneDrive 占位文件默认不因生成缩略图而触发下载。
 - 网络目录离线时使用缓存图标和离线徽标，不阻塞 UI 线程。
 
-P0-03a 当前实测：96 个真实桌面项目预热成功，三轮各 500 次后台图标提取全部成功；并发峰值为 4，成功 `HBITMAP` 与 `DeleteObject` 释放数严格一致，预热后 GDI 句柄净增量均为 0。缓存缩略图仅命中 1/13，这属于 `SIIGBF_INCACHEONLY` 的预期语义。P0-03b 进一步用自有临时 BMP 验证同权限可回收 worker：修正空闲采样预热后连续两轮 500/500 成功，p95 10.93–12.46 ms、总墙钟 7.86–8.40 s，每 100 项回收；250 ms 强制卡死被整进程终止且新 worker 恢复，峰值约 39.4 MiB/403 handles，750 ms 空闲 CPU 为 0。结论仍为 Conditional Pass：低权限 token、像素 IPC、崩溃/畸形协议和真实 provider/支持矩阵尚未关闭，详见[P0-03b 报告](spikes/P0-03b-thumbnail-worker-isolation.md)。
+P0-03a 当前实测：96 个真实桌面项目预热成功，三轮各 500 次后台图标提取全部成功；并发峰值为 4，成功 `HBITMAP` 与 `DeleteObject` 释放数严格一致，预热后 GDI 句柄净增量均为 0。缓存缩略图仅命中 1/13，这属于 `SIIGBF_INCACHEONLY` 的预期语义。P0-03b 进一步用自有临时 BMP 验证同权限可回收 worker：修正空闲采样预热后连续两轮 500/500 成功，p95 10.93–12.46 ms、总墙钟 7.86–8.40 s，每 100 项回收；250 ms 强制卡死、畸形 JSON 和 worker 异常退出均被识别，回收后新 worker 恢复；峰值约 39.4 MiB/403 handles，750 ms 空闲 CPU 为 0。结论仍为 Conditional Pass：低权限 token、像素 IPC、流级消息上限和真实 provider/支持矩阵尚未关闭，详见[P0-03b 报告](spikes/P0-03b-thumbnail-worker-isolation.md)。
 
 ## 4. 文件整理与真实操作
 
