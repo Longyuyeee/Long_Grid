@@ -1,0 +1,339 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Text.Json;
+
+internal static class ThumbnailWorkerIsolationProbe
+{
+    private const int StressRequests = 500;
+    private const int RequestsPerWorker = 100;
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan ForcedTimeout = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan IdleSample = TimeSpan.FromMilliseconds(750);
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+    };
+
+    internal static async Task<int> RunAsync(bool json)
+    {
+        string root = CreateOwnedSandbox();
+        ThumbnailWorkerIsolationReport? report = null;
+
+        try
+        {
+            string bitmapPath = Path.Combine(root, "owned-sample.bmp");
+            WriteOwnedBitmap(bitmapPath);
+            report = await RunMatrixAsync(bitmapPath);
+        }
+        finally
+        {
+            bool cleanupSucceeded = TryDeleteOwnedSandbox(root);
+            if (report is not null)
+            {
+                report = report with { CleanupSucceeded = cleanupSucceeded };
+            }
+        }
+
+        if (report is null)
+        {
+            return 2;
+        }
+
+        bool passed = report.Stress.Succeeded == StressRequests
+            && report.HardTimeout.TimedOut
+            && report.HardTimeout.WorkerKilled
+            && report.HardTimeout.RecoverySucceeded
+            && report.Budget.WithinProvisionalBudget
+            && report.CleanupSucceeded;
+        report = report with
+        {
+            Verdict = passed ? "ConditionalPass" : "Fail",
+        };
+
+        if (json)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(report, JsonOptions));
+        }
+        else
+        {
+            PrintText(report);
+        }
+
+        return passed ? 0 : 2;
+    }
+
+    private static async Task<ThumbnailWorkerIsolationReport> RunMatrixAsync(
+        string bitmapPath)
+    {
+        using var client = new ThumbnailWorkerClient(RequestsPerWorker);
+        double idleCpuMilliseconds =
+            await client.MeasureIdleCpuMillisecondsAsync(IdleSample);
+        var durations = new List<double>(StressRequests);
+        int succeeded = 0;
+        int failed = 0;
+        var stressStopwatch = Stopwatch.StartNew();
+
+        for (int index = 0; index < StressRequests; index++)
+        {
+            ThumbnailWorkerCallResult result = await client.ExecuteAsync(
+                ExtractRequest(bitmapPath, $"stress-{index}"),
+                RequestTimeout);
+            if (result.Completed && result.Response is { Success: true })
+            {
+                succeeded++;
+            }
+            else
+            {
+                failed++;
+            }
+
+            durations.Add(result.RoundTripMilliseconds);
+        }
+
+        stressStopwatch.Stop();
+        ThumbnailWorkerCallResult timeoutResult = await client.ExecuteAsync(
+            new ThumbnailWorkerRequest(
+                "forced-timeout",
+                ThumbnailWorkerRequestKind.Hang,
+                Path: null,
+                Size: 0,
+                Flags: 0),
+            ForcedTimeout);
+        ThumbnailWorkerCallResult recoveryResult = await client.ExecuteAsync(
+            ExtractRequest(bitmapPath, "recovery"),
+            RequestTimeout);
+        client.Dispose();
+
+        double p50 = Percentile(durations, 0.50);
+        double p95 = Percentile(durations, 0.95);
+        var stress = new ThumbnailWorkerStressResult(
+            Requested: StressRequests,
+            Succeeded: succeeded,
+            Failed: failed,
+            P50RoundTripMilliseconds: p50,
+            P95RoundTripMilliseconds: p95,
+            TotalWallMilliseconds: stressStopwatch.Elapsed.TotalMilliseconds,
+            ProcessesStarted: client.ProcessesStarted,
+            BudgetRecycles: client.BudgetRecycles);
+        var hardTimeout = new ThumbnailWorkerTimeoutResult(
+            timeoutResult.TimedOut,
+            WorkerKilled: client.TimeoutKills == 1,
+            RecoverySucceeded:
+                recoveryResult.Completed
+                && recoveryResult.Response is { Success: true });
+        var resources = new ThumbnailWorkerResourceResult(
+            IdleSampleMilliseconds: IdleSample.TotalMilliseconds,
+            IdleCpuMilliseconds: idleCpuMilliseconds,
+            TotalWorkerCpuMilliseconds: client.TotalCpuMilliseconds,
+            PeakWorkingSetBytes: client.PeakWorkingSetBytes,
+            PeakHandleCount: client.PeakHandleCount,
+            TimeoutKills: client.TimeoutKills);
+        var budget = CreateBudget(stress, resources);
+
+        return new ThumbnailWorkerIsolationReport(
+            Probe: "P0-03b-thumbnail-worker-isolation",
+            TimestampUtc: DateTimeOffset.UtcNow,
+            OperatingSystem: Environment.OSVersion.VersionString,
+            Architecture: RuntimeInformation.OSArchitecture.ToString(),
+            Stress: stress,
+            HardTimeout: hardTimeout,
+            Resources: resources,
+            Budget: budget,
+            CleanupSucceeded: false,
+            Verdict: "PendingCleanup",
+            Privacy:
+            [
+                "Only an owned synthetic BMP inside a random temporary sandbox was opened.",
+                "The path traveled through redirected stdin and never appeared in command-line arguments or report output.",
+                "No image bytes, names, paths, HRESULT values, or Shell identities are emitted.",
+            ],
+            Limitations:
+            [
+                "The worker currently runs with the caller's token; AppContainer or another low-privilege token remains required for production.",
+                "The synthetic BMP validates process lifetime and Shell extraction, not third-party, cloud, network, or adversarial providers.",
+                "The probe returns dimensions and status only; a production IPC pixel-transfer contract remains unimplemented.",
+                "The forced timeout uses a deterministic worker hang before native extraction because inducing a real provider hang on a user machine is unsafe.",
+                "Budgets are provisional for this machine and must be repeated across the supported Windows and architecture matrix.",
+            ]);
+    }
+
+    private static ThumbnailWorkerBudgetResult CreateBudget(
+        ThumbnailWorkerStressResult stress,
+        ThumbnailWorkerResourceResult resources)
+    {
+        const double maximumP95Milliseconds = 250;
+        const double maximumTotalWallMilliseconds = 30_000;
+        const double maximumIdleCpuMilliseconds = 50;
+        const long maximumWorkingSetBytes = 256L * 1024 * 1024;
+        const int maximumHandleCount = 512;
+
+        bool withinBudget = stress.P95RoundTripMilliseconds <= maximumP95Milliseconds
+            && stress.TotalWallMilliseconds <= maximumTotalWallMilliseconds
+            && resources.IdleCpuMilliseconds <= maximumIdleCpuMilliseconds
+            && resources.PeakWorkingSetBytes <= maximumWorkingSetBytes
+            && resources.PeakHandleCount <= maximumHandleCount;
+
+        return new ThumbnailWorkerBudgetResult(
+            maximumP95Milliseconds,
+            maximumTotalWallMilliseconds,
+            maximumIdleCpuMilliseconds,
+            maximumWorkingSetBytes,
+            maximumHandleCount,
+            withinBudget);
+    }
+
+    private static ThumbnailWorkerRequest ExtractRequest(
+        string path,
+        string requestId) =>
+        new(
+            requestId,
+            ThumbnailWorkerRequestKind.Extract,
+            path,
+            Size: 128,
+            ShellItemImageFactoryFlags.ThumbnailOnly
+                | ShellItemImageFactoryFlags.BiggerSizeOk);
+
+    private static double Percentile(IReadOnlyList<double> values, double percentile)
+    {
+        if (values.Count == 0)
+        {
+            return 0;
+        }
+
+        double[] sorted = values.Order().ToArray();
+        int index = (int)Math.Ceiling(sorted.Length * percentile) - 1;
+        return sorted[Math.Max(index, 0)];
+    }
+
+    private static string CreateOwnedSandbox()
+    {
+        string temporaryRoot = Path.GetFullPath(Path.GetTempPath());
+        string root = Path.GetFullPath(Path.Combine(
+            temporaryRoot,
+            $"LongGrid-P0-03b-{Guid.NewGuid():N}"));
+        if (!root.StartsWith(temporaryRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("The sandbox escaped the temporary root.");
+        }
+
+        return Directory.CreateDirectory(root).FullName;
+    }
+
+    private static void WriteOwnedBitmap(string path)
+    {
+        const int width = 2;
+        const int height = 2;
+        const int stride = 8;
+        const int pixelBytes = stride * height;
+        const int pixelOffset = 54;
+
+        using FileStream stream = File.Create(path);
+        using var writer = new BinaryWriter(stream);
+        writer.Write((ushort)0x4D42);
+        writer.Write(pixelOffset + pixelBytes);
+        writer.Write(0);
+        writer.Write(pixelOffset);
+        writer.Write(40);
+        writer.Write(width);
+        writer.Write(height);
+        writer.Write((ushort)1);
+        writer.Write((ushort)24);
+        writer.Write(0);
+        writer.Write(pixelBytes);
+        writer.Write(2_835);
+        writer.Write(2_835);
+        writer.Write(0);
+        writer.Write(0);
+        writer.Write(new byte[]
+        {
+            0x00, 0x00, 0xFF,
+            0x00, 0xFF, 0x00,
+            0x00, 0x00,
+            0xFF, 0x00, 0x00,
+            0xFF, 0xFF, 0xFF,
+            0x00, 0x00,
+        });
+    }
+
+    private static bool TryDeleteOwnedSandbox(string root)
+    {
+        try
+        {
+            Directory.Delete(root, recursive: true);
+            return !Directory.Exists(root);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static void PrintText(ThumbnailWorkerIsolationReport report)
+    {
+        Console.WriteLine(report.Probe);
+        Console.WriteLine($"Verdict: {report.Verdict}");
+        Console.WriteLine(
+            $"Stress: {report.Stress.Succeeded}/{report.Stress.Requested}; "
+            + $"p95 {report.Stress.P95RoundTripMilliseconds:F2} ms");
+        Console.WriteLine(
+            $"Workers: {report.Stress.ProcessesStarted}; "
+            + $"budget recycles {report.Stress.BudgetRecycles}; "
+            + $"timeout kills {report.Resources.TimeoutKills}");
+        Console.WriteLine(
+            $"Hard timeout/recovery: {report.HardTimeout.TimedOut}/"
+            + $"{report.HardTimeout.RecoverySucceeded}");
+        Console.WriteLine(
+            $"Working set/handles: {report.Resources.PeakWorkingSetBytes}/"
+            + $"{report.Resources.PeakHandleCount}");
+        Console.WriteLine($"Within budget: {report.Budget.WithinProvisionalBudget}");
+    }
+}
+
+internal sealed record ThumbnailWorkerIsolationReport(
+    string Probe,
+    DateTimeOffset TimestampUtc,
+    string OperatingSystem,
+    string Architecture,
+    ThumbnailWorkerStressResult Stress,
+    ThumbnailWorkerTimeoutResult HardTimeout,
+    ThumbnailWorkerResourceResult Resources,
+    ThumbnailWorkerBudgetResult Budget,
+    bool CleanupSucceeded,
+    string Verdict,
+    IReadOnlyList<string> Privacy,
+    IReadOnlyList<string> Limitations);
+
+internal sealed record ThumbnailWorkerStressResult(
+    int Requested,
+    int Succeeded,
+    int Failed,
+    double P50RoundTripMilliseconds,
+    double P95RoundTripMilliseconds,
+    double TotalWallMilliseconds,
+    int ProcessesStarted,
+    int BudgetRecycles);
+
+internal sealed record ThumbnailWorkerTimeoutResult(
+    bool TimedOut,
+    bool WorkerKilled,
+    bool RecoverySucceeded);
+
+internal sealed record ThumbnailWorkerResourceResult(
+    double IdleSampleMilliseconds,
+    double IdleCpuMilliseconds,
+    double TotalWorkerCpuMilliseconds,
+    long PeakWorkingSetBytes,
+    int PeakHandleCount,
+    int TimeoutKills);
+
+internal sealed record ThumbnailWorkerBudgetResult(
+    double MaximumP95Milliseconds,
+    double MaximumTotalWallMilliseconds,
+    double MaximumIdleCpuMilliseconds,
+    long MaximumWorkingSetBytes,
+    int MaximumHandleCount,
+    bool WithinProvisionalBudget);

@@ -15,6 +15,24 @@ internal static class Program
 
     public static async Task<int> Main(string[] args)
     {
+        if (args.SequenceEqual(["--thumbnail-worker"], StringComparer.Ordinal))
+        {
+            return await ThumbnailWorkerServer.RunAsync();
+        }
+
+        if (args.Contains("--worker-matrix", StringComparer.Ordinal))
+        {
+            bool json = args.Contains("--json", StringComparer.Ordinal);
+            if (args.Any(argument =>
+                argument is not "--worker-matrix" and not "--json"))
+            {
+                Console.Error.WriteLine("Unknown worker-matrix option.");
+                return 64;
+            }
+
+            return await ThumbnailWorkerIsolationProbe.RunAsync(json);
+        }
+
         ProbeOptions options;
         try
         {
@@ -287,6 +305,7 @@ internal static class Program
 
             Options:
               --json  Write a machine-readable, fully redacted report.
+              --worker-matrix  Run the owned-sandbox worker isolation matrix.
               --help  Show this help.
             """);
     }
