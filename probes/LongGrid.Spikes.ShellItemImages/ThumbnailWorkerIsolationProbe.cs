@@ -40,6 +40,7 @@ internal static class ThumbnailWorkerIsolationProbe
         }
 
         bool passed = report.Stress.Succeeded == StressRequests
+            && report.WarmupSucceeded
             && report.HardTimeout.TimedOut
             && report.HardTimeout.WorkerKilled
             && report.HardTimeout.RecoverySucceeded
@@ -66,6 +67,11 @@ internal static class ThumbnailWorkerIsolationProbe
         string bitmapPath)
     {
         using var client = new ThumbnailWorkerClient(RequestsPerWorker);
+        ThumbnailWorkerCallResult warmupResult = await client.ExecuteAsync(
+            ExtractRequest(bitmapPath, "warmup"),
+            RequestTimeout);
+        bool warmupSucceeded = warmupResult.Completed
+            && warmupResult.Response is { Success: true };
         double idleCpuMilliseconds =
             await client.MeasureIdleCpuMillisecondsAsync(IdleSample);
         var durations = new List<double>(StressRequests);
@@ -135,6 +141,7 @@ internal static class ThumbnailWorkerIsolationProbe
             TimestampUtc: DateTimeOffset.UtcNow,
             OperatingSystem: Environment.OSVersion.VersionString,
             Architecture: RuntimeInformation.OSArchitecture.ToString(),
+            WarmupSucceeded: warmupSucceeded,
             Stress: stress,
             HardTimeout: hardTimeout,
             Resources: resources,
@@ -298,6 +305,7 @@ internal sealed record ThumbnailWorkerIsolationReport(
     DateTimeOffset TimestampUtc,
     string OperatingSystem,
     string Architecture,
+    bool WarmupSucceeded,
     ThumbnailWorkerStressResult Stress,
     ThumbnailWorkerTimeoutResult HardTimeout,
     ThumbnailWorkerResourceResult Resources,
