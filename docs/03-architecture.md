@@ -156,6 +156,8 @@ P0-07b2b2b2b4b1 在既有隐藏消息窗口上增加受控矩阵验收层。固�
 
 P0-04/P0-05b1 已建立首个 GDI 系统色的可见 DesktopHost 交互切片：一个 ToolWindow 内含 List 容器和三个内存项目，统一处理鼠标选择、Tab/方向键、Enter/Space Invoke 与 Esc 退出。窗口初次用 `SWP_NOACTIVATE` 展示但不永久设置 `WS_EX_NOACTIVATE`，因此初次检查点不抢焦点，同时允许用户或辅助技术显式聚焦。真实 UIA 客户端已验证 Pane/List/ListItem 树、Selection/SelectionItem/Invoke Pattern 和 Selection/Invoke 事件；三轮资源精确闭环。原型不读桌面、不打开外部内容，最终 DirectComposition 视觉、DPI/高对比和人工输入/Narrator/系统表面矩阵仍未通过。
 
+P0-08a 已把安全引用与托管移动编码为纯 Core 计划：安全引用永远没有文件系统动作；托管移动对网络路径、重解析点、云占位、目标冲突和状态缺失默认阻断，合法移动仍必须显式批准。临时沙箱中的真实 `IFileOperation` 已验证同卷移动、冲突预阻断、回调取消和一项完成/一项取消的部分成功边界。取消可能表现为 `PerformOperations=ERROR_CANCELLED` 且 `GetAnyOperationsAborted=false`，因此生产观察必须合并总体 HRESULT、aborted 标志、逐项回调和最终身份复读。Explorer 会话级撤销、跨卷、ACL/真实卷与云/网络矩阵仍未关闭，详见[P0-08 文件操作安全报告](spikes/P0-08-file-operation-safety.md)。
+
 ## 6. 规则引擎
 
 ```text

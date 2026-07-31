@@ -48,6 +48,7 @@
 - [x] P0-07b2b2b2b3 Bounds/Region/DComp/UIA 固定顺序、全层快照、四层失败逆序补偿、最终复读和紧急隐藏（Conditional Pass）。
 - [x] P0-07b2b2b2b4a 短时可见宿主输入开/关/重开、跨进程穿透和真实 UIA Raw View Fragment 树（Conditional Pass）。
 - [x] P0-07b2b2b2b4b1 显示/设备/电源/会话动态矩阵只读采证工具、脱敏场景判定与无事件防假阳性（Conditional Pass）。
+- [x] P0-08a 安全引用/托管移动纯计划、Shell 同卷移动、冲突预阻断、回调取消、部分成功和隐私安全报告（Conditional Pass；Explorer 撤销、跨卷、ACL/真实卷、云/网络/重解析点矩阵未关闭）。
 - [x] PR #2–#18 已收口，相关代码进入 `main`，旧远端功能分支已删除。
 - [x] `main` 严格要求 `build-test`，管理员同样受约束，禁止强推和删除；CI 采集 TRX/Cobertura，当前 Core 行覆盖率 90.97%、分支覆盖率 75.43%。
 - [x] 建立 `Phase 0 Exit` milestone 和 Issue #19–#24 跟踪剩余门禁。
