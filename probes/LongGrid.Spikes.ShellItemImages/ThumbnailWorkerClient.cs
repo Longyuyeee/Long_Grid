@@ -1,12 +1,14 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 internal sealed class ThumbnailWorkerClient : IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = false,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     };
 
     private readonly int _maximumRequestsPerProcess;
@@ -25,6 +27,10 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     internal int BudgetRecycles { get; private set; }
 
     internal int TimeoutKills { get; private set; }
+
+    internal int ProtocolKills { get; private set; }
+
+    internal int UnexpectedExits { get; private set; }
 
     internal long PeakWorkingSetBytes { get; private set; }
 
@@ -69,6 +75,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
                 Completed: false,
                 TimedOut: true,
                 WorkerExited: true,
+                ProtocolError: false,
                 Response: null,
                 stopwatch.Elapsed.TotalMilliseconds);
         }
@@ -77,17 +84,55 @@ internal sealed class ThumbnailWorkerClient : IDisposable
         stopwatch.Stop();
         if (line is null)
         {
+            UnexpectedExits++;
             StopProcess(force: false);
             return new ThumbnailWorkerCallResult(
                 Completed: false,
                 TimedOut: false,
                 WorkerExited: true,
+                ProtocolError: false,
                 Response: null,
                 stopwatch.Elapsed.TotalMilliseconds);
         }
 
-        ThumbnailWorkerResponse? response =
-            JsonSerializer.Deserialize<ThumbnailWorkerResponse>(line, JsonOptions);
+        ThumbnailWorkerResponse? response;
+        try
+        {
+            response = JsonSerializer.Deserialize<ThumbnailWorkerResponse>(
+                line,
+                JsonOptions);
+        }
+        catch (JsonException)
+        {
+            ProtocolKills++;
+            StopProcess(force: true);
+            return new ThumbnailWorkerCallResult(
+                Completed: false,
+                TimedOut: false,
+                WorkerExited: true,
+                ProtocolError: true,
+                Response: null,
+                stopwatch.Elapsed.TotalMilliseconds);
+        }
+
+        if (response is null
+            || response.ProtocolVersion != ThumbnailWorkerServer.CurrentProtocolVersion
+            || !string.Equals(
+                response.RequestId,
+                request.RequestId,
+                StringComparison.Ordinal))
+        {
+            ProtocolKills++;
+            StopProcess(force: true);
+            return new ThumbnailWorkerCallResult(
+                Completed: false,
+                TimedOut: false,
+                WorkerExited: true,
+                ProtocolError: true,
+                Response: null,
+                stopwatch.Elapsed.TotalMilliseconds);
+        }
+
         _requestsInCurrentProcess++;
         SampleResources(process);
         if (_requestsInCurrentProcess >= _maximumRequestsPerProcess)
@@ -100,6 +145,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
             Completed: response is not null,
             TimedOut: false,
             WorkerExited: false,
+            ProtocolError: false,
             response,
             stopwatch.Elapsed.TotalMilliseconds);
     }
@@ -214,5 +260,6 @@ internal sealed record ThumbnailWorkerCallResult(
     bool Completed,
     bool TimedOut,
     bool WorkerExited,
+    bool ProtocolError,
     ThumbnailWorkerResponse? Response,
     double RoundTripMilliseconds);

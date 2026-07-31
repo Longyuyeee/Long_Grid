@@ -44,6 +44,10 @@ internal static class ThumbnailWorkerIsolationProbe
             && report.HardTimeout.TimedOut
             && report.HardTimeout.WorkerKilled
             && report.HardTimeout.RecoverySucceeded
+            && report.Resilience.MalformedResponseDetected
+            && report.Resilience.MalformedResponseRecoverySucceeded
+            && report.Resilience.UnexpectedExitDetected
+            && report.Resilience.UnexpectedExitRecoverySucceeded
             && report.Budget.WithinProvisionalBudget
             && report.CleanupSucceeded;
         report = report with
@@ -99,6 +103,7 @@ internal static class ThumbnailWorkerIsolationProbe
         stressStopwatch.Stop();
         ThumbnailWorkerCallResult timeoutResult = await client.ExecuteAsync(
             new ThumbnailWorkerRequest(
+                ThumbnailWorkerServer.CurrentProtocolVersion,
                 "forced-timeout",
                 ThumbnailWorkerRequestKind.Hang,
                 Path: null,
@@ -107,6 +112,30 @@ internal static class ThumbnailWorkerIsolationProbe
             ForcedTimeout);
         ThumbnailWorkerCallResult recoveryResult = await client.ExecuteAsync(
             ExtractRequest(bitmapPath, "recovery"),
+            RequestTimeout);
+        ThumbnailWorkerCallResult malformedResult = await client.ExecuteAsync(
+            new ThumbnailWorkerRequest(
+                ThumbnailWorkerServer.CurrentProtocolVersion,
+                "malformed-response",
+                ThumbnailWorkerRequestKind.MalformedResponse,
+                Path: null,
+                Size: 0,
+                Flags: 0),
+            RequestTimeout);
+        ThumbnailWorkerCallResult malformedRecovery = await client.ExecuteAsync(
+            ExtractRequest(bitmapPath, "malformed-recovery"),
+            RequestTimeout);
+        ThumbnailWorkerCallResult exitResult = await client.ExecuteAsync(
+            new ThumbnailWorkerRequest(
+                ThumbnailWorkerServer.CurrentProtocolVersion,
+                "unexpected-exit",
+                ThumbnailWorkerRequestKind.Exit,
+                Path: null,
+                Size: 0,
+                Flags: 0),
+            RequestTimeout);
+        ThumbnailWorkerCallResult exitRecovery = await client.ExecuteAsync(
+            ExtractRequest(bitmapPath, "exit-recovery"),
             RequestTimeout);
         client.Dispose();
 
@@ -134,6 +163,20 @@ internal static class ThumbnailWorkerIsolationProbe
             PeakWorkingSetBytes: client.PeakWorkingSetBytes,
             PeakHandleCount: client.PeakHandleCount,
             TimeoutKills: client.TimeoutKills);
+        var resilience = new ThumbnailWorkerResilienceResult(
+            MalformedResponseDetected: malformedResult.ProtocolError,
+            MalformedResponseRecoverySucceeded:
+                malformedRecovery.Completed
+                && malformedRecovery.Response is { Success: true },
+            UnexpectedExitDetected:
+                exitResult.WorkerExited
+                && !exitResult.TimedOut
+                && !exitResult.ProtocolError,
+            UnexpectedExitRecoverySucceeded:
+                exitRecovery.Completed
+                && exitRecovery.Response is { Success: true },
+            client.ProtocolKills,
+            client.UnexpectedExits);
         var budget = CreateBudget(stress, resources);
 
         return new ThumbnailWorkerIsolationReport(
@@ -144,6 +187,7 @@ internal static class ThumbnailWorkerIsolationProbe
             WarmupSucceeded: warmupSucceeded,
             Stress: stress,
             HardTimeout: hardTimeout,
+            Resilience: resilience,
             Resources: resources,
             Budget: budget,
             CleanupSucceeded: false,
@@ -193,6 +237,7 @@ internal static class ThumbnailWorkerIsolationProbe
         string path,
         string requestId) =>
         new(
+            ThumbnailWorkerServer.CurrentProtocolVersion,
             requestId,
             ThumbnailWorkerRequestKind.Extract,
             path,
@@ -308,6 +353,7 @@ internal sealed record ThumbnailWorkerIsolationReport(
     bool WarmupSucceeded,
     ThumbnailWorkerStressResult Stress,
     ThumbnailWorkerTimeoutResult HardTimeout,
+    ThumbnailWorkerResilienceResult Resilience,
     ThumbnailWorkerResourceResult Resources,
     ThumbnailWorkerBudgetResult Budget,
     bool CleanupSucceeded,
@@ -329,6 +375,14 @@ internal sealed record ThumbnailWorkerTimeoutResult(
     bool TimedOut,
     bool WorkerKilled,
     bool RecoverySucceeded);
+
+internal sealed record ThumbnailWorkerResilienceResult(
+    bool MalformedResponseDetected,
+    bool MalformedResponseRecoverySucceeded,
+    bool UnexpectedExitDetected,
+    bool UnexpectedExitRecoverySucceeded,
+    int ProtocolKills,
+    int UnexpectedExits);
 
 internal sealed record ThumbnailWorkerResourceResult(
     double IdleSampleMilliseconds,
