@@ -86,10 +86,10 @@ dotnet test LongGrid.sln --configuration Release --no-build
 | #21 | ACL、共享占用、只读卷、磁盘满 | VM/可还原快照；不得破坏系统目录 | Pending |
 | #21 | OneDrive、网络、重解析点、真实取消 | 专用账号/共享；默认阻断优先 | Pending |
 | #22 | 受限 Low Integrity 对照 | Low worker 可读取未授权文件，证明 MIC no-write-up 不能承担文件保密边界 | Decision evidence；不得作为生产回退 |
-| #22 | AppContainer 与访问 broker | 真实 worker 全部为零 Capability AppContainer；32 MiB 受控只读副本可提取，未代理读写被拒绝；正常/异常父进程路径均清理 Profile | Conditional Pass（自动探针）；handle/最小 ACL 与 provider 矩阵 Pending |
+| #22 | AppContainer 与访问 broker | 真实 worker 全部为零 Capability AppContainer；协议 v6 对照受控副本与最小路径 ACL，均阻断相邻读取并清理 Profile；正常路径复核随机 SID ACE 已恢复 | Conditional Pass（自动探针）；ACL 只作比较，异常退出 ACE 修复与 provider 矩阵 Pending |
 | #22 | 有界共享内存句柄 broker | 匿名映射、单请求复制句柄、最大 262,144 bytes；缺失句柄/错误容量/元数据错误全部阻断并恢复 | Conditional Pass（自动探针） |
 | #22 | 正式渲染表面集成 | 保持已验证的 transport、长度、格式、尺寸和容量上限 | Pending |
-| #22 | 真实 Provider、x64/ARM64、Windows 矩阵 | 22621 自有 BMP 500/500；26100 GitHub runner 副本可读但 Shell 返回 `E_ACCESSDENIED`，必须类型图标/缓存回退；专用样本不输出名称/路径 | Partial；受控矩阵 Pending |
+| #22 | 真实 Provider、x64/ARM64、Windows 矩阵 | 22621 上副本 500/500 且最小 ACL 可提取；26100 GitHub runner 两种输入均可直接读但 Shell 都返回 `E_ACCESSDENIED`，必须类型图标/缓存回退；专用样本不输出名称/路径 | Partial；受控矩阵 Pending |
 
 在这些项目完成前，#21 与 #22 保持打开，产品默认只能使用安全引用和缓存内图像。
 

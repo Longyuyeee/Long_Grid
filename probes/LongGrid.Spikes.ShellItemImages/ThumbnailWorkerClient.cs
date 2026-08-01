@@ -2,6 +2,12 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+internal enum ThumbnailInputStrategy
+{
+    ControlledCopy = 1,
+    MinimumPathAcl = 2,
+}
+
 internal sealed class ThumbnailWorkerClient : IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -13,6 +19,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     private readonly int _maximumRequestsPerProcess;
     private readonly TimeSpan _initialRestartBackoff;
     private readonly TimeSpan _maximumRestartBackoff;
+    private readonly ThumbnailInputStrategy _inputStrategy;
     private readonly ThumbnailAppContainerProfile _appContainerProfile;
     private readonly ThumbnailWorkerJob _workerJob;
     private Process? _process;
@@ -26,7 +33,9 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     internal ThumbnailWorkerClient(
         int maximumRequestsPerProcess,
         TimeSpan? initialRestartBackoff = null,
-        TimeSpan? maximumRestartBackoff = null)
+        TimeSpan? maximumRestartBackoff = null,
+        ThumbnailInputStrategy inputStrategy =
+            ThumbnailInputStrategy.ControlledCopy)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(maximumRequestsPerProcess, 1);
         _maximumRequestsPerProcess = maximumRequestsPerProcess;
@@ -34,6 +43,12 @@ internal sealed class ThumbnailWorkerClient : IDisposable
             ?? TimeSpan.FromMilliseconds(50);
         _maximumRestartBackoff = maximumRestartBackoff
             ?? TimeSpan.FromMilliseconds(800);
+        if (!Enum.IsDefined(inputStrategy))
+        {
+            throw new ArgumentOutOfRangeException(nameof(inputStrategy));
+        }
+
+        _inputStrategy = inputStrategy;
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(
             _initialRestartBackoff,
             TimeSpan.Zero);
@@ -75,6 +90,13 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     internal bool UsesControlledInputCopies =>
         _appContainerProfile.BrokeredInputCopiesCreated > 0;
 
+    internal bool UsesMinimumPathAcl =>
+        _appContainerProfile.PathAclLeasesGranted > 0;
+
+    internal bool AllPathAclLeasesRestored =>
+        _appContainerProfile.AllPathAclLeasesRestored
+        && _appContainerProfile.ActivePathAclLeases == 0;
+
     internal string AppContainerProfileName => _appContainerProfile.ProfileName;
 
     internal bool AppContainerProfileDeleted => _appContainerProfile.WasDeleted;
@@ -107,14 +129,31 @@ internal sealed class ThumbnailWorkerClient : IDisposable
 
         await ApplyRestartBackoffAsync();
         Process process = EnsureProcess();
-        ThumbnailWorkerRequest brokeredRequest = RequiresBrokeredInput(request)
-            ? request with
-            {
-                Path = _appContainerProfile.BrokerReadOnlyCopy(
+        bool authorizeInput = RequiresInputAuthorization(request);
+        using ThumbnailPathAclLease? pathAclLease =
+            authorizeInput && _inputStrategy == ThumbnailInputStrategy.MinimumPathAcl
+                ? _appContainerProfile.GrantMinimumPathAccess(
                     request.Path
                         ?? throw new InvalidDataException(
-                            "An extraction request requires an input path.")),
-                InputTransport = ThumbnailInputTransport.ControlledCopy,
+                            "An extraction request requires an input path."))
+                : null;
+        ThumbnailWorkerRequest brokeredRequest = authorizeInput
+            ? _inputStrategy switch
+            {
+                ThumbnailInputStrategy.ControlledCopy => request with
+                {
+                    Path = _appContainerProfile.BrokerReadOnlyCopy(
+                        request.Path
+                            ?? throw new InvalidDataException(
+                                "An extraction request requires an input path.")),
+                    InputTransport = ThumbnailInputTransport.ControlledCopy,
+                },
+                ThumbnailInputStrategy.MinimumPathAcl => request with
+                {
+                    InputTransport = ThumbnailInputTransport.MinimumPathAcl,
+                },
+                _ => throw new InvalidOperationException(
+                    "The thumbnail input strategy is invalid."),
             }
             : request;
         using ThumbnailSharedMemoryTransfer? sharedMemory =
@@ -351,15 +390,24 @@ internal sealed class ThumbnailWorkerClient : IDisposable
 
     private void ResetTimeoutStreak() => _consecutiveTimeouts = 0;
 
-    private static bool RequiresBrokeredInput(ThumbnailWorkerRequest request) =>
+    private bool RequiresInputAuthorization(ThumbnailWorkerRequest request) =>
         !string.IsNullOrWhiteSpace(request.Path)
         && request.Path.Length <= 32_767
         && (request.Kind is ThumbnailWorkerRequestKind.Extract
                 or ThumbnailWorkerRequestKind.MissingPixelBufferRequest
                 or ThumbnailWorkerRequestKind.InvalidPixelBufferCapacityRequest
             || (request.Kind == ThumbnailWorkerRequestKind.ReadBoundaryProbe
-                && request.InputTransport
-                    == ThumbnailInputTransport.ControlledCopy));
+                && request.InputTransport == GetInputTransport(_inputStrategy)));
+
+    private static ThumbnailInputTransport GetInputTransport(
+        ThumbnailInputStrategy strategy) => strategy switch
+        {
+            ThumbnailInputStrategy.ControlledCopy =>
+                ThumbnailInputTransport.ControlledCopy,
+            ThumbnailInputStrategy.MinimumPathAcl =>
+                ThumbnailInputTransport.MinimumPathAcl,
+            _ => ThumbnailInputTransport.DirectPath,
+        };
 
     private static bool IsValidResponse(
         ThumbnailWorkerRequest request,

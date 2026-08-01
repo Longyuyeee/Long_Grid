@@ -46,6 +46,12 @@ internal sealed class ThumbnailAppContainerProfile : IDisposable
 
     internal int BrokeredInputCopiesCreated { get; private set; }
 
+    internal int PathAclLeasesGranted { get; private set; }
+
+    internal int ActivePathAclLeases { get; private set; }
+
+    internal bool AllPathAclLeasesRestored { get; private set; } = true;
+
     internal static ThumbnailAppContainerProfile Create()
     {
         string profileName = $"{ProfilePrefix}{Guid.NewGuid():N}";
@@ -151,6 +157,23 @@ internal sealed class ThumbnailAppContainerProfile : IDisposable
         return destination;
     }
 
+    internal ThumbnailPathAclLease GrantMinimumPathAccess(string sourcePath)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var identity = new SecurityIdentifier(_appContainerSid);
+        ThumbnailPathAclLease lease = ThumbnailPathAclLease.Create(
+            sourcePath,
+            identity,
+            restored =>
+            {
+                ActivePathAclLeases--;
+                AllPathAclLeasesRestored &= restored;
+            });
+        PathAclLeasesGranted++;
+        ActivePathAclLeases++;
+        return lease;
+    }
+
     internal static bool DeleteByName(string profileName)
     {
         if (string.IsNullOrWhiteSpace(profileName)
@@ -172,6 +195,7 @@ internal sealed class ThumbnailAppContainerProfile : IDisposable
             return;
         }
 
+        AllPathAclLeasesRestored &= ActivePathAclLeases == 0;
         if (_appContainerSid != nint.Zero)
         {
             _ = FreeSid(_appContainerSid);

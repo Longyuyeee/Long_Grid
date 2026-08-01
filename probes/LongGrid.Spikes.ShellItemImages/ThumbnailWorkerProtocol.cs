@@ -26,6 +26,7 @@ internal enum ThumbnailInputTransport
 {
     DirectPath = 1,
     ControlledCopy = 2,
+    MinimumPathAcl = 3,
 }
 
 internal sealed record ThumbnailWorkerRequest(
@@ -72,7 +73,7 @@ internal sealed record ThumbnailWorkerResponse(
 
 internal static class ThumbnailWorkerServer
 {
-    internal const int CurrentProtocolVersion = 5;
+    internal const int CurrentProtocolVersion = 6;
     internal const int MaximumRequestCharacters = 65_536;
     internal const int MaximumPixelDimension = 256;
     internal const int MaximumPixelBytes =
@@ -269,7 +270,9 @@ internal static class ThumbnailWorkerServer
             if (request.Kind != ThumbnailWorkerRequestKind.Extract
                 || string.IsNullOrWhiteSpace(request.Path)
                 || request.Path.Length > 32_767
-                || request.InputTransport != ThumbnailInputTransport.ControlledCopy
+                || request.InputTransport is not (
+                    ThumbnailInputTransport.ControlledCopy
+                    or ThumbnailInputTransport.MinimumPathAcl)
                 || request.Size is < 1 or > 1_024
                 || (request.IncludePixels
                     && (request.Size > MaximumPixelDimension
