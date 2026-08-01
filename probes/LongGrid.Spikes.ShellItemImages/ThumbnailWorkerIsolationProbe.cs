@@ -22,8 +22,13 @@ internal static class ThumbnailWorkerIsolationProbe
         try
         {
             string bitmapPath = Path.Combine(root, "owned-sample.bmp");
-            WriteOwnedBitmap(bitmapPath);
-            report = await RunMatrixAsync(bitmapPath);
+            string maximumBitmapPath = Path.Combine(root, "owned-maximum.bmp");
+            WriteOwnedBitmap(bitmapPath, width: 2, height: 2);
+            WriteOwnedBitmap(
+                maximumBitmapPath,
+                ThumbnailWorkerServer.MaximumPixelDimension,
+                ThumbnailWorkerServer.MaximumPixelDimension);
+            report = await RunMatrixAsync(bitmapPath, maximumBitmapPath);
         }
         finally
         {
@@ -52,6 +57,16 @@ internal static class ThumbnailWorkerIsolationProbe
             && report.ParentExit.ParentExited
             && report.ParentExit.OrphanExited
             && report.ParentExit.KillOnJobCloseConfigured
+            && report.PixelTransfer.Succeeded
+            && report.PixelTransfer.MaximumPayloadSucceeded
+            && report.PixelTransfer.FormatValidated
+            && report.PixelTransfer.DimensionsValidated
+            && report.PixelTransfer.StrideValidated
+            && report.PixelTransfer.LengthValidated
+            && report.PixelTransfer.MalformedEncodingDetected
+            && report.PixelTransfer.UnexpectedPayloadDetected
+            && report.PixelTransfer.OversizedPixelRequestDetected
+            && report.PixelTransfer.RecoveriesSucceeded == 7
             && report.Resilience.MalformedResponseDetected
             && report.Resilience.MalformedResponseRecoverySucceeded
             && report.Resilience.WrongVersionDetected
@@ -82,7 +97,8 @@ internal static class ThumbnailWorkerIsolationProbe
     }
 
     private static async Task<ThumbnailWorkerIsolationReport> RunMatrixAsync(
-        string bitmapPath)
+        string bitmapPath,
+        string maximumBitmapPath)
     {
         using var client = new ThumbnailWorkerClient(RequestsPerWorker);
         ThumbnailWorkerCallResult warmupResult = await client.ExecuteAsync(
@@ -115,6 +131,95 @@ internal static class ThumbnailWorkerIsolationProbe
         }
 
         stressStopwatch.Stop();
+        ThumbnailWorkerCallResult pixelResult = await client.ExecuteAsync(
+            ExtractPixelRequest(bitmapPath, "pixel-transfer"),
+            RequestTimeout);
+        ThumbnailWorkerCallResult maximumPixelResult = await client.ExecuteAsync(
+            ExtractPixelRequest(
+                maximumBitmapPath,
+                "maximum-pixel-transfer",
+                ThumbnailWorkerServer.MaximumPixelDimension),
+            RequestTimeout);
+        ThumbnailWorkerCallResult invalidPixelFormat = await client.ExecuteAsync(
+            PixelFaultRequest(
+                "invalid-pixel-format",
+                ThumbnailWorkerRequestKind.InvalidPixelFormatResponse),
+            RequestTimeout);
+        ThumbnailWorkerCallResult invalidPixelFormatRecovery =
+            await client.ExecuteAsync(
+                ExtractPixelRequest(bitmapPath, "invalid-pixel-format-recovery"),
+                RequestTimeout);
+        ThumbnailWorkerCallResult invalidPixelDimensions =
+            await client.ExecuteAsync(
+                PixelFaultRequest(
+                    "invalid-pixel-dimensions",
+                    ThumbnailWorkerRequestKind.InvalidPixelDimensionsResponse),
+                RequestTimeout);
+        ThumbnailWorkerCallResult invalidPixelDimensionsRecovery =
+            await client.ExecuteAsync(
+                ExtractPixelRequest(
+                    bitmapPath,
+                    "invalid-pixel-dimensions-recovery"),
+                RequestTimeout);
+        ThumbnailWorkerCallResult invalidPixelStride = await client.ExecuteAsync(
+            PixelFaultRequest(
+                "invalid-pixel-stride",
+                ThumbnailWorkerRequestKind.InvalidPixelStrideResponse),
+            RequestTimeout);
+        ThumbnailWorkerCallResult invalidPixelStrideRecovery =
+            await client.ExecuteAsync(
+                ExtractPixelRequest(bitmapPath, "invalid-pixel-stride-recovery"),
+                RequestTimeout);
+        ThumbnailWorkerCallResult invalidPixelLength = await client.ExecuteAsync(
+            PixelFaultRequest(
+                "invalid-pixel-length",
+                ThumbnailWorkerRequestKind.InvalidPixelLengthResponse),
+            RequestTimeout);
+        ThumbnailWorkerCallResult invalidPixelLengthRecovery =
+            await client.ExecuteAsync(
+                ExtractPixelRequest(bitmapPath, "invalid-pixel-length-recovery"),
+                RequestTimeout);
+        ThumbnailWorkerCallResult malformedPixelEncoding =
+            await client.ExecuteAsync(
+                PixelFaultRequest(
+                    "malformed-pixel-encoding",
+                    ThumbnailWorkerRequestKind.MalformedPixelPayload),
+                RequestTimeout);
+        ThumbnailWorkerCallResult malformedPixelEncodingRecovery =
+            await client.ExecuteAsync(
+                ExtractPixelRequest(
+                    bitmapPath,
+                    "malformed-pixel-encoding-recovery"),
+                RequestTimeout);
+        ThumbnailWorkerCallResult unexpectedPixelPayload =
+            await client.ExecuteAsync(
+                FaultRequest(
+                    "unexpected-pixel-payload",
+                    ThumbnailWorkerRequestKind.UnexpectedPixelPayloadResponse),
+                RequestTimeout);
+        ThumbnailWorkerCallResult unexpectedPixelPayloadRecovery =
+            await client.ExecuteAsync(
+                ExtractPixelRequest(
+                    bitmapPath,
+                    "unexpected-pixel-payload-recovery"),
+                RequestTimeout);
+        ThumbnailWorkerCallResult oversizedPixelRequest =
+            await client.ExecuteAsync(
+                new ThumbnailWorkerRequest(
+                    ThumbnailWorkerServer.CurrentProtocolVersion,
+                    "oversized-pixel-request",
+                    ThumbnailWorkerRequestKind.Extract,
+                    bitmapPath,
+                    Size: ThumbnailWorkerServer.MaximumPixelDimension + 1,
+                    ShellItemImageFactoryFlags.ThumbnailOnly,
+                    IncludePixels: true),
+                RequestTimeout);
+        ThumbnailWorkerCallResult oversizedPixelRequestRecovery =
+            await client.ExecuteAsync(
+                ExtractPixelRequest(
+                    bitmapPath,
+                    "oversized-pixel-request-recovery"),
+                RequestTimeout);
         ThumbnailWorkerCallResult timeoutResult = await client.ExecuteAsync(
             new ThumbnailWorkerRequest(
                 ThumbnailWorkerServer.CurrentProtocolVersion,
@@ -231,6 +336,47 @@ internal static class ThumbnailWorkerIsolationProbe
             RecoverySucceeded:
                 recoveryResult.Completed
                 && recoveryResult.Response is { Success: true });
+        ThumbnailPixelPayload? transferredPixels = pixelResult.Response?.Pixels;
+        ThumbnailPixelPayload? maximumPixels = maximumPixelResult.Response?.Pixels;
+        var pixelTransfer = new ThumbnailWorkerPixelTransferResult(
+            Succeeded:
+                pixelResult.Completed
+                && pixelResult.Response is { Success: true }
+                && transferredPixels is not null,
+            Width: transferredPixels?.Width ?? 0,
+            Height: transferredPixels?.Height ?? 0,
+            Stride: transferredPixels?.Stride ?? 0,
+            ByteLength: transferredPixels?.ByteLength ?? 0,
+            MaximumPayloadSucceeded:
+                maximumPixelResult.Completed
+                && maximumPixelResult.Response is { Success: true }
+                && maximumPixels is
+                {
+                    Width: ThumbnailWorkerServer.MaximumPixelDimension,
+                    Height: ThumbnailWorkerServer.MaximumPixelDimension,
+                    Stride: ThumbnailWorkerServer.MaximumPixelDimension * 4,
+                    ByteLength: ThumbnailWorkerServer.MaximumPixelBytes,
+                },
+            FormatValidated: invalidPixelFormat.ProtocolError,
+            DimensionsValidated: invalidPixelDimensions.ProtocolError,
+            StrideValidated: invalidPixelStride.ProtocolError,
+            LengthValidated: invalidPixelLength.ProtocolError,
+            MalformedEncodingDetected: malformedPixelEncoding.ProtocolError,
+            UnexpectedPayloadDetected: unexpectedPixelPayload.ProtocolError,
+            OversizedPixelRequestDetected:
+                oversizedPixelRequest.WorkerExited
+                && !oversizedPixelRequest.TimedOut,
+            RecoveriesSucceeded: new[]
+            {
+                invalidPixelFormatRecovery,
+                invalidPixelDimensionsRecovery,
+                invalidPixelStrideRecovery,
+                invalidPixelLengthRecovery,
+                malformedPixelEncodingRecovery,
+                unexpectedPixelPayloadRecovery,
+                oversizedPixelRequestRecovery,
+            }.Count(result =>
+                result.Completed && result.Response is { Success: true }));
         var timeoutBackoff = new ThumbnailWorkerBackoffResult(
             TimeoutsObserved: client.TimeoutKills - timeoutKillsBefore,
             MaximumConsecutiveTimeouts: client.MaximumConsecutiveTimeouts,
@@ -288,6 +434,7 @@ internal static class ThumbnailWorkerIsolationProbe
             HardTimeout: hardTimeout,
             TimeoutBackoff: timeoutBackoff,
             ParentExit: parentExit,
+            PixelTransfer: pixelTransfer,
             Resilience: resilience,
             Resources: resources,
             Budget: budget,
@@ -303,7 +450,7 @@ internal static class ThumbnailWorkerIsolationProbe
             [
                 "The worker currently runs with the caller's token; AppContainer or another low-privilege token remains required for production.",
                 "The synthetic BMP validates process lifetime and Shell extraction, not third-party, cloud, network, or adversarial providers.",
-                "The probe returns dimensions and status only; a production IPC pixel-transfer contract remains unimplemented.",
+                "The bounded BGRA payload uses base64 in the prototype line protocol; shared-memory transfer and render-surface integration remain unimplemented.",
                 "The forced timeout and parent-exit cases use a deterministic worker hang before native extraction because inducing a real provider hang on a user machine is unsafe.",
                 "Budgets are provisional for this machine and must be repeated across the supported Windows and architecture matrix.",
             ]);
@@ -436,6 +583,19 @@ internal static class ThumbnailWorkerIsolationProbe
             ShellItemImageFactoryFlags.ThumbnailOnly
                 | ShellItemImageFactoryFlags.BiggerSizeOk);
 
+    private static ThumbnailWorkerRequest ExtractPixelRequest(
+        string path,
+        string requestId,
+        int size = 128) =>
+        new(
+            ThumbnailWorkerServer.CurrentProtocolVersion,
+            requestId,
+            ThumbnailWorkerRequestKind.Extract,
+            path,
+            Size: size,
+            ShellItemImageFactoryFlags.ThumbnailOnly,
+            IncludePixels: true);
+
     private static ThumbnailWorkerRequest FaultRequest(
         string requestId,
         ThumbnailWorkerRequestKind kind) =>
@@ -446,6 +606,11 @@ internal static class ThumbnailWorkerIsolationProbe
             Path: null,
             Size: 0,
             Flags: 0);
+
+    private static ThumbnailWorkerRequest PixelFaultRequest(
+        string requestId,
+        ThumbnailWorkerRequestKind kind) =>
+        FaultRequest(requestId, kind) with { IncludePixels = true };
 
     private static double Percentile(IReadOnlyList<double> values, double percentile)
     {
@@ -473,12 +638,10 @@ internal static class ThumbnailWorkerIsolationProbe
         return Directory.CreateDirectory(root).FullName;
     }
 
-    private static void WriteOwnedBitmap(string path)
+    private static void WriteOwnedBitmap(string path, int width, int height)
     {
-        const int width = 2;
-        const int height = 2;
-        const int stride = 8;
-        const int pixelBytes = stride * height;
+        int stride = checked(((width * 3) + 3) & ~3);
+        int pixelBytes = checked(stride * height);
         const int pixelOffset = 54;
 
         using FileStream stream = File.Create(path);
@@ -498,15 +661,19 @@ internal static class ThumbnailWorkerIsolationProbe
         writer.Write(2_835);
         writer.Write(0);
         writer.Write(0);
-        writer.Write(new byte[]
+        var row = new byte[stride];
+        for (int x = 0; x < width; x++)
         {
-            0x00, 0x00, 0xFF,
-            0x00, 0xFF, 0x00,
-            0x00, 0x00,
-            0xFF, 0x00, 0x00,
-            0xFF, 0xFF, 0xFF,
-            0x00, 0x00,
-        });
+            int offset = x * 3;
+            row[offset] = (byte)(x % 251);
+            row[offset + 1] = (byte)((x * 3) % 251);
+            row[offset + 2] = (byte)((x * 7) % 251);
+        }
+
+        for (int y = 0; y < height; y++)
+        {
+            writer.Write(row);
+        }
     }
 
     private static bool TryDeleteOwnedSandbox(string root)
@@ -550,6 +717,12 @@ internal static class ThumbnailWorkerIsolationProbe
             + $"{report.ParentExit.OrphanExited}; job "
             + $"{report.ParentExit.KillOnJobCloseConfigured}");
         Console.WriteLine(
+            $"Pixel IPC: {report.PixelTransfer.Succeeded}; "
+            + $"{report.PixelTransfer.Width}x{report.PixelTransfer.Height}, "
+            + $"{report.PixelTransfer.ByteLength} bytes; recoveries "
+            + $"{report.PixelTransfer.RecoveriesSucceeded}/7; max "
+            + $"{report.PixelTransfer.MaximumPayloadSucceeded}");
+        Console.WriteLine(
             $"Working set/handles: {report.Resources.PeakWorkingSetBytes}/"
             + $"{report.Resources.PeakHandleCount}");
         Console.WriteLine($"Within budget: {report.Budget.WithinProvisionalBudget}");
@@ -566,6 +739,7 @@ internal sealed record ThumbnailWorkerIsolationReport(
     ThumbnailWorkerTimeoutResult HardTimeout,
     ThumbnailWorkerBackoffResult TimeoutBackoff,
     ThumbnailWorkerParentExitResult ParentExit,
+    ThumbnailWorkerPixelTransferResult PixelTransfer,
     ThumbnailWorkerResilienceResult Resilience,
     ThumbnailWorkerResourceResult Resources,
     ThumbnailWorkerBudgetResult Budget,
@@ -601,6 +775,22 @@ internal sealed record ThumbnailWorkerParentExitResult(
     bool ParentExited,
     bool OrphanExited,
     bool KillOnJobCloseConfigured);
+
+internal sealed record ThumbnailWorkerPixelTransferResult(
+    bool Succeeded,
+    int Width,
+    int Height,
+    int Stride,
+    int ByteLength,
+    bool MaximumPayloadSucceeded,
+    bool FormatValidated,
+    bool DimensionsValidated,
+    bool StrideValidated,
+    bool LengthValidated,
+    bool MalformedEncodingDetected,
+    bool UnexpectedPayloadDetected,
+    bool OversizedPixelRequestDetected,
+    int RecoveriesSucceeded);
 
 internal sealed record ThumbnailWorkerResilienceResult(
     bool MalformedResponseDetected,

@@ -77,7 +77,7 @@ dotnet test LongGrid.sln --configuration Release --no-build
 
 ## 5. Issue #21–#22：剩余安全与隔离矩阵
 
-自动 CI 已覆盖安全引用、同卷受控移动、冲突预阻断、回调取消/部分成功，以及 Worker 500 项预算、协议故障、硬超时、父进程 PID/Job Object 双重退出清理和连续超时退避。以下仍须专用环境：
+自动 CI 已覆盖安全引用、同卷受控移动、冲突预阻断、回调取消/部分成功，以及 Worker 500 项预算、有界 BGRA32 像素协议与故障矩阵、硬超时、父进程 PID/Job Object 双重退出清理和连续超时退避。以下仍须专用环境：
 
 | Issue | 剩余项 | 安全限制 | 状态 |
 |---|---|---|---|
@@ -86,7 +86,7 @@ dotnet test LongGrid.sln --configuration Release --no-build
 | #21 | ACL、共享占用、只读卷、磁盘满 | VM/可还原快照；不得破坏系统目录 | Pending |
 | #21 | OneDrive、网络、重解析点、真实取消 | 专用账号/共享；默认阻断优先 | Pending |
 | #22 | AppContainer/受限 token 与访问 broker | 不扩大文件访问权限 | Pending |
-| #22 | BGRA/共享内存像素 IPC | 严格长度、格式、尺寸和解码上限 | Pending |
+| #22 | 共享内存与正式渲染表面集成 | 保持已验证的长度、格式、尺寸和解码上限 | Pending |
 | #22 | 真实 Provider、x64/ARM64、Windows 矩阵 | 专用样本，不输出名称/路径 | Pending |
 
 在这些项目完成前，#21 与 #22 保持打开，产品默认只能使用安全引用和缓存内图像。

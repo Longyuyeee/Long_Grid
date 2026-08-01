@@ -5,6 +5,7 @@ internal static class NativeMethods
     internal const uint CoInitMultithreaded = 0;
     internal const uint GrGdiObjects = 0;
     internal const int RpcEChangedMode = unchecked((int)0x80010106);
+    internal const uint DibRgbColors = 0;
 
     [DllImport("ole32.dll")]
     internal static extern int CoInitializeEx(nint reserved, uint coInit);
@@ -28,6 +29,23 @@ internal static class NativeMethods
         nint objectHandle,
         int bufferSize,
         out NativeBitmap bitmap);
+
+    [DllImport("gdi32.dll", SetLastError = true)]
+    internal static extern nint CreateCompatibleDC(nint deviceContext);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool DeleteDC(nint deviceContext);
+
+    [DllImport("gdi32.dll", SetLastError = true)]
+    internal static extern int GetDIBits(
+        nint deviceContext,
+        nint bitmap,
+        uint startScan,
+        uint scanLines,
+        [Out] byte[] bits,
+        ref NativeBitmapInfoHeader bitmapInfo,
+        uint usage);
 
     [DllImport("user32.dll")]
     internal static extern uint GetGuiResources(nint process, uint flags);
@@ -58,6 +76,22 @@ internal struct NativeBitmap
     internal ushort Planes;
     internal ushort BitsPixel;
     internal nint Bits;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeBitmapInfoHeader
+{
+    internal uint Size;
+    internal int Width;
+    internal int Height;
+    internal ushort Planes;
+    internal ushort BitCount;
+    internal uint Compression;
+    internal uint SizeImage;
+    internal int XPelsPerMeter;
+    internal int YPelsPerMeter;
+    internal uint ColorsUsed;
+    internal uint ColorsImportant;
 }
 
 [Flags]
