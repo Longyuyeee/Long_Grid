@@ -57,12 +57,15 @@ internal static class ThumbnailWorkerIsolationProbe
             && report.ParentExit.ParentExited
             && report.ParentExit.OrphanExited
             && report.ParentExit.KillOnJobCloseConfigured
-            && report.RestrictedWorker.AllWorkersLowIntegrity
-            && report.RestrictedWorker.MediumSandboxWriteBlocked
-            && report.RestrictedWorker.UnbrokeredReadSucceeded
-            && report.RestrictedWorker.ExtractionSucceeded
-            && report.RestrictedWorker.JobAssignedBeforeResume
-            && report.RestrictedWorker.ExplicitHandleAllowList
+            && report.ParentExit.AppContainerProfileDeleted
+            && report.AppContainerWorker.AllWorkersAppContainer
+            && report.AppContainerWorker.MediumSandboxWriteBlocked
+            && report.AppContainerWorker.UnbrokeredReadBlocked
+            && report.AppContainerWorker.ExtractionSucceeded
+            && report.AppContainerWorker.JobAssignedBeforeResume
+            && report.AppContainerWorker.ExplicitHandleAllowList
+            && report.AppContainerWorker.ControlledInputCopyUsed
+            && report.AppContainerWorker.AppContainerProfileDeleted
             && report.AppContainer.ProfileCreated
             && report.AppContainer.ZeroCapabilities
             && report.AppContainer.NoOpSucceeded
@@ -148,9 +151,9 @@ internal static class ThumbnailWorkerIsolationProbe
                     Size: 0,
                     Flags: 0),
                 RequestTimeout);
-        bool unbrokeredReadSucceeded =
+        bool unbrokeredReadBlocked =
             unbrokeredReadResult.Completed
-            && unbrokeredReadResult.Response is { Success: true };
+            && unbrokeredReadResult.Response is { Success: false };
         ThumbnailWorkerCallResult restrictedWriteResult =
             await client.ExecuteAsync(
                 new ThumbnailWorkerRequest(
@@ -404,6 +407,7 @@ internal static class ThumbnailWorkerIsolationProbe
             ExtractRequest(bitmapPath, "backoff-recovery"),
             RequestTimeout);
         bool killOnJobCloseConfigured = client.UsesKillOnJobClose;
+        bool controlledInputCopyUsed = client.UsesControlledInputCopies;
         client.Dispose();
         ThumbnailWorkerParentExitResult parentExit =
             await VerifyParentExitCleanupAsync(
@@ -533,13 +537,15 @@ internal static class ThumbnailWorkerIsolationProbe
             client.ProtocolKills,
             client.UnexpectedExits);
         var budget = CreateBudget(stress, resources);
-        var restrictedWorker = new ThumbnailRestrictedWorkerResult(
-            AllWorkersLowIntegrity: client.AllWorkersLowIntegrity,
+        var appContainerWorker = new ThumbnailAppContainerWorkerResult(
+            AllWorkersAppContainer: client.AllWorkersAppContainer,
             MediumSandboxWriteBlocked: restrictedWorkerWriteBlocked,
-            UnbrokeredReadSucceeded: unbrokeredReadSucceeded,
+            UnbrokeredReadBlocked: unbrokeredReadBlocked,
             ExtractionSucceeded: warmupSucceeded,
             JobAssignedBeforeResume: true,
-            ExplicitHandleAllowList: true);
+            ExplicitHandleAllowList: true,
+            ControlledInputCopyUsed: controlledInputCopyUsed,
+            AppContainerProfileDeleted: client.AppContainerProfileDeleted);
 
         return new ThumbnailWorkerIsolationReport(
             Probe: "P0-03b-thumbnail-worker-isolation",
@@ -551,7 +557,7 @@ internal static class ThumbnailWorkerIsolationProbe
             HardTimeout: hardTimeout,
             TimeoutBackoff: timeoutBackoff,
             ParentExit: parentExit,
-            RestrictedWorker: restrictedWorker,
+            AppContainerWorker: appContainerWorker,
             AppContainer: appContainer,
             RestrictedToken: restrictedToken,
             PixelTransfer: pixelTransfer,
@@ -563,12 +569,13 @@ internal static class ThumbnailWorkerIsolationProbe
             Privacy:
             [
                 "Only an owned synthetic BMP inside a random temporary sandbox was opened.",
-                "The path traveled through redirected stdin and never appeared in command-line arguments or report output.",
+                "Only the controlled-copy path traveled through redirected stdin; neither original nor copy paths appear in command-line arguments or report output.",
                 "No image bytes, names, paths, HRESULT values, or Shell identities are emitted.",
             ],
             Limitations:
             [
-                "A zero-capability AppContainer blocks the unbrokered marker while reading a control file granted through an exact AppContainer-SID ACL, but the production thumbnail worker and per-request input broker have not yet moved into that boundary.",
+                "The production worker uses a zero-capability AppContainer and a bounded per-client controlled input copy; the separate boundary control proves exact SID ACL access and adjacent-file denial.",
+                "Controlled copies do not preserve original-path, neighboring-file, alternate-stream, cloud hydration, or provider-specific path semantics; brokered handles remain the preferred production comparison.",
                 "The synthetic BMP validates process lifetime and Shell extraction, not third-party, cloud, network, or adversarial providers.",
                 "The bounded BGRA payload uses a duplicated unnamed file-mapping handle; formal render-surface integration and the final broker policy remain unimplemented.",
                 "The forced timeout and parent-exit cases use a deterministic worker hang before native extraction because inducing a real provider hang on a user machine is unsafe.",
@@ -598,22 +605,26 @@ internal static class ThumbnailWorkerIsolationProbe
             await Task.Delay(TimeSpan.FromMilliseconds(20), timeout.Token);
         }
 
-        int workerProcessId = 0;
-        bool workerStarted = File.Exists(readyPath)
-            && int.TryParse(
-                await File.ReadAllTextAsync(readyPath, timeout.Token),
-                System.Globalization.NumberStyles.None,
-                System.Globalization.CultureInfo.InvariantCulture,
-                out workerProcessId);
+        ThumbnailParentExitReady? ready = File.Exists(readyPath)
+            ? JsonSerializer.Deserialize<ThumbnailParentExitReady>(
+                await File.ReadAllTextAsync(readyPath, timeout.Token))
+            : null;
+        bool workerStarted = ready is { WorkerProcessId: > 0 };
         await parentHarness.WaitForExitAsync(timeout.Token);
         bool parentExited = parentHarness.ExitCode == 0;
         bool orphanExited = workerStarted
-            && await WaitForProcessExitAsync(workerProcessId, timeout.Token);
+            && await WaitForProcessExitAsync(
+                ready!.WorkerProcessId,
+                timeout.Token);
+        bool profileDeleted = ready is not null
+            && ThumbnailAppContainerProfile.DeleteByName(
+                ready.AppContainerProfileName);
         return new ThumbnailWorkerParentExitResult(
             workerStarted,
             parentExited,
             orphanExited,
-            killOnJobCloseConfigured);
+            killOnJobCloseConfigured,
+            profileDeleted);
     }
 
     private static ProcessStartInfo CreateParentExitHarnessStartInfo(
@@ -835,7 +846,8 @@ internal static class ThumbnailWorkerIsolationProbe
         Console.WriteLine(
             $"Parent exit/orphan cleanup: {report.ParentExit.ParentExited}/"
             + $"{report.ParentExit.OrphanExited}; job "
-            + $"{report.ParentExit.KillOnJobCloseConfigured}");
+            + $"{report.ParentExit.KillOnJobCloseConfigured}; profile "
+            + $"{report.ParentExit.AppContainerProfileDeleted}");
         Console.WriteLine(
             $"Restricted low-integrity boundary: "
             + $"{report.RestrictedToken.LowIntegrityObserved}; read/write-block/control "
@@ -843,13 +855,15 @@ internal static class ThumbnailWorkerIsolationProbe
             + $"{report.RestrictedToken.MediumSandboxWriteBlocked}/"
             + $"{report.RestrictedToken.ParentWriteControlSucceeded}");
         Console.WriteLine(
-            $"Restricted worker launch/read exposure/write block: "
-            + $"{report.RestrictedWorker.AllWorkersLowIntegrity}/"
-            + $"{report.RestrictedWorker.UnbrokeredReadSucceeded}/"
-            + $"{report.RestrictedWorker.MediumSandboxWriteBlocked}; "
-            + $"suspended-job/handle-list "
-            + $"{report.RestrictedWorker.JobAssignedBeforeResume}/"
-            + $"{report.RestrictedWorker.ExplicitHandleAllowList}");
+            $"AppContainer worker launch/read denial/write block: "
+            + $"{report.AppContainerWorker.AllWorkersAppContainer}/"
+            + $"{report.AppContainerWorker.UnbrokeredReadBlocked}/"
+            + $"{report.AppContainerWorker.MediumSandboxWriteBlocked}; "
+            + $"suspended-job/handle-list/copy/profile "
+            + $"{report.AppContainerWorker.JobAssignedBeforeResume}/"
+            + $"{report.AppContainerWorker.ExplicitHandleAllowList}/"
+            + $"{report.AppContainerWorker.ControlledInputCopyUsed}/"
+            + $"{report.AppContainerWorker.AppContainerProfileDeleted}");
         Console.WriteLine(
             $"AppContainer no-op/control/denied/token/profile cleanup: "
             + $"{report.AppContainer.NoOpSucceeded}/"
@@ -880,7 +894,7 @@ internal sealed record ThumbnailWorkerIsolationReport(
     ThumbnailWorkerTimeoutResult HardTimeout,
     ThumbnailWorkerBackoffResult TimeoutBackoff,
     ThumbnailWorkerParentExitResult ParentExit,
-    ThumbnailRestrictedWorkerResult RestrictedWorker,
+    ThumbnailAppContainerWorkerResult AppContainerWorker,
     ThumbnailAppContainerBoundaryResult AppContainer,
     RestrictedThumbnailTokenResult RestrictedToken,
     ThumbnailWorkerPixelTransferResult PixelTransfer,
@@ -892,13 +906,15 @@ internal sealed record ThumbnailWorkerIsolationReport(
     IReadOnlyList<string> Privacy,
     IReadOnlyList<string> Limitations);
 
-internal sealed record ThumbnailRestrictedWorkerResult(
-    bool AllWorkersLowIntegrity,
+internal sealed record ThumbnailAppContainerWorkerResult(
+    bool AllWorkersAppContainer,
     bool MediumSandboxWriteBlocked,
-    bool UnbrokeredReadSucceeded,
+    bool UnbrokeredReadBlocked,
     bool ExtractionSucceeded,
     bool JobAssignedBeforeResume,
-    bool ExplicitHandleAllowList);
+    bool ExplicitHandleAllowList,
+    bool ControlledInputCopyUsed,
+    bool AppContainerProfileDeleted);
 
 internal sealed record ThumbnailWorkerStressResult(
     int Requested,
@@ -926,7 +942,8 @@ internal sealed record ThumbnailWorkerParentExitResult(
     bool WorkerStarted,
     bool ParentExited,
     bool OrphanExited,
-    bool KillOnJobCloseConfigured);
+    bool KillOnJobCloseConfigured,
+    bool AppContainerProfileDeleted);
 
 internal sealed record ThumbnailWorkerPixelTransferResult(
     bool Succeeded,
