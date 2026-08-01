@@ -63,7 +63,12 @@ internal sealed class ThumbnailWorkerJob : IDisposable
     internal void Assign(Process process)
     {
         ArgumentNullException.ThrowIfNull(process);
-        if (!NativeMethods.AssignProcessToJobObject(_handle, process.Handle))
+        Assign(process.Handle);
+    }
+
+    internal void Assign(nint processHandle)
+    {
+        if (!NativeMethods.AssignProcessToJobObject(_handle, processHandle))
         {
             throw new Win32Exception(
                 Marshal.GetLastWin32Error(),

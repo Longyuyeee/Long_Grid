@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 internal enum ThumbnailWorkerRequestKind
 {
     Extract,
+    WriteBoundaryProbe,
     Hang,
     MalformedResponse,
     WrongVersionResponse,
@@ -175,6 +176,40 @@ internal static class ThumbnailWorkerServer
             if (request.Kind == ThumbnailWorkerRequestKind.Exit)
             {
                 return 71;
+            }
+
+            if (request.Kind == ThumbnailWorkerRequestKind.WriteBoundaryProbe)
+            {
+                if (string.IsNullOrWhiteSpace(request.Path)
+                    || request.Path.Length > 32_767)
+                {
+                    return 65;
+                }
+
+                bool writeBlocked = false;
+                var stopwatch = Stopwatch.StartNew();
+                try
+                {
+                    await File.WriteAllTextAsync(
+                        request.Path,
+                        "must-not-write");
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    writeBlocked = true;
+                }
+
+                stopwatch.Stop();
+                await WriteResponseAsync(new ThumbnailWorkerResponse(
+                    CurrentProtocolVersion,
+                    request.RequestId,
+                    Success: writeBlocked,
+                    HResult: 0,
+                    Width: writeBlocked ? 1 : 0,
+                    Height: writeBlocked ? 1 : 0,
+                    Pixels: null,
+                    stopwatch.Elapsed.TotalMilliseconds));
+                continue;
             }
 
             if (request.Kind != ThumbnailWorkerRequestKind.Extract
