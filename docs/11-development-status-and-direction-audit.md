@@ -66,7 +66,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 桌面目录与 Shell Namespace | 用户/Public 目录、Shell Namespace 枚举和差异对账 | E2 / Conditional Pass | 重定向、OneDrive、离线/权限矩阵 |
 | 稳定身份 | 文件对象身份、快捷方式双重身份、重命名跟踪 | E1-E2 | 跨卷、云占位符和长时间运行 |
 | Shell 变化 | 通知合并、恢复与最终全量对账 | E1-E2 | Explorer 重启和高频真实桌面压力 |
-| 图标/缩略图 | 异步加载、取消、句柄闭环；真实零 Capability AppContainer worker、协议 v5 受控输入副本、共享内存像素、未代理读写阻断、硬超时/父退出/Profile 清理；合成 500 项预算 | E2 / Conditional Pass | brokered handle/最小路径 ACL 比较、正式渲染集成、真实 provider/支持矩阵、安全确认和最终预算批准 |
+| 图标/缩略图 | 异步加载、取消、句柄闭环；真实零 Capability AppContainer worker、协议 v6 的受控副本/最小路径 ACL 对照、共享内存像素、未代理读写阻断、正常 ACL 恢复、硬超时/父退出/Profile 清理；合成 500 项预算 | E2 / Conditional Pass | 正式渲染集成、真实 provider/支持矩阵、异常 ACL 修复、安全确认和最终预算批准 |
 | DesktopHost 规划 | 每显示器 HWND、显式 Region、被动显示、输入门 | E1-E2 | 系统表面和真实输入人工矩阵 |
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
@@ -153,7 +153,7 @@ PR #39 合入后的首轮主干 CI `30690663507` 识别出父进程退出探针�
 
 协议 v4 不再把正常 BGRA32 字节编码进 JSON。父进程创建匿名、不可执行、最大 262,144 bytes 的页文件映射，并用 `DuplicateHandle` 把不可继承句柄复制到当前 Low Integrity worker；协议只传目标进程中的句柄值、固定容量和像素元数据。Worker 映射写入后关闭目标句柄，父进程只读映射并复核 transport、格式、尺寸、步幅、声明长度、容量和非零内容。缺失句柄、错误容量、错误格式/尺寸/步幅/长度、畸形旧 inline 编码、未请求负载和超限尺寸均被拒绝，9/9 后续恢复成功。v4 新增实际 worker 只读暴露探针并将其纳入报告，不向协议输出标记内容。
 
-这证明了“主进程按请求授予一个有界内核对象能力”的机制。当前协议 v5 又把文件输入推进到父进程生成的受控副本：真实提取必须声明 `ControlledCopy`，原始路径不会发送给 worker。它仍未证明 brokered handle 或最小路径 ACL 的 provider 兼容性，也不保留原路径和邻接资源语义。
+这证明了“主进程按请求授予一个有界内核对象能力”的机制。协议 v6 把文件输入明确分为父进程受控副本和 comparison-only 的最小路径 ACL；`DirectPath` 仍被拒绝。两种方式都能让 worker 直接读取已授权输入并阻断相邻文件，但 26100 上 Shell 都安全返回 `E_ACCESSDENIED`。当前 `IShellItemImageFactory` 依赖由 parsing name 创建的 `IShellItem`，原始文件句柄不能直接塞进这条 API；handle-backed 输入需要新的 provider/stream/decoder 合同，而不是再加一个枚举值。
 
 在上述决定前，可继续准备专用环境与实机执行，但不应默认某种权限模型或创建承诺兼容性的正式 schema。
 
@@ -163,13 +163,19 @@ PR #39 合入后的首轮主干 CI `30690663507` 识别出父进程退出探针�
 
 父进程只在探针自有 broker 子目录为该随机 AppContainer SID 增加只读/遍历 ACL：控制文件退出码为 0，同级未授权标记退出码为 1；结束后 Profile 和文件沙箱均删除。首版控制曾因没有可用标准输出使读命令退出失败，第二版直接把命令文件重定向为 stdin 又因 `cmd /c` 语法和无命令等待产生失败/超时；最终沿用显式标准流句柄白名单，让退出码只反映访问结果，判定阈值未放宽。
 
-这证明了 AppContainer + 精确对象授权可以表达 ADR-0002 所需的“显式授权可读、相邻未授权拒绝”。当前真实 `IShellItemImageFactory` worker 已迁入相同的零 Capability 启动模型，并以受控副本完成第一种输入策略；下一切片应比较句柄和最小路径 ACL 对原路径语义的影响。
+这证明了 AppContainer + 精确对象授权可以表达 ADR-0002 所需的“显式授权可读、相邻未授权拒绝”。当前真实 `IShellItemImageFactory` worker 已迁入相同的零 Capability 启动模型，并完成受控副本与最小路径 ACL 对照；下一切片应转向 build/provider 兼容矩阵和不同 decoder 合同，而不是扩大文件系统 Capability。
 
 ### 4.9 真实缩略图 worker 已进入零 Capability AppContainer
 
 父进程为每个 client 创建随机临时 Profile，把受限于 128 MiB 的 worker 运行时暂存到该 Profile 私有目录；所有 worker 通过 `SECURITY_CAPABILITIES` 以零 Capability 挂起启动，只继承 stdin/stdout/stderr，先加入 `KILL_ON_JOB_CLOSE` Job，并由父进程查询 `TokenIsAppContainer` 后恢复。AppContainer 内不再打开父进程句柄，异常父退出由内核 Job 回收；独立宿主把 Profile 名写入原子 ready 信号，主探针在确认孤儿退出后删除遗留 Profile。
 
-父进程对真实提取输入执行 32 MiB 单文件/64 MiB client 总量上限、拒绝重解析点的只读受控复制并缓存同一版本副本；协议 v5 将输入 transport 设为 `ControlledCopy`，worker 拒绝直接路径提取。Windows `10.0.22621` 本地矩阵 500/500 成功，p95 约 29–33 ms；Windows `10.0.26100` GitHub runner 上副本直接读成功，但 Shell 提取稳定返回 `E_ACCESSDENIED`、无像素。CI 将后者作为明确的 `ProductFallbackRequired` 兼容性分支，而不是提取成功；不允许回退到主进程或 Low Integrity 现场提取。结论仍为 Conditional Pass：副本改变路径/邻接/ADS/云水合语义，尚未完成真实 provider、brokered handle、最小 ACL、正式渲染和支持矩阵。
+父进程对真实提取输入执行 32 MiB 上限和重解析点拒绝。协议 v6 默认使用 `ControlledCopy`，同时用 `MinimumPathAcl` 给探针自有文件/父目录增加精确无继承 Read/Traverse ACE，并在请求后删除、复核随机 SID 无显式残留；worker 仍拒绝直接路径 transport。Windows `10.0.22621` 本地矩阵两种方式都可提取，默认副本 500/500、p95 33.46 ms；Windows `10.0.26100` GitHub runner 上两种输入都可直接读，但 Shell 都稳定返回 `E_ACCESSDENIED`、无像素。CI 将后者作为 `ProductFallbackRequired`，不允许回退到主进程或 Low Integrity 现场提取。结论仍为 Conditional Pass：ACL 方案没有解决 26100 兼容性，还会短时修改 DACL，异常退出残留修复尚未实现。
+
+### 4.10 最小路径 ACL 对照已完成，但不应提升为默认
+
+这轮对照区分了文件系统授权和 Shell provider 兼容性：22621 上 AppContainer 可直接读取原路径并完成 `IShellItemImageFactory` 提取；26100 CI 上同一授权可直接读，但 Shell 仍返回与副本路径相同的 `0x80070005`。因此当前失败不能归因于 Profile 副本本身不可读，更可能是 build/runner 下 Shell provider 与 AppContainer 的兼容限制。
+
+安全代价同样明确：最小 ACL 在请求期间修改文件和父目录 DACL，正常 Dispose 已复核 ACE 清理，但父进程崩溃、并发 ACL 修改和遗留 ACE 修复未覆盖。该方案只保留为探针对照；下一优先级是 provider/build 矩阵、正式类型图标/缓存回退接线，以及另一种受控 stream/decoder 合同评估。
 
 ## 5. 后续开发方向
 

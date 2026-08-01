@@ -10,7 +10,7 @@
 
 缩略图提供程序属于不受 Long Grid 控制的 Shell 扩展。探针先证明 Low Integrity 只阻止 write-up、不能阻止读取当前用户可读的其他文件；当前实现已把真实 `IShellItemImageFactory` worker 迁入零 Capability AppContainer，并保留硬超时、Job Object 生命周期、最小启动句柄和有界共享内存像素传输。
 
-父进程现在把运行时暂存到随机临时 Profile 的私有存储，并为每个合法提取路径生成单文件最大 32 MiB、client 总计最大 64 MiB、拒绝重解析点的只读受控副本。协议 v5 要求真实提取明确声明 `ControlledCopy`；worker 对原始未授权标记文件的读写均被阻断。该副本方式已关闭探针的直接路径暴露，但不保留原路径、邻接文件、备用数据流、云占位或 provider 路径语义，因此仍是过渡 broker，而不是最终兼容性结论。
+父进程现在把运行时暂存到随机临时 Profile 的私有存储，并为每个合法提取路径生成单文件最大 32 MiB、client 总计最大 64 MiB、拒绝重解析点的只读受控副本。协议 v6 保留 `ControlledCopy` 默认策略并增加 comparison-only 的 `MinimumPathAcl`：只给探针自有文件和父目录临时增加随机 AppContainer SID 的 Read/Traverse ACE，请求结束后精确删除并复核无显式残留。两种策略都能阻断相邻未授权读取；但 Windows 26100 上二者都在 Shell 提取阶段返回 `E_ACCESSDENIED`，因此 ACL 方案没有解决跨 build/provider 兼容性问题。
 
 ## 决策驱动因素
 
@@ -32,7 +32,7 @@
 
 ### C：AppContainer + 父进程 broker
 
-工作进程在无宽泛 Capability 的 AppContainer 中启动。父进程负责用户授权、策略、缓存和请求生命周期，只向单次请求授予受控输入；像素继续经有界共享内存返回。需要验证 Shell provider 在 AppContainer 下能否使用 brokered handle、受控副本或原路径授权，并建立不支持 provider 的安全回退。
+工作进程在无宽泛 Capability 的 AppContainer 中启动。父进程负责用户授权、策略、缓存和请求生命周期，只向单次请求授予受控输入；像素继续经有界共享内存返回。需要验证 Shell provider 在 AppContainer 下能否使用受控副本或原路径授权，并建立不支持 provider 的安全回退。当前 `IShellItemImageFactory` 入口接收 `IShellItem`，而探针通过 parsing name 创建该对象；原始文件句柄不能直接替换这条路径契约，句柄方案需要另一种 Shell item/provider、stream 或受控 decoder 架构实验。
 
 ## 决策
 
@@ -40,7 +40,8 @@
 
 - AppContainer 默认不授予网络、用户目录或 broadFileSystemAccess 类能力；
 - broker 按单次请求授权，输入与输出句柄不可继承，权限最小化并随 worker 回收；
-- 首选不复制且可表达最小只读授权的路径；若 provider 必须依赖原路径或邻接资源，则该 provider 进入显式兼容矩阵，不得自动扩大 Capability；
+- `ControlledCopy` 暂时保留为默认实验策略；`MinimumPathAcl` 仅用于兼容性比较，不进入产品默认，因为它临时修改用户文件及父目录 DACL，异常崩溃还缺少持久化清理日志；
+- 若 provider 必须依赖原路径或邻接资源，则该 provider 进入显式兼容矩阵，不得自动扩大 Capability；
 - 受控副本只能作为有大小、类型、水合和清理上限的显式回退；
 - 仅受限 Low Integrity 模式保留为开发诊断基线，不允许处理任意真实用户文件；
 - AppContainer/broker 失败时产品回退到类型图标或已验证缓存结果，不回退到主进程现场提取。
@@ -50,8 +51,9 @@
 - 实际 Low Integrity worker：读取未 broker 授权的自有中完整性文件成功，向中完整性目录 write-up 失败；
 - 零 Capability AppContainer：三个挂起启动的控制进程均由 `TokenIsAppContainer` 复核，先加入 `KILL_ON_JOB_CLOSE` Job 再恢复；无操作控制成功，精确 AppContainer SID ACL 授权文件可读，相邻未授权文件被拒绝，临时 Profile 删除成功；
 - 真实缩略图 worker：全部进程由 `TokenIsAppContainer` 复核，零 Capability、显式标准流句柄白名单、挂起后先入 Job；未代理读写均被拒绝，受控 BMP 副本可提取；
-- 协议 v5 强制 `ControlledCopy`，输入上限 32 MiB、拒绝重解析点；正常回收和父进程无清理退出两种路径均删除临时 Profile；
-- 500/500 合成 BMP 提取、p95 29.70 ms、250 ms 硬超时与恢复、父进程退出清理通过；
+- 协议 v6 明确区分 `ControlledCopy` 与 `MinimumPathAcl`，输入上限 32 MiB、拒绝重解析点；正常回收和父进程无清理退出两种路径均删除临时 Profile；
+- Windows 22621 上两种策略都完成真实 Shell 提取，默认副本路径 500/500、p95 33.46 ms；最小 ACL 的直接读、Shell 提取、相邻拒绝、ACL 恢复和 Profile 删除全部通过；
+- Windows 26100 GitHub runner 上两种策略的直接读都成功，但 `IShellItemImageFactory` 都稳定返回 `0x80070005`，说明失败不只是副本路径不可读；该分支只能安全回退到类型图标或已验证缓存；
 - 共享内存返回最大 256×256 BGRA32，九类像素/映射故障均被拒绝并恢复；
 - Microsoft 文档说明 Mandatory Integrity Control 使用完整性策略限制访问，默认强制 no-write-up；AppContainer 用于隔离进程并按 capability/对象 ACL 控制资源访问。
 
@@ -66,16 +68,17 @@
 ### 负面
 
 - AppContainer 创建、ACL/句柄授权、打包身份和企业策略矩阵增加实现与测试成本；
+- 最小路径 ACL 会短时修改文件及父目录 DACL；正常路径已复核恢复，但父进程在 lease 存活时异常退出、并发 ACL 修改和遗留 ACE 修复尚未验证；
 - 某些依赖原路径或进程外资源的第三方 provider 可能只能显示类型图标；
 - 云文件水合和网络路径必须由父进程显式决策，不能由 worker 自主触发。
 
 ### 后续工作
 
-1. 比较 brokered handle、当前受控副本和已通过边界探针的最小路径 ACL 三种单请求输入方式，优先验证不复制的最小只读授权；
-2. 为受控副本补充类型/水合策略、缓存预算和多文件隔离测试，不允许静默水合或扩大 Capability；
-3. 验证 BMP、常见图片、Office/PDF、OneDrive、网络路径和第三方 provider；
-4. 将通过的合同迁入正式渲染接口，并保留类型图标安全回退；
-5. 由安全负责人确认后把本 ADR 改为 Accepted 或 Revised。
+1. 建立 Windows build × provider 矩阵，验证 BMP、常见图片、Office/PDF、OneDrive、网络路径和第三方 provider，并保持失败时的类型图标/缓存回退；
+2. 把 handle-backed 输入作为独立的 stream/decoder 或 Shell provider 合同实验，不把原始句柄错误地当成当前 parsing-name API 的直接替代；
+3. 为受控副本补充类型/水合策略、缓存预算和多文件隔离测试，不允许静默水合或扩大 Capability；
+4. 若重新评估最小路径 ACL，先实现异常退出后的 ACE 日志/修复及并发 DACL 变更测试；
+5. 将通过的合同迁入正式渲染接口，并由安全负责人把本 ADR 改为 Accepted 或 Revised。
 
 ## 回滚与重新评估
 
