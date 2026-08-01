@@ -2,7 +2,7 @@
 
 审计日期：2026-08-02
 
-审计基线：`main` / `2316f37`
+审计基线：`main` / `40e1065`
 
 审计范围：代码、测试、技术探针、架构/产品/交互文档、GitHub PR 与 CI
 
@@ -10,7 +10,7 @@
 
 ## 1. 执行摘要
 
-Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了可复现的 .NET 工程基线、纯 Core 决策逻辑、真实 Win32/Shell/DirectComposition/UI Automation 探针以及自动化测试。桌面发现、稳定身份、Shell 变化对账、图像提取、DesktopHost 窗口模型、显示拓扑、布局恢复、事务补偿、首个可交互宿主切片、配置持久化、文件操作安全和缩略图进程隔离均有代码与报告证据。PR #18、#25–#52 已合入 `main`；配置探针通过了 20 类场景、1,000 次重复写入、四检查点共 1,000 次真实进程强杀及 ACL 生效期间 10 次强杀；文件操作和缩略图隔离探针均保持 Conditional Pass。
+Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了可复现的 .NET 工程基线、纯 Core 决策逻辑、真实 Win32/Shell/DirectComposition/UI Automation 探针以及自动化测试。桌面发现、稳定身份、Shell 变化对账、图像提取、DesktopHost 窗口模型、显示拓扑、布局恢复、事务补偿、首个可交互宿主切片、配置持久化、文件操作安全和缩略图进程隔离均有代码与报告证据。PR #18、#25–#54 已合入 `main`；配置探针通过了 20 类场景、1,000 次重复写入、四检查点共 1,000 次真实进程强杀及 ACL 生效期间 10 次强杀；文件操作和缩略图隔离探针均保持 Conditional Pass。
 
 但这些成果大多仍是 **Conditional Pass 的风险探针**，不是可发布产品能力。仓库还没有正式的 `LongGrid.App`、`LongGrid.DesktopHost`、`LongGrid.Infrastructure`、产品配置 schema、安装包或端到端产品流程。真实键鼠/触控/拖放、Narrator、Win+D、全屏、Explorer 重启、动态显示硬件矩阵、文件移动撤销、真实卷故障、真实 Provider 性能矩阵和可用性测试尚未关闭。
 
@@ -54,10 +54,10 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | GitHub | 无打开 PR；远端只保留 `main`；Phase 0 Exit 里程碑跟踪 #19–#24 六项工作 | 治理基线已闭环 |
 | 主干保护 | `main` 要求严格的 `build-test`，对管理员生效，禁止强推和删除 | 已建立最小可信门禁 |
 | 许可证 | GitHub 未识别许可证，仓库根目录无 LICENSE | 阻断公开分发与外部贡献 |
-| 覆盖率 | 88 项 Core 测试通过；本轮 Cobertura 基线为行 91.28%、分支 77.39%，CI 已采集报告 | Phase 1 关键 Core 分支目标 ≥80%，当前先跟踪趋势、不用总百分比替代风险测试 |
+| 覆盖率 | 88 项 Core 测试通过；本轮 Cobertura 基线为行 91.22%、分支 76.99%，CI 已采集报告 | Phase 1 关键 Core 分支目标 ≥80%，当前先跟踪趋势、不用总百分比替代风险测试 |
 | 发布状态 | 公开仓库无 tag、release、安装包和 LICENSE；六个打开 Issue 已纳入 Phase 0 Exit | 不可公开分发，剩余需求已有正式队列 |
 
-数量是 2026-08-01 审计快照，不作为长期质量指标。
+数量是 2026-08-02 审计快照，不作为长期质量指标。
 
 ### 3.2 已有代码证据
 
@@ -89,7 +89,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 
 ### 4.1 GitHub 治理基线已闭环
 
-PR #18、#25–#52 已进入 `main`，当前主干基线为合并 PR #52 后的 `2316f37`。覆盖率、配置、文件安全、零 Capability AppContainer 真实缩略图 worker、协议 v6 的副本/最小 ACL 对照、BMP/PNG/GIF 双 build 安全分类和依赖漏洞门禁已在主干 CI `30707986621` 全部通过。PR #2–#17 已关闭；远端功能分支只保留当前审计快照，合并后删除。
+PR #18、#25–#54 已进入 `main`，当前主干基线为合并 PR #54 后的 `40e1065`。覆盖率、配置、文件安全、零 Capability AppContainer 真实缩略图 worker、协议 v6 的副本/最小 ACL 对照、BMP/PNG/GIF/JPEG/TIFF 双 build 精确安全分类和依赖漏洞门禁已在主干 CI `30708962104` 全部通过。PR #2–#17 已关闭；远端功能分支只保留当前审计快照，合并后删除。
 
 `main` 已要求严格的 `build-test` 状态检查，规则对管理员生效，同时禁止强推和删除。Phase 0 Exit 里程碑以 #19–#24 跟踪人工输入与系统表面、动态显示、文件安全、缩略图隔离与 500 项预算、产品决策和持久化生产边界。W0 因此关闭；这只证明主干治理可信，不代表产品已达到发布条件。
 
@@ -181,7 +181,7 @@ PR #39 合入后的首轮主干 CI `30690663507` 识别出父进程退出探针�
 
 探针现在只在随机临时沙箱生成自有 BMP、PNG、GIF、JPEG、TIFF，并对每个格式分别执行 `ControlledCopy` 与 `MinimumPathAcl`。每项必须先证明授权输入可直接读取，再只接受 Shell 提取成功、精确 `E_ACCESSDENIED` 或精确 `ERROR_MOD_NOT_FOUND`；同一格式的两种策略必须得到相同分类与 HRESULT，两套 client 还必须全部为 AppContainer、使用目标授权策略、恢复 ACL 并删除 Profile。首版 read-control 漏填 transport 时，六次 Shell 提取虽成功但六个直接读控制全部失败，矩阵正确返回 Fail；修正为显式 transport 后才通过，没有放宽判定。
 
-Windows 22621 本地十个组合全部输入可读且同格式两种策略完全一致：BMP/PNG/GIF/JPEG 八组合提取成功，TIFF 两组合精确返回 `0x8007007E`；默认副本压力 500/500、p95 30.60 ms。五格式首次运行错误地要求跨格式结果一致，因此在 TIFF 暴露 provider/module 缺失时返回 Fail；修正后保留 `UniformOutcomeAcrossFormats=false` 作为证据，只把同格式策略一致性作为门禁，没有扩大精确 HRESULT 白名单。Windows 26100 PR CI `30708551166` 中十个组合全部输入可读，却全部返回 `0x80070005`，说明该环境的更早 Shell/AppContainer/build 访问限制覆盖了 22621 可观察到的 TIFF 差异。该证据仍是 E2：它不覆盖 HEIF、Office/PDF、真实第三方 provider、云/网络水合、ARM64 或 500 个不同项目，也不授权读取用户文件。
+Windows 22621 本地十个组合全部输入可读且同格式两种策略完全一致：BMP/PNG/GIF/JPEG 八组合提取成功，TIFF 两组合精确返回 `0x8007007E`；默认副本压力 500/500、p95 30.60 ms。五格式首次运行错误地要求跨格式结果一致，因此在 TIFF 暴露 provider/module 缺失时返回 Fail；修正后保留 `UniformOutcomeAcrossFormats=false` 作为证据，只把同格式策略一致性作为门禁，没有扩大精确 HRESULT 白名单。Windows 26100 PR CI `30708856264` 中十个组合全部输入可读，却全部返回 `0x80070005`，说明该环境的更早 Shell/AppContainer/build 访问限制覆盖了 22621 可观察到的 TIFF 差异。该证据仍是 E2：它不覆盖 HEIF、Office/PDF、真实第三方 provider、云/网络水合、ARM64 或 500 个不同项目，也不授权读取用户文件。
 
 ## 5. 后续开发方向
 
@@ -195,7 +195,7 @@ Windows 22621 本地十个组合全部输入可读且同格式两种策略完全
 - [x] 最新 `main` 全量 CI 通过；
 - [x] PR #2–#17 的分支均无 `main` 之外的独立提交；
 - [x] PR #18 经审核后合入 `main`；
-- [x] PR #2–#18、#25–#52 已合并或关闭，远端无长期串联草稿分支；
+- [x] PR #2–#18、#25–#54 已合并或关闭，远端无长期串联草稿分支；
 - [x] `main` 已启用禁止强推、禁止删除和必需状态检查；
 - [x] Phase 0 Exit 里程碑和 #19–#24 已建立；
 - [x] 后续 PR 从最新 `main` 创建。
@@ -273,7 +273,7 @@ LPWP 协议可以继续做兼容性维护和 Golden Fixture，但 Widget Host �
 
 | 顺序 | 工作包 | 交付物 | 退出条件 |
 |---|---|---|---|
-| W0（完成） | GitHub 治理 | PR #18、#25–#52 已合入；PR #2–#17 关闭；旧远端分支删除；`main` 受保护；Phase 0 Exit 建立 | 主干 CI 通过、无打开 PR、远端只保留 `main`，保护规则要求严格 `build-test` |
+| W0（完成） | GitHub 治理 | PR #18、#25–#54 已合入；PR #2–#17 关闭；旧远端分支删除；`main` 受保护；Phase 0 Exit 建立 | 主干 CI 通过、无打开 PR、远端只保留 `main`，保护规则要求严格 `build-test` |
 | W1 | 人工输入与系统表面（#19） | P0-05b2 键鼠/触控/拖放/Narrator/Win+D/全屏/Alt+Tab/任务视图/Explorer 重启记录 | 每个场景有环境、原始证据、Pass/Fail/Inconclusive 和缺陷 |
 | W2 | 动态显示（#20） | 缩放、旋转、拔插、投影、睡眠、RDP、`WM_DPICHANGED` 受控矩阵 | 稳定器、布局事务、资源闭环和恢复结果全部可复读 |
 | W3 | 文件安全、隔离与性能（#21、#22） | 引用/移动语义、`IFileOperation`、缩略图硬超时工作进程、500 项 CPU/内存/响应基线 | 不误移动、不丢撤销证据，资源预算可供负责人批准 |
