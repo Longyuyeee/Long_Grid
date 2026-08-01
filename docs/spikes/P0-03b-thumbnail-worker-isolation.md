@@ -28,7 +28,7 @@
 
 IPC 请求/响应携带协议版本和有界 request ID、路径长度、尺寸；JSON 拒绝未知字段，并校验响应版本与 request ID。stdin/stdout 均由带 64 KiB 上限的缓冲逐行读取器消费，超限在 JSON 解析前失败。故障矩阵覆盖畸形 JSON、错误协议版本、超长响应、超长请求和 worker 主动异常退出；父进程分别识别协议错误或 EOF，回收后均由新 worker 成功恢复。
 
-父进程 PID 由受控参数传入 worker；worker 启动后打开父进程句柄并异步等待退出，即使主处理线程停在确定性 Hang 中，也会由监视线程终止自身。矩阵另起一个父进程测试宿主，确认其在不执行 `Dispose` 的情况下退出后，卡死 worker 会在 10 秒门限内消失。连续三次强制超时分别触发 50、100、200 ms 退避，总计 350 ms，随后正常提取成功并清零超时连续计数。
+父进程为所有 worker 创建启用 `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` 的 Windows Job Object，并在进程启动后立即分配；父进程退出导致 Job 句柄关闭时，内核回收仍存活的 worker。父进程 PID 同时由受控参数传入 worker，worker 打开父进程句柄并异步等待退出，形成托管监视与操作系统 Job 的双重兜底。矩阵另起一个父进程测试宿主，确认其在不执行 `Dispose` 的情况下退出后，卡死 worker 会在 10 秒门限内消失。连续三次强制超时分别触发 50、100、200 ms 退避，总计 350 ms，随后正常提取成功并清零超时连续计数。
 
 ## 3. 实测环境与命令
 
@@ -63,6 +63,7 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 | 超时后恢复 | 成功 | 必须成功 | Pass |
 | 连续超时退避 | 3 次超时、3 次退避、350 ms | 指数增长且可恢复 | Pass |
 | 父进程退出/孤儿清理 | 父进程无清理退出，卡死 worker 随后退出 | 不遗留 worker | Pass |
+| Job Object 兜底 | `KILL_ON_JOB_CLOSE` 配置并为每个 worker 分配 | 必须配置成功 | Pass |
 | 畸形响应检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
 | 错误协议版本检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
 | 超过 64 KiB 响应检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
@@ -86,6 +87,7 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 - 超时不会卡死父进程，下一请求由新 worker 成功处理；
 - 超长输入/输出、畸形 JSON、错误协议版本和 worker 异常退出不会被接受为结果，下一 worker 可恢复；
 - 父进程未执行清理而退出时，即使 worker 正在 Hang，worker 也会检测父进程句柄并自行退出；
+- Windows Job Object 已启用 `KILL_ON_JOB_CLOSE`，每个 worker 启动后必须成功加入，否则父进程立即强杀该 worker 并使请求失败；
 - 连续硬超时会指数退避，成功响应后恢复正常启动节奏；
 - 协议版本、响应 request ID 和未知 JSON 字段受到校验；
 - 正常 worker 可按固定请求预算回收；
@@ -98,7 +100,6 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 - worker 目前仍使用调用者 token，未降到 AppContainer、低完整性或专用受限 token；
 - IPC 只返回尺寸/状态，尚未实现受控像素缓冲、共享内存、长度校验和解码上限；
 - 500 次是对同一自有 BMP 的隔离/生命周期压力，不等于 500 个不同真实项目的 provider、缓存和渲染预算；
-- 父进程 PID 监视仍是探针级方案；生产化需评估 Windows Job Object 的 `KILL_ON_JOB_CLOSE` 作为更强的操作系统级兜底；
 - 尚未覆盖像素 IPC 的独立长度/格式校验；
 - 尚未覆盖 OneDrive、网络路径、第三方 provider、恶意文件、x64/ARM64 与支持的 Windows build 矩阵；
 - 暂定预算仅来自当前机器，不能直接升级为发布 SLA。
@@ -109,6 +110,5 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 
 1. 选择并验证 AppContainer 或受限 token，明确文件访问 broker/句柄传递边界；
 2. 返回复制后的 BGRA 像素或受控共享内存，不跨进程传递裸 `HBITMAP`；
-3. 评估 Windows Job Object 作为父进程 PID 监视的生产级兜底；
-4. 在合成不同格式集和专用云/网络/provider 环境执行 500 个不同项目矩阵；
-5. 把支持矩阵实测结果提交负责人批准最终 CPU/内存/响应预算。
+3. 在合成不同格式集和专用云/网络/provider 环境执行 500 个不同项目矩阵；
+4. 把支持矩阵实测结果提交负责人批准最终 CPU/内存/响应预算。

@@ -51,6 +51,7 @@ internal static class ThumbnailWorkerIsolationProbe
             && report.ParentExit.WorkerStarted
             && report.ParentExit.ParentExited
             && report.ParentExit.OrphanExited
+            && report.ParentExit.KillOnJobCloseConfigured
             && report.Resilience.MalformedResponseDetected
             && report.Resilience.MalformedResponseRecoverySucceeded
             && report.Resilience.WrongVersionDetected
@@ -204,12 +205,14 @@ internal static class ThumbnailWorkerIsolationProbe
         ThumbnailWorkerCallResult backoffRecovery = await client.ExecuteAsync(
             ExtractRequest(bitmapPath, "backoff-recovery"),
             RequestTimeout);
+        bool killOnJobCloseConfigured = client.UsesKillOnJobClose;
         client.Dispose();
         ThumbnailWorkerParentExitResult parentExit =
             await VerifyParentExitCleanupAsync(
                 Path.GetDirectoryName(bitmapPath)
                     ?? throw new InvalidOperationException(
-                        "The bitmap sandbox is unavailable."));
+                        "The bitmap sandbox is unavailable."),
+                killOnJobCloseConfigured);
 
         double p50 = Percentile(durations, 0.50);
         double p95 = Percentile(durations, 0.95);
@@ -307,7 +310,9 @@ internal static class ThumbnailWorkerIsolationProbe
     }
 
     private static async Task<ThumbnailWorkerParentExitResult>
-        VerifyParentExitCleanupAsync(string root)
+        VerifyParentExitCleanupAsync(
+            string root,
+            bool killOnJobCloseConfigured)
     {
         string readyPath = Path.Combine(root, "parent-exit-ready.txt");
         using Process parentHarness = Process.Start(
@@ -340,7 +345,8 @@ internal static class ThumbnailWorkerIsolationProbe
         return new ThumbnailWorkerParentExitResult(
             workerStarted,
             parentExited,
-            orphanExited);
+            orphanExited,
+            killOnJobCloseConfigured);
     }
 
     private static ProcessStartInfo CreateParentExitHarnessStartInfo(
@@ -541,7 +547,8 @@ internal static class ThumbnailWorkerIsolationProbe
             + $"{report.TimeoutBackoff.RecoverySucceeded}");
         Console.WriteLine(
             $"Parent exit/orphan cleanup: {report.ParentExit.ParentExited}/"
-            + $"{report.ParentExit.OrphanExited}");
+            + $"{report.ParentExit.OrphanExited}; job "
+            + $"{report.ParentExit.KillOnJobCloseConfigured}");
         Console.WriteLine(
             $"Working set/handles: {report.Resources.PeakWorkingSetBytes}/"
             + $"{report.Resources.PeakHandleCount}");
@@ -592,7 +599,8 @@ internal sealed record ThumbnailWorkerBackoffResult(
 internal sealed record ThumbnailWorkerParentExitResult(
     bool WorkerStarted,
     bool ParentExited,
-    bool OrphanExited);
+    bool OrphanExited,
+    bool KillOnJobCloseConfigured);
 
 internal sealed record ThumbnailWorkerResilienceResult(
     bool MalformedResponseDetected,
