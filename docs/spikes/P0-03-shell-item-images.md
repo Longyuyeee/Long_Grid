@@ -108,7 +108,7 @@
 ### 条件与未验证范围
 
 - `GetImage` 原生调用无法被 `CancellationToken` 硬中断；
-- P0-03b 已实现并压力验证同权限可回收工作进程和有界 BGRA32 像素 IPC；低权限 token、共享内存/渲染集成和真实 provider 矩阵仍未完成；
+- P0-03b 已实现并压力验证同权限可回收工作进程、有界 BGRA32 像素 IPC 和受限 Low Integrity 读/写边界；实际 worker 降权、broker、共享内存/渲染集成和真实 provider 矩阵仍未完成；
 - 缩略图只验证了缓存命中路径，没有读取文件内容或强制生成；
 - 尚未覆盖 ARM64、Windows 10、网络目录、OneDrive 在线/离线矩阵、恶意或崩溃的第三方缩略图提供程序；
 - 尚未验证 alpha、色彩、主题、DPI、缩放质量、内存缓存淘汰和 UI 滚动时序；
@@ -132,7 +132,7 @@
 ## 9. 后续
 
 1. P0-04/P0-05：比较每容器 HWND 与每显示器 HWND；
-2. 继续 P0-03b：低权限 token、共享内存/渲染表面集成；有界 BGRA32 IPC 与父进程 PID/Job Object 双重退出清理已有探针证据；
+2. 继续 P0-03b：用受限 Low Integrity token 启动实际 worker，比较 AppContainer/受限 token 与 broker 边界，再推进共享内存/渲染表面集成；有界 BGRA32 IPC、Low Integrity 读/写边界与父进程 PID/Job Object 双重退出清理已有探针证据；
 3. OneDrive/网络/第三方提供程序兼容矩阵；
 4. 500 个不同项目的内存缓存、滚动取消、主题/DPI 失效和渲染预算；
 5. 在完整低权限工作进程和真实 provider 矩阵通过前，MVP 可以发布类型图标和缓存缩略图，但不得承诺任意文件的即时缩略图。

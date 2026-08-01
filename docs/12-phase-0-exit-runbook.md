@@ -85,7 +85,8 @@ dotnet test LongGrid.sln --configuration Release --no-build
 | #21 | 跨卷复制→校验→删除→补偿 | 两个可清空测试卷，不使用用户卷 | Pending |
 | #21 | ACL、共享占用、只读卷、磁盘满 | VM/可还原快照；不得破坏系统目录 | Pending |
 | #21 | OneDrive、网络、重解析点、真实取消 | 专用账号/共享；默认阻断优先 | Pending |
-| #22 | AppContainer/受限 token 与访问 broker | 不扩大文件访问权限 | Pending |
+| #22 | 受限 Low Integrity 读/写边界 | 自有输入可读，中完整性沙箱 write-up 被阻断，父进程控制组可写 | Conditional Pass（自动探针） |
+| #22 | 实际 worker 降权、AppContainer/受限 token 决策与访问 broker | 不扩大文件访问权限；保留管道、Job Object 与硬超时 | Pending |
 | #22 | 共享内存与正式渲染表面集成 | 保持已验证的长度、格式、尺寸和解码上限 | Pending |
 | #22 | 真实 Provider、x64/ARM64、Windows 矩阵 | 专用样本，不输出名称/路径 | Pending |
 
