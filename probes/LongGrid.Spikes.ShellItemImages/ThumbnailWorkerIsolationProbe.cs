@@ -26,6 +26,8 @@ internal static class ThumbnailWorkerIsolationProbe
             string maximumBitmapPath = Path.Combine(root, "owned-maximum.bmp");
             string pngPath = Path.Combine(root, "owned-sample.png");
             string gifPath = Path.Combine(root, "owned-sample.gif");
+            string jpegPath = Path.Combine(root, "owned-sample.jpg");
+            string tiffPath = Path.Combine(root, "owned-sample.tiff");
             WriteOwnedBitmap(bitmapPath, width: 2, height: 2);
             WriteOwnedBitmap(
                 maximumBitmapPath,
@@ -33,11 +35,15 @@ internal static class ThumbnailWorkerIsolationProbe
                 ThumbnailWorkerServer.MaximumPixelDimension);
             OwnedThumbnailSampleFactory.WritePng(pngPath);
             OwnedThumbnailSampleFactory.WriteGif(gifPath);
+            OwnedThumbnailSampleFactory.WriteJpeg(jpegPath);
+            OwnedThumbnailSampleFactory.WriteTiff(tiffPath);
             ThumbnailOwnedProviderSample[] providerSamples =
             [
                 new("BMP", bitmapPath),
                 new("PNG", pngPath),
                 new("GIF", gifPath),
+                new("JPEG", jpegPath),
+                new("TIFF", tiffPath),
             ];
             report = await RunMatrixAsync(
                 bitmapPath,
@@ -61,6 +67,7 @@ internal static class ThumbnailWorkerIsolationProbe
         bool commonPassed =
             report.Stress.Succeeded + report.Stress.Failed == StressRequests
             && report.ProviderMatrix.SameSampleSet
+            && report.ProviderMatrix.StrategiesAgreePerFormat
             && report.ProviderMatrix.AllSamplesSafelyClassified
             && report.MinimumPathAcl.ControlReadSucceeded
             && report.MinimumPathAcl.UnbrokeredAdjacentReadBlocked
@@ -649,7 +656,7 @@ internal static class ThumbnailWorkerIsolationProbe
             Verdict: "PendingCleanup",
             Privacy:
             [
-                "Only owned synthetic BMP, PNG, and GIF files inside a random temporary sandbox were opened.",
+                "Only owned synthetic BMP, PNG, GIF, JPEG, and TIFF files inside a random temporary sandbox were opened.",
                 "Only the controlled-copy or probe-owned minimum-ACL path traveled through redirected stdin; neither path appears in command-line arguments or report output.",
                 "No image bytes, names, paths, or Shell identities are emitted; only fixed format labels and HRESULT classifications are retained for cross-build diagnosis.",
             ],
@@ -658,7 +665,7 @@ internal static class ThumbnailWorkerIsolationProbe
                 "The worker uses a zero-capability AppContainer; controlled copy remains the default experiment while minimum-path ACL is comparison-only.",
                 "Minimum-path ACL temporarily changes the probe-owned file and parent-directory DACL. Normal cleanup verifies the random AppContainer SID has no explicit ACE, but abnormal parent termination and concurrent DACL modification are not covered.",
                 "Controlled copies do not preserve original-path, neighboring-file, alternate-stream, cloud hydration, or provider-specific path semantics; a raw brokered handle cannot directly replace the IShellItem parsing-name contract and needs a separate provider or decoder experiment.",
-                "The synthetic BMP/PNG/GIF matrix validates built-in format paths, not Office/PDF, third-party, cloud, network, or adversarial providers.",
+                "The synthetic BMP/PNG/GIF/JPEG/TIFF matrix validates built-in format paths, not HEIF, Office/PDF, third-party, cloud, network, or adversarial providers.",
                 "The bounded BGRA payload uses a duplicated unnamed file-mapping handle; formal render-surface integration and the final broker policy remain unimplemented.",
                 "The forced timeout and parent-exit cases use a deterministic worker hang before native extraction because inducing a real provider hang on a user machine is unsafe.",
                 "Budgets are provisional for this machine and must be repeated across the supported Windows and architecture matrix.",

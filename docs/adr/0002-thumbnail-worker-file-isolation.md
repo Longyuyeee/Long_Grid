@@ -52,8 +52,9 @@
 - 零 Capability AppContainer：三个挂起启动的控制进程均由 `TokenIsAppContainer` 复核，先加入 `KILL_ON_JOB_CLOSE` Job 再恢复；无操作控制成功，精确 AppContainer SID ACL 授权文件可读，相邻未授权文件被拒绝，临时 Profile 删除成功；
 - 真实缩略图 worker：全部进程由 `TokenIsAppContainer` 复核，零 Capability、显式标准流句柄白名单、挂起后先入 Job；未代理读写均被拒绝，受控 BMP 副本可提取；
 - 协议 v6 明确区分 `ControlledCopy` 与 `MinimumPathAcl`，输入上限 32 MiB、拒绝重解析点；正常回收和父进程无清理退出两种路径均删除临时 Profile；
-- Windows 22621 上自有 BMP/PNG/GIF 在两种策略下均为 3/3 输入可读且 Shell 提取成功，默认副本压力 500/500、p95 30.64 ms；最小 ACL 的相邻拒绝、ACL 恢复和 Profile 删除全部通过；
-- Windows 26100 GitHub runner 上同一 BMP/PNG/GIF × 两种策略的 6 个组合全部输入可读，但 `IShellItemImageFactory` 都稳定返回 `0x80070005`，说明失败不只是副本路径或单一扩展名不可读；该分支只能安全回退到类型图标或已验证缓存；
+- Windows 22621 上自有 BMP/PNG/GIF/JPEG/TIFF 在两种策略下均输入可读且同格式结果一致；前四种格式 8/8 Shell 提取成功，TIFF 2/2 精确返回 `0x8007007E (ERROR_MOD_NOT_FOUND)`，默认副本压力 500/500、p95 30.60 ms；最小 ACL 的相邻拒绝、ACL 恢复和 Profile 删除全部通过；
+- Windows 26100 GitHub runner 上同一五格式 × 两种策略的 10 个组合全部输入可读，但 `IShellItemImageFactory` 都稳定返回 `0x80070005`，说明该 build/runner 的更早访问拒绝覆盖了 22621 可观察到的 TIFF provider 差异；该分支只能安全回退到类型图标或已验证缓存；
+- 矩阵只接受成功、精确 `0x80070005` 或精确 `0x8007007E`，并要求同格式两种输入策略完全一致；跨格式一致性只记录，不再把 provider 差异误判为门禁失败；
 - 共享内存返回最大 256×256 BGRA32，九类像素/映射故障均被拒绝并恢复；
 - Microsoft 文档说明 Mandatory Integrity Control 使用完整性策略限制访问，默认强制 no-write-up；AppContainer 用于隔离进程并按 capability/对象 ACL 控制资源访问。
 
@@ -74,7 +75,7 @@
 
 ### 后续工作
 
-1. 在首轮 BMP/PNG/GIF build × format 基线上继续验证 JPEG/HEIF、Office/PDF、OneDrive、网络路径和第三方 provider，并保持失败时的类型图标/缓存回退；
+1. 在 BMP/PNG/GIF/JPEG/TIFF build × format 基线上继续验证 HEIF、Office/PDF、OneDrive、网络路径和第三方 provider，定位 TIFF 模块依赖，并保持失败时的类型图标/缓存回退；
 2. 把 handle-backed 输入作为独立的 stream/decoder 或 Shell provider 合同实验，不把原始句柄错误地当成当前 parsing-name API 的直接替代；
 3. 为受控副本补充类型/水合策略、缓存预算和多文件隔离测试，不允许静默水合或扩大 Capability；
 4. 若重新评估最小路径 ACL，先实现异常退出后的 ACE 日志/修复及并发 DACL 变更测试；

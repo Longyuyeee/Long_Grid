@@ -147,7 +147,7 @@ P0-02 实测进一步确认通知只能作为提示：1,100 次受控沙箱操�
 - OneDrive 占位文件默认不因生成缩略图而触发下载。
 - 网络目录离线时使用缓存图标和离线徽标，不阻塞 UI 线程。
 
-P0-03a 当前实测：96 个真实桌面项目预热成功，三轮各 500 次后台图标提取全部成功；并发峰值为 4，成功 `HBITMAP` 与 `DeleteObject` 释放数严格一致，预热后 GDI 句柄净增量均为 0。缓存缩略图仅命中 1/13，这属于 `SIIGBF_INCACHEONLY` 的预期语义。P0-03b 先用 Low Integrity 对照证明 MIC no-write-up 不能阻止读取其他用户可读文件，随后把真实 worker 迁入零 Capability AppContainer：进程以 `SECURITY_CAPABILITIES` 挂起启动，只继承 stdin/stdout/stderr，先加入 `KILL_ON_JOB_CLOSE` Job、复核 `TokenIsAppContainer` 后恢复。协议 v6 对照最大 32 MiB、拒绝重解析点的 `ControlledCopy` 与 `MinimumPathAcl`，未代理相邻读取均被拒绝，正常 ACL lease 结束后随机 SID 显式 ACE 被复核清除；副本仍为默认实验。首轮自有格式矩阵逐项运行 BMP/PNG/GIF × 两种策略：Windows 22621 六组合全部输入可读且 Shell 提取成功，默认副本压力 500/500、p95 30.64 ms；Windows 26100 CI 六组合全部输入可读但 Shell 均返回 `E_ACCESSDENIED`，排除单一扩展名或副本路径解释。像素继续使用最大 262,144 bytes 的匿名页文件映射和单请求不可继承句柄；250 ms 强制卡死、连续超时退避、协议/像素故障、父进程无清理退出及 Profile 清理均通过。最小 ACL 会临时修改 DACL，且当前 Shell item 由 parsing name 创建，原始句柄不能直接替代该 API 契约；正式渲染、JPEG/HEIF、Office/PDF、云/网络、第三方 provider/ARM64 矩阵和另一种 stream/decoder 合同仍未关闭，详见[P0-03b 报告](spikes/P0-03b-thumbnail-worker-isolation.md)。
+P0-03a 当前实测：96 个真实桌面项目预热成功，三轮各 500 次后台图标提取全部成功；并发峰值为 4，成功 `HBITMAP` 与 `DeleteObject` 释放数严格一致，预热后 GDI 句柄净增量均为 0。缓存缩略图仅命中 1/13，这属于 `SIIGBF_INCACHEONLY` 的预期语义。P0-03b 先用 Low Integrity 对照证明 MIC no-write-up 不能阻止读取其他用户可读文件，随后把真实 worker 迁入零 Capability AppContainer：进程以 `SECURITY_CAPABILITIES` 挂起启动，只继承 stdin/stdout/stderr，先加入 `KILL_ON_JOB_CLOSE` Job、复核 `TokenIsAppContainer` 后恢复。协议 v6 对照最大 32 MiB、拒绝重解析点的 `ControlledCopy` 与 `MinimumPathAcl`，未代理相邻读取均被拒绝，正常 ACL lease 结束后随机 SID 显式 ACE 被复核清除；副本仍为默认实验。自有格式矩阵逐项运行 BMP/PNG/GIF/JPEG/TIFF × 两种策略：Windows 22621 十组合输入均可读，同格式策略结果一致，前四格式八组合 Shell 提取成功，TIFF 两组合精确返回 `0x8007007E (ERROR_MOD_NOT_FOUND)`，默认副本压力 500/500、p95 30.60 ms；Windows 26100 CI 十组合全部输入可读但 Shell 均返回 `E_ACCESSDENIED`，说明该 build/runner 的更早拒绝覆盖了 22621 可见的格式/provider 差异。像素继续使用最大 262,144 bytes 的匿名页文件映射和单请求不可继承句柄；250 ms 强制卡死、连续超时退避、协议/像素故障、父进程无清理退出及 Profile 清理均通过。最小 ACL 会临时修改 DACL，且当前 Shell item 由 parsing name 创建，原始句柄不能直接替代该 API 契约；正式渲染、HEIF、Office/PDF、云/网络、第三方 provider/ARM64 矩阵、TIFF 模块定位和另一种 stream/decoder 合同仍未关闭，详见[P0-03b 报告](spikes/P0-03b-thumbnail-worker-isolation.md)。
 
 ## 4. 文件整理与真实操作
 
@@ -472,7 +472,7 @@ COM/Win32 类型不能泄漏到 Core。
 |---|---|---|---|
 | P0-01 | 用户/Public/重定向桌面枚举 | 与 Explorer 可操作文件项一致，无阻塞 | 缩小支持范围并明确提示 |
 | P0-02 | Shell 变更监听 + 对账 | 批量 10,000 变更后最终一致 | 定期对账频率提高 |
-| P0-03 | 图标/缩略图 | 主进程 500 项有界加载/句柄闭环；真实零 Capability AppContainer worker、协议 v6 的副本/最小路径 ACL 对照、BMP/PNG/GIF 双 build 六组合、未代理读写阻断、正常 ACL 恢复、硬超时/Profile 清理和有界共享内存 BGRA32 IPC 已测；26100 六组合均安全拒绝；正式渲染和真实 provider 矩阵待验证 | 完整矩阵前只显示类型图标/缓存缩略图，现场提取保持实验能力 |
+| P0-03 | 图标/缩略图 | 主进程 500 项有界加载/句柄闭环；真实零 Capability AppContainer worker、协议 v6 的副本/最小路径 ACL 对照、BMP/PNG/GIF/JPEG/TIFF 双 build 十组合、未代理读写阻断、正常 ACL 恢复、硬超时/Profile 清理和有界共享内存 BGRA32 IPC 已测；22621 暴露 TIFF provider/module 缺失，26100 十组合均安全拒绝；正式渲染和其余真实 provider 矩阵待验证 | 完整矩阵前只显示类型图标/缓存缩略图，现场提取保持实验能力 |
 | P0-04 | 每容器 HWND | 原生命中/资源已测；Win+D、输入、Alt+Tab、全屏可预测 | 不作为普通容器首选；保留特殊短生命周期窗口 |
 | P0-05 | 每显示器 HWND | Window Region 跨进程穿透已测；交互矩阵通过 | Region/无障碍失败则回退每容器或重做输入层 |
 | P0-06 | Explorer 重启 | 10 秒内恢复且无重复实例 | DesktopHost 不可发布 |

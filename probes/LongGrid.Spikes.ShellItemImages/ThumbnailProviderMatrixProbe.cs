@@ -1,6 +1,7 @@
 internal static class ThumbnailProviderMatrixProbe
 {
     private const int AccessDeniedHResult = unchecked((int)0x80070005);
+    private const int ModuleNotFoundHResult = unchecked((int)0x8007007E);
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(2);
 
     internal static async Task<ThumbnailProviderMatrixResult> RunAsync(
@@ -21,13 +22,29 @@ internal static class ThumbnailProviderMatrixProbe
         bool sameSampleSet = controlledCopy.Samples
             .Select(sample => sample.Format)
             .SequenceEqual(minimumPathAcl.Samples.Select(sample => sample.Format));
+        bool uniformOutcomeAcrossFormats =
+            HasConsistentOutcome(controlledCopy.Samples)
+            && HasConsistentOutcome(minimumPathAcl.Samples);
+        bool strategiesAgreePerFormat = sameSampleSet
+            && controlledCopy.Samples.Zip(
+                minimumPathAcl.Samples,
+                (copy, acl) =>
+                    copy.ExtractionSucceeded == acl.ExtractionSucceeded
+                    && copy.AccessDeniedSafely == acl.AccessDeniedSafely
+                    && copy.ProviderUnavailableSafely
+                        == acl.ProviderUnavailableSafely
+                    && copy.HResult == acl.HResult)
+                .All(agree => agree);
         bool allSamplesSafelyClassified = sameSampleSet
+            && strategiesAgreePerFormat
             && StrategyPassed(controlledCopy, requireAclRestoration: false)
             && StrategyPassed(minimumPathAcl, requireAclRestoration: true);
         return new ThumbnailProviderMatrixResult(
             controlledCopy,
             minimumPathAcl,
             SameSampleSet: sameSampleSet,
+            UniformOutcomeAcrossFormats: uniformOutcomeAcrossFormats,
+            StrategiesAgreePerFormat: strategiesAgreePerFormat,
             AllSamplesSafelyClassified: allSamplesSafelyClassified);
     }
 
@@ -70,11 +87,15 @@ internal static class ThumbnailProviderMatrixProbe
             bool accessDeniedSafely = extraction.Completed
                 && extraction.Response is { Success: false }
                 && hResult == AccessDeniedHResult;
+            bool providerUnavailableSafely = extraction.Completed
+                && extraction.Response is { Success: false }
+                && hResult == ModuleNotFoundHResult;
             results.Add(new ThumbnailProviderSampleResult(
                 sample.Format,
                 inputReadable,
                 extractionSucceeded,
                 accessDeniedSafely,
+                providerUnavailableSafely,
                 hResult));
         }
 
@@ -108,7 +129,9 @@ internal static class ThumbnailProviderMatrixProbe
         && strategy.ProfileDeleted
         && strategy.Samples.All(sample =>
             sample.InputReadable
-            && (sample.ExtractionSucceeded || sample.AccessDeniedSafely));
+            && (sample.ExtractionSucceeded
+                || sample.AccessDeniedSafely
+                || sample.ProviderUnavailableSafely));
 
     private static ThumbnailInputTransport GetInputTransport(
         ThumbnailInputStrategy strategy) => strategy switch
@@ -119,6 +142,16 @@ internal static class ThumbnailProviderMatrixProbe
                 ThumbnailInputTransport.MinimumPathAcl,
             _ => throw new ArgumentOutOfRangeException(nameof(strategy)),
         };
+
+    private static bool HasConsistentOutcome(
+        IReadOnlyList<ThumbnailProviderSampleResult> samples) =>
+        samples.Count > 0
+        && samples.All(sample =>
+            sample.ExtractionSucceeded == samples[0].ExtractionSucceeded
+            && sample.AccessDeniedSafely == samples[0].AccessDeniedSafely
+            && sample.ProviderUnavailableSafely
+                == samples[0].ProviderUnavailableSafely
+            && sample.HResult == samples[0].HResult);
 }
 
 internal sealed record ThumbnailOwnedProviderSample(string Format, string Path);
@@ -127,6 +160,8 @@ internal sealed record ThumbnailProviderMatrixResult(
     ThumbnailProviderStrategyMatrix ControlledCopy,
     ThumbnailProviderStrategyMatrix MinimumPathAcl,
     bool SameSampleSet,
+    bool UniformOutcomeAcrossFormats,
+    bool StrategiesAgreePerFormat,
     bool AllSamplesSafelyClassified);
 
 internal sealed record ThumbnailProviderStrategyMatrix(
@@ -142,4 +177,5 @@ internal sealed record ThumbnailProviderSampleResult(
     bool InputReadable,
     bool ExtractionSucceeded,
     bool AccessDeniedSafely,
+    bool ProviderUnavailableSafely,
     int HResult);
