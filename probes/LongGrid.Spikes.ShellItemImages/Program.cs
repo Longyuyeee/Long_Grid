@@ -47,10 +47,12 @@ internal static class Program
                     Flags: 0),
                 TimeSpan.FromMinutes(1));
             await Task.Delay(TimeSpan.FromMilliseconds(100));
+            string pendingReadyPath = args[1] + ".pending";
             await File.WriteAllTextAsync(
-                args[1],
+                pendingReadyPath,
                 workerProcessId.ToString(
                     System.Globalization.CultureInfo.InvariantCulture));
+            File.Move(pendingReadyPath, args[1]);
             Environment.Exit(0);
             return 0;
         }
