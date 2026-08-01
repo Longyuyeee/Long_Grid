@@ -21,7 +21,7 @@ internal static class OwnedThumbnailSampleFactory
         + "anN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPE"
         + "xcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD1"
         + "Dwj4c0O58F6FPPo2nSzS6dbvJJJaozOxjUkkkZJJ70UUVwVfjfqeXW/iS9Wf/9k=");
-    private static readonly byte[] Tiff2X2 = Convert.FromBase64String(
+    private static readonly byte[] TiffLzw2X2 = Convert.FromBase64String(
         "SUkqABgAAACAP8AAB/gFAQOBv+FQIAQEEAD+AAQAAQAAAAAAAAAAAQQAAQAAAAIA"
         + "AAABAQQAAQAAAAIAAAACAQMABAAAAN4AAAADAQMAAQAAAAUAAAAGAQMAAQAAAAIA"
         + "AAARAQQAAQAAAAgAAAAVAQMAAQAAAAQAAAAWAQQAAQAAAAIAAAAXAQQAAQAAABAA"
@@ -66,7 +66,67 @@ internal static class OwnedThumbnailSampleFactory
 
     internal static void WriteJpeg(string path) => File.WriteAllBytes(path, Jpeg2X2);
 
-    internal static void WriteTiff(string path) => File.WriteAllBytes(path, Tiff2X2);
+    internal static void WriteTiff(string path)
+    {
+        const int ifdOffset = 8;
+        const ushort entryCount = 10;
+        const int bitsPerSampleOffset = ifdOffset + 2 + (entryCount * 12) + 4;
+        const int pixelOffset = bitsPerSampleOffset + 6;
+        using FileStream stream = File.Create(path);
+        using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: false);
+        writer.Write((byte)'I');
+        writer.Write((byte)'I');
+        writer.Write((ushort)42);
+        writer.Write(ifdOffset);
+        writer.Write(entryCount);
+        WriteTiffEntry(writer, tag: 256, type: 4, count: 1, value: 2);
+        WriteTiffEntry(writer, tag: 257, type: 4, count: 1, value: 2);
+        WriteTiffEntry(
+            writer,
+            tag: 258,
+            type: 3,
+            count: 3,
+            value: bitsPerSampleOffset);
+        WriteTiffEntry(writer, tag: 259, type: 3, count: 1, value: 1);
+        WriteTiffEntry(writer, tag: 262, type: 3, count: 1, value: 2);
+        WriteTiffEntry(
+            writer,
+            tag: 273,
+            type: 4,
+            count: 1,
+            value: pixelOffset);
+        WriteTiffEntry(writer, tag: 277, type: 3, count: 1, value: 3);
+        WriteTiffEntry(writer, tag: 278, type: 4, count: 1, value: 2);
+        WriteTiffEntry(writer, tag: 279, type: 4, count: 1, value: 12);
+        WriteTiffEntry(writer, tag: 284, type: 3, count: 1, value: 1);
+        writer.Write(0);
+        writer.Write((ushort)8);
+        writer.Write((ushort)8);
+        writer.Write((ushort)8);
+        writer.Write(
+        [
+            (byte)255, 0, 0,
+            0, 255, 0,
+            0, 0, 255,
+            255, 255, 255,
+        ]);
+    }
+
+    internal static void WriteTiffLzw(string path) =>
+        File.WriteAllBytes(path, TiffLzw2X2);
+
+    private static void WriteTiffEntry(
+        BinaryWriter writer,
+        ushort tag,
+        ushort type,
+        uint count,
+        uint value)
+    {
+        writer.Write(tag);
+        writer.Write(type);
+        writer.Write(count);
+        writer.Write(value);
+    }
 
     private static void WriteChunk(
         Stream stream,

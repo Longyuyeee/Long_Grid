@@ -1,7 +1,11 @@
+using Microsoft.Win32;
+
 internal static class ThumbnailProviderMatrixProbe
 {
     private const int AccessDeniedHResult = unchecked((int)0x80070005);
     private const int ModuleNotFoundHResult = unchecked((int)0x8007007E);
+    private const string ThumbnailHandlerShellExtension =
+        "{E357FCCD-A995-4576-B01F-234630154E96}";
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(2);
 
     internal static async Task<ThumbnailProviderMatrixResult> RunAsync(
@@ -15,13 +19,25 @@ internal static class ThumbnailProviderMatrixProbe
                 nameof(samples));
         }
 
+        IReadOnlyList<ThumbnailParentProviderSampleResult> parentProcess =
+            RunParentProcessBaseline(samples);
         ThumbnailProviderStrategyMatrix controlledCopy =
             await RunStrategyAsync(samples, ThumbnailInputStrategy.ControlledCopy);
         ThumbnailProviderStrategyMatrix minimumPathAcl =
             await RunStrategyAsync(samples, ThumbnailInputStrategy.MinimumPathAcl);
-        bool sameSampleSet = controlledCopy.Samples
+        bool sameParentSampleSet = parentProcess
+            .Select(sample => sample.Format)
+            .SequenceEqual(controlledCopy.Samples.Select(sample => sample.Format));
+        bool sameSampleSet = sameParentSampleSet
+            && controlledCopy.Samples
             .Select(sample => sample.Format)
             .SequenceEqual(minimumPathAcl.Samples.Select(sample => sample.Format));
+        bool parentSamplesSafelyClassified = sameParentSampleSet
+            && parentProcess.All(sample =>
+                (sample.ExtractionSucceeded
+                    && sample.Width > 0
+                    && sample.Height > 0)
+                || sample.ProviderUnavailableSafely);
         bool uniformOutcomeAcrossFormats =
             HasConsistentOutcome(controlledCopy.Samples)
             && HasConsistentOutcome(minimumPathAcl.Samples);
@@ -35,17 +51,110 @@ internal static class ThumbnailProviderMatrixProbe
                         == acl.ProviderUnavailableSafely
                     && copy.HResult == acl.HResult)
                 .All(agree => agree);
+        bool workersMatchParentPerFormat = sameSampleSet
+            && parentProcess.Zip(
+                controlledCopy.Samples,
+                (parent, worker) =>
+                    parent.ExtractionSucceeded == worker.ExtractionSucceeded
+                    && parent.ProviderUnavailableSafely
+                        == worker.ProviderUnavailableSafely
+                    && parent.HResult == worker.HResult)
+                .All(agree => agree)
+            && parentProcess.Zip(
+                minimumPathAcl.Samples,
+                (parent, worker) =>
+                    parent.ExtractionSucceeded == worker.ExtractionSucceeded
+                    && parent.ProviderUnavailableSafely
+                        == worker.ProviderUnavailableSafely
+                    && parent.HResult == worker.HResult)
+                .All(agree => agree);
         bool allSamplesSafelyClassified = sameSampleSet
+            && parentSamplesSafelyClassified
             && strategiesAgreePerFormat
             && StrategyPassed(controlledCopy, requireAclRestoration: false)
             && StrategyPassed(minimumPathAcl, requireAclRestoration: true);
         return new ThumbnailProviderMatrixResult(
+            parentProcess,
             controlledCopy,
             minimumPathAcl,
             SameSampleSet: sameSampleSet,
+            ParentSamplesSafelyClassified: parentSamplesSafelyClassified,
             UniformOutcomeAcrossFormats: uniformOutcomeAcrossFormats,
             StrategiesAgreePerFormat: strategiesAgreePerFormat,
+            WorkersMatchParentPerFormat: workersMatchParentPerFormat,
             AllSamplesSafelyClassified: allSamplesSafelyClassified);
+    }
+
+    private static List<ThumbnailParentProviderSampleResult>
+        RunParentProcessBaseline(
+            IReadOnlyList<ThumbnailOwnedProviderSample> samples)
+    {
+        var results = new List<ThumbnailParentProviderSampleResult>(samples.Count);
+        foreach (ThumbnailOwnedProviderSample sample in samples)
+        {
+            ThumbnailHandlerRegistration registration =
+                InspectSpecificThumbnailHandler(sample.Path);
+            ImageExtractionResult extraction = ShellImageExtractor.Extract(
+                sample.Path,
+                size: 128,
+                flags: ShellItemImageFactoryFlags.ThumbnailOnly
+                    | ShellItemImageFactoryFlags.BiggerSizeOk);
+            results.Add(new ThumbnailParentProviderSampleResult(
+                sample.Format,
+                extraction.Success,
+                !extraction.Success
+                    && extraction.HResult == ModuleNotFoundHResult,
+                registration.Registered,
+                registration.ModulePresent,
+                registration.Registered && !registration.ModulePresent,
+                extraction.HResult,
+                extraction.Width,
+                extraction.Height));
+        }
+
+        return results;
+    }
+
+    private static ThumbnailHandlerRegistration InspectSpecificThumbnailHandler(
+        string path)
+    {
+        string extension = Path.GetExtension(path);
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            return new(false, false);
+        }
+
+        try
+        {
+            using RegistryKey? handlerKey = Registry.ClassesRoot.OpenSubKey(
+                $@"{extension}\ShellEx\{ThumbnailHandlerShellExtension}");
+            string? classId = handlerKey?.GetValue(null) as string;
+            if (string.IsNullOrWhiteSpace(classId)
+                || !Guid.TryParse(classId, out Guid parsedClassId))
+            {
+                return new(false, false);
+            }
+
+            using RegistryKey? serverKey = Registry.ClassesRoot.OpenSubKey(
+                $@"CLSID\{{{parsedClassId:D}}}\InprocServer32");
+            string? module = serverKey?.GetValue(null) as string;
+            if (string.IsNullOrWhiteSpace(module))
+            {
+                return new(true, false);
+            }
+
+            string expandedModule = Environment.ExpandEnvironmentVariables(
+                module.Trim().Trim('"'));
+            return new(true, File.Exists(expandedModule));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return new(false, false);
+        }
+        catch (System.Security.SecurityException)
+        {
+            return new(false, false);
+        }
     }
 
     private static async Task<ThumbnailProviderStrategyMatrix> RunStrategyAsync(
@@ -157,11 +266,14 @@ internal static class ThumbnailProviderMatrixProbe
 internal sealed record ThumbnailOwnedProviderSample(string Format, string Path);
 
 internal sealed record ThumbnailProviderMatrixResult(
+    IReadOnlyList<ThumbnailParentProviderSampleResult> ParentProcess,
     ThumbnailProviderStrategyMatrix ControlledCopy,
     ThumbnailProviderStrategyMatrix MinimumPathAcl,
     bool SameSampleSet,
+    bool ParentSamplesSafelyClassified,
     bool UniformOutcomeAcrossFormats,
     bool StrategiesAgreePerFormat,
+    bool WorkersMatchParentPerFormat,
     bool AllSamplesSafelyClassified);
 
 internal sealed record ThumbnailProviderStrategyMatrix(
@@ -179,3 +291,18 @@ internal sealed record ThumbnailProviderSampleResult(
     bool AccessDeniedSafely,
     bool ProviderUnavailableSafely,
     int HResult);
+
+internal sealed record ThumbnailParentProviderSampleResult(
+    string Format,
+    bool ExtractionSucceeded,
+    bool ProviderUnavailableSafely,
+    bool SpecificHandlerRegistered,
+    bool SpecificHandlerModulePresent,
+    bool StaleSpecificHandlerRegistration,
+    int HResult,
+    int Width,
+    int Height);
+
+internal sealed record ThumbnailHandlerRegistration(
+    bool Registered,
+    bool ModulePresent);
