@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 internal enum ThumbnailWorkerRequestKind
 {
     Extract,
+    ReadBoundaryProbe,
     WriteBoundaryProbe,
     Hang,
     MalformedResponse,
@@ -64,7 +65,7 @@ internal sealed record ThumbnailWorkerResponse(
 
 internal static class ThumbnailWorkerServer
 {
-    internal const int CurrentProtocolVersion = 3;
+    internal const int CurrentProtocolVersion = 4;
     internal const int MaximumRequestCharacters = 65_536;
     internal const int MaximumPixelDimension = 256;
     internal const int MaximumPixelBytes =
@@ -195,7 +196,8 @@ internal static class ThumbnailWorkerServer
                 request = request with { Kind = ThumbnailWorkerRequestKind.Extract };
             }
 
-            if (request.Kind == ThumbnailWorkerRequestKind.WriteBoundaryProbe)
+            if (request.Kind is ThumbnailWorkerRequestKind.ReadBoundaryProbe
+                or ThumbnailWorkerRequestKind.WriteBoundaryProbe)
             {
                 if (string.IsNullOrWhiteSpace(request.Path)
                     || request.Path.Length > 32_767)
@@ -203,27 +205,46 @@ internal static class ThumbnailWorkerServer
                     return 65;
                 }
 
-                bool writeBlocked = false;
                 var stopwatch = Stopwatch.StartNew();
-                try
+                bool boundaryObserved;
+                if (request.Kind == ThumbnailWorkerRequestKind.ReadBoundaryProbe)
                 {
-                    await File.WriteAllTextAsync(
-                        request.Path,
-                        "must-not-write");
+                    boundaryObserved = false;
+                    try
+                    {
+                        using FileStream stream = File.OpenRead(request.Path);
+                        boundaryObserved = stream.ReadByte() >= 0;
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                    }
+                    catch (IOException)
+                    {
+                    }
                 }
-                catch (UnauthorizedAccessException)
+                else
                 {
-                    writeBlocked = true;
+                    boundaryObserved = false;
+                    try
+                    {
+                        await File.WriteAllTextAsync(
+                            request.Path,
+                            "must-not-write");
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        boundaryObserved = true;
+                    }
                 }
 
                 stopwatch.Stop();
                 await WriteResponseAsync(new ThumbnailWorkerResponse(
                     CurrentProtocolVersion,
                     request.RequestId,
-                    Success: writeBlocked,
+                    Success: boundaryObserved,
                     HResult: 0,
-                    Width: writeBlocked ? 1 : 0,
-                    Height: writeBlocked ? 1 : 0,
+                    Width: boundaryObserved ? 1 : 0,
+                    Height: boundaryObserved ? 1 : 0,
                     Pixels: null,
                     stopwatch.Elapsed.TotalMilliseconds));
                 continue;

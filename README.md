@@ -32,6 +32,7 @@ Long Grid 是一款面向 Windows 10/11 的桌面整理与工作空间管理工�
 - [Long助手 LPWP 实施交接单](docs/protocol/LONG_ASSISTANT_IMPLEMENTATION_HANDOFF.md)
 - [LPWP Widget JSON Schema](docs/protocol/long-widget.schema.json)
 - [ADR-0001：首选 Windows 技术路线](docs/adr/0001-windows-technology-stack.md)
+- [ADR-0002：缩略图工作进程文件隔离](docs/adr/0002-thumbnail-worker-file-isolation.md)
 
 ## 建议的下一步
 

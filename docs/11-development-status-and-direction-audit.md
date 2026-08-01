@@ -2,7 +2,7 @@
 
 审计日期：2026-08-01
 
-审计基线：`main` / `a3179b4`
+审计基线：`main` / `0096529`
 
 审计范围：代码、测试、技术探针、架构/产品/交互文档、GitHub PR 与 CI
 
@@ -66,7 +66,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 桌面目录与 Shell Namespace | 用户/Public 目录、Shell Namespace 枚举和差异对账 | E2 / Conditional Pass | 重定向、OneDrive、离线/权限矩阵 |
 | 稳定身份 | 文件对象身份、快捷方式双重身份、重命名跟踪 | E1-E2 | 跨卷、云占位符和长时间运行 |
 | Shell 变化 | 通知合并、恢复与最终全量对账 | E1-E2 | Explorer 重启和高频真实桌面压力 |
-| 图标/缩略图 | 异步加载、取消、句柄闭环；受限 Low Integrity worker 挂起启动/先入 Job/最小句柄继承、硬超时、有界协议故障恢复、父进程 PID/Job Object 双重退出清理、连续超时退避、显式复制匿名映射句柄的有界 BGRA32 IPC、worker 写阻断和合成 500 项预算 | E2 / Conditional Pass | AppContainer/受限 token 与文件 broker 决策、正式渲染集成、真实 provider/支持矩阵与最终预算批准 |
+| 图标/缩略图 | 异步加载、取消、句柄闭环；受限 Low Integrity worker 挂起启动/先入 Job/最小句柄继承、硬超时、有界协议故障恢复、父进程 PID/Job Object 双重退出清理、连续超时退避、显式复制匿名映射句柄的有界 BGRA32 IPC、worker 写阻断、未授权读取暴露和合成 500 项预算 | E2 / Conditional Pass | ADR-0002 的 AppContainer + 文件 broker 建议待安全确认与实现；正式渲染集成、真实 provider/支持矩阵与最终预算批准 |
 | DesktopHost 规划 | 每显示器 HWND、显式 Region、被动显示、输入门 | E1-E2 | 系统表面和真实输入人工矩阵 |
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
@@ -89,7 +89,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 
 ### 4.1 GitHub 治理基线已闭环
 
-PR #18、#25–#42 已进入 `main`，当前审计基线为合并 PR #42 后的 `a3179b4`。覆盖率、配置、文件安全、受限 Low Integrity/共享内存缩略图 worker 和依赖漏洞门禁已在主干 CI `30691664524` 全部通过。PR #2–#17 已关闭；删除远端分支前，对历史功能分支逐一确认其提交已进入主干。远端现只保留 `main`。
+PR #18、#25–#43 已进入 `main`，当前审计基线为合并 PR #43 后的 `0096529`。覆盖率、配置、文件安全、受限 Low Integrity/共享内存缩略图 worker 和依赖漏洞门禁已在主干 CI `30691850317` 全部通过。PR #2–#17 已关闭；删除远端分支前，对历史功能分支逐一确认其提交已进入主干。远端现只保留 `main`。
 
 `main` 已要求严格的 `build-test` 状态检查，规则对管理员生效，同时禁止强推和删除。Phase 0 Exit 里程碑以 #19–#24 跟踪人工输入与系统表面、动态显示、文件安全、缩略图隔离与 500 项预算、产品决策和持久化生产边界。W0 因此关闭；这只证明主干治理可信，不代表产品已达到发布条件。
 
@@ -134,24 +134,25 @@ Windows 技术探针已经深入到事务补偿和 UIA Provider，但以下体�
 - 把演示数据、故障注入和人工探针入口与发布二进制隔离；
 - 配置、日志、Feature Flag 和回滚路径与第一片功能一起交付。
 
-### 4.6 实际 worker 已降权，权限模型与 broker 仍待决策
+### 4.6 实际 worker 已降权，但受限 token 已被排除为独立文件保密边界
 
 PR #35 已把缩略图 worker 从“只返回状态/尺寸”推进到协议 v2 的有界 BGRA32 像素负载。PR #37 创建 `DISABLE_MAX_PRIVILEGE` 受限令牌并验证 Low Integrity 读/写边界。本轮进一步以该主令牌通过 `CreateProcessAsUserW` 启动实际 worker：进程先挂起，只继承协议标准流三个句柄，加入生命周期 Job 后才恢复；父进程逐个查询 worker token 均为 Low，worker 自身 write-up 探针被阻断，同时自有 BMP 提取、500/500、硬超时、恢复、父进程退出、像素协议与预算继续通过。
 
-这关闭了“worker 仍与主进程同权限”和“入 Job 前抢跑”的原型风险，但仍不能写成生产权限架构已经决定：
+这关闭了“worker 仍与主进程同权限”和“入 Job 前抢跑”的原型风险。新增实际 worker 读探针又证明：父进程未通过 broker 授予的中完整性标记文件仍可读取，而 write-up 仍被 MIC 阻断。因此不能把 Low Integrity 的 no-write-up 写成文件保密边界：
 
 PR #39 合入后的首轮主干 CI `30690663507` 识别出父进程退出探针的 ready-file 发布竞态。PR #40 让子宿主通过“写完并关闭临时文件 → 同目录原子重命名”发布就绪信号，本地连续三轮完整矩阵和修复后的主干 CI `30690919941` 均通过；这属于测试证据可靠性修复，不改变隔离结论或预算。
 
-- 必须比较 AppContainer 与受限 Low Integrity token，并定义文件 broker/句柄传递、Capability、缓存和受控共享内存边界；
+- ADR-0002 建议生产采用无宽泛 Capability 的 AppContainer + 单请求父进程 broker；受限 Low Integrity 模式只保留为诊断基线；
+- 必须验证 AppContainer 启动、未授权读取阻断、文件句柄/受控副本/最小路径 ACL、缓存与共享内存边界；
 - 正式产品配置 schema、Infrastructure 接线和安装范围必须等待 #23 确认首版模式、最低系统、架构、渠道与许可证。
 
 ### 4.7 显式共享内存句柄 broker 已跑通，文件访问 broker 仍未定义
 
 目标进程获得的映射句柄不可继承且只请求 `FILE_MAP_WRITE`；父进程保留原始映射并只读取结果，避免把父进程的完整映射权限复制给 worker。
 
-协议 v3 不再把正常 BGRA32 字节编码进 JSON。父进程创建匿名、不可执行、最大 262,144 bytes 的页文件映射，并用 `DuplicateHandle` 把不可继承句柄复制到当前 Low Integrity worker；协议只传目标进程中的句柄值、固定容量和像素元数据。Worker 映射写入后关闭目标句柄，父进程只读映射并复核 transport、格式、尺寸、步幅、声明长度、容量和非零内容。缺失句柄、错误容量、错误格式/尺寸/步幅/长度、畸形旧 inline 编码、未请求负载和超限尺寸均被拒绝，9/9 后续恢复成功。
+协议 v4 不再把正常 BGRA32 字节编码进 JSON。父进程创建匿名、不可执行、最大 262,144 bytes 的页文件映射，并用 `DuplicateHandle` 把不可继承句柄复制到当前 Low Integrity worker；协议只传目标进程中的句柄值、固定容量和像素元数据。Worker 映射写入后关闭目标句柄，父进程只读映射并复核 transport、格式、尺寸、步幅、声明长度、容量和非零内容。缺失句柄、错误容量、错误格式/尺寸/步幅/长度、畸形旧 inline 编码、未请求负载和超限尺寸均被拒绝，9/9 后续恢复成功。v4 新增实际 worker 只读暴露探针并将其纳入报告，不向协议输出标记内容。
 
-这证明了“主进程按请求授予一个有界内核对象能力”的机制，可复用于 AppContainer 或受限 token；它不是文件 broker 已完成。缩略图 worker 目前仍接收路径并依赖 Low Integrity 的 no-write-up，而不是由主进程授予最小文件句柄/受控副本。下一决策必须比较：AppContainer capability/broker、受限 token + 受控副本/路径授权，以及真实 Shell provider 对原路径语义的依赖。
+这证明了“主进程按请求授予一个有界内核对象能力”的机制，可复用于 AppContainer；它不是文件 broker 已完成。缩略图 worker 目前仍接收路径并依赖 Low Integrity 的 no-write-up，而不是由主进程授予最小文件句柄/受控副本。实际未授权读取证据已经排除“受限 token + 原路径”作为生产隔离方案；下一实现必须验证 AppContainer capability/broker、受控副本或最小路径 ACL，以及真实 Shell provider 对原路径语义的依赖。
 
 在上述决定前，可继续准备专用环境与实机执行，但不应默认某种权限模型或创建承诺兼容性的正式 schema。
 
@@ -167,7 +168,7 @@ PR #39 合入后的首轮主干 CI `30690663507` 识别出父进程退出探针�
 - [x] 最新 `main` 全量 CI 通过；
 - [x] PR #2–#17 的分支均无 `main` 之外的独立提交；
 - [x] PR #18 经审核后合入 `main`；
-- [x] PR #2–#18、#25–#42 已合并或关闭，远端无长期串联草稿分支；
+- [x] PR #2–#18、#25–#43 已合并或关闭，远端无长期串联草稿分支；
 - [x] `main` 已启用禁止强推、禁止删除和必需状态检查；
 - [x] Phase 0 Exit 里程碑和 #19–#24 已建立；
 - [x] 后续 PR 从最新 `main` 创建。
@@ -245,7 +246,7 @@ LPWP 协议可以继续做兼容性维护和 Golden Fixture，但 Widget Host �
 
 | 顺序 | 工作包 | 交付物 | 退出条件 |
 |---|---|---|---|
-| W0（完成） | GitHub 治理 | PR #18、#25–#42 已合入；PR #2–#17 关闭；旧远端分支删除；`main` 受保护；Phase 0 Exit 建立 | 主干 CI 通过、无打开 PR、远端只保留 `main`，保护规则要求严格 `build-test` |
+| W0（完成） | GitHub 治理 | PR #18、#25–#43 已合入；PR #2–#17 关闭；旧远端分支删除；`main` 受保护；Phase 0 Exit 建立 | 主干 CI 通过、无打开 PR、远端只保留 `main`，保护规则要求严格 `build-test` |
 | W1 | 人工输入与系统表面（#19） | P0-05b2 键鼠/触控/拖放/Narrator/Win+D/全屏/Alt+Tab/任务视图/Explorer 重启记录 | 每个场景有环境、原始证据、Pass/Fail/Inconclusive 和缺陷 |
 | W2 | 动态显示（#20） | 缩放、旋转、拔插、投影、睡眠、RDP、`WM_DPICHANGED` 受控矩阵 | 稳定器、布局事务、资源闭环和恢复结果全部可复读 |
 | W3 | 文件安全、隔离与性能（#21、#22） | 引用/移动语义、`IFileOperation`、缩略图硬超时工作进程、500 项 CPU/内存/响应基线 | 不误移动、不丢撤销证据，资源预算可供负责人批准 |
