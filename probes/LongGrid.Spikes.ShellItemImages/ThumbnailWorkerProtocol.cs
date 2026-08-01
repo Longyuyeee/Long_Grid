@@ -73,7 +73,7 @@ internal sealed record ThumbnailWorkerResponse(
 
 internal static class ThumbnailWorkerServer
 {
-    internal const int CurrentProtocolVersion = 5;
+    internal const int CurrentProtocolVersion = 6;
     internal const int MaximumRequestCharacters = 65_536;
     internal const int MaximumPixelDimension = 256;
     internal const int MaximumPixelBytes =

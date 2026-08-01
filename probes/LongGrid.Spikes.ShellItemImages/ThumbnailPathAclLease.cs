@@ -1,3 +1,4 @@
+using System.Security;
 using System.Security.AccessControl;
 using System.Security.Principal;
 
@@ -122,6 +123,10 @@ internal sealed class ThumbnailPathAclLease : IDisposable
         {
             restored = false;
         }
+        catch (SecurityException)
+        {
+            restored = false;
+        }
 
         try
         {
@@ -135,6 +140,10 @@ internal sealed class ThumbnailPathAclLease : IDisposable
             restored = false;
         }
         catch (UnauthorizedAccessException)
+        {
+            restored = false;
+        }
+        catch (SecurityException)
         {
             restored = false;
         }

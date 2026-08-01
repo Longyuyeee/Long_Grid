@@ -631,13 +631,14 @@ internal static class ThumbnailWorkerIsolationProbe
             Privacy:
             [
                 "Only an owned synthetic BMP inside a random temporary sandbox was opened.",
-                "Only the controlled-copy path traveled through redirected stdin; neither original nor copy paths appear in command-line arguments or report output.",
+                "Only the controlled-copy or probe-owned minimum-ACL path traveled through redirected stdin; neither path appears in command-line arguments or report output.",
                 "No image bytes, names, paths, or Shell identities are emitted; only the aggregate warmup HRESULT is retained for cross-build diagnosis.",
             ],
             Limitations:
             [
-                "The production worker uses a zero-capability AppContainer and a bounded per-client controlled input copy; the separate boundary control proves exact SID ACL access and adjacent-file denial.",
-                "Controlled copies do not preserve original-path, neighboring-file, alternate-stream, cloud hydration, or provider-specific path semantics; brokered handles remain the preferred production comparison.",
+                "The worker uses a zero-capability AppContainer; controlled copy remains the default experiment while minimum-path ACL is comparison-only.",
+                "Minimum-path ACL temporarily changes the probe-owned file and parent-directory DACL. Normal cleanup verifies the random AppContainer SID has no explicit ACE, but abnormal parent termination and concurrent DACL modification are not covered.",
+                "Controlled copies do not preserve original-path, neighboring-file, alternate-stream, cloud hydration, or provider-specific path semantics; a raw brokered handle cannot directly replace the IShellItem parsing-name contract and needs a separate provider or decoder experiment.",
                 "The synthetic BMP validates process lifetime and Shell extraction, not third-party, cloud, network, or adversarial providers.",
                 "The bounded BGRA payload uses a duplicated unnamed file-mapping handle; formal render-surface integration and the final broker policy remain unimplemented.",
                 "The forced timeout and parent-exit cases use a deterministic worker hang before native extraction because inducing a real provider hang on a user machine is unsafe.",
