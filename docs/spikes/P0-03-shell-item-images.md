@@ -108,7 +108,7 @@
 ### 条件与未验证范围
 
 - `GetImage` 原生调用无法被 `CancellationToken` 硬中断；
-- P0-03b 已把真实工作进程迁入零 Capability AppContainer，验证挂起后先入 Job、最小句柄继承、32 MiB 受控只读输入、协议 v6 的副本/最小路径 ACL 对照、未代理读写阻断、ACL/Profile 清理和有界共享内存 BGRA32 IPC；最小 ACL 在 26100 上与副本相同地安全返回 `E_ACCESSDENIED`，不能提升为默认，正式渲染集成和 provider 矩阵仍未完成；
+- P0-03b 已把真实工作进程迁入零 Capability AppContainer，验证挂起后先入 Job、最小句柄继承、32 MiB 受控只读输入、协议 v6 的副本/最小路径 ACL 对照、未代理读写阻断、ACL/Profile 清理和有界共享内存 BGRA32 IPC；首轮 BMP/PNG/GIF 双 build 矩阵在 22621 六组合全成功、26100 六组合输入可读但 Shell 全部安全拒绝，正式渲染集成和真实 provider 矩阵仍未完成；
 - 缩略图只验证了缓存命中路径，没有读取文件内容或强制生成；
 - 尚未覆盖 ARM64、Windows 10、网络目录、OneDrive 在线/离线矩阵、恶意或崩溃的第三方缩略图提供程序；
 - 尚未验证 alpha、色彩、主题、DPI、缩放质量、内存缓存淘汰和 UI 滚动时序；
@@ -132,7 +132,7 @@
 ## 9. 后续
 
 1. P0-04/P0-05：比较每容器 HWND 与每显示器 HWND；
-2. 继续 P0-03b：建立 Windows build/provider 兼容矩阵；handle-backed 输入改为独立 stream/decoder 或 Shell provider 合同实验，再决定正式渲染表面集成；
+2. 继续 P0-03b：在 BMP/PNG/GIF 基线上扩展 JPEG/HEIF、Office/PDF、云/网络和第三方 provider；handle-backed 输入改为独立 stream/decoder 或 Shell provider 合同实验，再决定正式渲染表面集成；
 3. OneDrive/网络/第三方提供程序兼容矩阵；
 4. 500 个不同项目的内存缓存、滚动取消、主题/DPI 失效和渲染预算；
 5. 在完整低权限工作进程和真实 provider 矩阵通过前，MVP 可以发布类型图标和缓存缩略图，但不得承诺任意文件的即时缩略图。

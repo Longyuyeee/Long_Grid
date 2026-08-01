@@ -1,8 +1,8 @@
 # P0-03b 缩略图工作进程隔离与 500 项预算
 
-执行日期：2026-08-01
+执行日期：2026-08-02
 
-结果：**Conditional Pass（真实零 Capability AppContainer worker、受控副本/最小路径 ACL 对照、有界共享内存 BGRA IPC、未代理读写阻断、ACL/Profile 清理和合成 500 项预算通过）**
+结果：**Conditional Pass（真实零 Capability AppContainer worker、BMP/PNG/GIF 双 build 输入策略矩阵、有界共享内存 BGRA IPC、未代理读写阻断、ACL/Profile 清理和合成 500 项预算通过）**
 
 关联：Issue #22
 
@@ -23,7 +23,7 @@
 
 ## 2. 安全范围
 
-父进程在 `%TEMP%` 的随机专用目录生成一个 2×2 BMP，全部 500 次压力请求只访问该自有文件。Client 创建随机 AppContainer Profile，把当前 worker 运行时暂存到受 128 MiB 总量约束的 Profile 私有目录，并把 BMP 复制为受 32 MiB 单文件上限、拒绝重解析点的只读受控输入。只有副本路径通过重定向 stdin 的逐行 JSON 发给 worker；原始路径不进入 worker、命令行、报告或日志。
+父进程在 `%TEMP%` 的随机专用目录生成 BMP、PNG、GIF 三个自有格式样本；500 次压力仍只重复访问自有 BMP。Client 创建随机 AppContainer Profile，把当前 worker 运行时暂存到受 128 MiB 总量约束的 Profile 私有目录，并把输入复制为受 32 MiB 单文件上限、拒绝重解析点的只读受控输入。报告只保留固定格式标签、布尔分类与 HRESULT，不输出路径、文件名、图像字节或 Shell 身份。
 
 工作进程返回成功、尺寸和耗时，不传递裸 `HBITMAP`。每个 worker 完成 100 项后关闭并重建。硬超时场景使用确定性的测试请求让 worker 在进入原生提取前挂起；父进程在 250 ms 后终止整个进程树，再用新 worker 提取同一自有 BMP。这样可以证明强制回收链路，而无需在用户机器上故意触发恶意或卡死的真实 provider。
 
@@ -42,7 +42,7 @@ IPC 请求/响应携带协议版本和有界 request ID、路径长度、尺寸�
 | OS | Microsoft Windows NT `10.0.22621.0` |
 | 架构 | x64 |
 | 运行时 | .NET 8 / `net8.0-windows` |
-| 输入 | 临时沙箱内自有 2×2 BMP |
+| 输入 | 临时沙箱内自有 BMP/PNG/GIF；500 次压力使用 2×2 BMP |
 | 预热 | 首次提取成功后再采空闲 CPU |
 | 压力请求 | 500 |
 | 每进程请求预算 | 100 |
@@ -76,6 +76,7 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 | worker 未代理读取 | 实际 worker 读取原始未授权标记文件被拒绝 | 必须阻断 | Pass |
 | 受控输入副本 | 32 MiB 上限、拒绝重解析点、只读；协议 v6 默认 `ControlledCopy` | 不向 worker 发送原始路径 | Pass |
 | 最小路径 ACL 对照 | 原路径直接读/提取、相邻拒绝、全部 worker AppContainer、lease 授予、显式 ACE 恢复、Profile 删除 | 仅探针自有文件；正常路径不得遗留随机 SID ACE | Pass |
+| 自有格式矩阵 | BMP/PNG/GIF × `ControlledCopy`/`MinimumPathAcl`；逐项复核输入可读、AppContainer、Shell 成功或精确安全拒绝、ACL/Profile 清理 | 6/6 必须安全分类；不读取用户文件 | Pass |
 | 实际 worker Profile 清理 | 正常 Dispose 与父进程无清理退出均删除随机 Profile | 不遗留 Profile | Pass |
 | AppContainer Profile/Capability | 随机临时 Profile；CapabilityCount 0 | 不授予宽泛 Capability；结束删除 Profile | Pass |
 | AppContainer 启动顺序/令牌 | 3 个进程挂起启动、先入 Job、`TokenIsAppContainer` | 全部为 AppContainer，入 Job 后恢复 | Pass |
@@ -108,12 +109,12 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 
 | 环境 | 受控副本 | 最小路径 ACL | 判定 |
 |---|---|---|---|
-| Windows `10.0.22621` x64 本机 | 直接读 Pass；500/500；p95 33.46 ms | 直接读与 Shell 提取 Pass；相邻拒绝、ACL 恢复、Profile 删除 | `ExtractionSupported` |
-| Windows `10.0.26100` x64 GitHub runner | 直接读 Pass；Shell `0x80070005`、无像素 | 直接读 Pass；Shell `0x80070005`；相邻拒绝、ACL 恢复、Profile 删除 | `AccessDeniedSafely` / `ProductFallbackRequired` |
+| Windows `10.0.22621` x64 本机 | BMP/PNG/GIF 3/3 输入可读且提取成功；500/500；p95 30.64 ms | BMP/PNG/GIF 3/3 输入可读且提取成功；ACL/Profile 清理 | `ExtractionSupported` |
+| Windows `10.0.26100` x64 GitHub runner | BMP/PNG/GIF 3/3 输入可读；3/3 Shell `0x80070005` | BMP/PNG/GIF 3/3 输入可读；3/3 Shell `0x80070005`；ACL/Profile 清理 | `AccessDeniedSafely` / `ProductFallbackRequired` |
 
-CI 只在两条严格分支之一通过：支持环境必须满足完整 500/500、像素、恢复和预算条件；不支持环境必须是两种授权都可直接读取、Shell 精确返回 `E_ACCESSDENIED`、500 次无一伪成功、无共享内存像素，同时相邻拒绝、ACL 恢复、隔离、超时、Job 和 Profile 清理门禁仍成立。26100 上最小 ACL 与副本结果相同，排除了“只因 Profile 副本路径不可读”这一解释，更指向 Shell provider/AppContainer/build 兼容性。第二条分支不是“提取成功”，也不允许回退到主进程或 Low Integrity 现场提取；产品只能显示类型图标或已验证缓存。
+CI 对每个固定格式和输入策略都要求先通过直接读控制，再只接受 Shell 成功或精确 `E_ACCESSDENIED`。支持环境还必须满足完整 500/500、像素、恢复和预算条件；不支持环境必须 500 次无一伪成功、无共享内存像素，同时相邻拒绝、ACL 恢复、隔离、超时、Job 和 Profile 清理门禁仍成立。26100 上 BMP/PNG/GIF 的 6 个组合全部可直接读取又全部被 Shell 拒绝，排除了“只因 Profile 副本路径或单一扩展名不可读”这一解释，更指向 Shell provider/AppContainer/build 兼容性。第二条分支不是“提取成功”，也不允许回退到主进程或 Low Integrity 现场提取；产品只能显示类型图标或已验证缓存。
 
-扩展共享内存与生命周期矩阵后的代表轮次由主探针共启动 24 个 worker：初始/预算回收进程、强制超时及恢复、通用协议错误、九类像素/映射负载与请求错误及逐项恢复、异常退出，以及连续三次超时和最终恢复；另由独立父进程宿主启动一个卡死 worker 验证孤儿清理。报告只输出聚合指标，不输出路径、文件名、图像字节、句柄值或 Shell 身份；为区分跨 Windows build 的文件授权与 provider 失败，只保留首次提取的聚合 HRESULT。
+扩展共享内存与生命周期矩阵后的代表轮次由主探针启动压力/预算回收、强制超时、协议/像素故障和恢复 worker；另由独立父进程宿主验证孤儿清理，并由两个短命 client 跑六个格式/策略组合。报告不输出路径、文件名、图像字节、句柄值或 Shell 身份；为区分跨 Windows build 的文件授权与 provider 失败，只保留固定格式标签、布尔分类和 HRESULT。
 
 受限 worker 首次合入后的主干 CI 暴露了父进程退出测试的 ready-file 竞态：子宿主直接创建最终文件时，主探针可能在写句柄关闭前因“文件已存在”而读取，触发 sharing violation。修复后子宿主先完整写入同目录 `.pending` 文件并关闭句柄，再以原子重命名发布就绪信号；本地连续三轮完整矩阵均通过。该修复不放宽等待时间或性能预算。
 
@@ -133,6 +134,7 @@ CI 只在两条严格分支之一通过：支持环境必须满足完整 500/500
 - 父进程查询所有实际 worker 均为 AppContainer；worker 能提取受控 BMP 副本，但对原始未授权标记文件的读写均被阻断；
 - 协议 v6 明确区分 `DirectPath`、`ControlledCopy` 与 `MinimumPathAcl`，真实提取拒绝前者；父进程对源文件执行 32 MiB 上限和重解析点拒绝，副本仍为默认；
 - 最小路径 ACL 能让 AppContainer 直接读取并在 22621 完成 Shell 提取，同时阻断相邻文件；正常请求结束后文件/目录的随机 SID ACE 均被复核清除；
+- 自有 BMP/PNG/GIF 在 22621 的两种输入策略下全部提取成功；26100 的六个组合全部输入可读但精确返回 `E_ACCESSDENIED`，没有发现格式特例；
 - 正常回收会在 worker/Job 释放后删除 Profile；无清理父退出由独立主探针在确认孤儿退出后删除 Profile；
 - 可以用随机临时 Profile 和零 Capability `SECURITY_CAPABILITIES` 创建 AppContainer 进程；三个控制进程均在挂起状态加入生命周期 Job、复核 `TokenIsAppContainer` 后才恢复，且 Profile 在结束时删除；
 - AppContainer no-op 控制成功；父进程只在探针自有 broker 子目录为该随机 AppContainer SID 增加只读/遍历 ACL 后，控制文件可读；同级未授权标记仍被拒绝。标准流仅继承显式列出的父进程 `NUL` 句柄，避免把缺失控制台误判为读取失败；
@@ -157,8 +159,8 @@ CI 只在两条严格分支之一通过：支持环境必须满足完整 500/500
 - 当前 Shell item 通过 `SHCreateItemFromParsingName` 的路径/parsing name 创建，再调用 `IShellItemImageFactory.GetImage`；原始文件句柄不能直接替换该参数，handle-backed 方案必须另建 Shell item/provider、stream 或受控 decoder 合同；
 - `CreateProcessW` + `SECURITY_CAPABILITIES` 的会话和支持矩阵目前只在本机验证，尚未覆盖标准用户、企业策略、Windows 10 最低 build 与 ARM64；
 - 当前匿名映射仍复制到父进程托管缓冲，尚未验证正式渲染表面、跨 GPU 适配器资源或端到端零拷贝；
-- 500 次是对同一自有 BMP 的隔离/生命周期压力，不等于 500 个不同真实项目的 provider、缓存和渲染预算；
-- 尚未覆盖 OneDrive、网络路径、第三方 provider、恶意文件、x64/ARM64 与支持的 Windows build 矩阵；
+- 500 次是对同一自有 BMP 的隔离/生命周期压力；BMP/PNG/GIF 也只是三个内置格式路径，不等于 500 个不同真实项目的 provider、缓存和渲染预算；
+- 尚未覆盖 JPEG/HEIF、Office/PDF、OneDrive、网络路径、第三方 provider、恶意文件、x64/ARM64 与完整支持 Windows build 矩阵；
 - Windows `10.0.26100` GitHub runner 已证明受控副本和最小 ACL 原路径都可读，但 Shell 提取均返回 `E_ACCESSDENIED`；在确认具体 build/provider/runner 策略前必须安全回退，不能宣称该环境支持现场缩略图；
 - 暂定预算仅来自当前机器，不能直接升级为发布 SLA。
 
@@ -166,10 +168,10 @@ CI 只在两条严格分支之一通过：支持环境必须满足完整 500/500
 
 ## 6. 下一切片
 
-1. 建立 Windows build × provider 矩阵，覆盖常见图片、Office/PDF、OneDrive、网络路径和第三方 provider，并保留类型图标/缓存安全回退；
+1. 在专用环境扩展 build × provider 矩阵到 JPEG/HEIF、Office/PDF、OneDrive、网络路径和第三方 provider，并保留类型图标/缓存安全回退；
 2. 将 handle-backed 输入作为单独的 stream/decoder 或 Shell provider 合同实验；若重开最小 ACL，先补异常退出 ACE 日志/修复和并发 DACL 测试；
 3. 把已验证的共享内存 transport 接入正式渲染表面，保持相同长度/格式/尺寸/容量上限；
 4. 在标准用户、企业策略、Windows 10/11、x64/ARM64 环境复测进程创建与隔离；
 5. 在合成不同格式集和专用云/网络/provider 环境执行 500 个不同项目矩阵，并提交负责人批准最终预算。
 
-本轮安全语义依据 Microsoft 的 [Mandatory Integrity Control](https://learn.microsoft.com/windows/win32/secauthz/mandatory-integrity-control)、[AppContainer isolation](https://learn.microsoft.com/windows/win32/secauthz/appcontainer-isolation)、[AppContainer 对象 DACL 授权](https://learn.microsoft.com/windows/win32/secauthz/implementing-an-appcontainer)、[`CreateAppContainerProfile`](https://learn.microsoft.com/windows/win32/api/userenv/nf-userenv-createappcontainerprofile)、[`SECURITY_CAPABILITIES`](https://learn.microsoft.com/windows/win32/api/winnt/ns-winnt-security_capabilities)、[显式句柄继承](https://learn.microsoft.com/windows/win32/procthread/creating-processes)、[`AssignProcessToJobObject`](https://learn.microsoft.com/windows/win32/api/jobapi2/nf-jobapi2-assignprocesstojobobject)、[`SHCreateItemFromParsingName`](https://learn.microsoft.com/windows/win32/api/shobjidl_core/nf-shobjidl_core-shcreateitemfromparsingname)、[`IShellItemImageFactory::GetImage`](https://learn.microsoft.com/windows/win32/api/shobjidl_core/nf-shobjidl_core-ishellitemimagefactory-getimage)、[`DuplicateHandle`](https://learn.microsoft.com/windows/win32/api/handleapi/nf-handleapi-duplicatehandle)和[`CreateFileMapping`](https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-createfilemappingw)文档。MIC 默认执行 no-write-up；AppContainer 可通过对象 ACL 获得精确资源访问，而 parsing-name Shell item 合同不能由原始句柄直接替换。通过自有 BMP 对照仍不等于完整文件 broker 或 provider 兼容矩阵已完成。
+本轮安全语义依据 Microsoft 的 [Mandatory Integrity Control](https://learn.microsoft.com/windows/win32/secauthz/mandatory-integrity-control)、[AppContainer isolation](https://learn.microsoft.com/windows/win32/secauthz/appcontainer-isolation)、[AppContainer 对象 DACL 授权](https://learn.microsoft.com/windows/win32/secauthz/implementing-an-appcontainer)、[`CreateAppContainerProfile`](https://learn.microsoft.com/windows/win32/api/userenv/nf-userenv-createappcontainerprofile)、[`SECURITY_CAPABILITIES`](https://learn.microsoft.com/windows/win32/api/winnt/ns-winnt-security_capabilities)、[显式句柄继承](https://learn.microsoft.com/windows/win32/procthread/creating-processes)、[`AssignProcessToJobObject`](https://learn.microsoft.com/windows/win32/api/jobapi2/nf-jobapi2-assignprocesstojobobject)、[`SHCreateItemFromParsingName`](https://learn.microsoft.com/windows/win32/api/shobjidl_core/nf-shobjidl_core-shcreateitemfromparsingname)、[`IShellItemImageFactory::GetImage`](https://learn.microsoft.com/windows/win32/api/shobjidl_core/nf-shobjidl_core-ishellitemimagefactory-getimage)、[`DuplicateHandle`](https://learn.microsoft.com/windows/win32/api/handleapi/nf-handleapi-duplicatehandle)和[`CreateFileMapping`](https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-createfilemappingw)文档。MIC 默认执行 no-write-up；AppContainer 可通过对象 ACL 获得精确资源访问，而 parsing-name Shell item 合同不能由原始句柄直接替换。通过三个自有格式的首轮矩阵仍不等于完整文件 broker 或真实 provider 兼容矩阵已完成。

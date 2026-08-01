@@ -651,7 +651,7 @@ internal static class ThumbnailWorkerIsolationProbe
             [
                 "Only owned synthetic BMP, PNG, and GIF files inside a random temporary sandbox were opened.",
                 "Only the controlled-copy or probe-owned minimum-ACL path traveled through redirected stdin; neither path appears in command-line arguments or report output.",
-                "No image bytes, names, paths, or Shell identities are emitted; only the aggregate warmup HRESULT is retained for cross-build diagnosis.",
+                "No image bytes, names, paths, or Shell identities are emitted; only fixed format labels and HRESULT classifications are retained for cross-build diagnosis.",
             ],
             Limitations:
             [
