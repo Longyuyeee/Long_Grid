@@ -14,6 +14,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     private readonly int _maximumRequestsPerProcess;
     private readonly TimeSpan _initialRestartBackoff;
     private readonly TimeSpan _maximumRestartBackoff;
+    private readonly ThumbnailWorkerJob _workerJob;
     private Process? _process;
     private BoundedLineReader? _outputReader;
     private int _requestsInCurrentProcess;
@@ -37,6 +38,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
         ArgumentOutOfRangeException.ThrowIfLessThan(
             _maximumRestartBackoff,
             _initialRestartBackoff);
+        _workerJob = ThumbnailWorkerJob.Create();
     }
 
     internal int ProcessesStarted { get; private set; }
@@ -54,6 +56,8 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     internal double TotalRestartBackoffMilliseconds { get; private set; }
 
     internal int MaximumConsecutiveTimeouts { get; private set; }
+
+    internal bool UsesKillOnJobClose => _workerJob.IsConfigured;
 
     internal long PeakWorkingSetBytes { get; private set; }
 
@@ -211,6 +215,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
         }
 
         StopProcess(force: false);
+        _workerJob.Dispose();
         _disposed = true;
     }
 
@@ -230,6 +235,23 @@ internal sealed class ThumbnailWorkerClient : IDisposable
         _process?.Dispose();
         _process = Process.Start(CreateStartInfo())
             ?? throw new InvalidOperationException("The thumbnail worker did not start.");
+        try
+        {
+            _workerJob.Assign(_process);
+        }
+        catch
+        {
+            if (!_process.HasExited)
+            {
+                _process.Kill(entireProcessTree: true);
+                _process.WaitForExit();
+            }
+
+            _process.Dispose();
+            _process = null;
+            throw;
+        }
+
         _outputReader = new BoundedLineReader(
             _process.StandardOutput,
             ThumbnailWorkerServer.MaximumResponseCharacters);
