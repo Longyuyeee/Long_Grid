@@ -354,9 +354,12 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     private static bool RequiresBrokeredInput(ThumbnailWorkerRequest request) =>
         !string.IsNullOrWhiteSpace(request.Path)
         && request.Path.Length <= 32_767
-        && request.Kind is ThumbnailWorkerRequestKind.Extract
-            or ThumbnailWorkerRequestKind.MissingPixelBufferRequest
-            or ThumbnailWorkerRequestKind.InvalidPixelBufferCapacityRequest;
+        && (request.Kind is ThumbnailWorkerRequestKind.Extract
+                or ThumbnailWorkerRequestKind.MissingPixelBufferRequest
+                or ThumbnailWorkerRequestKind.InvalidPixelBufferCapacityRequest
+            || (request.Kind == ThumbnailWorkerRequestKind.ReadBoundaryProbe
+                && request.InputTransport
+                    == ThumbnailInputTransport.ControlledCopy));
 
     private static bool IsValidResponse(
         ThumbnailWorkerRequest request,

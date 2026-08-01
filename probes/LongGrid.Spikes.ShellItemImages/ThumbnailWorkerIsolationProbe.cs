@@ -46,6 +46,7 @@ internal static class ThumbnailWorkerIsolationProbe
 
         bool passed = report.Stress.Succeeded == StressRequests
             && report.WarmupSucceeded
+            && report.AppContainerWorker.ControlledCopyReadSucceeded
             && report.HardTimeout.TimedOut
             && report.HardTimeout.WorkerKilled
             && report.HardTimeout.RecoverySucceeded
@@ -131,6 +132,7 @@ internal static class ThumbnailWorkerIsolationProbe
             RequestTimeout);
         bool warmupSucceeded = warmupResult.Completed
             && warmupResult.Response is { Success: true };
+        int warmupHResult = warmupResult.Response?.HResult ?? 0;
         string sandboxRoot = Path.GetDirectoryName(bitmapPath)
             ?? throw new InvalidOperationException(
                 "The bitmap sandbox is unavailable.");
@@ -141,6 +143,20 @@ internal static class ThumbnailWorkerIsolationProbe
             sandboxRoot,
             "unbrokered-readable.tmp");
         await File.WriteAllTextAsync(unbrokeredReadPath, "exit /b 0");
+        ThumbnailWorkerCallResult controlledReadResult =
+            await client.ExecuteAsync(
+                new ThumbnailWorkerRequest(
+                    ThumbnailWorkerServer.CurrentProtocolVersion,
+                    "appcontainer-worker-controlled-read",
+                    ThumbnailWorkerRequestKind.ReadBoundaryProbe,
+                    bitmapPath,
+                    Size: 0,
+                    Flags: 0,
+                    InputTransport: ThumbnailInputTransport.ControlledCopy),
+                RequestTimeout);
+        bool controlledCopyReadSucceeded =
+            controlledReadResult.Completed
+            && controlledReadResult.Response is { Success: true };
         ThumbnailWorkerCallResult unbrokeredReadResult =
             await client.ExecuteAsync(
                 new ThumbnailWorkerRequest(
@@ -542,6 +558,7 @@ internal static class ThumbnailWorkerIsolationProbe
             MediumSandboxWriteBlocked: restrictedWorkerWriteBlocked,
             UnbrokeredReadBlocked: unbrokeredReadBlocked,
             ExtractionSucceeded: warmupSucceeded,
+            ControlledCopyReadSucceeded: controlledCopyReadSucceeded,
             JobAssignedBeforeResume: true,
             ExplicitHandleAllowList: true,
             ControlledInputCopyUsed: controlledInputCopyUsed,
@@ -553,6 +570,7 @@ internal static class ThumbnailWorkerIsolationProbe
             OperatingSystem: Environment.OSVersion.VersionString,
             Architecture: RuntimeInformation.OSArchitecture.ToString(),
             WarmupSucceeded: warmupSucceeded,
+            WarmupHResult: warmupHResult,
             Stress: stress,
             HardTimeout: hardTimeout,
             TimeoutBackoff: timeoutBackoff,
@@ -570,7 +588,7 @@ internal static class ThumbnailWorkerIsolationProbe
             [
                 "Only an owned synthetic BMP inside a random temporary sandbox was opened.",
                 "Only the controlled-copy path traveled through redirected stdin; neither original nor copy paths appear in command-line arguments or report output.",
-                "No image bytes, names, paths, HRESULT values, or Shell identities are emitted.",
+                "No image bytes, names, paths, or Shell identities are emitted; only the aggregate warmup HRESULT is retained for cross-build diagnosis.",
             ],
             Limitations:
             [
@@ -865,6 +883,11 @@ internal static class ThumbnailWorkerIsolationProbe
             + $"{report.AppContainerWorker.ControlledInputCopyUsed}/"
             + $"{report.AppContainerWorker.AppContainerProfileDeleted}");
         Console.WriteLine(
+            $"Controlled-copy read/Shell extraction/HRESULT: "
+            + $"{report.AppContainerWorker.ControlledCopyReadSucceeded}/"
+            + $"{report.AppContainerWorker.ExtractionSucceeded}/"
+            + $"0x{report.WarmupHResult:X8}");
+        Console.WriteLine(
             $"AppContainer no-op/control/denied/token/profile cleanup: "
             + $"{report.AppContainer.NoOpSucceeded}/"
             + $"{report.AppContainer.ControlReadSucceeded}/"
@@ -890,6 +913,7 @@ internal sealed record ThumbnailWorkerIsolationReport(
     string OperatingSystem,
     string Architecture,
     bool WarmupSucceeded,
+    int WarmupHResult,
     ThumbnailWorkerStressResult Stress,
     ThumbnailWorkerTimeoutResult HardTimeout,
     ThumbnailWorkerBackoffResult TimeoutBackoff,
@@ -911,6 +935,7 @@ internal sealed record ThumbnailAppContainerWorkerResult(
     bool MediumSandboxWriteBlocked,
     bool UnbrokeredReadBlocked,
     bool ExtractionSucceeded,
+    bool ControlledCopyReadSucceeded,
     bool JobAssignedBeforeResume,
     bool ExplicitHandleAllowList,
     bool ControlledInputCopyUsed,
