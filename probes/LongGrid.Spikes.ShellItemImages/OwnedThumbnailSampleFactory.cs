@@ -43,6 +43,14 @@ internal static class OwnedThumbnailSampleFactory
         + "W20C7QDVqK3Khx6nmiudjRcal9GkrKcjjhB0PzYYglYmhwLILPNBPc8Ur5EWMRj"
         + "y6nsDI6YH0HB9KWjs3lgCi8LhzEY7wtYT8uT+vEYicNQpVFa1QNEG9CwzHK4lAd"
         + "J+mOJTgJ3ByU2EFZgRxSoRMNdlo/EHoLjfY=");
+    private static readonly byte[] Avif2X2 = Convert.FromBase64String(
+        "AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUIAAADrbWV0YQAAAAAAAAAh"
+        + "aGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAAAAAAAOcGl0bQAAAAAAAQAAAB5p"
+        + "bG9jAAAAAEQAAAEAAQAAAAEAAAETAAAAMQAAAChpaW5mAAAAAAABAAAAGmluZmUC"
+        + "AAAAAAEAAGF2MDFDb2xvcgAAAABqaXBycAAAAEtpcGNvAAAAFGlzcGUAAAAAAAAA"
+        + "AgAAAAIAAAAQcGl4aQAAAAADCAgIAAAADGF2MUOBAAwAAAAAE2NvbHJuY2x4AAEA"
+        + "DQAGgAAAABdpcG1hAAAAAAAAAAEAAQQBAoMEAAAAOW1kYXQSAAoIGAA2iAhoNCAy"
+        + "IxIH9/apAIIIPkAAAP9cF2YVjg7LZXCB7Bpw21s2bMxU3Gt4");
 
     internal static void WritePng(string path)
     {
@@ -131,6 +139,8 @@ internal static class OwnedThumbnailSampleFactory
         File.WriteAllBytes(path, TiffLzw2X2);
 
     internal static void WriteHeic(string path) => File.WriteAllBytes(path, Heic2X2);
+
+    internal static void WriteAvif(string path) => File.WriteAllBytes(path, Avif2X2);
 
     private static void WriteTiffEntry(
         BinaryWriter writer,
