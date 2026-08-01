@@ -28,6 +28,21 @@ internal static class OwnedThumbnailSampleFactory
         + "AAAaAQUAAQAAAOYAAAAbAQUAAQAAAO4AAAAcAQMAAQAAAAEAAAAoAQMAAQAAAAIA"
         + "AAA9AQMAAQAAAAIAAABSAQMAAQAAAAIAAAAAAAAACAAIAAgACAAAdwEA6AMAAAB3"
         + "AQDoAwAA");
+    private static readonly byte[] Heic2X2 = Convert.FromBase64String(
+        "AAAAHGZ0eXBoZWljAAAAAG1pZjFoZWljbWlhZgAAAWltZXRhAAAAAAAAACFoZGxy"
+        + "AAAAAAAAAABwaWN0AAAAAAAAAAAAAAAAAAAAAA5waXRtAAAAAAABAAAAImlsb2MA"
+        + "AAAAREAAAQABAAAAAAGNAAEAAAAAAAAA+gAAACNpaW5mAAAAAAABAAAAFWluZmUC"
+        + "AAAAAAEAAGh2YzEAAAAA6WlwcnAAAADKaXBjbwAAAHZodmNDAQNwAAAAAAAAAAAA"
+        + "HvAA/P34+AAADwNgAAEAGEABDAH//wNwAAADAJAAAAMAAAMAHroCQGEAAQAqQgEB"
+        + "A3AAAAMAkAAAAwAAAwAeoCCBBZbqrprm4CGgwIAAAAMAgAAAAwCEYgABAAZEAcFz"
+        + "wYkAAAAUaXNwZQAAAAAAAABAAAAAQAAAAChjbGFwAAAAAgAAAAEAAAACAAAAAf//"
+        + "/8IAAAAC////wgAAAAIAAAAQcGl4aQAAAAADCAgIAAAAF2lwbWEAAAAAAAAAAQAB"
+        + "BIECBIMAAAECbWRhdAAAAPYoAa8GMhuPe4DxccGAizg99ZSGIJHpLjfCuNfkmpqG"
+        + "gZWYTPljAUzwK1Ga/OKEp/fa6t/zMgc5MhRX+Tls5l1jQ+hDjgFLlQFasO9VCGr"
+        + "cUZTFt+tpfHWc+6FiVgEYzIV7MyP3jKPx5FD8U0WL9YDJPfaQXZrju06FsrYdBS"
+        + "W20C7QDVqK3Khx6nmiudjRcal9GkrKcjjhB0PzYYglYmhwLILPNBPc8Ur5EWMRj"
+        + "y6nsDI6YH0HB9KWjs3lgCi8LhzEY7wtYT8uT+vEYicNQpVFa1QNEG9CwzHK4lAd"
+        + "J+mOJTgJ3ByU2EFZgRxSoRMNdlo/EHoLjfY=");
 
     internal static void WritePng(string path)
     {
@@ -114,6 +129,8 @@ internal static class OwnedThumbnailSampleFactory
 
     internal static void WriteTiffLzw(string path) =>
         File.WriteAllBytes(path, TiffLzw2X2);
+
+    internal static void WriteHeic(string path) => File.WriteAllBytes(path, Heic2X2);
 
     private static void WriteTiffEntry(
         BinaryWriter writer,

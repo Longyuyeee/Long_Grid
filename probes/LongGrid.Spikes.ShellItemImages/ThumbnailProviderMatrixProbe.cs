@@ -4,6 +4,7 @@ internal static class ThumbnailProviderMatrixProbe
 {
     private const int AccessDeniedHResult = unchecked((int)0x80070005);
     private const int ModuleNotFoundHResult = unchecked((int)0x8007007E);
+    private const int FailedExtractionHResult = unchecked((int)0x8004B200);
     private const string ThumbnailHandlerShellExtension =
         "{E357FCCD-A995-4576-B01F-234630154E96}";
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(2);
@@ -37,7 +38,8 @@ internal static class ThumbnailProviderMatrixProbe
                 (sample.ExtractionSucceeded
                     && sample.Width > 0
                     && sample.Height > 0)
-                || sample.ProviderUnavailableSafely);
+                || sample.ProviderUnavailableSafely
+                || sample.ShellExtractionUnavailableSafely);
         bool uniformOutcomeAcrossFormats =
             HasConsistentOutcome(controlledCopy.Samples)
             && HasConsistentOutcome(minimumPathAcl.Samples);
@@ -49,6 +51,8 @@ internal static class ThumbnailProviderMatrixProbe
                     && copy.AccessDeniedSafely == acl.AccessDeniedSafely
                     && copy.ProviderUnavailableSafely
                         == acl.ProviderUnavailableSafely
+                    && copy.ShellExtractionUnavailableSafely
+                        == acl.ShellExtractionUnavailableSafely
                     && copy.HResult == acl.HResult)
                 .All(agree => agree);
         bool workersMatchParentPerFormat = sameSampleSet
@@ -58,6 +62,8 @@ internal static class ThumbnailProviderMatrixProbe
                     parent.ExtractionSucceeded == worker.ExtractionSucceeded
                     && parent.ProviderUnavailableSafely
                         == worker.ProviderUnavailableSafely
+                    && parent.ShellExtractionUnavailableSafely
+                        == worker.ShellExtractionUnavailableSafely
                     && parent.HResult == worker.HResult)
                 .All(agree => agree)
             && parentProcess.Zip(
@@ -66,6 +72,8 @@ internal static class ThumbnailProviderMatrixProbe
                     parent.ExtractionSucceeded == worker.ExtractionSucceeded
                     && parent.ProviderUnavailableSafely
                         == worker.ProviderUnavailableSafely
+                    && parent.ShellExtractionUnavailableSafely
+                        == worker.ShellExtractionUnavailableSafely
                     && parent.HResult == worker.HResult)
                 .All(agree => agree);
         bool allSamplesSafelyClassified = sameSampleSet
@@ -104,6 +112,7 @@ internal static class ThumbnailProviderMatrixProbe
                 extraction.Success,
                 !extraction.Success
                     && extraction.HResult == ModuleNotFoundHResult,
+                IsKnownShellExtractionUnavailable(sample, extraction.HResult),
                 registration.Registered,
                 registration.ModulePresent,
                 registration.Registered && !registration.ModulePresent,
@@ -199,12 +208,16 @@ internal static class ThumbnailProviderMatrixProbe
             bool providerUnavailableSafely = extraction.Completed
                 && extraction.Response is { Success: false }
                 && hResult == ModuleNotFoundHResult;
+            bool shellExtractionUnavailableSafely = extraction.Completed
+                && extraction.Response is { Success: false }
+                && IsKnownShellExtractionUnavailable(sample, hResult);
             results.Add(new ThumbnailProviderSampleResult(
                 sample.Format,
                 inputReadable,
                 extractionSucceeded,
                 accessDeniedSafely,
                 providerUnavailableSafely,
+                shellExtractionUnavailableSafely,
                 hResult));
         }
 
@@ -240,7 +253,14 @@ internal static class ThumbnailProviderMatrixProbe
             sample.InputReadable
             && (sample.ExtractionSucceeded
                 || sample.AccessDeniedSafely
-                || sample.ProviderUnavailableSafely));
+                || sample.ProviderUnavailableSafely
+                || sample.ShellExtractionUnavailableSafely));
+
+    private static bool IsKnownShellExtractionUnavailable(
+        ThumbnailOwnedProviderSample sample,
+        int hResult) =>
+        string.Equals(sample.Format, "HEIC", StringComparison.Ordinal)
+        && hResult == FailedExtractionHResult;
 
     private static ThumbnailInputTransport GetInputTransport(
         ThumbnailInputStrategy strategy) => strategy switch
@@ -260,6 +280,8 @@ internal static class ThumbnailProviderMatrixProbe
             && sample.AccessDeniedSafely == samples[0].AccessDeniedSafely
             && sample.ProviderUnavailableSafely
                 == samples[0].ProviderUnavailableSafely
+            && sample.ShellExtractionUnavailableSafely
+                == samples[0].ShellExtractionUnavailableSafely
             && sample.HResult == samples[0].HResult);
 }
 
@@ -290,12 +312,14 @@ internal sealed record ThumbnailProviderSampleResult(
     bool ExtractionSucceeded,
     bool AccessDeniedSafely,
     bool ProviderUnavailableSafely,
+    bool ShellExtractionUnavailableSafely,
     int HResult);
 
 internal sealed record ThumbnailParentProviderSampleResult(
     string Format,
     bool ExtractionSucceeded,
     bool ProviderUnavailableSafely,
+    bool ShellExtractionUnavailableSafely,
     bool SpecificHandlerRegistered,
     bool SpecificHandlerModulePresent,
     bool StaleSpecificHandlerRegistration,
