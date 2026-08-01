@@ -49,7 +49,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 解决方案 | `main` 有 1 个 Core、1 个测试和 9 个探针项目 | 已建立，但不是产品分层 |
 | 代码 | 当前分支有 17 个 Core、12 个测试和 44 个探针 C# 源文件 | 以风险验证为主 |
 | 测试 | 当前全量 88 项测试通过 | Core 回归基线有效 |
-| CI | 单一 Windows workflow 执行 restore、format、build、test、配置探针、依赖漏洞门禁并上传 TRX/Cobertura | PR 基线有效；文件安全与缩略图 worker 探针尚未执行，且尚无覆盖率阈值、CodeQL 或发布流水线 |
+| CI | 单一 Windows workflow 执行 restore、format、build、test、覆盖率门禁、配置/文件安全/缩略图 worker 探针、依赖漏洞门禁并上传 TRX/Cobertura | PR 基线有效；行覆盖率最低 90%、分支覆盖率最低 75%，尚无 CodeQL 或发布流水线 |
 | 文档 | PRD、架构、质量、竞品、交互、协议、流程、ADR、20 份 Spike 报告 | 覆盖较完整 |
 | GitHub | 无打开 PR；远端只保留 `main`；Phase 0 Exit 里程碑跟踪 #19–#24 六项工作 | 治理基线已闭环 |
 | 主干保护 | `main` 要求严格的 `build-test`，对管理员生效，禁止强推和删除 | 已建立最小可信门禁 |
