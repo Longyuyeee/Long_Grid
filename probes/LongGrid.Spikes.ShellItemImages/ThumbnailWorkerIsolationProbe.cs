@@ -57,6 +57,11 @@ internal static class ThumbnailWorkerIsolationProbe
             && report.ParentExit.ParentExited
             && report.ParentExit.OrphanExited
             && report.ParentExit.KillOnJobCloseConfigured
+            && report.RestrictedWorker.AllWorkersLowIntegrity
+            && report.RestrictedWorker.MediumSandboxWriteBlocked
+            && report.RestrictedWorker.ExtractionSucceeded
+            && report.RestrictedWorker.JobAssignedBeforeResume
+            && report.RestrictedWorker.ExplicitHandleAllowList
             && report.RestrictedToken.RestrictedTokenCreated
             && report.RestrictedToken.LowIntegrityObserved
             && report.RestrictedToken.OwnedInputReadSucceeded
@@ -111,6 +116,27 @@ internal static class ThumbnailWorkerIsolationProbe
             RequestTimeout);
         bool warmupSucceeded = warmupResult.Completed
             && warmupResult.Response is { Success: true };
+        string sandboxRoot = Path.GetDirectoryName(bitmapPath)
+            ?? throw new InvalidOperationException(
+                "The bitmap sandbox is unavailable.");
+        string workerWritePath = Path.Combine(
+            sandboxRoot,
+            "restricted-worker-write.tmp");
+        ThumbnailWorkerCallResult restrictedWriteResult =
+            await client.ExecuteAsync(
+                new ThumbnailWorkerRequest(
+                    ThumbnailWorkerServer.CurrentProtocolVersion,
+                    "restricted-worker-write-boundary",
+                    ThumbnailWorkerRequestKind.WriteBoundaryProbe,
+                    workerWritePath,
+                    Size: 0,
+                    Flags: 0),
+                RequestTimeout);
+        bool restrictedWorkerWriteBlocked =
+            restrictedWriteResult.Completed
+            && restrictedWriteResult.Response is { Success: true }
+            && !File.Exists(workerWritePath);
+        File.Delete(workerWritePath);
         double idleCpuMilliseconds =
             await client.MeasureIdleCpuMillisecondsAsync(IdleSample);
         var durations = new List<double>(StressRequests);
@@ -434,6 +460,12 @@ internal static class ThumbnailWorkerIsolationProbe
             client.ProtocolKills,
             client.UnexpectedExits);
         var budget = CreateBudget(stress, resources);
+        var restrictedWorker = new ThumbnailRestrictedWorkerResult(
+            AllWorkersLowIntegrity: client.AllWorkersLowIntegrity,
+            MediumSandboxWriteBlocked: restrictedWorkerWriteBlocked,
+            ExtractionSucceeded: warmupSucceeded,
+            JobAssignedBeforeResume: true,
+            ExplicitHandleAllowList: true);
 
         return new ThumbnailWorkerIsolationReport(
             Probe: "P0-03b-thumbnail-worker-isolation",
@@ -445,6 +477,7 @@ internal static class ThumbnailWorkerIsolationProbe
             HardTimeout: hardTimeout,
             TimeoutBackoff: timeoutBackoff,
             ParentExit: parentExit,
+            RestrictedWorker: restrictedWorker,
             RestrictedToken: restrictedToken,
             PixelTransfer: pixelTransfer,
             Resilience: resilience,
@@ -460,7 +493,7 @@ internal static class ThumbnailWorkerIsolationProbe
             ],
             Limitations:
             [
-                "The low-integrity check uses in-process impersonation; launching the worker under the restricted token and defining brokered file access remain required for production.",
+                "The worker now launches with a restricted low-integrity token, but the AppContainer versus restricted-token choice and brokered file-access contract remain production decisions.",
                 "The synthetic BMP validates process lifetime and Shell extraction, not third-party, cloud, network, or adversarial providers.",
                 "The bounded BGRA payload uses base64 in the prototype line protocol; shared-memory transfer and render-surface integration remain unimplemented.",
                 "The forced timeout and parent-exit cases use a deterministic worker hang before native extraction because inducing a real provider hang on a user machine is unsafe.",
@@ -735,6 +768,13 @@ internal static class ThumbnailWorkerIsolationProbe
             + $"{report.RestrictedToken.MediumSandboxWriteBlocked}/"
             + $"{report.RestrictedToken.ParentWriteControlSucceeded}");
         Console.WriteLine(
+            $"Restricted worker launch/write block: "
+            + $"{report.RestrictedWorker.AllWorkersLowIntegrity}/"
+            + $"{report.RestrictedWorker.MediumSandboxWriteBlocked}; "
+            + $"suspended-job/handle-list "
+            + $"{report.RestrictedWorker.JobAssignedBeforeResume}/"
+            + $"{report.RestrictedWorker.ExplicitHandleAllowList}");
+        Console.WriteLine(
             $"Pixel IPC: {report.PixelTransfer.Succeeded}; "
             + $"{report.PixelTransfer.Width}x{report.PixelTransfer.Height}, "
             + $"{report.PixelTransfer.ByteLength} bytes; recoveries "
@@ -757,6 +797,7 @@ internal sealed record ThumbnailWorkerIsolationReport(
     ThumbnailWorkerTimeoutResult HardTimeout,
     ThumbnailWorkerBackoffResult TimeoutBackoff,
     ThumbnailWorkerParentExitResult ParentExit,
+    ThumbnailRestrictedWorkerResult RestrictedWorker,
     RestrictedThumbnailTokenResult RestrictedToken,
     ThumbnailWorkerPixelTransferResult PixelTransfer,
     ThumbnailWorkerResilienceResult Resilience,
@@ -766,6 +807,13 @@ internal sealed record ThumbnailWorkerIsolationReport(
     string Verdict,
     IReadOnlyList<string> Privacy,
     IReadOnlyList<string> Limitations);
+
+internal sealed record ThumbnailRestrictedWorkerResult(
+    bool AllWorkersLowIntegrity,
+    bool MediumSandboxWriteBlocked,
+    bool ExtractionSucceeded,
+    bool JobAssignedBeforeResume,
+    bool ExplicitHandleAllowList);
 
 internal sealed record ThumbnailWorkerStressResult(
     int Requested,

@@ -8,13 +8,14 @@ internal static class RestrictedThumbnailTokenProbe
     private const uint DisableMaxPrivilege = 0x1;
     private const uint SeGroupIntegrity = 0x20;
     private const uint TokenAdjustDefault = 0x0080;
+    private const uint TokenAssignPrimary = 0x0001;
     private const uint TokenDuplicate = 0x0002;
     private const uint TokenImpersonate = 0x0004;
     private const uint TokenQuery = 0x0008;
     private const int SecurityImpersonation = 2;
     private const int TokenImpersonation = 2;
     private const int TokenIntegrityLevel = 25;
-    private const int LowIntegrityRid = 0x1000;
+    internal const int LowIntegrityRid = 0x1000;
 
     internal static RestrictedThumbnailTokenResult Run(
         string ownedInputPath,
@@ -30,7 +31,8 @@ internal static class RestrictedThumbnailTokenProbe
 
         try
         {
-            using SafeAccessTokenHandle restrictedToken = CreateLowIntegrityToken();
+            using SafeAccessTokenHandle restrictedToken =
+                CreateLowIntegrityPrimaryToken();
             restrictedTokenCreated = true;
             using SafeAccessTokenHandle impersonationToken = DuplicateForImpersonation(
                 restrictedToken);
@@ -73,11 +75,11 @@ internal static class RestrictedThumbnailTokenProbe
             RestrictedTokenFlags: "DISABLE_MAX_PRIVILEGE");
     }
 
-    private static SafeAccessTokenHandle CreateLowIntegrityToken()
+    internal static SafeAccessTokenHandle CreateLowIntegrityPrimaryToken()
     {
         if (!OpenProcessToken(
             GetCurrentProcess(),
-            TokenDuplicate | TokenQuery | TokenAdjustDefault,
+            TokenAssignPrimary | TokenDuplicate | TokenQuery | TokenAdjustDefault,
             out SafeAccessTokenHandle processToken))
         {
             throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -163,7 +165,7 @@ internal static class RestrictedThumbnailTokenProbe
         return impersonationToken;
     }
 
-    private static int GetIntegrityRid(SafeAccessTokenHandle token)
+    internal static int GetIntegrityRid(SafeAccessTokenHandle token)
     {
         _ = GetTokenInformation(
             token,
@@ -207,6 +209,22 @@ internal static class RestrictedThumbnailTokenProbe
         finally
         {
             Marshal.FreeHGlobal(buffer);
+        }
+    }
+
+    internal static int GetProcessIntegrityRid(nint processHandle)
+    {
+        if (!OpenProcessToken(
+            processHandle,
+            TokenQuery,
+            out SafeAccessTokenHandle processToken))
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+
+        using (processToken)
+        {
+            return GetIntegrityRid(processToken);
         }
     }
 

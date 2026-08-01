@@ -58,15 +58,19 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 |---|---:|---:|---|
 | 成功请求 | 500/500 | 500/500 | Pass |
 | worker 预热 | 2/2 轮成功 | 必须成功 | Pass |
-| p50 往返 | 7.05 ms | 仅记录 | Pass |
-| p95 往返 | 9.54 ms | ≤250 ms | Pass |
-| 500 项总墙钟 | 6,843.12 ms | ≤30,000 ms | Pass |
+| p50 往返 | 15.56 ms | 仅记录 | Pass |
+| p95 往返 | 20.41 ms | ≤250 ms | Pass |
+| 500 项总墙钟 | 10,980.03 ms | ≤30,000 ms | Pass |
 | 预算回收 | 5 | 每 100 项一次 | Pass |
 | 强制超时终止 | 1 | 必须终止 | Pass |
 | 超时后恢复 | 成功 | 必须成功 | Pass |
 | 连续超时退避 | 3 次超时、3 次退避、350 ms | 指数增长且可恢复 | Pass |
 | 父进程退出/孤儿清理 | 父进程无清理退出，卡死 worker 随后退出 | 不遗留 worker | Pass |
 | Job Object 兜底 | `KILL_ON_JOB_CLOSE` 配置并为每个 worker 分配 | 必须配置成功 | Pass |
+| 实际 worker 完整性 | 所有 worker 查询为 Low（RID `0x1000`） | 必须全部为 Low | Pass |
+| 启动顺序 | `CREATE_SUSPENDED` → 加入 Job → `ResumeThread` | 不允许入 Job 前执行 | Pass |
+| 句柄继承 | `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` 仅 stdin/stdout/stderr | 显式最小列表 | Pass |
+| worker write-up | 实际 worker 新建中完整性沙箱文件被拒绝 | 必须阻断 | Pass |
 | 受限令牌创建 | `DISABLE_MAX_PRIVILEGE` | 必须成功 | Pass |
 | Low Integrity 复核 | SID RID `0x1000` | 必须为 Low | Pass |
 | MIC 读/写边界 | 可读自有 BMP；不可在中完整性沙箱新建文件 | 读允许、write-up 阻断 | Pass |
@@ -80,10 +84,10 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 | 超过 64 KiB 响应检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
 | 超过 64 KiB 请求检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
 | 异常退出检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
-| worker 总 CPU | 562.5 ms | 首轮记录 | Pass |
+| worker 总 CPU | 1,046.875 ms | 首轮记录 | Pass |
 | 750 ms 空闲 CPU | 0 ms | ≤50 ms | Pass |
-| 峰值工作集 | 42,672,128 bytes | ≤268,435,456 bytes | Pass |
-| 峰值句柄 | 417 | ≤512 | Pass |
+| 峰值工作集 | 42,639,360 bytes | ≤268,435,456 bytes | Pass |
+| 峰值句柄 | 353 | ≤512 | Pass |
 | 沙箱清理 | 成功 | 必须成功 | Pass |
 
 扩展像素与生命周期矩阵后的代表轮次由主探针共启动 22 个 worker：初始/预算回收进程、强制超时及恢复、通用协议错误、七类像素负载/请求错误及逐项恢复、异常退出，以及连续三次超时和最终恢复；另由独立父进程宿主启动一个卡死 worker 验证孤儿清理。报告只输出聚合指标，不输出路径、文件名、图像字节、HRESULT 或 Shell 身份。
@@ -99,6 +103,9 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 - 超长输入/输出、畸形 JSON、错误协议版本和 worker 异常退出不会被接受为结果，下一 worker 可恢复；
 - 父进程未执行清理而退出时，即使 worker 正在 Hang，worker 也会检测父进程句柄并自行退出；
 - Windows Job Object 已启用 `KILL_ON_JOB_CLOSE`，每个 worker 启动后必须成功加入，否则父进程立即强杀该 worker 并使请求失败；
+- 实际 worker 通过 `CreateProcessAsUserW` 使用受限 Low Integrity 主令牌启动；主线程先挂起，在加入 Job Object 后才恢复，避免入 Job 前执行的竞态；
+- `STARTUPINFOEX` 的句柄列表只允许子进程继承 stdin、stdout 和指向 `NUL` 的 stderr，父进程管道端显式清除继承标记；
+- 父进程查询所有 worker 的实际 token 均为 Low，worker 能提取自有 BMP，但自身向中完整性沙箱的新建文件被阻断；
 - 可以从当前进程令牌创建 `DISABLE_MAX_PRIVILEGE` 受限令牌，将其 Mandatory Integrity Level 设置并复核为 Low（RID `0x1000`）；
 - 在该令牌的模拟上下文中，自有 BMP 仍可读取，但向默认中完整性/未标记沙箱执行 write-up 会被 MIC 阻断；退出模拟后父进程写控制组成功，排除了目录自身不可写造成的假阳性；
 - Worker 不跨进程传递裸 `HBITMAP`，复制后的 BGRA32 缓冲具有明确格式、尺寸、步幅、长度和 256×256/262,144-byte 上限；
@@ -112,21 +119,21 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 
 ### 尚未证明
 
-- 正式 worker 仍使用调用者 token；当前只验证了进程内模拟的受限 Low Integrity 访问边界，尚未把该令牌接到 worker 创建、匿名管道与 Job Object 链路；
-- 尚未决定 AppContainer、受限 Low Integrity worker 及文件访问 broker/句柄传递的最终产品边界；
+- 尚未决定 AppContainer 或受限 Low Integrity worker 的最终产品模型，也未定义文件 broker、句柄传递、Capability、缓存与共享内存安全边界；
+- `CreateProcessAsUserW` 的权限、会话和支持矩阵目前只在本机与 Windows CI runner 验证，尚未覆盖标准用户、企业策略、Windows 10 最低 build 与 ARM64；
 - 当前像素负载使用匿名管道中的 base64，尚未验证共享内存、零拷贝或正式渲染表面集成；
 - 500 次是对同一自有 BMP 的隔离/生命周期压力，不等于 500 个不同真实项目的 provider、缓存和渲染预算；
 - 尚未覆盖 OneDrive、网络路径、第三方 provider、恶意文件、x64/ARM64 与支持的 Windows build 矩阵；
 - 暂定预算仅来自当前机器，不能直接升级为发布 SLA。
 
-因此 P0-03b 为 Conditional Pass，Issue #22 继续保持打开。它允许架构从“必须有独立进程”推进到“已有可回收硬超时原型”，但仍不允许把任意真实文件缩略图生成放入长期常驻、同权限的产品进程。
+因此 P0-03b 为 Conditional Pass，Issue #22 继续保持打开。它允许架构推进到“已有受限 Low Integrity、可回收硬超时 worker 原型”，但 broker 和真实 provider 矩阵完成前仍不允许对任意文件开放现场缩略图访问。
 
 ## 6. 下一切片
 
-1. 用受限 Low Integrity token 启动实际 worker，并保持重定向管道、Job Object、硬超时和父进程退出清理；
-2. 比较 AppContainer 与受限 token，明确文件访问 broker/句柄传递、Capability 和缓存边界；
-3. 评估受控共享内存并接入正式渲染表面，保持相同长度/格式/尺寸上限；
+1. 比较 AppContainer 与受限 token，明确文件访问 broker/句柄传递、Capability、缓存和受控共享内存边界；
+2. 接入正式渲染表面，保持相同长度/格式/尺寸上限；
+3. 在标准用户、企业策略、Windows 10/11、x64/ARM64 环境复测进程创建与隔离；
 4. 在合成不同格式集和专用云/网络/provider 环境执行 500 个不同项目矩阵；
 5. 把支持矩阵实测结果提交负责人批准最终 CPU/内存/响应预算。
 
-本轮安全语义依据 Microsoft 的 [Mandatory Integrity Control](https://learn.microsoft.com/windows/win32/secauthz/mandatory-integrity-control)、[`CreateRestrictedToken`](https://learn.microsoft.com/windows/win32/api/securitybaseapi/nf-securitybaseapi-createrestrictedtoken) 和 [`SetTokenInformation`](https://learn.microsoft.com/windows/win32/api/securitybaseapi/nf-securitybaseapi-settokeninformation) 文档。MIC 默认执行 no-write-up；本探针不把该结论扩大为完整沙箱或 broker 已完成。
+本轮安全语义依据 Microsoft 的 [Mandatory Integrity Control](https://learn.microsoft.com/windows/win32/secauthz/mandatory-integrity-control)、[`CreateRestrictedToken`](https://learn.microsoft.com/windows/win32/api/securitybaseapi/nf-securitybaseapi-createrestrictedtoken)、[`CreateProcessAsUserW`](https://learn.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasuserw)、[显式句柄继承](https://learn.microsoft.com/windows/win32/procthread/creating-processes)和 [`AssignProcessToJobObject`](https://learn.microsoft.com/windows/win32/api/jobapi2/nf-jobapi2-assignprocesstojobobject) 文档。MIC 默认执行 no-write-up；本探针不把该结论扩大为完整沙箱或 broker 已完成。

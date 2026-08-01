@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -16,6 +15,8 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     private readonly TimeSpan _maximumRestartBackoff;
     private readonly ThumbnailWorkerJob _workerJob;
     private Process? _process;
+    private RestrictedThumbnailWorkerProcess? _workerProcess;
+    private StreamWriter? _inputWriter;
     private BoundedLineReader? _outputReader;
     private int _requestsInCurrentProcess;
     private int _consecutiveTimeouts;
@@ -59,6 +60,8 @@ internal sealed class ThumbnailWorkerClient : IDisposable
 
     internal bool UsesKillOnJobClose => _workerJob.IsConfigured;
 
+    internal bool AllWorkersLowIntegrity { get; private set; } = true;
+
     internal long PeakWorkingSetBytes { get; private set; }
 
     internal int PeakHandleCount { get; private set; }
@@ -88,9 +91,27 @@ internal sealed class ThumbnailWorkerClient : IDisposable
         await ApplyRestartBackoffAsync();
         Process process = EnsureProcess();
         var stopwatch = Stopwatch.StartNew();
-        await process.StandardInput.WriteLineAsync(
-            JsonSerializer.Serialize(request, JsonOptions));
-        await process.StandardInput.FlushAsync();
+        string serializedRequest = JsonSerializer.Serialize(request, JsonOptions);
+        if (serializedRequest.Length > ThumbnailWorkerServer.MaximumRequestCharacters)
+        {
+            stopwatch.Stop();
+            ResetTimeoutStreak();
+            ProtocolKills++;
+            StopProcess(force: true);
+            return new ThumbnailWorkerCallResult(
+                Completed: false,
+                TimedOut: false,
+                WorkerExited: true,
+                ProtocolError: true,
+                Response: null,
+                stopwatch.Elapsed.TotalMilliseconds);
+        }
+
+        await (_inputWriter
+            ?? throw new InvalidOperationException("The worker input is unavailable."))
+            .WriteLineAsync(
+            serializedRequest);
+        await _inputWriter.FlushAsync();
 
         Task<string?> responseTask = (_outputReader
             ?? throw new InvalidOperationException("The worker output is unavailable."))
@@ -233,60 +254,19 @@ internal sealed class ThumbnailWorkerClient : IDisposable
             return _process;
         }
 
-        _process?.Dispose();
-        _process = Process.Start(CreateStartInfo())
-            ?? throw new InvalidOperationException("The thumbnail worker did not start.");
-        try
-        {
-            _workerJob.Assign(_process);
-        }
-        catch
-        {
-            if (!_process.HasExited)
-            {
-                _process.Kill(entireProcessTree: true);
-                _process.WaitForExit();
-            }
-
-            _process.Dispose();
-            _process = null;
-            throw;
-        }
+        _workerProcess?.Dispose();
+        _workerProcess = RestrictedThumbnailWorkerProcess.Start(_workerJob);
+        _process = _workerProcess.Process;
+        _inputWriter = _workerProcess.StandardInput;
+        AllWorkersLowIntegrity &= _workerProcess.IntegrityRid
+            == RestrictedThumbnailTokenProbe.LowIntegrityRid;
 
         _outputReader = new BoundedLineReader(
-            _process.StandardOutput,
+            _workerProcess.StandardOutput,
             ThumbnailWorkerServer.MaximumResponseCharacters);
         _requestsInCurrentProcess = 0;
         ProcessesStarted++;
         return _process;
-    }
-
-    private static ProcessStartInfo CreateStartInfo()
-    {
-        string processPath = Environment.ProcessPath
-            ?? throw new InvalidOperationException("The process path is unavailable.");
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = processPath,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        if (string.Equals(
-            Path.GetFileNameWithoutExtension(processPath),
-            "dotnet",
-            StringComparison.OrdinalIgnoreCase))
-        {
-            startInfo.ArgumentList.Add(Assembly.GetExecutingAssembly().Location);
-        }
-
-        startInfo.ArgumentList.Add("--thumbnail-worker");
-        startInfo.ArgumentList.Add("--parent-pid");
-        startInfo.ArgumentList.Add(Environment.ProcessId.ToString(
-            System.Globalization.CultureInfo.InvariantCulture));
-        return startInfo;
     }
 
     private async Task ApplyRestartBackoffAsync()
@@ -366,7 +346,10 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     private void StopProcess(bool force)
     {
         Process? process = _process;
+        RestrictedThumbnailWorkerProcess? workerProcess = _workerProcess;
         _process = null;
+        _workerProcess = null;
+        _inputWriter = null;
         _outputReader = null;
         _requestsInCurrentProcess = 0;
         if (process is null)
@@ -380,7 +363,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
             {
                 if (!force)
                 {
-                    process.StandardInput.Close();
+                    workerProcess?.StandardInput.Close();
                     if (!process.WaitForExit(milliseconds: 2_000))
                     {
                         force = true;
@@ -395,11 +378,21 @@ internal sealed class ThumbnailWorkerClient : IDisposable
             }
 
             SampleResources(process);
-            TotalCpuMilliseconds += process.TotalProcessorTime.TotalMilliseconds;
+            try
+            {
+                TotalCpuMilliseconds += process.TotalProcessorTime.TotalMilliseconds;
+            }
+            catch (InvalidOperationException)
+            {
+            }
         }
         finally
         {
-            process.Dispose();
+            workerProcess?.Dispose();
+            if (workerProcess is null)
+            {
+                process.Dispose();
+            }
         }
     }
 
