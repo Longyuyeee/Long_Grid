@@ -20,6 +20,8 @@ internal static class ThumbnailProviderMatrixProbe
                 nameof(samples));
         }
 
+        ThumbnailCodecCapabilityResult codecCapabilities =
+            ThumbnailCodecCapabilityProbe.Run();
         IReadOnlyList<ThumbnailParentProviderSampleResult> parentProcess =
             RunParentProcessBaseline(samples);
         ThumbnailProviderStrategyMatrix controlledCopy =
@@ -77,11 +79,13 @@ internal static class ThumbnailProviderMatrixProbe
                     && parent.HResult == worker.HResult)
                 .All(agree => agree);
         bool allSamplesSafelyClassified = sameSampleSet
+            && codecCapabilities.AllQueriesSucceeded
             && parentSamplesSafelyClassified
             && strategiesAgreePerFormat
             && StrategyPassed(controlledCopy, requireAclRestoration: false)
             && StrategyPassed(minimumPathAcl, requireAclRestoration: true);
         return new ThumbnailProviderMatrixResult(
+            codecCapabilities,
             parentProcess,
             controlledCopy,
             minimumPathAcl,
@@ -259,7 +263,8 @@ internal static class ThumbnailProviderMatrixProbe
     private static bool IsKnownShellExtractionUnavailable(
         ThumbnailOwnedProviderSample sample,
         int hResult) =>
-        string.Equals(sample.Format, "HEIC", StringComparison.Ordinal)
+        (string.Equals(sample.Format, "HEIC", StringComparison.Ordinal)
+            || string.Equals(sample.Format, "AVIF", StringComparison.Ordinal))
         && hResult == FailedExtractionHResult;
 
     private static ThumbnailInputTransport GetInputTransport(
@@ -288,6 +293,7 @@ internal static class ThumbnailProviderMatrixProbe
 internal sealed record ThumbnailOwnedProviderSample(string Format, string Path);
 
 internal sealed record ThumbnailProviderMatrixResult(
+    ThumbnailCodecCapabilityResult CodecCapabilities,
     IReadOnlyList<ThumbnailParentProviderSampleResult> ParentProcess,
     ThumbnailProviderStrategyMatrix ControlledCopy,
     ThumbnailProviderStrategyMatrix MinimumPathAcl,

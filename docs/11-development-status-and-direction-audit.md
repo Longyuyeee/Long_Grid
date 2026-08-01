@@ -66,7 +66,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 桌面目录与 Shell Namespace | 用户/Public 目录、Shell Namespace 枚举和差异对账 | E2 / Conditional Pass | 重定向、OneDrive、离线/权限矩阵 |
 | 稳定身份 | 文件对象身份、快捷方式双重身份、重命名跟踪 | E1-E2 | 跨卷、云占位符和长时间运行 |
 | Shell 变化 | 通知合并、恢复与最终全量对账 | E1-E2 | Explorer 重启和高频真实桌面压力 |
-| 图标/缩略图 | 异步加载、取消、句柄闭环；真实零 Capability AppContainer worker、协议 v6 的受控副本/最小路径 ACL 对照、七样本父进程基线与双 build 十四组合、脱敏 handler 注册健康、共享内存像素、未代理读写阻断、正常 ACL 恢复、硬超时/父退出/Profile 清理；合成 500 项预算 | E2 / Conditional Pass | 正式渲染集成、AVIF/HEIC 成功环境、Office/PDF、云/网络、受控第三方 provider/ARM64 矩阵、干净 TIFF 环境、异常 ACL 修复、安全确认和最终预算批准 |
+| 图标/缩略图 | 异步加载、取消、句柄闭环；真实零 Capability AppContainer worker、协议 v6 的受控副本/最小路径 ACL 对照、八样本父进程基线与双 build 十六组合、脱敏 handler 与 HEVC/AV1 decoder 健康、共享内存像素、未代理读写阻断、正常 ACL 恢复、硬超时/父退出/Profile 清理；合成 500 项预算 | E2 / Conditional Pass | 正式渲染集成、HEIC/AVIF 成功环境、Office/PDF、云/网络、受控第三方 provider/ARM64 矩阵、干净 TIFF 环境、异常 ACL 修复、安全确认和最终预算批准 |
 | DesktopHost 规划 | 每显示器 HWND、显式 Region、被动显示、输入门 | E1-E2 | 系统表面和真实输入人工矩阵 |
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
@@ -194,6 +194,12 @@ Windows 22621 本地：BMP/PNG/GIF/JPEG 在父进程和两种 worker 策略均�
 矩阵新增一个静态嵌入、2×2、自有 HEVC 压缩 HEIC 样本，不增加产品或探针运行时依赖。父进程和 worker 继续只输出固定格式标签、精确 HRESULT 与注册健康布尔值。初次运行因未分类的 `0x8004B200` 正确返回 Fail；审计 Windows SDK 后确认该值为 `WTS_E_FAILEDEXTRACTION`，随后只对“HEIC + 该精确 HRESULT”增加 `ShellExtractionUnavailableSafely`，没有接受任意提取失败。
 
 Windows 22621 本机的 HEIC 在父进程和两种 worker 策略中均精确 `0x8004B200`，handler 已注册且模块存在；七个父进程样本和十四个 worker 组合全部安全分类且逐格式一致，500/500、p95 33.43 ms。Windows 26100 PR #58 CI `30710720683` 中，父进程前六项成功但 HEIC 同样精确 `0x8004B200`；两个 AppContainer 策略的十四个输入全部可读，却统一返回 `0x80070005`。因此注册健康不能替代能力探测，HEIC 当前只能安全降级；同时 26100 的 worker 失败仍位于输入授权之后的 AppContainer/Shell 边界。Microsoft 的 HEIF codec 文档也说明 HEVC/AV1 codec 不保证存在，后续必须在受控成功解码环境补正向路径，并继续覆盖 AVIF。
+
+### 4.14 AVIF 与 decoder 能力预检补齐三层证据
+
+矩阵新增一个静态嵌入、2×2、自有 AV1 压缩 AVIF 样本，并在父进程提取前通过 Media Foundation `MFTEnumEx` 查询 HEVC/AV1 video decoder。报告只保留查询成功、HRESULT 和 decoder 是否可枚举，不输出实现身份。首轮 AVIF 因未分类的 `0x8004B200` 正确返回 Fail；确认它与固定 HEIC 样本相同后，只把精确分类扩展到 HEIC/AVIF，没有接受其他格式的通用提取失败。
+
+Windows 22621 本机可枚举 HEVC decoder、不可枚举 AV1 decoder；但 HEIC 与 AVIF 在父进程和两种 worker 策略均精确 `0x8004B200`，说明 decoder 存在仍不能替代 Shell 端到端能力验证。八个父进程样本和十六个 worker 组合全部安全分类且逐格式一致，500/500、p95 29.60 ms。Windows 26100 PR #60 CI `30711608583` 中 HEVC/AV1 decoder 均不可枚举；父进程前六项成功、HEIC/AVIF 精确 `0x8004B200`，两个 AppContainer 策略的十六个输入全部可读并统一 `0x80070005`。下一兼容切片转向受控 HEIC/AVIF 成功环境和 Office/PDF；本轮不安装系统 codec，也不扩大权限或回退路径。
 
 ## 5. 后续开发方向
 

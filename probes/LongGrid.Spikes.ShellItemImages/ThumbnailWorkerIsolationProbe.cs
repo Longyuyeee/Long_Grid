@@ -30,6 +30,7 @@ internal static class ThumbnailWorkerIsolationProbe
             string tiffPath = Path.Combine(root, "owned-sample.tiff");
             string tiffLzwPath = Path.Combine(root, "owned-sample-lzw.tiff");
             string heicPath = Path.Combine(root, "owned-sample.heic");
+            string avifPath = Path.Combine(root, "owned-sample.avif");
             WriteOwnedBitmap(bitmapPath, width: 2, height: 2);
             WriteOwnedBitmap(
                 maximumBitmapPath,
@@ -41,6 +42,7 @@ internal static class ThumbnailWorkerIsolationProbe
             OwnedThumbnailSampleFactory.WriteTiff(tiffPath);
             OwnedThumbnailSampleFactory.WriteTiffLzw(tiffLzwPath);
             OwnedThumbnailSampleFactory.WriteHeic(heicPath);
+            OwnedThumbnailSampleFactory.WriteAvif(avifPath);
             ThumbnailOwnedProviderSample[] providerSamples =
             [
                 new("BMP", bitmapPath),
@@ -50,6 +52,7 @@ internal static class ThumbnailWorkerIsolationProbe
                 new("TIFF-RGB", tiffPath),
                 new("TIFF-LZW", tiffLzwPath),
                 new("HEIC", heicPath),
+                new("AVIF", avifPath),
             ];
             report = await RunMatrixAsync(
                 bitmapPath,
@@ -663,16 +666,16 @@ internal static class ThumbnailWorkerIsolationProbe
             Verdict: "PendingCleanup",
             Privacy:
             [
-                "Only owned synthetic BMP, PNG, GIF, JPEG, TIFF, and HEIC files inside a random temporary sandbox were opened.",
+                "Only owned synthetic BMP, PNG, GIF, JPEG, TIFF, HEIC, and AVIF files inside a random temporary sandbox were opened.",
                 "Only the controlled-copy or probe-owned minimum-ACL path traveled through redirected stdin; neither path appears in command-line arguments or report output.",
-                "No image bytes, names, paths, handler identities, CLSIDs, module paths, or Shell identities are emitted; only fixed format labels, HRESULT classifications, and registration-health booleans are retained for cross-build diagnosis.",
+                "No image bytes, names, paths, handler identities, CLSIDs, module paths, decoder identities, or Shell identities are emitted; only fixed format labels, HRESULT classifications, registration-health booleans, and HEVC/AV1 decoder-availability booleans are retained for cross-build diagnosis.",
             ],
             Limitations:
             [
                 "The worker uses a zero-capability AppContainer; controlled copy remains the default experiment while minimum-path ACL is comparison-only.",
                 "Minimum-path ACL temporarily changes the probe-owned file and parent-directory DACL. Normal cleanup verifies the random AppContainer SID has no explicit ACE, but abnormal parent termination and concurrent DACL modification are not covered.",
                 "Controlled copies do not preserve original-path, neighboring-file, alternate-stream, cloud hydration, or provider-specific path semantics; a raw brokered handle cannot directly replace the IShellItem parsing-name contract and needs a separate provider or decoder experiment.",
-                "The synthetic BMP/PNG/GIF/JPEG/TIFF/HEIC matrix validates one HEVC-compressed HEIC path, not AVIF, Office/PDF, third-party, cloud, network, or adversarial providers.",
+                "The synthetic BMP/PNG/GIF/JPEG/TIFF/HEIC/AVIF matrix validates one HEVC-compressed HEIC and one AV1-compressed AVIF path, not Office/PDF, third-party, cloud, network, or adversarial providers.",
                 "The bounded BGRA payload uses a duplicated unnamed file-mapping handle; formal render-surface integration and the final broker policy remain unimplemented.",
                 "The forced timeout and parent-exit cases use a deterministic worker hang before native extraction because inducing a real provider hang on a user machine is unsafe.",
                 "Budgets are provisional for this machine and must be repeated across the supported Windows and architecture matrix.",
