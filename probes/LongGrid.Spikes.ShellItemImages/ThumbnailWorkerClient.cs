@@ -13,9 +13,10 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     private readonly int _maximumRequestsPerProcess;
     private readonly TimeSpan _initialRestartBackoff;
     private readonly TimeSpan _maximumRestartBackoff;
+    private readonly ThumbnailAppContainerProfile _appContainerProfile;
     private readonly ThumbnailWorkerJob _workerJob;
     private Process? _process;
-    private RestrictedThumbnailWorkerProcess? _workerProcess;
+    private AppContainerThumbnailWorkerProcess? _workerProcess;
     private StreamWriter? _inputWriter;
     private BoundedLineReader? _outputReader;
     private int _requestsInCurrentProcess;
@@ -39,7 +40,16 @@ internal sealed class ThumbnailWorkerClient : IDisposable
         ArgumentOutOfRangeException.ThrowIfLessThan(
             _maximumRestartBackoff,
             _initialRestartBackoff);
-        _workerJob = ThumbnailWorkerJob.Create();
+        _appContainerProfile = ThumbnailAppContainerProfile.Create();
+        try
+        {
+            _workerJob = ThumbnailWorkerJob.Create();
+        }
+        catch
+        {
+            _appContainerProfile.Dispose();
+            throw;
+        }
     }
 
     internal int ProcessesStarted { get; private set; }
@@ -60,7 +70,14 @@ internal sealed class ThumbnailWorkerClient : IDisposable
 
     internal bool UsesKillOnJobClose => _workerJob.IsConfigured;
 
-    internal bool AllWorkersLowIntegrity { get; private set; } = true;
+    internal bool AllWorkersAppContainer { get; private set; } = true;
+
+    internal bool UsesControlledInputCopies =>
+        _appContainerProfile.BrokeredInputCopiesCreated > 0;
+
+    internal string AppContainerProfileName => _appContainerProfile.ProfileName;
+
+    internal bool AppContainerProfileDeleted => _appContainerProfile.WasDeleted;
 
     internal long PeakWorkingSetBytes { get; private set; }
 
@@ -90,14 +107,25 @@ internal sealed class ThumbnailWorkerClient : IDisposable
 
         await ApplyRestartBackoffAsync();
         Process process = EnsureProcess();
+        ThumbnailWorkerRequest brokeredRequest = RequiresBrokeredInput(request)
+            ? request with
+            {
+                Path = _appContainerProfile.BrokerReadOnlyCopy(
+                    request.Path
+                        ?? throw new InvalidDataException(
+                            "An extraction request requires an input path.")),
+                InputTransport = ThumbnailInputTransport.ControlledCopy,
+            }
+            : request;
         using ThumbnailSharedMemoryTransfer? sharedMemory =
-            request.IncludePixels
-                && request.Kind != ThumbnailWorkerRequestKind.MissingPixelBufferRequest
+            brokeredRequest.IncludePixels
+                && brokeredRequest.Kind
+                    != ThumbnailWorkerRequestKind.MissingPixelBufferRequest
                 ? ThumbnailSharedMemoryTransfer.Create(process)
                 : null;
         ThumbnailWorkerRequest transmittedRequest = sharedMemory is null
-            ? request
-            : request with
+            ? brokeredRequest
+            : brokeredRequest with
             {
                 PixelBufferHandle = sharedMemory.WorkerHandle,
                 PixelBufferCapacity = ThumbnailWorkerServer.MaximumPixelBytes,
@@ -271,6 +299,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
 
         StopProcess(force: false);
         _workerJob.Dispose();
+        _appContainerProfile.Dispose();
         _disposed = true;
     }
 
@@ -288,11 +317,12 @@ internal sealed class ThumbnailWorkerClient : IDisposable
         }
 
         _workerProcess?.Dispose();
-        _workerProcess = RestrictedThumbnailWorkerProcess.Start(_workerJob);
+        _workerProcess = AppContainerThumbnailWorkerProcess.Start(
+            _workerJob,
+            _appContainerProfile);
         _process = _workerProcess.Process;
         _inputWriter = _workerProcess.StandardInput;
-        AllWorkersLowIntegrity &= _workerProcess.IntegrityRid
-            == RestrictedThumbnailTokenProbe.LowIntegrityRid;
+        AllWorkersAppContainer &= _workerProcess.IsAppContainer;
 
         _outputReader = new BoundedLineReader(
             _workerProcess.StandardOutput,
@@ -320,6 +350,16 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     }
 
     private void ResetTimeoutStreak() => _consecutiveTimeouts = 0;
+
+    private static bool RequiresBrokeredInput(ThumbnailWorkerRequest request) =>
+        !string.IsNullOrWhiteSpace(request.Path)
+        && request.Path.Length <= 32_767
+        && (request.Kind is ThumbnailWorkerRequestKind.Extract
+                or ThumbnailWorkerRequestKind.MissingPixelBufferRequest
+                or ThumbnailWorkerRequestKind.InvalidPixelBufferCapacityRequest
+            || (request.Kind == ThumbnailWorkerRequestKind.ReadBoundaryProbe
+                && request.InputTransport
+                    == ThumbnailInputTransport.ControlledCopy));
 
     private static bool IsValidResponse(
         ThumbnailWorkerRequest request,
@@ -381,7 +421,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     private void StopProcess(bool force)
     {
         Process? process = _process;
-        RestrictedThumbnailWorkerProcess? workerProcess = _workerProcess;
+        AppContainerThumbnailWorkerProcess? workerProcess = _workerProcess;
         _process = null;
         _workerProcess = null;
         _inputWriter = null;

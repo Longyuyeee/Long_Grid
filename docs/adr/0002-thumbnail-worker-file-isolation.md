@@ -8,9 +8,9 @@
 
 ## 背景
 
-缩略图提供程序属于不受 Long Grid 控制的 Shell 扩展。现有探针已把调用移入可回收的 Low Integrity 受限工作进程，并实现硬超时、Job Object 生命周期、最小启动句柄和有界共享内存像素传输。然而工作进程仍接收原始路径；Low Integrity 默认阻止 write-up，却不会自动阻止读取当前用户本来可读的其他文件。
+缩略图提供程序属于不受 Long Grid 控制的 Shell 扩展。探针先证明 Low Integrity 只阻止 write-up、不能阻止读取当前用户可读的其他文件；当前实现已把真实 `IShellItemImageFactory` worker 迁入零 Capability AppContainer，并保留硬超时、Job Object 生命周期、最小启动句柄和有界共享内存像素传输。
 
-最新实际子进程探针读取了父进程创建、但未通过 broker 授予的中完整性标记文件，同时向同一沙箱写入仍被阻断。这证明受限 Low Integrity token 可以降低写破坏和权限滥用风险，但不能独立承担文件保密边界。
+父进程现在把运行时暂存到随机临时 Profile 的私有存储，并为每个合法提取路径生成单文件最大 32 MiB、client 总计最大 64 MiB、拒绝重解析点的只读受控副本。协议 v5 要求真实提取明确声明 `ControlledCopy`；worker 对原始未授权标记文件的读写均被阻断。该副本方式已关闭探针的直接路径暴露，但不保留原路径、邻接文件、备用数据流、云占位或 provider 路径语义，因此仍是过渡 broker，而不是最终兼容性结论。
 
 ## 决策驱动因素
 
@@ -49,7 +49,9 @@
 
 - 实际 Low Integrity worker：读取未 broker 授权的自有中完整性文件成功，向中完整性目录 write-up 失败；
 - 零 Capability AppContainer：三个挂起启动的控制进程均由 `TokenIsAppContainer` 复核，先加入 `KILL_ON_JOB_CLOSE` Job 再恢复；无操作控制成功，精确 AppContainer SID ACL 授权文件可读，相邻未授权文件被拒绝，临时 Profile 删除成功；
-- 500/500 合成 BMP 提取、250 ms 硬超时与恢复、父进程退出清理通过；
+- 真实缩略图 worker：全部进程由 `TokenIsAppContainer` 复核，零 Capability、显式标准流句柄白名单、挂起后先入 Job；未代理读写均被拒绝，受控 BMP 副本可提取；
+- 协议 v5 强制 `ControlledCopy`，输入上限 32 MiB、拒绝重解析点；正常回收和父进程无清理退出两种路径均删除临时 Profile；
+- 500/500 合成 BMP 提取、p95 29.70 ms、250 ms 硬超时与恢复、父进程退出清理通过；
 - 共享内存返回最大 256×256 BGRA32，九类像素/映射故障均被拒绝并恢复；
 - Microsoft 文档说明 Mandatory Integrity Control 使用完整性策略限制访问，默认强制 no-write-up；AppContainer 用于隔离进程并按 capability/对象 ACL 控制资源访问。
 
@@ -69,8 +71,8 @@
 
 ### 后续工作
 
-1. 把现有缩略图 worker 迁入无宽泛 Capability 的 AppContainer，并保留挂起启动、Job、标准流白名单、硬超时与共享内存合同；
-2. 在实际 Shell 提取中比较 brokered handle、受控副本和已通过边界探针的最小路径 ACL 三种单请求输入方式；
+1. 比较 brokered handle、当前受控副本和已通过边界探针的最小路径 ACL 三种单请求输入方式，优先验证不复制的最小只读授权；
+2. 为受控副本补充类型/水合策略、缓存预算和多文件隔离测试，不允许静默水合或扩大 Capability；
 3. 验证 BMP、常见图片、Office/PDF、OneDrive、网络路径和第三方 provider；
 4. 将通过的合同迁入正式渲染接口，并保留类型图标安全回退；
 5. 由安全负责人确认后把本 ADR 改为 Accepted 或 Revised。

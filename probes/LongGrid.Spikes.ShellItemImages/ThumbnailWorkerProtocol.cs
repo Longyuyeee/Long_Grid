@@ -22,6 +22,12 @@ internal enum ThumbnailWorkerRequestKind
     Exit,
 }
 
+internal enum ThumbnailInputTransport
+{
+    DirectPath = 1,
+    ControlledCopy = 2,
+}
+
 internal sealed record ThumbnailWorkerRequest(
     int ProtocolVersion,
     string RequestId,
@@ -31,7 +37,8 @@ internal sealed record ThumbnailWorkerRequest(
     ShellItemImageFactoryFlags Flags,
     bool IncludePixels = false,
     long? PixelBufferHandle = null,
-    int PixelBufferCapacity = 0);
+    int PixelBufferCapacity = 0,
+    ThumbnailInputTransport InputTransport = ThumbnailInputTransport.DirectPath);
 
 internal enum ThumbnailPixelFormat
 {
@@ -65,7 +72,7 @@ internal sealed record ThumbnailWorkerResponse(
 
 internal static class ThumbnailWorkerServer
 {
-    internal const int CurrentProtocolVersion = 4;
+    internal const int CurrentProtocolVersion = 5;
     internal const int MaximumRequestCharacters = 65_536;
     internal const int MaximumPixelDimension = 256;
     internal const int MaximumPixelBytes =
@@ -78,15 +85,21 @@ internal static class ThumbnailWorkerServer
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     };
 
-    internal static async Task<int> RunAsync(int parentProcessId)
+    internal static async Task<int> RunAsync(int? parentProcessId)
     {
-        using Process? parentProcess = TryOpenParentProcess(parentProcessId);
-        if (parentProcess is null || parentProcess.HasExited)
+        using Process? parentProcess = parentProcessId is int processId
+            ? TryOpenParentProcess(processId)
+            : null;
+        if (parentProcessId is not null
+            && (parentProcess is null || parentProcess.HasExited))
         {
             return 72;
         }
 
-        _ = ExitWhenParentExitsAsync(parentProcess);
+        if (parentProcess is not null)
+        {
+            _ = ExitWhenParentExitsAsync(parentProcess);
+        }
         var reader = new BoundedLineReader(
             Console.In,
             MaximumRequestCharacters);
@@ -193,7 +206,10 @@ internal static class ThumbnailWorkerServer
             if (request.Kind is ThumbnailWorkerRequestKind.MissingPixelBufferRequest
                 or ThumbnailWorkerRequestKind.InvalidPixelBufferCapacityRequest)
             {
-                request = request with { Kind = ThumbnailWorkerRequestKind.Extract };
+                request = request with
+                {
+                    Kind = ThumbnailWorkerRequestKind.Extract,
+                };
             }
 
             if (request.Kind is ThumbnailWorkerRequestKind.ReadBoundaryProbe
@@ -253,6 +269,7 @@ internal static class ThumbnailWorkerServer
             if (request.Kind != ThumbnailWorkerRequestKind.Extract
                 || string.IsNullOrWhiteSpace(request.Path)
                 || request.Path.Length > 32_767
+                || request.InputTransport != ThumbnailInputTransport.ControlledCopy
                 || request.Size is < 1 or > 1_024
                 || (request.IncludePixels
                     && (request.Size > MaximumPixelDimension

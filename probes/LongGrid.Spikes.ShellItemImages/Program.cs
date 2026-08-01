@@ -29,6 +29,13 @@ internal static class Program
         }
 
         if (args.Length == 2
+            && string.Equals(args[0], "--thumbnail-worker", StringComparison.Ordinal)
+            && string.Equals(args[1], "--job-only", StringComparison.Ordinal))
+        {
+            return await ThumbnailWorkerServer.RunAsync(parentProcessId: null);
+        }
+
+        if (args.Length == 2
             && string.Equals(
                 args[0],
                 "--thumbnail-parent-exit-probe",
@@ -50,8 +57,9 @@ internal static class Program
             string pendingReadyPath = args[1] + ".pending";
             await File.WriteAllTextAsync(
                 pendingReadyPath,
-                workerProcessId.ToString(
-                    System.Globalization.CultureInfo.InvariantCulture));
+                JsonSerializer.Serialize(new ThumbnailParentExitReady(
+                    workerProcessId,
+                    client.AppContainerProfileName)));
             File.Move(pendingReadyPath, args[1]);
             Environment.Exit(0);
             return 0;
@@ -347,6 +355,10 @@ internal static class Program
             """);
     }
 }
+
+internal sealed record ThumbnailParentExitReady(
+    int WorkerProcessId,
+    string AppContainerProfileName);
 
 internal sealed record ProbeOptions(bool Json, bool ShowHelp)
 {

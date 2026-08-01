@@ -1,11 +1,10 @@
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
-internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
+internal sealed class AppContainerThumbnailWorkerProcess : IDisposable
 {
     private const uint CreateNoWindow = 0x08000000;
     private const uint CreateSuspended = 0x00000004;
@@ -16,18 +15,22 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
     private const uint OpenExisting = 3;
     private const uint StartfUseStdHandles = 0x00000100;
     private const uint HandleFlagInherit = 0x00000001;
+    private const uint TokenQuery = 0x0008;
+    private const int TokenIsAppContainer = 29;
     private static readonly nuint ProcThreadAttributeHandleList = 0x00020002;
+    private static readonly nuint ProcThreadAttributeSecurityCapabilities =
+        0x00020009;
 
-    private RestrictedThumbnailWorkerProcess(
+    private AppContainerThumbnailWorkerProcess(
         Process process,
         StreamWriter standardInput,
         StreamReader standardOutput,
-        int integrityRid)
+        bool isAppContainer)
     {
         Process = process;
         StandardInput = standardInput;
         StandardOutput = standardOutput;
-        IntegrityRid = integrityRid;
+        IsAppContainer = isAppContainer;
     }
 
     internal Process Process { get; }
@@ -36,14 +39,14 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
 
     internal StreamReader StandardOutput { get; }
 
-    internal int IntegrityRid { get; }
+    internal bool IsAppContainer { get; }
 
-    internal static RestrictedThumbnailWorkerProcess Start(
-        ThumbnailWorkerJob workerJob)
+    internal static AppContainerThumbnailWorkerProcess Start(
+        ThumbnailWorkerJob workerJob,
+        ThumbnailAppContainerProfile profile)
     {
         ArgumentNullException.ThrowIfNull(workerJob);
-        using SafeAccessTokenHandle token =
-            RestrictedThumbnailTokenProbe.CreateLowIntegrityPrimaryToken();
+        ArgumentNullException.ThrowIfNull(profile);
         SafeFileHandle? childStandardInput = null;
         SafeFileHandle? parentStandardInput = null;
         SafeFileHandle? childStandardOutput = null;
@@ -53,6 +56,7 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
         FileStream? outputStream = null;
         Process? process = null;
         nint attributeList = nint.Zero;
+        nint securityCapabilitiesPointer = nint.Zero;
         nint inheritedHandleList = nint.Zero;
         nint commandLineBuffer = nint.Zero;
         ProcessInformation processInformation = default;
@@ -67,9 +71,11 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
                 out parentStandardOutput);
             childStandardError = OpenInheritedNullOutput();
             attributeList = CreateAttributeList(
+                profile.AppContainerSid,
                 childStandardInput,
                 childStandardOutput,
                 childStandardError,
+                out securityCapabilitiesPointer,
                 out inheritedHandleList);
             var startupInfo = new StartupInfoEx
             {
@@ -83,13 +89,10 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
                 },
                 AttributeList = attributeList,
             };
-            string applicationPath = Environment.ProcessPath
-                ?? throw new InvalidOperationException(
-                    "The process path is unavailable.");
+            string applicationPath = profile.WorkerExecutablePath;
             commandLineBuffer = Marshal.StringToHGlobalUni(
-                BuildCommandLine(applicationPath));
-            if (!CreateProcessAsUser(
-                token,
+                $"{QuoteArgument(applicationPath)} --thumbnail-worker --job-only");
+            if (!CreateProcess(
                 applicationPath,
                 commandLineBuffer,
                 nint.Zero,
@@ -97,24 +100,23 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
                 inheritHandles: true,
                 CreateNoWindow | CreateSuspended | ExtendedStartupInfoPresent,
                 nint.Zero,
-                Environment.CurrentDirectory,
+                Path.GetDirectoryName(applicationPath),
                 ref startupInfo,
                 out processInformation))
             {
                 throw new Win32Exception(
                     Marshal.GetLastWin32Error(),
-                    "The restricted thumbnail worker did not start.");
+                    "The AppContainer thumbnail worker did not start.");
             }
 
             processCreated = true;
             workerJob.Assign(processInformation.Process);
-            int integrityRid = RestrictedThumbnailTokenProbe.GetProcessIntegrityRid(
-                processInformation.Process);
+            bool isAppContainer = QueryIsAppContainer(processInformation.Process);
             if (ResumeThread(processInformation.Thread) == uint.MaxValue)
             {
                 throw new Win32Exception(
                     Marshal.GetLastWin32Error(),
-                    "The restricted thumbnail worker did not resume.");
+                    "The AppContainer thumbnail worker did not resume.");
             }
 
             process = Process.GetProcessById(
@@ -138,11 +140,11 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
                 outputStream,
                 Encoding.UTF8,
                 detectEncodingFromByteOrderMarks: true);
-            return new RestrictedThumbnailWorkerProcess(
+            return new AppContainerThumbnailWorkerProcess(
                 process,
                 input,
                 output,
-                integrityRid);
+                isAppContainer);
         }
         catch
         {
@@ -167,6 +169,11 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
             {
                 DeleteProcThreadAttributeList(attributeList);
                 Marshal.FreeHGlobal(attributeList);
+            }
+
+            if (securityCapabilitiesPointer != nint.Zero)
+            {
+                Marshal.FreeHGlobal(securityCapabilitiesPointer);
             }
 
             if (inheritedHandleList != nint.Zero)
@@ -198,6 +205,29 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
         Process.Dispose();
     }
 
+    private static bool QueryIsAppContainer(nint processHandle)
+    {
+        if (!OpenProcessToken(processHandle, TokenQuery, out SafeAccessTokenHandle token))
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+
+        using (token)
+        {
+            if (!GetTokenInformation(
+                token,
+                TokenIsAppContainer,
+                out int isAppContainer,
+                sizeof(int),
+                out _))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            return isAppContainer != 0;
+        }
+    }
+
     private static SafeFileHandle CreatePipePair(
         bool parentReads,
         out SafeFileHandle parentHandle)
@@ -218,10 +248,7 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
 
         SafeFileHandle childHandle = parentReads ? writeHandle : readHandle;
         parentHandle = parentReads ? readHandle : writeHandle;
-        if (!SetHandleInformation(
-            parentHandle,
-            HandleFlagInherit,
-            flags: 0))
+        if (!SetHandleInformation(parentHandle, HandleFlagInherit, flags: 0))
         {
             int error = Marshal.GetLastWin32Error();
             childHandle.Dispose();
@@ -256,26 +283,54 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
     }
 
     private static nint CreateAttributeList(
+        nint appContainerSid,
         SafeFileHandle standardInput,
         SafeFileHandle standardOutput,
         SafeFileHandle standardError,
+        out nint securityCapabilitiesPointer,
         out nint inheritedHandleList)
     {
         nuint attributeListSize = 0;
         _ = InitializeProcThreadAttributeList(
             nint.Zero,
-            attributeCount: 1,
+            attributeCount: 2,
             flags: 0,
             ref attributeListSize);
         nint attributeList = Marshal.AllocHGlobal(checked((int)attributeListSize));
+        securityCapabilitiesPointer = nint.Zero;
         inheritedHandleList = nint.Zero;
         try
         {
             if (!InitializeProcThreadAttributeList(
                 attributeList,
-                attributeCount: 1,
+                attributeCount: 2,
                 flags: 0,
                 ref attributeListSize))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            var capabilities = new SecurityCapabilities
+            {
+                AppContainerSid = appContainerSid,
+                Capabilities = nint.Zero,
+                CapabilityCount = 0,
+                Reserved = 0,
+            };
+            securityCapabilitiesPointer = Marshal.AllocHGlobal(
+                Marshal.SizeOf<SecurityCapabilities>());
+            Marshal.StructureToPtr(
+                capabilities,
+                securityCapabilitiesPointer,
+                fDeleteOld: false);
+            if (!UpdateProcThreadAttribute(
+                attributeList,
+                flags: 0,
+                ProcThreadAttributeSecurityCapabilities,
+                securityCapabilitiesPointer,
+                (nuint)Marshal.SizeOf<SecurityCapabilities>(),
+                nint.Zero,
+                nint.Zero))
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error());
             }
@@ -306,6 +361,12 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
         catch
         {
             Marshal.FreeHGlobal(attributeList);
+            if (securityCapabilitiesPointer != nint.Zero)
+            {
+                Marshal.FreeHGlobal(securityCapabilitiesPointer);
+                securityCapabilitiesPointer = nint.Zero;
+            }
+
             if (inheritedHandleList != nint.Zero)
             {
                 Marshal.FreeHGlobal(inheritedHandleList);
@@ -316,54 +377,8 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
         }
     }
 
-    private static string BuildCommandLine(string applicationPath)
-    {
-        var arguments = new List<string> { applicationPath };
-        if (string.Equals(
-            Path.GetFileNameWithoutExtension(applicationPath),
-            "dotnet",
-            StringComparison.OrdinalIgnoreCase))
-        {
-            arguments.Add(Assembly.GetExecutingAssembly().Location);
-        }
-
-        arguments.Add("--thumbnail-worker");
-        arguments.Add("--parent-pid");
-        arguments.Add(Environment.ProcessId.ToString(
-            System.Globalization.CultureInfo.InvariantCulture));
-        return string.Join(' ', arguments.Select(QuoteArgument));
-    }
-
-    private static string QuoteArgument(string argument)
-    {
-        var quoted = new StringBuilder(argument.Length + 2);
-        quoted.Append('"');
-        int backslashes = 0;
-        foreach (char character in argument)
-        {
-            if (character == '\\')
-            {
-                backslashes++;
-                continue;
-            }
-
-            if (character == '"')
-            {
-                quoted.Append('\\', (backslashes * 2) + 1);
-                quoted.Append(character);
-                backslashes = 0;
-                continue;
-            }
-
-            quoted.Append('\\', backslashes);
-            backslashes = 0;
-            quoted.Append(character);
-        }
-
-        quoted.Append('\\', backslashes * 2);
-        quoted.Append('"');
-        return quoted.ToString();
-    }
+    private static string QuoteArgument(string argument) =>
+        $"\"{argument.Replace("\"", "\\\"")}\"";
 
     [StructLayout(LayoutKind.Sequential)]
     private struct SecurityAttributes
@@ -372,6 +387,15 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
         internal nint SecurityDescriptor;
         [MarshalAs(UnmanagedType.Bool)]
         internal bool InheritHandle;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SecurityCapabilities
+    {
+        internal nint AppContainerSid;
+        internal nint Capabilities;
+        internal uint CapabilityCount;
+        internal uint Reserved;
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -413,10 +437,9 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
         internal uint ThreadId;
     }
 
-    [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [DllImport("kernel32.dll", EntryPoint = "CreateProcessW", CharSet = CharSet.Unicode, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool CreateProcessAsUser(
-        SafeAccessTokenHandle token,
+    private static extern bool CreateProcess(
         string applicationName,
         nint commandLine,
         nint processAttributes,
@@ -424,9 +447,25 @@ internal sealed class RestrictedThumbnailWorkerProcess : IDisposable
         [MarshalAs(UnmanagedType.Bool)] bool inheritHandles,
         uint creationFlags,
         nint environment,
-        string currentDirectory,
+        string? currentDirectory,
         ref StartupInfoEx startupInfo,
         out ProcessInformation processInformation);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool OpenProcessToken(
+        nint processHandle,
+        uint desiredAccess,
+        out SafeAccessTokenHandle token);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetTokenInformation(
+        SafeAccessTokenHandle token,
+        int tokenInformationClass,
+        out int tokenInformation,
+        int tokenInformationLength,
+        out int returnLength);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
