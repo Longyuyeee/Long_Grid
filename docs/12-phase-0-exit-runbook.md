@@ -86,7 +86,7 @@ dotnet test LongGrid.sln --configuration Release --no-build
 | #21 | ACL、共享占用、只读卷、磁盘满 | VM/可还原快照；不得破坏系统目录 | Pending |
 | #21 | OneDrive、网络、重解析点、真实取消 | 专用账号/共享；默认阻断优先 | Pending |
 | #22 | 受限 Low Integrity worker 启动与读/写边界 | 实际 worker 为 Low；自有输入可读，write-up 被阻断；挂起后先入 Job；仅继承三标准流 | Conditional Pass（自动探针） |
-| #22 | AppContainer/受限 token 决策与访问 broker | 实际 Low worker 可读取未 broker 授权文件；ADR-0002 建议 AppContainer + 单请求 broker，不授予宽泛 Capability | Pending security owner acceptance and implementation |
+| #22 | AppContainer/受限 token 决策与访问 broker | 实际 Low worker 可读取未授权文件；零 Capability AppContainer 启动/令牌/Job/Profile 清理通过，精确 SID ACL 授权文件可读且相邻未授权文件被拒绝 | Conditional Pass（边界探针）；真实 worker/broker Pending |
 | #22 | 有界共享内存句柄 broker | 匿名映射、单请求复制句柄、最大 262,144 bytes；缺失句柄/错误容量/元数据错误全部阻断并恢复 | Conditional Pass（自动探针） |
 | #22 | 正式渲染表面集成 | 保持已验证的 transport、长度、格式、尺寸和容量上限 | Pending |
 | #22 | 真实 Provider、x64/ARM64、Windows 矩阵 | 专用样本，不输出名称/路径 | Pending |

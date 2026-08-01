@@ -493,7 +493,7 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 
 ## 21. 仓库落地顺序
 
-当前已完成基础解决方案、Core、测试、PR CI、桌面/Shell 数据链、DesktopHost/显示恢复系列探针、首个可交互宿主切片、配置持久化、文件安全与缩略图 worker 探针，PR #2–#18、#25–#44 已收口并进入 `main`。主干保护要求 `build-test`，CI 强制覆盖率、配置、文件安全、缩略图 worker 与依赖漏洞门禁，旧功能分支已删除；剩余门禁由 `Phase 0 Exit` milestone 与 Issue #19–#24 跟踪，实机与负责人步骤见[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)。多数能力仍为 Conditional Pass。当前事实与详细差距见[开发状态与后续方向审计](11-development-status-and-direction-audit.md)。
+当前已完成基础解决方案、Core、测试、PR CI、桌面/Shell 数据链、DesktopHost/显示恢复系列探针、首个可交互宿主切片、配置持久化、文件安全与缩略图 worker 探针，PR #2–#18、#25–#45 已收口并进入 `main`。主干保护要求 `build-test`，CI 强制覆盖率、配置、文件安全、缩略图 worker 与依赖漏洞门禁，旧功能分支已删除；剩余门禁由 `Phase 0 Exit` milestone 与 Issue #19–#24 跟踪，实机与负责人步骤见[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)。多数能力仍为 Conditional Pass。当前事实与详细差距见[开发状态与后续方向审计](11-development-status-and-direction-audit.md)。
 
 后续按以下顺序继续：
 
