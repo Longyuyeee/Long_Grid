@@ -66,7 +66,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 桌面目录与 Shell Namespace | 用户/Public 目录、Shell Namespace 枚举和差异对账 | E2 / Conditional Pass | 重定向、OneDrive、离线/权限矩阵 |
 | 稳定身份 | 文件对象身份、快捷方式双重身份、重命名跟踪 | E1-E2 | 跨卷、云占位符和长时间运行 |
 | Shell 变化 | 通知合并、恢复与最终全量对账 | E1-E2 | Explorer 重启和高频真实桌面压力 |
-| 图标/缩略图 | 异步加载、取消、句柄闭环；真实零 Capability AppContainer worker、协议 v6 的受控副本/最小路径 ACL 对照、BMP/PNG/GIF 双 build 六组合、共享内存像素、未代理读写阻断、正常 ACL 恢复、硬超时/父退出/Profile 清理；合成 500 项预算 | E2 / Conditional Pass | 正式渲染集成、JPEG/HEIF、Office/PDF、云/网络、第三方 provider/ARM64 矩阵、异常 ACL 修复、安全确认和最终预算批准 |
+| 图标/缩略图 | 异步加载、取消、句柄闭环；真实零 Capability AppContainer worker、协议 v6 的受控副本/最小路径 ACL 对照、BMP/PNG/GIF/JPEG/TIFF 双 build 十组合、共享内存像素、未代理读写阻断、正常 ACL 恢复、硬超时/父退出/Profile 清理；合成 500 项预算 | E2 / Conditional Pass | 正式渲染集成、HEIF、Office/PDF、云/网络、第三方 provider/ARM64 矩阵、TIFF 模块定位、异常 ACL 修复、安全确认和最终预算批准 |
 | DesktopHost 规划 | 每显示器 HWND、显式 Region、被动显示、输入门 | E1-E2 | 系统表面和真实输入人工矩阵 |
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
@@ -179,9 +179,9 @@ PR #39 合入后的首轮主干 CI `30690663507` 识别出父进程退出探针�
 
 ### 4.11 首轮 build × format/provider 矩阵已建立
 
-探针现在只在随机临时沙箱生成自有 BMP、PNG、GIF，并对每个格式分别执行 `ControlledCopy` 与 `MinimumPathAcl`。每项必须先证明授权输入可直接读取，再只接受 Shell 提取成功或精确 `E_ACCESSDENIED`；两套 client 还必须全部为 AppContainer、使用目标授权策略、恢复 ACL 并删除 Profile。首版 read-control 漏填 transport 时，六次 Shell 提取虽成功但六个直接读控制全部失败，矩阵正确返回 Fail；修正为显式 transport 后才通过，没有放宽判定。
+探针现在只在随机临时沙箱生成自有 BMP、PNG、GIF、JPEG、TIFF，并对每个格式分别执行 `ControlledCopy` 与 `MinimumPathAcl`。每项必须先证明授权输入可直接读取，再只接受 Shell 提取成功、精确 `E_ACCESSDENIED` 或精确 `ERROR_MOD_NOT_FOUND`；同一格式的两种策略必须得到相同分类与 HRESULT，两套 client 还必须全部为 AppContainer、使用目标授权策略、恢复 ACL 并删除 Profile。首版 read-control 漏填 transport 时，六次 Shell 提取虽成功但六个直接读控制全部失败，矩阵正确返回 Fail；修正为显式 transport 后才通过，没有放宽判定。
 
-Windows 22621 本地六个组合全部提取成功，默认副本压力 500/500、p95 30.64 ms。Windows 26100 PR CI `30707642535` 中六个组合全部输入可读，却全部返回 `0x80070005`。因此目前没有发现 BMP/PNG/GIF 的格式特例，26100 结论更接近整体 Shell/AppContainer/build 兼容限制。该证据仍是 E2：它不覆盖 JPEG/HEIF、Office/PDF、真实第三方 provider、云/网络水合、ARM64 或 500 个不同项目，也不授权读取用户文件。
+Windows 22621 本地十个组合全部输入可读且同格式两种策略完全一致：BMP/PNG/GIF/JPEG 八组合提取成功，TIFF 两组合精确返回 `0x8007007E`；默认副本压力 500/500、p95 30.60 ms。五格式首次运行错误地要求跨格式结果一致，因此在 TIFF 暴露 provider/module 缺失时返回 Fail；修正后保留 `UniformOutcomeAcrossFormats=false` 作为证据，只把同格式策略一致性作为门禁，没有扩大精确 HRESULT 白名单。Windows 26100 PR CI `30708551166` 中十个组合全部输入可读，却全部返回 `0x80070005`，说明该环境的更早 Shell/AppContainer/build 访问限制覆盖了 22621 可观察到的 TIFF 差异。该证据仍是 E2：它不覆盖 HEIF、Office/PDF、真实第三方 provider、云/网络水合、ARM64 或 500 个不同项目，也不授权读取用户文件。
 
 ## 5. 后续开发方向
 
