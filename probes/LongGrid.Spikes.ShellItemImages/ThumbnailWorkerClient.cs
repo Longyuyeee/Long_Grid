@@ -90,8 +90,30 @@ internal sealed class ThumbnailWorkerClient : IDisposable
 
         await ApplyRestartBackoffAsync();
         Process process = EnsureProcess();
+        using ThumbnailSharedMemoryTransfer? sharedMemory =
+            request.IncludePixels
+                && request.Kind != ThumbnailWorkerRequestKind.MissingPixelBufferRequest
+                ? ThumbnailSharedMemoryTransfer.Create(process)
+                : null;
+        ThumbnailWorkerRequest transmittedRequest = sharedMemory is null
+            ? request
+            : request with
+            {
+                PixelBufferHandle = sharedMemory.WorkerHandle,
+                PixelBufferCapacity = ThumbnailWorkerServer.MaximumPixelBytes,
+            };
+        if (request.Kind
+            == ThumbnailWorkerRequestKind.InvalidPixelBufferCapacityRequest)
+        {
+            transmittedRequest = transmittedRequest with
+            {
+                PixelBufferCapacity = ThumbnailWorkerServer.MaximumPixelBytes - 1,
+            };
+        }
         var stopwatch = Stopwatch.StartNew();
-        string serializedRequest = JsonSerializer.Serialize(request, JsonOptions);
+        string serializedRequest = JsonSerializer.Serialize(
+            transmittedRequest,
+            JsonOptions);
         if (serializedRequest.Length > ThumbnailWorkerServer.MaximumRequestCharacters)
         {
             stopwatch.Stop();
@@ -195,9 +217,9 @@ internal sealed class ThumbnailWorkerClient : IDisposable
             || response.ProtocolVersion != ThumbnailWorkerServer.CurrentProtocolVersion
             || !string.Equals(
                 response.RequestId,
-                request.RequestId,
+                transmittedRequest.RequestId,
                 StringComparison.Ordinal)
-            || !IsValidResponse(request, response))
+            || !IsValidResponse(transmittedRequest, response))
         {
             ResetTimeoutStreak();
             ProtocolKills++;
@@ -209,6 +231,17 @@ internal sealed class ThumbnailWorkerClient : IDisposable
                 ProtocolError: true,
                 Response: null,
                 stopwatch.Elapsed.TotalMilliseconds);
+        }
+
+        if (sharedMemory is not null && response.Pixels is not null)
+        {
+            response = response with
+            {
+                Pixels = response.Pixels with
+                {
+                    Bytes = sharedMemory.Read(response.Pixels.ByteLength),
+                },
+            };
         }
 
         _requestsInCurrentProcess++;
@@ -318,12 +351,15 @@ internal sealed class ThumbnailWorkerClient : IDisposable
 
         ThumbnailPixelPayload? pixels = response.Pixels;
         if (pixels is null
+            || pixels.Transport != ThumbnailPixelTransport.SharedMemory
             || pixels.Format != ThumbnailPixelFormat.Bgra32
             || pixels.Width != response.Width
             || pixels.Height != response.Height
             || pixels.Width > ThumbnailWorkerServer.MaximumPixelDimension
             || pixels.Height > ThumbnailWorkerServer.MaximumPixelDimension
-            || pixels.Bytes is null)
+            || pixels.Bytes is not null
+            || request.PixelBufferHandle is null
+            || request.PixelBufferCapacity != ThumbnailWorkerServer.MaximumPixelBytes)
         {
             return false;
         }
@@ -334,7 +370,6 @@ internal sealed class ThumbnailWorkerClient : IDisposable
             int expectedLength = checked(expectedStride * pixels.Height);
             return pixels.Stride == expectedStride
                 && pixels.ByteLength == expectedLength
-                && pixels.Bytes.Length == expectedLength
                 && expectedLength <= ThumbnailWorkerServer.MaximumPixelBytes;
         }
         catch (OverflowException)

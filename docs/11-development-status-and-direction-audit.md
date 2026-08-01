@@ -2,7 +2,7 @@
 
 审计日期：2026-08-01
 
-审计基线：`main` / `ccac5b0`
+审计基线：`main` / `7d60545`，加本轮共享内存句柄 broker 切片
 
 审计范围：代码、测试、技术探针、架构/产品/交互文档、GitHub PR 与 CI
 
@@ -47,7 +47,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 |---|---|---|
 | 工程 | .NET 8 SDK 锁定、集中包版本、nullable、警告即错误、确定性构建 | 已建立 |
 | 解决方案 | `main` 有 1 个 Core、1 个测试和 9 个探针项目 | 已建立，但不是产品分层 |
-| 代码 | 当前分支有 17 个 Core、12 个测试和 48 个探针 C# 源文件 | 以风险验证为主 |
+| 代码 | 当前分支有 17 个 Core、12 个测试和 49 个探针 C# 源文件 | 以风险验证为主 |
 | 测试 | 当前全量 88 项测试通过 | Core 回归基线有效 |
 | CI | 单一 Windows workflow 执行 restore、format、build、test、覆盖率门禁、配置/文件安全/缩略图 worker 探针、依赖漏洞门禁并上传 TRX/Cobertura | PR 基线有效；行覆盖率最低 90%、分支覆盖率最低 75%，尚无 CodeQL 或发布流水线 |
 | 文档 | PRD、架构、质量、竞品、交互、协议、流程、ADR、20 份 Spike 报告 | 覆盖较完整 |
@@ -66,7 +66,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 桌面目录与 Shell Namespace | 用户/Public 目录、Shell Namespace 枚举和差异对账 | E2 / Conditional Pass | 重定向、OneDrive、离线/权限矩阵 |
 | 稳定身份 | 文件对象身份、快捷方式双重身份、重命名跟踪 | E1-E2 | 跨卷、云占位符和长时间运行 |
 | Shell 变化 | 通知合并、恢复与最终全量对账 | E1-E2 | Explorer 重启和高频真实桌面压力 |
-| 图标/缩略图 | 异步加载、取消、句柄闭环；受限 Low Integrity worker 挂起启动/先入 Job/最小句柄继承、硬超时、有界协议故障恢复、父进程 PID/Job Object 双重退出清理、连续超时退避、有界 BGRA32 像素 IPC、worker 写阻断和合成 500 项预算 | E2 / Conditional Pass | AppContainer/受限 token 与 broker 决策、共享内存/渲染集成、真实 provider/支持矩阵与最终预算批准 |
+| 图标/缩略图 | 异步加载、取消、句柄闭环；受限 Low Integrity worker 挂起启动/先入 Job/最小句柄继承、硬超时、有界协议故障恢复、父进程 PID/Job Object 双重退出清理、连续超时退避、显式复制匿名映射句柄的有界 BGRA32 IPC、worker 写阻断和合成 500 项预算 | E2 / Conditional Pass | AppContainer/受限 token 与文件 broker 决策、正式渲染集成、真实 provider/支持矩阵与最终预算批准 |
 | DesktopHost 规划 | 每显示器 HWND、显式 Region、被动显示、输入门 | E1-E2 | 系统表面和真实输入人工矩阵 |
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
@@ -144,6 +144,14 @@ PR #39 合入后的首轮主干 CI `30690663507` 识别出父进程退出探针�
 
 - 必须比较 AppContainer 与受限 Low Integrity token，并定义文件 broker/句柄传递、Capability、缓存和受控共享内存边界；
 - 正式产品配置 schema、Infrastructure 接线和安装范围必须等待 #23 确认首版模式、最低系统、架构、渠道与许可证。
+
+### 4.7 显式共享内存句柄 broker 已跑通，文件访问 broker 仍未定义
+
+目标进程获得的映射句柄不可继承且只请求 `FILE_MAP_WRITE`；父进程保留原始映射并只读取结果，避免把父进程的完整映射权限复制给 worker。
+
+协议 v3 不再把正常 BGRA32 字节编码进 JSON。父进程创建匿名、不可执行、最大 262,144 bytes 的页文件映射，并用 `DuplicateHandle` 把不可继承句柄复制到当前 Low Integrity worker；协议只传目标进程中的句柄值、固定容量和像素元数据。Worker 映射写入后关闭目标句柄，父进程只读映射并复核 transport、格式、尺寸、步幅、声明长度、容量和非零内容。缺失句柄、错误容量、错误格式/尺寸/步幅/长度、畸形旧 inline 编码、未请求负载和超限尺寸均被拒绝，9/9 后续恢复成功。
+
+这证明了“主进程按请求授予一个有界内核对象能力”的机制，可复用于 AppContainer 或受限 token；它不是文件 broker 已完成。缩略图 worker 目前仍接收路径并依赖 Low Integrity 的 no-write-up，而不是由主进程授予最小文件句柄/受控副本。下一决策必须比较：AppContainer capability/broker、受限 token + 受控副本/路径授权，以及真实 Shell provider 对原路径语义的依赖。
 
 在上述决定前，可继续准备专用环境与实机执行，但不应默认某种权限模型或创建承诺兼容性的正式 schema。
 
