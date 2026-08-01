@@ -35,7 +35,7 @@ Long Grid 是一款面向 Windows 10/11 的桌面整理与工作空间管理工�
 
 ## 建议的下一步
 
-按 `Phase 0 Exit` milestone 推进：Issue #19 完成人工输入/Narrator/系统表面矩阵，#20 完成动态显示，#21–#22 完成文件安全、缩略图隔离与 500 项性能，#23 完成体验和产品决策，#24 跟踪配置的真实卷与产品接线边界。负责人批准 ADR-0001 后，才建立第一个只读 MVP 垂直切片。详见[当前开发状态与后续方向审计](docs/11-development-status-and-direction-audit.md)。
+按 `Phase 0 Exit` milestone 推进：Issue #19 完成人工输入/Narrator/系统表面矩阵，#20 完成动态显示，#21–#22 完成文件安全、缩略图隔离与 500 项性能，#23 完成体验和产品决策，#24 跟踪配置的真实卷与产品接线边界。实机执行和负责人签字使用[Phase 0 出口执行手册](docs/12-phase-0-exit-runbook.md)；负责人批准 ADR-0001 后，才建立第一个只读 MVP 垂直切片。详见[当前开发状态与后续方向审计](docs/11-development-status-and-direction-audit.md)。
 
 ## 开发与验证
 
