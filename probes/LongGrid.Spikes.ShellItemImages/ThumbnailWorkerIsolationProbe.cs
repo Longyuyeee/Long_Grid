@@ -44,6 +44,13 @@ internal static class ThumbnailWorkerIsolationProbe
             && report.HardTimeout.TimedOut
             && report.HardTimeout.WorkerKilled
             && report.HardTimeout.RecoverySucceeded
+            && report.TimeoutBackoff.TimeoutsObserved == 3
+            && report.TimeoutBackoff.MaximumConsecutiveTimeouts >= 3
+            && report.TimeoutBackoff.BackoffsApplied == 3
+            && report.TimeoutBackoff.RecoverySucceeded
+            && report.ParentExit.WorkerStarted
+            && report.ParentExit.ParentExited
+            && report.ParentExit.OrphanExited
             && report.Resilience.MalformedResponseDetected
             && report.Resilience.MalformedResponseRecoverySucceeded
             && report.Resilience.WrongVersionDetected
@@ -177,7 +184,32 @@ internal static class ThumbnailWorkerIsolationProbe
         ThumbnailWorkerCallResult exitRecovery = await client.ExecuteAsync(
             ExtractRequest(bitmapPath, "exit-recovery"),
             RequestTimeout);
+        int backoffsBefore = client.RestartBackoffsApplied;
+        double backoffMillisecondsBefore =
+            client.TotalRestartBackoffMilliseconds;
+        int timeoutKillsBefore = client.TimeoutKills;
+        for (int index = 0; index < 3; index++)
+        {
+            await client.ExecuteAsync(
+                new ThumbnailWorkerRequest(
+                    ThumbnailWorkerServer.CurrentProtocolVersion,
+                    $"consecutive-timeout-{index}",
+                    ThumbnailWorkerRequestKind.Hang,
+                    Path: null,
+                    Size: 0,
+                    Flags: 0),
+                ForcedTimeout);
+        }
+
+        ThumbnailWorkerCallResult backoffRecovery = await client.ExecuteAsync(
+            ExtractRequest(bitmapPath, "backoff-recovery"),
+            RequestTimeout);
         client.Dispose();
+        ThumbnailWorkerParentExitResult parentExit =
+            await VerifyParentExitCleanupAsync(
+                Path.GetDirectoryName(bitmapPath)
+                    ?? throw new InvalidOperationException(
+                        "The bitmap sandbox is unavailable."));
 
         double p50 = Percentile(durations, 0.50);
         double p95 = Percentile(durations, 0.95);
@@ -192,10 +224,20 @@ internal static class ThumbnailWorkerIsolationProbe
             BudgetRecycles: client.BudgetRecycles);
         var hardTimeout = new ThumbnailWorkerTimeoutResult(
             timeoutResult.TimedOut,
-            WorkerKilled: client.TimeoutKills == 1,
+            WorkerKilled: timeoutResult.WorkerExited,
             RecoverySucceeded:
                 recoveryResult.Completed
                 && recoveryResult.Response is { Success: true });
+        var timeoutBackoff = new ThumbnailWorkerBackoffResult(
+            TimeoutsObserved: client.TimeoutKills - timeoutKillsBefore,
+            MaximumConsecutiveTimeouts: client.MaximumConsecutiveTimeouts,
+            BackoffsApplied: client.RestartBackoffsApplied - backoffsBefore,
+            BackoffMilliseconds:
+                client.TotalRestartBackoffMilliseconds
+                - backoffMillisecondsBefore,
+            RecoverySucceeded:
+                backoffRecovery.Completed
+                && backoffRecovery.Response is { Success: true });
         var resources = new ThumbnailWorkerResourceResult(
             IdleSampleMilliseconds: IdleSample.TotalMilliseconds,
             IdleCpuMilliseconds: idleCpuMilliseconds,
@@ -241,6 +283,8 @@ internal static class ThumbnailWorkerIsolationProbe
             WarmupSucceeded: warmupSucceeded,
             Stress: stress,
             HardTimeout: hardTimeout,
+            TimeoutBackoff: timeoutBackoff,
+            ParentExit: parentExit,
             Resilience: resilience,
             Resources: resources,
             Budget: budget,
@@ -257,9 +301,96 @@ internal static class ThumbnailWorkerIsolationProbe
                 "The worker currently runs with the caller's token; AppContainer or another low-privilege token remains required for production.",
                 "The synthetic BMP validates process lifetime and Shell extraction, not third-party, cloud, network, or adversarial providers.",
                 "The probe returns dimensions and status only; a production IPC pixel-transfer contract remains unimplemented.",
-                "The forced timeout uses a deterministic worker hang before native extraction because inducing a real provider hang on a user machine is unsafe.",
+                "The forced timeout and parent-exit cases use a deterministic worker hang before native extraction because inducing a real provider hang on a user machine is unsafe.",
                 "Budgets are provisional for this machine and must be repeated across the supported Windows and architecture matrix.",
             ]);
+    }
+
+    private static async Task<ThumbnailWorkerParentExitResult>
+        VerifyParentExitCleanupAsync(string root)
+    {
+        string readyPath = Path.Combine(root, "parent-exit-ready.txt");
+        using Process parentHarness = Process.Start(
+            CreateParentExitHarnessStartInfo(readyPath))
+            ?? throw new InvalidOperationException(
+                "The parent-exit harness did not start.");
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        while (!File.Exists(readyPath))
+        {
+            if (parentHarness.HasExited)
+            {
+                break;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(20), timeout.Token);
+        }
+
+        int workerProcessId = 0;
+        bool workerStarted = File.Exists(readyPath)
+            && int.TryParse(
+                await File.ReadAllTextAsync(readyPath, timeout.Token),
+                System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out workerProcessId);
+        await parentHarness.WaitForExitAsync(timeout.Token);
+        bool parentExited = parentHarness.ExitCode == 0;
+        bool orphanExited = workerStarted
+            && await WaitForProcessExitAsync(workerProcessId, timeout.Token);
+        return new ThumbnailWorkerParentExitResult(
+            workerStarted,
+            parentExited,
+            orphanExited);
+    }
+
+    private static ProcessStartInfo CreateParentExitHarnessStartInfo(
+        string readyPath)
+    {
+        string processPath = Environment.ProcessPath
+            ?? throw new InvalidOperationException(
+                "The process path is unavailable.");
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = processPath,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        if (string.Equals(
+            Path.GetFileNameWithoutExtension(processPath),
+            "dotnet",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            startInfo.ArgumentList.Add(
+                System.Reflection.Assembly.GetExecutingAssembly().Location);
+        }
+
+        startInfo.ArgumentList.Add("--thumbnail-parent-exit-probe");
+        startInfo.ArgumentList.Add(readyPath);
+        return startInfo;
+    }
+
+    private static async Task<bool> WaitForProcessExitAsync(
+        int processId,
+        CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            try
+            {
+                using Process process = Process.GetProcessById(processId);
+                if (process.HasExited)
+                {
+                    return true;
+                }
+            }
+            catch (ArgumentException)
+            {
+                return true;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(20), cancellationToken);
+        }
     }
 
     private static ThumbnailWorkerBudgetResult CreateBudget(
@@ -404,6 +535,14 @@ internal static class ThumbnailWorkerIsolationProbe
             $"Hard timeout/recovery: {report.HardTimeout.TimedOut}/"
             + $"{report.HardTimeout.RecoverySucceeded}");
         Console.WriteLine(
+            $"Consecutive timeout/backoff/recovery: "
+            + $"{report.TimeoutBackoff.TimeoutsObserved}/"
+            + $"{report.TimeoutBackoff.BackoffsApplied}/"
+            + $"{report.TimeoutBackoff.RecoverySucceeded}");
+        Console.WriteLine(
+            $"Parent exit/orphan cleanup: {report.ParentExit.ParentExited}/"
+            + $"{report.ParentExit.OrphanExited}");
+        Console.WriteLine(
             $"Working set/handles: {report.Resources.PeakWorkingSetBytes}/"
             + $"{report.Resources.PeakHandleCount}");
         Console.WriteLine($"Within budget: {report.Budget.WithinProvisionalBudget}");
@@ -418,6 +557,8 @@ internal sealed record ThumbnailWorkerIsolationReport(
     bool WarmupSucceeded,
     ThumbnailWorkerStressResult Stress,
     ThumbnailWorkerTimeoutResult HardTimeout,
+    ThumbnailWorkerBackoffResult TimeoutBackoff,
+    ThumbnailWorkerParentExitResult ParentExit,
     ThumbnailWorkerResilienceResult Resilience,
     ThumbnailWorkerResourceResult Resources,
     ThumbnailWorkerBudgetResult Budget,
@@ -440,6 +581,18 @@ internal sealed record ThumbnailWorkerTimeoutResult(
     bool TimedOut,
     bool WorkerKilled,
     bool RecoverySucceeded);
+
+internal sealed record ThumbnailWorkerBackoffResult(
+    int TimeoutsObserved,
+    int MaximumConsecutiveTimeouts,
+    int BackoffsApplied,
+    double BackoffMilliseconds,
+    bool RecoverySucceeded);
+
+internal sealed record ThumbnailWorkerParentExitResult(
+    bool WorkerStarted,
+    bool ParentExited,
+    bool OrphanExited);
 
 internal sealed record ThumbnailWorkerResilienceResult(
     bool MalformedResponseDetected,

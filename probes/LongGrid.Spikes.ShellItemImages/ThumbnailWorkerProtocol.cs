@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -40,8 +41,15 @@ internal static class ThumbnailWorkerServer
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     };
 
-    internal static async Task<int> RunAsync()
+    internal static async Task<int> RunAsync(int parentProcessId)
     {
+        using Process? parentProcess = TryOpenParentProcess(parentProcessId);
+        if (parentProcess is null || parentProcess.HasExited)
+        {
+            return 72;
+        }
+
+        _ = ExitWhenParentExitsAsync(parentProcess);
         var reader = new BoundedLineReader(
             Console.In,
             MaximumRequestCharacters);
@@ -138,6 +146,31 @@ internal static class ThumbnailWorkerServer
                 result.Duration.TotalMilliseconds);
             await WriteResponseAsync(response);
         }
+    }
+
+    private static Process? TryOpenParentProcess(int parentProcessId)
+    {
+        try
+        {
+            return Process.GetProcessById(parentProcessId);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    private static async Task ExitWhenParentExitsAsync(Process parentProcess)
+    {
+        try
+        {
+            await parentProcess.WaitForExitAsync();
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        Environment.Exit(0);
     }
 
     private static async Task WriteResponseAsync(

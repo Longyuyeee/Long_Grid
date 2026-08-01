@@ -12,15 +12,31 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     };
 
     private readonly int _maximumRequestsPerProcess;
+    private readonly TimeSpan _initialRestartBackoff;
+    private readonly TimeSpan _maximumRestartBackoff;
     private Process? _process;
     private BoundedLineReader? _outputReader;
     private int _requestsInCurrentProcess;
+    private int _consecutiveTimeouts;
     private bool _disposed;
 
-    internal ThumbnailWorkerClient(int maximumRequestsPerProcess)
+    internal ThumbnailWorkerClient(
+        int maximumRequestsPerProcess,
+        TimeSpan? initialRestartBackoff = null,
+        TimeSpan? maximumRestartBackoff = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(maximumRequestsPerProcess, 1);
         _maximumRequestsPerProcess = maximumRequestsPerProcess;
+        _initialRestartBackoff = initialRestartBackoff
+            ?? TimeSpan.FromMilliseconds(50);
+        _maximumRestartBackoff = maximumRestartBackoff
+            ?? TimeSpan.FromMilliseconds(800);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(
+            _initialRestartBackoff,
+            TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfLessThan(
+            _maximumRestartBackoff,
+            _initialRestartBackoff);
     }
 
     internal int ProcessesStarted { get; private set; }
@@ -32,6 +48,12 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     internal int ProtocolKills { get; private set; }
 
     internal int UnexpectedExits { get; private set; }
+
+    internal int RestartBackoffsApplied { get; private set; }
+
+    internal double TotalRestartBackoffMilliseconds { get; private set; }
+
+    internal int MaximumConsecutiveTimeouts { get; private set; }
 
     internal long PeakWorkingSetBytes { get; private set; }
 
@@ -59,6 +81,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
         ArgumentNullException.ThrowIfNull(request);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timeout, TimeSpan.Zero);
 
+        await ApplyRestartBackoffAsync();
         Process process = EnsureProcess();
         var stopwatch = Stopwatch.StartNew();
         await process.StandardInput.WriteLineAsync(
@@ -73,6 +96,10 @@ internal sealed class ThumbnailWorkerClient : IDisposable
         {
             stopwatch.Stop();
             TimeoutKills++;
+            _consecutiveTimeouts++;
+            MaximumConsecutiveTimeouts = Math.Max(
+                MaximumConsecutiveTimeouts,
+                _consecutiveTimeouts);
             StopProcess(force: true);
             return new ThumbnailWorkerCallResult(
                 Completed: false,
@@ -91,6 +118,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
         catch (InvalidDataException)
         {
             stopwatch.Stop();
+            ResetTimeoutStreak();
             ProtocolKills++;
             StopProcess(force: true);
             return new ThumbnailWorkerCallResult(
@@ -105,6 +133,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
         stopwatch.Stop();
         if (line is null)
         {
+            ResetTimeoutStreak();
             UnexpectedExits++;
             StopProcess(force: false);
             return new ThumbnailWorkerCallResult(
@@ -125,6 +154,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
         }
         catch (JsonException)
         {
+            ResetTimeoutStreak();
             ProtocolKills++;
             StopProcess(force: true);
             return new ThumbnailWorkerCallResult(
@@ -143,6 +173,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
                 request.RequestId,
                 StringComparison.Ordinal))
         {
+            ResetTimeoutStreak();
             ProtocolKills++;
             StopProcess(force: true);
             return new ThumbnailWorkerCallResult(
@@ -155,6 +186,7 @@ internal sealed class ThumbnailWorkerClient : IDisposable
         }
 
         _requestsInCurrentProcess++;
+        ResetTimeoutStreak();
         SampleResources(process);
         if (_requestsInCurrentProcess >= _maximumRequestsPerProcess)
         {
@@ -180,6 +212,12 @@ internal sealed class ThumbnailWorkerClient : IDisposable
 
         StopProcess(force: false);
         _disposed = true;
+    }
+
+    internal int EnsureWorkerStarted()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return EnsureProcess().Id;
     }
 
     private Process EnsureProcess()
@@ -222,8 +260,30 @@ internal sealed class ThumbnailWorkerClient : IDisposable
         }
 
         startInfo.ArgumentList.Add("--thumbnail-worker");
+        startInfo.ArgumentList.Add("--parent-pid");
+        startInfo.ArgumentList.Add(Environment.ProcessId.ToString(
+            System.Globalization.CultureInfo.InvariantCulture));
         return startInfo;
     }
+
+    private async Task ApplyRestartBackoffAsync()
+    {
+        if (_consecutiveTimeouts == 0)
+        {
+            return;
+        }
+
+        double multiplier = Math.Pow(2, _consecutiveTimeouts - 1);
+        double delayMilliseconds = Math.Min(
+            _maximumRestartBackoff.TotalMilliseconds,
+            _initialRestartBackoff.TotalMilliseconds * multiplier);
+        TimeSpan delay = TimeSpan.FromMilliseconds(delayMilliseconds);
+        RestartBackoffsApplied++;
+        TotalRestartBackoffMilliseconds += delay.TotalMilliseconds;
+        await Task.Delay(delay);
+    }
+
+    private void ResetTimeoutStreak() => _consecutiveTimeouts = 0;
 
     private void StopProcess(bool force)
     {

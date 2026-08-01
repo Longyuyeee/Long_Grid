@@ -15,9 +15,44 @@ internal static class Program
 
     public static async Task<int> Main(string[] args)
     {
-        if (args.SequenceEqual(["--thumbnail-worker"], StringComparer.Ordinal))
+        if (args.Length == 3
+            && string.Equals(args[0], "--thumbnail-worker", StringComparison.Ordinal)
+            && string.Equals(args[1], "--parent-pid", StringComparison.Ordinal)
+            && int.TryParse(
+                args[2],
+                System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out int parentProcessId)
+            && parentProcessId > 0)
         {
-            return await ThumbnailWorkerServer.RunAsync();
+            return await ThumbnailWorkerServer.RunAsync(parentProcessId);
+        }
+
+        if (args.Length == 2
+            && string.Equals(
+                args[0],
+                "--thumbnail-parent-exit-probe",
+                StringComparison.Ordinal))
+        {
+            using var client = new ThumbnailWorkerClient(
+                maximumRequestsPerProcess: 1);
+            int workerProcessId = client.EnsureWorkerStarted();
+            _ = client.ExecuteAsync(
+                new ThumbnailWorkerRequest(
+                    ThumbnailWorkerServer.CurrentProtocolVersion,
+                    "parent-exit-hang",
+                    ThumbnailWorkerRequestKind.Hang,
+                    Path: null,
+                    Size: 0,
+                    Flags: 0),
+                TimeSpan.FromMinutes(1));
+            await Task.Delay(TimeSpan.FromMilliseconds(100));
+            await File.WriteAllTextAsync(
+                args[1],
+                workerProcessId.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture));
+            Environment.Exit(0);
+            return 0;
         }
 
         if (args.Contains("--worker-matrix", StringComparer.Ordinal))
