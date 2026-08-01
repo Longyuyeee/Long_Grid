@@ -66,7 +66,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 桌面目录与 Shell Namespace | 用户/Public 目录、Shell Namespace 枚举和差异对账 | E2 / Conditional Pass | 重定向、OneDrive、离线/权限矩阵 |
 | 稳定身份 | 文件对象身份、快捷方式双重身份、重命名跟踪 | E1-E2 | 跨卷、云占位符和长时间运行 |
 | Shell 变化 | 通知合并、恢复与最终全量对账 | E1-E2 | Explorer 重启和高频真实桌面压力 |
-| 图标/缩略图 | 异步加载、取消、句柄闭环；同权限 worker 回收、硬超时、64 KiB 流级上限、协议故障恢复、父进程 PID/Job Object 双重退出清理、连续超时退避和合成 500 项预算 | E2 / Conditional Pass | 低权限 token、像素 IPC、真实 provider/支持矩阵与最终预算批准 |
+| 图标/缩略图 | 异步加载、取消、句柄闭环；同权限 worker 回收、硬超时、有界协议故障恢复、父进程 PID/Job Object 双重退出清理、连续超时退避、有界 BGRA32 像素 IPC 和合成 500 项预算 | E2 / Conditional Pass | 低权限 token、共享内存/渲染集成、真实 provider/支持矩阵与最终预算批准 |
 | DesktopHost 规划 | 每显示器 HWND、显式 Region、被动显示、输入门 | E1-E2 | 系统表面和真实输入人工矩阵 |
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |

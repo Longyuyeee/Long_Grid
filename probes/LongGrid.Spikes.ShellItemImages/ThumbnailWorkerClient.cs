@@ -175,7 +175,8 @@ internal sealed class ThumbnailWorkerClient : IDisposable
             || !string.Equals(
                 response.RequestId,
                 request.RequestId,
-                StringComparison.Ordinal))
+                StringComparison.Ordinal)
+            || !IsValidResponse(request, response))
         {
             ResetTimeoutStreak();
             ProtocolKills++;
@@ -306,6 +307,61 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     }
 
     private void ResetTimeoutStreak() => _consecutiveTimeouts = 0;
+
+    private static bool IsValidResponse(
+        ThumbnailWorkerRequest request,
+        ThumbnailWorkerResponse response)
+    {
+        if (!double.IsFinite(response.NativeMilliseconds)
+            || response.NativeMilliseconds < 0)
+        {
+            return false;
+        }
+
+        if (!response.Success)
+        {
+            return response.Width == 0
+                && response.Height == 0
+                && response.Pixels is null;
+        }
+
+        if (response.Width is < 1 or > 1_024
+            || response.Height is < 1 or > 1_024)
+        {
+            return false;
+        }
+
+        if (!request.IncludePixels)
+        {
+            return response.Pixels is null;
+        }
+
+        ThumbnailPixelPayload? pixels = response.Pixels;
+        if (pixels is null
+            || pixels.Format != ThumbnailPixelFormat.Bgra32
+            || pixels.Width != response.Width
+            || pixels.Height != response.Height
+            || pixels.Width > ThumbnailWorkerServer.MaximumPixelDimension
+            || pixels.Height > ThumbnailWorkerServer.MaximumPixelDimension
+            || pixels.Bytes is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            int expectedStride = checked(pixels.Width * 4);
+            int expectedLength = checked(expectedStride * pixels.Height);
+            return pixels.Stride == expectedStride
+                && pixels.ByteLength == expectedLength
+                && pixels.Bytes.Length == expectedLength
+                && expectedLength <= ThumbnailWorkerServer.MaximumPixelBytes;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
 
     private void StopProcess(bool force)
     {
