@@ -45,6 +45,14 @@ jobs:
           --collect "XPlat Code Coverage"
           --results-directory TestResults
 
+      - name: Coverage gate
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Verify-Coverage.ps1
+          -MinimumLineRate 0.90
+          -MinimumBranchRate 0.75
+
       - name: Configuration persistence probe
         run: >-
           dotnet run
@@ -55,6 +63,25 @@ jobs:
           --iterations 100
           --kill-iterations 2
           --acl-kill-iterations 2
+          --json
+
+      - name: File operation safety probe
+        run: >-
+          dotnet run
+          --project probes/LongGrid.Spikes.FileOperationSafety
+          --configuration Release
+          --no-build
+          --
+          --json
+
+      - name: Thumbnail worker isolation probe
+        run: >-
+          dotnet run
+          --project probes/LongGrid.Spikes.ShellItemImages
+          --configuration Release
+          --no-build
+          --
+          --worker-matrix
           --json
 
       - name: Dependency vulnerability gate
