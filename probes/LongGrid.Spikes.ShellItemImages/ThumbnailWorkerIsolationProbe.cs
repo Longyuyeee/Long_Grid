@@ -47,6 +47,14 @@ internal static class ThumbnailWorkerIsolationProbe
 
         bool commonPassed =
             report.Stress.Succeeded + report.Stress.Failed == StressRequests
+            && report.MinimumPathAcl.ControlReadSucceeded
+            && report.MinimumPathAcl.UnbrokeredAdjacentReadBlocked
+            && report.MinimumPathAcl.AllWorkersAppContainer
+            && report.MinimumPathAcl.LeasesGranted
+            && report.MinimumPathAcl.AllAclChangesRestored
+            && report.MinimumPathAcl.ProfileDeleted
+            && (report.MinimumPathAcl.ExtractionSucceeded
+                || report.MinimumPathAcl.AccessDeniedSafely)
             && report.AppContainerWorker.ControlledCopyReadSucceeded
             && report.HardTimeout.TimedOut
             && report.HardTimeout.WorkerKilled
@@ -168,6 +176,8 @@ internal static class ThumbnailWorkerIsolationProbe
             sandboxRoot,
             "unbrokered-readable.tmp");
         await File.WriteAllTextAsync(unbrokeredReadPath, "exit /b 0");
+        ThumbnailMinimumPathAclResult minimumPathAcl =
+            await VerifyMinimumPathAclAsync(bitmapPath, unbrokeredReadPath);
         ThumbnailWorkerCallResult controlledReadResult =
             await client.ExecuteAsync(
                 new ThumbnailWorkerRequest(
@@ -609,6 +619,7 @@ internal static class ThumbnailWorkerIsolationProbe
             TimeoutBackoff: timeoutBackoff,
             ParentExit: parentExit,
             AppContainerWorker: appContainerWorker,
+            MinimumPathAcl: minimumPathAcl,
             AppContainer: appContainer,
             RestrictedToken: restrictedToken,
             PixelTransfer: pixelTransfer,
@@ -632,6 +643,62 @@ internal static class ThumbnailWorkerIsolationProbe
                 "The forced timeout and parent-exit cases use a deterministic worker hang before native extraction because inducing a real provider hang on a user machine is unsafe.",
                 "Budgets are provisional for this machine and must be repeated across the supported Windows and architecture matrix.",
             ]);
+    }
+
+    private static async Task<ThumbnailMinimumPathAclResult>
+        VerifyMinimumPathAclAsync(
+            string bitmapPath,
+            string unbrokeredReadPath)
+    {
+        using var client = new ThumbnailWorkerClient(
+            maximumRequestsPerProcess: 10,
+            inputStrategy: ThumbnailInputStrategy.MinimumPathAcl);
+        ThumbnailWorkerCallResult controlRead = await client.ExecuteAsync(
+            new ThumbnailWorkerRequest(
+                ThumbnailWorkerServer.CurrentProtocolVersion,
+                "minimum-path-acl-control-read",
+                ThumbnailWorkerRequestKind.ReadBoundaryProbe,
+                bitmapPath,
+                Size: 0,
+                Flags: 0,
+                InputTransport: ThumbnailInputTransport.MinimumPathAcl),
+            RequestTimeout);
+        ThumbnailWorkerCallResult extraction = await client.ExecuteAsync(
+            ExtractRequest(bitmapPath, "minimum-path-acl-extraction"),
+            RequestTimeout);
+        ThumbnailWorkerCallResult adjacentRead = await client.ExecuteAsync(
+            new ThumbnailWorkerRequest(
+                ThumbnailWorkerServer.CurrentProtocolVersion,
+                "minimum-path-acl-adjacent-read",
+                ThumbnailWorkerRequestKind.ReadBoundaryProbe,
+                unbrokeredReadPath,
+                Size: 0,
+                Flags: 0),
+            RequestTimeout);
+        bool extractionSucceeded = extraction.Completed
+            && extraction.Response is { Success: true };
+        int extractionHResult = extraction.Response?.HResult ?? 0;
+        bool accessDeniedSafely = extraction.Completed
+            && extraction.Response is { Success: false }
+            && extractionHResult == AccessDeniedHResult;
+        bool controlReadSucceeded = controlRead.Completed
+            && controlRead.Response is { Success: true };
+        bool adjacentReadBlocked = adjacentRead.Completed
+            && adjacentRead.Response is { Success: false };
+        bool allWorkersAppContainer = client.AllWorkersAppContainer;
+        bool leasesGranted = client.UsesMinimumPathAcl;
+        bool allAclChangesRestored = client.AllPathAclLeasesRestored;
+        client.Dispose();
+        return new ThumbnailMinimumPathAclResult(
+            controlReadSucceeded,
+            extractionSucceeded,
+            accessDeniedSafely,
+            extractionHResult,
+            adjacentReadBlocked,
+            allWorkersAppContainer,
+            leasesGranted,
+            allAclChangesRestored,
+            client.AppContainerProfileDeleted);
     }
 
     private static async Task<ThumbnailWorkerParentExitResult>
@@ -926,6 +993,14 @@ internal static class ThumbnailWorkerIsolationProbe
             + $"{report.ProviderCompatibility.AccessDeniedSafely}/"
             + $"{report.ProviderCompatibility.ProductFallbackRequired}");
         Console.WriteLine(
+            $"Minimum-path ACL read/extract/safe-denial/adjacent/restored: "
+            + $"{report.MinimumPathAcl.ControlReadSucceeded}/"
+            + $"{report.MinimumPathAcl.ExtractionSucceeded}/"
+            + $"{report.MinimumPathAcl.AccessDeniedSafely}/"
+            + $"{report.MinimumPathAcl.UnbrokeredAdjacentReadBlocked}/"
+            + $"{report.MinimumPathAcl.AllAclChangesRestored}; HRESULT "
+            + $"0x{report.MinimumPathAcl.ExtractionHResult:X8}");
+        Console.WriteLine(
             $"AppContainer no-op/control/denied/token/profile cleanup: "
             + $"{report.AppContainer.NoOpSucceeded}/"
             + $"{report.AppContainer.ControlReadSucceeded}/"
@@ -958,6 +1033,7 @@ internal sealed record ThumbnailWorkerIsolationReport(
     ThumbnailWorkerBackoffResult TimeoutBackoff,
     ThumbnailWorkerParentExitResult ParentExit,
     ThumbnailAppContainerWorkerResult AppContainerWorker,
+    ThumbnailMinimumPathAclResult MinimumPathAcl,
     ThumbnailAppContainerBoundaryResult AppContainer,
     RestrictedThumbnailTokenResult RestrictedToken,
     ThumbnailWorkerPixelTransferResult PixelTransfer,
@@ -984,6 +1060,17 @@ internal sealed record ThumbnailAppContainerWorkerResult(
     bool ExplicitHandleAllowList,
     bool ControlledInputCopyUsed,
     bool AppContainerProfileDeleted);
+
+internal sealed record ThumbnailMinimumPathAclResult(
+    bool ControlReadSucceeded,
+    bool ExtractionSucceeded,
+    bool AccessDeniedSafely,
+    int ExtractionHResult,
+    bool UnbrokeredAdjacentReadBlocked,
+    bool AllWorkersAppContainer,
+    bool LeasesGranted,
+    bool AllAclChangesRestored,
+    bool ProfileDeleted);
 
 internal sealed record ThumbnailWorkerStressResult(
     int Requested,
