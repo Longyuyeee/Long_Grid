@@ -24,12 +24,25 @@ internal static class ThumbnailWorkerIsolationProbe
         {
             string bitmapPath = Path.Combine(root, "owned-sample.bmp");
             string maximumBitmapPath = Path.Combine(root, "owned-maximum.bmp");
+            string pngPath = Path.Combine(root, "owned-sample.png");
+            string gifPath = Path.Combine(root, "owned-sample.gif");
             WriteOwnedBitmap(bitmapPath, width: 2, height: 2);
             WriteOwnedBitmap(
                 maximumBitmapPath,
                 ThumbnailWorkerServer.MaximumPixelDimension,
                 ThumbnailWorkerServer.MaximumPixelDimension);
-            report = await RunMatrixAsync(bitmapPath, maximumBitmapPath);
+            OwnedThumbnailSampleFactory.WritePng(pngPath);
+            OwnedThumbnailSampleFactory.WriteGif(gifPath);
+            ThumbnailOwnedProviderSample[] providerSamples =
+            [
+                new("BMP", bitmapPath),
+                new("PNG", pngPath),
+                new("GIF", gifPath),
+            ];
+            report = await RunMatrixAsync(
+                bitmapPath,
+                maximumBitmapPath,
+                providerSamples);
         }
         finally
         {
@@ -47,6 +60,8 @@ internal static class ThumbnailWorkerIsolationProbe
 
         bool commonPassed =
             report.Stress.Succeeded + report.Stress.Failed == StressRequests
+            && report.ProviderMatrix.SameSampleSet
+            && report.ProviderMatrix.AllSamplesSafelyClassified
             && report.MinimumPathAcl.ControlReadSucceeded
             && report.MinimumPathAcl.UnbrokeredAdjacentReadBlocked
             && report.MinimumPathAcl.AllWorkersAppContainer
@@ -157,8 +172,11 @@ internal static class ThumbnailWorkerIsolationProbe
 
     private static async Task<ThumbnailWorkerIsolationReport> RunMatrixAsync(
         string bitmapPath,
-        string maximumBitmapPath)
+        string maximumBitmapPath,
+        IReadOnlyList<ThumbnailOwnedProviderSample> providerSamples)
     {
+        ThumbnailProviderMatrixResult providerMatrix =
+            await ThumbnailProviderMatrixProbe.RunAsync(providerSamples);
         using var client = new ThumbnailWorkerClient(RequestsPerWorker);
         ThumbnailWorkerCallResult warmupResult = await client.ExecuteAsync(
             ExtractRequest(bitmapPath, "warmup"),
@@ -614,6 +632,7 @@ internal static class ThumbnailWorkerIsolationProbe
             WarmupSucceeded: warmupSucceeded,
             WarmupHResult: warmupHResult,
             ProviderCompatibility: providerCompatibility,
+            ProviderMatrix: providerMatrix,
             Stress: stress,
             HardTimeout: hardTimeout,
             TimeoutBackoff: timeoutBackoff,
@@ -630,16 +649,16 @@ internal static class ThumbnailWorkerIsolationProbe
             Verdict: "PendingCleanup",
             Privacy:
             [
-                "Only an owned synthetic BMP inside a random temporary sandbox was opened.",
+                "Only owned synthetic BMP, PNG, and GIF files inside a random temporary sandbox were opened.",
                 "Only the controlled-copy or probe-owned minimum-ACL path traveled through redirected stdin; neither path appears in command-line arguments or report output.",
-                "No image bytes, names, paths, or Shell identities are emitted; only the aggregate warmup HRESULT is retained for cross-build diagnosis.",
+                "No image bytes, names, paths, or Shell identities are emitted; only fixed format labels and HRESULT classifications are retained for cross-build diagnosis.",
             ],
             Limitations:
             [
                 "The worker uses a zero-capability AppContainer; controlled copy remains the default experiment while minimum-path ACL is comparison-only.",
                 "Minimum-path ACL temporarily changes the probe-owned file and parent-directory DACL. Normal cleanup verifies the random AppContainer SID has no explicit ACE, but abnormal parent termination and concurrent DACL modification are not covered.",
                 "Controlled copies do not preserve original-path, neighboring-file, alternate-stream, cloud hydration, or provider-specific path semantics; a raw brokered handle cannot directly replace the IShellItem parsing-name contract and needs a separate provider or decoder experiment.",
-                "The synthetic BMP validates process lifetime and Shell extraction, not third-party, cloud, network, or adversarial providers.",
+                "The synthetic BMP/PNG/GIF matrix validates built-in format paths, not Office/PDF, third-party, cloud, network, or adversarial providers.",
                 "The bounded BGRA payload uses a duplicated unnamed file-mapping handle; formal render-surface integration and the final broker policy remain unimplemented.",
                 "The forced timeout and parent-exit cases use a deterministic worker hang before native extraction because inducing a real provider hang on a user machine is unsafe.",
                 "Budgets are provisional for this machine and must be repeated across the supported Windows and architecture matrix.",
@@ -994,6 +1013,10 @@ internal static class ThumbnailWorkerIsolationProbe
             + $"{report.ProviderCompatibility.AccessDeniedSafely}/"
             + $"{report.ProviderCompatibility.ProductFallbackRequired}");
         Console.WriteLine(
+            $"Provider matrix samples/safe: "
+            + $"{report.ProviderMatrix.ControlledCopy.Samples.Count}/"
+            + $"{report.ProviderMatrix.AllSamplesSafelyClassified}");
+        Console.WriteLine(
             $"Minimum-path ACL read/extract/safe-denial/adjacent/restored: "
             + $"{report.MinimumPathAcl.ControlReadSucceeded}/"
             + $"{report.MinimumPathAcl.ExtractionSucceeded}/"
@@ -1029,6 +1052,7 @@ internal sealed record ThumbnailWorkerIsolationReport(
     bool WarmupSucceeded,
     int WarmupHResult,
     ThumbnailProviderCompatibilityResult ProviderCompatibility,
+    ThumbnailProviderMatrixResult ProviderMatrix,
     ThumbnailWorkerStressResult Stress,
     ThumbnailWorkerTimeoutResult HardTimeout,
     ThumbnailWorkerBackoffResult TimeoutBackoff,

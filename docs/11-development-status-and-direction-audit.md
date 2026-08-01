@@ -1,6 +1,6 @@
 # Long Grid 当前开发状态与后续方向审计
 
-审计日期：2026-08-01
+审计日期：2026-08-02
 
 审计基线：`main` / `0dd2d02`
 
@@ -66,7 +66,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 桌面目录与 Shell Namespace | 用户/Public 目录、Shell Namespace 枚举和差异对账 | E2 / Conditional Pass | 重定向、OneDrive、离线/权限矩阵 |
 | 稳定身份 | 文件对象身份、快捷方式双重身份、重命名跟踪 | E1-E2 | 跨卷、云占位符和长时间运行 |
 | Shell 变化 | 通知合并、恢复与最终全量对账 | E1-E2 | Explorer 重启和高频真实桌面压力 |
-| 图标/缩略图 | 异步加载、取消、句柄闭环；真实零 Capability AppContainer worker、协议 v6 的受控副本/最小路径 ACL 对照、共享内存像素、未代理读写阻断、正常 ACL 恢复、硬超时/父退出/Profile 清理；合成 500 项预算 | E2 / Conditional Pass | 正式渲染集成、真实 provider/支持矩阵、异常 ACL 修复、安全确认和最终预算批准 |
+| 图标/缩略图 | 异步加载、取消、句柄闭环；真实零 Capability AppContainer worker、协议 v6 的受控副本/最小路径 ACL 对照、BMP/PNG/GIF 双 build 六组合、共享内存像素、未代理读写阻断、正常 ACL 恢复、硬超时/父退出/Profile 清理；合成 500 项预算 | E2 / Conditional Pass | 正式渲染集成、JPEG/HEIF、Office/PDF、云/网络、第三方 provider/ARM64 矩阵、异常 ACL 修复、安全确认和最终预算批准 |
 | DesktopHost 规划 | 每显示器 HWND、显式 Region、被动显示、输入门 | E1-E2 | 系统表面和真实输入人工矩阵 |
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
@@ -169,13 +169,19 @@ PR #39 合入后的首轮主干 CI `30690663507` 识别出父进程退出探针�
 
 父进程为每个 client 创建随机临时 Profile，把受限于 128 MiB 的 worker 运行时暂存到该 Profile 私有目录；所有 worker 通过 `SECURITY_CAPABILITIES` 以零 Capability 挂起启动，只继承 stdin/stdout/stderr，先加入 `KILL_ON_JOB_CLOSE` Job，并由父进程查询 `TokenIsAppContainer` 后恢复。AppContainer 内不再打开父进程句柄，异常父退出由内核 Job 回收；独立宿主把 Profile 名写入原子 ready 信号，主探针在确认孤儿退出后删除遗留 Profile。
 
-父进程对真实提取输入执行 32 MiB 上限和重解析点拒绝。协议 v6 默认使用 `ControlledCopy`，同时用 `MinimumPathAcl` 给探针自有文件/父目录增加精确无继承 Read/Traverse ACE，并在请求后删除、复核随机 SID 无显式残留；worker 仍拒绝直接路径 transport。Windows `10.0.22621` 本地矩阵两种方式都可提取，默认副本 500/500、p95 33.46 ms；Windows `10.0.26100` GitHub runner 上两种输入都可直接读，但 Shell 都稳定返回 `E_ACCESSDENIED`、无像素。CI 将后者作为 `ProductFallbackRequired`，不允许回退到主进程或 Low Integrity 现场提取。结论仍为 Conditional Pass：ACL 方案没有解决 26100 兼容性，还会短时修改 DACL，异常退出残留修复尚未实现。
+父进程对真实提取输入执行 32 MiB 上限和重解析点拒绝。协议 v6 默认使用 `ControlledCopy`，同时用 `MinimumPathAcl` 给探针自有文件/父目录增加精确无继承 Read/Traverse ACE，并在请求后删除、复核随机 SID 无显式残留；worker 仍拒绝直接路径 transport。Windows `10.0.22621` 本地矩阵两种方式都可提取，默认副本 500/500；Windows `10.0.26100` GitHub runner 上两种输入都可直接读，但 Shell 都稳定返回 `E_ACCESSDENIED`、无像素。CI 将后者作为 `ProductFallbackRequired`，不允许回退到主进程或 Low Integrity 现场提取。结论仍为 Conditional Pass：ACL 方案没有解决 26100 兼容性，还会短时修改 DACL，异常退出残留修复尚未实现。最新多格式证据见 4.11。
 
 ### 4.10 最小路径 ACL 对照已完成，但不应提升为默认
 
 这轮对照区分了文件系统授权和 Shell provider 兼容性：22621 上 AppContainer 可直接读取原路径并完成 `IShellItemImageFactory` 提取；26100 CI 上同一授权可直接读，但 Shell 仍返回与副本路径相同的 `0x80070005`。因此当前失败不能归因于 Profile 副本本身不可读，更可能是 build/runner 下 Shell provider 与 AppContainer 的兼容限制。
 
 安全代价同样明确：最小 ACL 在请求期间修改文件和父目录 DACL，正常 Dispose 已复核 ACE 清理，但父进程崩溃、并发 ACL 修改和遗留 ACE 修复未覆盖。该方案只保留为探针对照；下一优先级是 provider/build 矩阵、正式类型图标/缓存回退接线，以及另一种受控 stream/decoder 合同评估。
+
+### 4.11 首轮 build × format/provider 矩阵已建立
+
+探针现在只在随机临时沙箱生成自有 BMP、PNG、GIF，并对每个格式分别执行 `ControlledCopy` 与 `MinimumPathAcl`。每项必须先证明授权输入可直接读取，再只接受 Shell 提取成功或精确 `E_ACCESSDENIED`；两套 client 还必须全部为 AppContainer、使用目标授权策略、恢复 ACL 并删除 Profile。首版 read-control 漏填 transport 时，六次 Shell 提取虽成功但六个直接读控制全部失败，矩阵正确返回 Fail；修正为显式 transport 后才通过，没有放宽判定。
+
+Windows 22621 本地六个组合全部提取成功，默认副本压力 500/500、p95 30.64 ms。Windows 26100 PR CI `30707642535` 中六个组合全部输入可读，却全部返回 `0x80070005`。因此目前没有发现 BMP/PNG/GIF 的格式特例，26100 结论更接近整体 Shell/AppContainer/build 兼容限制。该证据仍是 E2：它不覆盖 JPEG/HEIF、Office/PDF、真实第三方 provider、云/网络水合、ARM64 或 500 个不同项目，也不授权读取用户文件。
 
 ## 5. 后续开发方向
 
