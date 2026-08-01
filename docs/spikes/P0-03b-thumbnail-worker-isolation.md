@@ -2,7 +2,7 @@
 
 执行日期：2026-08-01
 
-结果：**Conditional Pass（可回收进程、有界 BGRA 像素 IPC、硬超时恢复、父进程退出清理、连续超时退避和合成 500 项预算通过）**
+结果：**Conditional Pass（受限可回收进程、有界共享内存 BGRA IPC、硬超时恢复、父进程退出清理、连续超时退避和合成 500 项预算通过）**
 
 关联：Issue #22
 
@@ -29,7 +29,7 @@
 
 IPC 请求/响应携带协议版本和有界 request ID、路径长度、尺寸；JSON 拒绝未知字段，并校验响应版本与 request ID。stdin 请求保持 64 KiB 上限，stdout 响应按像素最大负载设为 400,000 字符，两端都由有界逐行读取器在 JSON 解析前拒绝超限输入。故障矩阵覆盖畸形 JSON、错误协议版本、超长响应、超长请求和 worker 主动异常退出；父进程分别识别协议错误或 EOF，回收后均由新 worker 成功恢复。
 
-协议 v2 增加可选 BGRA32 像素负载。Worker 通过 `GetDIBits` 把自有 `HBITMAP` 复制为 top-down、每像素 4 字节的托管缓冲，再销毁原生位图；父进程只接受最大 256×256、262,144 bytes 的负载，并复核响应尺寸、像素尺寸、格式、`stride == width × 4`、声明长度、解码长度及请求是否明确要求像素。逐行响应上限为 400,000 字符，以容纳最大负载的 base64 表示，同时仍在 JSON 解析前限制分配。故障矩阵分别拒绝错误格式、尺寸、步幅、长度、非法 base64、未请求的像素以及超过 256 的像素请求，每次回收后均恢复成功。
+协议 v3 把正常 BGRA32 字节从 JSON 移到匿名页文件映射。父进程按请求创建最大 262,144 bytes、不可执行的映射，再用 `DuplicateHandle` 向目标 Low Integrity worker 复制不可继承的单次句柄；请求只携带目标句柄值和固定容量。Worker 通过 `GetDIBits` 把自有 `HBITMAP` 复制为 top-down、每像素 4 字节的托管缓冲，写入映射并关闭目标句柄；父进程只读映射，并复核 transport、响应/像素尺寸、格式、`stride == width × 4`、声明长度、容量、实际长度及非零内容。逐行响应仍有 400,000 字符防御上限，但正常像素不再 base64 编码；畸形旧 inline 编码仅保留为拒绝测试。故障矩阵分别拒绝错误格式、尺寸、步幅、长度、非法旧编码、未请求负载、超过 256 的请求、缺失映射句柄和错误容量，每次回收后均恢复成功。
 
 父进程为所有 worker 创建启用 `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` 的 Windows Job Object，并在进程启动后立即分配；父进程退出导致 Job 句柄关闭时，内核回收仍存活的 worker。父进程 PID 同时由受控参数传入 worker，worker 打开父进程句柄并异步等待退出，形成托管监视与操作系统 Job 的双重兜底。矩阵另起一个父进程测试宿主，确认其在不执行 `Dispose` 的情况下退出后，卡死 worker 会在 10 秒门限内消失。连续三次强制超时分别触发 50、100、200 ms 退避，总计 350 ms，随后正常提取成功并清零超时连续计数。
 
@@ -58,9 +58,9 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 |---|---:|---:|---|
 | 成功请求 | 500/500 | 500/500 | Pass |
 | worker 预热 | 2/2 轮成功 | 必须成功 | Pass |
-| p50 往返 | 15.56 ms | 仅记录 | Pass |
-| p95 往返 | 20.41 ms | ≤250 ms | Pass |
-| 500 项总墙钟 | 10,980.03 ms | ≤30,000 ms | Pass |
+| p50 往返 | 16.57 ms | 仅记录 | Pass |
+| p95 往返 | 25.54 ms | ≤250 ms | Pass |
+| 500 项总墙钟 | 11,977.10 ms | ≤30,000 ms | Pass |
 | 预算回收 | 5 | 每 100 项一次 | Pass |
 | 强制超时终止 | 1 | 必须终止 | Pass |
 | 超时后恢复 | 成功 | 必须成功 | Pass |
@@ -77,7 +77,9 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 | 父进程写控制组 | 可写入并清理控制文件 | 必须成功 | Pass |
 | BGRA32 像素复制 | 2×2、stride 8、16 bytes | 格式/尺寸/长度一致 | Pass |
 | 最大 BGRA32 负载 | 256×256、262,144 bytes | 必须完整通过 | Pass |
-| 像素故障检测 | 格式/尺寸/步幅/长度/base64/未请求负载 | 全部拒绝并回收 | Pass |
+| 共享内存内容 | 2×2 与最大负载均观察到非零写入 | 必须由 worker 实际写入 | Pass |
+| 映射句柄/容量 | 缺失句柄、262,143-byte 错误容量均拒绝并恢复 | 必须精确为 262,144 bytes | Pass |
+| 像素故障检测 | 格式/尺寸/步幅/长度/旧 inline 编码/未请求负载 | 全部拒绝并回收 | Pass |
 | 像素尺寸请求上限 | 257 拒绝，随后恢复 | 最大 256 | Pass |
 | 畸形响应检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
 | 错误协议版本检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
@@ -85,12 +87,12 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 | 超过 64 KiB 请求检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
 | 异常退出检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
 | worker 总 CPU | 1,046.875 ms | 首轮记录 | Pass |
-| 750 ms 空闲 CPU | 0 ms | ≤50 ms | Pass |
-| 峰值工作集 | 42,639,360 bytes | ≤268,435,456 bytes | Pass |
+| 750 ms 空闲 CPU | 15.625 ms | ≤50 ms | Pass |
+| 峰值工作集 | 43,446,272 bytes | ≤268,435,456 bytes | Pass |
 | 峰值句柄 | 353 | ≤512 | Pass |
 | 沙箱清理 | 成功 | 必须成功 | Pass |
 
-扩展像素与生命周期矩阵后的代表轮次由主探针共启动 22 个 worker：初始/预算回收进程、强制超时及恢复、通用协议错误、七类像素负载/请求错误及逐项恢复、异常退出，以及连续三次超时和最终恢复；另由独立父进程宿主启动一个卡死 worker 验证孤儿清理。报告只输出聚合指标，不输出路径、文件名、图像字节、HRESULT 或 Shell 身份。
+扩展共享内存与生命周期矩阵后的代表轮次由主探针共启动 24 个 worker：初始/预算回收进程、强制超时及恢复、通用协议错误、九类像素/映射负载与请求错误及逐项恢复、异常退出，以及连续三次超时和最终恢复；另由独立父进程宿主启动一个卡死 worker 验证孤儿清理。报告只输出聚合指标，不输出路径、文件名、图像字节、句柄值、HRESULT 或 Shell 身份。
 
 受限 worker 首次合入后的主干 CI 暴露了父进程退出测试的 ready-file 竞态：子宿主直接创建最终文件时，主探针可能在写句柄关闭前因“文件已存在”而读取，触发 sharing violation。修复后子宿主先完整写入同目录 `.pending` 文件并关闭句柄，再以原子重命名发布就绪信号；本地连续三轮完整矩阵均通过。该修复不放宽等待时间或性能预算。
 
@@ -111,6 +113,9 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 - 可以从当前进程令牌创建 `DISABLE_MAX_PRIVILEGE` 受限令牌，将其 Mandatory Integrity Level 设置并复核为 Low（RID `0x1000`）；
 - 在该令牌的模拟上下文中，自有 BMP 仍可读取，但向默认中完整性/未标记沙箱执行 write-up 会被 MIC 阻断；退出模拟后父进程写控制组成功，排除了目录自身不可写造成的假阳性；
 - Worker 不跨进程传递裸 `HBITMAP`，复制后的 BGRA32 缓冲具有明确格式、尺寸、步幅、长度和 256×256/262,144-byte 上限；
+- 正常像素字节不再进入 JSON/base64；父进程通过 `DuplicateHandle` 向当前 worker 授予匿名映射句柄，worker 用后关闭，父进程只读复核；
+- 目标 worker 的映射句柄不可继承且仅授予 `FILE_MAP_WRITE`，不复制父进程映射句柄的完整访问权；
+- 映射句柄缺失、容量不等于 262,144 bytes 或共享内存未出现有效内容时矩阵失败；
 - 父进程会拒绝错误像素元数据、非法编码、未请求负载和超限请求，协议错误后新 worker 可恢复；
 - 连续硬超时会指数退避，成功响应后恢复正常启动节奏；
 - 协议版本、响应 request ID 和未知 JSON 字段受到校验；
@@ -121,9 +126,9 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 
 ### 尚未证明
 
-- 尚未决定 AppContainer 或受限 Low Integrity worker 的最终产品模型，也未定义文件 broker、句柄传递、Capability、缓存与共享内存安全边界；
+- 尚未决定 AppContainer 或受限 Low Integrity worker 的最终产品模型，也未定义文件访问 broker、Capability、缓存与原路径语义边界；
 - `CreateProcessAsUserW` 的权限、会话和支持矩阵目前只在本机与 Windows CI runner 验证，尚未覆盖标准用户、企业策略、Windows 10 最低 build 与 ARM64；
-- 当前像素负载使用匿名管道中的 base64，尚未验证共享内存、零拷贝或正式渲染表面集成；
+- 当前匿名映射仍复制到父进程托管缓冲，尚未验证正式渲染表面、跨 GPU 适配器资源或端到端零拷贝；
 - 500 次是对同一自有 BMP 的隔离/生命周期压力，不等于 500 个不同真实项目的 provider、缓存和渲染预算；
 - 尚未覆盖 OneDrive、网络路径、第三方 provider、恶意文件、x64/ARM64 与支持的 Windows build 矩阵；
 - 暂定预算仅来自当前机器，不能直接升级为发布 SLA。
@@ -132,10 +137,10 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 
 ## 6. 下一切片
 
-1. 比较 AppContainer 与受限 token，明确文件访问 broker/句柄传递、Capability、缓存和受控共享内存边界；
-2. 接入正式渲染表面，保持相同长度/格式/尺寸上限；
+1. 比较 AppContainer 与受限 token，明确文件访问 broker、Capability、缓存、受控副本与原路径语义边界；
+2. 把已验证的共享内存 transport 接入正式渲染表面，保持相同长度/格式/尺寸/容量上限；
 3. 在标准用户、企业策略、Windows 10/11、x64/ARM64 环境复测进程创建与隔离；
 4. 在合成不同格式集和专用云/网络/provider 环境执行 500 个不同项目矩阵；
 5. 把支持矩阵实测结果提交负责人批准最终 CPU/内存/响应预算。
 
-本轮安全语义依据 Microsoft 的 [Mandatory Integrity Control](https://learn.microsoft.com/windows/win32/secauthz/mandatory-integrity-control)、[`CreateRestrictedToken`](https://learn.microsoft.com/windows/win32/api/securitybaseapi/nf-securitybaseapi-createrestrictedtoken)、[`CreateProcessAsUserW`](https://learn.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasuserw)、[显式句柄继承](https://learn.microsoft.com/windows/win32/procthread/creating-processes)和 [`AssignProcessToJobObject`](https://learn.microsoft.com/windows/win32/api/jobapi2/nf-jobapi2-assignprocesstojobobject) 文档。MIC 默认执行 no-write-up；本探针不把该结论扩大为完整沙箱或 broker 已完成。
+本轮安全语义依据 Microsoft 的 [Mandatory Integrity Control](https://learn.microsoft.com/windows/win32/secauthz/mandatory-integrity-control)、[`CreateRestrictedToken`](https://learn.microsoft.com/windows/win32/api/securitybaseapi/nf-securitybaseapi-createrestrictedtoken)、[`CreateProcessAsUserW`](https://learn.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasuserw)、[显式句柄继承](https://learn.microsoft.com/windows/win32/procthread/creating-processes)、[`AssignProcessToJobObject`](https://learn.microsoft.com/windows/win32/api/jobapi2/nf-jobapi2-assignprocesstojobobject)、[`DuplicateHandle`](https://learn.microsoft.com/windows/win32/api/handleapi/nf-handleapi-duplicatehandle)、[`CreateFileMapping`](https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-createfilemappingw)和[文件视图](https://learn.microsoft.com/windows/win32/memory/creating-a-file-view)文档。MIC 默认执行 no-write-up；共享内存句柄 broker 通过不等于文件访问 broker 或完整沙箱已完成。

@@ -147,7 +147,7 @@ P0-02 实测进一步确认通知只能作为提示：1,100 次受控沙箱操�
 - OneDrive 占位文件默认不因生成缩略图而触发下载。
 - 网络目录离线时使用缓存图标和离线徽标，不阻塞 UI 线程。
 
-P0-03a 当前实测：96 个真实桌面项目预热成功，三轮各 500 次后台图标提取全部成功；并发峰值为 4，成功 `HBITMAP` 与 `DeleteObject` 释放数严格一致，预热后 GDI 句柄净增量均为 0。缓存缩略图仅命中 1/13，这属于 `SIIGBF_INCACHEONLY` 的预期语义。P0-03b 进一步用自有临时 BMP 验证受限 Low Integrity 可回收 worker：父进程用 `CreateProcessAsUserW` 和 `DISABLE_MAX_PRIVILEGE` 主令牌挂起启动 worker，查询实际子进程为 Low Integrity（RID `0x1000`），显式只继承 stdin/stdout/stderr 三个句柄，先加入 `KILL_ON_JOB_CLOSE` Job 再恢复主线程；worker 可提取自有 BMP，其主动 write-up 探针被 MIC 阻断。最新一轮 500/500 成功，p95 20.41 ms，每 100 项回收；250 ms 强制卡死、有界输入/输出、畸形 JSON、错误版本和 worker 异常退出均被识别，回收后新 worker 恢复；父进程无清理退出时由 PID 监视和 Job Object 双重兜底回收卡死 worker，连续三次超时按 50/100/200 ms 退避后恢复；协议 v2 成功复制 2×2 BGRA32/16-byte 与 256×256/262,144-byte 最大负载，并拒绝格式、尺寸、步幅、长度、base64、未请求负载和超限像素请求；峰值约 40.7 MiB/353 handles，750 ms 空闲 CPU 为 0。结论仍为 Conditional Pass：AppContainer/受限 token 与 broker 尚未决策，共享内存/渲染集成和真实 provider/支持矩阵也未关闭，详见[P0-03b 报告](spikes/P0-03b-thumbnail-worker-isolation.md)。
+P0-03a 当前实测：96 个真实桌面项目预热成功，三轮各 500 次后台图标提取全部成功；并发峰值为 4，成功 `HBITMAP` 与 `DeleteObject` 释放数严格一致，预热后 GDI 句柄净增量均为 0。缓存缩略图仅命中 1/13，这属于 `SIIGBF_INCACHEONLY` 的预期语义。P0-03b 进一步用自有临时 BMP 验证受限 Low Integrity 可回收 worker：父进程用 `CreateProcessAsUserW` 和 `DISABLE_MAX_PRIVILEGE` 主令牌挂起启动 worker，查询实际子进程为 Low Integrity（RID `0x1000`），显式只继承 stdin/stdout/stderr 三个句柄，先加入 `KILL_ON_JOB_CLOSE` Job 再恢复主线程；worker 可提取自有 BMP，其主动 write-up 探针被 MIC 阻断。协议 v3 为每个像素请求创建最大 262,144 bytes 的匿名页文件映射，通过 `DuplicateHandle` 向目标 worker 复制不可继承的单次句柄；worker 写入并关闭自己的句柄，父进程按 transport、格式、尺寸、步幅、声明长度、容量及实际内容复核。最新一轮 500/500 成功，p95 21.65 ms，每 100 项回收；250 ms 强制卡死、缺失映射句柄、错误容量、有界输入/输出、畸形 JSON、错误版本和 worker 异常退出均被识别，回收后新 worker 恢复；父进程无清理退出时由 PID 监视和 Job Object 双重兜底回收卡死 worker，连续三次超时按 50/100/200 ms 退避后恢复；2×2 BGRA32/16-byte 与 256×256/262,144-byte 最大负载通过，九类像素/映射故障均拒绝并恢复；峰值约 41.1 MiB/353 handles，750 ms 空闲 CPU 为 0。结论仍为 Conditional Pass：AppContainer/受限 token 与文件 broker 尚未决策，正式渲染集成和真实 provider/支持矩阵也未关闭，详见[P0-03b 报告](spikes/P0-03b-thumbnail-worker-isolation.md)。
 
 ## 4. 文件整理与真实操作
 
@@ -472,7 +472,7 @@ COM/Win32 类型不能泄漏到 Core。
 |---|---|---|---|
 | P0-01 | 用户/Public/重定向桌面枚举 | 与 Explorer 可操作文件项一致，无阻塞 | 缩小支持范围并明确提示 |
 | P0-02 | Shell 变更监听 + 对账 | 批量 10,000 变更后最终一致 | 定期对账频率提高 |
-| P0-03 | 图标/缩略图 | 主进程 500 项有界加载/句柄闭环、受限 Low Integrity worker、挂起后先入 Job、最小句柄继承、硬超时恢复、有界 BGRA32 IPC 和写阻断已测；broker、共享内存/渲染集成和真实 provider 矩阵待验证 | 完整矩阵前只显示类型图标/缓存缩略图，现场提取保持实验能力 |
+| P0-03 | 图标/缩略图 | 主进程 500 项有界加载/句柄闭环、受限 Low Integrity worker、挂起后先入 Job、最小句柄继承、硬超时恢复、显式句柄 broker 的有界共享内存 BGRA32 IPC 和写阻断已测；文件 broker、正式渲染集成和真实 provider 矩阵待验证 | 完整矩阵前只显示类型图标/缓存缩略图，现场提取保持实验能力 |
 | P0-04 | 每容器 HWND | 原生命中/资源已测；Win+D、输入、Alt+Tab、全屏可预测 | 不作为普通容器首选；保留特殊短生命周期窗口 |
 | P0-05 | 每显示器 HWND | Window Region 跨进程穿透已测；交互矩阵通过 | Region/无障碍失败则回退每容器或重做输入层 |
 | P0-06 | Explorer 重启 | 10 秒内恢复且无重复实例 | DesktopHost 不可发布 |
@@ -536,6 +536,9 @@ COM/Win32 类型不能泄漏到 Core。
 - [Creating a Child Process with Redirected Input and Output](https://learn.microsoft.com/windows/win32/procthread/creating-a-child-process-with-redirected-input-and-output)
 - [Process creation and explicit handle inheritance](https://learn.microsoft.com/windows/win32/procthread/creating-processes)
 - [AssignProcessToJobObject](https://learn.microsoft.com/windows/win32/api/jobapi2/nf-jobapi2-assignprocesstojobobject)
+- [DuplicateHandle](https://learn.microsoft.com/windows/win32/api/handleapi/nf-handleapi-duplicatehandle)
+- [CreateFileMapping](https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-createfilemappingw)
+- [Creating a File View](https://learn.microsoft.com/windows/win32/memory/creating-a-file-view)
 - [Shell drag and drop](https://learn.microsoft.com/windows/win32/shell/dragdrop)
 - [IFileOperation](https://learn.microsoft.com/windows/win32/api/shobjidl_core/nn-shobjidl_core-ifileoperation)
 - [Manage app windows](https://learn.microsoft.com/windows/apps/develop/ui/manage-app-windows)

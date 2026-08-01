@@ -76,7 +76,10 @@ internal static class ThumbnailWorkerIsolationProbe
             && report.PixelTransfer.MalformedEncodingDetected
             && report.PixelTransfer.UnexpectedPayloadDetected
             && report.PixelTransfer.OversizedPixelRequestDetected
-            && report.PixelTransfer.RecoveriesSucceeded == 7
+            && report.PixelTransfer.SharedMemoryHandleRequired
+            && report.PixelTransfer.SharedMemoryCapacityValidated
+            && report.PixelTransfer.SharedMemoryContentObserved
+            && report.PixelTransfer.RecoveriesSucceeded == 9
             && report.Resilience.MalformedResponseDetected
             && report.Resilience.MalformedResponseRecoverySucceeded
             && report.Resilience.WrongVersionDetected
@@ -251,6 +254,37 @@ internal static class ThumbnailWorkerIsolationProbe
                     bitmapPath,
                     "oversized-pixel-request-recovery"),
                 RequestTimeout);
+        ThumbnailWorkerCallResult missingPixelBuffer = await client.ExecuteAsync(
+            new ThumbnailWorkerRequest(
+                ThumbnailWorkerServer.CurrentProtocolVersion,
+                "missing-pixel-buffer",
+                ThumbnailWorkerRequestKind.MissingPixelBufferRequest,
+                bitmapPath,
+                Size: 128,
+                ShellItemImageFactoryFlags.ThumbnailOnly,
+                IncludePixels: true),
+            RequestTimeout);
+        ThumbnailWorkerCallResult missingPixelBufferRecovery =
+            await client.ExecuteAsync(
+                ExtractPixelRequest(bitmapPath, "missing-pixel-buffer-recovery"),
+                RequestTimeout);
+        ThumbnailWorkerCallResult invalidPixelBufferCapacity =
+            await client.ExecuteAsync(
+                new ThumbnailWorkerRequest(
+                    ThumbnailWorkerServer.CurrentProtocolVersion,
+                    "invalid-pixel-buffer-capacity",
+                    ThumbnailWorkerRequestKind.InvalidPixelBufferCapacityRequest,
+                    bitmapPath,
+                    Size: 128,
+                    ShellItemImageFactoryFlags.ThumbnailOnly,
+                    IncludePixels: true),
+                RequestTimeout);
+        ThumbnailWorkerCallResult invalidPixelBufferCapacityRecovery =
+            await client.ExecuteAsync(
+                ExtractPixelRequest(
+                    bitmapPath,
+                    "invalid-pixel-buffer-capacity-recovery"),
+                RequestTimeout);
         ThumbnailWorkerCallResult timeoutResult = await client.ExecuteAsync(
             new ThumbnailWorkerRequest(
                 ThumbnailWorkerServer.CurrentProtocolVersion,
@@ -403,6 +437,15 @@ internal static class ThumbnailWorkerIsolationProbe
             OversizedPixelRequestDetected:
                 oversizedPixelRequest.WorkerExited
                 && !oversizedPixelRequest.TimedOut,
+            SharedMemoryHandleRequired:
+                missingPixelBuffer.WorkerExited
+                && !missingPixelBuffer.TimedOut,
+            SharedMemoryCapacityValidated:
+                invalidPixelBufferCapacity.WorkerExited
+                && !invalidPixelBufferCapacity.TimedOut,
+            SharedMemoryContentObserved:
+                transferredPixels?.Bytes?.Any(value => value != 0) == true
+                && maximumPixels?.Bytes?.Any(value => value != 0) == true,
             RecoveriesSucceeded: new[]
             {
                 invalidPixelFormatRecovery,
@@ -412,6 +455,8 @@ internal static class ThumbnailWorkerIsolationProbe
                 malformedPixelEncodingRecovery,
                 unexpectedPixelPayloadRecovery,
                 oversizedPixelRequestRecovery,
+                missingPixelBufferRecovery,
+                invalidPixelBufferCapacityRecovery,
             }.Count(result =>
                 result.Completed && result.Response is { Success: true }));
         var timeoutBackoff = new ThumbnailWorkerBackoffResult(
@@ -495,7 +540,7 @@ internal static class ThumbnailWorkerIsolationProbe
             [
                 "The worker now launches with a restricted low-integrity token, but the AppContainer versus restricted-token choice and brokered file-access contract remain production decisions.",
                 "The synthetic BMP validates process lifetime and Shell extraction, not third-party, cloud, network, or adversarial providers.",
-                "The bounded BGRA payload uses base64 in the prototype line protocol; shared-memory transfer and render-surface integration remain unimplemented.",
+                "The bounded BGRA payload uses a duplicated unnamed file-mapping handle; formal render-surface integration and the final broker policy remain unimplemented.",
                 "The forced timeout and parent-exit cases use a deterministic worker hang before native extraction because inducing a real provider hang on a user machine is unsafe.",
                 "Budgets are provisional for this machine and must be repeated across the supported Windows and architecture matrix.",
             ]);
@@ -778,7 +823,7 @@ internal static class ThumbnailWorkerIsolationProbe
             $"Pixel IPC: {report.PixelTransfer.Succeeded}; "
             + $"{report.PixelTransfer.Width}x{report.PixelTransfer.Height}, "
             + $"{report.PixelTransfer.ByteLength} bytes; recoveries "
-            + $"{report.PixelTransfer.RecoveriesSucceeded}/7; max "
+            + $"{report.PixelTransfer.RecoveriesSucceeded}/9; max "
             + $"{report.PixelTransfer.MaximumPayloadSucceeded}");
         Console.WriteLine(
             $"Working set/handles: {report.Resources.PeakWorkingSetBytes}/"
@@ -857,6 +902,9 @@ internal sealed record ThumbnailWorkerPixelTransferResult(
     bool MalformedEncodingDetected,
     bool UnexpectedPayloadDetected,
     bool OversizedPixelRequestDetected,
+    bool SharedMemoryHandleRequired,
+    bool SharedMemoryCapacityValidated,
+    bool SharedMemoryContentObserved,
     int RecoveriesSucceeded);
 
 internal sealed record ThumbnailWorkerResilienceResult(

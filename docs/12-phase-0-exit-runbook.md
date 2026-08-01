@@ -87,7 +87,8 @@ dotnet test LongGrid.sln --configuration Release --no-build
 | #21 | OneDrive、网络、重解析点、真实取消 | 专用账号/共享；默认阻断优先 | Pending |
 | #22 | 受限 Low Integrity worker 启动与读/写边界 | 实际 worker 为 Low；自有输入可读，write-up 被阻断；挂起后先入 Job；仅继承三标准流 | Conditional Pass（自动探针） |
 | #22 | AppContainer/受限 token 决策与访问 broker | 不扩大文件访问权限；明确句柄、Capability、缓存和共享内存边界 | Pending owner/security decision |
-| #22 | 共享内存与正式渲染表面集成 | 保持已验证的长度、格式、尺寸和解码上限 | Pending |
+| #22 | 有界共享内存句柄 broker | 匿名映射、单请求复制句柄、最大 262,144 bytes；缺失句柄/错误容量/元数据错误全部阻断并恢复 | Conditional Pass（自动探针） |
+| #22 | 正式渲染表面集成 | 保持已验证的 transport、长度、格式、尺寸和容量上限 | Pending |
 | #22 | 真实 Provider、x64/ARM64、Windows 矩阵 | 专用样本，不输出名称/路径 | Pending |
 
 在这些项目完成前，#21 与 #22 保持打开，产品默认只能使用安全引用和缓存内图像。

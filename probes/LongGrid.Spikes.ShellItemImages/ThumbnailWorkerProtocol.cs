@@ -16,6 +16,8 @@ internal enum ThumbnailWorkerRequestKind
     InvalidPixelLengthResponse,
     MalformedPixelPayload,
     UnexpectedPixelPayloadResponse,
+    MissingPixelBufferRequest,
+    InvalidPixelBufferCapacityRequest,
     Exit,
 }
 
@@ -26,20 +28,29 @@ internal sealed record ThumbnailWorkerRequest(
     string? Path,
     int Size,
     ShellItemImageFactoryFlags Flags,
-    bool IncludePixels = false);
+    bool IncludePixels = false,
+    long? PixelBufferHandle = null,
+    int PixelBufferCapacity = 0);
 
 internal enum ThumbnailPixelFormat
 {
     Bgra32 = 1,
 }
 
+internal enum ThumbnailPixelTransport
+{
+    InlineBase64 = 1,
+    SharedMemory = 2,
+}
+
 internal sealed record ThumbnailPixelPayload(
+    ThumbnailPixelTransport Transport,
     ThumbnailPixelFormat Format,
     int Width,
     int Height,
     int Stride,
     int ByteLength,
-    byte[] Bytes);
+    byte[]? Bytes);
 
 internal sealed record ThumbnailWorkerResponse(
     int ProtocolVersion,
@@ -53,7 +64,7 @@ internal sealed record ThumbnailWorkerResponse(
 
 internal static class ThumbnailWorkerServer
 {
-    internal const int CurrentProtocolVersion = 2;
+    internal const int CurrentProtocolVersion = 3;
     internal const int MaximumRequestCharacters = 65_536;
     internal const int MaximumPixelDimension = 256;
     internal const int MaximumPixelBytes =
@@ -178,6 +189,12 @@ internal static class ThumbnailWorkerServer
                 return 71;
             }
 
+            if (request.Kind is ThumbnailWorkerRequestKind.MissingPixelBufferRequest
+                or ThumbnailWorkerRequestKind.InvalidPixelBufferCapacityRequest)
+            {
+                request = request with { Kind = ThumbnailWorkerRequestKind.Extract };
+            }
+
             if (request.Kind == ThumbnailWorkerRequestKind.WriteBoundaryProbe)
             {
                 if (string.IsNullOrWhiteSpace(request.Path)
@@ -217,7 +234,12 @@ internal static class ThumbnailWorkerServer
                 || request.Path.Length > 32_767
                 || request.Size is < 1 or > 1_024
                 || (request.IncludePixels
-                    && request.Size > MaximumPixelDimension))
+                    && (request.Size > MaximumPixelDimension
+                        || request.PixelBufferHandle is null or <= 0
+                        || request.PixelBufferCapacity != MaximumPixelBytes))
+                || (!request.IncludePixels
+                    && (request.PixelBufferHandle is not null
+                        || request.PixelBufferCapacity != 0)))
             {
                 return 65;
             }
@@ -227,15 +249,17 @@ internal static class ThumbnailWorkerServer
                 request.Size,
                 request.Flags,
                 request.IncludePixels);
+            using var pixelMappingHandle = request.IncludePixels
+                ? new Microsoft.Win32.SafeHandles.SafeFileHandle(
+                    new nint(request.PixelBufferHandle!.Value),
+                    ownsHandle: true)
+                : null;
             ThumbnailPixelPayload? pixels = result.Pixels is null
                 ? null
-                : new ThumbnailPixelPayload(
-                    ThumbnailPixelFormat.Bgra32,
-                    result.Pixels.Width,
-                    result.Pixels.Height,
-                    result.Pixels.Stride,
-                    result.Pixels.Bytes.Length,
-                    result.Pixels.Bytes);
+                : WritePixelsToSharedMemory(
+                    pixelMappingHandle!,
+                    request.PixelBufferCapacity,
+                    result.Pixels);
             var response = new ThumbnailWorkerResponse(
                 CurrentProtocolVersion,
                 request.RequestId,
@@ -249,6 +273,25 @@ internal static class ThumbnailWorkerServer
         }
     }
 
+    private static ThumbnailPixelPayload WritePixelsToSharedMemory(
+        Microsoft.Win32.SafeHandles.SafeFileHandle mappingHandle,
+        int capacity,
+        BitmapPixelData pixels)
+    {
+        ThumbnailSharedMemoryTransfer.Write(
+            mappingHandle,
+            pixels.Bytes,
+            capacity);
+        return new ThumbnailPixelPayload(
+            ThumbnailPixelTransport.SharedMemory,
+            ThumbnailPixelFormat.Bgra32,
+            pixels.Width,
+            pixels.Height,
+            pixels.Stride,
+            pixels.Bytes.Length,
+            Bytes: null);
+    }
+
     private static ThumbnailPixelPayload CreateInvalidPixelPayload(
         ThumbnailWorkerRequestKind kind)
     {
@@ -256,44 +299,49 @@ internal static class ThumbnailWorkerServer
         {
             ThumbnailWorkerRequestKind.InvalidPixelFormatResponse =>
                 new ThumbnailPixelPayload(
+                    ThumbnailPixelTransport.SharedMemory,
                     (ThumbnailPixelFormat)99,
                     1,
                     1,
                     4,
                     4,
-                    new byte[4]),
+                    Bytes: null),
             ThumbnailWorkerRequestKind.InvalidPixelDimensionsResponse =>
                 new ThumbnailPixelPayload(
+                    ThumbnailPixelTransport.SharedMemory,
                     ThumbnailPixelFormat.Bgra32,
                     2,
                     1,
                     8,
                     8,
-                    new byte[8]),
+                    Bytes: null),
             ThumbnailWorkerRequestKind.InvalidPixelStrideResponse =>
                 new ThumbnailPixelPayload(
+                    ThumbnailPixelTransport.SharedMemory,
                     ThumbnailPixelFormat.Bgra32,
                     1,
                     1,
                     8,
                     8,
-                    new byte[8]),
+                    Bytes: null),
             ThumbnailWorkerRequestKind.InvalidPixelLengthResponse =>
                 new ThumbnailPixelPayload(
+                    ThumbnailPixelTransport.SharedMemory,
                     ThumbnailPixelFormat.Bgra32,
                     1,
                     1,
                     4,
                     8,
-                    new byte[4]),
+                    Bytes: null),
             ThumbnailWorkerRequestKind.UnexpectedPixelPayloadResponse =>
                 new ThumbnailPixelPayload(
+                    ThumbnailPixelTransport.SharedMemory,
                     ThumbnailPixelFormat.Bgra32,
                     1,
                     1,
                     4,
                     4,
-                    new byte[4]),
+                    Bytes: null),
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
     }
