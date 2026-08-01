@@ -53,9 +53,9 @@
 - 真实缩略图 worker：全部进程由 `TokenIsAppContainer` 复核，零 Capability、显式标准流句柄白名单、挂起后先入 Job；未代理读写均被拒绝，受控 BMP 副本可提取；
 - 协议 v6 明确区分 `ControlledCopy` 与 `MinimumPathAcl`，输入上限 32 MiB、拒绝重解析点；正常回收和父进程无清理退出两种路径均删除临时 Profile；
 - 矩阵增加普通父进程 Shell 对照和脱敏扩展级 handler 注册/模块健康布尔值，不输出 handler 身份、CLSID、厂商或路径；父进程结果也只能成功或精确 `0x8007007E`；
-- Windows 22621 上 BMP/PNG/GIF/JPEG 的父进程及两种 worker 策略全部成功；TIFF-RGB/TIFF-LZW 在父进程和两种 worker 策略下均精确返回 `0x8007007E`，同时两项都观察到扩展级 handler 已注册但模块缺失，证明该失败不是 AppContainer 特有；默认副本压力 500/500、p95 48.19 ms；
-- Windows 26100 GitHub runner 的普通父进程六样本全部成功且未观察到陈旧扩展 handler；同一六样本 × 两种 worker 策略的 12 个组合全部输入可读，但 `IShellItemImageFactory` 都稳定返回 `0x80070005`，把该环境差异明确定位到 AppContainer/Shell 边界；该分支只能安全回退到类型图标或已验证缓存；
-- 矩阵只接受成功、精确 `0x80070005` 或精确 `0x8007007E`，并要求同格式两种输入策略完全一致；跨格式一致性只记录，不再把 provider 差异误判为门禁失败；
+- Windows 22621 上 BMP/PNG/GIF/JPEG 的父进程及两种 worker 策略全部成功；TIFF-RGB/TIFF-LZW 在三条路径均精确返回 `0x8007007E`，且观察到 handler 已注册但模块缺失；HEVC HEIC 在三条路径均精确返回 `WTS_E_FAILEDEXTRACTION (0x8004B200)`，handler 已注册且模块存在；默认副本压力 500/500、p95 33.43 ms；
+- Windows 26100 GitHub runner 的普通父进程 BMP/PNG/GIF/JPEG/TIFF-RGB/TIFF-LZW 成功，HEIC 精确返回 `0x8004B200`；两种 worker 策略的 14 个输入全部可读，但 `IShellItemImageFactory` 均返回 `0x80070005`，把 worker 差异定位到 AppContainer/Shell 边界；
+- 矩阵只接受成功、精确 `0x80070005`、精确 `0x8007007E`，或仅限受控 HEIC 样本的精确 `0x8004B200`，并要求同格式两种输入策略完全一致；跨格式一致性只记录；
 - 共享内存返回最大 256×256 BGRA32，九类像素/映射故障均被拒绝并恢复；
 - Microsoft 文档说明 Mandatory Integrity Control 使用完整性策略限制访问，默认强制 no-write-up；AppContainer 用于隔离进程并按 capability/对象 ACL 控制资源访问。
 
@@ -76,7 +76,7 @@
 
 ### 后续工作
 
-1. 在六个自有格式/编码样本与父进程对照基线上继续验证 HEIF、Office/PDF、OneDrive、网络路径和受控安装的第三方 provider，并在干净环境复测 TIFF 默认 handler；保持失败时的类型图标/缓存回退，不修改用户注册表；
+1. 在七个自有格式/编码样本与父进程对照基线上继续验证 AVIF、HEIC 成功解码环境、Office/PDF、OneDrive、网络路径和受控安装的第三方 provider，并在干净环境复测 TIFF 默认 handler；保持失败时的类型图标/缓存回退，不修改用户注册表；
 2. 把 handle-backed 输入作为独立的 stream/decoder 或 Shell provider 合同实验，不把原始句柄错误地当成当前 parsing-name API 的直接替代；
 3. 为受控副本补充类型/水合策略、缓存预算和多文件隔离测试，不允许静默水合或扩大 Capability；
 4. 若重新评估最小路径 ACL，先实现异常退出后的 ACE 日志/修复及并发 DACL 变更测试；

@@ -66,7 +66,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 桌面目录与 Shell Namespace | 用户/Public 目录、Shell Namespace 枚举和差异对账 | E2 / Conditional Pass | 重定向、OneDrive、离线/权限矩阵 |
 | 稳定身份 | 文件对象身份、快捷方式双重身份、重命名跟踪 | E1-E2 | 跨卷、云占位符和长时间运行 |
 | Shell 变化 | 通知合并、恢复与最终全量对账 | E1-E2 | Explorer 重启和高频真实桌面压力 |
-| 图标/缩略图 | 异步加载、取消、句柄闭环；真实零 Capability AppContainer worker、协议 v6 的受控副本/最小路径 ACL 对照、六样本父进程基线与双 build 十二组合、脱敏 handler 注册健康、共享内存像素、未代理读写阻断、正常 ACL 恢复、硬超时/父退出/Profile 清理；合成 500 项预算 | E2 / Conditional Pass | 正式渲染集成、HEIF、Office/PDF、云/网络、受控第三方 provider/ARM64 矩阵、干净 TIFF 环境、异常 ACL 修复、安全确认和最终预算批准 |
+| 图标/缩略图 | 异步加载、取消、句柄闭环；真实零 Capability AppContainer worker、协议 v6 的受控副本/最小路径 ACL 对照、七样本父进程基线与双 build 十四组合、脱敏 handler 注册健康、共享内存像素、未代理读写阻断、正常 ACL 恢复、硬超时/父退出/Profile 清理；合成 500 项预算 | E2 / Conditional Pass | 正式渲染集成、AVIF/HEIC 成功环境、Office/PDF、云/网络、受控第三方 provider/ARM64 矩阵、干净 TIFF 环境、异常 ACL 修复、安全确认和最终预算批准 |
 | DesktopHost 规划 | 每显示器 HWND、显式 Region、被动显示、输入门 | E1-E2 | 系统表面和真实输入人工矩阵 |
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
@@ -188,6 +188,12 @@ Windows 22621 本地十个组合全部输入可读且同格式两种策略完全
 矩阵进一步加入普通父进程 Shell 基线，并把 TIFF 分成自生成的未压缩 RGB 与 LZW 两个样本。父进程也只允许成功或精确 `0x8007007E`；扩展级 handler 检查只输出“已注册、模块存在、陈旧注册”三个布尔值，不输出 handler 身份、CLSID、厂商或路径。worker 是否逐格式匹配父进程作为诊断证据，不跨隔离级别强求相同结果。
 
 Windows 22621 本地：BMP/PNG/GIF/JPEG 在父进程和两种 worker 策略均成功；两种 TIFF 在三条路径都精确返回 `0x8007007E`，且都观察到扩展级 handler 已注册但模块缺失，因此上一轮 TIFF 结果被纠正为机器级陈旧 provider 注册，而不是 AppContainer 特有失败。worker 十二组合全部安全分类并逐格式匹配父进程；500/500、p95 48.19 ms。Windows 26100 PR CI `30709902919`：父进程六项全部成功且未观察到陈旧扩展 handler，两个 AppContainer 策略的十二个输入全部可读但 Shell 全部返回 `0x80070005`；`WorkersMatchParentPerFormat=false` 在此是预期诊断证据，明确说明失败出现在隔离边界之后。该结论不授权主进程回退，也不修改用户注册表。
+
+### 4.13 HEVC HEIC 暴露了注册健康与实际提取能力的差异
+
+矩阵新增一个静态嵌入、2×2、自有 HEVC 压缩 HEIC 样本，不增加产品或探针运行时依赖。父进程和 worker 继续只输出固定格式标签、精确 HRESULT 与注册健康布尔值。初次运行因未分类的 `0x8004B200` 正确返回 Fail；审计 Windows SDK 后确认该值为 `WTS_E_FAILEDEXTRACTION`，随后只对“HEIC + 该精确 HRESULT”增加 `ShellExtractionUnavailableSafely`，没有接受任意提取失败。
+
+Windows 22621 本机的 HEIC 在父进程和两种 worker 策略中均精确 `0x8004B200`，handler 已注册且模块存在；七个父进程样本和十四个 worker 组合全部安全分类且逐格式一致，500/500、p95 33.43 ms。Windows 26100 PR #58 CI `30710720683` 中，父进程前六项成功但 HEIC 同样精确 `0x8004B200`；两个 AppContainer 策略的十四个输入全部可读，却统一返回 `0x80070005`。因此注册健康不能替代能力探测，HEIC 当前只能安全降级；同时 26100 的 worker 失败仍位于输入授权之后的 AppContainer/Shell 边界。Microsoft 的 HEIF codec 文档也说明 HEVC/AV1 codec 不保证存在，后续必须在受控成功解码环境补正向路径，并继续覆盖 AVIF。
 
 ## 5. 后续开发方向
 
