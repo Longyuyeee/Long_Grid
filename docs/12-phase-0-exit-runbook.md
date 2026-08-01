@@ -86,10 +86,10 @@ dotnet test LongGrid.sln --configuration Release --no-build
 | #21 | ACL、共享占用、只读卷、磁盘满 | VM/可还原快照；不得破坏系统目录 | Pending |
 | #21 | OneDrive、网络、重解析点、真实取消 | 专用账号/共享；默认阻断优先 | Pending |
 | #22 | 受限 Low Integrity 对照 | Low worker 可读取未授权文件，证明 MIC no-write-up 不能承担文件保密边界 | Decision evidence；不得作为生产回退 |
-| #22 | AppContainer 与访问 broker | 真实 worker 全部为零 Capability AppContainer；协议 v6 对照受控副本与最小路径 ACL；六个自有格式/编码样本逐项验证父进程基线、输入可读、同格式策略一致、安全分类和 Profile 清理，正常路径复核随机 SID ACE 已恢复 | Conditional Pass（自动探针）；ACL 只作比较，异常退出 ACE 修复 Pending |
+| #22 | AppContainer 与访问 broker | 真实 worker 全部为零 Capability AppContainer；协议 v6 对照受控副本与最小路径 ACL；七个自有格式/编码样本逐项验证父进程基线、输入可读、同格式策略一致、安全分类和 Profile 清理，正常路径复核随机 SID ACE 已恢复 | Conditional Pass（自动探针）；ACL 只作比较，异常退出 ACE 修复 Pending |
 | #22 | 有界共享内存句柄 broker | 匿名映射、单请求复制句柄、最大 262,144 bytes；缺失句柄/错误容量/元数据错误全部阻断并恢复 | Conditional Pass（自动探针） |
 | #22 | 正式渲染表面集成 | 保持已验证的 transport、长度、格式、尺寸和容量上限 | Pending |
-| #22 | 真实 Provider、x64/ARM64、Windows 矩阵 | 22621：父进程与 worker 的 TIFF-RGB/TIFF-LZW 均精确模块缺失，并脱敏识别陈旧扩展 handler；26100：父进程 6/6 成功，AppContainer 12/12 可读但 Shell 全部 `E_ACCESSDENIED`；只输出固定标签/HRESULT/注册健康布尔值 | Partial；HEIF、Office/PDF、云/网络、受控第三方、ARM64 和干净 TIFF 环境 Pending |
+| #22 | 真实 Provider、x64/ARM64、Windows 矩阵 | 22621：TIFF-RGB/TIFF-LZW 在父进程与 worker 均精确模块缺失并识别陈旧 handler；两 build 的 HEVC HEIC 父进程均精确 `WTS_E_FAILEDEXTRACTION`；26100 AppContainer 14/14 可读但 Shell 全部 `E_ACCESSDENIED`；只输出固定标签/HRESULT/注册健康布尔值 | Partial；AVIF/HEIC 成功环境、Office/PDF、云/网络、受控第三方、ARM64 和干净 TIFF 环境 Pending |
 
 在这些项目完成前，#21 与 #22 保持打开，产品默认只能使用安全引用和缓存内图像。
 
