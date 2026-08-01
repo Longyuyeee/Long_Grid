@@ -58,9 +58,9 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 |---|---:|---:|---|
 | 成功请求 | 500/500 | 500/500 | Pass |
 | worker 预热 | 2/2 轮成功 | 必须成功 | Pass |
-| p50 往返 | 16.57 ms | 仅记录 | Pass |
-| p95 往返 | 25.54 ms | ≤250 ms | Pass |
-| 500 项总墙钟 | 11,977.10 ms | ≤30,000 ms | Pass |
+| p50 往返 | 16.59 ms | 仅记录 | Pass |
+| p95 往返 | 21.11 ms | ≤250 ms | Pass |
+| 500 项总墙钟 | 11,611.16 ms | ≤30,000 ms | Pass |
 | 预算回收 | 5 | 每 100 项一次 | Pass |
 | 强制超时终止 | 1 | 必须终止 | Pass |
 | 超时后恢复 | 成功 | 必须成功 | Pass |
@@ -72,6 +72,10 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 | 句柄继承 | `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` 仅 stdin/stdout/stderr | 显式最小列表 | Pass |
 | worker write-up | 实际 worker 新建中完整性沙箱文件被拒绝 | 必须阻断 | Pass |
 | worker 未授权读取 | 实际 worker 读取未通过 broker 授予的中完整性标记文件 | 受限 token 不得被误判为保密边界 | Exposed（决策证据） |
+| AppContainer Profile/Capability | 随机临时 Profile；CapabilityCount 0 | 不授予宽泛 Capability；结束删除 Profile | Pass |
+| AppContainer 启动顺序/令牌 | 3 个进程挂起启动、先入 Job、`TokenIsAppContainer` | 全部为 AppContainer，入 Job 后恢复 | Pass |
+| AppContainer 标准流 | `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` 仅继承父进程打开的 `NUL` 输入/输出 | 不继承其他父进程句柄 | Pass |
+| AppContainer 文件边界 | no-op 0；精确 SID ACL 控制文件 0；相邻未授权文件 1 | 进程可运行、显式授权可读、未授权拒绝 | Pass |
 | 受限令牌创建 | `DISABLE_MAX_PRIVILEGE` | 必须成功 | Pass |
 | Low Integrity 复核 | SID RID `0x1000` | 必须为 Low | Pass |
 | MIC 读/写边界 | 可读自有 BMP；不可在中完整性沙箱新建文件 | 读允许、write-up 阻断 | Pass |
@@ -87,9 +91,9 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 | 超过 64 KiB 响应检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
 | 超过 64 KiB 请求检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
 | 异常退出检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
-| worker 总 CPU | 1,046.875 ms | 首轮记录 | Pass |
-| 750 ms 空闲 CPU | 15.625 ms | ≤50 ms | Pass |
-| 峰值工作集 | 43,446,272 bytes | ≤268,435,456 bytes | Pass |
+| worker 总 CPU | 765.625 ms | 首轮记录 | Pass |
+| 750 ms 空闲 CPU | 0 ms | ≤50 ms | Pass |
+| 峰值工作集 | 43,016,192 bytes | ≤268,435,456 bytes | Pass |
 | 峰值句柄 | 353 | ≤512 | Pass |
 | 沙箱清理 | 成功 | 必须成功 | Pass |
 
@@ -112,6 +116,8 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 - `STARTUPINFOEX` 的句柄列表只允许子进程继承 stdin、stdout 和指向 `NUL` 的 stderr，父进程管道端显式清除继承标记；
 - 父进程查询所有 worker 的实际 token 均为 Low，worker 能提取自有 BMP，但自身向中完整性沙箱的新建文件被阻断；
 - 同一个实际 worker 可以读取父进程创建、但未通过 broker 授予的中完整性标记文件；探针不输出标记内容。这与 write-up 被阻断并不矛盾，说明 Low Integrity 受限 token 不是文件保密边界；
+- 可以用随机临时 Profile 和零 Capability `SECURITY_CAPABILITIES` 创建 AppContainer 进程；三个控制进程均在挂起状态加入生命周期 Job、复核 `TokenIsAppContainer` 后才恢复，且 Profile 在结束时删除；
+- AppContainer no-op 控制成功；父进程只在探针自有 broker 子目录为该随机 AppContainer SID 增加只读/遍历 ACL 后，控制文件可读；同级未授权标记仍被拒绝。标准流仅继承显式列出的父进程 `NUL` 句柄，避免把缺失控制台误判为读取失败；
 - 可以从当前进程令牌创建 `DISABLE_MAX_PRIVILEGE` 受限令牌，将其 Mandatory Integrity Level 设置并复核为 Low（RID `0x1000`）；
 - 在该令牌的模拟上下文中，自有 BMP 仍可读取，但向默认中完整性/未标记沙箱执行 write-up 会被 MIC 阻断；退出模拟后父进程写控制组成功，排除了目录自身不可写造成的假阳性；
 - Worker 不跨进程传递裸 `HBITMAP`，复制后的 BGRA32 缓冲具有明确格式、尺寸、步幅、长度和 256×256/262,144-byte 上限；
@@ -128,21 +134,21 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 
 ### 尚未证明
 
-- ADR-0002 已根据实际读暴露证据建议 AppContainer + 父进程 broker，但安全负责人尚未确认，AppContainer 启动、单请求输入授权、Capability、缓存与原路径语义边界也尚未实现；
+- ADR-0002 已根据实际读暴露和零 Capability AppContainer 正向隔离证据建议 AppContainer + 父进程 broker，但安全负责人尚未确认；真实缩略图 worker 尚未迁移，单请求输入授权、Capability、缓存与原路径语义边界也尚未完成；
 - `CreateProcessAsUserW` 的权限、会话和支持矩阵目前只在本机与 Windows CI runner 验证，尚未覆盖标准用户、企业策略、Windows 10 最低 build 与 ARM64；
 - 当前匿名映射仍复制到父进程托管缓冲，尚未验证正式渲染表面、跨 GPU 适配器资源或端到端零拷贝；
 - 500 次是对同一自有 BMP 的隔离/生命周期压力，不等于 500 个不同真实项目的 provider、缓存和渲染预算；
 - 尚未覆盖 OneDrive、网络路径、第三方 provider、恶意文件、x64/ARM64 与支持的 Windows build 矩阵；
 - 暂定预算仅来自当前机器，不能直接升级为发布 SLA。
 
-因此 P0-03b 为 Conditional Pass，Issue #22 继续保持打开。它允许架构推进到“已有受限 Low Integrity、可回收硬超时 worker 原型，并已排除仅靠受限 token 的生产方案”，但 AppContainer broker 和真实 provider 矩阵完成前仍不允许对任意文件开放现场缩略图访问。
+因此 P0-03b 为 Conditional Pass，Issue #22 继续保持打开。它允许架构推进到“已有受限 Low Integrity、可回收硬超时 worker 原型，已排除仅靠受限 token 的生产方案，并验证零 Capability AppContainer 的最小路径 ACL 边界”，但真实 worker、单请求 broker 和 provider 矩阵完成前仍不允许对任意文件开放现场缩略图访问。
 
 ## 6. 下一切片
 
-1. 按 ADR-0002 建立无宽泛 Capability 的 AppContainer 启动探针，验证未授权标记文件不可读，并比较 brokered handle、受控副本与最小路径 ACL；
-2. 把已验证的共享内存 transport 接入正式渲染表面，保持相同长度/格式/尺寸/容量上限；
-3. 在标准用户、企业策略、Windows 10/11、x64/ARM64 环境复测进程创建与隔离；
-4. 在合成不同格式集和专用云/网络/provider 环境执行 500 个不同项目矩阵；
-5. 把支持矩阵实测结果提交负责人批准最终 CPU/内存/响应预算。
+1. 把真实缩略图 worker 迁入已验证的零 Capability AppContainer 启动边界，并保持挂起后先入 Job、标准流句柄白名单、硬超时和 Profile 清理；
+2. 在实际 Shell 提取中比较 brokered handle、受控副本与已通过边界探针的最小路径 ACL；
+3. 把已验证的共享内存 transport 接入正式渲染表面，保持相同长度/格式/尺寸/容量上限；
+4. 在标准用户、企业策略、Windows 10/11、x64/ARM64 环境复测进程创建与隔离；
+5. 在合成不同格式集和专用云/网络/provider 环境执行 500 个不同项目矩阵，并提交负责人批准最终预算。
 
-本轮安全语义依据 Microsoft 的 [Mandatory Integrity Control](https://learn.microsoft.com/windows/win32/secauthz/mandatory-integrity-control)、[`CreateRestrictedToken`](https://learn.microsoft.com/windows/win32/api/securitybaseapi/nf-securitybaseapi-createrestrictedtoken)、[`CreateProcessAsUserW`](https://learn.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasuserw)、[显式句柄继承](https://learn.microsoft.com/windows/win32/procthread/creating-processes)、[`AssignProcessToJobObject`](https://learn.microsoft.com/windows/win32/api/jobapi2/nf-jobapi2-assignprocesstojobobject)、[`DuplicateHandle`](https://learn.microsoft.com/windows/win32/api/handleapi/nf-handleapi-duplicatehandle)、[`CreateFileMapping`](https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-createfilemappingw)和[文件视图](https://learn.microsoft.com/windows/win32/memory/creating-a-file-view)文档。MIC 默认执行 no-write-up；共享内存句柄 broker 通过不等于文件访问 broker 或完整沙箱已完成。
+本轮安全语义依据 Microsoft 的 [Mandatory Integrity Control](https://learn.microsoft.com/windows/win32/secauthz/mandatory-integrity-control)、[AppContainer isolation](https://learn.microsoft.com/windows/win32/secauthz/appcontainer-isolation)、[`CreateAppContainerProfile`](https://learn.microsoft.com/windows/win32/api/userenv/nf-userenv-createappcontainerprofile)、[`SECURITY_CAPABILITIES`](https://learn.microsoft.com/windows/win32/api/winnt/ns-winnt-security_capabilities)、[`CreateRestrictedToken`](https://learn.microsoft.com/windows/win32/api/securitybaseapi/nf-securitybaseapi-createrestrictedtoken)、[`CreateProcessAsUserW`](https://learn.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasuserw)、[显式句柄继承](https://learn.microsoft.com/windows/win32/procthread/creating-processes)、[`AssignProcessToJobObject`](https://learn.microsoft.com/windows/win32/api/jobapi2/nf-jobapi2-assignprocesstojobobject)、[`DuplicateHandle`](https://learn.microsoft.com/windows/win32/api/handleapi/nf-handleapi-duplicatehandle)、[`CreateFileMapping`](https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-createfilemappingw)和[文件视图](https://learn.microsoft.com/windows/win32/memory/creating-a-file-view)文档。MIC 默认执行 no-write-up；AppContainer 边界控制通过仍不等于真实缩略图 worker 或完整文件 broker 已完成。

@@ -63,6 +63,14 @@ internal static class ThumbnailWorkerIsolationProbe
             && report.RestrictedWorker.ExtractionSucceeded
             && report.RestrictedWorker.JobAssignedBeforeResume
             && report.RestrictedWorker.ExplicitHandleAllowList
+            && report.AppContainer.ProfileCreated
+            && report.AppContainer.ZeroCapabilities
+            && report.AppContainer.NoOpSucceeded
+            && report.AppContainer.ControlReadSucceeded
+            && report.AppContainer.UnbrokeredReadBlocked
+            && report.AppContainer.AllProcessesAppContainer
+            && report.AppContainer.ProcessesAssignedBeforeResume
+            && report.AppContainer.ProfileDeleted
             && report.RestrictedToken.RestrictedTokenCreated
             && report.RestrictedToken.LowIntegrityObserved
             && report.RestrictedToken.OwnedInputReadSucceeded
@@ -129,7 +137,7 @@ internal static class ThumbnailWorkerIsolationProbe
         string unbrokeredReadPath = Path.Combine(
             sandboxRoot,
             "unbrokered-readable.tmp");
-        await File.WriteAllTextAsync(unbrokeredReadPath, "owned-probe-marker");
+        await File.WriteAllTextAsync(unbrokeredReadPath, "exit /b 0");
         ThumbnailWorkerCallResult unbrokeredReadResult =
             await client.ExecuteAsync(
                 new ThumbnailWorkerRequest(
@@ -158,6 +166,8 @@ internal static class ThumbnailWorkerIsolationProbe
             && restrictedWriteResult.Response is { Success: true }
             && !File.Exists(workerWritePath);
         File.Delete(workerWritePath);
+        ThumbnailAppContainerBoundaryResult appContainer =
+            ThumbnailAppContainerBoundaryProbe.Run(unbrokeredReadPath);
         double idleCpuMilliseconds =
             await client.MeasureIdleCpuMillisecondsAsync(IdleSample);
         var durations = new List<double>(StressRequests);
@@ -542,6 +552,7 @@ internal static class ThumbnailWorkerIsolationProbe
             TimeoutBackoff: timeoutBackoff,
             ParentExit: parentExit,
             RestrictedWorker: restrictedWorker,
+            AppContainer: appContainer,
             RestrictedToken: restrictedToken,
             PixelTransfer: pixelTransfer,
             Resilience: resilience,
@@ -557,7 +568,7 @@ internal static class ThumbnailWorkerIsolationProbe
             ],
             Limitations:
             [
-                "The actual low-integrity worker can read an owned medium-integrity file that was not granted through a broker, so the restricted token is not a file-confidentiality boundary; production must add AppContainer isolation before live arbitrary-file extraction.",
+                "A zero-capability AppContainer blocks the unbrokered marker while reading a control file granted through an exact AppContainer-SID ACL, but the production thumbnail worker and per-request input broker have not yet moved into that boundary.",
                 "The synthetic BMP validates process lifetime and Shell extraction, not third-party, cloud, network, or adversarial providers.",
                 "The bounded BGRA payload uses a duplicated unnamed file-mapping handle; formal render-surface integration and the final broker policy remain unimplemented.",
                 "The forced timeout and parent-exit cases use a deterministic worker hang before native extraction because inducing a real provider hang on a user machine is unsafe.",
@@ -840,6 +851,13 @@ internal static class ThumbnailWorkerIsolationProbe
             + $"{report.RestrictedWorker.JobAssignedBeforeResume}/"
             + $"{report.RestrictedWorker.ExplicitHandleAllowList}");
         Console.WriteLine(
+            $"AppContainer no-op/control/denied/token/profile cleanup: "
+            + $"{report.AppContainer.NoOpSucceeded}/"
+            + $"{report.AppContainer.ControlReadSucceeded}/"
+            + $"{report.AppContainer.UnbrokeredReadBlocked}/"
+            + $"{report.AppContainer.AllProcessesAppContainer}/"
+            + $"{report.AppContainer.ProfileDeleted}");
+        Console.WriteLine(
             $"Pixel IPC: {report.PixelTransfer.Succeeded}; "
             + $"{report.PixelTransfer.Width}x{report.PixelTransfer.Height}, "
             + $"{report.PixelTransfer.ByteLength} bytes; recoveries "
@@ -863,6 +881,7 @@ internal sealed record ThumbnailWorkerIsolationReport(
     ThumbnailWorkerBackoffResult TimeoutBackoff,
     ThumbnailWorkerParentExitResult ParentExit,
     ThumbnailRestrictedWorkerResult RestrictedWorker,
+    ThumbnailAppContainerBoundaryResult AppContainer,
     RestrictedThumbnailTokenResult RestrictedToken,
     ThumbnailWorkerPixelTransferResult PixelTransfer,
     ThumbnailWorkerResilienceResult Resilience,

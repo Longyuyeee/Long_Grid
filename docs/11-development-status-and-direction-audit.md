@@ -2,7 +2,7 @@
 
 审计日期：2026-08-01
 
-审计基线：`main` / `250cd29`
+审计基线：`main` / `0951b7b`
 
 审计范围：代码、测试、技术探针、架构/产品/交互文档、GitHub PR 与 CI
 
@@ -66,7 +66,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 桌面目录与 Shell Namespace | 用户/Public 目录、Shell Namespace 枚举和差异对账 | E2 / Conditional Pass | 重定向、OneDrive、离线/权限矩阵 |
 | 稳定身份 | 文件对象身份、快捷方式双重身份、重命名跟踪 | E1-E2 | 跨卷、云占位符和长时间运行 |
 | Shell 变化 | 通知合并、恢复与最终全量对账 | E1-E2 | Explorer 重启和高频真实桌面压力 |
-| 图标/缩略图 | 异步加载、取消、句柄闭环；受限 Low Integrity worker 挂起启动/先入 Job/最小句柄继承、硬超时、有界协议故障恢复、父进程 PID/Job Object 双重退出清理、连续超时退避、显式复制匿名映射句柄的有界 BGRA32 IPC、worker 写阻断、未授权读取暴露和合成 500 项预算 | E2 / Conditional Pass | ADR-0002 的 AppContainer + 文件 broker 建议待安全确认与实现；正式渲染集成、真实 provider/支持矩阵与最终预算批准 |
+| 图标/缩略图 | 异步加载、取消、句柄闭环；受限 Low Integrity worker 的生命周期/恢复/共享内存/读写边界；零 Capability AppContainer 启动、令牌复核、Job、显式标准流、精确 SID ACL 授权/未授权读取阻断和 Profile 清理；合成 500 项预算 | E2 / Conditional Pass | 真实 worker 迁移与单请求 broker、正式渲染集成、真实 provider/支持矩阵、安全确认和最终预算批准 |
 | DesktopHost 规划 | 每显示器 HWND、显式 Region、被动显示、输入门 | E1-E2 | 系统表面和真实输入人工矩阵 |
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
@@ -89,7 +89,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 
 ### 4.1 GitHub 治理基线已闭环
 
-PR #18、#25–#44 已进入 `main`，当前审计基线为合并 PR #44 后的 `250cd29`。覆盖率、配置、文件安全、受限 Low Integrity/共享内存缩略图 worker、文件读取边界和依赖漏洞门禁已在主干 CI `30692459001` 全部通过。PR #2–#17 已关闭；删除远端分支前，对历史功能分支逐一确认其提交已进入主干。远端现只保留 `main`。
+PR #18、#25–#45 已进入 `main`，当前审计基线为合并 PR #45 后的 `0951b7b`。覆盖率、配置、文件安全、受限 Low Integrity/共享内存缩略图 worker、文件读取边界和依赖漏洞门禁已在主干 CI `30692665942` 全部通过。PR #2–#17 已关闭；删除远端分支前，对历史功能分支逐一确认其提交已进入主干。远端现只保留 `main`。
 
 `main` 已要求严格的 `build-test` 状态检查，规则对管理员生效，同时禁止强推和删除。Phase 0 Exit 里程碑以 #19–#24 跟踪人工输入与系统表面、动态显示、文件安全、缩略图隔离与 500 项预算、产品决策和持久化生产边界。W0 因此关闭；这只证明主干治理可信，不代表产品已达到发布条件。
 
@@ -144,6 +144,7 @@ PR #39 合入后的首轮主干 CI `30690663507` 识别出父进程退出探针�
 
 - ADR-0002 建议生产采用无宽泛 Capability 的 AppContainer + 单请求父进程 broker；受限 Low Integrity 模式只保留为诊断基线；
 - 必须验证 AppContainer 启动、未授权读取阻断、文件句柄/受控副本/最小路径 ACL、缓存与共享内存边界；
+- 本轮已关闭上述第一项并验证最小路径 ACL 的边界语义；仍需把真实 worker 和 Shell 提取迁入同一隔离模型，不能用控制进程结果代替 provider 兼容性；
 - 正式产品配置 schema、Infrastructure 接线和安装范围必须等待 #23 确认首版模式、最低系统、架构、渠道与许可证。
 
 ### 4.7 显式共享内存句柄 broker 已跑通，文件访问 broker 仍未定义
@@ -155,6 +156,14 @@ PR #39 合入后的首轮主干 CI `30690663507` 识别出父进程退出探针�
 这证明了“主进程按请求授予一个有界内核对象能力”的机制，可复用于 AppContainer；它不是文件 broker 已完成。缩略图 worker 目前仍接收路径并依赖 Low Integrity 的 no-write-up，而不是由主进程授予最小文件句柄/受控副本。实际未授权读取证据已经排除“受限 token + 原路径”作为生产隔离方案；下一实现必须验证 AppContainer capability/broker、受控副本或最小路径 ACL，以及真实 Shell provider 对原路径语义的依赖。
 
 在上述决定前，可继续准备专用环境与实机执行，但不应默认某种权限模型或创建承诺兼容性的正式 schema。
+
+### 4.8 零 Capability AppContainer 边界已得到正向证据
+
+父进程创建随机临时 AppContainer Profile，`SECURITY_CAPABILITIES` 的 CapabilityCount 为 0；三个控制进程均以 `CREATE_SUSPENDED` 启动，只继承父进程显式打开的 `NUL` 标准流句柄，加入 `KILL_ON_JOB_CLOSE` Job 并通过 `TokenIsAppContainer` 复核后才恢复。No-op 控制退出码为 0，排除了进程无法执行造成的假阳性。
+
+父进程只在探针自有 broker 子目录为该随机 AppContainer SID 增加只读/遍历 ACL：控制文件退出码为 0，同级未授权标记退出码为 1；结束后 Profile 和文件沙箱均删除。首版控制曾因没有可用标准输出使读命令退出失败，第二版直接把命令文件重定向为 stdin 又因 `cmd /c` 语法和无命令等待产生失败/超时；最终沿用显式标准流句柄白名单，让退出码只反映访问结果，判定阈值未放宽。
+
+这证明了 AppContainer + 精确对象授权可以表达 ADR-0002 所需的“显式授权可读、相邻未授权拒绝”。它仍只是系统工具控制进程，不是 `IShellItemImageFactory` worker；下一切片必须迁移真实 worker，并比较句柄、受控副本和最小路径 ACL 对 Shell provider 原路径语义的影响。
 
 ## 5. 后续开发方向
 
@@ -168,7 +177,7 @@ PR #39 合入后的首轮主干 CI `30690663507` 识别出父进程退出探针�
 - [x] 最新 `main` 全量 CI 通过；
 - [x] PR #2–#17 的分支均无 `main` 之外的独立提交；
 - [x] PR #18 经审核后合入 `main`；
-- [x] PR #2–#18、#25–#44 已合并或关闭，远端无长期串联草稿分支；
+- [x] PR #2–#18、#25–#45 已合并或关闭，远端无长期串联草稿分支；
 - [x] `main` 已启用禁止强推、禁止删除和必需状态检查；
 - [x] Phase 0 Exit 里程碑和 #19–#24 已建立；
 - [x] 后续 PR 从最新 `main` 创建。
@@ -246,7 +255,7 @@ LPWP 协议可以继续做兼容性维护和 Golden Fixture，但 Widget Host �
 
 | 顺序 | 工作包 | 交付物 | 退出条件 |
 |---|---|---|---|
-| W0（完成） | GitHub 治理 | PR #18、#25–#44 已合入；PR #2–#17 关闭；旧远端分支删除；`main` 受保护；Phase 0 Exit 建立 | 主干 CI 通过、无打开 PR、远端只保留 `main`，保护规则要求严格 `build-test` |
+| W0（完成） | GitHub 治理 | PR #18、#25–#45 已合入；PR #2–#17 关闭；旧远端分支删除；`main` 受保护；Phase 0 Exit 建立 | 主干 CI 通过、无打开 PR、远端只保留 `main`，保护规则要求严格 `build-test` |
 | W1 | 人工输入与系统表面（#19） | P0-05b2 键鼠/触控/拖放/Narrator/Win+D/全屏/Alt+Tab/任务视图/Explorer 重启记录 | 每个场景有环境、原始证据、Pass/Fail/Inconclusive 和缺陷 |
 | W2 | 动态显示（#20） | 缩放、旋转、拔插、投影、睡眠、RDP、`WM_DPICHANGED` 受控矩阵 | 稳定器、布局事务、资源闭环和恢复结果全部可复读 |
 | W3 | 文件安全、隔离与性能（#21、#22） | 引用/移动语义、`IFileOperation`、缩略图硬超时工作进程、500 项 CPU/内存/响应基线 | 不误移动、不丢撤销证据，资源预算可供负责人批准 |

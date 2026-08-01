@@ -108,7 +108,7 @@
 ### 条件与未验证范围
 
 - `GetImage` 原生调用无法被 `CancellationToken` 硬中断；
-- P0-03b 已实现并压力验证受限 Low Integrity 可回收工作进程、挂起后先入 Job、最小句柄继承、显式复制匿名映射句柄的有界 BGRA32 IPC 和 worker 写阻断；实际 worker 仍可读取未通过 broker 授予的中完整性文件，ADR-0002 因此建议 AppContainer + 父进程 broker；隔离实现、正式渲染集成和真实 provider 矩阵仍未完成；
+- P0-03b 已实现并压力验证受限 Low Integrity 可回收工作进程、挂起后先入 Job、最小句柄继承、显式复制匿名映射句柄的有界 BGRA32 IPC 和 worker 写阻断；实际 worker 仍可读取未授权文件，而零 Capability AppContainer 对照已验证精确 SID ACL 授权文件可读、相邻未授权文件被拒绝及 Profile 清理；真实 worker 迁移、单请求 broker、正式渲染集成和 provider 矩阵仍未完成；
 - 缩略图只验证了缓存命中路径，没有读取文件内容或强制生成；
 - 尚未覆盖 ARM64、Windows 10、网络目录、OneDrive 在线/离线矩阵、恶意或崩溃的第三方缩略图提供程序；
 - 尚未验证 alpha、色彩、主题、DPI、缩放质量、内存缓存淘汰和 UI 滚动时序；
@@ -132,7 +132,7 @@
 ## 9. 后续
 
 1. P0-04/P0-05：比较每容器 HWND 与每显示器 HWND；
-2. 继续 P0-03b：按 ADR-0002 建立无宽泛 Capability 的 AppContainer 启动探针和单请求文件 broker，再推进正式渲染表面集成；实际 Low Integrity worker、共享内存句柄 broker、有界 BGRA32 IPC、读暴露、写阻断与父进程 PID/Job Object 双重退出清理已有探针证据；
+2. 继续 P0-03b：把真实缩略图 worker 迁入已验证的零 Capability AppContainer 启动边界，比较单请求句柄、受控副本和最小路径 ACL，再推进正式渲染表面集成；
 3. OneDrive/网络/第三方提供程序兼容矩阵；
 4. 500 个不同项目的内存缓存、滚动取消、主题/DPI 失效和渲染预算；
 5. 在完整低权限工作进程和真实 provider 矩阵通过前，MVP 可以发布类型图标和缓存缩略图，但不得承诺任意文件的即时缩略图。

@@ -48,6 +48,7 @@
 ## 证据
 
 - 实际 Low Integrity worker：读取未 broker 授权的自有中完整性文件成功，向中完整性目录 write-up 失败；
+- 零 Capability AppContainer：三个挂起启动的控制进程均由 `TokenIsAppContainer` 复核，先加入 `KILL_ON_JOB_CLOSE` Job 再恢复；无操作控制成功，精确 AppContainer SID ACL 授权文件可读，相邻未授权文件被拒绝，临时 Profile 删除成功；
 - 500/500 合成 BMP 提取、250 ms 硬超时与恢复、父进程退出清理通过；
 - 共享内存返回最大 256×256 BGRA32，九类像素/映射故障均被拒绝并恢复；
 - Microsoft 文档说明 Mandatory Integrity Control 使用完整性策略限制访问，默认强制 no-write-up；AppContainer 用于隔离进程并按 capability/对象 ACL 控制资源访问。
@@ -68,8 +69,8 @@
 
 ### 后续工作
 
-1. 建立无 Capability AppContainer 启动与退出探针，验证无法读取未授权标记文件；
-2. 比较 brokered handle、受控副本和最小路径 ACL 三种单请求输入方式；
+1. 把现有缩略图 worker 迁入无宽泛 Capability 的 AppContainer，并保留挂起启动、Job、标准流白名单、硬超时与共享内存合同；
+2. 在实际 Shell 提取中比较 brokered handle、受控副本和已通过边界探针的最小路径 ACL 三种单请求输入方式；
 3. 验证 BMP、常见图片、Office/PDF、OneDrive、网络路径和第三方 provider；
 4. 将通过的合同迁入正式渲染接口，并保留类型图标安全回退；
 5. 由安全负责人确认后把本 ADR 改为 Accepted 或 Revised。
