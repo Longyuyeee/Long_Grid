@@ -29,7 +29,7 @@
 
 IPC 请求/响应携带协议版本和有界 request ID、路径长度、尺寸；JSON 拒绝未知字段，并校验响应版本与 request ID。stdin 请求保持 64 KiB 上限，stdout 响应按像素最大负载设为 400,000 字符，两端都由有界逐行读取器在 JSON 解析前拒绝超限输入。故障矩阵覆盖畸形 JSON、错误协议版本、超长响应、超长请求和 worker 主动异常退出；父进程分别识别协议错误或 EOF，回收后均由新 worker 成功恢复。
 
-协议 v3 把正常 BGRA32 字节从 JSON 移到匿名页文件映射。父进程按请求创建最大 262,144 bytes、不可执行的映射，再用 `DuplicateHandle` 向目标 Low Integrity worker 复制不可继承的单次句柄；请求只携带目标句柄值和固定容量。Worker 通过 `GetDIBits` 把自有 `HBITMAP` 复制为 top-down、每像素 4 字节的托管缓冲，写入映射并关闭目标句柄；父进程只读映射，并复核 transport、响应/像素尺寸、格式、`stride == width × 4`、声明长度、容量、实际长度及非零内容。逐行响应仍有 400,000 字符防御上限，但正常像素不再 base64 编码；畸形旧 inline 编码仅保留为拒绝测试。故障矩阵分别拒绝错误格式、尺寸、步幅、长度、非法旧编码、未请求负载、超过 256 的请求、缺失映射句柄和错误容量，每次回收后均恢复成功。
+协议 v4 把正常 BGRA32 字节从 JSON 移到匿名页文件映射。父进程按请求创建最大 262,144 bytes、不可执行的映射，再用 `DuplicateHandle` 向目标 Low Integrity worker 复制不可继承的单次句柄；请求只携带目标句柄值和固定容量。Worker 通过 `GetDIBits` 把自有 `HBITMAP` 复制为 top-down、每像素 4 字节的托管缓冲，写入映射并关闭目标句柄；父进程只读映射，并复核 transport、响应/像素尺寸、格式、`stride == width × 4`、声明长度、容量、实际长度及非零内容。逐行响应仍有 400,000 字符防御上限，但正常像素不再 base64 编码；畸形旧 inline 编码仅保留为拒绝测试。故障矩阵分别拒绝错误格式、尺寸、步幅、长度、非法旧编码、未请求负载、超过 256 的请求、缺失映射句柄和错误容量，每次回收后均恢复成功。v4 同时加入实际 worker 只读暴露探针。
 
 父进程为所有 worker 创建启用 `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` 的 Windows Job Object，并在进程启动后立即分配；父进程退出导致 Job 句柄关闭时，内核回收仍存活的 worker。父进程 PID 同时由受控参数传入 worker，worker 打开父进程句柄并异步等待退出，形成托管监视与操作系统 Job 的双重兜底。矩阵另起一个父进程测试宿主，确认其在不执行 `Dispose` 的情况下退出后，卡死 worker 会在 10 秒门限内消失。连续三次强制超时分别触发 50、100、200 ms 退避，总计 350 ms，随后正常提取成功并清零超时连续计数。
 
@@ -71,6 +71,7 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 | 启动顺序 | `CREATE_SUSPENDED` → 加入 Job → `ResumeThread` | 不允许入 Job 前执行 | Pass |
 | 句柄继承 | `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` 仅 stdin/stdout/stderr | 显式最小列表 | Pass |
 | worker write-up | 实际 worker 新建中完整性沙箱文件被拒绝 | 必须阻断 | Pass |
+| worker 未授权读取 | 实际 worker 读取未通过 broker 授予的中完整性标记文件 | 受限 token 不得被误判为保密边界 | Exposed（决策证据） |
 | 受限令牌创建 | `DISABLE_MAX_PRIVILEGE` | 必须成功 | Pass |
 | Low Integrity 复核 | SID RID `0x1000` | 必须为 Low | Pass |
 | MIC 读/写边界 | 可读自有 BMP；不可在中完整性沙箱新建文件 | 读允许、write-up 阻断 | Pass |
@@ -110,6 +111,7 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 - 实际 worker 通过 `CreateProcessAsUserW` 使用受限 Low Integrity 主令牌启动；主线程先挂起，在加入 Job Object 后才恢复，避免入 Job 前执行的竞态；
 - `STARTUPINFOEX` 的句柄列表只允许子进程继承 stdin、stdout 和指向 `NUL` 的 stderr，父进程管道端显式清除继承标记；
 - 父进程查询所有 worker 的实际 token 均为 Low，worker 能提取自有 BMP，但自身向中完整性沙箱的新建文件被阻断；
+- 同一个实际 worker 可以读取父进程创建、但未通过 broker 授予的中完整性标记文件；探针不输出标记内容。这与 write-up 被阻断并不矛盾，说明 Low Integrity 受限 token 不是文件保密边界；
 - 可以从当前进程令牌创建 `DISABLE_MAX_PRIVILEGE` 受限令牌，将其 Mandatory Integrity Level 设置并复核为 Low（RID `0x1000`）；
 - 在该令牌的模拟上下文中，自有 BMP 仍可读取，但向默认中完整性/未标记沙箱执行 write-up 会被 MIC 阻断；退出模拟后父进程写控制组成功，排除了目录自身不可写造成的假阳性；
 - Worker 不跨进程传递裸 `HBITMAP`，复制后的 BGRA32 缓冲具有明确格式、尺寸、步幅、长度和 256×256/262,144-byte 上限；
@@ -126,18 +128,18 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 
 ### 尚未证明
 
-- 尚未决定 AppContainer 或受限 Low Integrity worker 的最终产品模型，也未定义文件访问 broker、Capability、缓存与原路径语义边界；
+- ADR-0002 已根据实际读暴露证据建议 AppContainer + 父进程 broker，但安全负责人尚未确认，AppContainer 启动、单请求输入授权、Capability、缓存与原路径语义边界也尚未实现；
 - `CreateProcessAsUserW` 的权限、会话和支持矩阵目前只在本机与 Windows CI runner 验证，尚未覆盖标准用户、企业策略、Windows 10 最低 build 与 ARM64；
 - 当前匿名映射仍复制到父进程托管缓冲，尚未验证正式渲染表面、跨 GPU 适配器资源或端到端零拷贝；
 - 500 次是对同一自有 BMP 的隔离/生命周期压力，不等于 500 个不同真实项目的 provider、缓存和渲染预算；
 - 尚未覆盖 OneDrive、网络路径、第三方 provider、恶意文件、x64/ARM64 与支持的 Windows build 矩阵；
 - 暂定预算仅来自当前机器，不能直接升级为发布 SLA。
 
-因此 P0-03b 为 Conditional Pass，Issue #22 继续保持打开。它允许架构推进到“已有受限 Low Integrity、可回收硬超时 worker 原型”，但 broker 和真实 provider 矩阵完成前仍不允许对任意文件开放现场缩略图访问。
+因此 P0-03b 为 Conditional Pass，Issue #22 继续保持打开。它允许架构推进到“已有受限 Low Integrity、可回收硬超时 worker 原型，并已排除仅靠受限 token 的生产方案”，但 AppContainer broker 和真实 provider 矩阵完成前仍不允许对任意文件开放现场缩略图访问。
 
 ## 6. 下一切片
 
-1. 比较 AppContainer 与受限 token，明确文件访问 broker、Capability、缓存、受控副本与原路径语义边界；
+1. 按 ADR-0002 建立无宽泛 Capability 的 AppContainer 启动探针，验证未授权标记文件不可读，并比较 brokered handle、受控副本与最小路径 ACL；
 2. 把已验证的共享内存 transport 接入正式渲染表面，保持相同长度/格式/尺寸/容量上限；
 3. 在标准用户、企业策略、Windows 10/11、x64/ARM64 环境复测进程创建与隔离；
 4. 在合成不同格式集和专用云/网络/provider 环境执行 500 个不同项目矩阵；

@@ -59,6 +59,7 @@ internal static class ThumbnailWorkerIsolationProbe
             && report.ParentExit.KillOnJobCloseConfigured
             && report.RestrictedWorker.AllWorkersLowIntegrity
             && report.RestrictedWorker.MediumSandboxWriteBlocked
+            && report.RestrictedWorker.UnbrokeredReadSucceeded
             && report.RestrictedWorker.ExtractionSucceeded
             && report.RestrictedWorker.JobAssignedBeforeResume
             && report.RestrictedWorker.ExplicitHandleAllowList
@@ -125,6 +126,23 @@ internal static class ThumbnailWorkerIsolationProbe
         string workerWritePath = Path.Combine(
             sandboxRoot,
             "restricted-worker-write.tmp");
+        string unbrokeredReadPath = Path.Combine(
+            sandboxRoot,
+            "unbrokered-readable.tmp");
+        await File.WriteAllTextAsync(unbrokeredReadPath, "owned-probe-marker");
+        ThumbnailWorkerCallResult unbrokeredReadResult =
+            await client.ExecuteAsync(
+                new ThumbnailWorkerRequest(
+                    ThumbnailWorkerServer.CurrentProtocolVersion,
+                    "restricted-worker-unbrokered-read-boundary",
+                    ThumbnailWorkerRequestKind.ReadBoundaryProbe,
+                    unbrokeredReadPath,
+                    Size: 0,
+                    Flags: 0),
+                RequestTimeout);
+        bool unbrokeredReadSucceeded =
+            unbrokeredReadResult.Completed
+            && unbrokeredReadResult.Response is { Success: true };
         ThumbnailWorkerCallResult restrictedWriteResult =
             await client.ExecuteAsync(
                 new ThumbnailWorkerRequest(
@@ -508,6 +526,7 @@ internal static class ThumbnailWorkerIsolationProbe
         var restrictedWorker = new ThumbnailRestrictedWorkerResult(
             AllWorkersLowIntegrity: client.AllWorkersLowIntegrity,
             MediumSandboxWriteBlocked: restrictedWorkerWriteBlocked,
+            UnbrokeredReadSucceeded: unbrokeredReadSucceeded,
             ExtractionSucceeded: warmupSucceeded,
             JobAssignedBeforeResume: true,
             ExplicitHandleAllowList: true);
@@ -538,7 +557,7 @@ internal static class ThumbnailWorkerIsolationProbe
             ],
             Limitations:
             [
-                "The worker now launches with a restricted low-integrity token, but the AppContainer versus restricted-token choice and brokered file-access contract remain production decisions.",
+                "The actual low-integrity worker can read an owned medium-integrity file that was not granted through a broker, so the restricted token is not a file-confidentiality boundary; production must add AppContainer isolation before live arbitrary-file extraction.",
                 "The synthetic BMP validates process lifetime and Shell extraction, not third-party, cloud, network, or adversarial providers.",
                 "The bounded BGRA payload uses a duplicated unnamed file-mapping handle; formal render-surface integration and the final broker policy remain unimplemented.",
                 "The forced timeout and parent-exit cases use a deterministic worker hang before native extraction because inducing a real provider hang on a user machine is unsafe.",
@@ -813,8 +832,9 @@ internal static class ThumbnailWorkerIsolationProbe
             + $"{report.RestrictedToken.MediumSandboxWriteBlocked}/"
             + $"{report.RestrictedToken.ParentWriteControlSucceeded}");
         Console.WriteLine(
-            $"Restricted worker launch/write block: "
+            $"Restricted worker launch/read exposure/write block: "
             + $"{report.RestrictedWorker.AllWorkersLowIntegrity}/"
+            + $"{report.RestrictedWorker.UnbrokeredReadSucceeded}/"
             + $"{report.RestrictedWorker.MediumSandboxWriteBlocked}; "
             + $"suspended-job/handle-list "
             + $"{report.RestrictedWorker.JobAssignedBeforeResume}/"
@@ -856,6 +876,7 @@ internal sealed record ThumbnailWorkerIsolationReport(
 internal sealed record ThumbnailRestrictedWorkerResult(
     bool AllWorkersLowIntegrity,
     bool MediumSandboxWriteBlocked,
+    bool UnbrokeredReadSucceeded,
     bool ExtractionSucceeded,
     bool JobAssignedBeforeResume,
     bool ExplicitHandleAllowList);
