@@ -169,7 +169,7 @@ PR #39 合入后的首轮主干 CI `30690663507` 识别出父进程退出探针�
 
 父进程为每个 client 创建随机临时 Profile，把受限于 128 MiB 的 worker 运行时暂存到该 Profile 私有目录；所有 worker 通过 `SECURITY_CAPABILITIES` 以零 Capability 挂起启动，只继承 stdin/stdout/stderr，先加入 `KILL_ON_JOB_CLOSE` Job，并由父进程查询 `TokenIsAppContainer` 后恢复。AppContainer 内不再打开父进程句柄，异常父退出由内核 Job 回收；独立宿主把 Profile 名写入原子 ready 信号，主探针在确认孤儿退出后删除遗留 Profile。
 
-父进程对真实提取输入执行 32 MiB 上限、拒绝重解析点的只读受控复制并缓存同一版本副本；协议 v5 将输入 transport 设为 `ControlledCopy`，worker 拒绝直接路径提取。最新本地矩阵 500/500 成功，p95 29.70 ms、总墙钟 16.32 s；所有 worker 为 AppContainer，未代理读写均阻断，共享内存、超时、九类像素故障、父退出和两类 Profile 清理均通过。结论仍为 Conditional Pass：副本改变路径/邻接/ADS/云水合语义，尚未完成真实 provider、brokered handle、最小 ACL、正式渲染和支持矩阵。
+父进程对真实提取输入执行 32 MiB 单文件/64 MiB client 总量上限、拒绝重解析点的只读受控复制并缓存同一版本副本；协议 v5 将输入 transport 设为 `ControlledCopy`，worker 拒绝直接路径提取。Windows `10.0.22621` 本地矩阵 500/500 成功，p95 约 29–33 ms；Windows `10.0.26100` GitHub runner 上副本直接读成功，但 Shell 提取稳定返回 `E_ACCESSDENIED`、无像素。CI 将后者作为明确的 `ProductFallbackRequired` 兼容性分支，而不是提取成功；不允许回退到主进程或 Low Integrity 现场提取。结论仍为 Conditional Pass：副本改变路径/邻接/ADS/云水合语义，尚未完成真实 provider、brokered handle、最小 ACL、正式渲染和支持矩阵。
 
 ## 5. 后续开发方向
 

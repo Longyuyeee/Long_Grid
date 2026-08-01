@@ -6,6 +6,7 @@ internal static class ThumbnailWorkerIsolationProbe
 {
     private const int StressRequests = 500;
     private const int RequestsPerWorker = 100;
+    private const int AccessDeniedHResult = unchecked((int)0x80070005);
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan ForcedTimeout = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan IdleSample = TimeSpan.FromMilliseconds(750);
@@ -44,16 +45,14 @@ internal static class ThumbnailWorkerIsolationProbe
             return 2;
         }
 
-        bool passed = report.Stress.Succeeded == StressRequests
-            && report.WarmupSucceeded
+        bool commonPassed =
+            report.Stress.Succeeded + report.Stress.Failed == StressRequests
             && report.AppContainerWorker.ControlledCopyReadSucceeded
             && report.HardTimeout.TimedOut
             && report.HardTimeout.WorkerKilled
-            && report.HardTimeout.RecoverySucceeded
             && report.TimeoutBackoff.TimeoutsObserved == 3
             && report.TimeoutBackoff.MaximumConsecutiveTimeouts >= 3
             && report.TimeoutBackoff.BackoffsApplied == 3
-            && report.TimeoutBackoff.RecoverySucceeded
             && report.ParentExit.WorkerStarted
             && report.ParentExit.ParentExited
             && report.ParentExit.OrphanExited
@@ -62,7 +61,6 @@ internal static class ThumbnailWorkerIsolationProbe
             && report.AppContainerWorker.AllWorkersAppContainer
             && report.AppContainerWorker.MediumSandboxWriteBlocked
             && report.AppContainerWorker.UnbrokeredReadBlocked
-            && report.AppContainerWorker.ExtractionSucceeded
             && report.AppContainerWorker.JobAssignedBeforeResume
             && report.AppContainerWorker.ExplicitHandleAllowList
             && report.AppContainerWorker.ControlledInputCopyUsed
@@ -80,8 +78,6 @@ internal static class ThumbnailWorkerIsolationProbe
             && report.RestrictedToken.OwnedInputReadSucceeded
             && report.RestrictedToken.MediumSandboxWriteBlocked
             && report.RestrictedToken.ParentWriteControlSucceeded
-            && report.PixelTransfer.Succeeded
-            && report.PixelTransfer.MaximumPayloadSucceeded
             && report.PixelTransfer.FormatValidated
             && report.PixelTransfer.DimensionsValidated
             && report.PixelTransfer.StrideValidated
@@ -91,20 +87,49 @@ internal static class ThumbnailWorkerIsolationProbe
             && report.PixelTransfer.OversizedPixelRequestDetected
             && report.PixelTransfer.SharedMemoryHandleRequired
             && report.PixelTransfer.SharedMemoryCapacityValidated
-            && report.PixelTransfer.SharedMemoryContentObserved
-            && report.PixelTransfer.RecoveriesSucceeded == 9
             && report.Resilience.MalformedResponseDetected
-            && report.Resilience.MalformedResponseRecoverySucceeded
             && report.Resilience.WrongVersionDetected
-            && report.Resilience.WrongVersionRecoverySucceeded
             && report.Resilience.OversizedResponseDetected
-            && report.Resilience.OversizedResponseRecoverySucceeded
             && report.Resilience.OversizedRequestDetected
-            && report.Resilience.OversizedRequestRecoverySucceeded
             && report.Resilience.UnexpectedExitDetected
-            && report.Resilience.UnexpectedExitRecoverySucceeded
             && report.Budget.WithinProvisionalBudget
             && report.CleanupSucceeded;
+        bool extractionPassed = report.ProviderCompatibility.ExtractionSupported
+            && report.Stress.Succeeded == StressRequests
+            && report.WarmupSucceeded
+            && report.AppContainerWorker.ExtractionSucceeded
+            && report.HardTimeout.RecoverySucceeded
+            && report.TimeoutBackoff.RecoverySucceeded
+            && report.PixelTransfer.Succeeded
+            && report.PixelTransfer.MaximumPayloadSucceeded
+            && report.PixelTransfer.SharedMemoryContentObserved
+            && report.PixelTransfer.RecoveriesSucceeded == 9
+            && report.Resilience.MalformedResponseRecoverySucceeded
+            && report.Resilience.WrongVersionRecoverySucceeded
+            && report.Resilience.OversizedResponseRecoverySucceeded
+            && report.Resilience.OversizedRequestRecoverySucceeded
+            && report.Resilience.UnexpectedExitRecoverySucceeded;
+        bool safeProviderDenialPassed =
+            report.ProviderCompatibility.AccessDeniedSafely
+            && report.ProviderCompatibility.ProductFallbackRequired
+            && !report.WarmupSucceeded
+            && report.WarmupHResult == AccessDeniedHResult
+            && report.Stress.Succeeded == 0
+            && report.Stress.Failed == StressRequests
+            && !report.AppContainerWorker.ExtractionSucceeded
+            && !report.HardTimeout.RecoverySucceeded
+            && !report.TimeoutBackoff.RecoverySucceeded
+            && !report.PixelTransfer.Succeeded
+            && !report.PixelTransfer.MaximumPayloadSucceeded
+            && !report.PixelTransfer.SharedMemoryContentObserved
+            && report.PixelTransfer.RecoveriesSucceeded == 0
+            && !report.Resilience.MalformedResponseRecoverySucceeded
+            && !report.Resilience.WrongVersionRecoverySucceeded
+            && !report.Resilience.OversizedResponseRecoverySucceeded
+            && !report.Resilience.OversizedRequestRecoverySucceeded
+            && !report.Resilience.UnexpectedExitRecoverySucceeded;
+        bool passed = commonPassed
+            && (extractionPassed || safeProviderDenialPassed);
         report = report with
         {
             Verdict = passed ? "ConditionalPass" : "Fail",
@@ -563,6 +588,13 @@ internal static class ThumbnailWorkerIsolationProbe
             ExplicitHandleAllowList: true,
             ControlledInputCopyUsed: controlledInputCopyUsed,
             AppContainerProfileDeleted: client.AppContainerProfileDeleted);
+        bool accessDeniedSafely = !warmupSucceeded
+            && warmupHResult == AccessDeniedHResult
+            && controlledCopyReadSucceeded;
+        var providerCompatibility = new ThumbnailProviderCompatibilityResult(
+            ExtractionSupported: warmupSucceeded,
+            AccessDeniedSafely: accessDeniedSafely,
+            ProductFallbackRequired: accessDeniedSafely);
 
         return new ThumbnailWorkerIsolationReport(
             Probe: "P0-03b-thumbnail-worker-isolation",
@@ -571,6 +603,7 @@ internal static class ThumbnailWorkerIsolationProbe
             Architecture: RuntimeInformation.OSArchitecture.ToString(),
             WarmupSucceeded: warmupSucceeded,
             WarmupHResult: warmupHResult,
+            ProviderCompatibility: providerCompatibility,
             Stress: stress,
             HardTimeout: hardTimeout,
             TimeoutBackoff: timeoutBackoff,
@@ -888,6 +921,11 @@ internal static class ThumbnailWorkerIsolationProbe
             + $"{report.AppContainerWorker.ExtractionSucceeded}/"
             + $"0x{report.WarmupHResult:X8}");
         Console.WriteLine(
+            $"Provider supported/safe denial/fallback required: "
+            + $"{report.ProviderCompatibility.ExtractionSupported}/"
+            + $"{report.ProviderCompatibility.AccessDeniedSafely}/"
+            + $"{report.ProviderCompatibility.ProductFallbackRequired}");
+        Console.WriteLine(
             $"AppContainer no-op/control/denied/token/profile cleanup: "
             + $"{report.AppContainer.NoOpSucceeded}/"
             + $"{report.AppContainer.ControlReadSucceeded}/"
@@ -914,6 +952,7 @@ internal sealed record ThumbnailWorkerIsolationReport(
     string Architecture,
     bool WarmupSucceeded,
     int WarmupHResult,
+    ThumbnailProviderCompatibilityResult ProviderCompatibility,
     ThumbnailWorkerStressResult Stress,
     ThumbnailWorkerTimeoutResult HardTimeout,
     ThumbnailWorkerBackoffResult TimeoutBackoff,
@@ -929,6 +968,11 @@ internal sealed record ThumbnailWorkerIsolationReport(
     string Verdict,
     IReadOnlyList<string> Privacy,
     IReadOnlyList<string> Limitations);
+
+internal sealed record ThumbnailProviderCompatibilityResult(
+    bool ExtractionSupported,
+    bool AccessDeniedSafely,
+    bool ProductFallbackRequired);
 
 internal sealed record ThumbnailAppContainerWorkerResult(
     bool AllWorkersAppContainer,

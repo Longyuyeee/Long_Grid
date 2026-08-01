@@ -101,6 +101,17 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 | 峰值句柄 | 341 | ≤512 | Pass |
 | 沙箱清理 | 成功 | 必须成功 | Pass |
 
+### Windows build 兼容性分支
+
+同一实现目前出现两个可复现结果：
+
+| 环境 | 受控副本直接读 | `IShellItemImageFactory` | 判定 |
+|---|---|---|---|
+| Windows `10.0.22621` x64 本机 | Pass | 500/500；p95 约 29–33 ms | `ExtractionSupported` |
+| Windows `10.0.26100` x64 GitHub runner | Pass | 预热及 500/500 均返回 `0x80070005 (E_ACCESSDENIED)`，无像素 | `AccessDeniedSafely` / `ProductFallbackRequired` |
+
+CI 只在两条严格分支之一通过：支持环境必须满足完整 500/500、像素、恢复和预算条件；不支持环境必须是受控副本可直接读取、首次 Shell 调用精确返回 `E_ACCESSDENIED`、500 次无一伪成功、无共享内存像素，同时所有隔离、超时、Job 和 Profile 清理门禁仍成立。第二条分支不是“提取成功”，也不允许回退到主进程或 Low Integrity 现场提取；产品只能显示类型图标或已验证缓存，并把该 build/provider 记入兼容矩阵。
+
 扩展共享内存与生命周期矩阵后的代表轮次由主探针共启动 24 个 worker：初始/预算回收进程、强制超时及恢复、通用协议错误、九类像素/映射负载与请求错误及逐项恢复、异常退出，以及连续三次超时和最终恢复；另由独立父进程宿主启动一个卡死 worker 验证孤儿清理。报告只输出聚合指标，不输出路径、文件名、图像字节、句柄值或 Shell 身份；为区分跨 Windows build 的文件授权与 provider 失败，只保留首次提取的聚合 HRESULT。
 
 受限 worker 首次合入后的主干 CI 暴露了父进程退出测试的 ready-file 竞态：子宿主直接创建最终文件时，主探针可能在写句柄关闭前因“文件已存在”而读取，触发 sharing violation。修复后子宿主先完整写入同目录 `.pending` 文件并关闭句柄，再以原子重命名发布就绪信号；本地连续三轮完整矩阵均通过。该修复不放宽等待时间或性能预算。
@@ -144,6 +155,7 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 - 当前匿名映射仍复制到父进程托管缓冲，尚未验证正式渲染表面、跨 GPU 适配器资源或端到端零拷贝；
 - 500 次是对同一自有 BMP 的隔离/生命周期压力，不等于 500 个不同真实项目的 provider、缓存和渲染预算；
 - 尚未覆盖 OneDrive、网络路径、第三方 provider、恶意文件、x64/ARM64 与支持的 Windows build 矩阵；
+- Windows `10.0.26100` GitHub runner 已证明受控副本可读但 Shell 提取返回 `E_ACCESSDENIED`；在确认具体 build/provider/runner 策略前必须安全回退，不能宣称该环境支持现场缩略图；
 - 暂定预算仅来自当前机器，不能直接升级为发布 SLA。
 
 因此 P0-03b 为 Conditional Pass，Issue #22 继续保持打开。真实 worker 已进入零 Capability AppContainer，受控副本关闭了探针内的直接路径读取暴露；但副本语义、其他 broker 方式和 provider 矩阵完成前，仍不允许对任意用户文件开放现场缩略图访问。
