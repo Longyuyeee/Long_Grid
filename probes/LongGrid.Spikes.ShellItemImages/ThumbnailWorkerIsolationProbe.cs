@@ -28,6 +28,7 @@ internal static class ThumbnailWorkerIsolationProbe
             string gifPath = Path.Combine(root, "owned-sample.gif");
             string jpegPath = Path.Combine(root, "owned-sample.jpg");
             string tiffPath = Path.Combine(root, "owned-sample.tiff");
+            string tiffLzwPath = Path.Combine(root, "owned-sample-lzw.tiff");
             WriteOwnedBitmap(bitmapPath, width: 2, height: 2);
             WriteOwnedBitmap(
                 maximumBitmapPath,
@@ -37,13 +38,15 @@ internal static class ThumbnailWorkerIsolationProbe
             OwnedThumbnailSampleFactory.WriteGif(gifPath);
             OwnedThumbnailSampleFactory.WriteJpeg(jpegPath);
             OwnedThumbnailSampleFactory.WriteTiff(tiffPath);
+            OwnedThumbnailSampleFactory.WriteTiffLzw(tiffLzwPath);
             ThumbnailOwnedProviderSample[] providerSamples =
             [
                 new("BMP", bitmapPath),
                 new("PNG", pngPath),
                 new("GIF", gifPath),
                 new("JPEG", jpegPath),
-                new("TIFF", tiffPath),
+                new("TIFF-RGB", tiffPath),
+                new("TIFF-LZW", tiffLzwPath),
             ];
             report = await RunMatrixAsync(
                 bitmapPath,
@@ -67,6 +70,7 @@ internal static class ThumbnailWorkerIsolationProbe
         bool commonPassed =
             report.Stress.Succeeded + report.Stress.Failed == StressRequests
             && report.ProviderMatrix.SameSampleSet
+            && report.ProviderMatrix.ParentSamplesSafelyClassified
             && report.ProviderMatrix.StrategiesAgreePerFormat
             && report.ProviderMatrix.AllSamplesSafelyClassified
             && report.MinimumPathAcl.ControlReadSucceeded
@@ -658,7 +662,7 @@ internal static class ThumbnailWorkerIsolationProbe
             [
                 "Only owned synthetic BMP, PNG, GIF, JPEG, and TIFF files inside a random temporary sandbox were opened.",
                 "Only the controlled-copy or probe-owned minimum-ACL path traveled through redirected stdin; neither path appears in command-line arguments or report output.",
-                "No image bytes, names, paths, or Shell identities are emitted; only fixed format labels and HRESULT classifications are retained for cross-build diagnosis.",
+                "No image bytes, names, paths, handler identities, CLSIDs, module paths, or Shell identities are emitted; only fixed format labels, HRESULT classifications, and registration-health booleans are retained for cross-build diagnosis.",
             ],
             Limitations:
             [
@@ -1020,8 +1024,9 @@ internal static class ThumbnailWorkerIsolationProbe
             + $"{report.ProviderCompatibility.AccessDeniedSafely}/"
             + $"{report.ProviderCompatibility.ProductFallbackRequired}");
         Console.WriteLine(
-            $"Provider matrix samples/safe: "
+            $"Provider matrix samples/parent-safe/safe: "
             + $"{report.ProviderMatrix.ControlledCopy.Samples.Count}/"
+            + $"{report.ProviderMatrix.ParentSamplesSafelyClassified}/"
             + $"{report.ProviderMatrix.AllSamplesSafelyClassified}");
         Console.WriteLine(
             $"Minimum-path ACL read/extract/safe-denial/adjacent/restored: "
