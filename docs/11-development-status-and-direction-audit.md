@@ -2,7 +2,7 @@
 
 审计日期：2026-08-01
 
-审计基线：`main` / `72d2c3e`
+审计基线：`main` / `3509cd9`，实现分支 `codex/thumbnail-appcontainer-worker`
 
 审计范围：代码、测试、技术探针、架构/产品/交互文档、GitHub PR 与 CI
 
@@ -47,7 +47,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 |---|---|---|
 | 工程 | .NET 8 SDK 锁定、集中包版本、nullable、警告即错误、确定性构建 | 已建立 |
 | 解决方案 | `main` 有 1 个 Core、1 个测试和 9 个探针项目 | 已建立，但不是产品分层 |
-| 代码 | 当前分支有 17 个 Core、12 个测试和 49 个探针 C# 源文件 | 以风险验证为主 |
+| 代码 | 当前分支有 17 个 Core、12 个测试和 50 个探针 C# 源文件 | 以风险验证为主 |
 | 测试 | 当前全量 88 项测试通过 | Core 回归基线有效 |
 | CI | 单一 Windows workflow 执行 restore、format、build、test、覆盖率门禁、配置/文件安全/缩略图 worker 探针、依赖漏洞门禁并上传 TRX/Cobertura | PR 基线有效；行覆盖率最低 90%、分支覆盖率最低 75%，尚无 CodeQL 或发布流水线 |
 | 文档 | PRD、架构、质量、竞品、交互、协议、流程、ADR、20 份 Spike 报告 | 覆盖较完整 |
@@ -66,7 +66,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 桌面目录与 Shell Namespace | 用户/Public 目录、Shell Namespace 枚举和差异对账 | E2 / Conditional Pass | 重定向、OneDrive、离线/权限矩阵 |
 | 稳定身份 | 文件对象身份、快捷方式双重身份、重命名跟踪 | E1-E2 | 跨卷、云占位符和长时间运行 |
 | Shell 变化 | 通知合并、恢复与最终全量对账 | E1-E2 | Explorer 重启和高频真实桌面压力 |
-| 图标/缩略图 | 异步加载、取消、句柄闭环；受限 Low Integrity worker 的生命周期/恢复/共享内存/读写边界；零 Capability AppContainer 启动、令牌复核、Job、显式标准流、精确 SID ACL 授权/未授权读取阻断和 Profile 清理；合成 500 项预算 | E2 / Conditional Pass | 真实 worker 迁移与单请求 broker、正式渲染集成、真实 provider/支持矩阵、安全确认和最终预算批准 |
+| 图标/缩略图 | 异步加载、取消、句柄闭环；真实零 Capability AppContainer worker、协议 v5 受控输入副本、共享内存像素、未代理读写阻断、硬超时/父退出/Profile 清理；合成 500 项预算 | E2 / Conditional Pass | brokered handle/最小路径 ACL 比较、正式渲染集成、真实 provider/支持矩阵、安全确认和最终预算批准 |
 | DesktopHost 规划 | 每显示器 HWND、显式 Region、被动显示、输入门 | E1-E2 | 系统表面和真实输入人工矩阵 |
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
@@ -89,7 +89,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 
 ### 4.1 GitHub 治理基线已闭环
 
-PR #18、#25–#46 已进入 `main`，当前审计基线为合并 PR #46 后的 `72d2c3e`。覆盖率、配置、文件安全、受限 Low Integrity/共享内存缩略图 worker、AppContainer 文件边界和依赖漏洞门禁已在主干 CI `30693409144` 全部通过。PR #2–#17 已关闭；删除远端分支前，对历史功能分支逐一确认其提交已进入主干。远端现只保留 `main`。
+PR #18、#25–#47 已进入 `main`，当前主干基线为合并 PR #47 后的 `3509cd9`。覆盖率、配置、文件安全、受限 Low Integrity/共享内存缩略图 worker、AppContainer 文件边界和依赖漏洞门禁已在主干 CI `30693584914` 全部通过。PR #2–#17 已关闭；远端在本功能分支创建前只保留 `main`。
 
 `main` 已要求严格的 `build-test` 状态检查，规则对管理员生效，同时禁止强推和删除。Phase 0 Exit 里程碑以 #19–#24 跟踪人工输入与系统表面、动态显示、文件安全、缩略图隔离与 500 项预算、产品决策和持久化生产边界。W0 因此关闭；这只证明主干治理可信，不代表产品已达到发布条件。
 
@@ -153,7 +153,7 @@ PR #39 合入后的首轮主干 CI `30690663507` 识别出父进程退出探针�
 
 协议 v4 不再把正常 BGRA32 字节编码进 JSON。父进程创建匿名、不可执行、最大 262,144 bytes 的页文件映射，并用 `DuplicateHandle` 把不可继承句柄复制到当前 Low Integrity worker；协议只传目标进程中的句柄值、固定容量和像素元数据。Worker 映射写入后关闭目标句柄，父进程只读映射并复核 transport、格式、尺寸、步幅、声明长度、容量和非零内容。缺失句柄、错误容量、错误格式/尺寸/步幅/长度、畸形旧 inline 编码、未请求负载和超限尺寸均被拒绝，9/9 后续恢复成功。v4 新增实际 worker 只读暴露探针并将其纳入报告，不向协议输出标记内容。
 
-这证明了“主进程按请求授予一个有界内核对象能力”的机制，可复用于 AppContainer；它不是文件 broker 已完成。缩略图 worker 目前仍接收路径并依赖 Low Integrity 的 no-write-up，而不是由主进程授予最小文件句柄/受控副本。实际未授权读取证据已经排除“受限 token + 原路径”作为生产隔离方案；下一实现必须验证 AppContainer capability/broker、受控副本或最小路径 ACL，以及真实 Shell provider 对原路径语义的依赖。
+这证明了“主进程按请求授予一个有界内核对象能力”的机制。当前协议 v5 又把文件输入推进到父进程生成的受控副本：真实提取必须声明 `ControlledCopy`，原始路径不会发送给 worker。它仍未证明 brokered handle 或最小路径 ACL 的 provider 兼容性，也不保留原路径和邻接资源语义。
 
 在上述决定前，可继续准备专用环境与实机执行，但不应默认某种权限模型或创建承诺兼容性的正式 schema。
 
@@ -163,7 +163,13 @@ PR #39 合入后的首轮主干 CI `30690663507` 识别出父进程退出探针�
 
 父进程只在探针自有 broker 子目录为该随机 AppContainer SID 增加只读/遍历 ACL：控制文件退出码为 0，同级未授权标记退出码为 1；结束后 Profile 和文件沙箱均删除。首版控制曾因没有可用标准输出使读命令退出失败，第二版直接把命令文件重定向为 stdin 又因 `cmd /c` 语法和无命令等待产生失败/超时；最终沿用显式标准流句柄白名单，让退出码只反映访问结果，判定阈值未放宽。
 
-这证明了 AppContainer + 精确对象授权可以表达 ADR-0002 所需的“显式授权可读、相邻未授权拒绝”。它仍只是系统工具控制进程，不是 `IShellItemImageFactory` worker；下一切片必须迁移真实 worker，并比较句柄、受控副本和最小路径 ACL 对 Shell provider 原路径语义的影响。
+这证明了 AppContainer + 精确对象授权可以表达 ADR-0002 所需的“显式授权可读、相邻未授权拒绝”。当前真实 `IShellItemImageFactory` worker 已迁入相同的零 Capability 启动模型，并以受控副本完成第一种输入策略；下一切片应比较句柄和最小路径 ACL 对原路径语义的影响。
+
+### 4.9 真实缩略图 worker 已进入零 Capability AppContainer
+
+父进程为每个 client 创建随机临时 Profile，把受限于 128 MiB 的 worker 运行时暂存到该 Profile 私有目录；所有 worker 通过 `SECURITY_CAPABILITIES` 以零 Capability 挂起启动，只继承 stdin/stdout/stderr，先加入 `KILL_ON_JOB_CLOSE` Job，并由父进程查询 `TokenIsAppContainer` 后恢复。AppContainer 内不再打开父进程句柄，异常父退出由内核 Job 回收；独立宿主把 Profile 名写入原子 ready 信号，主探针在确认孤儿退出后删除遗留 Profile。
+
+父进程对真实提取输入执行 32 MiB 上限、拒绝重解析点的只读受控复制并缓存同一版本副本；协议 v5 将输入 transport 设为 `ControlledCopy`，worker 拒绝直接路径提取。最新本地矩阵 500/500 成功，p95 29.70 ms、总墙钟 16.32 s；所有 worker 为 AppContainer，未代理读写均阻断，共享内存、超时、九类像素故障、父退出和两类 Profile 清理均通过。结论仍为 Conditional Pass：副本改变路径/邻接/ADS/云水合语义，尚未完成真实 provider、brokered handle、最小 ACL、正式渲染和支持矩阵。
 
 ## 5. 后续开发方向
 

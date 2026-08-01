@@ -77,7 +77,7 @@ dotnet test LongGrid.sln --configuration Release --no-build
 
 ## 5. Issue #21–#22：剩余安全与隔离矩阵
 
-自动 CI 已覆盖安全引用、同卷受控移动、冲突预阻断、回调取消/部分成功，以及 Worker 500 项预算、有界 BGRA32 像素协议与故障矩阵、硬超时、父进程 PID/Job Object 双重退出清理和连续超时退避。以下仍须专用环境：
+自动 CI 已覆盖安全引用、同卷受控移动、冲突预阻断、回调取消/部分成功，以及零 Capability AppContainer Worker 500 项预算、受控输入副本、有界 BGRA32 像素协议与故障矩阵、硬超时、Job Object 父退出/Profile 清理和连续超时退避。以下仍须专用环境：
 
 | Issue | 剩余项 | 安全限制 | 状态 |
 |---|---|---|---|
@@ -85,8 +85,8 @@ dotnet test LongGrid.sln --configuration Release --no-build
 | #21 | 跨卷复制→校验→删除→补偿 | 两个可清空测试卷，不使用用户卷 | Pending |
 | #21 | ACL、共享占用、只读卷、磁盘满 | VM/可还原快照；不得破坏系统目录 | Pending |
 | #21 | OneDrive、网络、重解析点、真实取消 | 专用账号/共享；默认阻断优先 | Pending |
-| #22 | 受限 Low Integrity worker 启动与读/写边界 | 实际 worker 为 Low；自有输入可读，write-up 被阻断；挂起后先入 Job；仅继承三标准流 | Conditional Pass（自动探针） |
-| #22 | AppContainer/受限 token 决策与访问 broker | 实际 Low worker 可读取未授权文件；零 Capability AppContainer 启动/令牌/Job/Profile 清理通过，精确 SID ACL 授权文件可读且相邻未授权文件被拒绝 | Conditional Pass（边界探针）；真实 worker/broker Pending |
+| #22 | 受限 Low Integrity 对照 | Low worker 可读取未授权文件，证明 MIC no-write-up 不能承担文件保密边界 | Decision evidence；不得作为生产回退 |
+| #22 | AppContainer 与访问 broker | 真实 worker 全部为零 Capability AppContainer；32 MiB 受控只读副本可提取，未代理读写被拒绝；正常/异常父进程路径均清理 Profile | Conditional Pass（自动探针）；handle/最小 ACL 与 provider 矩阵 Pending |
 | #22 | 有界共享内存句柄 broker | 匿名映射、单请求复制句柄、最大 262,144 bytes；缺失句柄/错误容量/元数据错误全部阻断并恢复 | Conditional Pass（自动探针） |
 | #22 | 正式渲染表面集成 | 保持已验证的 transport、长度、格式、尺寸和容量上限 | Pending |
 | #22 | 真实 Provider、x64/ARM64、Windows 矩阵 | 专用样本，不输出名称/路径 | Pending |
