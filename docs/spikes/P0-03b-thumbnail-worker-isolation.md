@@ -58,15 +58,19 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 |---|---:|---:|---|
 | 成功请求 | 500/500 | 500/500 | Pass |
 | worker 预热 | 2/2 轮成功 | 必须成功 | Pass |
-| p50 往返 | 7.49 ms | 仅记录 | Pass |
-| p95 往返 | 13.73 ms | ≤250 ms | Pass |
-| 500 项总墙钟 | 7,451.27 ms | ≤30,000 ms | Pass |
+| p50 往返 | 7.05 ms | 仅记录 | Pass |
+| p95 往返 | 9.54 ms | ≤250 ms | Pass |
+| 500 项总墙钟 | 6,843.12 ms | ≤30,000 ms | Pass |
 | 预算回收 | 5 | 每 100 项一次 | Pass |
 | 强制超时终止 | 1 | 必须终止 | Pass |
 | 超时后恢复 | 成功 | 必须成功 | Pass |
 | 连续超时退避 | 3 次超时、3 次退避、350 ms | 指数增长且可恢复 | Pass |
 | 父进程退出/孤儿清理 | 父进程无清理退出，卡死 worker 随后退出 | 不遗留 worker | Pass |
 | Job Object 兜底 | `KILL_ON_JOB_CLOSE` 配置并为每个 worker 分配 | 必须配置成功 | Pass |
+| 受限令牌创建 | `DISABLE_MAX_PRIVILEGE` | 必须成功 | Pass |
+| Low Integrity 复核 | SID RID `0x1000` | 必须为 Low | Pass |
+| MIC 读/写边界 | 可读自有 BMP；不可在中完整性沙箱新建文件 | 读允许、write-up 阻断 | Pass |
+| 父进程写控制组 | 可写入并清理控制文件 | 必须成功 | Pass |
 | BGRA32 像素复制 | 2×2、stride 8、16 bytes | 格式/尺寸/长度一致 | Pass |
 | 最大 BGRA32 负载 | 256×256、262,144 bytes | 必须完整通过 | Pass |
 | 像素故障检测 | 格式/尺寸/步幅/长度/base64/未请求负载 | 全部拒绝并回收 | Pass |
@@ -76,9 +80,9 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 | 超过 64 KiB 响应检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
 | 超过 64 KiB 请求检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
 | 异常退出检测/恢复 | 1/成功 | 必须检测并恢复 | Pass |
-| worker 总 CPU | 890.625 ms | 首轮记录 | Pass |
+| worker 总 CPU | 562.5 ms | 首轮记录 | Pass |
 | 750 ms 空闲 CPU | 0 ms | ≤50 ms | Pass |
-| 峰值工作集 | 43,229,184 bytes | ≤268,435,456 bytes | Pass |
+| 峰值工作集 | 42,672,128 bytes | ≤268,435,456 bytes | Pass |
 | 峰值句柄 | 417 | ≤512 | Pass |
 | 沙箱清理 | 成功 | 必须成功 | Pass |
 
@@ -95,6 +99,8 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 - 超长输入/输出、畸形 JSON、错误协议版本和 worker 异常退出不会被接受为结果，下一 worker 可恢复；
 - 父进程未执行清理而退出时，即使 worker 正在 Hang，worker 也会检测父进程句柄并自行退出；
 - Windows Job Object 已启用 `KILL_ON_JOB_CLOSE`，每个 worker 启动后必须成功加入，否则父进程立即强杀该 worker 并使请求失败；
+- 可以从当前进程令牌创建 `DISABLE_MAX_PRIVILEGE` 受限令牌，将其 Mandatory Integrity Level 设置并复核为 Low（RID `0x1000`）；
+- 在该令牌的模拟上下文中，自有 BMP 仍可读取，但向默认中完整性/未标记沙箱执行 write-up 会被 MIC 阻断；退出模拟后父进程写控制组成功，排除了目录自身不可写造成的假阳性；
 - Worker 不跨进程传递裸 `HBITMAP`，复制后的 BGRA32 缓冲具有明确格式、尺寸、步幅、长度和 256×256/262,144-byte 上限；
 - 父进程会拒绝错误像素元数据、非法编码、未请求负载和超限请求，协议错误后新 worker 可恢复；
 - 连续硬超时会指数退避，成功响应后恢复正常启动节奏；
@@ -106,7 +112,8 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 
 ### 尚未证明
 
-- worker 目前仍使用调用者 token，未降到 AppContainer、低完整性或专用受限 token；
+- 正式 worker 仍使用调用者 token；当前只验证了进程内模拟的受限 Low Integrity 访问边界，尚未把该令牌接到 worker 创建、匿名管道与 Job Object 链路；
+- 尚未决定 AppContainer、受限 Low Integrity worker 及文件访问 broker/句柄传递的最终产品边界；
 - 当前像素负载使用匿名管道中的 base64，尚未验证共享内存、零拷贝或正式渲染表面集成；
 - 500 次是对同一自有 BMP 的隔离/生命周期压力，不等于 500 个不同真实项目的 provider、缓存和渲染预算；
 - 尚未覆盖 OneDrive、网络路径、第三方 provider、恶意文件、x64/ARM64 与支持的 Windows build 矩阵；
@@ -116,7 +123,10 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 
 ## 6. 下一切片
 
-1. 选择并验证 AppContainer 或受限 token，明确文件访问 broker/句柄传递边界；
-2. 评估受控共享内存并接入正式渲染表面，保持相同长度/格式/尺寸上限；
-3. 在合成不同格式集和专用云/网络/provider 环境执行 500 个不同项目矩阵；
-4. 把支持矩阵实测结果提交负责人批准最终 CPU/内存/响应预算。
+1. 用受限 Low Integrity token 启动实际 worker，并保持重定向管道、Job Object、硬超时和父进程退出清理；
+2. 比较 AppContainer 与受限 token，明确文件访问 broker/句柄传递、Capability 和缓存边界；
+3. 评估受控共享内存并接入正式渲染表面，保持相同长度/格式/尺寸上限；
+4. 在合成不同格式集和专用云/网络/provider 环境执行 500 个不同项目矩阵；
+5. 把支持矩阵实测结果提交负责人批准最终 CPU/内存/响应预算。
+
+本轮安全语义依据 Microsoft 的 [Mandatory Integrity Control](https://learn.microsoft.com/windows/win32/secauthz/mandatory-integrity-control)、[`CreateRestrictedToken`](https://learn.microsoft.com/windows/win32/api/securitybaseapi/nf-securitybaseapi-createrestrictedtoken) 和 [`SetTokenInformation`](https://learn.microsoft.com/windows/win32/api/securitybaseapi/nf-securitybaseapi-settokeninformation) 文档。MIC 默认执行 no-write-up；本探针不把该结论扩大为完整沙箱或 broker 已完成。

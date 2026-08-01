@@ -57,6 +57,11 @@ internal static class ThumbnailWorkerIsolationProbe
             && report.ParentExit.ParentExited
             && report.ParentExit.OrphanExited
             && report.ParentExit.KillOnJobCloseConfigured
+            && report.RestrictedToken.RestrictedTokenCreated
+            && report.RestrictedToken.LowIntegrityObserved
+            && report.RestrictedToken.OwnedInputReadSucceeded
+            && report.RestrictedToken.MediumSandboxWriteBlocked
+            && report.RestrictedToken.ParentWriteControlSucceeded
             && report.PixelTransfer.Succeeded
             && report.PixelTransfer.MaximumPayloadSucceeded
             && report.PixelTransfer.FormatValidated
@@ -318,6 +323,12 @@ internal static class ThumbnailWorkerIsolationProbe
                     ?? throw new InvalidOperationException(
                         "The bitmap sandbox is unavailable."),
                 killOnJobCloseConfigured);
+        RestrictedThumbnailTokenResult restrictedToken =
+            RestrictedThumbnailTokenProbe.Run(
+                bitmapPath,
+                Path.GetDirectoryName(bitmapPath)
+                    ?? throw new InvalidOperationException(
+                        "The bitmap sandbox is unavailable."));
 
         double p50 = Percentile(durations, 0.50);
         double p95 = Percentile(durations, 0.95);
@@ -434,6 +445,7 @@ internal static class ThumbnailWorkerIsolationProbe
             HardTimeout: hardTimeout,
             TimeoutBackoff: timeoutBackoff,
             ParentExit: parentExit,
+            RestrictedToken: restrictedToken,
             PixelTransfer: pixelTransfer,
             Resilience: resilience,
             Resources: resources,
@@ -448,7 +460,7 @@ internal static class ThumbnailWorkerIsolationProbe
             ],
             Limitations:
             [
-                "The worker currently runs with the caller's token; AppContainer or another low-privilege token remains required for production.",
+                "The low-integrity check uses in-process impersonation; launching the worker under the restricted token and defining brokered file access remain required for production.",
                 "The synthetic BMP validates process lifetime and Shell extraction, not third-party, cloud, network, or adversarial providers.",
                 "The bounded BGRA payload uses base64 in the prototype line protocol; shared-memory transfer and render-surface integration remain unimplemented.",
                 "The forced timeout and parent-exit cases use a deterministic worker hang before native extraction because inducing a real provider hang on a user machine is unsafe.",
@@ -717,6 +729,12 @@ internal static class ThumbnailWorkerIsolationProbe
             + $"{report.ParentExit.OrphanExited}; job "
             + $"{report.ParentExit.KillOnJobCloseConfigured}");
         Console.WriteLine(
+            $"Restricted low-integrity boundary: "
+            + $"{report.RestrictedToken.LowIntegrityObserved}; read/write-block/control "
+            + $"{report.RestrictedToken.OwnedInputReadSucceeded}/"
+            + $"{report.RestrictedToken.MediumSandboxWriteBlocked}/"
+            + $"{report.RestrictedToken.ParentWriteControlSucceeded}");
+        Console.WriteLine(
             $"Pixel IPC: {report.PixelTransfer.Succeeded}; "
             + $"{report.PixelTransfer.Width}x{report.PixelTransfer.Height}, "
             + $"{report.PixelTransfer.ByteLength} bytes; recoveries "
@@ -739,6 +757,7 @@ internal sealed record ThumbnailWorkerIsolationReport(
     ThumbnailWorkerTimeoutResult HardTimeout,
     ThumbnailWorkerBackoffResult TimeoutBackoff,
     ThumbnailWorkerParentExitResult ParentExit,
+    RestrictedThumbnailTokenResult RestrictedToken,
     ThumbnailWorkerPixelTransferResult PixelTransfer,
     ThumbnailWorkerResilienceResult Resilience,
     ThumbnailWorkerResourceResult Resources,
