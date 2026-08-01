@@ -4,6 +4,8 @@
 
 每个阶段内的需求进入、风险分级、Phase 0 双轨验证、技术探针、PR、测试、Definition of Done 和发布流程统一遵循[开发流程与交付规范](10-development-workflow.md)。
 
+Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
+
 当前状态、证据等级、集成风险和建议顺序见[当前开发状态与后续方向审计](11-development-status-and-direction-audit.md)。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 ## Phase 0：立项与技术验证
@@ -49,8 +51,8 @@
 - [x] P0-07b2b2b2b4a 短时可见宿主输入开/关/重开、跨进程穿透和真实 UIA Raw View Fragment 树（Conditional Pass）。
 - [x] P0-07b2b2b2b4b1 显示/设备/电源/会话动态矩阵只读采证工具、脱敏场景判定与无事件防假阳性（Conditional Pass）。
 - [x] P0-08a 安全引用/托管移动纯计划、Shell 同卷移动、冲突预阻断、回调取消、部分成功和隐私安全报告（Conditional Pass；Explorer 撤销、跨卷、ACL/真实卷、云/网络/重解析点矩阵未关闭）。
-- [x] PR #2–#18 已收口，相关代码进入 `main`，旧远端功能分支已删除。
-- [x] `main` 严格要求 `build-test`，管理员同样受约束，禁止强推和删除；CI 采集 TRX/Cobertura，当前 Core 行覆盖率 90.97%、分支覆盖率 75.43%。
+- [x] PR #2–#18、#25–#31 已收口，相关代码进入 `main`，旧远端功能分支已删除。
+- [x] `main` 严格要求 `build-test`，管理员同样受约束，禁止强推和删除；CI 强制执行配置/文件安全/缩略图 worker 探针，行覆盖率门禁 90%、分支门禁 75%，当前实测 91.28%/77.39%。
 - [x] 建立 `Phase 0 Exit` milestone 和 Issue #19–#24 跟踪剩余门禁。
 - [ ] P0-07b2b2b2b4b2 在受控实机执行缩放、旋转、拔插、投影、睡眠、RDP 和 WM_DPICHANGED 动态矩阵。
 - [ ] 其余探针与交互验证。
