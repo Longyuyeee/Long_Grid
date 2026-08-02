@@ -88,10 +88,10 @@ dotnet test LongGrid.sln --configuration Release --no-build
 | #22 | 受限 Low Integrity 对照 | Low worker 可读取未授权文件，证明 MIC no-write-up 不能承担文件保密边界 | Decision evidence；不得作为生产回退 |
 | #22 | AppContainer 与访问 broker | 真实 worker 全部为零 Capability AppContainer；协议 v6 对照受控副本与最小路径 ACL；八个自有格式/编码样本逐项验证父进程基线、输入可读、同格式策略一致、安全分类和 Profile 清理，正常路径复核随机 SID ACE 已恢复 | Conditional Pass（自动探针）；ACL 只作比较，异常退出 ACE 修复 Pending |
 | #22 | 有界共享内存句柄 broker | 匿名映射、单请求复制句柄、最大 262,144 bytes；缺失句柄/错误容量/元数据错误全部阻断并恢复 | Conditional Pass（自动探针） |
-| #22 | 正式渲染表面集成 | 保持已验证的 transport、长度、格式、尺寸和容量上限 | Pending |
-| #22 | 真实 Provider、x64/ARM64、Windows 矩阵 | 22621：TIFF-RGB/TIFF-LZW 精确模块缺失并识别陈旧 handler；HEVC 可枚举、AV1 不可枚举，HEIC/AVIF 均精确提取失败；26100：HEVC/AV1 均不可枚举，AppContainer 16/16 可读但 Shell 全部 `E_ACCESSDENIED`；仅输出固定标签/HRESULT/健康布尔值 | Partial；HEIC/AVIF 成功环境、Office/PDF、云/网络、受控第三方、ARM64 和干净 TIFF 环境 Pending |
+| #22 | 正式渲染表面集成 | 保持已验证的 transport、长度、格式、尺寸和容量上限 | Phase 1 首片验收；不阻断创建生产宿主 |
+| #22 | 真实 Provider、x64/ARM64、Windows 矩阵 | 22621：TIFF-RGB/TIFF-LZW 精确模块缺失并识别陈旧 handler；HEVC 可枚举、AV1 不可枚举，HEIC/AVIF 均精确提取失败；26100：HEVC/AV1 均不可枚举，AppContainer 16/16 可读但 Shell 全部 `E_ACCESSDENIED`；仅输出固定标签/HRESULT/健康布尔值 | Partial；仅把 #23 批准的首发格式、架构和环境纳入 Phase 0 必需项 |
 
-在这些项目完成前，#21 与 #22 保持打开，产品默认只能使用安全引用和缓存内图像。
+Phase 0 必须关闭安全边界和已批准首发范围的兼容风险；正式产品渲染接线在生产宿主存在后验收。未批准支持的 Office/PDF、更多 codec、第三方 provider 或 ARM64 不得自动扩张阶段范围。产品默认只能使用安全引用和缓存内图像。
 
 ## 6. Issue #23：负责人决策记录
 
@@ -111,7 +111,9 @@ dotnet test LongGrid.sln --configuration Release --no-build
 
 ## 7. Issue #24 与 ADR-0001
 
-配置仍需真实卷只读/空间耗尽、应用关闭接线、完整单实例激活和正式 schema 矩阵。它们通过后才可把探针合同迁入 `LongGrid.Infrastructure`。
+Phase 0 必须确认正式 schema、迁移/回滚、原子存储、安全恢复、生产模块边界，并在可用的专用环境补真实卷只读/空间耗尽证据。这些是把探针合同迁入 `LongGrid.Infrastructure` 的前置条件。
+
+应用关闭排空、完整单实例激活和正式渲染表面属于首个生产切片才能形成的集成证据，迁入 Phase 1 首片验收，不再要求它们在创建 `LongGrid.App`/`LongGrid.DesktopHost` 之前完成。对应 Issue 可以在 Phase 0 合同项关闭后保留明确的首片子任务，但不得形成循环门槛。
 
 只有 #19–#24 的必要证据与负责人决策齐全后，才能把[ADR-0001](adr/0001-windows-technology-stack.md)从 `Proposed` 改为 `Accepted`、`Revised` 或 `Rejected`。ADR 决定前不得创建安装承诺，也不得把探针项目改名冒充产品模块。
 
