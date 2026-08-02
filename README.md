@@ -25,6 +25,7 @@ Long Grid 是一款面向 Windows 10/11 的桌面整理与工作空间管理工�
 - [交互设计审计与体验规范](docs/09-interaction-design-audit.md)
 - [开发流程与交付规范](docs/10-development-workflow.md)
 - [当前开发状态与后续方向审计](docs/11-development-status-and-direction-audit.md)
+- [初始计划对齐与偏移审计](docs/13-original-plan-alignment-audit.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
 - [Long助手兼容协议交付包](docs/protocol/README.md)
@@ -36,7 +37,7 @@ Long Grid 是一款面向 Windows 10/11 的桌面整理与工作空间管理工�
 
 ## 建议的下一步
 
-按 `Phase 0 Exit` milestone 推进：Issue #19 完成人工输入/Narrator/系统表面矩阵，#20 完成动态显示，#21–#22 完成文件安全、缩略图隔离与 500 项性能，#23 完成体验和产品决策，#24 跟踪配置的真实卷与产品接线边界。实机执行和负责人签字使用[Phase 0 出口执行手册](docs/12-phase-0-exit-runbook.md)；负责人批准 ADR-0001 后，才建立第一个只读 MVP 垂直切片。详见[当前开发状态与后续方向审计](docs/11-development-status-and-direction-audit.md)。
+按纠偏后的 `Phase 0 Exit` 顺序推进：先由 Issue #23 明确首版范围并完成低保真/5 人验证，再执行 #19 人工输入/Narrator/系统表面矩阵和 #20 动态显示硬件矩阵，随后只按已批准支持范围收口 #21–#22；#24 先关闭配置合同，应用关闭、单实例和正式渲染接线在首个只读生产切片中验收。实机执行和负责人签字使用[Phase 0 出口执行手册](docs/12-phase-0-exit-runbook.md)；详细偏移依据和停止规则见[初始计划对齐与偏移审计](docs/13-original-plan-alignment-audit.md)。
 
 ## 开发与验证
 
