@@ -80,7 +80,7 @@
 | 依赖漏洞 | 未发现已知漏洞 |
 | 真实桌面、配置、系统主题 | 未读取、未修改 |
 
-全解决方案锁定恢复、Release build、`dotnet format --verify-no-changes`、启动链和上述本地门禁均通过；PR CI 仍待远端执行，不能由本地结果替代。
+全解决方案锁定恢复、Release build、`dotnet format --verify-no-changes`、启动链和上述本地门禁均通过。PR #68 CI `30788603814` 在 2 分 56 秒内通过构建、启动/UI 合同、测试/覆盖率、配置、文件、缩略图、漏洞和工件上传全部步骤；没有重复出现 PR #67 首轮的 AppContainer profile 瞬时释放竞态。
 
 ## 6. 仍未关闭
 
