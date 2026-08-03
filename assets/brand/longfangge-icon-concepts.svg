@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Long方格 L 加方格图标概念对比</title>
+  <desc id="desc">四个原创图标方向及其 32 像素和 16 像素缩略预览。</desc>
+  <rect width="1200" height="760" fill="#F4F6FB"/>
+  <text x="72" y="78" fill="#171A2B" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="34" font-weight="700">Long方格 · 图标方向审计</text>
+  <text x="72" y="116" fill="#596174" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="18">L + 方格 / 原创矢量候选 / 256、32、16 px 同屏检查</text>
+
+  <g transform="translate(72 168)">
+    <rect width="246" height="500" rx="28" fill="#FFFFFF"/>
+    <image href="concepts/concept-a-structured-l.svg" x="24" y="24" width="198" height="198"/>
+    <text x="24" y="264" fill="#171A2B" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="20" font-weight="700">A · 结构化 L</text>
+    <text x="24" y="294" fill="#5B5FF5" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15" font-weight="600">首选方向</text>
+    <text x="24" y="330" fill="#596174" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15">L 与格子同源</text>
+    <text x="24" y="354" fill="#596174" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15">识别和扩展最均衡</text>
+    <image href="concepts/concept-a-structured-l.svg" x="24" y="398" width="32" height="32"/>
+    <image href="concepts/concept-a-structured-l.svg" x="76" y="406" width="16" height="16"/>
+    <text x="24" y="466" fill="#7A8294" font-family="Segoe UI, sans-serif" font-size="13">32 px      16 px</text>
+  </g>
+
+  <g transform="translate(342 168)">
+    <rect width="246" height="500" rx="28" fill="#FFFFFF"/>
+    <image href="concepts/concept-b-negative-space-l.svg" x="24" y="24" width="198" height="198"/>
+    <text x="24" y="264" fill="#171A2B" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="20" font-weight="700">B · 负空间 L</text>
+    <text x="24" y="294" fill="#8B5CF6" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15" font-weight="600">探索方向</text>
+    <text x="24" y="330" fill="#596174" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15">深色辨识强</text>
+    <text x="24" y="354" fill="#596174" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15">小尺寸结构偏密</text>
+    <image href="concepts/concept-b-negative-space-l.svg" x="24" y="398" width="32" height="32"/>
+    <image href="concepts/concept-b-negative-space-l.svg" x="76" y="406" width="16" height="16"/>
+    <text x="24" y="466" fill="#7A8294" font-family="Segoe UI, sans-serif" font-size="13">32 px      16 px</text>
+  </g>
+
+  <g transform="translate(612 168)">
+    <rect width="246" height="500" rx="28" fill="#FFFFFF"/>
+    <image href="concepts/concept-c-open-grid-l.svg" x="24" y="24" width="198" height="198"/>
+    <text x="24" y="264" fill="#171A2B" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="20" font-weight="700">C · 开放式方格</text>
+    <text x="24" y="294" fill="#4F46E5" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15" font-weight="600">备选方向</text>
+    <text x="24" y="330" fill="#596174" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15">L 轮廓最直接</text>
+    <text x="24" y="354" fill="#596174" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15">格子略像附加元素</text>
+    <image href="concepts/concept-c-open-grid-l.svg" x="24" y="398" width="32" height="32"/>
+    <image href="concepts/concept-c-open-grid-l.svg" x="76" y="406" width="16" height="16"/>
+    <text x="24" y="466" fill="#7A8294" font-family="Segoe UI, sans-serif" font-size="13">32 px      16 px</text>
+  </g>
+
+  <g transform="translate(882 168)">
+    <rect width="246" height="500" rx="28" fill="#FFFFFF"/>
+    <image href="concepts/concept-d-modular-corner.svg" x="24" y="24" width="198" height="198"/>
+    <text x="24" y="264" fill="#171A2B" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="20" font-weight="700">D · 模块化转角</text>
+    <text x="24" y="294" fill="#312E81" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15" font-weight="600">探索方向</text>
+    <text x="24" y="330" fill="#596174" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15">桌面模块感明确</text>
+    <text x="24" y="354" fill="#596174" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15">整体凝聚力较弱</text>
+    <image href="concepts/concept-d-modular-corner.svg" x="24" y="398" width="32" height="32"/>
+    <image href="concepts/concept-d-modular-corner.svg" x="76" y="406" width="16" height="16"/>
+    <text x="24" y="466" fill="#7A8294" font-family="Segoe UI, sans-serif" font-size="13">32 px      16 px</text>
+  </g>
+
+  <text x="72" y="714" fill="#596174" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15">当前结论：A 进入像素校正与主题变体；所有候选均非最终商标，定稿前仍需负责人批准与近似性检索。</text>
+</svg>
