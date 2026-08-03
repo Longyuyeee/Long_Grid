@@ -380,6 +380,70 @@
                                         TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
+
+                            <Border Style="{StaticResource LongGridCardStyle}">
+                                <StackPanel Spacing="14">
+                                    <TextBlock FontSize="20" FontWeight="SemiBold" Text="练习创建第一个方格" />
+                                    <TextBlock
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="这个练习只创建当前进程中的匿名容器关系；不读取桌面、不保存配置，也不移动或删除文件。"
+                                        TextWrapping="Wrap" />
+                                    <TextBox
+                                        x:Name="PracticeContainerName"
+                                        AutomationProperties.AutomationId="PracticeContainerName"
+                                        AutomationProperties.HelpText="最多 40 个字符；不会用作文件夹名称"
+                                        Header="方格名称"
+                                        MaxLength="40"
+                                        Text="我的第一个方格" />
+                                    <Button
+                                        x:Name="CreatePracticeContainerButton"
+                                        AutomationProperties.AutomationId="CreatePracticeContainerButton"
+                                        Click="CreatePracticeContainerButton_Click"
+                                        Content="创建匿名方格"
+                                        HorizontalAlignment="Left" />
+                                    <Border
+                                        x:Name="PracticeContainerPreview"
+                                        AutomationProperties.AutomationId="PracticeContainerPreview"
+                                        AutomationProperties.Name="已创建的匿名方格预览"
+                                        Padding="16"
+                                        Background="{ThemeResource LongGridSurfaceMutedBrush}"
+                                        CornerRadius="12"
+                                        Visibility="Collapsed">
+                                        <StackPanel Spacing="6">
+                                            <TextBlock
+                                                x:Name="PracticeContainerNameValue"
+                                                AutomationProperties.AutomationId="PracticeContainerNameValue"
+                                                FontSize="18"
+                                                FontWeight="SemiBold" />
+                                            <TextBlock
+                                                Style="{StaticResource LongGridSubtitleTextStyle}"
+                                                Text="0 个匿名引用 · 仅内存" />
+                                        </StackPanel>
+                                    </Border>
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <Button
+                                            x:Name="UndoPracticeContainerButton"
+                                            AutomationProperties.AutomationId="UndoPracticeContainerButton"
+                                            AutomationProperties.HelpText="撤销当前进程中的容器关系；不会删除文件"
+                                            Click="UndoPracticeContainerButton_Click"
+                                            Content="撤销创建（Ctrl+Z）"
+                                            HorizontalAlignment="Left"
+                                            IsEnabled="False">
+                                            <Button.KeyboardAccelerators>
+                                                <KeyboardAccelerator Key="Z" Modifiers="Control" />
+                                            </Button.KeyboardAccelerators>
+                                        </Button>
+                                    </StackPanel>
+                                    <TextBlock
+                                        x:Name="PracticeActivityStatus"
+                                        AutomationProperties.AutomationId="PracticeActivityStatus"
+                                        AutomationProperties.ItemStatus="PracticeContainerReady"
+                                        AutomationProperties.LiveSetting="Polite"
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="可以开始练习；尚未创建关系，尚未修改任何文件。"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
 
                         <StackPanel
