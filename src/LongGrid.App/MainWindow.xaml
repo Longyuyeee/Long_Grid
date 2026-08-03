@@ -7,7 +7,12 @@
     mc:Ignorable="d"
     Title="Long方格">
 
-    <Grid Background="{ThemeResource LongGridWindowBrush}">
+    <Grid
+        x:Name="RootLayout"
+        Background="{ThemeResource LongGridWindowBrush}"
+        AutomationProperties.AccessibilityView="Content"
+        AutomationProperties.AutomationId="LongGridRoot"
+        AutomationProperties.Name="Long方格主界面">
         <Grid.RowDefinitions>
             <RowDefinition Height="48" />
             <RowDefinition Height="*" />
@@ -54,6 +59,7 @@
         <NavigationView
             x:Name="ShellNavigation"
             Grid.Row="1"
+            AutomationProperties.AutomationId="ShellNavigation"
             AlwaysShowHeader="False"
             IsBackButtonVisible="Collapsed"
             IsPaneToggleButtonVisible="True"
@@ -62,13 +68,25 @@
             PaneDisplayMode="LeftCompact"
             SelectionChanged="ShellNavigation_SelectionChanged">
             <NavigationView.MenuItems>
-                <NavigationViewItem Content="概览" Tag="overview">
+                <NavigationViewItem
+                    AccessKey="1"
+                    AutomationProperties.AutomationId="NavOverview"
+                    Content="概览"
+                    Tag="overview">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Home" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="外观与 Token" Tag="appearance">
+                <NavigationViewItem
+                    AccessKey="2"
+                    AutomationProperties.AutomationId="NavAppearance"
+                    Content="外观与 Token"
+                    Tag="appearance">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Edit" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="安全边界" Tag="safety">
+                <NavigationViewItem
+                    AccessKey="3"
+                    AutomationProperties.AutomationId="NavSafety"
+                    Content="安全边界"
+                    Tag="safety">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Permissions" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
@@ -76,7 +94,12 @@
             <Grid Padding="32,28,32,32">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <Grid MaxWidth="1080" HorizontalAlignment="Stretch">
-                        <StackPanel x:Name="OverviewPanel" Spacing="20">
+                        <StackPanel
+                            x:Name="OverviewPanel"
+                            AutomationProperties.AccessibilityView="Content"
+                            AutomationProperties.AutomationId="OverviewPanel"
+                            AutomationProperties.Name="概览内容"
+                            Spacing="20">
                             <InfoBar
                                 IsClosable="False"
                                 IsOpen="True"
@@ -157,12 +180,56 @@
                             </Border>
                         </StackPanel>
 
-                        <StackPanel x:Name="AppearancePanel" Spacing="20" Visibility="Collapsed">
+                        <StackPanel
+                            x:Name="AppearancePanel"
+                            AutomationProperties.AccessibilityView="Content"
+                            AutomationProperties.AutomationId="AppearancePanel"
+                            AutomationProperties.Name="外观与 Token 内容"
+                            Spacing="20"
+                            Visibility="Collapsed">
                             <StackPanel Spacing="8">
                                 <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="DESIGN SYSTEM" />
                                 <TextBlock Style="{StaticResource LongGridTitleTextStyle}" Text="可复用 Token，而不是散落常量" />
                                 <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="首片建立颜色、间距、圆角和卡片层级；控件状态继续复用 WinUI 系统资源。" />
                             </StackPanel>
+                            <Border Style="{StaticResource LongGridCardStyle}">
+                                <StackPanel Spacing="14">
+                                    <TextBlock FontSize="20" FontWeight="SemiBold" Text="界面主题" />
+                                    <TextBlock
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="切换只在当前进程内生效；本切片不写配置，也不改变 Windows 系统主题。" />
+                                    <StackPanel Orientation="Horizontal" Spacing="20">
+                                        <RadioButton
+                                            x:Name="ThemeSystem"
+                                            AutomationProperties.AutomationId="ThemeSystem"
+                                            Checked="ThemeOption_Checked"
+                                            Content="跟随系统"
+                                            GroupName="AppTheme"
+                                            IsChecked="True"
+                                            Tag="system" />
+                                        <RadioButton
+                                            x:Name="ThemeLight"
+                                            AutomationProperties.AutomationId="ThemeLight"
+                                            Checked="ThemeOption_Checked"
+                                            Content="浅色"
+                                            GroupName="AppTheme"
+                                            Tag="light" />
+                                        <RadioButton
+                                            x:Name="ThemeDark"
+                                            AutomationProperties.AutomationId="ThemeDark"
+                                            Checked="ThemeOption_Checked"
+                                            Content="深色"
+                                            GroupName="AppTheme"
+                                            Tag="dark" />
+                                    </StackPanel>
+                                    <TextBlock
+                                        x:Name="ThemeStatusText"
+                                        AutomationProperties.AutomationId="ThemeStatusText"
+                                        AutomationProperties.LiveSetting="Polite"
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="当前：跟随系统（仅内存）" />
+                                </StackPanel>
+                            </Border>
                             <Border Style="{StaticResource LongGridCardStyle}">
                                 <StackPanel Spacing="18">
                                     <TextBlock FontSize="20" FontWeight="SemiBold" Text="品牌与表面" />
@@ -181,7 +248,13 @@
                             </Border>
                         </StackPanel>
 
-                        <StackPanel x:Name="SafetyPanel" Spacing="20" Visibility="Collapsed">
+                        <StackPanel
+                            x:Name="SafetyPanel"
+                            AutomationProperties.AccessibilityView="Content"
+                            AutomationProperties.AutomationId="SafetyPanel"
+                            AutomationProperties.Name="安全边界内容"
+                            Spacing="20"
+                            Visibility="Collapsed">
                             <StackPanel Spacing="8">
                                 <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="SAFETY CONTRACT" />
                                 <TextBlock Style="{StaticResource LongGridTitleTextStyle}" Text="当前切片主动不做什么" />

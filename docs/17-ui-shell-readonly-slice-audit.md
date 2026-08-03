@@ -65,10 +65,10 @@ Phase 0 的 Issue #19–#24、5 人体验测试和负责人支持范围决策尚
 |---|---|---|
 | 现代、扁平、精致但克制 | NavigationView、安静表面、有限品牌焦点、无阴影堆叠 | Pass（源码/构建） |
 | 4 px 网格 | 间距 Token 为 4/8/12/16/24/32 | Pass |
-| 浅色、深色、高对比 | ThemeDictionaries 映射自有表面；高对比引用系统颜色 | Conditional Pass，待实机 |
+| 浅色、深色、高对比 | ThemeDictionaries 映射自有表面；高对比引用系统颜色 | 浅/深色自动化往返 Pass；高对比待人工实机 |
 | 品牌与交互色分工 | 品牌靛蓝只用于识别；系统控件资源承担选择/焦点 | Pass（设计） |
 | 平滑且可降级动效 | 本轮没有自定义动画，只使用系统控件默认行为 | Pass（范围） |
-| 键盘与 Narrator | NavigationView 具备系统键盘基础，图标有自动化名称 | Pending 人工/UIA 矩阵 |
+| 键盘与 Narrator | 三个导航入口有访问键/AutomationId；真实 UIA 焦点与选择通过 | UIA Pass；Narrator 人工矩阵 Pending |
 | 文本缩放与 100%–300% DPI | 使用 XAML 布局和滚动容器 | Pending 实机矩阵 |
 | 正常/空/错误/恢复状态 | 本轮只实现“安全只读/未接线”开发状态 | Partial |
 
@@ -79,7 +79,8 @@ Phase 0 的 Issue #19–#24、5 人体验测试和负责人支持范围决策尚
 - 本机 Windows App Runtime 2.3.1 x64 存在；
 - 通过 `eng/Start-LongGrid.ps1 -Configuration Release -NoRestore -NoBuild` 真实启动：15 秒门槛内得到标题为“Long方格”的可响应窗口，正常关闭后 runner 在 10 秒内以退出码 0 返回：Pass；
 - framework-dependent Debug 输出为 51 个文件、约 37.37 MiB；这不是安装包大小或常驻内存预算；
-- Windows 捕获工具两次把该未打包窗口错误归属到 OneDrive 应用路径，拒绝返回稳定窗口句柄：视觉截图、导航点击和 UIA 树自动检查为 **Inconclusive**，不得冒充 Pass；
+- Windows 捕获工具两次把该未打包窗口错误归属到 OneDrive 应用路径，拒绝返回稳定窗口句柄：视觉截图仍为 **Inconclusive**，不得冒充 Pass；
+- 后续切片使用进程句柄直接附着 UIA，完成窗口标题、导航发现/焦点/选择、主题往返和安全页可见性检查；详见 [`18-ui-theme-automation-contract-audit.md`](18-ui-theme-automation-contract-audit.md)；
 - Release、全解决方案测试、格式、覆盖率、漏洞和 GitHub CI 仍须在 PR 门禁执行。
 
 ## 7. 需求对齐与偏移判断
@@ -96,4 +97,4 @@ Phase 0 的 Issue #19–#24、5 人体验测试和负责人支持范围决策尚
 
 ## 8. 下一步
 
-在合入本切片后，优先补充可自动执行的 UIA smoke 与主题截图基线，并继续关闭 Issue #23 的体验/负责人决策。只有 ADR-0001 和生产配置合同满足进入条件后，才把匿名示例替换为 Core 的只读桌面引用状态。
+UIA smoke 与内存态主题切换已由后续切片补齐；下一步仍需主题截图、Narrator、高对比、文本缩放与 DPI 人工矩阵，并继续关闭 Issue #23 的体验/负责人决策。只有 ADR-0001 和生产配置合同满足进入条件后，才把匿名示例替换为 Core 的只读桌面引用状态。

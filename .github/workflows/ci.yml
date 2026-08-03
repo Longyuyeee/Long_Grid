@@ -45,6 +45,13 @@ jobs:
           -NoRestore
           -ValidateOnly
 
+      - name: Validate UI automation contract
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Test-LongGridUi.ps1
+          -ContractOnly
+
       - name: Test
         run: >-
           dotnet test LongGrid.sln
