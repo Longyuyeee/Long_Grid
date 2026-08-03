@@ -38,6 +38,8 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [匿名项目与拖放语义原型审计](docs/23-anonymous-items-drop-semantics-audit.md)
 - [布局恢复差异原型审计](docs/24-layout-recovery-difference-prototype-audit.md)
 - [Issue #23 五人可用性测试计划](docs/usability/issue-23-first-organization-test-plan.md)
+- [Issue #23 五人测试主持人手册](docs/usability/issue-23-facilitator-runbook.md)
+- [Issue #23 五人测试就绪审计](docs/25-issue-23-usability-readiness-audit.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
 - [Long助手兼容协议交付包](docs/protocol/README.md)
@@ -61,6 +63,16 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 ```
 
 该入口默认执行锁定依赖恢复、必要构建和启动；不提权、不枚举真实桌面，也不执行文件操作。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[开发期只读 UI Shell 审计](docs/17-ui-shell-readonly-slice-audit.md)。
+
+执行 Issue #23 五人测试前，先验证匿名会话链：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File ./eng/Start-Issue23UsabilitySession.ps1 `
+  -ValidateOnly
+```
+
+真实会话必须按照[主持人手册](docs/usability/issue-23-facilitator-runbook.md)分别使用 P1–P5 启动全新进程。预检和 CI 通过只代表入口就绪，测试状态仍是 `Results Pending`。
 
 ## 仓库验证与故障排查
 
