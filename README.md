@@ -37,6 +37,8 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [匿名容器与撤销原型审计](docs/22-anonymous-container-undo-prototype-audit.md)
 - [匿名项目与拖放语义原型审计](docs/23-anonymous-items-drop-semantics-audit.md)
 - [布局恢复差异原型审计](docs/24-layout-recovery-difference-prototype-audit.md)
+- [Issue #20 动态显示矩阵就绪审计](docs/27-issue-20-display-matrix-readiness-audit.md)
+- [Issue #20 动态显示与会话运行手册](docs/manual-testing/issue-20-dynamic-display-session-runbook.md)
 - [Issue #23 五人可用性测试计划](docs/usability/issue-23-first-organization-test-plan.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
@@ -61,6 +63,16 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 ```
 
 该入口默认执行锁定依赖恢复、必要构建和启动；不提权、不枚举真实桌面，也不执行文件操作。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[开发期只读 UI Shell 审计](docs/17-ui-shell-readonly-slice-audit.md)。
+
+Issue #20 动态显示与会话矩阵开始前，先验证只读 observer 会话链：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File ./eng/Start-Issue20DisplayMatrixSession.ps1 `
+  -ValidateOnly
+```
+
+预检固定保持 `PendingManualEvidence`；不会修改显示、设备、电源或会话状态。
 
 ## 仓库验证与故障排查
 
