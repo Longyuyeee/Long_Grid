@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1、一键启动链、UI 自动化和响应式布局合同已建立，但不接真实桌面、DesktopHost 或文件操作，不能视为正式 MVP。多数能力仍是 Conditional Pass；真实 Narrator、高对比、系统文本缩放、多 DPI 视觉、动态显示、文件安全、真实卷故障、性能和可用性验证尚未关闭。
+> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1、一键启动链、UI 自动化、响应式布局和 Core 只读运行状态合同已建立，但不接真实桌面、DesktopHost 或文件操作，不能视为正式 MVP。多数能力仍是 Conditional Pass；真实 Narrator、高对比、系统文本缩放、多 DPI 视觉、动态显示、文件安全、真实卷故障、性能和可用性验证尚未关闭。
 
 ## 产品原则
 
@@ -32,6 +32,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [开发期只读 UI Shell 审计](docs/17-ui-shell-readonly-slice-audit.md)
 - [UI 主题与自动化合同审计](docs/18-ui-theme-automation-contract-audit.md)
 - [响应式布局与 DPI 窗口合同审计](docs/19-ui-responsive-dpi-contract-audit.md)
+- [Core 只读运行状态接线审计](docs/20-ui-core-readonly-status-contract-audit.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
 - [Long助手兼容协议交付包](docs/protocol/README.md)

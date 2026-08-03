@@ -41,6 +41,7 @@ flowchart LR
 
 - `Container`、`DesktopItemRef`、`Workspace`、`LayoutSnapshot`、`Rule`。
 - 规则匹配、冲突解决、布局映射、命令与撤销。
+- 以不可变快照向 App 暴露运行模式和能力状态；快照不得携带 Shell/Win32 句柄、路径、执行委托或可变适配器。
 - 不引用 UI 框架和 Windows API。
 
 ### LongGrid.DesktopHost
@@ -75,6 +76,7 @@ P0-02 已验证 Shell 会强烈合并高频变化：1,100 次沙箱操作每轮�
 ### LongGrid.App
 
 - 首次引导、设置、规则编辑器、快照管理和诊断。
+- 单向消费 Core 状态快照，并把可见状态与机器可判定的 UIA 状态同时呈现。
 - 不直接执行文件系统副作用。
 
 ## 4. 核心数据模型

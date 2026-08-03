@@ -129,13 +129,22 @@ function Test-SourceContract {
         'Initial window sizing must use the active display work area.'
     Assert-Condition ($codeBehind -match 'MaximumWorkAreaFraction\s*=\s*0\.9') `
         'The initial window must remain bounded to 90 percent of the work area.'
+    Assert-Condition ($codeBehind -match 'RuntimeStatusSnapshot\.CreateDevelopmentReadOnly') `
+        'The UI must obtain its capability state from the audited Core snapshot.'
+    Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*CurrentModeValue') `
+        'The current runtime mode must expose a machine-readable UIA status.'
+    Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*FileOperationValue') `
+        'The file-operation boundary must expose a machine-readable UIA status.'
+    Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*DesktopHostValue') `
+        'The DesktopHost boundary must expose a machine-readable UIA status.'
 
     $forbiddenPatterns = @(
         'System\.IO\.',
         '\bFile\.',
         '\bDirectory\.',
         'Environment\.GetFolderPath',
-        'DesktopCatalog',
+        'LongGrid\.Core\.DesktopItems',
+        '\bDesktopCatalog\s*\.',
         'ShellChange',
         'LongGrid\.Core\.DesktopHost',
         'DesktopHostCompositeTransactionCoordinator',
@@ -153,6 +162,7 @@ function Test-SourceContract {
         responsiveBreakpoints = 1
         compactWidth = 720
         dpiAwareInitialSize = 'pass'
+        coreRuntimeStatus = 'development-read-only'
         readOnlyBoundary = 'pass'
     }
 }
@@ -368,6 +378,12 @@ public static class LongGridWindowNative
         $currentModeCard = Find-UiaElement $root 'CurrentModeValue'
         $fileOperationCard = Find-UiaElement $root 'FileOperationValue'
         $desktopHostCard = Find-UiaElement $root 'DesktopHostValue'
+        Assert-Condition ($currentModeCard.Current.ItemStatus -eq 'DevelopmentReadOnly') `
+            'The UI did not expose the Core development read-only mode.'
+        Assert-Condition ($fileOperationCard.Current.ItemStatus -eq 'DisabledBySafetyPolicy') `
+            'The UI did not expose the file-operation safety policy.'
+        Assert-Condition ($desktopHostCard.Current.ItemStatus -eq 'Disconnected') `
+            'The UI did not expose the disconnected DesktopHost boundary.'
         Assert-VerticallyStacked `
             @($currentModeCard, $fileOperationCard, $desktopHostCard) `
             $layoutRoot.Current.BoundingRectangle
@@ -427,6 +443,7 @@ public static class LongGridWindowNative
             responsiveLayout = 'wide-compact-wide-720'
             responsiveItemStatus = $layoutRoot.Current.ItemStatus
             compactCards = 3
+            coreRuntimeStatus = 'development-read-only'
             themeRoundTrip = 'system-dark-system'
             safetyNavigation = 'pass'
         }
