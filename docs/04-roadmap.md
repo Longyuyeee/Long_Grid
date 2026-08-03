@@ -29,6 +29,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 进度：
 
 - [x] 基础 .NET 8 解决方案、Core、测试和 PR CI。
+- [x] 开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1 与统一启动链（Conditional Pass；仅匿名示例数据，不接真实桌面/DesktopHost/文件操作，不代表正式 MVP 开工）。
 - [x] P0-01a 用户/Public 物理桌面目录只读发现。
 - [x] P0-01b Shell Desktop Namespace 枚举与差异对账。
 - [x] P0-01c 稳定文件身份、快捷方式双重身份与重命名跟踪。
