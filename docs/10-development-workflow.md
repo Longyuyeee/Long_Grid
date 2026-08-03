@@ -357,6 +357,7 @@ test(shell): cover coalesced change notifications
 - 正式签名秘密只存在于受保护发布环境，不进入脚本、仓库或日志；
 - UI PR 必须检查浅色、深色、高对比、文本缩放、减少动画、键盘、Narrator、DPI 和低性能降级；
 - UI PR 必须执行 `eng/Test-LongGridUi.ps1 -ContractOnly`；具备可交互 Windows 会话时还要执行完整脚本，并把结构合同与实机结果分别记账；
+- 管理窗口 UI PR 必须同时验证默认 DPI 感知尺寸、已审计窄窗口断点、无横向滚动和宽/紧凑状态可逆；窗口 API 的物理像素不得直接冒充 XAML 有效像素；
 - AutomationId、访问键和 UIA 冒烟只证明机器可发现与基础交互，不得替代 Narrator 朗读、高对比、文本缩放和视觉检查；
 - 动效必须可中断、可降级，不得阻塞输入、隐藏、恢复、回滚或退出；
 - 品牌资产必须由矢量母版生成并检查 16–256 px，不提交来源不明或模仿竞品的图标。

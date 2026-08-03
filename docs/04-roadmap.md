@@ -31,6 +31,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] 基础 .NET 8 解决方案、Core、测试和 PR CI。
 - [x] 开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1 与统一启动链（Conditional Pass；仅匿名示例数据，不接真实桌面/DesktopHost/文件操作，不代表正式 MVP 开工）。
 - [x] 正式 App 的 12 个 AutomationId、导航访问键、内存态系统/浅色/深色主题、CI 结构合同与真实窗口 UIA 冒烟（Conditional Pass；Narrator、高对比、缩放、DPI 和视觉矩阵仍未关闭）。
+- [x] 正式 App 的 760 DIP 响应式断点、纵向紧凑流、DPI 感知默认窗口、工作区 90% 上限及 720 px 宽/紧凑/宽真实 UIA 往返（Conditional Pass；系统文本缩放与多 DPI 视觉矩阵仍未关闭）。
 - [x] P0-01a 用户/Public 物理桌面目录只读发现。
 - [x] P0-01b Shell Desktop Namespace 枚举与差异对账。
 - [x] P0-01c 稳定文件身份、快捷方式双重身份与重命名跟踪。
@@ -53,7 +54,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] P0-07b2b2b2b4a 短时可见宿主输入开/关/重开、跨进程穿透和真实 UIA Raw View Fragment 树（Conditional Pass）。
 - [x] P0-07b2b2b2b4b1 显示/设备/电源/会话动态矩阵只读采证工具、脱敏场景判定与无事件防假阳性（Conditional Pass）。
 - [x] P0-08a 安全引用/托管移动纯计划、Shell 同卷移动、冲突预阻断、回调取消、部分成功和隐私安全报告（Conditional Pass；Explorer 撤销、跨卷、ACL/真实卷、云/网络/重解析点矩阵未关闭）。
-- [x] PR #2–#18、#25–#61、#63–#66 已收口，相关代码进入 `main`，旧远端功能分支已删除。
+- [x] PR #2–#18、#25–#61、#63–#67 已收口，相关代码进入 `main`，旧远端功能分支已删除。
 - [x] `main` 严格要求 `build-test`，管理员同样受约束，禁止强推和删除；CI 强制执行配置/文件安全/缩略图 worker 探针，行覆盖率门禁 90%、分支门禁 75%，当前实测 91.28%/77.39%。
 - [x] 建立 `Phase 0 Exit` milestone 和 Issue #19–#24 跟踪剩余门禁。
 - [ ] P0-07b2b2b2b4b2 在受控实机执行缩放、旋转、拔插、投影、睡眠、RDP 和 WM_DPICHANGED 动态矩阵。

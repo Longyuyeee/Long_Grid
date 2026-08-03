@@ -12,6 +12,7 @@
         Background="{ThemeResource LongGridWindowBrush}"
         AutomationProperties.AccessibilityView="Content"
         AutomationProperties.AutomationId="LongGridRoot"
+        AutomationProperties.ItemStatus="wide"
         AutomationProperties.Name="Long方格主界面">
         <Grid.RowDefinitions>
             <RowDefinition Height="48" />
@@ -42,6 +43,7 @@
                 Foreground="{ThemeResource LongGridTextPrimaryBrush}"
                 Text="Long方格" />
             <Border
+                x:Name="DevelopmentBadge"
                 Grid.Column="2"
                 Margin="14,0,0,0"
                 Padding="8,3"
@@ -50,6 +52,8 @@
                 Background="{ThemeResource LongGridSurfaceMutedBrush}"
                 CornerRadius="8">
                 <TextBlock
+                    x:Name="DevelopmentBadgeText"
+                    AutomationProperties.AutomationId="ResponsiveStatusText"
                     FontSize="11"
                     Foreground="{ThemeResource LongGridTextSecondaryBrush}"
                     Text="开发期 · 只读 UI Shell" />
@@ -91,8 +95,12 @@
                 </NavigationViewItem>
             </NavigationView.MenuItems>
 
-            <Grid Padding="32,28,32,32">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <Grid x:Name="ContentFrame" Padding="32,28,32,32">
+                <ScrollViewer
+                    AutomationProperties.AutomationId="ContentScrollViewer"
+                    HorizontalScrollBarVisibility="Disabled"
+                    HorizontalScrollMode="Disabled"
+                    VerticalScrollBarVisibility="Auto">
                     <Grid MaxWidth="1080" HorizontalAlignment="Stretch">
                         <StackPanel
                             x:Name="OverviewPanel"
@@ -116,30 +124,53 @@
                                     Text="这是 Long方格正式视觉语言的第一个开发切片：安静的表面、清晰的层级和明确的安全状态。下方内容均为匿名示例数据。" />
                             </StackPanel>
 
-                            <Grid ColumnSpacing="14">
+                            <Grid x:Name="OverviewMetricsGrid" ColumnSpacing="14">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" Style="{StaticResource LongGridCardStyle}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Border
+                                    x:Name="CurrentModeCard"
+                                    Grid.Column="0"
+                                    AutomationProperties.AccessibilityView="Content"
+                                    AutomationProperties.AutomationId="CurrentModeCard"
+                                    AutomationProperties.Name="当前模式"
+                                    Style="{StaticResource LongGridCardStyle}">
                                     <StackPanel Spacing="8">
                                         <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="当前模式" />
-                                        <TextBlock FontSize="22" FontWeight="SemiBold" Text="只读 UI Shell" />
+                                        <TextBlock AutomationProperties.AutomationId="CurrentModeValue" FontSize="22" FontWeight="SemiBold" Text="只读 UI Shell" />
                                         <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="无桌面数据连接" />
                                     </StackPanel>
                                 </Border>
-                                <Border Grid.Column="1" Style="{StaticResource LongGridCardStyle}">
+                                <Border
+                                    x:Name="FileOperationCard"
+                                    Grid.Column="1"
+                                    AutomationProperties.AccessibilityView="Content"
+                                    AutomationProperties.AutomationId="FileOperationCard"
+                                    AutomationProperties.Name="文件操作"
+                                    Style="{StaticResource LongGridCardStyle}">
                                     <StackPanel Spacing="8">
                                         <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="文件操作" />
-                                        <TextBlock FontSize="22" FontWeight="SemiBold" Text="完全关闭" />
+                                        <TextBlock AutomationProperties.AutomationId="FileOperationValue" FontSize="22" FontWeight="SemiBold" Text="完全关闭" />
                                         <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="没有移动或删除入口" />
                                     </StackPanel>
                                 </Border>
-                                <Border Grid.Column="2" Style="{StaticResource LongGridCardStyle}">
+                                <Border
+                                    x:Name="DesktopHostCard"
+                                    Grid.Column="2"
+                                    AutomationProperties.AccessibilityView="Content"
+                                    AutomationProperties.AutomationId="DesktopHostCard"
+                                    AutomationProperties.Name="桌面宿主"
+                                    Style="{StaticResource LongGridCardStyle}">
                                     <StackPanel Spacing="8">
                                         <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="桌面宿主" />
-                                        <TextBlock FontSize="22" FontWeight="SemiBold" Text="尚未接线" />
+                                        <TextBlock AutomationProperties.AutomationId="DesktopHostValue" FontSize="22" FontWeight="SemiBold" Text="尚未接线" />
                                         <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="不影响 Explorer" />
                                     </StackPanel>
                                 </Border>
@@ -164,17 +195,23 @@
                                             <TextBlock FontSize="12" Text="4 个匿名引用" />
                                         </Border>
                                     </Grid>
-                                    <Grid ColumnSpacing="12">
+                                    <Grid x:Name="WorkspaceItemsGrid" ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <Border Grid.Column="0" Padding="14" Background="{ThemeResource LongGridSurfaceMutedBrush}" CornerRadius="12"><TextBlock Text="项目 A" /></Border>
-                                        <Border Grid.Column="1" Padding="14" Background="{ThemeResource LongGridSurfaceMutedBrush}" CornerRadius="12"><TextBlock Text="资料" /></Border>
-                                        <Border Grid.Column="2" Padding="14" Background="{ThemeResource LongGridSurfaceMutedBrush}" CornerRadius="12"><TextBlock Text="待处理" /></Border>
-                                        <Border Grid.Column="3" Padding="14" Background="{ThemeResource LongGridSurfaceMutedBrush}" CornerRadius="12"><TextBlock Text="归档引用" /></Border>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Border x:Name="WorkspaceItemProject" Grid.Column="0" Padding="14" Background="{ThemeResource LongGridSurfaceMutedBrush}" CornerRadius="12"><TextBlock Text="项目 A" /></Border>
+                                        <Border x:Name="WorkspaceItemReference" Grid.Column="1" Padding="14" Background="{ThemeResource LongGridSurfaceMutedBrush}" CornerRadius="12"><TextBlock Text="资料" /></Border>
+                                        <Border x:Name="WorkspaceItemPending" Grid.Column="2" Padding="14" Background="{ThemeResource LongGridSurfaceMutedBrush}" CornerRadius="12"><TextBlock Text="待处理" /></Border>
+                                        <Border x:Name="WorkspaceItemArchive" Grid.Column="3" Padding="14" Background="{ThemeResource LongGridSurfaceMutedBrush}" CornerRadius="12"><TextBlock Text="归档引用" /></Border>
                                     </Grid>
                                 </StackPanel>
                             </Border>
@@ -198,7 +235,7 @@
                                     <TextBlock
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
                                         Text="切换只在当前进程内生效；本切片不写配置，也不改变 Windows 系统主题。" />
-                                    <StackPanel Orientation="Horizontal" Spacing="20">
+                                    <StackPanel x:Name="ThemeOptions" Orientation="Horizontal" Spacing="20">
                                         <RadioButton
                                             x:Name="ThemeSystem"
                                             AutomationProperties.AutomationId="ThemeSystem"
@@ -233,15 +270,20 @@
                             <Border Style="{StaticResource LongGridCardStyle}">
                                 <StackPanel Spacing="18">
                                     <TextBlock FontSize="20" FontWeight="SemiBold" Text="品牌与表面" />
-                                    <Grid ColumnSpacing="12">
+                                    <Grid x:Name="BrandSurfaceGrid" ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <Border Grid.Column="0" Height="116" Background="{StaticResource LongGridBrandBrush}" CornerRadius="16"><TextBlock Margin="16" VerticalAlignment="Bottom" Foreground="White" FontWeight="SemiBold" Text="Brand · #5B5FF5" /></Border>
-                                        <Border Grid.Column="1" Height="116" Background="{ThemeResource LongGridSurfaceMutedBrush}" BorderBrush="{ThemeResource LongGridBorderBrush}" BorderThickness="1" CornerRadius="16"><TextBlock Margin="16" VerticalAlignment="Bottom" Text="Muted Surface" /></Border>
-                                        <Border Grid.Column="2" Height="116" Background="{ThemeResource LongGridSurfaceBrush}" BorderBrush="{ThemeResource LongGridBorderBrush}" BorderThickness="1" CornerRadius="16"><TextBlock Margin="16" VerticalAlignment="Bottom" Text="Card Surface" /></Border>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Border x:Name="BrandPrimarySurface" Grid.Column="0" Height="116" Background="{StaticResource LongGridBrandBrush}" CornerRadius="16"><TextBlock Margin="16" VerticalAlignment="Bottom" Foreground="White" FontWeight="SemiBold" Text="Brand · #5B5FF5" /></Border>
+                                        <Border x:Name="BrandMutedSurface" Grid.Column="1" Height="116" Background="{ThemeResource LongGridSurfaceMutedBrush}" BorderBrush="{ThemeResource LongGridBorderBrush}" BorderThickness="1" CornerRadius="16"><TextBlock Margin="16" VerticalAlignment="Bottom" Text="Muted Surface" /></Border>
+                                        <Border x:Name="BrandCardSurface" Grid.Column="2" Height="116" Background="{ThemeResource LongGridSurfaceBrush}" BorderBrush="{ThemeResource LongGridBorderBrush}" BorderThickness="1" CornerRadius="16"><TextBlock Margin="16" VerticalAlignment="Bottom" Text="Card Surface" /></Border>
                                     </Grid>
                                     <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="系统强调色继续承担选择、焦点和交互状态；品牌靛蓝不作为唯一状态线索。" />
                                 </StackPanel>
