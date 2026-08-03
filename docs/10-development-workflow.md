@@ -356,6 +356,8 @@ test(shell): cover coalesced change notifications
 - `eng/Pack-LongGrid.ps1` 负责 restore、format、Release build、test、覆盖率、安全探针、包结构和哈希；
 - 正式签名秘密只存在于受保护发布环境，不进入脚本、仓库或日志；
 - UI PR 必须检查浅色、深色、高对比、文本缩放、减少动画、键盘、Narrator、DPI 和低性能降级；
+- UI PR 必须执行 `eng/Test-LongGridUi.ps1 -ContractOnly`；具备可交互 Windows 会话时还要执行完整脚本，并把结构合同与实机结果分别记账；
+- AutomationId、访问键和 UIA 冒烟只证明机器可发现与基础交互，不得替代 Narrator 朗读、高对比、文本缩放和视觉检查；
 - 动效必须可中断、可降级，不得阻塞输入、隐藏、恢复、回滚或退出；
 - 品牌资产必须由矢量母版生成并检查 16–256 px，不提交来源不明或模仿竞品的图标。
 

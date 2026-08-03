@@ -2,7 +2,7 @@
 
 审计日期：2026-08-03（增量复审）
 
-审计基线：`main` / `2acff48` + 开发期只读 UI Shell 分支
+审计基线：`main` / `860d77a` + UI 主题与自动化合同分支
 
 审计范围：代码、测试、技术探针、架构/产品/交互文档、GitHub PR 与 CI
 
@@ -10,7 +10,7 @@
 
 ## 1. 执行摘要
 
-Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了可复现的 .NET 工程基线、纯 Core 决策逻辑、真实 Win32/Shell/DirectComposition/UI Automation 探针以及自动化测试。桌面发现、稳定身份、Shell 变化对账、图像提取、DesktopHost 窗口模型、显示拓扑、布局恢复、事务补偿、首个可交互宿主切片、配置持久化、文件操作安全和缩略图进程隔离均有代码与报告证据。PR #18、#25–#61、#63–#65 已合入 `main`；配置探针通过了 20 类场景、1,000 次重复写入、四检查点共 1,000 次真实进程强杀及 ACL 生效期间 10 次强杀；文件操作和缩略图隔离探针均保持 Conditional Pass，视觉品牌需求、概念审计和图标 RC1 也已进入主线。
+Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了可复现的 .NET 工程基线、纯 Core 决策逻辑、真实 Win32/Shell/DirectComposition/UI Automation 探针以及自动化测试。桌面发现、稳定身份、Shell 变化对账、图像提取、DesktopHost 窗口模型、显示拓扑、布局恢复、事务补偿、首个可交互宿主切片、配置持久化、文件操作安全和缩略图进程隔离均有代码与报告证据。PR #18、#25–#61、#63–#66 已合入 `main`；配置探针通过了 20 类场景、1,000 次重复写入、四检查点共 1,000 次真实进程强杀及 ACL 生效期间 10 次强杀；文件操作和缩略图隔离探针均保持 Conditional Pass，视觉品牌需求、图标 RC1 和只读 UI Shell 也已进入主线。
 
 但这些成果大多仍是 **Conditional Pass 的风险探针**，不是可发布产品能力。仓库现已建立开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1 与一键启动链；该切片只显示匿名示例数据，不枚举真实桌面、不连接 DesktopHost、不执行文件操作、不写产品配置，也没有安装承诺，因此证据等级仍是 E2/E3 开发集成，而不是 E4 产品切片。`LongGrid.DesktopHost`、`LongGrid.Infrastructure`、产品配置 schema、安装包和端到端产品流程仍不存在。真实键鼠/触控/拖放、Narrator、Win+D、全屏、Explorer 重启、动态显示硬件矩阵、文件移动撤销、真实卷故障、真实 Provider 性能矩阵和可用性测试尚未关闭。
 
@@ -19,8 +19,9 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 - `LongGrid.App` 使用 .NET 8、Windows App SDK 2.3.1 Stable、WinUI 3 和 x64 开发目标；ADR-0001 继续保持 `Proposed`；
 - 新 UI Shell 是为解除“只有正式 App 存在后才能验证启动、主题和关闭”的循环门槛而建立的受控开发切片，不代表跳过 Issue #19–#24；
 - `eng/Start-LongGrid.ps1` 默认只执行依赖恢复、构建和开发启动，不提权、不扫描桌面；CI 使用 `-ValidateOnly` 验证启动链而不打开窗口；
-- 本机 Debug 构建和窗口启动/存活/正常关闭通过；自动截图工具因错误归属未打包窗口而无法取得稳定句柄，视觉与导航自动化检查保持 `Inconclusive`；
-- 详细范围、供应链、验证和停止规则见 [`17-ui-shell-readonly-slice-audit.md`](17-ui-shell-readonly-slice-audit.md)。
+- 本机 Release 构建和窗口启动/存活/正常关闭通过；进程句柄 UIA 冒烟已验证导航发现、键盘焦点、选择、内存态深浅主题往返和安全页可见性；
+- 自动截图工具仍因错误归属未打包窗口而无法取得稳定句柄，因此视觉截图、高对比、Narrator、文本缩放和 DPI 人工矩阵继续保持 `Inconclusive/Pending`；
+- 详细范围、供应链、验证和停止规则见 [`17-ui-shell-readonly-slice-audit.md`](17-ui-shell-readonly-slice-audit.md)与[`18-ui-theme-automation-contract-audit.md`](18-ui-theme-automation-contract-audit.md)。
 
 当前最优先问题不是继续堆功能，而是：
 
@@ -59,9 +60,9 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 解决方案 | `main` 有 1 个 Core、1 个测试和 9 个探针项目 | 已建立，但不是产品分层 |
 | 代码 | 当前分支有 17 个 Core、12 个测试和 55 个探针 C# 源文件 | 以风险验证为主 |
 | 测试 | 当前全量 88 项测试通过 | Core 回归基线有效 |
-| CI | 单一 Windows workflow 执行 restore、format、build、test、覆盖率门禁、配置/文件安全/缩略图 worker 探针、依赖漏洞门禁并上传 TRX/Cobertura | PR 基线有效；行覆盖率最低 90%、分支覆盖率最低 75%，尚无 CodeQL 或发布流水线 |
+| CI | 单一 Windows workflow 执行 restore、format、build、启动/UI 结构合同、test、覆盖率门禁、配置/文件安全/缩略图 worker 探针、依赖漏洞门禁并上传 TRX/Cobertura | PR 基线有效；行覆盖率最低 90%、分支覆盖率最低 75%，尚无 CodeQL 或发布流水线 |
 | 文档 | PRD、架构、质量、竞品、交互、协议、流程、ADR、22 份 Spike 报告 | 覆盖较完整 |
-| GitHub | 无打开 PR；远端只保留 `main`；Phase 0 Exit 里程碑跟踪 #19–#24 六项工作 | 治理基线已闭环 |
+| GitHub | `main` 已合入至 PR #66；当前 UI 合同切片使用短生命周期分支；Phase 0 Exit 里程碑跟踪 #19–#24 六项工作 | 治理基线已闭环；当前切片仍须 PR/CI |
 | 主干保护 | `main` 要求严格的 `build-test`，对管理员生效，禁止强推和删除 | 已建立最小可信门禁 |
 | 许可证 | GitHub 未识别许可证，仓库根目录无 LICENSE | 阻断公开分发与外部贡献 |
 | 覆盖率 | 88 项 Core 测试通过；本轮 Cobertura 基线为行 91.28%、分支 77.39%，CI 已采集报告 | Phase 1 关键 Core 分支目标 ≥80%，当前先跟踪趋势、不用总百分比替代风险测试 |
@@ -83,6 +84,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 事务补偿 | Bounds/Region/DComp/UIA 快照、代次门禁、逆序回滚、紧急隐藏 | E1-E2 | 正式宿主集成和故障注入矩阵 |
 | 配置持久化 | 版本化 JSON、原子替换/备份/安全模式、四检查点共 1,000 次及 ACL 生效期间强杀、跨进程单写租约、有界退避、具备入队快照/有界排空的 latest-wins 保存协调、确定性迁移回滚、只读/磁盘满/权限恢复 | E2 / Conditional Pass | Phase 0 仍缺真实卷空间耗尽/只读、替换内部失败、跨进程公平性和正式 schema；真实应用关闭/完整单实例激活列入首片验收 |
 | 交互切片 | 一个可见 List 容器和三个进程内演示项 | E2 / Conditional Pass | 文件语义、拖放、正式持久化和用户测试 |
+| 正式 App UI 壳层 | WinUI 导航、Design Token、内存态主题、AutomationId/访问键与真实 UIA 冒烟 | E2 / Conditional Pass | 真实数据接线、Narrator/高对比/缩放/DPI/视觉矩阵和 5 人测试 |
 
 ### 3.3 仍只是设计或协议的能力
 
