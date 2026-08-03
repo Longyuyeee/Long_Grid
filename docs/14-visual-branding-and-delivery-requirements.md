@@ -8,15 +8,15 @@
 
 ## 1. 当前事实
 
-当前仓库没有正式产品 UI：
+当前仓库已经建立开发期只读 UI Shell，但仍没有可发布产品 UI：
 
-- 没有 `LongGrid.App`、WinUI/XAML 页面或可发布的设置中心；
+- 已有 `LongGrid.App`、WinUI/XAML 导航骨架和 Design Token，但只显示匿名示例数据，不枚举真实桌面、不连接 DesktopHost，也不是可发布设置中心；
 - 没有正式 `LongGrid.DesktopHost` 产品工程；
 - P0-04/P0-05b1 只有 GDI 系统色的交互探针，用于验证 HWND、输入、焦点和 UI Automation，不代表最终视觉；
-- 没有产品图标、SVG/ICO/MSIX 品牌资产；
-- 没有一键启动或一键打包脚本；`eng/` 当前只有覆盖率和依赖漏洞检查。
+- 已有经像素校正的 RC1 SVG/PNG 品牌资产，但最终商标、ICO/MSIX/商店资产和 Windows 外壳实机矩阵仍未完成；
+- 已有 `eng/Start-LongGrid.ps1` 开发启动入口及 CI 验证模式；一键打包脚本、MSIX 工程和正式安装入口仍不存在。
 
-因此任何探针窗口、命令行入口或 `dotnet run` 命令都不得宣传为 Long方格正式界面或安装体验。
+因此开发期 UI Shell、任何探针窗口、命令行入口或 `dotnet run` 命令都不得宣传为 Long方格正式 MVP 或安装体验。
 
 ## 2. 产品名称与标识
 

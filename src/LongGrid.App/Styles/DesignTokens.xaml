@@ -1,0 +1,82 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:system="using:System">
+
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+            <Color x:Key="LongGridWindowColor">#FFF5F6FA</Color>
+            <Color x:Key="LongGridSurfaceColor">#FFFFFFFF</Color>
+            <Color x:Key="LongGridSurfaceMutedColor">#FFF0F1F7</Color>
+            <Color x:Key="LongGridBorderColor">#1F171A2B</Color>
+            <Color x:Key="LongGridTextPrimaryColor">#FF171A2B</Color>
+            <Color x:Key="LongGridTextSecondaryColor">#FF5F6678</Color>
+            <SolidColorBrush x:Key="LongGridWindowBrush" Color="{ThemeResource LongGridWindowColor}" />
+            <SolidColorBrush x:Key="LongGridSurfaceBrush" Color="{ThemeResource LongGridSurfaceColor}" />
+            <SolidColorBrush x:Key="LongGridSurfaceMutedBrush" Color="{ThemeResource LongGridSurfaceMutedColor}" />
+            <SolidColorBrush x:Key="LongGridBorderBrush" Color="{ThemeResource LongGridBorderColor}" />
+            <SolidColorBrush x:Key="LongGridTextPrimaryBrush" Color="{ThemeResource LongGridTextPrimaryColor}" />
+            <SolidColorBrush x:Key="LongGridTextSecondaryBrush" Color="{ThemeResource LongGridTextSecondaryColor}" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+            <Color x:Key="LongGridWindowColor">#FF11131F</Color>
+            <Color x:Key="LongGridSurfaceColor">#FF1C2030</Color>
+            <Color x:Key="LongGridSurfaceMutedColor">#FF24283A</Color>
+            <Color x:Key="LongGridBorderColor">#2FFFFFFF</Color>
+            <Color x:Key="LongGridTextPrimaryColor">#FFFFFFFF</Color>
+            <Color x:Key="LongGridTextSecondaryColor">#FFC7CBD6</Color>
+            <SolidColorBrush x:Key="LongGridWindowBrush" Color="{ThemeResource LongGridWindowColor}" />
+            <SolidColorBrush x:Key="LongGridSurfaceBrush" Color="{ThemeResource LongGridSurfaceColor}" />
+            <SolidColorBrush x:Key="LongGridSurfaceMutedBrush" Color="{ThemeResource LongGridSurfaceMutedColor}" />
+            <SolidColorBrush x:Key="LongGridBorderBrush" Color="{ThemeResource LongGridBorderColor}" />
+            <SolidColorBrush x:Key="LongGridTextPrimaryBrush" Color="{ThemeResource LongGridTextPrimaryColor}" />
+            <SolidColorBrush x:Key="LongGridTextSecondaryBrush" Color="{ThemeResource LongGridTextSecondaryColor}" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="HighContrast">
+            <SolidColorBrush x:Key="LongGridWindowBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="LongGridSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="LongGridSurfaceMutedBrush" Color="{ThemeResource SystemColorButtonFaceColor}" />
+            <SolidColorBrush x:Key="LongGridBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="LongGridTextPrimaryBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="LongGridTextSecondaryBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+
+    <Color x:Key="LongGridBrandColor">#FF5B5FF5</Color>
+    <SolidColorBrush x:Key="LongGridBrandBrush" Color="{StaticResource LongGridBrandColor}" />
+    <system:Double x:Key="LongGridSpace1">4</system:Double>
+    <system:Double x:Key="LongGridSpace2">8</system:Double>
+    <system:Double x:Key="LongGridSpace3">12</system:Double>
+    <system:Double x:Key="LongGridSpace4">16</system:Double>
+    <system:Double x:Key="LongGridSpace6">24</system:Double>
+    <system:Double x:Key="LongGridSpace8">32</system:Double>
+    <CornerRadius x:Key="LongGridCornerRadiusSmall">8</CornerRadius>
+    <CornerRadius x:Key="LongGridCornerRadiusMedium">12</CornerRadius>
+    <CornerRadius x:Key="LongGridCornerRadiusLarge">18</CornerRadius>
+
+    <Style x:Key="LongGridCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{ThemeResource LongGridSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource LongGridBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource LongGridCornerRadiusLarge}" />
+        <Setter Property="Padding" Value="20" />
+    </Style>
+    <Style x:Key="LongGridEyebrowTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="CharacterSpacing" Value="80" />
+        <Setter Property="Foreground" Value="{ThemeResource LongGridTextSecondaryBrush}" />
+    </Style>
+    <Style x:Key="LongGridTitleTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="32" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{ThemeResource LongGridTextPrimaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style x:Key="LongGridSubtitleTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="Foreground" Value="{ThemeResource LongGridTextSecondaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="LineHeight" Value="24" />
+    </Style>
+</ResourceDictionary>

@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效，旧串联 PR/分支已收口。多数能力仍是 Conditional Pass；真实输入/Narrator/系统表面、动态显示、文件安全、真实卷故障、性能和可用性验证尚未关闭，正式 MVP 尚未开始。
+> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1 和一键启动链已建立，但不接真实桌面、DesktopHost 或文件操作，不能视为正式 MVP。多数能力仍是 Conditional Pass；真实输入/Narrator/系统表面、动态显示、文件安全、真实卷故障、性能和可用性验证尚未关闭。
 
 ## 产品原则
 
@@ -29,6 +29,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [视觉品牌、动效与交付要求](docs/14-visual-branding-and-delivery-requirements.md)
 - [“L + 方格”图标概念审计](docs/15-icon-concept-audit.md)
 - [应用图标 RC1 生产审计](docs/16-brand-asset-production-audit.md)
+- [开发期只读 UI Shell 审计](docs/17-ui-shell-readonly-slice-audit.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
 - [Long助手兼容协议交付包](docs/protocol/README.md)
@@ -42,7 +43,18 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 按纠偏后的 `Phase 0 Exit` 顺序推进：先由 Issue #23 明确首版范围并完成低保真/5 人验证，再执行 #19 人工输入/Narrator/系统表面矩阵和 #20 动态显示硬件矩阵，随后只按已批准支持范围收口 #21–#22；#24 先关闭配置合同，应用关闭、单实例和正式渲染接线在首个只读生产切片中验收。实机执行和负责人签字使用[Phase 0 出口执行手册](docs/12-phase-0-exit-runbook.md)；详细偏移依据和停止规则见[初始计划对齐与偏移审计](docs/13-original-plan-alignment-audit.md)。
 
-## 开发与验证
+## 开发启动
+
+在 Windows x64 开发机上使用统一入口启动当前只读 UI Shell：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File ./eng/Start-LongGrid.ps1
+```
+
+该入口默认执行锁定依赖恢复、必要构建和启动；不提权、不枚举真实桌面，也不执行文件操作。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[开发期只读 UI Shell 审计](docs/17-ui-shell-readonly-slice-audit.md)。
+
+## 仓库验证与故障排查
 
 需要 .NET SDK `8.0.400` feature band 或兼容 patch：
 

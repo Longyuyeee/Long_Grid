@@ -1,8 +1,8 @@
 # Long Grid 当前开发状态与后续方向审计
 
-审计日期：2026-08-02
+审计日期：2026-08-03（增量复审）
 
-审计基线：`main` / `75f7e52`
+审计基线：`main` / `2acff48` + 开发期只读 UI Shell 分支
 
 审计范围：代码、测试、技术探针、架构/产品/交互文档、GitHub PR 与 CI
 
@@ -10,9 +10,17 @@
 
 ## 1. 执行摘要
 
-Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了可复现的 .NET 工程基线、纯 Core 决策逻辑、真实 Win32/Shell/DirectComposition/UI Automation 探针以及自动化测试。桌面发现、稳定身份、Shell 变化对账、图像提取、DesktopHost 窗口模型、显示拓扑、布局恢复、事务补偿、首个可交互宿主切片、配置持久化、文件操作安全和缩略图进程隔离均有代码与报告证据。PR #18、#25–#61 已合入 `main`；配置探针通过了 20 类场景、1,000 次重复写入、四检查点共 1,000 次真实进程强杀及 ACL 生效期间 10 次强杀；文件操作和缩略图隔离探针均保持 Conditional Pass。
+Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了可复现的 .NET 工程基线、纯 Core 决策逻辑、真实 Win32/Shell/DirectComposition/UI Automation 探针以及自动化测试。桌面发现、稳定身份、Shell 变化对账、图像提取、DesktopHost 窗口模型、显示拓扑、布局恢复、事务补偿、首个可交互宿主切片、配置持久化、文件操作安全和缩略图进程隔离均有代码与报告证据。PR #18、#25–#61、#63–#65 已合入 `main`；配置探针通过了 20 类场景、1,000 次重复写入、四检查点共 1,000 次真实进程强杀及 ACL 生效期间 10 次强杀；文件操作和缩略图隔离探针均保持 Conditional Pass，视觉品牌需求、概念审计和图标 RC1 也已进入主线。
 
-但这些成果大多仍是 **Conditional Pass 的风险探针**，不是可发布产品能力。仓库还没有正式的 `LongGrid.App`、`LongGrid.DesktopHost`、`LongGrid.Infrastructure`、产品配置 schema、安装包或端到端产品流程。真实键鼠/触控/拖放、Narrator、Win+D、全屏、Explorer 重启、动态显示硬件矩阵、文件移动撤销、真实卷故障、真实 Provider 性能矩阵和可用性测试尚未关闭。
+但这些成果大多仍是 **Conditional Pass 的风险探针**，不是可发布产品能力。仓库现已建立开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1 与一键启动链；该切片只显示匿名示例数据，不枚举真实桌面、不连接 DesktopHost、不执行文件操作、不写产品配置，也没有安装承诺，因此证据等级仍是 E2/E3 开发集成，而不是 E4 产品切片。`LongGrid.DesktopHost`、`LongGrid.Infrastructure`、产品配置 schema、安装包和端到端产品流程仍不存在。真实键鼠/触控/拖放、Narrator、Win+D、全屏、Explorer 重启、动态显示硬件矩阵、文件移动撤销、真实卷故障、真实 Provider 性能矩阵和可用性测试尚未关闭。
+
+### 2026-08-03 增量结论
+
+- `LongGrid.App` 使用 .NET 8、Windows App SDK 2.3.1 Stable、WinUI 3 和 x64 开发目标；ADR-0001 继续保持 `Proposed`；
+- 新 UI Shell 是为解除“只有正式 App 存在后才能验证启动、主题和关闭”的循环门槛而建立的受控开发切片，不代表跳过 Issue #19–#24；
+- `eng/Start-LongGrid.ps1` 默认只执行依赖恢复、构建和开发启动，不提权、不扫描桌面；CI 使用 `-ValidateOnly` 验证启动链而不打开窗口；
+- 本机 Debug 构建和窗口启动/存活/正常关闭通过；自动截图工具因错误归属未打包窗口而无法取得稳定句柄，视觉与导航自动化检查保持 `Inconclusive`；
+- 详细范围、供应链、验证和停止规则见 [`17-ui-shell-readonly-slice-audit.md`](17-ui-shell-readonly-slice-audit.md)。
 
 当前最优先问题不是继续堆功能，而是：
 
