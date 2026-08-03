@@ -144,8 +144,8 @@
                                     Style="{StaticResource LongGridCardStyle}">
                                     <StackPanel Spacing="8">
                                         <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="当前模式" />
-                                        <TextBlock AutomationProperties.AutomationId="CurrentModeValue" FontSize="22" FontWeight="SemiBold" Text="只读 UI Shell" />
-                                        <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="无桌面数据连接" />
+                                        <TextBlock x:Name="CurrentModeValue" AutomationProperties.AutomationId="CurrentModeValue" FontSize="22" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="CurrentModeDetail" Style="{StaticResource LongGridSubtitleTextStyle}" />
                                     </StackPanel>
                                 </Border>
                                 <Border
@@ -157,8 +157,8 @@
                                     Style="{StaticResource LongGridCardStyle}">
                                     <StackPanel Spacing="8">
                                         <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="文件操作" />
-                                        <TextBlock AutomationProperties.AutomationId="FileOperationValue" FontSize="22" FontWeight="SemiBold" Text="完全关闭" />
-                                        <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="没有移动或删除入口" />
+                                        <TextBlock x:Name="FileOperationValue" AutomationProperties.AutomationId="FileOperationValue" FontSize="22" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="FileOperationDetail" Style="{StaticResource LongGridSubtitleTextStyle}" />
                                     </StackPanel>
                                 </Border>
                                 <Border
@@ -170,8 +170,8 @@
                                     Style="{StaticResource LongGridCardStyle}">
                                     <StackPanel Spacing="8">
                                         <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="桌面宿主" />
-                                        <TextBlock AutomationProperties.AutomationId="DesktopHostValue" FontSize="22" FontWeight="SemiBold" Text="尚未接线" />
-                                        <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="不影响 Explorer" />
+                                        <TextBlock x:Name="DesktopHostValue" AutomationProperties.AutomationId="DesktopHostValue" FontSize="22" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="DesktopHostDetail" Style="{StaticResource LongGridSubtitleTextStyle}" />
                                     </StackPanel>
                                 </Border>
                             </Grid>

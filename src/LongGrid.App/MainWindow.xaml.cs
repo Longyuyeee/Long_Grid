@@ -1,3 +1,4 @@
+using LongGrid.Core.Runtime;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -25,7 +26,47 @@ public sealed partial class MainWindow : Window
         SetTitleBar(AppTitleBar);
         SystemBackdrop = new MicaBackdrop();
 
+        ApplyRuntimeStatus(RuntimeStatusSnapshot.CreateDevelopmentReadOnly());
         ShellNavigation.SelectedItem = ShellNavigation.MenuItems[0];
+    }
+
+    private void ApplyRuntimeStatus(RuntimeStatusSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        CurrentModeValue.Text = snapshot.IsDevelopmentReadOnly
+            ? "Core 只读已接线"
+            : "状态不可用";
+        CurrentModeDetail.Text = snapshot.DesktopCatalog switch
+        {
+            RuntimeCapabilityState.Disconnected => "桌面目录保持未连接",
+            _ => "桌面目录状态不可用",
+        };
+        AutomationProperties.SetItemStatus(
+            CurrentModeValue,
+            snapshot.IsDevelopmentReadOnly
+                ? "DevelopmentReadOnly"
+                : "Unavailable");
+
+        FileOperationValue.Text = snapshot.FileOperations switch
+        {
+            RuntimeCapabilityState.DisabledBySafetyPolicy => "安全策略关闭",
+            _ => "状态不可用",
+        };
+        FileOperationDetail.Text = "没有移动、删除或写入入口";
+        AutomationProperties.SetItemStatus(
+            FileOperationValue,
+            snapshot.FileOperations.ToString());
+
+        DesktopHostValue.Text = snapshot.DesktopHost switch
+        {
+            RuntimeCapabilityState.Disconnected => "未连接",
+            _ => "状态不可用",
+        };
+        DesktopHostDetail.Text = "不会创建宿主或影响 Explorer";
+        AutomationProperties.SetItemStatus(
+            DesktopHostValue,
+            snapshot.DesktopHost.ToString());
     }
 
     private void RootLayout_Loaded(object sender, RoutedEventArgs e)
