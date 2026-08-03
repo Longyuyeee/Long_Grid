@@ -347,6 +347,7 @@ test(shell): cover coalesced change notifications
 5. 只有预期信号、最终稳定、资源闭环和人工检查全部通过，场景才可升级为 Pass；
 6. Narrator 朗读、焦点合理性、触控手感和视觉恢复不得由 UIA 属性存在替代；
 7. 录像、硬件清单和系统配置若包含可识别信息，放入访问受控的实验记录，不进入仓库或默认诊断包。
+8. Issue #19 使用 `eng/Start-Issue19ManualMatrixSession.ps1` 一次启动一个 I19 场景；`-ValidateOnly` 永远保持 `PendingManualEvidence`，不得自动填写人工结论。
 
 ### 12.5 UI、启动与打包门禁
 
