@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Long方格图标候选 D：模块化转角</title>
+  <desc id="desc">七个圆角模块组成紧凑的 L 转角和两个可移动桌面单元。</desc>
+  <rect width="256" height="256" rx="56" fill="#F8FAFC"/>
+  <g fill="#312E81">
+    <rect x="40" y="40" width="52" height="52" rx="14"/>
+    <rect x="40" y="102" width="52" height="52" rx="14"/>
+    <rect x="40" y="164" width="52" height="52" rx="14"/>
+    <rect x="102" y="164" width="52" height="52" rx="14"/>
+    <rect x="164" y="164" width="52" height="52" rx="14"/>
+  </g>
+  <rect x="116" y="40" width="40" height="40" rx="12" fill="#6366F1"/>
+  <rect x="176" y="100" width="40" height="40" rx="12" fill="#8B5CF6"/>
+</svg>

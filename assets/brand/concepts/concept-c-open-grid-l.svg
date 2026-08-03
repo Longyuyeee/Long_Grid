@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Long方格图标候选 C：开放式方格 L</title>
+  <desc id="desc">一体化 L 形骨架与右上方的三个独立方格共同构成开放工作区。</desc>
+  <rect width="256" height="256" rx="56" fill="#EEF2FF"/>
+  <path fill="#4F46E5" d="M44 44h52v116h116v52H44V44Z"/>
+  <rect x="112" y="44" width="40" height="40" rx="10" fill="#7C3AED"/>
+  <rect x="168" y="44" width="44" height="40" rx="10" fill="#A78BFA"/>
+  <rect x="168" y="100" width="44" height="44" rx="10" fill="#818CF8"/>
+</svg>

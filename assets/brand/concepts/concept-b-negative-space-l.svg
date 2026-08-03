@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Long方格图标候选 B：负空间 L</title>
+  <desc id="desc">连续的方格面板通过内部留白形成字母 L。</desc>
+  <rect width="256" height="256" rx="56" fill="#171A2B"/>
+  <path fill="#8B5CF6" fill-rule="evenodd" d="M40 40h176v176H40V40Zm32 32v112h112v-32h-80V72H72Z"/>
+  <path fill="#A5B4FC" d="M120 72h64v64h-64z"/>
+  <path fill="#171A2B" d="M132 84h16v16h-16zM156 84h16v16h-16zM132 108h16v16h-16zM156 108h16v16h-16z"/>
+</svg>
