@@ -1,6 +1,6 @@
-# Long Grid
+# Long方格（Long Grid）
 
-Long Grid 是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
+Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
 > 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效，旧串联 PR/分支已收口。多数能力仍是 Conditional Pass；真实输入/Narrator/系统表面、动态显示、文件安全、真实卷故障、性能和可用性验证尚未关闭，正式 MVP 尚未开始。
 
@@ -26,6 +26,7 @@ Long Grid 是一款面向 Windows 10/11 的桌面整理与工作空间管理工�
 - [开发流程与交付规范](docs/10-development-workflow.md)
 - [当前开发状态与后续方向审计](docs/11-development-status-and-direction-audit.md)
 - [初始计划对齐与偏移审计](docs/13-original-plan-alignment-audit.md)
+- [视觉品牌、动效与交付要求](docs/14-visual-branding-and-delivery-requirements.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
 - [Long助手兼容协议交付包](docs/protocol/README.md)
