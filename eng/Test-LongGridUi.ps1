@@ -53,11 +53,22 @@ function Test-SourceContract {
         'LongGridRoot',
         'ShellNavigation',
         'NavOverview',
+        'NavFirstRun',
         'NavAppearance',
         'NavSafety',
         'OverviewPanel',
+        'FirstRunPanel',
         'AppearancePanel',
         'SafetyPanel',
+        'FirstRunSafetyBanner',
+        'SuggestedStartChoice',
+        'BlankStartChoice',
+        'StartChoiceStatus',
+        'SafeReferenceMode',
+        'ManagedMoveMode',
+        'OrganizationOutcomeTitle',
+        'OrganizationPreviewButton',
+        'OrganizationPreviewStatus',
         'CurrentModeCard',
         'FileOperationCard',
         'DesktopHostCard',
@@ -83,6 +94,14 @@ function Test-SourceContract {
     Assert-Condition (
         $themeStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
     ) 'ThemeStatusText must politely announce in-process theme changes.'
+    $previewStatusNode = Get-XamlNodeByAutomationId $document 'OrganizationPreviewStatus'
+    Assert-Condition (
+        $previewStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
+    ) 'OrganizationPreviewStatus must politely announce preview changes.'
+    $startChoiceStatusNode = Get-XamlNodeByAutomationId $document 'StartChoiceStatus'
+    Assert-Condition (
+        $startChoiceStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
+    ) 'StartChoiceStatus must politely announce first-run path changes.'
 
     $scrollViewer = $document.SelectSingleNode("//*[local-name()='ScrollViewer']")
     Assert-Condition ($null -ne $scrollViewer) 'The content ScrollViewer is missing.'
@@ -92,8 +111,9 @@ function Test-SourceContract {
 
     $expectedAccessKeys = @{
         NavOverview = '1'
-        NavAppearance = '2'
-        NavSafety = '3'
+        NavFirstRun = '2'
+        NavAppearance = '3'
+        NavSafety = '4'
     }
     foreach ($entry in $expectedAccessKeys.GetEnumerator()) {
         $node = Get-XamlNodeByAutomationId $document $entry.Key
@@ -131,6 +151,18 @@ function Test-SourceContract {
         'The initial window must remain bounded to 90 percent of the work area.'
     Assert-Condition ($codeBehind -match 'RuntimeStatusSnapshot\.CreateDevelopmentReadOnly') `
         'The UI must obtain its capability state from the audited Core snapshot.'
+    Assert-Condition ($codeBehind -match 'FileOrganizationMode\.SafeReference') `
+        'The onboarding prototype must default to the Core safe-reference semantic.'
+    Assert-Condition ($codeBehind -match 'FileOrganizationMode\.ManagedMove') `
+        'The onboarding prototype must explicitly distinguish managed move.'
+    Assert-Condition ($codeBehind -match 'ManagedMovePreviewBlocked') `
+        'The development prototype must expose managed move as blocked.'
+    Assert-Condition ($codeBehind -match 'SafeReferencePreview') `
+        'The development prototype must expose a safe-reference preview state.'
+    Assert-Condition ($codeBehind -match 'SuggestedStartSelected') `
+        'The first-run prototype must expose the suggested-preview start path.'
+    Assert-Condition ($codeBehind -match 'BlankStartSelected') `
+        'The first-run prototype must expose the blank-layout start path.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*CurrentModeValue') `
         'The current runtime mode must expose a machine-readable UIA status.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*FileOperationValue') `
@@ -143,6 +175,7 @@ function Test-SourceContract {
         '\bFile\.',
         '\bDirectory\.',
         'Environment\.GetFolderPath',
+        'FileOrganizationPlanner',
         'LongGrid\.Core\.DesktopItems',
         '\bDesktopCatalog\s*\.',
         'ShellChange',
@@ -163,6 +196,7 @@ function Test-SourceContract {
         compactWidth = 720
         dpiAwareInitialSize = 'pass'
         coreRuntimeStatus = 'development-read-only'
+        firstOrganizationPrototype = 'safe-reference-vs-blocked-move'
         readOnlyBoundary = 'pass'
     }
 }
@@ -272,6 +306,18 @@ function Scroll-UiaToMetrics {
     }
 }
 
+function Scroll-UiaElementIntoView {
+    param([System.Windows.Automation.AutomationElement]$Element)
+
+    $pattern = $null
+    if ($Element.TryGetCurrentPattern(
+            [System.Windows.Automation.ScrollItemPattern]::Pattern,
+            [ref]$pattern)) {
+        ([System.Windows.Automation.ScrollItemPattern]$pattern).ScrollIntoView()
+        Start-Sleep -Milliseconds 250
+    }
+}
+
 function Test-LiveUi {
     if ($env:OS -ne 'Windows_NT') {
         throw 'The live Long Grid UI smoke requires Windows.'
@@ -347,9 +393,10 @@ public static class LongGridWindowNative
         $navigation = Find-UiaElement $root 'ShellNavigation'
         $layoutRoot = Find-UiaElement $root 'LongGridRoot'
         $overview = Find-UiaElement $root 'NavOverview'
+        $firstRun = Find-UiaElement $root 'NavFirstRun'
         $appearance = Find-UiaElement $root 'NavAppearance'
         $safety = Find-UiaElement $root 'NavSafety'
-        foreach ($item in @($overview, $appearance, $safety)) {
+        foreach ($item in @($overview, $firstRun, $appearance, $safety)) {
             Assert-Condition $item.Current.IsKeyboardFocusable `
                 "Navigation item '$($item.Current.AutomationId)' is not keyboard focusable."
         }
@@ -388,6 +435,32 @@ public static class LongGridWindowNative
             @($currentModeCard, $fileOperationCard, $desktopHostCard) `
             $layoutRoot.Current.BoundingRectangle
 
+        Select-UiaElement $firstRun
+        $safeReferenceCompact = Find-UiaElement $root 'SafeReferenceMode'
+        $managedMoveCompact = Find-UiaElement $root 'ManagedMoveMode'
+        Scroll-UiaElementIntoView $safeReferenceCompact
+        $safeReferenceBounds = $safeReferenceCompact.Current.BoundingRectangle
+        Scroll-UiaElementIntoView $managedMoveCompact
+        $managedMoveBounds = $managedMoveCompact.Current.BoundingRectangle
+        Assert-Condition (
+            $safeReferenceBounds.Width -gt 0 -and
+            $managedMoveBounds.Width -gt 0 -and
+            [Math]::Abs($safeReferenceBounds.Left - $managedMoveBounds.Left) -le 2
+        ) 'Compact organization modes did not reflow into one column.'
+        $suggestedStartCompact = Find-UiaElement $root 'SuggestedStartChoice'
+        $blankStartCompact = Find-UiaElement $root 'BlankStartChoice'
+        Scroll-UiaElementIntoView $suggestedStartCompact
+        $suggestedStartBounds = $suggestedStartCompact.Current.BoundingRectangle
+        Scroll-UiaElementIntoView $blankStartCompact
+        $blankStartBounds = $blankStartCompact.Current.BoundingRectangle
+        Assert-Condition (
+            $suggestedStartBounds.Width -gt 0 -and
+            $blankStartBounds.Width -gt 0 -and
+            [Math]::Abs($suggestedStartBounds.Left - $blankStartBounds.Left) -le 2 -and
+            [Math]::Abs($suggestedStartBounds.Width - $blankStartBounds.Width) -le 2
+        ) 'Compact start choices did not reflow into one equal-width column.'
+        Select-UiaElement $overview
+
         Assert-Condition (
             [LongGridWindowNative]::MoveWindow(
                 $process.MainWindowHandle,
@@ -404,8 +477,46 @@ public static class LongGridWindowNative
         $responsiveStatus = Find-UiaElement $root 'ResponsiveStatusText'
         Wait-UiaName $responsiveStatus 'UI Shell'
         $navigation = Find-UiaElement $root 'ShellNavigation'
+        $firstRun = Find-UiaElement $root 'NavFirstRun'
         $appearance = Find-UiaElement $root 'NavAppearance'
         $safety = Find-UiaElement $root 'NavSafety'
+
+        Select-UiaElement $firstRun
+        $firstRunPanel = Find-UiaElement $root 'FirstRunPanel'
+        Assert-Condition (-not $firstRunPanel.Current.IsOffscreen) `
+            'FirstRunPanel stayed offscreen after selecting its navigation item.'
+        $blankStart = Find-UiaElement $root 'BlankStartChoice'
+        Scroll-UiaElementIntoView $blankStart
+        Select-UiaElement $blankStart
+        $startChoiceStatus = Find-UiaElement $root 'StartChoiceStatus'
+        Assert-Condition ($startChoiceStatus.Current.ItemStatus -eq 'BlankStartSelected') `
+            'Blank-layout start did not expose its audited UIA state.'
+        $suggestedStart = Find-UiaElement $root 'SuggestedStartChoice'
+        Scroll-UiaElementIntoView $suggestedStart
+        Select-UiaElement $suggestedStart
+        Assert-Condition ($startChoiceStatus.Current.ItemStatus -eq 'SuggestedStartSelected') `
+            'Suggested-preview start did not expose its audited UIA state.'
+        $managedMove = Find-UiaElement $root 'ManagedMoveMode'
+        Scroll-UiaElementIntoView $managedMove
+        Select-UiaElement $managedMove
+        $previewStatus = Find-UiaElement $root 'OrganizationPreviewStatus'
+        Assert-Condition ($previewStatus.Current.ItemStatus -eq 'ManagedMoveSelected') `
+            'Managed move selection did not expose its audited UIA state.'
+        $previewButton = Find-UiaElement $root 'OrganizationPreviewButton'
+        Scroll-UiaElementIntoView $previewButton
+        Select-UiaElement $previewButton
+        Assert-Condition ($previewStatus.Current.ItemStatus -eq 'ManagedMovePreviewBlocked') `
+            'Managed move preview was not blocked in the development shell.'
+
+        $safeReference = Find-UiaElement $root 'SafeReferenceMode'
+        Scroll-UiaElementIntoView $safeReference
+        Select-UiaElement $safeReference
+        Assert-Condition ($previewStatus.Current.ItemStatus -eq 'SafeReferenceSelected') `
+            'Safe-reference selection did not expose its audited UIA state.'
+        Scroll-UiaElementIntoView $previewButton
+        Select-UiaElement $previewButton
+        Assert-Condition ($previewStatus.Current.ItemStatus -eq 'SafeReferencePreview') `
+            'Safe-reference preview did not expose its audited UIA state.'
 
         $appearance.SetFocus()
         Start-Sleep -Milliseconds 150
@@ -438,12 +549,14 @@ public static class LongGridWindowNative
             windowTitle = $root.Current.Name
             processId = $process.Id
             navigationAutomationId = $navigation.Current.AutomationId
-            navigationItems = 3
+            navigationItems = 4
             keyboardFocus = 'pass'
             responsiveLayout = 'wide-compact-wide-720'
             responsiveItemStatus = $layoutRoot.Current.ItemStatus
             compactCards = 3
+            compactOrganizationModes = 2
             coreRuntimeStatus = 'development-read-only'
+            firstOrganizationPrototype = 'blank-suggested-move-blocked-safe-previewed'
             themeRoundTrip = 'system-dark-system'
             safetyNavigation = 'pass'
         }
