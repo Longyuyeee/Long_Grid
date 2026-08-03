@@ -37,6 +37,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [匿名容器与撤销原型审计](docs/22-anonymous-container-undo-prototype-audit.md)
 - [匿名项目与拖放语义原型审计](docs/23-anonymous-items-drop-semantics-audit.md)
 - [布局恢复差异原型审计](docs/24-layout-recovery-difference-prototype-audit.md)
+- [正式产品配置合同审计](docs/28-product-configuration-contract-audit.md)
 - [Issue #23 五人可用性测试计划](docs/usability/issue-23-first-organization-test-plan.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)

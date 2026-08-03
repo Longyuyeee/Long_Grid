@@ -122,6 +122,8 @@ P0-02 已验证 Shell 会强烈合并高频变化：1,100 次沙箱操作每轮�
 - 未识别字段应尽可能保留，方便向前/向后迁移。
 - 配置不保存文件内容；敏感路径在诊断导出时脱敏。
 
+`LongGrid.Core.Configuration` 现已将该形状固化为首个正式 v1 合同：最多 100 个容器/500 个项目、4 MiB UTF-8 JSON、有限 DIP/字符串边界、全局唯一对象 ID、未知字段保留和有限错误码。当前行为枚举只允许 `reference`，不把未批准的真实移动写入首版 schema；详细边界见[正式产品配置合同审计](28-product-configuration-contract-audit.md)。正式磁盘存储仍属于未来 `LongGrid.Infrastructure`，Core 合同本身不执行 I/O。
+
 ## 5. 布局恢复算法
 
 1. 收集当前显示器的稳定属性：设备标识、工作区、方向、DPI 和相对拓扑。
