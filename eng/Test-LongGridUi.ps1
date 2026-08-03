@@ -69,6 +69,12 @@ function Test-SourceContract {
         'OrganizationOutcomeTitle',
         'OrganizationPreviewButton',
         'OrganizationPreviewStatus',
+        'PracticeContainerName',
+        'CreatePracticeContainerButton',
+        'PracticeContainerPreview',
+        'PracticeContainerNameValue',
+        'UndoPracticeContainerButton',
+        'PracticeActivityStatus',
         'CurrentModeCard',
         'FileOperationCard',
         'DesktopHostCard',
@@ -102,6 +108,20 @@ function Test-SourceContract {
     Assert-Condition (
         $startChoiceStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
     ) 'StartChoiceStatus must politely announce first-run path changes.'
+    $practiceActivityNode = Get-XamlNodeByAutomationId $document 'PracticeActivityStatus'
+    Assert-Condition (
+        $practiceActivityNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
+    ) 'PracticeActivityStatus must politely announce create and undo changes.'
+    $practiceNameNode = Get-XamlNodeByAutomationId $document 'PracticeContainerName'
+    Assert-Condition ($practiceNameNode.GetAttribute('MaxLength') -eq '40') `
+        'The anonymous practice-container name must remain bounded to 40 characters.'
+    $undoNode = Get-XamlNodeByAutomationId $document 'UndoPracticeContainerButton'
+    $undoAccelerator = $undoNode.SelectSingleNode(".//*[local-name()='KeyboardAccelerator']")
+    Assert-Condition (
+        $null -ne $undoAccelerator -and
+        $undoAccelerator.GetAttribute('Key') -eq 'Z' -and
+        $undoAccelerator.GetAttribute('Modifiers') -eq 'Control'
+    ) 'The anonymous container undo action must keep its Ctrl+Z accelerator.'
 
     $scrollViewer = $document.SelectSingleNode("//*[local-name()='ScrollViewer']")
     Assert-Condition ($null -ne $scrollViewer) 'The content ScrollViewer is missing.'
@@ -163,6 +183,12 @@ function Test-SourceContract {
         'The first-run prototype must expose the suggested-preview start path.'
     Assert-Condition ($codeBehind -match 'BlankStartSelected') `
         'The first-run prototype must expose the blank-layout start path.'
+    Assert-Condition ($codeBehind -match 'PracticeContainerCreated') `
+        'The practice container must expose its created state.'
+    Assert-Condition ($codeBehind -match 'PracticeContainerUndone') `
+        'The practice container must expose its undone state.'
+    Assert-Condition ($codeBehind -match 'PracticeContainerNameRequired') `
+        'The practice container must expose an empty-name validation state.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*CurrentModeValue') `
         'The current runtime mode must expose a machine-readable UIA status.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*FileOperationValue') `
@@ -196,7 +222,7 @@ function Test-SourceContract {
         compactWidth = 720
         dpiAwareInitialSize = 'pass'
         coreRuntimeStatus = 'development-read-only'
-        firstOrganizationPrototype = 'safe-reference-vs-blocked-move'
+        firstOrganizationPrototype = 'safe-reference-blocked-move-container-undo'
         readOnlyBoundary = 'pass'
     }
 }
@@ -518,6 +544,25 @@ public static class LongGridWindowNative
         Assert-Condition ($previewStatus.Current.ItemStatus -eq 'SafeReferencePreview') `
             'Safe-reference preview did not expose its audited UIA state.'
 
+        $createPracticeContainer = Find-UiaElement $root 'CreatePracticeContainerButton'
+        Scroll-UiaElementIntoView $createPracticeContainer
+        Select-UiaElement $createPracticeContainer
+        $practiceActivity = Find-UiaElement $root 'PracticeActivityStatus'
+        Assert-Condition ($practiceActivity.Current.ItemStatus -eq 'PracticeContainerCreated') `
+            'Anonymous practice-container creation did not expose its audited UIA state.'
+        $practicePreview = Find-UiaElement $root 'PracticeContainerPreview'
+        Scroll-UiaElementIntoView $practicePreview
+        Assert-Condition (-not $practicePreview.Current.IsOffscreen) `
+            'The created anonymous practice container did not become visible.'
+        $undoPracticeContainer = Find-UiaElement $root 'UndoPracticeContainerButton'
+        Assert-Condition $undoPracticeContainer.Current.IsEnabled `
+            'Undo did not become available after anonymous container creation.'
+        Select-UiaElement $undoPracticeContainer
+        Assert-Condition ($practiceActivity.Current.ItemStatus -eq 'PracticeContainerUndone') `
+            'Anonymous practice-container undo did not expose its audited UIA state.'
+        Assert-Condition (-not $undoPracticeContainer.Current.IsEnabled) `
+            'Undo remained enabled after the anonymous container relationship was removed.'
+
         $appearance.SetFocus()
         Start-Sleep -Milliseconds 150
         Assert-Condition (
@@ -556,7 +601,7 @@ public static class LongGridWindowNative
             compactCards = 3
             compactOrganizationModes = 2
             coreRuntimeStatus = 'development-read-only'
-            firstOrganizationPrototype = 'blank-suggested-move-blocked-safe-previewed'
+            firstOrganizationPrototype = 'blank-suggested-move-blocked-safe-previewed-container-created-undone'
             themeRoundTrip = 'system-dark-system'
             safetyNavigation = 'pass'
         }

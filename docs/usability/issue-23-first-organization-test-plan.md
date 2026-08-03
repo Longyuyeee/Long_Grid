@@ -2,7 +2,7 @@
 
 状态：**Ready to run / Results Pending**
 
-目标：验证新用户能否在没有主持人操作提示的情况下，理解“一键建议/从空白开始”和“安全引用/真实移动”的区别，并确认预览没有修改文件。
+目标：验证新用户能否在没有主持人操作提示的情况下，理解“一键建议/从空白开始”和“安全引用/真实移动”的区别，创建匿名方格、立即撤销，并确认全程没有修改文件。
 
 ## 1. 安全与隐私
 
@@ -36,20 +36,22 @@
 4. “请选择不会移动原始文件的整理方式，并说明原生桌面图标可能怎样。”
 5. “查看真实移动需要什么，并判断现在能否执行。”
 6. “回到安全方式生成预览，并判断是否已经修改文件。”
+7. “创建你的第一个方格，并说明它现在保存在哪里。”
+8. “撤销刚才的创建，并判断是否有文件被删除。”
 
-当前原型不包含真实容器创建、拖放和撤销；这些任务不得伪记为通过，留待后续原型补齐。
+当前原型只包含单个匿名内存容器和关系级撤销，不包含添加三个项目、真实拖放、多个容器、持久化或文件操作撤销；这些任务不得伪记为通过。任务 7 记录从读完目标到创建完成的时间，任务 8 记录到撤销完成的时间。
 
 ## 4. 单人记录表
 
 每位参与者复制一行；时间从任务读完开始，到参与者明确给出答案结束。
 
-| 参与者 | 找到入口 | 建议起点 | 空白含义 | 引用/移动判断 | 移动被阻断 | 安全预览无修改 | 总提示数 | 严重问题 | 备注 |
-|---|---:|---:|---:|---:|---:|---:|---:|---|---|
-| P1 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending |
-| P2 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending |
-| P3 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending |
-| P4 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending |
-| P5 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending |
+| 参与者 | 找到入口 | 建议起点 | 空白含义 | 引用/移动判断 | 移动被阻断 | 安全预览无修改 | 创建耗时 | 撤销耗时 | 撤销无删文件 | 总提示数 | 严重问题 | 备注 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|
+| P1 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending |
+| P2 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending |
+| P3 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending |
+| P4 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending |
+| P5 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending |
 
 每个任务另记完成时间和首次错误动作；不得只记最终成功。
 
@@ -69,6 +71,8 @@
 - 至少 4/5 无提示完成建议预览；
 - 无 Critical，且 High 必须修复并重测；
 - 每人都能看到或复述“尚未修改任何文件”。
+- 至少 4/5 无提示创建匿名方格，五人创建耗时中位数小于 60 秒；
+- P1–P5 全部正确撤销并识别没有文件被删除，撤销耗时中位数小于 5 秒。
 
 五人样本下，原设计目标“引用/移动识别 ≥95%”实际要求 5/5，不得用四舍五入把 4/5 写成通过。
 

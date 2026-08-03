@@ -322,6 +322,45 @@ public sealed partial class MainWindow : Window
             "ManagedMovePreviewBlocked");
     }
 
+    private void CreatePracticeContainerButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        string name = PracticeContainerName.Text.Trim();
+        if (name.Length == 0)
+        {
+            PracticeActivityStatus.Text = "请输入方格名称；尚未创建关系，尚未修改任何文件。";
+            AutomationProperties.SetItemStatus(
+                PracticeActivityStatus,
+                "PracticeContainerNameRequired");
+            return;
+        }
+
+        PracticeContainerName.Text = name;
+        PracticeContainerNameValue.Text = name;
+        PracticeContainerPreview.Visibility = Visibility.Visible;
+        UndoPracticeContainerButton.IsEnabled = true;
+        PracticeActivityStatus.Text =
+            "已创建匿名方格，仅改变当前原型中的内存关系；可以立即撤销，尚未修改任何文件。";
+        AutomationProperties.SetItemStatus(
+            PracticeActivityStatus,
+            "PracticeContainerCreated");
+    }
+
+    private void UndoPracticeContainerButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        PracticeContainerPreview.Visibility = Visibility.Collapsed;
+        PracticeContainerNameValue.Text = string.Empty;
+        UndoPracticeContainerButton.IsEnabled = false;
+        PracticeActivityStatus.Text =
+            "已撤销匿名方格关系；没有文件被移动或删除。";
+        AutomationProperties.SetItemStatus(
+            PracticeActivityStatus,
+            "PracticeContainerUndone");
+    }
+
     private void ThemeOption_Checked(object sender, RoutedEventArgs e)
     {
         if (sender is not RadioButton { Tag: string theme } || RootLayout is null)
