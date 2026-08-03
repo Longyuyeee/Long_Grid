@@ -348,6 +348,17 @@ test(shell): cover coalesced change notifications
 6. Narrator 朗读、焦点合理性、触控手感和视觉恢复不得由 UIA 属性存在替代；
 7. 录像、硬件清单和系统配置若包含可识别信息，放入访问受控的实验记录，不进入仓库或默认诊断包。
 
+### 12.5 UI、启动与打包门禁
+
+建立正式 `LongGrid.App` 后必须维护统一的一键入口，详细合同见[视觉品牌、动效与交付要求](14-visual-branding-and-delivery-requirements.md)：
+
+- `eng/Start-LongGrid.ps1` 负责依赖检查、必要构建和启动，不默认提权或修改真实桌面文件；
+- `eng/Pack-LongGrid.ps1` 负责 restore、format、Release build、test、覆盖率、安全探针、包结构和哈希；
+- 正式签名秘密只存在于受保护发布环境，不进入脚本、仓库或日志；
+- UI PR 必须检查浅色、深色、高对比、文本缩放、减少动画、键盘、Narrator、DPI 和低性能降级；
+- 动效必须可中断、可降级，不得阻塞输入、隐藏、恢复、回滚或退出；
+- 品牌资产必须由矢量母版生成并检查 16–256 px，不提交来源不明或模仿竞品的图标。
+
 ## 13. 文档同步矩阵
 
 | 变更 | 必须检查 |
@@ -359,6 +370,7 @@ test(shell): cover coalesced change notifications
 | 文件/权限/网络 | 安全基线、威胁模型、隐私说明 |
 | 插件/Widget/IPC | 协议、Schema、Fixtures、两仓库 |
 | 发布渠道/最低版本 | README、PRD、安装与发布说明 |
+| 产品名称/视觉/图标/动效 | PRD、交互规范、视觉品牌与交付要求、资产清单 |
 
 PR 描述必须列出“已更新”和“不需要更新”的文档，并说明理由。
 
