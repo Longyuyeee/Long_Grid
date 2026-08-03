@@ -45,6 +45,13 @@ jobs:
           -NoRestore
           -ValidateOnly
 
+      - name: Validate Issue 19 manual matrix session chain
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Start-Issue19ManualMatrixSession.ps1
+          -ValidateOnly
+
       - name: Validate Issue 23 usability session chain
         shell: powershell
         run: >-

@@ -43,6 +43,8 @@ dotnet test LongGrid.sln --configuration Release --no-build
 
 前置条件：使用 P0-04/P0-05b1 可见交互切片；Narrator 结论必须人工听读确认。
 
+执行前先调用 `eng/Start-Issue19ManualMatrixSession.ps1 -ValidateOnly`；随后按[Issue #19 单场景运行手册](manual-testing/issue-19-input-system-surface-runbook.md)为每个 ID 启动全新进程。预检只证明入口与隐私合同可用，输出必须保持 `PendingManualEvidence`。
+
 | ID | 场景 | 最低操作 | 通过条件 | 状态 |
 |---|---|---|---|---|
 | I19-01 | 键盘 | Tab/Shift+Tab、方向键、Enter、Space、Esc | 焦点顺序与视觉顺序一致；选择、调用和退出可逆 | Pending |

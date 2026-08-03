@@ -1,0 +1,45 @@
+# Issue #19 人工输入与系统表面矩阵就绪审计
+
+审计日期：2026-08-03
+
+基线：`main` / `853a606` + 当前 Issue #19 短生命周期分支
+
+结论：**Ready to execute / Pending manual evidence / 不得关闭 Issue #19**
+
+## 1. 已有证据
+
+- P0-04/P0-05b1 已提供不读取真实桌面数据的可见 DesktopHost 交互切片；
+- 自动 smoke 已验证 UIA 树、SelectionItem/Invoke Pattern、事件和资源闭环；
+- P0-07b2b2b2b4a 已验证输入 Region 开/关/重开和 UIA Fragment 边界；
+- Phase 0 出口手册已定义 I19-01–I19-10、通过条件和统一证据模板。
+
+这些证据只建立人工测试对象和技术下界，不证明真实输入、Narrator 或系统表面体验通过。
+
+## 2. 本阶段补齐
+
+- `eng/Start-Issue19ManualMatrixSession.ps1` 固定场景 ID、匿名操作员标签、commit 和环境清单；
+- 正常模式为每个场景启动全新的 `--interactive-slice` 进程；
+- 启动器不合成输入、不修改设置、不重启 Explorer、不采证、不写结果；
+- 主持手册把十个场景拆为单场景卡，并要求逐项恢复系统状态；
+- CI 只运行 `-ValidateOnly`，结果固定为 `PendingManualEvidence`。
+
+## 3. 证据边界
+
+| 能力 | 自动门禁可证明 | 仍需人工证明 |
+|---|---|---|
+| 会话链 | 文件、项目、参数和隐私合同存在 | 测试人员按同一 commit 执行 |
+| 输入 | 不自动发送输入 | 键鼠、触控、笔、拖放手感与首次失败 |
+| 无障碍 | 原型和现有 UIA 下界可启动 | Narrator 听读、焦点合理性、高对比和缩放 |
+| 系统表面 | 启动器不会主动改变系统 | Win+D、全屏、Alt+Tab、任务视图、Explorer 恢复 |
+| 结果 | 固定保持 `PendingManualEvidence` | Pass/Fail/Inconclusive、缺陷和恢复确认 |
+
+## 4. 尚未完成
+
+- I19-01–I19-10 尚未在受控环境逐项执行；
+- 触控/笔、Narrator、高对比、文本缩放和系统表面仍无人工原始证据；
+- 现有原型可能暴露未实现能力；应如实记录 Fail/Inconclusive，不在工具层掩盖；
+- 自动化通过不得更新 ADR-0001 的人工矩阵勾选项。
+
+## 5. 下一动作
+
+按[Issue #19 运行手册](manual-testing/issue-19-input-system-surface-runbook.md)一次只执行一个场景，将脱敏结果写回 Issue #19。十项完成前，路线图中的 P0-04/P0-05b2 保持未勾选。
