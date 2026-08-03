@@ -100,6 +100,13 @@
                     Tag="safety">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Permissions" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem
+                    AccessKey="5"
+                    AutomationProperties.AutomationId="NavRecovery"
+                    Content="恢复预览"
+                    Tag="recovery">
+                    <NavigationViewItem.Icon><SymbolIcon Symbol="Refresh" /></NavigationViewItem.Icon>
+                </NavigationViewItem>
             </NavigationView.MenuItems>
 
             <Grid x:Name="ContentFrame" Padding="32,28,32,32">
@@ -509,6 +516,123 @@
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
                                         Text="先创建匿名方格，再练习判断拖放语义。"
                                         TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <StackPanel
+                            x:Name="RecoveryPanel"
+                            AutomationProperties.AccessibilityView="Content"
+                            AutomationProperties.AutomationId="RecoveryPanel"
+                            AutomationProperties.Name="匿名布局恢复差异原型"
+                            Spacing="20"
+                            Visibility="Collapsed">
+                            <StackPanel Spacing="8">
+                                <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="RECOVERY PREVIEW" />
+                                <TextBlock Style="{StaticResource LongGridTitleTextStyle}" Text="先看差异，再决定如何恢复" />
+                                <TextBlock
+                                    MaxWidth="760"
+                                    HorizontalAlignment="Left"
+                                    Style="{StaticResource LongGridSubtitleTextStyle}"
+                                    Text="这是匿名、内存态的恢复差异练习。它复用 Core 的状态词汇，但不读取显示器、不创建快照，也不移动任何窗口或方格。"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <InfoBar
+                                AutomationProperties.AutomationId="RecoverySafetyBanner"
+                                IsClosable="False"
+                                IsOpen="True"
+                                Severity="Success"
+                                Title="当前布局保持不变"
+                                Message="选择场景只生成匿名差异；确认按钮仅记录理解，不执行恢复。" />
+
+                            <Border Style="{StaticResource LongGridCardStyle}">
+                                <StackPanel Spacing="14">
+                                    <TextBlock FontSize="20" FontWeight="SemiBold" Text="选择匿名规划结果" />
+                                    <TextBlock
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="产品必须区分可自动恢复、需要确认和禁止应用，不能把相似映射包装成已识别同一显示器。"
+                                        TextWrapping="Wrap" />
+                                    <StackPanel Spacing="8">
+                                        <Button
+                                            x:Name="RecoveryAutomaticScenarioButton"
+                                            AutomationProperties.AutomationId="RecoveryAutomaticScenarioButton"
+                                            Click="RecoveryScenarioButton_Click"
+                                            Content="拓扑等价：Automatic"
+                                            HorizontalAlignment="Left"
+                                            Tag="automatic" />
+                                        <Button
+                                            x:Name="RecoveryReviewScenarioButton"
+                                            AutomationProperties.AutomationId="RecoveryReviewScenarioButton"
+                                            Click="RecoveryScenarioButton_Click"
+                                            Content="需要可见性纠正：ReviewRequired"
+                                            HorizontalAlignment="Left"
+                                            Tag="review" />
+                                        <Button
+                                            x:Name="RecoveryBlockedScenarioButton"
+                                            AutomationProperties.AutomationId="RecoveryBlockedScenarioButton"
+                                            Click="RecoveryScenarioButton_Click"
+                                            Content="映射缺失或歧义：Blocked"
+                                            HorizontalAlignment="Left"
+                                            Tag="blocked" />
+                                    </StackPanel>
+                                    <TextBlock
+                                        x:Name="RecoveryPlanStatus"
+                                        AutomationProperties.AutomationId="RecoveryPlanStatus"
+                                        AutomationProperties.ItemStatus="RecoveryPreviewReady"
+                                        AutomationProperties.LiveSetting="Polite"
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="请选择场景；尚未生成恢复差异，尚未移动任何方格。"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border
+                                x:Name="RecoveryDiffPanel"
+                                AutomationProperties.AccessibilityView="Content"
+                                AutomationProperties.AutomationId="RecoveryDiffPanel"
+                                AutomationProperties.Name="匿名恢复差异"
+                                Style="{StaticResource LongGridCardStyle}"
+                                Visibility="Collapsed">
+                                <StackPanel Spacing="12">
+                                    <TextBlock
+                                        x:Name="RecoverySummaryTitle"
+                                        AutomationProperties.AutomationId="RecoverySummaryTitle"
+                                        FontSize="20"
+                                        FontWeight="SemiBold" />
+                                    <TextBlock
+                                        x:Name="RecoveryDiffDetail"
+                                        AutomationProperties.AutomationId="RecoveryDiffDetail"
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        TextWrapping="Wrap" />
+                                    <TextBlock
+                                        x:Name="RecoverySafetyDetail"
+                                        AutomationProperties.AutomationId="RecoverySafetyDetail"
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        TextWrapping="Wrap" />
+                                    <StackPanel Spacing="8">
+                                        <Button
+                                            x:Name="ReviewRecoveryButton"
+                                            AutomationProperties.AutomationId="ReviewRecoveryButton"
+                                            Click="ReviewRecoveryButton_Click"
+                                            Content="确认理解（不执行）"
+                                            HorizontalAlignment="Left"
+                                            IsEnabled="False" />
+                                        <Button
+                                            x:Name="ExpireRecoveryPreviewButton"
+                                            AutomationProperties.AutomationId="ExpireRecoveryPreviewButton"
+                                            Click="ExpireRecoveryPreviewButton_Click"
+                                            Content="模拟显示再次变化"
+                                            HorizontalAlignment="Left"
+                                            IsEnabled="False" />
+                                        <Button
+                                            x:Name="CancelRecoveryPreviewButton"
+                                            AutomationProperties.AutomationId="CancelRecoveryPreviewButton"
+                                            Click="CancelRecoveryPreviewButton_Click"
+                                            Content="取消并保持当前布局"
+                                            HorizontalAlignment="Left"
+                                            IsEnabled="False" />
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
