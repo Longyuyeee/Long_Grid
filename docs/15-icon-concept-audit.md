@@ -2,7 +2,7 @@
 
 日期：2026-08-03
 
-状态：**Concept Review / 未批准为最终品牌资产**
+状态：**Concept Approved for RC1 / 未批准为最终品牌资产**
 
 关联要求：[`14-visual-branding-and-delivery-requirements.md`](14-visual-branding-and-delivery-requirements.md)
 
@@ -98,3 +98,5 @@
 6. 最终批准记录写入品牌资产 README 和开发状态文档。
 
 在上述门槛关闭前，当前资产只能用于内部评审。
+
+后续记录：2026-08-03，负责人确认继续 A 方向与候选主色的生产校正；RC1 资产及门槛见 [`16-brand-asset-production-audit.md`](16-brand-asset-production-audit.md)。

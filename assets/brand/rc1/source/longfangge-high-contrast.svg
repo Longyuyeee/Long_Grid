@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Long方格 RC1 静态高对比回退图标</title>
+  <desc id="desc">黑色圆角底板上的白色 L 方格，用作不能读取系统强制颜色时的静态回退。</desc>
+  <rect width="256" height="256" rx="56" fill="#000000"/>
+  <g fill="#FFFFFF">
+    <rect x="44" y="44" width="48" height="48" rx="8"/>
+    <rect x="44" y="104" width="48" height="48" rx="8"/>
+    <rect x="44" y="164" width="48" height="48" rx="8"/>
+    <rect x="104" y="164" width="48" height="48" rx="8"/>
+    <rect x="164" y="164" width="48" height="48" rx="8"/>
+  </g>
+</svg>
