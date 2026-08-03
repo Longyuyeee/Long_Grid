@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Long方格 RC1 浅色环境彩色图标</title>
+  <desc id="desc">靛蓝圆角底板上，五个白色方格组成 L，三个中靛蓝方格表达桌面网格。</desc>
+  <rect width="256" height="256" rx="56" fill="#5B5FF5"/>
+  <g fill="#FFFFFF">
+    <rect x="44" y="44" width="48" height="48" rx="12"/>
+    <rect x="44" y="104" width="48" height="48" rx="12"/>
+    <rect x="44" y="164" width="48" height="48" rx="12"/>
+    <rect x="104" y="164" width="48" height="48" rx="12"/>
+    <rect x="164" y="164" width="48" height="48" rx="12"/>
+  </g>
+  <g fill="#9296F8">
+    <rect x="104" y="44" width="48" height="48" rx="12"/>
+    <rect x="164" y="44" width="48" height="48" rx="12"/>
+    <rect x="164" y="104" width="48" height="48" rx="12"/>
+  </g>
+</svg>
