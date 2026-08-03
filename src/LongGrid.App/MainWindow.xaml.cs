@@ -1,3 +1,4 @@
+using LongGrid.Core.FileOperations;
 using LongGrid.Core.Runtime;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -15,6 +16,7 @@ public sealed partial class MainWindow : Window
     private const double DefaultHeight = 760;
     private const double MaximumWorkAreaFraction = 0.9;
     private bool _initialSizeApplied;
+    private string _organizationStartChoice = "suggested";
 
     public MainWindow()
     {
@@ -27,6 +29,9 @@ public sealed partial class MainWindow : Window
         SystemBackdrop = new MicaBackdrop();
 
         ApplyRuntimeStatus(RuntimeStatusSnapshot.CreateDevelopmentReadOnly());
+        ApplyStartChoice(_organizationStartChoice);
+        SafeReferenceMode.IsChecked = true;
+        ApplyOrganizationMode(FileOrganizationMode.SafeReference);
         ShellNavigation.SelectedItem = ShellNavigation.MenuItems[0];
     }
 
@@ -118,6 +123,32 @@ public sealed partial class MainWindow : Window
             ? Orientation.Vertical
             : Orientation.Horizontal;
 
+        StartChoiceGrid.ColumnSpacing = compact ? 0 : 12;
+        StartChoiceGrid.RowSpacing = compact ? 8 : 0;
+        SetGridPosition(
+            SuggestedStartChoice,
+            row: 0,
+            column: 0,
+            columnSpan: compact ? 2 : 1);
+        SetGridPosition(
+            BlankStartChoice,
+            row: compact ? 1 : 0,
+            column: compact ? 0 : 1,
+            columnSpan: compact ? 2 : 1);
+
+        OrganizationModeGrid.ColumnSpacing = compact ? 0 : 14;
+        OrganizationModeGrid.RowSpacing = compact ? 12 : 0;
+        SetGridPosition(
+            SafeReferenceModeCard,
+            row: 0,
+            column: 0,
+            columnSpan: compact ? 2 : 1);
+        SetGridPosition(
+            ManagedMoveModeCard,
+            row: compact ? 1 : 0,
+            column: compact ? 0 : 1,
+            columnSpan: compact ? 2 : 1);
+
         OverviewMetricsGrid.ColumnSpacing = compact ? 0 : 14;
         OverviewMetricsGrid.RowSpacing = compact ? 12 : 0;
         SetGridPosition(
@@ -196,8 +227,99 @@ public sealed partial class MainWindow : Window
         var tag = (args.SelectedItemContainer?.Tag as string) ?? "overview";
 
         OverviewPanel.Visibility = tag == "overview" ? Visibility.Visible : Visibility.Collapsed;
+        FirstRunPanel.Visibility = tag == "first-run" ? Visibility.Visible : Visibility.Collapsed;
         AppearancePanel.Visibility = tag == "appearance" ? Visibility.Visible : Visibility.Collapsed;
         SafetyPanel.Visibility = tag == "safety" ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void StartChoice_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string choice })
+        {
+            ApplyStartChoice(choice);
+        }
+    }
+
+    private void ApplyStartChoice(string choice)
+    {
+        _organizationStartChoice = choice == "blank" ? "blank" : "suggested";
+        StartChoiceStatus.Text = _organizationStartChoice == "blank"
+            ? "当前：从空白开始，不创建任何容器。"
+            : "当前：一键建议，只生成匿名预览。";
+        AutomationProperties.SetItemStatus(
+            StartChoiceStatus,
+            _organizationStartChoice == "blank"
+                ? "BlankStartSelected"
+                : "SuggestedStartSelected");
+        OrganizationPreviewStatus.Text = "尚未生成预览；尚未修改任何文件。";
+        AutomationProperties.SetItemStatus(
+            OrganizationPreviewStatus,
+            "NotGenerated");
+    }
+
+    private void OrganizationMode_Checked(object sender, RoutedEventArgs e)
+    {
+        if (sender is not RadioButton { Tag: string mode } ||
+            OrganizationPreviewStatus is null)
+        {
+            return;
+        }
+
+        ApplyOrganizationMode(mode == "managed-move"
+            ? FileOrganizationMode.ManagedMove
+            : FileOrganizationMode.SafeReference);
+    }
+
+    private void ApplyOrganizationMode(FileOrganizationMode mode)
+    {
+        (OrganizationOutcomeTitle.Text,
+            OrganizationOutcomeDetail.Text,
+            OrganizationPreviewButton.Content) = mode switch
+            {
+                FileOrganizationMode.SafeReference => (
+                    "添加引用，不移动文件",
+                    "Long方格只保存匿名组织关系；原文件位置不变，原生桌面图标可能继续显示。",
+                    "生成安全引用预览"),
+                FileOrganizationMode.ManagedMove => (
+                    "移动文件，必须再次确认",
+                    "正式版本必须先列出源、目标、冲突和撤销边界；当前开发原型不具备执行能力。",
+                    "查看移动前置条件"),
+                _ => throw new ArgumentOutOfRangeException(nameof(mode)),
+            };
+
+        OrganizationPreviewButton.Tag = mode;
+        OrganizationPreviewStatus.Text = "尚未生成预览；尚未修改任何文件。";
+        AutomationProperties.SetItemStatus(
+            OrganizationPreviewStatus,
+            mode == FileOrganizationMode.SafeReference
+                ? "SafeReferenceSelected"
+                : "ManagedMoveSelected");
+    }
+
+    private void OrganizationPreviewButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        FileOrganizationMode mode = OrganizationPreviewButton.Tag is FileOrganizationMode selected
+            ? selected
+            : FileOrganizationMode.SafeReference;
+
+        if (mode == FileOrganizationMode.SafeReference)
+        {
+            OrganizationPreviewStatus.Text = _organizationStartChoice == "blank"
+                ? "预览：从空白布局开始；不会创建容器或移动文件。尚未修改任何文件。"
+                : "预览：将建议 4 个匿名引用；原始文件保持原位。尚未修改任何文件。";
+            AutomationProperties.SetItemStatus(
+                OrganizationPreviewStatus,
+                "SafeReferencePreview");
+            return;
+        }
+
+        OrganizationPreviewStatus.Text =
+            "预览已阻断：缺少真实源、目标、冲突检查和明确批准。尚未修改任何文件。";
+        AutomationProperties.SetItemStatus(
+            OrganizationPreviewStatus,
+            "ManagedMovePreviewBlocked");
     }
 
     private void ThemeOption_Checked(object sender, RoutedEventArgs e)
