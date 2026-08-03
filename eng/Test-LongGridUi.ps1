@@ -73,8 +73,18 @@ function Test-SourceContract {
         'CreatePracticeContainerButton',
         'PracticeContainerPreview',
         'PracticeContainerNameValue',
+        'PracticeContainerCountValue',
+        'PracticeItemsList',
+        'PracticeItemOne',
+        'PracticeItemTwo',
+        'PracticeItemThree',
+        'AddPracticeItemsButton',
         'UndoPracticeContainerButton',
         'PracticeActivityStatus',
+        'DropSafeReferenceButton',
+        'DropReassignButton',
+        'DropManagedMoveButton',
+        'DropActionStatus',
         'CurrentModeCard',
         'FileOperationCard',
         'DesktopHostCard',
@@ -112,6 +122,10 @@ function Test-SourceContract {
     Assert-Condition (
         $practiceActivityNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
     ) 'PracticeActivityStatus must politely announce create and undo changes.'
+    $dropActionNode = Get-XamlNodeByAutomationId $document 'DropActionStatus'
+    Assert-Condition (
+        $dropActionNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
+    ) 'DropActionStatus must politely announce the audited drop semantics.'
     $practiceNameNode = Get-XamlNodeByAutomationId $document 'PracticeContainerName'
     Assert-Condition ($practiceNameNode.GetAttribute('MaxLength') -eq '40') `
         'The anonymous practice-container name must remain bounded to 40 characters.'
@@ -122,6 +136,8 @@ function Test-SourceContract {
         $undoAccelerator.GetAttribute('Key') -eq 'Z' -and
         $undoAccelerator.GetAttribute('Modifiers') -eq 'Control'
     ) 'The anonymous container undo action must keep its Ctrl+Z accelerator.'
+    Assert-Condition (-not ($document.OuterXml -match 'AllowDrop')) `
+        'The semantic practice must not masquerade as an Explorer drop target.'
 
     $scrollViewer = $document.SelectSingleNode("//*[local-name()='ScrollViewer']")
     Assert-Condition ($null -ne $scrollViewer) 'The content ScrollViewer is missing.'
@@ -189,6 +205,16 @@ function Test-SourceContract {
         'The practice container must expose its undone state.'
     Assert-Condition ($codeBehind -match 'PracticeContainerNameRequired') `
         'The practice container must expose an empty-name validation state.'
+    Assert-Condition ($codeBehind -match 'PracticeItemsAdded') `
+        'The practice container must expose its three-reference state.'
+    Assert-Condition ($codeBehind -match 'PracticeItemsUndone') `
+        'The practice container must expose most-recent-action undo.'
+    Assert-Condition ($codeBehind -match 'AddReferenceDropPreview') `
+        'The drop practice must expose the safe-reference action badge.'
+    Assert-Condition ($codeBehind -match 'ReassignDropPreview') `
+        'The drop practice must expose relationship-only reassignment.'
+    Assert-Condition ($codeBehind -match 'ManagedMoveDropBlocked') `
+        'The drop practice must block unapproved managed moves.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*CurrentModeValue') `
         'The current runtime mode must expose a machine-readable UIA status.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*FileOperationValue') `
@@ -207,7 +233,10 @@ function Test-SourceContract {
         'ShellChange',
         'LongGrid\.Core\.DesktopHost',
         'DesktopHostCompositeTransactionCoordinator',
-        'DesktopHostWindowPlanner'
+        'DesktopHostWindowPlanner',
+        'DragEventArgs',
+        'DataPackage',
+        'StorageItem'
     )
     foreach ($pattern in $forbiddenPatterns) {
         Assert-Condition (-not ($codeBehind -match $pattern)) `
@@ -222,7 +251,7 @@ function Test-SourceContract {
         compactWidth = 720
         dpiAwareInitialSize = 'pass'
         coreRuntimeStatus = 'development-read-only'
-        firstOrganizationPrototype = 'safe-reference-blocked-move-container-undo'
+        firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         readOnlyBoundary = 'pass'
     }
 }
@@ -557,6 +586,44 @@ public static class LongGridWindowNative
         $undoPracticeContainer = Find-UiaElement $root 'UndoPracticeContainerButton'
         Assert-Condition $undoPracticeContainer.Current.IsEnabled `
             'Undo did not become available after anonymous container creation.'
+        $addPracticeItems = Find-UiaElement $root 'AddPracticeItemsButton'
+        Assert-Condition $addPracticeItems.Current.IsEnabled `
+            'Adding anonymous references did not become available after container creation.'
+        Scroll-UiaElementIntoView $addPracticeItems
+        Select-UiaElement $addPracticeItems
+        Assert-Condition ($practiceActivity.Current.ItemStatus -eq 'PracticeItemsAdded') `
+            'Adding three anonymous references did not expose its audited UIA state.'
+        $practiceItems = Find-UiaElement $root 'PracticeItemsList'
+        Scroll-UiaElementIntoView $practiceItems
+        Assert-Condition (-not $practiceItems.Current.IsOffscreen) `
+            'The three anonymous references did not become visible.'
+        foreach ($itemId in @('PracticeItemOne', 'PracticeItemTwo', 'PracticeItemThree')) {
+            $null = Find-UiaElement $root $itemId
+        }
+
+        $dropSafeReference = Find-UiaElement $root 'DropSafeReferenceButton'
+        $dropActionStatus = Find-UiaElement $root 'DropActionStatus'
+        Scroll-UiaElementIntoView $dropSafeReference
+        Select-UiaElement $dropSafeReference
+        Assert-Condition ($dropActionStatus.Current.ItemStatus -eq 'AddReferenceDropPreview') `
+            'Explorer-to-safe-reference semantics were not exposed as add-reference.'
+        $dropReassign = Find-UiaElement $root 'DropReassignButton'
+        Scroll-UiaElementIntoView $dropReassign
+        Select-UiaElement $dropReassign
+        Assert-Condition ($dropActionStatus.Current.ItemStatus -eq 'ReassignDropPreview') `
+            'Container-to-container semantics were not exposed as relationship reassignment.'
+        $dropManagedMove = Find-UiaElement $root 'DropManagedMoveButton'
+        Scroll-UiaElementIntoView $dropManagedMove
+        Select-UiaElement $dropManagedMove
+        Assert-Condition ($dropActionStatus.Current.ItemStatus -eq 'ManagedMoveDropBlocked') `
+            'Unapproved managed-move drop semantics were not blocked.'
+
+        Scroll-UiaElementIntoView $undoPracticeContainer
+        Select-UiaElement $undoPracticeContainer
+        Assert-Condition ($practiceActivity.Current.ItemStatus -eq 'PracticeItemsUndone') `
+            'Undo did not remove the most recently added anonymous references first.'
+        Assert-Condition $undoPracticeContainer.Current.IsEnabled `
+            'Container undo disappeared after only the item-add action was undone.'
         Select-UiaElement $undoPracticeContainer
         Assert-Condition ($practiceActivity.Current.ItemStatus -eq 'PracticeContainerUndone') `
             'Anonymous practice-container undo did not expose its audited UIA state.'
@@ -601,7 +668,7 @@ public static class LongGridWindowNative
             compactCards = 3
             compactOrganizationModes = 2
             coreRuntimeStatus = 'development-read-only'
-            firstOrganizationPrototype = 'blank-suggested-move-blocked-safe-previewed-container-created-undone'
+            firstOrganizationPrototype = 'blank-suggested-safe-preview-items-drop-semantics-two-step-undo'
             themeRoundTrip = 'system-dark-system'
             safetyNavigation = 'pass'
         }

@@ -409,18 +409,45 @@
                                         Background="{ThemeResource LongGridSurfaceMutedBrush}"
                                         CornerRadius="12"
                                         Visibility="Collapsed">
-                                        <StackPanel Spacing="6">
+                                        <StackPanel Spacing="10">
                                             <TextBlock
                                                 x:Name="PracticeContainerNameValue"
                                                 AutomationProperties.AutomationId="PracticeContainerNameValue"
                                                 FontSize="18"
                                                 FontWeight="SemiBold" />
                                             <TextBlock
+                                                x:Name="PracticeContainerCountValue"
+                                                AutomationProperties.AutomationId="PracticeContainerCountValue"
                                                 Style="{StaticResource LongGridSubtitleTextStyle}"
                                                 Text="0 个匿名引用 · 仅内存" />
+                                            <ListView
+                                                x:Name="PracticeItemsList"
+                                                AutomationProperties.AutomationId="PracticeItemsList"
+                                                AutomationProperties.Name="匿名引用列表"
+                                                IsItemClickEnabled="False"
+                                                SelectionMode="None"
+                                                Visibility="Collapsed">
+                                                <ListViewItem
+                                                    AutomationProperties.AutomationId="PracticeItemOne"
+                                                    Content="匿名项目 A · 引用" />
+                                                <ListViewItem
+                                                    AutomationProperties.AutomationId="PracticeItemTwo"
+                                                    Content="匿名项目 B · 引用" />
+                                                <ListViewItem
+                                                    AutomationProperties.AutomationId="PracticeItemThree"
+                                                    Content="匿名项目 C · 引用" />
+                                            </ListView>
                                         </StackPanel>
                                     </Border>
-                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <StackPanel Spacing="10">
+                                        <Button
+                                            x:Name="AddPracticeItemsButton"
+                                            AutomationProperties.AutomationId="AddPracticeItemsButton"
+                                            AutomationProperties.HelpText="向当前匿名方格添加三个内存引用；不会读取或移动文件"
+                                            Click="AddPracticeItemsButton_Click"
+                                            Content="添加 3 个匿名引用"
+                                            HorizontalAlignment="Left"
+                                            IsEnabled="False" />
                                         <Button
                                             x:Name="UndoPracticeContainerButton"
                                             AutomationProperties.AutomationId="UndoPracticeContainerButton"
@@ -441,6 +468,46 @@
                                         AutomationProperties.LiveSetting="Polite"
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
                                         Text="可以开始练习；尚未创建关系，尚未修改任何文件。"
+                                        TextWrapping="Wrap" />
+
+                                    <TextBlock FontSize="18" FontWeight="SemiBold" Text="判断拖放会发生什么" />
+                                    <TextBlock
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="这是非视觉语义练习，不接收 Explorer 数据。选择来源与目标，只查看动作徽标和安全后果。"
+                                        TextWrapping="Wrap" />
+                                    <StackPanel Spacing="8">
+                                        <Button
+                                            x:Name="DropSafeReferenceButton"
+                                            AutomationProperties.AutomationId="DropSafeReferenceButton"
+                                            Click="DropPracticeButton_Click"
+                                            Content="Explorer → 安全引用方格"
+                                            HorizontalAlignment="Left"
+                                            IsEnabled="False"
+                                            Tag="safe-reference" />
+                                        <Button
+                                            x:Name="DropReassignButton"
+                                            AutomationProperties.AutomationId="DropReassignButton"
+                                            Click="DropPracticeButton_Click"
+                                            Content="方格引用 → 另一个方格"
+                                            HorizontalAlignment="Left"
+                                            IsEnabled="False"
+                                            Tag="reassign" />
+                                        <Button
+                                            x:Name="DropManagedMoveButton"
+                                            AutomationProperties.AutomationId="DropManagedMoveButton"
+                                            Click="DropPracticeButton_Click"
+                                            Content="Explorer → 请求移动文件"
+                                            HorizontalAlignment="Left"
+                                            IsEnabled="False"
+                                            Tag="managed-move" />
+                                    </StackPanel>
+                                    <TextBlock
+                                        x:Name="DropActionStatus"
+                                        AutomationProperties.AutomationId="DropActionStatus"
+                                        AutomationProperties.ItemStatus="DropPracticeUnavailable"
+                                        AutomationProperties.LiveSetting="Polite"
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="先创建匿名方格，再练习判断拖放语义。"
                                         TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>

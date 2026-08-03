@@ -17,6 +17,7 @@ public sealed partial class MainWindow : Window
     private const double MaximumWorkAreaFraction = 0.9;
     private bool _initialSizeApplied;
     private string _organizationStartChoice = "suggested";
+    private bool _practiceItemsAdded;
 
     public MainWindow()
     {
@@ -338,8 +339,20 @@ public sealed partial class MainWindow : Window
 
         PracticeContainerName.Text = name;
         PracticeContainerNameValue.Text = name;
+        PracticeContainerCountValue.Text = "0 个匿名引用 · 仅内存";
+        PracticeItemsList.Visibility = Visibility.Collapsed;
         PracticeContainerPreview.Visibility = Visibility.Visible;
+        _practiceItemsAdded = false;
+        AddPracticeItemsButton.IsEnabled = true;
         UndoPracticeContainerButton.IsEnabled = true;
+        UndoPracticeContainerButton.Content = "撤销创建（Ctrl+Z）";
+        DropSafeReferenceButton.IsEnabled = true;
+        DropReassignButton.IsEnabled = true;
+        DropManagedMoveButton.IsEnabled = true;
+        DropActionStatus.Text = "选择一个来源与目标，查看动作徽标；尚未修改任何文件。";
+        AutomationProperties.SetItemStatus(
+            DropActionStatus,
+            "DropPracticeReady");
         PracticeActivityStatus.Text =
             "已创建匿名方格，仅改变当前原型中的内存关系；可以立即撤销，尚未修改任何文件。";
         AutomationProperties.SetItemStatus(
@@ -347,18 +360,84 @@ public sealed partial class MainWindow : Window
             "PracticeContainerCreated");
     }
 
+    private void AddPracticeItemsButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        PracticeItemsList.Visibility = Visibility.Visible;
+        PracticeContainerCountValue.Text = "3 个匿名引用 · 仅内存";
+        _practiceItemsAdded = true;
+        AddPracticeItemsButton.IsEnabled = false;
+        UndoPracticeContainerButton.Content = "撤销添加（Ctrl+Z）";
+        PracticeActivityStatus.Text =
+            "已添加 3 个匿名引用；只改变当前原型中的组织关系，没有读取或移动文件。";
+        AutomationProperties.SetItemStatus(
+            PracticeActivityStatus,
+            "PracticeItemsAdded");
+    }
+
     private void UndoPracticeContainerButton_Click(
         object sender,
         RoutedEventArgs e)
     {
+        if (_practiceItemsAdded)
+        {
+            PracticeItemsList.Visibility = Visibility.Collapsed;
+            PracticeContainerCountValue.Text = "0 个匿名引用 · 仅内存";
+            _practiceItemsAdded = false;
+            AddPracticeItemsButton.IsEnabled = true;
+            UndoPracticeContainerButton.Content = "撤销创建（Ctrl+Z）";
+            PracticeActivityStatus.Text =
+                "已撤销添加 3 个匿名引用；方格仍然存在，没有文件被移动或删除。";
+            AutomationProperties.SetItemStatus(
+                PracticeActivityStatus,
+                "PracticeItemsUndone");
+            return;
+        }
+
         PracticeContainerPreview.Visibility = Visibility.Collapsed;
         PracticeContainerNameValue.Text = string.Empty;
+        AddPracticeItemsButton.IsEnabled = false;
         UndoPracticeContainerButton.IsEnabled = false;
+        DropSafeReferenceButton.IsEnabled = false;
+        DropReassignButton.IsEnabled = false;
+        DropManagedMoveButton.IsEnabled = false;
+        DropActionStatus.Text = "先创建匿名方格，再练习判断拖放语义。";
+        AutomationProperties.SetItemStatus(
+            DropActionStatus,
+            "DropPracticeUnavailable");
         PracticeActivityStatus.Text =
             "已撤销匿名方格关系；没有文件被移动或删除。";
         AutomationProperties.SetItemStatus(
             PracticeActivityStatus,
             "PracticeContainerUndone");
+    }
+
+    private void DropPracticeButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        string semantics = sender is Button { Tag: string value }
+            ? value
+            : "unsupported";
+
+        (string statusText, string itemStatus) = semantics switch
+        {
+            "safe-reference" => (
+                "动作徽标：添加引用。原文件保持原位；当前练习不会读取 Explorer 数据。",
+                "AddReferenceDropPreview"),
+            "reassign" => (
+                "动作徽标：改变归属。只改变 Long方格关系，不移动或删除磁盘文件。",
+                "ReassignDropPreview"),
+            "managed-move" => (
+                "动作徽标：移动文件（已阻断）。缺少源、目标、冲突检查和明确确认。",
+                "ManagedMoveDropBlocked"),
+            _ => (
+                "动作徽标：不支持。当前状态保持不变。",
+                "UnsupportedDropPreview"),
+        };
+        DropActionStatus.Text = statusText;
+        AutomationProperties.SetItemStatus(DropActionStatus, itemStatus);
     }
 
     private void ThemeOption_Checked(object sender, RoutedEventArgs e)
