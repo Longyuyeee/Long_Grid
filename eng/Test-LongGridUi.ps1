@@ -58,6 +58,14 @@ function Test-SourceContract {
         'OverviewPanel',
         'AppearancePanel',
         'SafetyPanel',
+        'CurrentModeCard',
+        'FileOperationCard',
+        'DesktopHostCard',
+        'CurrentModeValue',
+        'FileOperationValue',
+        'DesktopHostValue',
+        'ResponsiveStatusText',
+        'ContentScrollViewer',
         'ThemeSystem',
         'ThemeLight',
         'ThemeDark',
@@ -75,6 +83,12 @@ function Test-SourceContract {
     Assert-Condition (
         $themeStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
     ) 'ThemeStatusText must politely announce in-process theme changes.'
+
+    $scrollViewer = $document.SelectSingleNode("//*[local-name()='ScrollViewer']")
+    Assert-Condition ($null -ne $scrollViewer) 'The content ScrollViewer is missing.'
+    Assert-Condition (
+        $scrollViewer.GetAttribute('HorizontalScrollMode') -eq 'Disabled'
+    ) 'Horizontal scrolling must stay disabled; compact content must reflow.'
 
     $expectedAccessKeys = @{
         NavOverview = '1'
@@ -101,6 +115,20 @@ function Test-SourceContract {
         'The theme handler must expose a light mode.'
     Assert-Condition ($codeBehind -match 'ElementTheme\.Dark') `
         'The theme handler must expose a dark mode.'
+    Assert-Condition ($codeBehind -match 'CompactBreakpoint\s*=\s*760') `
+        'The audited compact/wide breakpoint must remain 760 effective pixels.'
+    Assert-Condition ($codeBehind -match 'RootLayout\.SizeChanged') `
+        'Responsive layout must follow the effective root size.'
+    Assert-Condition ($codeBehind -match 'NavigationViewPaneDisplayMode\.LeftMinimal') `
+        'Compact layout must use the minimal navigation pane.'
+    Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus') `
+        'Responsive layout must expose its actual state to UI Automation.'
+    Assert-Condition ($codeBehind -match 'XamlRoot\?\.RasterizationScale') `
+        'Initial window sizing must convert effective pixels using the XAML scale.'
+    Assert-Condition ($codeBehind -match 'DisplayArea\.GetFromWindowId') `
+        'Initial window sizing must use the active display work area.'
+    Assert-Condition ($codeBehind -match 'MaximumWorkAreaFraction\s*=\s*0\.9') `
+        'The initial window must remain bounded to 90 percent of the work area.'
 
     $forbiddenPatterns = @(
         'System\.IO\.',
@@ -109,7 +137,9 @@ function Test-SourceContract {
         'Environment\.GetFolderPath',
         'DesktopCatalog',
         'ShellChange',
-        'DesktopHost'
+        'LongGrid\.Core\.DesktopHost',
+        'DesktopHostCompositeTransactionCoordinator',
+        'DesktopHostWindowPlanner'
     )
     foreach ($pattern in $forbiddenPatterns) {
         Assert-Condition (-not ($codeBehind -match $pattern)) `
@@ -120,6 +150,9 @@ function Test-SourceContract {
         requiredAutomationIds = $requiredIds.Count
         accessKeys = $expectedAccessKeys.Count
         themeModes = 3
+        responsiveBreakpoints = 1
+        compactWidth = 720
+        dpiAwareInitialSize = 'pass'
         readOnlyBoundary = 'pass'
     }
 }
@@ -189,6 +222,46 @@ function Wait-UiaName {
     throw "Element '$($Element.Current.AutomationId)' did not expose expected text '$ExpectedText'."
 }
 
+function Assert-VerticallyStacked {
+    param(
+        [System.Windows.Automation.AutomationElement[]]$Elements,
+        [System.Windows.Rect]$ContainerBounds
+    )
+
+    $previousBottom = [double]::NegativeInfinity
+    foreach ($element in $Elements) {
+        $bounds = $element.Current.BoundingRectangle
+        Assert-Condition ($bounds.Width -gt 0 -and $bounds.Height -gt 0) `
+            "Element '$($element.Current.AutomationId)' has no compact bounds; offscreen=$($element.Current.IsOffscreen), bounds=$bounds."
+        Assert-Condition ($bounds.Left -ge $ContainerBounds.Left - 1) `
+            "Element '$($element.Current.AutomationId)' overflows the compact left edge."
+        Assert-Condition ($bounds.Right -le $ContainerBounds.Right + 1) `
+            "Element '$($element.Current.AutomationId)' overflows the compact right edge."
+        Assert-Condition ($bounds.Top -ge $previousBottom - 1) `
+            "Element '$($element.Current.AutomationId)' overlaps the previous compact card."
+        $previousBottom = $bounds.Bottom
+    }
+}
+
+function Scroll-UiaToMetrics {
+    param([System.Windows.Automation.AutomationElement]$ScrollViewer)
+
+    $pattern = $null
+    if (-not $ScrollViewer.TryGetCurrentPattern(
+            [System.Windows.Automation.ScrollPattern]::Pattern,
+            [ref]$pattern)) {
+        throw 'ContentScrollViewer does not expose the Scroll pattern.'
+    }
+
+    $scrollPattern = [System.Windows.Automation.ScrollPattern]$pattern
+    if ($scrollPattern.Current.VerticallyScrollable) {
+        $scrollPattern.SetScrollPercent(
+            [System.Windows.Automation.ScrollPattern]::NoScroll,
+            25)
+        Start-Sleep -Milliseconds 250
+    }
+}
+
 function Test-LiveUi {
     if ($env:OS -ne 'Windows_NT') {
         throw 'The live Long Grid UI smoke requires Windows.'
@@ -217,6 +290,22 @@ function Test-LiveUi {
 
     Add-Type -AssemblyName UIAutomationClient
     Add-Type -AssemblyName UIAutomationTypes
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+public static class LongGridWindowNative
+{
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool MoveWindow(
+        IntPtr window,
+        int x,
+        int y,
+        int width,
+        int height,
+        bool repaint);
+}
+'@
 
     $process = Start-Process -FilePath $appPath -PassThru
     try {
@@ -240,7 +329,13 @@ function Test-LiveUi {
         Assert-Condition ($root.Current.Name -eq $expectedTitle) `
             "Unexpected window title '$($root.Current.Name)'."
 
+        $responsiveStatus = Find-UiaElement $root 'ResponsiveStatusText'
+        Wait-UiaName $responsiveStatus 'UI Shell'
+        $root = [System.Windows.Automation.AutomationElement]::FromHandle(
+            $process.MainWindowHandle
+        )
         $navigation = Find-UiaElement $root 'ShellNavigation'
+        $layoutRoot = Find-UiaElement $root 'LongGridRoot'
         $overview = Find-UiaElement $root 'NavOverview'
         $appearance = Find-UiaElement $root 'NavAppearance'
         $safety = Find-UiaElement $root 'NavSafety'
@@ -248,6 +343,53 @@ function Test-LiveUi {
             Assert-Condition $item.Current.IsKeyboardFocusable `
                 "Navigation item '$($item.Current.AutomationId)' is not keyboard focusable."
         }
+        Select-UiaElement $overview
+
+        $windowBounds = $root.Current.BoundingRectangle
+        Assert-Condition (
+            [LongGridWindowNative]::MoveWindow(
+                $process.MainWindowHandle,
+                [int]$windowBounds.Left,
+                [int]$windowBounds.Top,
+                720,
+                [int]$windowBounds.Height,
+                $true)
+        ) 'LongGrid.App could not be resized for the compact layout smoke.'
+        Start-Sleep -Milliseconds 500
+        $root = [System.Windows.Automation.AutomationElement]::FromHandle(
+            $process.MainWindowHandle
+        )
+        $layoutRoot = Find-UiaElement $root 'LongGridRoot'
+        $responsiveStatus = Find-UiaElement $root 'ResponsiveStatusText'
+        $compactText = [string]([char]0x7D27) + [char]0x51D1
+        Wait-UiaName $responsiveStatus $compactText
+        $contentScrollViewer = Find-UiaElement $root 'ContentScrollViewer'
+        Scroll-UiaToMetrics $contentScrollViewer
+        $currentModeCard = Find-UiaElement $root 'CurrentModeValue'
+        $fileOperationCard = Find-UiaElement $root 'FileOperationValue'
+        $desktopHostCard = Find-UiaElement $root 'DesktopHostValue'
+        Assert-VerticallyStacked `
+            @($currentModeCard, $fileOperationCard, $desktopHostCard) `
+            $layoutRoot.Current.BoundingRectangle
+
+        Assert-Condition (
+            [LongGridWindowNative]::MoveWindow(
+                $process.MainWindowHandle,
+                [int]$windowBounds.Left,
+                [int]$windowBounds.Top,
+                [int]$windowBounds.Width,
+                [int]$windowBounds.Height,
+                $true)
+        ) 'LongGrid.App could not restore the wide layout.'
+        Start-Sleep -Milliseconds 500
+        $root = [System.Windows.Automation.AutomationElement]::FromHandle(
+            $process.MainWindowHandle
+        )
+        $responsiveStatus = Find-UiaElement $root 'ResponsiveStatusText'
+        Wait-UiaName $responsiveStatus 'UI Shell'
+        $navigation = Find-UiaElement $root 'ShellNavigation'
+        $appearance = Find-UiaElement $root 'NavAppearance'
+        $safety = Find-UiaElement $root 'NavSafety'
 
         $appearance.SetFocus()
         Start-Sleep -Milliseconds 150
@@ -282,6 +424,9 @@ function Test-LiveUi {
             navigationAutomationId = $navigation.Current.AutomationId
             navigationItems = 3
             keyboardFocus = 'pass'
+            responsiveLayout = 'wide-compact-wide-720'
+            responsiveItemStatus = $layoutRoot.Current.ItemStatus
+            compactCards = 3
             themeRoundTrip = 'system-dark-system'
             safetyNavigation = 'pass'
         }
