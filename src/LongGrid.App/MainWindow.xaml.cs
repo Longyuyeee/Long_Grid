@@ -1,3 +1,4 @@
+using LongGrid.Core.DesktopHost;
 using LongGrid.Core.FileOperations;
 using LongGrid.Core.Runtime;
 using Microsoft.UI.Windowing;
@@ -229,6 +230,7 @@ public sealed partial class MainWindow : Window
 
         OverviewPanel.Visibility = tag == "overview" ? Visibility.Visible : Visibility.Collapsed;
         FirstRunPanel.Visibility = tag == "first-run" ? Visibility.Visible : Visibility.Collapsed;
+        RecoveryPanel.Visibility = tag == "recovery" ? Visibility.Visible : Visibility.Collapsed;
         AppearancePanel.Visibility = tag == "appearance" ? Visibility.Visible : Visibility.Collapsed;
         SafetyPanel.Visibility = tag == "safety" ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -438,6 +440,103 @@ public sealed partial class MainWindow : Window
         };
         DropActionStatus.Text = statusText;
         AutomationProperties.SetItemStatus(DropActionStatus, itemStatus);
+    }
+
+    private void RecoveryScenarioButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        LayoutRecoveryStatus status = sender is Button { Tag: "automatic" }
+            ? LayoutRecoveryStatus.Automatic
+            : sender is Button { Tag: "blocked" }
+                ? LayoutRecoveryStatus.Blocked
+                : LayoutRecoveryStatus.ReviewRequired;
+
+        ApplyRecoveryScenario(status);
+    }
+
+    private void ApplyRecoveryScenario(LayoutRecoveryStatus status)
+    {
+        (string summaryTitle,
+            string diffDetail,
+            string safetyDetail,
+            string itemStatus) = status switch
+            {
+                LayoutRecoveryStatus.Automatic => (
+                    "拓扑等价 · 可自动恢复",
+                    "匿名差异：2 个方格保持原显示区域，0 个方格需要位置纠正。",
+                    "正式产品仍需在事务提交后逐项复读；当前原型没有执行能力。",
+                    "AutomaticRecoveryPreview"),
+                LayoutRecoveryStatus.ReviewRequired => (
+                    "需要确认 · 先检查可见性纠正",
+                    "匿名差异：2 个方格将映射到主显示区域，1 个方格需要最小可见性纠正。",
+                    "确认只记录你理解了差异；当前原型不会移动任何方格。",
+                    "ReviewRequiredRecoveryPreview"),
+                LayoutRecoveryStatus.Blocked => (
+                    "恢复已阻断 · 映射缺失或歧义",
+                    "匿名差异：1 个显示区域无法可靠映射；禁止只应用已匹配的部分。",
+                    "请保持当前布局、手动映射或等待显示器稳定；当前没有执行恢复。",
+                    "BlockedRecoveryPreview"),
+                _ => throw new ArgumentOutOfRangeException(nameof(status)),
+            };
+
+        RecoverySummaryTitle.Text = summaryTitle;
+        RecoveryDiffDetail.Text = diffDetail;
+        RecoverySafetyDetail.Text = safetyDetail;
+        RecoveryDiffPanel.Visibility = Visibility.Visible;
+        ReviewRecoveryButton.IsEnabled = status == LayoutRecoveryStatus.ReviewRequired;
+        ExpireRecoveryPreviewButton.IsEnabled = true;
+        CancelRecoveryPreviewButton.IsEnabled = true;
+        RecoveryPlanStatus.Text = status switch
+        {
+            LayoutRecoveryStatus.Automatic =>
+                "状态：Automatic。仅展示匿名零纠正差异；尚未移动任何方格。",
+            LayoutRecoveryStatus.ReviewRequired =>
+                "状态：ReviewRequired。必须先查看差异；尚未移动任何方格。",
+            LayoutRecoveryStatus.Blocked =>
+                "状态：Blocked。禁止部分应用；尚未移动任何方格。",
+            _ => throw new ArgumentOutOfRangeException(nameof(status)),
+        };
+        AutomationProperties.SetItemStatus(RecoveryPlanStatus, itemStatus);
+    }
+
+    private void ReviewRecoveryButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ReviewRecoveryButton.IsEnabled = false;
+        RecoveryPlanStatus.Text =
+            "已记录你理解了 ReviewRequired 差异；当前原型没有执行恢复，布局保持不变。";
+        AutomationProperties.SetItemStatus(
+            RecoveryPlanStatus,
+            "RecoveryPreviewAcknowledged");
+    }
+
+    private void ExpireRecoveryPreviewButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ReviewRecoveryButton.IsEnabled = false;
+        ExpireRecoveryPreviewButton.IsEnabled = false;
+        RecoveryPlanStatus.Text =
+            "预览已过期：检测到新的匿名显示变化；旧差异不能确认，尚未移动任何方格。";
+        AutomationProperties.SetItemStatus(
+            RecoveryPlanStatus,
+            "RecoveryPreviewExpired");
+    }
+
+    private void CancelRecoveryPreviewButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        RecoveryDiffPanel.Visibility = Visibility.Collapsed;
+        ReviewRecoveryButton.IsEnabled = false;
+        ExpireRecoveryPreviewButton.IsEnabled = false;
+        CancelRecoveryPreviewButton.IsEnabled = false;
+        RecoveryPlanStatus.Text = "已取消恢复预览；当前布局保持不变。";
+        AutomationProperties.SetItemStatus(
+            RecoveryPlanStatus,
+            "RecoveryPreviewCancelled");
     }
 
     private void ThemeOption_Checked(object sender, RoutedEventArgs e)

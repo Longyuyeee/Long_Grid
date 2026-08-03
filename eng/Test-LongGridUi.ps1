@@ -56,10 +56,24 @@ function Test-SourceContract {
         'NavFirstRun',
         'NavAppearance',
         'NavSafety',
+        'NavRecovery',
         'OverviewPanel',
         'FirstRunPanel',
         'AppearancePanel',
         'SafetyPanel',
+        'RecoveryPanel',
+        'RecoverySafetyBanner',
+        'RecoveryAutomaticScenarioButton',
+        'RecoveryReviewScenarioButton',
+        'RecoveryBlockedScenarioButton',
+        'RecoveryPlanStatus',
+        'RecoveryDiffPanel',
+        'RecoverySummaryTitle',
+        'RecoveryDiffDetail',
+        'RecoverySafetyDetail',
+        'ReviewRecoveryButton',
+        'ExpireRecoveryPreviewButton',
+        'CancelRecoveryPreviewButton',
         'FirstRunSafetyBanner',
         'SuggestedStartChoice',
         'BlankStartChoice',
@@ -126,6 +140,10 @@ function Test-SourceContract {
     Assert-Condition (
         $dropActionNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
     ) 'DropActionStatus must politely announce the audited drop semantics.'
+    $recoveryStatusNode = Get-XamlNodeByAutomationId $document 'RecoveryPlanStatus'
+    Assert-Condition (
+        $recoveryStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
+    ) 'RecoveryPlanStatus must politely announce preview and expiry changes.'
     $practiceNameNode = Get-XamlNodeByAutomationId $document 'PracticeContainerName'
     Assert-Condition ($practiceNameNode.GetAttribute('MaxLength') -eq '40') `
         'The anonymous practice-container name must remain bounded to 40 characters.'
@@ -150,6 +168,7 @@ function Test-SourceContract {
         NavFirstRun = '2'
         NavAppearance = '3'
         NavSafety = '4'
+        NavRecovery = '5'
     }
     foreach ($entry in $expectedAccessKeys.GetEnumerator()) {
         $node = Get-XamlNodeByAutomationId $document $entry.Key
@@ -215,6 +234,16 @@ function Test-SourceContract {
         'The drop practice must expose relationship-only reassignment.'
     Assert-Condition ($codeBehind -match 'ManagedMoveDropBlocked') `
         'The drop practice must block unapproved managed moves.'
+    Assert-Condition ($codeBehind -match 'LayoutRecoveryStatus\.Automatic') `
+        'The recovery prototype must expose the Core automatic status.'
+    Assert-Condition ($codeBehind -match 'LayoutRecoveryStatus\.ReviewRequired') `
+        'The recovery prototype must expose the Core review-required status.'
+    Assert-Condition ($codeBehind -match 'LayoutRecoveryStatus\.Blocked') `
+        'The recovery prototype must expose the Core blocked status.'
+    Assert-Condition ($codeBehind -match 'RecoveryPreviewExpired') `
+        'A newer display change must invalidate the anonymous recovery preview.'
+    Assert-Condition ($codeBehind -match 'RecoveryPreviewCancelled') `
+        'The anonymous recovery preview must expose a no-change cancellation state.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*CurrentModeValue') `
         'The current runtime mode must expose a machine-readable UIA status.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*FileOperationValue') `
@@ -231,9 +260,12 @@ function Test-SourceContract {
         'LongGrid\.Core\.DesktopItems',
         '\bDesktopCatalog\s*\.',
         'ShellChange',
-        'LongGrid\.Core\.DesktopHost',
         'DesktopHostCompositeTransactionCoordinator',
         'DesktopHostWindowPlanner',
+        'LayoutRecoveryPlanner',
+        'LayoutRecoveryTransactionCoordinator',
+        'DisplayTopologyStabilizer',
+        'DisplayTopologyFingerprint',
         'DragEventArgs',
         'DataPackage',
         'StorageItem'
@@ -252,6 +284,7 @@ function Test-SourceContract {
         dpiAwareInitialSize = 'pass'
         coreRuntimeStatus = 'development-read-only'
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
+        layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         readOnlyBoundary = 'pass'
     }
 }
@@ -451,7 +484,8 @@ public static class LongGridWindowNative
         $firstRun = Find-UiaElement $root 'NavFirstRun'
         $appearance = Find-UiaElement $root 'NavAppearance'
         $safety = Find-UiaElement $root 'NavSafety'
-        foreach ($item in @($overview, $firstRun, $appearance, $safety)) {
+        $recovery = Find-UiaElement $root 'NavRecovery'
+        foreach ($item in @($overview, $firstRun, $appearance, $safety, $recovery)) {
             Assert-Condition $item.Current.IsKeyboardFocusable `
                 "Navigation item '$($item.Current.AutomationId)' is not keyboard focusable."
         }
@@ -630,6 +664,56 @@ public static class LongGridWindowNative
         Assert-Condition (-not $undoPracticeContainer.Current.IsEnabled) `
             'Undo remained enabled after the anonymous container relationship was removed.'
 
+        Select-UiaElement $recovery
+        $recoveryPanel = Find-UiaElement $root 'RecoveryPanel'
+        Scroll-UiaElementIntoView $recoveryPanel
+        Assert-Condition (-not $recoveryPanel.Current.IsOffscreen) `
+            'RecoveryPanel stayed offscreen after selecting its navigation item.'
+        $recoveryStatus = Find-UiaElement $root 'RecoveryPlanStatus'
+        $reviewScenario = Find-UiaElement $root 'RecoveryReviewScenarioButton'
+        Scroll-UiaElementIntoView $reviewScenario
+        Select-UiaElement $reviewScenario
+        Assert-Condition ($recoveryStatus.Current.ItemStatus -eq 'ReviewRequiredRecoveryPreview') `
+            'ReviewRequired recovery semantics were not exposed to UI Automation.'
+        $recoveryDiff = Find-UiaElement $root 'RecoveryDiffPanel'
+        Scroll-UiaElementIntoView $recoveryDiff
+        Assert-Condition (-not $recoveryDiff.Current.IsOffscreen) `
+            'The anonymous recovery difference did not become visible.'
+        $reviewRecovery = Find-UiaElement $root 'ReviewRecoveryButton'
+        Assert-Condition $reviewRecovery.Current.IsEnabled `
+            'ReviewRequired did not enable the audited acknowledgement action.'
+        $expireRecovery = Find-UiaElement $root 'ExpireRecoveryPreviewButton'
+        Scroll-UiaElementIntoView $expireRecovery
+        Select-UiaElement $expireRecovery
+        Assert-Condition ($recoveryStatus.Current.ItemStatus -eq 'RecoveryPreviewExpired') `
+            'A newer anonymous display change did not expire the old preview.'
+        Assert-Condition (-not $reviewRecovery.Current.IsEnabled) `
+            'An expired recovery preview remained confirmable.'
+
+        Scroll-UiaElementIntoView $reviewScenario
+        Select-UiaElement $reviewScenario
+        Scroll-UiaElementIntoView $reviewRecovery
+        Select-UiaElement $reviewRecovery
+        Assert-Condition ($recoveryStatus.Current.ItemStatus -eq 'RecoveryPreviewAcknowledged') `
+            'Review acknowledgement did not preserve its no-execution status.'
+        $blockedScenario = Find-UiaElement $root 'RecoveryBlockedScenarioButton'
+        Scroll-UiaElementIntoView $blockedScenario
+        Select-UiaElement $blockedScenario
+        Assert-Condition ($recoveryStatus.Current.ItemStatus -eq 'BlockedRecoveryPreview') `
+            'Blocked recovery semantics were not exposed to UI Automation.'
+        Assert-Condition (-not $reviewRecovery.Current.IsEnabled) `
+            'Blocked recovery incorrectly enabled partial acknowledgement.'
+        $automaticScenario = Find-UiaElement $root 'RecoveryAutomaticScenarioButton'
+        Scroll-UiaElementIntoView $automaticScenario
+        Select-UiaElement $automaticScenario
+        Assert-Condition ($recoveryStatus.Current.ItemStatus -eq 'AutomaticRecoveryPreview') `
+            'Automatic recovery semantics were not exposed to UI Automation.'
+        $cancelRecovery = Find-UiaElement $root 'CancelRecoveryPreviewButton'
+        Scroll-UiaElementIntoView $cancelRecovery
+        Select-UiaElement $cancelRecovery
+        Assert-Condition ($recoveryStatus.Current.ItemStatus -eq 'RecoveryPreviewCancelled') `
+            'Cancelling the anonymous recovery preview did not preserve the current layout.'
+
         $appearance.SetFocus()
         Start-Sleep -Milliseconds 150
         Assert-Condition (
@@ -661,7 +745,7 @@ public static class LongGridWindowNative
             windowTitle = $root.Current.Name
             processId = $process.Id
             navigationAutomationId = $navigation.Current.AutomationId
-            navigationItems = 4
+            navigationItems = 5
             keyboardFocus = 'pass'
             responsiveLayout = 'wide-compact-wide-720'
             responsiveItemStatus = $layoutRoot.Current.ItemStatus
@@ -669,6 +753,7 @@ public static class LongGridWindowNative
             compactOrganizationModes = 2
             coreRuntimeStatus = 'development-read-only'
             firstOrganizationPrototype = 'blank-suggested-safe-preview-items-drop-semantics-two-step-undo'
+            layoutRecoveryPrototype = 'review-expired-review-acknowledged-blocked-automatic-cancelled'
             themeRoundTrip = 'system-dark-system'
             safetyNavigation = 'pass'
         }
