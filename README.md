@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1、一键启动链、UI 自动化、响应式布局、Core 只读状态合同，以及首次整理、匿名容器创建和内存撤销原型已建立，但不接真实桌面、DesktopHost、持久化或文件操作，不能视为正式 MVP。Issue #23 的 5 人测试与负责人决策仍未完成；多数系统能力仍是 Conditional Pass。
+> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1、一键启动链、UI 自动化、响应式布局、Core 只读状态合同，以及首次整理、匿名容器、三个匿名引用、拖放语义和两步内存撤销原型已建立，但不接真实桌面、Explorer 拖放、DesktopHost、持久化或文件操作，不能视为正式 MVP。Issue #23 的 5 人测试与负责人决策仍未完成；多数系统能力仍是 Conditional Pass。
 
 ## 产品原则
 
@@ -35,6 +35,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Core 只读运行状态接线审计](docs/20-ui-core-readonly-status-contract-audit.md)
 - [首次整理模式原型审计](docs/21-first-organization-prototype-audit.md)
 - [匿名容器与撤销原型审计](docs/22-anonymous-container-undo-prototype-audit.md)
+- [匿名项目与拖放语义原型审计](docs/23-anonymous-items-drop-semantics-audit.md)
 - [Issue #23 五人可用性测试计划](docs/usability/issue-23-first-organization-test-plan.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
