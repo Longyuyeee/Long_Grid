@@ -1,8 +1,8 @@
 # Long Grid 当前开发状态与后续方向审计
 
-审计日期：2026-08-03（增量复审）
+审计日期：2026-08-04（增量复审）
 
-审计基线：`main` / `853a606`（PR #73 已合入）+ Issue #24 正式配置合同分支
+审计基线：`main` / `7fc1009`（PR #76 已合入）+ Issue #24 正式配置合同分支
 
 审计范围：代码、测试、技术探针、架构/产品/交互文档、GitHub PR 与 CI
 
@@ -10,13 +10,15 @@
 
 ## 1. 执行摘要
 
-Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了可复现的 .NET 工程基线、纯 Core 决策逻辑、真实 Win32/Shell/DirectComposition/UI Automation 探针以及自动化测试。桌面发现、稳定身份、Shell 变化对账、图像提取、DesktopHost 窗口模型、显示拓扑、布局恢复、事务补偿、首个可交互宿主切片、配置持久化、文件操作安全和缩略图进程隔离均有代码与报告证据。PR #18、#25–#61、#63–#69 已合入 `main`；配置探针通过了 20 类场景、1,000 次重复写入、四检查点共 1,000 次真实进程强杀及 ACL 生效期间 10 次强杀；文件操作和缩略图隔离探针均保持 Conditional Pass，视觉品牌需求、图标 RC1 和只读 UI Shell 也已进入主线。
+Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了可复现的 .NET 工程基线、纯 Core 决策逻辑、真实 Win32/Shell/DirectComposition/UI Automation 探针以及自动化测试。桌面发现、稳定身份、Shell 变化对账、图像提取、DesktopHost 窗口模型、显示拓扑、布局恢复、事务补偿、首个可交互宿主切片、配置持久化、文件操作安全和缩略图进程隔离均有代码与报告证据。PR #18、#25–#61、#63–#76 已合入 `main`；配置探针通过了 20 类场景、1,000 次重复写入、四检查点共 1,000 次真实进程强杀及 ACL 生效期间 10 次强杀；文件操作和缩略图隔离探针均保持 Conditional Pass，视觉品牌需求、图标 RC1 和只读 UI Shell 也已进入主线。
 
-但这些成果大多仍是 **Conditional Pass 的风险探针**，不是可发布产品能力。仓库现已建立开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1 与一键启动链；该切片只显示匿名示例数据，不枚举真实桌面、不连接 DesktopHost、不执行文件操作、不写产品配置，也没有安装承诺，因此证据等级仍是 E2/E3 开发集成，而不是 E4 产品切片。`LongGrid.DesktopHost`、`LongGrid.Infrastructure`、产品配置 schema、安装包和端到端产品流程仍不存在。真实键鼠/触控/拖放、Narrator、Win+D、全屏、Explorer 重启、动态显示硬件矩阵、文件移动撤销、真实卷故障、真实 Provider 性能矩阵和可用性测试尚未关闭。
+但这些成果大多仍是 **Conditional Pass 的风险探针**，不是可发布产品能力。仓库现已建立开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1 与一键启动链；该切片只显示匿名示例数据，不枚举真实桌面、不连接 DesktopHost、不执行文件操作、不写产品配置，也没有安装承诺，因此证据等级仍是 E2/E3 开发集成，而不是 E4 产品切片。正式 Core 产品配置 Schema 已建立，但 `LongGrid.DesktopHost`、`LongGrid.Infrastructure`、生产配置适配器、安装包和端到端产品流程仍不存在。真实键鼠/触控/拖放、Narrator、Win+D、全屏、Explorer 重启、动态显示硬件矩阵、文件移动撤销、真实卷故障、真实 Provider 性能矩阵和可用性测试尚未关闭。
 
-### 2026-08-03 增量结论
+### 2026-08-04 增量结论
 
 - `LongGrid.Core.Configuration` 已建立第一个正式产品 v1 配置合同、资源预算、未知字段保留与有限错误边界；当前只允许安全引用，不执行文件 I/O，也不代表 Infrastructure、真实卷或应用生命周期接线完成；
+- Issue #19 已具备 I19-01–I19-10 的匿名单场景启动器、恢复纪律和 CI `PendingManualEvidence` 合同；该工具不合成输入、不改变系统设置、不重启 Explorer，也不替代真实人工结果；
+- Issue #20 已具备 I20-01–I20-08 到只读 observer 的固定映射、匿名操作员、受控环境/恢复计划确认和 CI `PendingManualEvidence` 合同；真实硬件、RDP、睡眠和人工视觉/输入结论仍未执行；
 - `LongGrid.App` 使用 .NET 8、Windows App SDK 2.3.1 Stable、WinUI 3 和 x64 开发目标；ADR-0001 继续保持 `Proposed`；
 - 新 UI Shell 是为解除“只有正式 App 存在后才能验证启动、主题和关闭”的循环门槛而建立的受控开发切片，不代表跳过 Issue #19–#24；
 - `eng/Start-LongGrid.ps1` 默认只执行依赖恢复、构建和开发启动，不提权、不扫描桌面；CI 使用 `-ValidateOnly` 验证启动链而不打开窗口；
@@ -27,6 +29,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 - 当前分支新增单个匿名容器创建、40 字符名称边界、可见预览、立即撤销和 `Ctrl+Z` 合同；它不建立 Core 实体、不持久化，也不触碰桌面文件；
 - 当前分支继续加入三个匿名引用、添加引用/改变归属/移动阻断三种动作徽标语义和最近动作优先的两步撤销；结构门禁明确禁止把该练习伪装成真实 Explorer Drop Target；
 - 当前分支新增独立恢复预览页，复用 Core `Automatic/ReviewRequired/Blocked` 词汇并覆盖过期与取消；它不读取显示拓扑、不调用规划器/事务协调器，也不移动窗口；
+- 当前分支新增 Issue #23 匿名会话预检/启动入口和主持人手册；CI 只验证隐私合同与依赖存在，固定保持 `ResultsPending`，不生成或伪造 P1–P5 结果；
 - 自动截图工具仍因错误归属未打包窗口而无法取得稳定句柄，因此视觉截图、高对比、Narrator、文本缩放和 DPI 人工矩阵继续保持 `Inconclusive/Pending`；
 - 详细范围、供应链、验证和停止规则见 [`17-ui-shell-readonly-slice-audit.md`](17-ui-shell-readonly-slice-audit.md)与[`18-ui-theme-automation-contract-audit.md`](18-ui-theme-automation-contract-audit.md)。
 
@@ -67,7 +70,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 解决方案 | `main` 有 1 个 Core、1 个测试和 9 个探针项目 | 已建立，但不是产品分层 |
 | 代码 | 当前分支有 20 个 Core、13 个测试和 55 个探针 C# 源文件 | 以风险验证为主；本切片新增 3 个 Core 状态合同文件和 1 个测试文件 |
 | 测试 | 当前全量 90 项测试通过 | Core 回归基线有效；新增只读状态快照安全形状与值等价测试 |
-| CI | 单一 Windows workflow 执行 restore、format、build、启动/UI 结构合同、test、覆盖率门禁、配置/文件安全/缩略图 worker 探针、依赖漏洞门禁并上传 TRX/Cobertura | PR 基线有效；行覆盖率最低 90%、分支覆盖率最低 75%，尚无 CodeQL 或发布流水线 |
+| CI | 单一 Windows workflow 执行 restore、format、build、启动/UI/Issue #23 会话隐私合同、test、覆盖率门禁、配置/文件安全/缩略图 worker 探针、依赖漏洞门禁并上传 TRX/Cobertura | PR 基线有效；会话预检固定保持 ResultsPending；行覆盖率最低 90%、分支覆盖率最低 75%，尚无 CodeQL 或发布流水线 |
 | 文档 | PRD、架构、质量、竞品、交互、协议、流程、ADR、22 份 Spike 报告 | 覆盖较完整 |
 | GitHub | `main` 已合入至 PR #69；当前首次整理原型使用短生命周期分支；Phase 0 Exit 里程碑跟踪 #19–#24 六项工作 | 治理基线已闭环；当前切片仍须 PR/CI |
 | 主干保护 | `main` 要求严格的 `build-test`，对管理员生效，禁止强推和删除 | 已建立最小可信门禁 |
@@ -314,11 +317,11 @@ LPWP 协议可以继续做兼容性维护和 Golden Fixture，但 Widget Host �
 
 | 顺序 | 工作包 | 交付物 | 退出条件 |
 |---|---|---|---|
-| W0（完成） | GitHub 治理 | PR #18、#25–#61、#63–#73 已合入；PR #2–#17 关闭；旧远端分支删除；`main` 受保护；Phase 0 Exit 建立 | 主干 CI 通过、当前切片前无打开 PR、远端只保留 `main`，保护规则要求严格 `build-test` |
-| W1（进行中） | 产品与体验决策（#23） | 首次整理、匿名容器/项目、拖放语义、两步撤销和恢复差异原型已完成；待 5 人测试、许可证、支持矩阵、首版模式 | 负责人签字确认范围与预算，并限定后续技术矩阵 |
-| W2 | 人工输入与系统表面（#19） | P0-05b2 键鼠/触控/拖放/Narrator/Win+D/全屏/Alt+Tab/任务视图/Explorer 重启记录 | 每个场景有环境、原始证据、Pass/Fail/Inconclusive 和缺陷 |
-| W3 | 动态显示（#20） | 缩放、旋转、拔插、投影、睡眠、RDP、`WM_DPICHANGED` 受控矩阵 | 稳定器、布局事务、资源闭环和恢复结果全部可复读 |
-| W4（合同进行中） | 必要安全、隔离与持久化收口（#21、#22、#24） | 正式 Core v1 配置合同已建立；待批准范围内的文件/Provider/真实卷证据和 Infrastructure 适配器 | 不误移动，安全边界明确，生产合同可迁移；集成接线列入首片验收 |
+| W0（完成） | GitHub 治理 | PR #18、#25–#61、#63–#76 已合入；PR #2–#17 关闭；旧远端分支删除；`main` 受保护；Phase 0 Exit 建立 | 主干 CI 通过、保护规则要求严格 `build-test` |
+| W1（进行中） | 产品与体验决策（#23） | 核心低保真原型、匿名会话入口和主持人手册已完成；待 P1–P5 真实测试、许可证、支持矩阵、首版模式 | 五人匿名结果与负责人签字确认范围和预算，并限定后续技术矩阵 |
+| W2（工具就绪） | 人工输入与系统表面（#19） | 匿名单场景入口和恢复手册已完成；待 P0-05b2 键鼠/触控/拖放/Narrator/Win+D/全屏/Alt+Tab/任务视图/Explorer 重启记录 | 每个场景有环境、原始证据、Pass/Fail/Inconclusive 和缺陷 |
+| W3（工具就绪） | 动态显示（#20） | I20/observer 映射和恢复合同已完成；待缩放、旋转、拔插、投影、睡眠、RDP、`WM_DPICHANGED` 受控矩阵 | 稳定器、布局事务、资源闭环和恢复结果全部可复读 |
+| W4（Core 合同就绪） | 必要安全、隔离与持久化收口（#21、#22、#24） | 正式 Core v1 配置合同已建立；待批准范围内的文件/Provider/真实卷证据和 Infrastructure 适配器 | 不误移动，安全边界明确，生产合同可迁移；集成接线列入首片验收 |
 
 W0 已关闭。W1 先限定产品和支持范围；W2 与 W3 可在不同受控环境并行采证；W4 不应与真实产品文件移动混做。配置持久化合同由 #24 跟踪，只在具备专用环境时补真实卷/断电边界；关闭排空、单实例和正式渲染接线在首个 App/DesktopHost 切片中验收。Phase 0 的必要证据关闭并更新 ADR 后，创建第一条只读垂直切片。
 
