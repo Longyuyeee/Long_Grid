@@ -58,10 +58,10 @@ Core 测试覆盖：合法往返、camelCase 枚举、五层未知字段保留�
 
 ## 7. 下一动作
 
-首个 `LongGrid.Infrastructure` 适配器已按第 8 节建立，下一步接入 latest-wins 保存协调与 App 有界关闭排空；专用环境真实卷矩阵可独立执行，两条证据链都完成后才能关闭 Issue #24。正式程序集继续不得引用或改名发布 spike 程序集。
+首个 `LongGrid.Infrastructure` 适配器及 latest-wins/App 有界关闭排空已建立；下一步是单实例激活、恢复 UI 与真实产品状态的显式入队。专用环境真实卷矩阵可独立执行，全部证据链完成后才能关闭 Issue #24。正式程序集继续不得引用或改名发布 spike 程序集。
 
 ## 8. 2026-08-04 正式存储增量
 
 `LongGrid.Infrastructure.Configuration.ProductConfigurationStore` 已成为首个正式产品存储适配器。它没有引用 Spike 程序集，而是直接调用 `ProductConfigurationJson`，因此写入前、暂存复读和加载后的文档都服从同一 v1 资源预算与有限错误合同。
 
-当前自动证据覆盖：首次原子发布、第二次替换保留上一版备份、损坏主文件回退备份、主备均不可用时进入安全模式、普通保存拒绝覆盖损坏证据、跨进程文件租约有界超时与调用方取消、I/O 错误不在公开异常中泄露路径。该增量允许产品代码开始依赖正式 Infrastructure 边界，但不改变 I24-01/I24-02 的 `PendingDedicatedEnvironmentEvidence`，也不代表 App 关闭排空、单实例激活、恢复 UI、真实断电或非 NTFS 耐久性已经完成。
+当前自动证据覆盖：首次原子发布、第二次替换保留上一版备份、损坏主文件回退备份、主备均不可用时进入安全模式、普通保存拒绝覆盖损坏证据、跨进程文件租约有界超时与调用方取消、I/O 错误不在公开异常中泄露路径，以及 latest-wins/关闭排空合同。该增量允许产品代码依赖正式 Infrastructure 边界，但不改变 I24-01/I24-02 的 `PendingDedicatedEnvironmentEvidence`，也不代表单实例激活、恢复 UI、真实断电或非 NTFS 耐久性已经完成。
