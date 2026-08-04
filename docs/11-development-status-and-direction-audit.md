@@ -12,7 +12,7 @@
 
 Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了可复现的 .NET 工程基线、纯 Core 决策逻辑、真实 Win32/Shell/DirectComposition/UI Automation 探针以及自动化测试。桌面发现、稳定身份、Shell 变化对账、图像提取、DesktopHost 窗口模型、显示拓扑、布局恢复、事务补偿、首个可交互宿主切片、配置持久化、文件操作安全和缩略图进程隔离均有代码与报告证据。PR #18、#25–#61、#63–#78 已合入 `main`；配置探针通过了 20 类场景、1,000 次重复写入、四检查点共 1,000 次真实进程强杀及 ACL 生效期间 10 次强杀；文件操作和缩略图隔离探针均保持 Conditional Pass，视觉品牌需求、图标 RC1 和只读 UI Shell 也已进入主线。
 
-但这些成果大多仍是 **Conditional Pass 的风险探针**，不是可发布产品能力。仓库现已建立开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1 与一键启动链；该切片只显示匿名示例数据，不枚举真实桌面、不连接 DesktopHost、不执行文件操作、不写产品配置，也没有安装承诺，因此证据等级仍是 E2/E3 开发集成，而不是 E4 产品切片。正式 Core 产品配置 Schema 已建立，但 `LongGrid.DesktopHost`、`LongGrid.Infrastructure`、生产配置适配器、安装包和端到端产品流程仍不存在。真实键鼠/触控/拖放、Narrator、Win+D、全屏、Explorer 重启、动态显示硬件矩阵、文件移动撤销、真实卷故障、真实 Provider 性能矩阵和可用性测试尚未关闭。
+但这些成果大多仍是 **Conditional Pass 的风险探针**，不是可发布产品能力。仓库现已建立开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1、一键启动链，以及首个正式 `LongGrid.Infrastructure` 配置存储；UI 切片仍只显示匿名示例数据，不枚举真实桌面、不连接 DesktopHost、不执行文件操作，也尚未把配置存储接入 App 生命周期或安装流程，因此证据等级仍是 E2/E3 开发集成，而不是 E4 产品切片。`LongGrid.DesktopHost`、安装包和端到端产品流程仍不存在。真实键鼠/触控/拖放、Narrator、Win+D、全屏、Explorer 重启、动态显示硬件矩阵、文件移动撤销、真实卷故障、真实 Provider 性能矩阵和可用性测试尚未关闭。
 
 ### 2026-08-04 增量结论
 
@@ -34,6 +34,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 - `main` 已包含 Issue #23 匿名会话预检/启动入口和主持人手册；CI 只验证隐私合同与依赖存在，固定保持 `ResultsPending`，不生成或伪造 P1–P5 结果；
 - Issue #23 的 D23-01–D23-10 已由负责人批准：仅安全引用、本地无账户、Folder Portal/ARM64 后移、Windows 11 x64 技术预览、MSIX 目标渠道和缩略图安全回退；D23-11 许可证延期，不阻挡当前开发但继续阻挡正式分发/外部贡献；
 - Issue #24 已建立 I24-01/I24-02 专用环境会话入口和运行手册；CI 只验证独立卷、匿名标签、双确认与无写入合同，固定保持 `PendingDedicatedEnvironmentEvidence`，不执行或伪造真实卷结果；
+- Issue #24 已建立首个正式 `LongGrid.Infrastructure` 产品配置存储：直接使用 Core v1 schema，具备同目录暂存、flush、复读校验、原子替换、上一版备份、主损坏回退、安全模式、损坏证据保护和有界跨进程写租约；尚未接入 App 关闭排空、单实例激活或恢复 UI，真实卷证据继续 Pending；
 - 自动截图工具仍因错误归属未打包窗口而无法取得稳定句柄，因此视觉截图、高对比、Narrator、文本缩放和 DPI 人工矩阵继续保持 `Inconclusive/Pending`；
 - 详细范围、供应链、验证和停止规则见 [`17-ui-shell-readonly-slice-audit.md`](17-ui-shell-readonly-slice-audit.md)与[`18-ui-theme-automation-contract-audit.md`](18-ui-theme-automation-contract-audit.md)。
 
@@ -96,7 +97,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
 | 事务补偿 | Bounds/Region/DComp/UIA 快照、代次门禁、逆序回滚、紧急隐藏 | E1-E2 | 正式宿主集成和故障注入矩阵 |
-| 配置持久化 | 版本化 JSON、原子替换/备份/安全模式、四检查点共 1,000 次及 ACL 生效期间强杀、跨进程单写租约、有界退避、具备入队快照/有界排空的 latest-wins 保存协调、确定性迁移回滚、只读/磁盘满/权限恢复 | E2 / Conditional Pass | Phase 0 仍缺真实卷空间耗尽/只读、替换内部失败、跨进程公平性和正式 schema；真实应用关闭/完整单实例激活列入首片验收 |
+| 配置持久化 | 正式 v1 schema 与 Infrastructure 原子发布/备份/安全模式/证据保护/有界写租约；Spike 另覆盖四检查点强杀、latest-wins、迁移、只读/磁盘满/权限恢复 | E3 / Production adapter slice pass | 仍缺 App 关闭排空、恢复 UI、完整单实例、真实卷耗尽/只读、替换内部失败与跨进程公平性 |
 | 交互切片 | 一个可见 List 容器和三个进程内演示项 | E2 / Conditional Pass | 文件语义、拖放、正式持久化和用户测试 |
 | 正式 App UI 壳层 | WinUI 导航、Design Token、内存态主题、AutomationId/访问键、760 DIP 响应式流、DPI 感知窗口、Core 只读状态、首次整理、匿名容器/项目、拖放语义、两步撤销和恢复差异三态/过期/取消的真实 UIA 冒烟 | E2 / Conditional Pass | 5 人测试、真实拖放与硬件恢复、负责人决策、经批准的真实只读数据适配器、Narrator/高对比/系统文本缩放/多 DPI 视觉矩阵 |
 
@@ -299,7 +300,7 @@ ADR 必须同时记录最低系统版本、架构、安装方式、宿主窗口�
 建议第一片严格限制为“只读桌面目录 + 一个视觉容器 + 持久化引用”，不执行真实文件移动：
 
 1. 建立 `LongGrid.Contracts`：版本化配置、容器、引用、布局和错误合同；
-2. 建立 `LongGrid.Infrastructure`：只读 Shell catalog、原子配置存储和脱敏诊断；
+2. 扩展已建立的 `LongGrid.Infrastructure`：接入只读 Shell catalog、配置关闭排空和脱敏诊断；
 3. 建立 `LongGrid.DesktopHost`：每显示器 HWND、显式 Region、统一输入/UIA 状态机；
 4. 建立 `LongGrid.App`：启动、托盘、设置和恢复入口；
 5. 打通创建容器、添加/移除引用、自动保存、重启恢复；

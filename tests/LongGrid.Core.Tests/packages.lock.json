@@ -111,6 +111,12 @@
       },
       "longgrid.core": {
         "type": "Project"
+      },
+      "longgrid.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "LongGrid.Core": "[1.0.0, )"
+        }
       }
     }
   }
