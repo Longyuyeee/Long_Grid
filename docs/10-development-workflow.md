@@ -525,6 +525,8 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 
 2026-08-03 增量说明：为验证只有真实 App 才能承载的 WinUI 构建、主题、启动与关闭合同，允许先建立不读取桌面、不写配置、不连接 DesktopHost 且不形成安装承诺的开发期 `LongGrid.App` UI Shell。它不满足第 8 项“首个生产垂直切片”，不得据此跳过 Issue #19–#24、5 人测试或 ADR-0001 决策；详细边界见[开发期只读 UI Shell 审计](17-ui-shell-readonly-slice-audit.md)。
 
+正式配置从 `LongGrid.Core.Configuration` v1 合同开始：Core 只定义模型、验证和纯内存 JSON 边界，不执行文件 I/O；产品适配器不得引用或改名发布 spike 程序集。新增行为或字段必须明确 schema 版本、相邻迁移、失败不发布与备份回退，不得用未知字段或未定义枚举绕过负责人范围决策。
+
 同日补充：开发期 UI 可以单向消费由 `LongGrid.Core` 构造的不可变能力状态快照，用于替换 XAML 中硬编码的运行状态并验证 `App -> Core` 接线。该快照只能声明未连接/被安全策略关闭的事实，不得持有路径、Shell/COM/Win32 句柄、桌面项目、可变集合或执行委托；UIA 必须暴露机器可判定状态。真实桌面目录、DesktopHost、配置和文件适配器仍受上述门禁约束。详细合同见[Core 只读运行状态接线审计](20-ui-core-readonly-status-contract-audit.md)。
 
 现有 CI 已执行真实 restore/build/test/format/依赖漏洞门禁。任何勾选完成项必须同时能在 `main` 找到代码、测试和报告，不以仅存在于长期功能分支作为完成依据。

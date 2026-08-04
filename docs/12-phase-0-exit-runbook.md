@@ -117,6 +117,8 @@ Phase 0 必须关闭安全边界和已批准首发范围的兼容风险；正式
 
 Phase 0 必须确认正式 schema、迁移/回滚、原子存储、安全恢复、生产模块边界，并在可用的专用环境补真实卷只读/空间耗尽证据。这些是把探针合同迁入 `LongGrid.Infrastructure` 的前置条件。
 
+`LongGrid.Core.Configuration` v1 已完成纯模型、验证、未知字段保留和 JSON 资源边界，当前仅允许安全引用；详见[正式产品配置合同审计](28-product-configuration-contract-audit.md)。该进展只关闭 schema 形状前置，不关闭真实卷、Infrastructure 原子存储或应用生命周期证据。
+
 应用关闭排空、完整单实例激活和正式渲染表面属于首个生产切片才能形成的集成证据，迁入 Phase 1 首片验收，不再要求它们在创建 `LongGrid.App`/`LongGrid.DesktopHost` 之前完成。对应 Issue 可以在 Phase 0 合同项关闭后保留明确的首片子任务，但不得形成循环门槛。
 
 只有 #19–#24 的必要证据与负责人决策齐全后，才能把[ADR-0001](adr/0001-windows-technology-stack.md)从 `Proposed` 改为 `Accepted`、`Revised` 或 `Rejected`。ADR 决定前不得创建安装承诺，也不得把探针项目改名冒充产品模块。

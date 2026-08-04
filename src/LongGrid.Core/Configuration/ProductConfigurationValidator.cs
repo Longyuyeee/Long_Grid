@@ -1,0 +1,253 @@
+namespace LongGrid.Core.Configuration;
+
+public static class ProductConfigurationLimits
+{
+    public const int CurrentSchemaVersion = 1;
+    public const int MaximumSerializedBytes = 4 * 1024 * 1024;
+    public const int MaximumContainers = 100;
+    public const int MaximumItems = 500;
+    public const int MaximumIdLength = 128;
+    public const int MaximumNameLength = 256;
+    public const int MaximumDisplayKeyLength = 256;
+    public const int MaximumTargetLength = 32_768;
+    public const int MaximumExtensionPropertiesPerObject = 64;
+    public const int MaximumExtensionPropertyNameLength = 128;
+    public const double MinimumContainerWidthDip = 64;
+    public const double MinimumContainerHeightDip = 48;
+    public const double MaximumContainerDimensionDip = 16_384;
+    public const double MaximumAbsoluteCoordinateDip = 1_000_000;
+}
+
+public enum ProductConfigurationError
+{
+    None,
+    MalformedJson,
+    DocumentTooLarge,
+    UnsupportedSchema,
+    InvalidProfile,
+    TooManyContainers,
+    DuplicateObjectId,
+    InvalidContainer,
+    InvalidAppearance,
+    InvalidPlacement,
+    TooManyItems,
+    InvalidItem,
+    InvalidExtensionData,
+}
+
+public readonly record struct ProductConfigurationValidationResult(
+    ProductConfigurationError Error)
+{
+    public bool IsValid => Error == ProductConfigurationError.None;
+
+    public static ProductConfigurationValidationResult Valid =>
+        new(ProductConfigurationError.None);
+}
+
+public static class ProductConfigurationValidator
+{
+    public static ProductConfigurationValidationResult Validate(
+        ProductConfigurationDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        if (document.SchemaVersion != ProductConfigurationLimits.CurrentSchemaVersion)
+        {
+            return new(ProductConfigurationError.UnsupportedSchema);
+        }
+
+        if (!IsBoundedText(document.ProfileId, ProductConfigurationLimits.MaximumIdLength)
+            || document.Containers is null)
+        {
+            return new(ProductConfigurationError.InvalidProfile);
+        }
+
+        if (!IsValidExtensionData(
+            document.ExtensionData,
+            "schemaVersion",
+            "profileId",
+            "containers"))
+        {
+            return new(ProductConfigurationError.InvalidExtensionData);
+        }
+
+        if (document.Containers.Count > ProductConfigurationLimits.MaximumContainers)
+        {
+            return new(ProductConfigurationError.TooManyContainers);
+        }
+
+        HashSet<string> objectIds = new(StringComparer.Ordinal);
+        int totalItems = 0;
+
+        foreach (ContainerConfiguration? container in document.Containers)
+        {
+            if (container is null
+                || !IsBoundedText(container.Id, ProductConfigurationLimits.MaximumIdLength)
+                || !IsBoundedText(container.Name, ProductConfigurationLimits.MaximumNameLength)
+                || container.Items is null)
+            {
+                return new(ProductConfigurationError.InvalidContainer);
+            }
+
+            if (!objectIds.Add(container.Id))
+            {
+                return new(ProductConfigurationError.DuplicateObjectId);
+            }
+
+            if (!IsValidExtensionData(
+                container.ExtensionData,
+                "id",
+                "name",
+                "isLocked",
+                "appearance",
+                "placement",
+                "items"))
+            {
+                return new(ProductConfigurationError.InvalidExtensionData);
+            }
+
+            if (!IsValidAppearance(container.Appearance))
+            {
+                return new(ProductConfigurationError.InvalidAppearance);
+            }
+
+            if (!IsValidExtensionData(
+                container.Appearance.ExtensionData,
+                "color",
+                "opacity",
+                "collapsed"))
+            {
+                return new(ProductConfigurationError.InvalidExtensionData);
+            }
+
+            if (!IsValidPlacement(container.Placement))
+            {
+                return new(ProductConfigurationError.InvalidPlacement);
+            }
+
+            if (!IsValidExtensionData(
+                container.Placement.ExtensionData,
+                "displayKey",
+                "xDip",
+                "yDip",
+                "widthDip",
+                "heightDip"))
+            {
+                return new(ProductConfigurationError.InvalidExtensionData);
+            }
+
+            if (container.Items.Count > ProductConfigurationLimits.MaximumItems - totalItems)
+            {
+                return new(ProductConfigurationError.TooManyItems);
+            }
+
+            totalItems += container.Items.Count;
+            foreach (DesktopItemReferenceConfiguration? item in container.Items)
+            {
+                if (!IsValidItem(item))
+                {
+                    return new(ProductConfigurationError.InvalidItem);
+                }
+
+                DesktopItemReferenceConfiguration validItem = item!;
+                if (!IsValidExtensionData(
+                    validItem.ExtensionData,
+                    "id",
+                    "kind",
+                    "target",
+                    "behavior"))
+                {
+                    return new(ProductConfigurationError.InvalidExtensionData);
+                }
+
+                if (!objectIds.Add(validItem.Id))
+                {
+                    return new(ProductConfigurationError.DuplicateObjectId);
+                }
+            }
+        }
+
+        return ProductConfigurationValidationResult.Valid;
+    }
+
+    private static bool IsValidAppearance(ContainerAppearanceConfiguration? appearance) =>
+        appearance is not null
+        && IsRgbColor(appearance.Color)
+        && double.IsFinite(appearance.Opacity)
+        && appearance.Opacity is >= 0 and <= 1;
+
+    private static bool IsValidPlacement(ContainerPlacementConfiguration? placement) =>
+        placement is not null
+        && IsBoundedText(
+            placement.DisplayKey,
+            ProductConfigurationLimits.MaximumDisplayKeyLength)
+        && IsBoundedCoordinate(placement.XDip)
+        && IsBoundedCoordinate(placement.YDip)
+        && double.IsFinite(placement.WidthDip)
+        && placement.WidthDip is >= ProductConfigurationLimits.MinimumContainerWidthDip
+            and <= ProductConfigurationLimits.MaximumContainerDimensionDip
+        && double.IsFinite(placement.HeightDip)
+        && placement.HeightDip is >= ProductConfigurationLimits.MinimumContainerHeightDip
+            and <= ProductConfigurationLimits.MaximumContainerDimensionDip;
+
+    private static bool IsValidItem(DesktopItemReferenceConfiguration? item) =>
+        item is not null
+        && IsBoundedText(item.Id, ProductConfigurationLimits.MaximumIdLength)
+        && IsBoundedText(item.Target, ProductConfigurationLimits.MaximumTargetLength)
+        && Enum.IsDefined(item.Kind)
+        && item.Behavior == ConfigurationItemBehavior.Reference;
+
+    private static bool IsBoundedCoordinate(double value) =>
+        double.IsFinite(value)
+        && Math.Abs(value) <= ProductConfigurationLimits.MaximumAbsoluteCoordinateDip;
+
+    private static bool IsBoundedText(string? value, int maximumLength) =>
+        !string.IsNullOrWhiteSpace(value) && value.Length <= maximumLength;
+
+    private static bool IsRgbColor(string? value)
+    {
+        if (value is null || value.Length != 7 || value[0] != '#')
+        {
+            return false;
+        }
+
+        for (int index = 1; index < value.Length; index++)
+        {
+            if (!Uri.IsHexDigit(value[index]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsValidExtensionData(
+        IDictionary<string, System.Text.Json.JsonElement>? extensionData,
+        params string[] knownPropertyNames)
+    {
+        if (extensionData is null)
+        {
+            return true;
+        }
+
+        if (extensionData.Count > ProductConfigurationLimits.MaximumExtensionPropertiesPerObject)
+        {
+            return false;
+        }
+
+        foreach ((string name, System.Text.Json.JsonElement value) in extensionData)
+        {
+            if (!IsBoundedText(
+                    name,
+                    ProductConfigurationLimits.MaximumExtensionPropertyNameLength)
+                || value.ValueKind == System.Text.Json.JsonValueKind.Undefined
+                || knownPropertyNames.Contains(name, StringComparer.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}
