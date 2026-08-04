@@ -23,6 +23,18 @@ public sealed class ProductConfigurationStoreTests
     }
 
     [Fact]
+    public async Task MissingStoreLoadDoesNotCreateStorageDirectory()
+    {
+        using TemporaryDirectory directory = new(create: false);
+        ProductConfigurationStore store = new(directory.Path);
+
+        ProductConfigurationLoadResult result = await store.LoadAsync();
+
+        Assert.Equal(ProductConfigurationLoadStatus.Missing, result.Status);
+        Assert.False(Directory.Exists(directory.Path));
+    }
+
+    [Fact]
     public async Task FirstSavePublishesValidatedPrimaryWithoutTemporaryFile()
     {
         using TemporaryDirectory directory = new();

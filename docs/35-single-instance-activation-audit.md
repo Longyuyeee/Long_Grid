@@ -48,10 +48,10 @@ Windows App SDK 的 WinUI 应用默认允许多实例。官方当前文档要求
 ## 5. 未关闭风险与下一步
 
 1. 在有真实待保存批次的 5 秒关闭排空窗口中密集启动第二实例，仍需专门竞态矩阵；
-2. `RecoveredFromBackup` / `SafeMode` 恢复 UI 尚未接入；
+2. `RecoveredFromBackup` / `SafeMode` 只读状态 UI 已由后续切片接入，显式修复仍未实现；
 3. 真实产品状态入队、保存失败提示与可恢复重试尚未批准；
 4. I24-01/I24-02 真实专用卷证据仍为 Pending；
 5. 文件关联、URI、通知、插件/小组件激活的 payload 合同尚未定义；
 6. MSIX 身份、升级、注销和多用户/远程会话矩阵仍待安装阶段验证。
 
-因此本切片是 **E3 / Production lifecycle slice pass**，Issue #24 继续保持 OPEN。下一项优先实现配置备份恢复/安全模式 UI；不得把本次匿名启动参数测试描述为文件、插件或小组件协议已兼容。
+因此本切片是 **E3 / Production lifecycle slice pass**，Issue #24 继续保持 OPEN。后续已优先实现配置备份恢复/安全模式的只读状态 UI，下一项是显式修复合同或真实产品状态入队；不得把本次匿名启动参数测试描述为文件、插件或小组件协议已兼容。

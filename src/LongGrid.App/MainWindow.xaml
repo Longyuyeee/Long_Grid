@@ -123,6 +123,7 @@
                             AutomationProperties.Name="概览内容"
                             Spacing="20">
                             <InfoBar
+                                x:Name="ConfigurationRecoveryBanner"
                                 IsClosable="False"
                                 IsOpen="True"
                                 Severity="Informational"

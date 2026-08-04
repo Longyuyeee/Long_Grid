@@ -187,7 +187,9 @@ P0-06 已用独立临时沙箱验证版本化 JSON、同目录 `.new`、`Flush(f
 
 2026-08-04 的后续产品切片已将 latest-wins 协调器放入 `LongGrid.Infrastructure` 并接到 `LongGrid.App` 的 `AppWindow.Closing`：入队时深快照，等待批次只保留最新状态，调用方取消不撤销已接受保存，完成后拒绝新请求；关窗最多等待 5 秒，超时则保留窗口并允许再次排空。当前只读 UI 没有任何 `EnqueueAsync` 入口，启动与正常关闭不会创建配置目录或文件。该接线关闭了 App 排空结构门槛，但不代表真实产品状态已经启用持久化，也不替代单实例、恢复 UI 或真实卷证据。
 
-同日的单实例切片进一步关闭了上述单实例门槛：`LongGrid.App` 禁用 XAML 自动生成入口，在任何窗口或 Store 构造前用 Windows App SDK `AppInstance` 注册固定 key；第二进程只转发完整激活参数并退出。主实例对构造前激活进行进程内排队，并在窗口 `DispatcherQueue` 上恢复最小化状态和激活窗口；正常排空完成后先释放实例 key 再关窗。当前不解释激活 payload，也不将其映射为文件、插件或小组件操作；恢复 UI、真实状态入队、关闭竞态矩阵和真实卷证据仍属后续门槛。
+同日的单实例切片进一步关闭了上述单实例门槛：`LongGrid.App` 禁用 XAML 自动生成入口，在任何窗口或 Store 构造前用 Windows App SDK `AppInstance` 注册固定 key；第二进程只转发完整激活参数并退出。主实例对构造前激活进行进程内排队，并在窗口 `DispatcherQueue` 上恢复最小化状态和激活窗口；正常排空完成后先释放实例 key 再关窗。当前不解释激活 payload，也不将其映射为文件、插件或小组件操作；只读恢复状态 UI 已接入，显式修复、真实状态入队、关闭竞态矩阵和真实卷证据仍属后续门槛。
+
+配置恢复 UI 切片随后把正式 Store 的只读加载接到 App 启动，并通过 Infrastructure 的 `ProductConfigurationStartupState` 去除 Document、路径和原始合同错误后再进入 MainWindow。概览页复用已有 InfoBar 显示 Missing、LoadedPrimary、RecoveredBackupReadOnly 与 SafeMode；恢复和安全模式不触发写入，损坏证据仍由 Store 拒绝普通保存。显式接受备份、归档损坏证据或重置配置仍需独立事务与确认合同。
 
 ## 8. 可观测性
 

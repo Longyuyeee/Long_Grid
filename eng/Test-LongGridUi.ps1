@@ -146,6 +146,14 @@ function Test-SourceContract {
     Assert-Condition (
         $recoveryStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
     ) 'RecoveryPlanStatus must politely announce preview and expiry changes.'
+    $configurationRecoveryNode = $document.SelectSingleNode(
+        "//*[@*[local-name()='Name' and .='ConfigurationRecoveryBanner']]"
+    )
+    Assert-Condition ($null -ne $configurationRecoveryNode) `
+        'The startup configuration state must reuse the overview InfoBar.'
+    Assert-Condition (
+        $configurationRecoveryNode.GetAttribute('IsClosable') -eq 'False'
+    ) 'Configuration recovery warnings must not be dismissible without resolution.'
     $practiceNameNode = Get-XamlNodeByAutomationId $document 'PracticeContainerName'
     Assert-Condition ($practiceNameNode.GetAttribute('MaxLength') -eq '40') `
         'The anonymous practice-container name must remain bounded to 40 characters.'
@@ -246,6 +254,12 @@ function Test-SourceContract {
         'A newer display change must invalidate the anonymous recovery preview.'
     Assert-Condition ($codeBehind -match 'RecoveryPreviewCancelled') `
         'The anonymous recovery preview must expose a no-change cancellation state.'
+    Assert-Condition ($codeBehind -match 'ProductConfigurationStartupMode\.RecoveredBackupReadOnly') `
+        'The UI must distinguish read-only backup recovery from normal loading.'
+    Assert-Condition ($codeBehind -match 'ProductConfigurationStartupMode\.SafeMode') `
+        'The UI must expose configuration safe mode as a separate state.'
+    Assert-Condition (-not ($codeBehind -match 'PrimaryContractError|BackupContractError')) `
+        'The UI must not expose raw configuration contract diagnostics.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*CurrentModeValue') `
         'The current runtime mode must expose a machine-readable UIA status.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*FileOperationValue') `
@@ -279,6 +293,10 @@ function Test-SourceContract {
 
     Assert-Condition ($appCode -match 'ProductConfigurationSaveCoordinator') `
         'The App must own the formal product configuration save coordinator.'
+    Assert-Condition ($appCode -match 'configurationStore\.LoadAsync') `
+        'The App must read the formal configuration result before presenting recovery state.'
+    Assert-Condition ($appCode -match 'ProductConfigurationStartupState\.FromLoadResult') `
+        'The App must reduce storage results to the finite recovery presentation contract.'
     Assert-Condition ($appCode -match 'AppWindow\.Closing\s*\+=') `
         'The App must intercept window closing before configuration drain.'
     Assert-Condition ($appCode -match 'ShutdownDrainTimeout\s*=\s*TimeSpan\.FromSeconds\(5\)') `
@@ -302,6 +320,7 @@ function Test-SourceContract {
         coreRuntimeStatus = 'development-read-only'
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
+        configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
         configurationShutdownDrain = 'bounded-zero-write-retry'
         readOnlyBoundary = 'pass'
     }

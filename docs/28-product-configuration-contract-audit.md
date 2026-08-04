@@ -46,7 +46,7 @@ Core 测试覆盖：合法往返、camelCase 枚举、五层未知字段保留�
 - `LongGrid.Infrastructure` 首个原子存储适配器已经建立，并已通过 latest-wins 协调器接入 App 有界关闭排空；
 - `.new`/flush/校验/replace/backup、安全模式与写租约已有正式自动证据；强杀、权限和故障注入矩阵仍由独立 probe 承担；
 - 真实卷空间耗尽、只读卷、断电与非 NTFS 环境仍 Pending；
-- 应用关闭排空与单实例激活已有首个生产切片证据；导入/导出和恢复 UI 留在后续切片；
+- 应用关闭排空、单实例激活与只读恢复状态 UI 已有生产切片证据；导入/导出和显式修复留在后续切片；
 - v2 迁移必须等真实新增字段出现后实现，不以 probe 的 `persistenceProbe` 假字段代替；
 - D23 已把托管移动、规则执行和未验证支持范围移出首发；这些能力不进入 v1。
 
@@ -58,10 +58,10 @@ Core 测试覆盖：合法往返、camelCase 枚举、五层未知字段保留�
 
 ## 7. 下一动作
 
-首个 `LongGrid.Infrastructure` 适配器、latest-wins/App 有界关闭排空及完整单实例激活已建立；下一步是恢复 UI 与真实产品状态的显式入队。专用环境真实卷矩阵可独立执行，全部证据链完成后才能关闭 Issue #24。正式程序集继续不得引用或改名发布 spike 程序集。
+首个 `LongGrid.Infrastructure` 适配器、latest-wins/App 有界关闭排空、完整单实例和只读恢复状态 UI 已建立；下一步是显式修复与真实产品状态入队。专用环境真实卷矩阵可独立执行，全部证据链完成后才能关闭 Issue #24。正式程序集继续不得引用或改名发布 spike 程序集。
 
 ## 8. 2026-08-04 正式存储增量
 
 `LongGrid.Infrastructure.Configuration.ProductConfigurationStore` 已成为首个正式产品存储适配器。它没有引用 Spike 程序集，而是直接调用 `ProductConfigurationJson`，因此写入前、暂存复读和加载后的文档都服从同一 v1 资源预算与有限错误合同。
 
-当前自动证据覆盖：首次原子发布、第二次替换保留上一版备份、损坏主文件回退备份、主备均不可用时进入安全模式、普通保存拒绝覆盖损坏证据、跨进程文件租约有界超时与调用方取消、I/O 错误不在公开异常中泄露路径、latest-wins/关闭排空合同及单实例源码合同；本机另有真实双进程转发和最小化恢复证据。该增量允许产品代码依赖正式 Infrastructure 与 AppLifecycle 边界，但不改变 I24-01/I24-02 的 `PendingDedicatedEnvironmentEvidence`，也不代表恢复 UI、真实断电或非 NTFS 耐久性已经完成。
+当前自动证据覆盖：首次原子发布、第二次替换保留上一版备份、损坏主文件回退备份、主备均不可用时进入安全模式、普通保存拒绝覆盖损坏证据、跨进程文件租约有界超时与调用方取消、I/O 错误不在公开异常中泄露路径、latest-wins/关闭排空合同、单实例源码合同及四态只读恢复 UI 合同；本机另有真实双进程转发和最小化恢复证据。该增量允许产品代码依赖正式 Infrastructure 与 AppLifecycle 边界，但不改变 I24-01/I24-02 的 `PendingDedicatedEnvironmentEvidence`，也不代表显式修复、真实断电或非 NTFS 耐久性已经完成。
