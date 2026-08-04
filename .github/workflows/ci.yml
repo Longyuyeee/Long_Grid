@@ -73,6 +73,16 @@ jobs:
           -File ./eng/Start-Issue24PersistenceBoundarySession.ps1
           -ValidateOnly
 
+      - name: Validate DesktopHost Unicode and interactive slice contract
+        run: >-
+          dotnet run
+          --project probes/LongGrid.Spikes.DesktopHostWindowModels
+          --configuration Release
+          --no-build
+          --
+          --interactive-slice-smoke
+          --json
+
       - name: Validate UI automation contract
         shell: powershell
         run: >-

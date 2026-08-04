@@ -83,7 +83,10 @@ internal static class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool UnregisterClass(string className, nint instance);
 
-    [DllImport("user32.dll")]
+    [DllImport(
+        "user32.dll",
+        EntryPoint = "DefWindowProcW",
+        ExactSpelling = true)]
     internal static extern nint DefWindowProc(
         nint window,
         uint message,
@@ -242,7 +245,52 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     internal static extern void PostQuitMessage(int exitCode);
 
-    [DllImport("user32.dll", SetLastError = true)]
+    [DllImport(
+        "user32.dll",
+        EntryPoint = "GetWindowTextLengthW",
+        ExactSpelling = true,
+        SetLastError = true)]
+    internal static extern int GetWindowTextLength(nint window);
+
+    [DllImport(
+        "user32.dll",
+        EntryPoint = "GetWindowTextW",
+        ExactSpelling = true,
+        SetLastError = true)]
+    internal static extern int GetWindowText(
+        nint window,
+        nint text,
+        int maximumCount);
+
+    internal static string ReadWindowText(nint window)
+    {
+        int length = GetWindowTextLength(window);
+        if (length <= 0)
+        {
+            return string.Empty;
+        }
+
+        int maximumCount = checked(length + 1);
+        nint text = Marshal.AllocHGlobal(
+            checked(maximumCount * sizeof(char)));
+        try
+        {
+            int copied = GetWindowText(window, text, maximumCount);
+            return copied > 0
+                ? Marshal.PtrToStringUni(text, copied)
+                : string.Empty;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(text);
+        }
+    }
+
+    [DllImport(
+        "user32.dll",
+        EntryPoint = "GetMessageW",
+        ExactSpelling = true,
+        SetLastError = true)]
     internal static extern int GetMessage(
         out WindowMessage message,
         nint window,
@@ -254,7 +302,10 @@ internal static class NativeMethods
     internal static extern bool TranslateMessage(
         ref WindowMessage message);
 
-    [DllImport("user32.dll")]
+    [DllImport(
+        "user32.dll",
+        EntryPoint = "DispatchMessageW",
+        ExactSpelling = true)]
     internal static extern nint DispatchMessage(
         ref WindowMessage message);
 
@@ -330,7 +381,9 @@ internal static class NativeMethods
         uint color);
 }
 
-[UnmanagedFunctionPointer(CallingConvention.Winapi)]
+[UnmanagedFunctionPointer(
+    CallingConvention.Winapi,
+    CharSet = CharSet.Unicode)]
 internal delegate nint WindowProcedure(
     nint window,
     uint message,
