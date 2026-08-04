@@ -123,6 +123,7 @@ public sealed class ProductConfigurationStoreTests
             ProductConfigurationRecoveryAction.AcceptValidatedBackup,
             result.Action);
         Assert.True(result.DamagedPrimaryArchived);
+        Assert.False(result.DamagedBackupArchived);
         Assert.Equal(ProductConfigurationLoadStatus.LoadedPrimary, loaded.Status);
         Assert.Equivalent(previous, loaded.Document, strict: true);
         Assert.Equal(backup, await File.ReadAllBytesAsync(store.BackupPath));
@@ -270,6 +271,186 @@ public sealed class ProductConfigurationStoreTests
                 new((ProductConfigurationRecoveryAction)999, UserConfirmed: true)));
 
         Assert.False(Directory.Exists(directory.Path));
+    }
+
+    [Fact]
+    public async Task ConfirmedSafeModeResetArchivesBothDamagedFilesAndPublishesEmptyDefault()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        byte[] damagedPrimary = Encoding.UTF8.GetBytes("{ damaged-primary");
+        byte[] damagedBackup = Encoding.UTF8.GetBytes("{ damaged-backup");
+        await File.WriteAllBytesAsync(store.PrimaryPath, damagedPrimary);
+        await File.WriteAllBytesAsync(store.BackupPath, damagedBackup);
+
+        ProductConfigurationRecoveryResult result = await store.RecoverAsync(
+            new(
+                ProductConfigurationRecoveryAction.ResetSafeMode,
+                UserConfirmed: true));
+
+        ProductConfigurationLoadResult loaded = await store.LoadAsync();
+        string primaryArchive = Assert.Single(
+            Directory.GetFiles(directory.Path, "configuration.json.damaged.*.primary"));
+        string backupArchive = Assert.Single(
+            Directory.GetFiles(directory.Path, "configuration.json.damaged.*.backup"));
+        Assert.Equal(ProductConfigurationRecoveryAction.ResetSafeMode, result.Action);
+        Assert.True(result.DamagedPrimaryArchived);
+        Assert.True(result.DamagedBackupArchived);
+        Assert.Equal(ProductConfigurationLoadStatus.LoadedPrimary, loaded.Status);
+        Assert.Equivalent(
+            ProductConfigurationDefaults.CreateEmpty(),
+            loaded.Document,
+            strict: true);
+        Assert.Equal(damagedPrimary, await File.ReadAllBytesAsync(primaryArchive));
+        Assert.Equal(damagedBackup, await File.ReadAllBytesAsync(backupArchive));
+        Assert.False(File.Exists(store.BackupPath));
+        Assert.False(File.Exists(store.PrimaryPath + ".recovery.new"));
+    }
+
+    [Fact]
+    public async Task SafeModeResetArchivesOnlyExistingPrimaryEvidence()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        byte[] damagedPrimary = Encoding.UTF8.GetBytes("{ damaged-primary");
+        await File.WriteAllBytesAsync(store.PrimaryPath, damagedPrimary);
+
+        ProductConfigurationRecoveryResult result = await store.RecoverAsync(
+            new(
+                ProductConfigurationRecoveryAction.ResetSafeMode,
+                UserConfirmed: true));
+
+        Assert.True(result.DamagedPrimaryArchived);
+        Assert.False(result.DamagedBackupArchived);
+        Assert.Single(
+            Directory.GetFiles(directory.Path, "configuration.json.damaged.*.primary"));
+        Assert.Empty(
+            Directory.GetFiles(directory.Path, "configuration.json.damaged.*.backup"));
+        Assert.Equal(
+            ProductConfigurationLoadStatus.LoadedPrimary,
+            (await store.LoadAsync()).Status);
+    }
+
+    [Fact]
+    public async Task SafeModeResetArchivesOnlyExistingBackupEvidence()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        byte[] damagedBackup = Encoding.UTF8.GetBytes("{ damaged-backup");
+        await File.WriteAllBytesAsync(store.BackupPath, damagedBackup);
+
+        ProductConfigurationRecoveryResult result = await store.RecoverAsync(
+            new(
+                ProductConfigurationRecoveryAction.ResetSafeMode,
+                UserConfirmed: true));
+
+        Assert.False(result.DamagedPrimaryArchived);
+        Assert.True(result.DamagedBackupArchived);
+        Assert.Empty(
+            Directory.GetFiles(directory.Path, "configuration.json.damaged.*.primary"));
+        string backupArchive = Assert.Single(
+            Directory.GetFiles(directory.Path, "configuration.json.damaged.*.backup"));
+        Assert.Equal(damagedBackup, await File.ReadAllBytesAsync(backupArchive));
+        Assert.Equal(
+            ProductConfigurationLoadStatus.LoadedPrimary,
+            (await store.LoadAsync()).Status);
+    }
+
+    [Fact]
+    public async Task SafeModeResetWithoutConfirmationMakesNoChanges()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        byte[] damagedPrimary = Encoding.UTF8.GetBytes("{ damaged-primary");
+        await File.WriteAllBytesAsync(store.PrimaryPath, damagedPrimary);
+
+        ProductConfigurationRecoveryException exception = await Assert.ThrowsAsync<
+            ProductConfigurationRecoveryException>(
+            () => store.RecoverAsync(
+                new(
+                    ProductConfigurationRecoveryAction.ResetSafeMode,
+                    UserConfirmed: false)));
+
+        Assert.Equal(
+            ProductConfigurationRecoveryError.ConfirmationRequired,
+            exception.Error);
+        Assert.Equal(damagedPrimary, await File.ReadAllBytesAsync(store.PrimaryPath));
+        Assert.Empty(Directory.GetFiles(directory.Path, "configuration.json.damaged.*"));
+        Assert.False(File.Exists(store.WriteLeasePath));
+    }
+
+    [Fact]
+    public async Task SafeModeResetIsRejectedOutsideSafeMode()
+    {
+        using TemporaryDirectory directory = new(create: false);
+        ProductConfigurationStore store = new(directory.Path);
+
+        ProductConfigurationRecoveryException exception = await Assert.ThrowsAsync<
+            ProductConfigurationRecoveryException>(
+            () => store.RecoverAsync(
+                new(
+                    ProductConfigurationRecoveryAction.ResetSafeMode,
+                    UserConfirmed: true)));
+
+        Assert.Equal(
+            ProductConfigurationRecoveryError.RecoveryNotAvailable,
+            exception.Error);
+        Assert.False(Directory.Exists(directory.Path));
+    }
+
+    [Fact]
+    public async Task InterruptedSafeModeResetMarkerPreventsMissingStateAndCanResume()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        await File.WriteAllBytesAsync(
+            store.PrimaryPath + ".recovery.new",
+            ProductConfigurationJson.SerializeToUtf8Bytes(
+                ProductConfigurationDefaults.CreateEmpty()));
+
+        ProductConfigurationLoadResult result = await store.LoadAsync();
+
+        Assert.Equal(ProductConfigurationLoadStatus.SafeMode, result.Status);
+        Assert.Equal(ProductConfigurationStorageFailure.Missing, result.PrimaryFailure);
+        Assert.Equal(ProductConfigurationStorageFailure.Missing, result.BackupFailure);
+
+        ProductConfigurationRecoveryResult resumed = await store.RecoverAsync(
+            new(
+                ProductConfigurationRecoveryAction.ResetSafeMode,
+                UserConfirmed: true));
+
+        Assert.False(resumed.DamagedPrimaryArchived);
+        Assert.False(resumed.DamagedBackupArchived);
+        Assert.Equal(
+            ProductConfigurationLoadStatus.LoadedPrimary,
+            (await store.LoadAsync()).Status);
+        Assert.False(File.Exists(store.PrimaryPath + ".recovery.new"));
+    }
+
+    [Fact]
+    public async Task SafeModeResetRollsBackBackupMoveWhenPrimaryPublishFails()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        Directory.CreateDirectory(store.PrimaryPath);
+        byte[] damagedBackup = Encoding.UTF8.GetBytes("{ damaged-backup");
+        await File.WriteAllBytesAsync(store.BackupPath, damagedBackup);
+
+        ProductConfigurationRecoveryException exception = await Assert.ThrowsAsync<
+            ProductConfigurationRecoveryException>(
+            () => store.RecoverAsync(
+                new(
+                    ProductConfigurationRecoveryAction.ResetSafeMode,
+                    UserConfirmed: true)));
+
+        Assert.Equal(ProductConfigurationRecoveryError.IoFailure, exception.Error);
+        Assert.Equal(damagedBackup, await File.ReadAllBytesAsync(store.BackupPath));
+        Assert.Empty(
+            Directory.GetFiles(directory.Path, "configuration.json.damaged.*.backup"));
+        Assert.False(File.Exists(store.PrimaryPath + ".recovery.new"));
+        Assert.Equal(
+            ProductConfigurationLoadStatus.SafeMode,
+            (await store.LoadAsync()).Status);
     }
 
     [Fact]

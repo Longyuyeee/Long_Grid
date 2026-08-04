@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期 `LongGrid.App` UI Shell、Design Token、品牌 RC1、一键启动链、UI 自动化、响应式布局、Core 只读状态合同，以及首次整理、匿名容器、三个匿名引用、拖放语义、两步撤销和匿名恢复差异原型已建立，但不接真实桌面、Explorer 拖放、显示拓扑、DesktopHost、普通产品状态自动持久化或桌面文件操作；配置边界只允许用户二次确认后接受已验证备份并归档损坏主配置，不能视为正式 MVP。Issue #23 的 D23-01–D23-10 首发范围已获负责人批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
+> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期 `LongGrid.App` UI Shell、Design Token、品牌 RC1、一键启动链、UI 自动化、响应式布局、Core 只读状态合同，以及首次整理、匿名容器、三个匿名引用、拖放语义、两步撤销和匿名恢复差异原型已建立，但不接真实桌面、Explorer 拖放、显示拓扑、DesktopHost、普通产品状态自动持久化或桌面文件操作；配置边界只允许用户二次确认后接受已验证备份，或在 SafeMode 中归档现存损坏主备证据并创建空白配置，不能视为正式 MVP。Issue #23 的 D23-01–D23-10 首发范围已获负责人批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
 
 ## 产品原则
 
@@ -53,6 +53,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格单实例激活与参数转发审计](docs/35-single-instance-activation-audit.md)
 - [Long方格配置恢复状态 UI 审计](docs/36-configuration-recovery-ui-audit.md)
 - [Long方格已验证备份接受与损坏证据归档审计](docs/37-validated-backup-acceptance-audit.md)
+- [Long方格 SafeMode 安全重置与证据事务审计](docs/38-safe-mode-reset-audit.md)
 - [正式产品配置存储适配器审计](docs/33-product-configuration-store-audit.md)
 - [配置 latest-wins 与 App 关闭排空审计](docs/34-configuration-shutdown-drain-audit.md)
 - [贡献指南](CONTRIBUTING.md)
@@ -66,7 +67,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 的首发范围已经批准，下一步完成 5 人验证，并执行 #19 人工输入/Narrator/系统表面矩阵和 #20 动态显示硬件矩阵；#21–#22 已按 Windows 11 x64、安全引用与类型图标回退范围关闭，#24 已具备正式配置存储、latest-wins 关闭排空、完整单实例激活、只读恢复状态 UI、显式接受已验证备份和专用环境安全会话入口，仍需 SafeMode 安全重置、真实产品状态入队与真实测试卷结果。许可证选择延期到正式分发或接受外部贡献之前。
+按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 的首发范围已经批准，下一步完成 5 人验证，并执行 #19 人工输入/Narrator/系统表面矩阵和 #20 动态显示硬件矩阵；#21–#22 已按 Windows 11 x64、安全引用与类型图标回退范围关闭，#24 已具备正式配置存储、latest-wins 关闭排空、完整单实例激活、恢复状态 UI、显式接受已验证备份、SafeMode 空白安全重置和专用环境安全会话入口，仍需外部配置导入合同、真实产品状态入队与真实测试卷结果。许可证选择延期到正式分发或接受外部贡献之前。
 
 ## 开发启动
 

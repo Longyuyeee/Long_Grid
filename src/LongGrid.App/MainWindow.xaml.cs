@@ -20,13 +20,18 @@ public sealed partial class MainWindow : Window
     private bool _initialSizeApplied;
     private string _organizationStartChoice = "suggested";
     private bool _practiceItemsAdded;
-    private readonly Func<Task<ProductConfigurationStartupState>> _acceptRecoveredBackup;
+    private ProductConfigurationStartupMode _configurationStartupMode;
+    private readonly Func<
+        ProductConfigurationRecoveryAction,
+        Task<ProductConfigurationStartupState>> _recoverConfiguration;
 
     public MainWindow(
-        Func<Task<ProductConfigurationStartupState>> acceptRecoveredBackup)
+        Func<
+            ProductConfigurationRecoveryAction,
+            Task<ProductConfigurationStartupState>> recoverConfiguration)
     {
-        ArgumentNullException.ThrowIfNull(acceptRecoveredBackup);
-        _acceptRecoveredBackup = acceptRecoveredBackup;
+        ArgumentNullException.ThrowIfNull(recoverConfiguration);
+        _recoverConfiguration = recoverConfiguration;
         InitializeComponent();
         RootLayout.Loaded += RootLayout_Loaded;
         RootLayout.SizeChanged += RootLayout_SizeChanged;
@@ -244,8 +249,9 @@ public sealed partial class MainWindow : Window
         ProductConfigurationStartupState state)
     {
         ArgumentNullException.ThrowIfNull(state);
-        AcceptRecoveredBackupButton.Visibility = Visibility.Collapsed;
-        AcceptRecoveredBackupButton.IsEnabled = true;
+        _configurationStartupMode = state.Mode;
+        ConfigurationRecoveryActionButton.Visibility = Visibility.Collapsed;
+        ConfigurationRecoveryActionButton.IsEnabled = true;
 
         AutomationProperties.SetItemStatus(
             ConfigurationRecoveryBanner,
@@ -271,7 +277,11 @@ public sealed partial class MainWindow : Window
                 ConfigurationRecoveryBanner.Message =
                     $"主配置{DescribeConfigurationFailure(state.PrimaryFailure)}。" +
                     "Long方格已采用上次有效备份，但不会自动覆盖损坏证据。";
-                AcceptRecoveredBackupButton.Visibility = Visibility.Visible;
+                ConfigurationRecoveryActionButton.Content = "检查并接受备份";
+                AutomationProperties.SetName(
+                    ConfigurationRecoveryActionButton,
+                    "检查并接受已验证备份");
+                ConfigurationRecoveryActionButton.Visibility = Visibility.Visible;
                 break;
             case ProductConfigurationStartupMode.SafeMode:
                 ConfigurationRecoveryBanner.Severity = InfoBarSeverity.Error;
@@ -280,27 +290,49 @@ public sealed partial class MainWindow : Window
                     $"主配置{DescribeConfigurationFailure(state.PrimaryFailure)}，" +
                     $"备份{DescribeConfigurationFailure(state.BackupFailure)}。" +
                     "当前没有加载或覆盖任何配置；请查看“安全边界”页。";
+                ConfigurationRecoveryActionButton.Content = "检查安全重置";
+                AutomationProperties.SetName(
+                    ConfigurationRecoveryActionButton,
+                    "检查配置安全重置");
+                ConfigurationRecoveryActionButton.Visibility = Visibility.Visible;
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(state));
         }
     }
 
-    private async void AcceptRecoveredBackupButton_Click(
+    private async void ConfigurationRecoveryActionButton_Click(
         object sender,
         RoutedEventArgs e)
     {
-        AcceptRecoveredBackupButton.IsEnabled = false;
+        ConfigurationRecoveryActionButton.IsEnabled = false;
         try
         {
+            ProductConfigurationRecoveryAction action = _configurationStartupMode switch
+            {
+                ProductConfigurationStartupMode.RecoveredBackupReadOnly =>
+                    ProductConfigurationRecoveryAction.AcceptValidatedBackup,
+                ProductConfigurationStartupMode.SafeMode =>
+                    ProductConfigurationRecoveryAction.ResetSafeMode,
+                _ => throw new ProductConfigurationRecoveryException(
+                    ProductConfigurationRecoveryError.RecoveryNotAvailable),
+            };
+            bool resettingSafeMode =
+                action is ProductConfigurationRecoveryAction.ResetSafeMode;
             ContentDialog confirmation = new()
             {
                 XamlRoot = RootLayout.XamlRoot,
-                Title = "接受已验证备份？",
-                Content =
-                    "Long方格将把当前损坏主配置归档为独立证据，并把已经通过校验的备份设为主配置。" +
-                    "原备份不会删除；此操作会写入配置目录，且不能在 Long方格内自动撤销。",
-                PrimaryButtonText = "确认接受备份",
+                Title = resettingSafeMode
+                    ? "重置为空白安全配置？"
+                    : "接受已验证备份？",
+                Content = resettingSafeMode
+                    ? "Long方格将先把现有损坏主配置和备份分别归档为独立证据，再创建不含容器或桌面项目的空白配置。" +
+                        "此操作会写入配置目录，且不能在 Long方格内自动撤销。"
+                    : "Long方格将把当前损坏主配置归档为独立证据，并把已经通过校验的备份设为主配置。" +
+                        "原备份不会删除；此操作会写入配置目录，且不能在 Long方格内自动撤销。",
+                PrimaryButtonText = resettingSafeMode
+                    ? "确认安全重置"
+                    : "确认接受备份",
                 CloseButtonText = "取消",
                 DefaultButton = ContentDialogButton.Close,
             };
@@ -313,22 +345,29 @@ public sealed partial class MainWindow : Window
 
             AutomationProperties.SetItemStatus(
                 ConfigurationRecoveryBanner,
-                "BackupAcceptanceInProgress");
-            ProductConfigurationStartupState state = await _acceptRecoveredBackup();
+                resettingSafeMode
+                    ? "SafeModeResetInProgress"
+                    : "BackupAcceptanceInProgress");
+            ProductConfigurationStartupState state = await _recoverConfiguration(action);
             ApplyConfigurationStartupState(state);
             ConfigurationRecoveryBanner.Severity = InfoBarSeverity.Success;
-            ConfigurationRecoveryBanner.Title = "已接受备份";
-            ConfigurationRecoveryBanner.Message =
-                "已验证备份现在是主配置；原损坏主配置已作为独立证据保留，原备份未删除。";
+            ConfigurationRecoveryBanner.Title = resettingSafeMode
+                ? "已创建空白安全配置"
+                : "已接受备份";
+            ConfigurationRecoveryBanner.Message = resettingSafeMode
+                ? "空白配置已通过校验；原有损坏主配置和备份均已按实际存在情况分别保留为证据。"
+                : "已验证备份现在是主配置；原损坏主配置已作为独立证据保留，原备份未删除。";
             AutomationProperties.SetItemStatus(
                 ConfigurationRecoveryBanner,
-                "BackupAccepted:DamagedPrimaryArchived");
+                resettingSafeMode
+                    ? "SafeModeReset:DamagedEvidenceArchived"
+                    : "BackupAccepted:DamagedPrimaryArchived");
         }
         catch (ProductConfigurationRecoveryException exception)
         {
             if (exception.Error is ProductConfigurationRecoveryError.RecoveryNotAvailable)
             {
-                AcceptRecoveredBackupButton.Visibility = Visibility.Collapsed;
+                ConfigurationRecoveryActionButton.Visibility = Visibility.Collapsed;
             }
 
             ConfigurationRecoveryBanner.Severity = InfoBarSeverity.Error;
@@ -340,7 +379,7 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
-            AcceptRecoveredBackupButton.IsEnabled = true;
+            ConfigurationRecoveryActionButton.IsEnabled = true;
         }
     }
 
@@ -354,8 +393,8 @@ public sealed partial class MainWindow : Window
             ProductConfigurationRecoveryError.WriteLeaseUnavailable =>
                 "其他 Long方格进程正在使用配置，没有执行写入；请稍后重试。",
             ProductConfigurationRecoveryError.IoFailure =>
-                "暂时无法安全写入配置，没有自动删除或重置任何文件。",
-            _ => "恢复操作未完成，没有自动删除或重置任何文件。",
+                "暂时无法安全完成配置操作；损坏证据没有被静默丢弃，请稍后重试。",
+            _ => "配置操作未完成；损坏证据没有被静默丢弃。",
         };
 
     private static string DescribeConfigurationFailure(

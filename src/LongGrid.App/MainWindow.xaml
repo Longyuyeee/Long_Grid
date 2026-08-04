@@ -131,10 +131,10 @@
                                 Message="当前界面不扫描真实桌面、不移动文件，也不连接 DesktopHost。">
                                 <InfoBar.ActionButton>
                                     <Button
-                                        x:Name="AcceptRecoveredBackupButton"
-                                        AutomationProperties.AutomationId="AcceptRecoveredBackupButton"
+                                        x:Name="ConfigurationRecoveryActionButton"
+                                        AutomationProperties.AutomationId="ConfigurationRecoveryActionButton"
                                         AutomationProperties.Name="检查并接受已验证备份"
-                                        Click="AcceptRecoveredBackupButton_Click"
+                                        Click="ConfigurationRecoveryActionButton_Click"
                                         Content="检查并接受备份"
                                         Visibility="Collapsed" />
                                 </InfoBar.ActionButton>

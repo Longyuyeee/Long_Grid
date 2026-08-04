@@ -27,7 +27,7 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        window = new MainWindow(AcceptRecoveredBackupAsync);
+        window = new MainWindow(RecoverConfigurationAsync);
         window.AppWindow.Closing += AppWindow_Closing;
         window.Activate();
         _ = LoadConfigurationStartupStateAsync();
@@ -48,11 +48,12 @@ public partial class App : Application
             ProductConfigurationStartupState.FromLoadResult(loadResult));
     }
 
-    private async Task<ProductConfigurationStartupState> AcceptRecoveredBackupAsync()
+    private async Task<ProductConfigurationStartupState> RecoverConfigurationAsync(
+        ProductConfigurationRecoveryAction action)
     {
         await configurationStore.RecoverAsync(
             new(
-                ProductConfigurationRecoveryAction.AcceptValidatedBackup,
+                action,
                 UserConfirmed: true));
         ProductConfigurationLoadResult loadResult =
             await configurationStore.LoadAsync();

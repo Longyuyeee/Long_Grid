@@ -4,7 +4,7 @@
 
 基线：`main` / `fe13041` + Issue #24 备份接受增量分支
 
-结论：**Explicit backup acceptance pass / SafeMode reset not implemented / Real-volume evidence pending / Issue #24 保持 OPEN**
+结论（本历史切片当时）：**Explicit backup acceptance pass / SafeMode reset not implemented in this slice / Real-volume evidence pending / Issue #24 保持 OPEN**。SafeMode 空白安全重置已由后续切片完成，当前状态见 [`38-safe-mode-reset-audit.md`](38-safe-mode-reset-audit.md)。
 
 ## 1. 本轮目标与范围
 
@@ -65,7 +65,7 @@
 
 Issue #24 仍需：
 
-1. SafeMode 下经确认的安全重置或导入流程，以及多份损坏证据的保留/清理策略；
+1. SafeMode 下经确认的空白安全重置已由后续切片完成；仍需外部导入流程，以及多份损坏证据的查看/导出/保留/清理策略；
 2. 经批准的真实产品状态保存入队、保存错误提示与重试；
 3. 真实待保存/恢复写入期间的第二实例激活和关闭排空竞态矩阵；
 4. I24-01/I24-02 专用卷真实证据；
