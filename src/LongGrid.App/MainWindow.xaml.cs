@@ -1,6 +1,7 @@
 using LongGrid.Core.DesktopHost;
 using LongGrid.Core.FileOperations;
 using LongGrid.Core.Runtime;
+using LongGrid.Infrastructure.Configuration;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -234,6 +235,61 @@ public sealed partial class MainWindow : Window
         AppearancePanel.Visibility = tag == "appearance" ? Visibility.Visible : Visibility.Collapsed;
         SafetyPanel.Visibility = tag == "safety" ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    internal void ApplyConfigurationStartupState(
+        ProductConfigurationStartupState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+
+        AutomationProperties.SetItemStatus(
+            ConfigurationRecoveryBanner,
+            $"{state.Mode}:{state.PrimaryFailure}:{state.BackupFailure}");
+
+        switch (state.Mode)
+        {
+            case ProductConfigurationStartupMode.NoSavedConfiguration:
+                ConfigurationRecoveryBanner.Severity = InfoBarSeverity.Informational;
+                ConfigurationRecoveryBanner.Title = "尚无保存配置";
+                ConfigurationRecoveryBanner.Message =
+                    "本次启动没有创建配置目录或文件；当前继续使用安全只读界面。";
+                break;
+            case ProductConfigurationStartupMode.LoadedPrimary:
+                ConfigurationRecoveryBanner.Severity = InfoBarSeverity.Success;
+                ConfigurationRecoveryBanner.Title = "配置已安全读取";
+                ConfigurationRecoveryBanner.Message =
+                    "配置内容已通过校验；当前开发期界面仍不会自动写回或移动文件。";
+                break;
+            case ProductConfigurationStartupMode.RecoveredBackupReadOnly:
+                ConfigurationRecoveryBanner.Severity = InfoBarSeverity.Warning;
+                ConfigurationRecoveryBanner.Title = "已从备份只读恢复设置";
+                ConfigurationRecoveryBanner.Message =
+                    $"主配置{DescribeConfigurationFailure(state.PrimaryFailure)}。" +
+                    "Long方格已采用上次有效备份，但不会自动覆盖损坏证据。";
+                break;
+            case ProductConfigurationStartupMode.SafeMode:
+                ConfigurationRecoveryBanner.Severity = InfoBarSeverity.Error;
+                ConfigurationRecoveryBanner.Title = "已进入配置安全模式";
+                ConfigurationRecoveryBanner.Message =
+                    $"主配置{DescribeConfigurationFailure(state.PrimaryFailure)}，" +
+                    $"备份{DescribeConfigurationFailure(state.BackupFailure)}。" +
+                    "当前没有加载或覆盖任何配置；请查看“安全边界”页。";
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(state));
+        }
+    }
+
+    private static string DescribeConfigurationFailure(
+        ProductConfigurationStorageFailure failure) => failure switch
+        {
+            ProductConfigurationStorageFailure.None => "可用",
+            ProductConfigurationStorageFailure.Missing => "不存在",
+            ProductConfigurationStorageFailure.Empty => "为空",
+            ProductConfigurationStorageFailure.TooLarge => "超出安全大小上限",
+            ProductConfigurationStorageFailure.InvalidConfiguration => "未通过内容校验",
+            ProductConfigurationStorageFailure.IoFailure => "暂时无法读取",
+            _ => "处于未知状态",
+        };
 
     private void StartChoice_Click(object sender, RoutedEventArgs e)
     {

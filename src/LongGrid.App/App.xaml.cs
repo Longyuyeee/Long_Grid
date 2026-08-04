@@ -8,6 +8,7 @@ namespace LongGrid.App;
 public partial class App : Application
 {
     private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(5);
+    private readonly ProductConfigurationStore configurationStore;
     private readonly ProductConfigurationSaveCoordinator configurationSaves;
     private MainWindow? window;
     private bool closeAfterDrain;
@@ -20,8 +21,8 @@ public partial class App : Application
         string configurationDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LongGrid");
-        configurationSaves = new(
-            new ProductConfigurationStore(configurationDirectory));
+        configurationStore = new ProductConfigurationStore(configurationDirectory);
+        configurationSaves = new(configurationStore);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -29,12 +30,22 @@ public partial class App : Application
         window = new MainWindow();
         window.AppWindow.Closing += AppWindow_Closing;
         window.Activate();
+        _ = LoadConfigurationStartupStateAsync();
 
         if (activationPending)
         {
             activationPending = false;
             ActivateMainWindow();
         }
+    }
+
+    private async Task LoadConfigurationStartupStateAsync()
+    {
+        await Task.Yield();
+        ProductConfigurationLoadResult loadResult =
+            await configurationStore.LoadAsync();
+        window?.ApplyConfigurationStartupState(
+            ProductConfigurationStartupState.FromLoadResult(loadResult));
     }
 
     internal void HandleActivation(AppActivationArguments activation)
