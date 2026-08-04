@@ -47,9 +47,10 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] Issue #19 匿名人工矩阵会话入口、单场景运行手册和 CI `PendingManualEvidence` 安全合同（Ready to execute；I19-01–I19-10 真实人工结果仍 Pending）。
 - [x] Issue #19 原生 Unicode 窗口标题边界：默认窗口过程/消息循环统一使用 `W` 入口，interactive smoke 增加完整标题回读门禁（I19-01 外部工具尝试仍 Inconclusive，不替代真人输入）。
 - [x] P0-06 版本化配置、同目录暂存、落盘校验、原子替换、备份恢复、安全模式、四检查点共 1,000 次及 ACL 生效期间子进程强杀、跨进程单写租约、有界可取消退避与具备入队快照/有界排空的 latest-wins 保存协调、确定性 v1→v2 示例迁移回滚、四类只读文件恢复、受控磁盘满注入及权限语义（Conditional Pass；Phase 0 仍缺断电、真实卷空间耗尽/只读和跨进程公平性）。
-- [x] Issue #24 正式 Core 配置 v1 合同、只读 reference 行为、未知字段保留、有限验证错误和 JSON 资源预算（Partial；正式存储/排空见后续项，真实卷和单实例仍 Pending）。
-- [x] Issue #24 首个正式 Infrastructure 配置存储切片：同目录 `.new`、落盘 flush、正式 schema 复读、原子发布、上一版备份、主损坏恢复、安全模式、损坏证据保护和跨进程写租约（Partial；单实例激活、恢复 UI 与真实卷矩阵仍 Pending）。
+- [x] Issue #24 正式 Core 配置 v1 合同、只读 reference 行为、未知字段保留、有限验证错误和 JSON 资源预算（Partial；正式存储/排空/单实例见后续项，真实卷仍 Pending）。
+- [x] Issue #24 首个正式 Infrastructure 配置存储切片：同目录 `.new`、落盘 flush、正式 schema 复读、原子发布、上一版备份、主损坏恢复、安全模式、损坏证据保护和跨进程写租约（Partial；恢复 UI 与真实卷矩阵仍 Pending）。
 - [x] Issue #24 正式 latest-wins 与 App 关闭排空：入队深快照、等待批次合并、取消隔离、失败后继续、完成拒绝新请求，App 关窗 5 秒有界等待/超时保留窗口/重试；只读 Shell 零入队、启动关闭零写入。
+- [x] Issue #24 完整单实例激活：自定义 WinUI 入口在 XAML 初始化前注册固定 key，第二进程转发完整 `AppActivationArguments` 后退出，主实例排队早到激活并在 UI 线程恢复/激活窗口；真实双进程最小化恢复通过（关闭排空竞态、恢复 UI 与文件/URI/插件 payload 合同仍 Pending）。
 - [x] Issue #24 I24-01/I24-02 专用环境会话入口、独立卷标记/双确认安全合同和 CI `PendingDedicatedEnvironmentEvidence` 预检（Ready to schedule；真实卷结果仍 Pending）。
 - [x] P0-07a 静态双屏拓扑、混合 DPI、隐私安全指纹与资源稳定性（Conditional Pass）。
 - [x] P0-07b1 QueryDisplayConfig 活动路径、virtual-mode 索引、rotation 与 monitor 一一关联（Conditional Pass）。
@@ -78,7 +79,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2. 按 Issue #19 完成 P0-04/P0-05b2 人工输入、无障碍与系统表面矩阵；
 3. 按 Issue #20 完成 P0-07b2b2b2b4b2 动态显示硬件矩阵；
 4. 保持 Issue #21–#22 已关闭范围；不再机会主义扩展相邻格式、provider 或故障组合，后续能力通过独立里程碑重新准入；
-5. 按 Issue #24 复用已建立的正式配置存储；应用关闭排空、单实例、恢复 UI 与真实卷证据分别进入后续可独立验收切片；
+5. 按 Issue #24 复用已建立的正式配置存储；应用关闭排空和单实例已完成首片验收，恢复 UI、真实状态入队与真实卷证据继续按独立切片验收；
 6. 更新 ADR-0001 后，进入只读 MVP 垂直切片。
 
 执行停止规则：已有 Conditional Pass 的探针族，除 CI 回归、安全缺陷、明确支持决策或现有退出场景失败外，不再增加深度；每个新 PR 必须对应一个未满足的阶段退出条件。

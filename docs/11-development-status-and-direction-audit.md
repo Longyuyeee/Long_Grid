@@ -34,7 +34,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 - `main` 已包含 Issue #23 匿名会话预检/启动入口和主持人手册；CI 只验证隐私合同与依赖存在，固定保持 `ResultsPending`，不生成或伪造 P1–P5 结果；
 - Issue #23 的 D23-01–D23-10 已由负责人批准：仅安全引用、本地无账户、Folder Portal/ARM64 后移、Windows 11 x64 技术预览、MSIX 目标渠道和缩略图安全回退；D23-11 许可证延期，不阻挡当前开发但继续阻挡正式分发/外部贡献；
 - Issue #24 已建立 I24-01/I24-02 专用环境会话入口和运行手册；CI 只验证独立卷、匿名标签、双确认与无写入合同，固定保持 `PendingDedicatedEnvironmentEvidence`，不执行或伪造真实卷结果；
-- Issue #24 已建立正式 `LongGrid.Infrastructure` 产品配置存储与 latest-wins 保存协调器，并以零入队方式接入 App 关闭排空：关窗 5 秒有界等待，超时保留窗口并可重试；尚未完成单实例激活、恢复 UI 或真实产品状态入队，真实卷证据继续 Pending；
+- Issue #24 已建立正式 `LongGrid.Infrastructure` 产品配置存储与 latest-wins 保存协调器，并以零入队方式接入 App 关闭排空；完整单实例入口、第二实例参数转发及主窗口恢复已有真实双进程证据。尚未完成恢复 UI、真实产品状态入队或关闭排空竞态矩阵，真实卷证据继续 Pending；
 - 自动截图工具仍因错误归属未打包窗口而无法取得稳定句柄，因此视觉截图、高对比、Narrator、文本缩放和 DPI 人工矩阵继续保持 `Inconclusive/Pending`；
 - 详细范围、供应链、验证和停止规则见 [`17-ui-shell-readonly-slice-audit.md`](17-ui-shell-readonly-slice-audit.md)与[`18-ui-theme-automation-contract-audit.md`](18-ui-theme-automation-contract-audit.md)。
 
@@ -74,13 +74,13 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 工程 | .NET 8 SDK 锁定、集中包版本、nullable、警告即错误、确定性构建 | 已建立 |
 | 解决方案 | `main` 有 1 个 Core、1 个测试和 9 个探针项目 | 已建立，但不是产品分层 |
 | 代码 | `main` 已包含 Core、测试、WinUI App 与多类 Windows 风险探针 | 仍以风险验证为主，尚未形成完整生产分层 |
-| 测试 | 当前全量 111 项 Core 测试通过 | Core 回归基线有效；只读状态快照安全形状与值等价测试已纳入 |
-| CI | 单一 Windows workflow 执行 restore、format、build、启动/UI/Issue #23 会话隐私合同、test、覆盖率门禁、配置/文件安全/缩略图 worker 探针、依赖漏洞门禁并上传 TRX/Cobertura | PR 基线有效；会话预检固定保持 ResultsPending；行覆盖率最低 90%、分支覆盖率最低 75%，尚无 CodeQL 或发布流水线 |
-| 文档 | PRD、架构、质量、竞品、交互、协议、流程、ADR、22 份 Spike 报告 | 覆盖较完整 |
-| GitHub | `main` 已合入至 PR #80；#21–#22 已按批准范围关闭，#23 保持打开并等待 P1–P5 真实结果；Phase 0 Exit 继续跟踪 #19、#20、#23、#24 | 治理基线已闭环；后续切片仍须 PR/CI |
+| 测试 | 当前全量 131 项 Core 测试通过 | Core 与正式配置存储/协调器回归基线有效 |
+| CI | 单一 Windows workflow 执行 restore、format、build、启动/UI/单实例/人工会话合同、test、覆盖率门禁、配置/文件安全/缩略图 worker 探针、依赖漏洞门禁并上传 TRX/Cobertura | PR 基线有效；人工会话预检保持 Pending；行覆盖率最低 90%、分支覆盖率最低 75%，尚无 CodeQL 或发布流水线 |
+| 文档 | PRD、架构、质量、竞品、交互、协议、流程、ADR、编号审计与 Spike 报告 | 覆盖较完整 |
+| GitHub | `main` 已合入至 PR #85；#21–#22 已按批准范围关闭，#23 保持打开并等待 P1–P5 真实结果；Phase 0 Exit 继续跟踪 #19、#20、#23、#24 | 治理基线已闭环；后续切片仍须 PR/CI |
 | 主干保护 | `main` 要求严格的 `build-test`，对管理员生效，禁止强推和删除 | 已建立最小可信门禁 |
 | 许可证 | GitHub 未识别许可证，仓库根目录无 LICENSE | 阻断公开分发与外部贡献 |
-| 覆盖率 | 111 项 Core 测试通过；最新本地 Cobertura 为行 91.37%、分支 77.55%，主线 CI 门禁分别为 90%/75% | Phase 1 关键 Core 分支目标 ≥80%，当前先跟踪趋势、不用总百分比替代风险测试 |
+| 覆盖率 | 131 项测试通过；本分支最新本地 Cobertura 为行 91.60%、分支 78.74%，主线 CI 门禁分别为 90%/75% | Phase 1 关键 Core 分支目标 ≥80%，当前先跟踪趋势、不用总百分比替代风险测试 |
 | 发布状态 | 公开仓库无 tag、release、安装包和 LICENSE；Phase 0 Exit 当前剩余 #19、#20、#23、#24 | 不可公开分发，剩余需求已有正式队列 |
 
 数量是 2026-08-02 审计快照，不作为长期质量指标。
@@ -97,7 +97,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
 | 事务补偿 | Bounds/Region/DComp/UIA 快照、代次门禁、逆序回滚、紧急隐藏 | E1-E2 | 正式宿主集成和故障注入矩阵 |
-| 配置持久化 | 正式 v1 schema、Infrastructure 原子发布/备份/安全模式/证据保护/有界写租约、latest-wins 与 App 5 秒关闭排空；Spike 另覆盖强杀、迁移、只读/磁盘满/权限恢复 | E3 / Production lifecycle slice pass | 仍缺真实状态入队、恢复 UI、完整单实例、真实卷耗尽/只读、替换内部失败与跨进程公平性 |
+| 配置持久化 | 正式 v1 schema、Infrastructure 原子发布/备份/安全模式/证据保护/有界写租约、latest-wins、App 5 秒关闭排空及完整单实例激活；Spike 另覆盖强杀、迁移、只读/磁盘满/权限恢复 | E3 / Production lifecycle slice pass | 仍缺真实状态入队、恢复 UI、关闭竞态矩阵、真实卷耗尽/只读、替换内部失败与跨进程公平性 |
 | 交互切片 | 一个可见 List 容器和三个进程内演示项 | E2 / Conditional Pass | 文件语义、拖放、正式持久化和用户测试 |
 | 正式 App UI 壳层 | WinUI 导航、Design Token、内存态主题、AutomationId/访问键、760 DIP 响应式流、DPI 感知窗口、Core 只读状态、首次整理、匿名容器/项目、拖放语义、两步撤销和恢复差异三态/过期/取消的真实 UIA 冒烟 | E2 / Conditional Pass | 5 人测试、真实拖放与硬件恢复、负责人决策、经批准的真实只读数据适配器、Narrator/高对比/系统文本缩放/多 DPI 视觉矩阵 |
 
@@ -116,7 +116,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 
 ### 4.1 GitHub 治理基线已闭环
 
-PR #18、#25–#61、#63–#80 已进入 `main`，当前主干基线为合并 PR #80 后的 `ead23e0`。Core 测试、覆盖率、配置、文件安全、缩略图 Worker、UI 自动化合同和依赖漏洞门禁已在主线 CI `30875734847` 通过。PR #2–#17 已关闭；后续继续使用从最新 `main` 建立的短生命周期分支。
+PR #18、#25–#61、#63–#85 已进入 `main`，当前主干基线为合并 PR #85 后的 `dc3dbc8`。Core 测试、覆盖率、配置、文件安全、缩略图 Worker、UI 自动化合同和依赖漏洞门禁已在主线 CI `30883310111` 通过。PR #2–#17 已关闭；后续继续使用从最新 `main` 建立的短生命周期分支。
 
 `main` 已要求严格的 `build-test` 状态检查，规则对管理员生效，同时禁止强推和删除。Phase 0 Exit 里程碑最初以 #19–#24 跟踪六类门禁；#21–#22 已按批准范围关闭，当前剩余 #19、#20、#23、#24。W0 因此关闭；这只证明主干治理可信，不代表产品已达到发布条件。
 
