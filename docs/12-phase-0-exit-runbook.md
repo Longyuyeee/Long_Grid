@@ -2,7 +2,7 @@
 
 日期：2026-08-01
 
-状态：**Ready to Execute / 未完成实机与负责人签字**
+状态：**Approved product scope / 实机与五人测试未完成**
 
 关联：Issue #19–#24、ADR-0001
 
@@ -83,14 +83,14 @@ dotnet test LongGrid.sln --configuration Release --no-build
 
 自动 CI 已覆盖安全引用、同卷受控移动、冲突预阻断、回调取消/部分成功，以及零 Capability AppContainer Worker 500 项预算、受控输入副本、有界 BGRA32 像素协议与故障矩阵、硬超时、Job Object 父退出/Profile 清理和连续超时退避。以下仍须专用环境：
 
-逐项关闭条件和范围依赖见[Issue #21–#22 关闭就绪审计](29-issue-21-22-closure-readiness-audit.md)。该审计结论为 `Not closable`：自动 `ConditionalPass` 不能替代专用环境结果，Issue #23 未批准的格式、架构和托管移动能力不得自动扩张为 Phase 0 必需项。
+逐项关闭条件和范围依赖见[Issue #21–#22 关闭就绪审计](29-issue-21-22-closure-readiness-audit.md)。D23 范围批准后，首版只支持安全引用；托管移动专用环境项转入后续里程碑。缩略图首发范围为 Windows 11 x64、隔离 Worker 安全分类与类型图标回退，未批准的格式、架构和能力不得自动扩张为 Phase 0 必需项。
 
 | Issue | 剩余项 | 安全限制 | 状态 |
 |---|---|---|---|
-| #21 | Explorer UI 撤销/Explorer 重启 | 仅专用账户和自有文件 | Pending |
-| #21 | 跨卷复制→校验→删除→补偿 | 两个可清空测试卷，不使用用户卷 | Pending |
-| #21 | ACL、共享占用、只读卷、磁盘满 | VM/可还原快照；不得破坏系统目录 | Pending |
-| #21 | OneDrive、网络、重解析点、真实取消 | 专用账号/共享；默认阻断优先 | Pending |
+| #21 | Explorer UI 撤销/Explorer 重启 | 仅专用账户和自有文件 | 后续托管移动里程碑；非首发阻断 |
+| #21 | 跨卷复制→校验→删除→补偿 | 两个可清空测试卷，不使用用户卷 | 后续托管移动里程碑；非首发阻断 |
+| #21 | ACL、共享占用、只读卷、磁盘满 | VM/可还原快照；不得破坏系统目录 | 后续托管移动里程碑；非首发阻断 |
+| #21 | OneDrive、网络、重解析点、真实取消 | 专用账号/共享；默认阻断优先 | 后续兼容里程碑；非首发阻断 |
 | #22 | 受限 Low Integrity 对照 | Low worker 可读取未授权文件，证明 MIC no-write-up 不能承担文件保密边界 | Decision evidence；不得作为生产回退 |
 | #22 | AppContainer 与访问 broker | 真实 worker 全部为零 Capability AppContainer；协议 v6 对照受控副本与最小路径 ACL；八个自有格式/编码样本逐项验证父进程基线、输入可读、同格式策略一致、安全分类和 Profile 清理，正常路径复核随机 SID ACE 已恢复 | Conditional Pass（自动探针）；ACL 只作比较，异常退出 ACE 修复 Pending |
 | #22 | 有界共享内存句柄 broker | 匿名映射、单请求复制句柄、最大 262,144 bytes；缺失句柄/错误容量/元数据错误全部阻断并恢复 | Conditional Pass（自动探针） |
@@ -101,17 +101,17 @@ Phase 0 必须关闭安全边界和已批准首发范围的兼容风险；正式
 
 ## 6. Issue #23：负责人决策记录
 
-以下是建议起点，不是已批准决定。负责人应在 Issue #23 逐项写入选择、理由、日期和批准人。
+以下范围已由负责人于 2026-08-04 以 `ProjectOwner` 代号批准；许可证按要求延期。
 
-| 决策 | 建议起点 | 需要确认 | 状态 |
+| 决策 | 批准范围 | 后续项 | 状态 |
 |---|---|---|---|
-| 首版整理模式 | 仅安全引用；真实移动保持关闭 | 是否允许任何托管目录入口 | Pending owner decision |
-| Folder Portal | 不进入首个 MVP 切片 | 进入 Beta 还是更晚 | Pending owner decision |
-| 最低系统 | 以实机矩阵结果确定，不先承诺 | Windows 10 最低 build 或仅 Windows 11 | Pending owner decision |
-| 架构 | 先验证 x64，ARM64 在有设备后决定 | 首发是否原生 ARM64 | Pending owner decision |
-| 安装渠道 | MSIX 开发包优先，保留离线验证 | Store、离线 MSIX 或企业渠道 | Pending owner decision |
-| 许可证 | 在接受贡献或发布二进制前选择 | MIT、Apache-2.0、GPLv3 或闭源/双许可 | Pending owner decision |
-| 性能预算 | 以支持矩阵复测后批准 | 500 项 p95、内存、空闲 CPU 最终值 | Pending owner decision |
+| 首版整理模式 | 仅安全引用；真实移动保持关闭 | 托管移动转后续里程碑 | Approved |
+| Folder Portal | 不进入首个 MVP 切片 | P1 以后 | Approved |
+| 最低系统 | Windows 11 技术预览 | Windows 10 后续验证 | Approved; matrix pending |
+| 架构 | x64 | ARM64 移至 P1 | Approved |
+| 安装渠道 | MSIX 目标渠道，保留企业离线验证 | 当前 unpackaged 仅开发 | Approved; packaging pending |
+| 许可证 | 当前开发跳过 | 正式分发/外部贡献前重开 | Deferred by owner |
+| 性能预算 | PRD 目标作为首片门禁，不作为发布 SLA | 正式产品矩阵继续测量 | Approved; measurement pending |
 
 5 人无提示测试必须覆盖：首次扫描说明、创建容器、添加安全引用、识别原生图标仍存在、区分引用与移动、撤销/恢复。每位参与者记录任务成功率、误解点、严重度和是否需要主持人提示；不能收集真实文件名或桌面截图。首次整理模式原型的执行步骤和匿名结果表见[Issue #23 五人可用性测试计划](usability/issue-23-first-organization-test-plan.md)，会话隔离、隐私和主持纪律见[主持人运行手册](usability/issue-23-facilitator-runbook.md)；当前代码覆盖起点、模式、预览、单个匿名容器、三个匿名引用、拖放语义、两步撤销及布局恢复三态/过期/取消语义，真实扫描、Explorer/DesktopHost 拖放、显示硬件恢复、持久化与文件操作撤销仍必须保持 Pending。
 
@@ -123,7 +123,7 @@ Phase 0 必须确认正式 schema、迁移/回滚、原子存储、安全恢复�
 
 应用关闭排空、完整单实例激活和正式渲染表面属于首个生产切片才能形成的集成证据，迁入 Phase 1 首片验收，不再要求它们在创建 `LongGrid.App`/`LongGrid.DesktopHost` 之前完成。对应 Issue 可以在 Phase 0 合同项关闭后保留明确的首片子任务，但不得形成循环门槛。
 
-只有 #19–#24 的必要证据与负责人决策齐全后，才能把[ADR-0001](adr/0001-windows-technology-stack.md)从 `Proposed` 改为 `Accepted`、`Revised` 或 `Rejected`。ADR 决定前不得创建安装承诺，也不得把探针项目改名冒充产品模块。
+D23 产品范围已经批准；只有 #19–#24 的其余必要证据齐全后，才能把[ADR-0001](adr/0001-windows-technology-stack.md)从 `Proposed` 改为 `Accepted`、`Revised` 或 `Rejected`。ADR 决定前不得创建公开安装承诺，也不得把探针项目改名冒充产品模块。
 
 ## 8. 单轮证据模板
 

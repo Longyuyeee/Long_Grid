@@ -10,7 +10,7 @@
 
 ## 1. 为什么现在建立 UI Shell
 
-Phase 0 的 Issue #19–#24、5 人体验测试和负责人支持范围决策尚未全部关闭，ADR-0001 仍为 `Proposed`。因此本轮不能宣称正式 MVP 已开工，也不能创建安装、最低系统或文件整理承诺。
+Phase 0 的 D23 首发范围已经批准，但 Issue #19–#24、5 人体验测试、安装和硬件证据尚未全部关闭，ADR-0001 仍为 `Proposed`。因此当前仍不能宣称正式 MVP 已完成，也不能把目标渠道写成可分发安装承诺。
 
 同时，应用关闭、单实例、正式主题、启动链和渲染表面只有在真实 `LongGrid.App` 存在后才能形成证据。为避免循环门槛，本轮建立一个严格受限的开发期 UI Shell：验证项目结构、WinUI 构建、品牌 Token、导航骨架、启动和关闭，不接任何真实桌面能力。
 
@@ -22,7 +22,7 @@ Phase 0 的 Issue #19–#24、5 人体验测试和负责人支持范围决策尚
 | UI | WinUI 3 | 仅用于自有管理窗口，不决定 DesktopHost 最终栈 |
 | Windows App SDK | `Microsoft.WindowsAppSDK` 2.3.1 Stable | 2026-08-03 官方 Stable 当前版本；禁止 Preview/Experimental |
 | 部署形态 | `WindowsPackageType=None`，framework-dependent | 只用于开发启动；不是发行渠道决定 |
-| 架构 | x64 | 负责人尚未批准 ARM64 首发；不提前扩大矩阵 |
+| 架构 | x64 | 负责人已批准首发 x64、ARM64 后移；不扩大当前矩阵 |
 | 目标 TFM | `net8.0-windows10.0.19041.0` | 编译目标，不构成最低系统市场承诺 |
 | 权限 | `asInvoker`、`uiAccess=false` | 不提权、不获取跨进程 UI 访问 |
 
@@ -33,7 +33,7 @@ Phase 0 的 Issue #19–#24、5 人体验测试和负责人支持范围决策尚
 - [Microsoft.WindowsAppSDK 2.3.1 NuGet](https://www.nuget.org/packages/Microsoft.WindowsAppSDK/2.3.1)由 Microsoft/Windows 所有者发布；
 - [未打包应用部署指南](https://learn.microsoft.com/windows/apps/windows-app-sdk/deploy-unpackaged-apps)说明 `WindowsPackageType=None` 会启用 framework-dependent 未打包应用的运行时自动初始化。
 
-依赖包要求接受 Microsoft Windows App SDK 软件许可。许可允许在 Windows 上开发、测试并按条款分发 binplaced 文件，但项目自身许可证与公开发行条款仍由 Issue #23 决定；本轮不发布二进制。
+依赖包要求接受 Microsoft Windows App SDK 软件许可。项目自身许可证与公开发行条款已按 D23-11 延期；当前继续开发但不据此发布二进制。
 
 ## 3. 实现范围
 
@@ -97,4 +97,4 @@ Phase 0 的 Issue #19–#24、5 人体验测试和负责人支持范围决策尚
 
 ## 8. 下一步
 
-UIA smoke、内存态主题、响应式布局和不含用户数据的 Core 能力状态快照已由后续切片补齐；下一步仍需主题截图、Narrator、高对比、文本缩放与 DPI 人工矩阵，并继续关闭 Issue #23 的体验/负责人决策。当前快照只表达“未连接/被安全策略关闭”，不能被描述为真实桌面数据接线；只有 ADR-0001 和生产配置合同满足进入条件后，才把匿名示例替换为 Core 的只读桌面引用状态。
+UIA smoke、内存态主题、响应式布局和不含用户数据的 Core 能力状态快照已由后续切片补齐；下一步仍需主题截图、Narrator、高对比、文本缩放与 DPI 人工矩阵，并完成 Issue #23 的 P1–P5 体验证据。当前快照只表达“未连接/被安全策略关闭”，不能被描述为真实桌面数据接线；只有 ADR-0001 和生产配置合同满足进入条件后，才把匿名示例替换为 Core 的只读桌面引用状态。
