@@ -1,14 +1,14 @@
 # Issue #24 正式产品配置合同审计
 
-审计日期：2026-08-04（专用环境入口增量复审）
+审计日期：2026-08-04（正式 Infrastructure 存储增量复审）
 
-基线：`main` / `3dd39a0` + Issue #24 专用环境会话分支
+基线：`main` / `c34820f` + 正式产品配置存储分支
 
-结论：**Core schema and dedicated-session contract ready / Real-volume and storage integration pending / 不得关闭 Issue #24**
+结论：**Core schema and first Infrastructure store ready / App lifecycle and real-volume evidence pending / 不得关闭 Issue #24**
 
 ## 1. 需求对齐
 
-本阶段把架构文档中的配置示例升级为 `LongGrid.Core.Configuration` 正式 v1 合同。合同只覆盖首个只读产品切片稳定需要的容器、外观、DIP 布局和项目引用，不创建 `LongGrid.Infrastructure`，不读写真实配置，也不接 App 生命周期。
+原始合同阶段把架构文档中的配置示例升级为 `LongGrid.Core.Configuration` 正式 v1 合同，只覆盖首个只读产品切片稳定需要的容器、外观、DIP 布局和项目引用。2026-08-04 增量已创建 `LongGrid.Infrastructure` 并读写测试沙箱中的正式配置，但仍不接 App 生命周期或用户真实配置目录。
 
 当前 `behavior` 只允许 `reference`。这把已批准的“首版仅安全引用”落实为 schema 不变量；托管移动、原生图标位置或自动规则执行已移出首发范围，未来必须通过后续 schema 版本和迁移步骤进入，不能悄悄复用未知枚举值。
 
@@ -39,14 +39,14 @@ v1 是 Long方格第一个正式生产 schema，仓库没有需要迁移的历�
 
 Core 测试覆盖：合法往返、camelCase 枚举、五层未知字段保留、未来/无效 schema、跨层重复 ID、外观/布局边界、500 项预算、4 MiB 预解析门禁、畸形/不完整 JSON、数字枚举和非引用行为拒绝。
 
-这些测试证明纯合同，不证明磁盘原子性、关闭排空或单实例。
+这些测试证明纯合同；正式存储增量见第 8 节。它们自身仍不证明关闭排空、单实例或真实卷耐久性。
 
 ## 5. 尚未完成
 
-- `LongGrid.Infrastructure` 原子存储适配器尚未建立；
-- `.new`/flush/校验/replace/backup 和安全模式仍只有独立 probe 证据；
+- `LongGrid.Infrastructure` 首个原子存储适配器已经建立，但尚未接入 App 生命周期；
+- `.new`/flush/校验/replace/backup、安全模式与写租约已有正式自动证据；强杀、权限和故障注入矩阵仍由独立 probe 承担；
 - 真实卷空间耗尽、只读卷、断电与非 NTFS 环境仍 Pending；
-- 应用关闭排空、单实例激活、导入/导出和恢复 UI 留在首个生产切片；
+- 应用关闭排空、单实例激活、导入/导出和恢复 UI 留在后续生产切片；
 - v2 迁移必须等真实新增字段出现后实现，不以 probe 的 `persistenceProbe` 假字段代替；
 - D23 已把托管移动、规则执行和未验证支持范围移出首发；这些能力不进入 v1。
 
@@ -58,4 +58,10 @@ Core 测试覆盖：合法往返、camelCase 枚举、五层未知字段保留�
 
 ## 7. 下一动作
 
-在专用环境完成真实卷证据后，以该 Core 合同建立 `LongGrid.Infrastructure` 适配器；适配器必须复用 P0-06 状态机语义，但不能直接引用或改名发布 spike 程序集。Issue #24 只有在正式存储边界与专用环境证据齐全后才能关闭。
+首个 `LongGrid.Infrastructure` 适配器已按第 8 节建立，下一步接入 latest-wins 保存协调与 App 有界关闭排空；专用环境真实卷矩阵可独立执行，两条证据链都完成后才能关闭 Issue #24。正式程序集继续不得引用或改名发布 spike 程序集。
+
+## 8. 2026-08-04 正式存储增量
+
+`LongGrid.Infrastructure.Configuration.ProductConfigurationStore` 已成为首个正式产品存储适配器。它没有引用 Spike 程序集，而是直接调用 `ProductConfigurationJson`，因此写入前、暂存复读和加载后的文档都服从同一 v1 资源预算与有限错误合同。
+
+当前自动证据覆盖：首次原子发布、第二次替换保留上一版备份、损坏主文件回退备份、主备均不可用时进入安全模式、普通保存拒绝覆盖损坏证据、跨进程文件租约有界超时与调用方取消、I/O 错误不在公开异常中泄露路径。该增量允许产品代码开始依赖正式 Infrastructure 边界，但不改变 I24-01/I24-02 的 `PendingDedicatedEnvironmentEvidence`，也不代表 App 关闭排空、单实例激活、恢复 UI、真实断电或非 NTFS 耐久性已经完成。
