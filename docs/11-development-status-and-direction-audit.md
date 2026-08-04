@@ -192,7 +192,7 @@ PR #39 合入后的首轮主干 CI `30690663507` 识别出父进程退出探针�
 
 父进程为每个 client 创建随机临时 Profile，把受限于 128 MiB 的 worker 运行时暂存到该 Profile 私有目录；所有 worker 通过 `SECURITY_CAPABILITIES` 以零 Capability 挂起启动，只继承 stdin/stdout/stderr，先加入 `KILL_ON_JOB_CLOSE` Job，并由父进程查询 `TokenIsAppContainer` 后恢复。AppContainer 内不再打开父进程句柄，异常父退出由内核 Job 回收；独立宿主把 Profile 名写入原子 ready 信号，主探针在确认孤儿退出后删除遗留 Profile。
 
-PR #78 首轮 CI 证明“进程已退出”和“Profile 句柄已完成释放”之间仍可能存在短暂窗口。修复没有取消清理断言，而是只对名称严格验证的探针自有 Profile 增加最多 20 次、50 ms 间隔的有界删除重试，并将尝试次数和最终 HRESULT 纳入报告；持续失败仍阻断 CI。本地连续三轮完整 Worker Matrix 均通过且均在首次调用删除，完整 Release 构建 0 警告/0 错误、Core 测试 111/111。该修复属于 Issue #22 回归门禁加固，不提升其 `Conditional Pass`，也不替代 #23 的支持矩阵和最终预算决策。
+PR #78 首轮 CI 证明“进程已退出”和“Profile 句柄已完成释放”之间仍可能存在短暂窗口。修复没有取消清理断言，而是只对名称严格验证的探针自有 Profile 增加最多 20 次、50 ms 间隔的有界删除重试，并将尝试次数和最终 HRESULT 纳入报告；持续失败仍阻断 CI。本地连续三轮完整 Worker Matrix 均通过且均在首次调用删除，完整 Release 构建 0 警告/0 错误、Core 测试 111/111；修复提交的 Windows CI `30870884878` 也已全绿。该修复属于 Issue #22 回归门禁加固，不提升其 `Conditional Pass`，也不替代 #23 的支持矩阵和最终预算决策。
 
 父进程对真实提取输入执行 32 MiB 上限和重解析点拒绝。协议 v6 默认使用 `ControlledCopy`，同时用 `MinimumPathAcl` 给探针自有文件/父目录增加精确无继承 Read/Traverse ACE，并在请求后删除、复核随机 SID 无显式残留；worker 仍拒绝直接路径 transport。Windows `10.0.22621` 本地矩阵两种方式都可提取，默认副本 500/500；Windows `10.0.26100` GitHub runner 上两种输入都可直接读，但 Shell 都稳定返回 `E_ACCESSDENIED`、无像素。CI 将后者作为 `ProductFallbackRequired`，不允许回退到主进程或 Low Integrity 现场提取。结论仍为 Conditional Pass：ACL 方案没有解决 26100 兼容性，还会短时修改 DACL，异常退出残留修复尚未实现。最新多格式证据见 4.11。
 

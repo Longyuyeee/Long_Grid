@@ -92,4 +92,4 @@ PR #78 首轮 Windows CI 在“Thumbnail worker isolation probe”失败。报�
 
 修复后本机连续三轮执行与 CI 相同的完整 Worker Matrix：每轮 500 个压力请求、父进程退出、孤儿回收、Profile 删除、沙箱清理和临时预算均通过，三轮 Profile 都在第 1 次调用删除成功并返回 `0x00000000`，总体判定均为 `ConditionalPass`。完整 Release 构建为 0 警告、0 错误，Core 测试为 111/111。
 
-远端 CI 全绿前，本节只能证明本地回归和修复边界；Issue #22 继续保持 OPEN，`Not closable` 判定不变。
+修复提交 `00ddd3f` 的远端 Windows CI [30870884878](https://github.com/Longyuyeee/Long_Grid/actions/runs/30870884878) 全部通过，其中包含格式、构建、111 项测试、覆盖率、配置持久化、文件操作安全、缩略图 Worker 隔离和依赖漏洞门禁。Issue #22 继续保持 OPEN，`Not closable` 判定不变。
