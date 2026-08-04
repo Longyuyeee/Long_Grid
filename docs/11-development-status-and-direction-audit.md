@@ -32,6 +32,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 - 已合入主线的原型包含独立恢复预览页，复用 Core `Automatic/ReviewRequired/Blocked` 词汇并覆盖过期与取消；它不读取显示拓扑、不调用规划器/事务协调器，也不移动窗口；
 - `main` 已包含 Issue #23 匿名会话预检/启动入口和主持人手册；CI 只验证隐私合同与依赖存在，固定保持 `ResultsPending`，不生成或伪造 P1–P5 结果；
 - Issue #23 的 D23-01–D23-10 已由负责人批准：仅安全引用、本地无账户、Folder Portal/ARM64 后移、Windows 11 x64 技术预览、MSIX 目标渠道和缩略图安全回退；D23-11 许可证延期，不阻挡当前开发但继续阻挡正式分发/外部贡献；
+- Issue #24 已建立 I24-01/I24-02 专用环境会话入口和运行手册；CI 只验证独立卷、匿名标签、双确认与无写入合同，固定保持 `PendingDedicatedEnvironmentEvidence`，不执行或伪造真实卷结果；
 - 自动截图工具仍因错误归属未打包窗口而无法取得稳定句柄，因此视觉截图、高对比、Narrator、文本缩放和 DPI 人工矩阵继续保持 `Inconclusive/Pending`；
 - 详细范围、供应链、验证和停止规则见 [`17-ui-shell-readonly-slice-audit.md`](17-ui-shell-readonly-slice-audit.md)与[`18-ui-theme-automation-contract-audit.md`](18-ui-theme-automation-contract-audit.md)。
 
@@ -327,7 +328,7 @@ LPWP 协议可以继续做兼容性维护和 Golden Fixture，但 Widget Host �
 | W1（进行中） | 产品与体验决策（#23） | 核心低保真原型、匿名会话入口、主持人手册及 D23-01–D23-10 范围批准已完成；D23-11 延期 | 五人匿名结果完成；许可证只在分发/外部贡献前重开 |
 | W2（工具就绪） | 人工输入与系统表面（#19） | 匿名单场景入口和恢复手册已完成；待 P0-05b2 键鼠/触控/拖放/Narrator/Win+D/全屏/Alt+Tab/任务视图/Explorer 重启记录 | 每个场景有环境、原始证据、Pass/Fail/Inconclusive 和缺陷 |
 | W3（工具就绪） | 动态显示（#20） | I20/observer 映射和恢复合同已完成；待缩放、旋转、拔插、投影、睡眠、RDP、`WM_DPICHANGED` 受控矩阵 | 稳定器、布局事务、资源闭环和恢复结果全部可复读 |
-| W4（Core 合同就绪） | 必要安全、隔离与持久化收口（#21、#22、#24） | 正式 Core v1 配置合同已建立；待批准范围内的文件/Provider/真实卷证据和 Infrastructure 适配器 | 不误移动，安全边界明确，生产合同可迁移；集成接线列入首片验收 |
+| W4（会话就绪） | 必要安全、隔离与持久化收口（#21、#22、#24） | 正式 Core v1 配置合同及 I24-01/I24-02 专用环境入口已建立；真实卷证据和 Infrastructure 适配器仍 Pending | 不误移动，安全边界明确，生产合同可迁移；集成接线列入首片验收 |
 
 W0 已关闭。W1 先限定产品和支持范围；W2 与 W3 可在不同受控环境并行采证；W4 不应与真实产品文件移动混做。配置持久化合同由 #24 跟踪，只在具备专用环境时补真实卷/断电边界；关闭排空、单实例和正式渲染接线在首个 App/DesktopHost 切片中验收。Phase 0 的必要证据关闭并更新 ADR 后，创建第一条只读垂直切片。
 

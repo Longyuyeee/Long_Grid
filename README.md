@@ -47,6 +47,8 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Issue #23 五人测试主持人手册](docs/usability/issue-23-facilitator-runbook.md)
 - [Issue #23 五人测试就绪审计](docs/25-issue-23-usability-readiness-audit.md)
 - [Issue #23 首发产品决策记录](docs/30-issue-23-product-decision-proposal.md)
+- [Issue #24 专用环境就绪审计](docs/31-issue-24-dedicated-environment-readiness-audit.md)
+- [Issue #24 生产配置边界专用环境运行手册](docs/manual-testing/issue-24-persistence-boundary-runbook.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
 - [Long助手兼容协议交付包](docs/protocol/README.md)
@@ -58,7 +60,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 的首发范围已经批准，下一步完成 5 人验证，并执行 #19 人工输入/Narrator/系统表面矩阵和 #20 动态显示硬件矩阵；#21–#22 已按 Windows 11 x64、安全引用与类型图标回退范围关闭，#24 继续关闭配置存储边界。应用关闭、单实例和正式渲染接线在首个只读生产切片中验收。许可证选择延期到正式分发或接受外部贡献之前。
+按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 的首发范围已经批准，下一步完成 5 人验证，并执行 #19 人工输入/Narrator/系统表面矩阵和 #20 动态显示硬件矩阵；#21–#22 已按 Windows 11 x64、安全引用与类型图标回退范围关闭，#24 已具备专用环境安全会话入口，仍需真实测试卷结果。应用关闭、单实例和正式渲染接线在首个只读生产切片中验收。许可证选择延期到正式分发或接受外部贡献之前。
 
 ## 开发启动
 
@@ -100,6 +102,16 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 ```
 
 真实会话必须按照[主持人手册](docs/usability/issue-23-facilitator-runbook.md)分别使用 P1–P5 启动全新进程。预检和 CI 通过只代表入口就绪，测试状态仍是 `Results Pending`。
+
+执行 Issue #24 真实卷边界测试前，先验证专用环境会话合同：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File ./eng/Start-Issue24PersistenceBoundarySession.ps1 `
+  -ValidateOnly
+```
+
+预检固定保持 `PendingDedicatedEnvironmentEvidence`，不写卷、不填盘、不改变卷状态，也不运行配置探针。真实 I24-01/I24-02 只能按照[专用环境运行手册](docs/manual-testing/issue-24-persistence-boundary-runbook.md)在可恢复的独立测试卷执行。
 
 ## 仓库验证与故障排查
 
