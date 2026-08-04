@@ -6,10 +6,13 @@ internal static class ThumbnailWorkerIsolationProbe
 {
     private const int StressRequests = 500;
     private const int RequestsPerWorker = 100;
+    private const int ParentExitProfileDeletionAttempts = 20;
     private const int AccessDeniedHResult = unchecked((int)0x80070005);
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan ForcedTimeout = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan IdleSample = TimeSpan.FromMilliseconds(750);
+    private static readonly TimeSpan ParentExitProfileDeletionRetryDelay =
+        TimeSpan.FromMilliseconds(50);
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -771,15 +774,24 @@ internal static class ThumbnailWorkerIsolationProbe
             && await WaitForProcessExitAsync(
                 ready!.WorkerProcessId,
                 timeout.Token);
-        bool profileDeleted = ready is not null
-            && ThumbnailAppContainerProfile.DeleteByName(
-                ready.AppContainerProfileName);
+        ThumbnailAppContainerProfileDeleteResult profileDeletion =
+            ready is not null
+                ? await ThumbnailAppContainerProfile.DeleteByNameWithRetryAsync(
+                    ready.AppContainerProfileName,
+                    ParentExitProfileDeletionAttempts,
+                    ParentExitProfileDeletionRetryDelay)
+                : new ThumbnailAppContainerProfileDeleteResult(
+                    Deleted: false,
+                    Attempts: 0,
+                    LastHResult: unchecked((int)0x80070002));
         return new ThumbnailWorkerParentExitResult(
             workerStarted,
             parentExited,
             orphanExited,
             killOnJobCloseConfigured,
-            profileDeleted);
+            profileDeletion.Deleted,
+            profileDeletion.Attempts,
+            profileDeletion.LastHResult);
     }
 
     private static ProcessStartInfo CreateParentExitHarnessStartInfo(
@@ -1002,7 +1014,9 @@ internal static class ThumbnailWorkerIsolationProbe
             $"Parent exit/orphan cleanup: {report.ParentExit.ParentExited}/"
             + $"{report.ParentExit.OrphanExited}; job "
             + $"{report.ParentExit.KillOnJobCloseConfigured}; profile "
-            + $"{report.ParentExit.AppContainerProfileDeleted}");
+            + $"{report.ParentExit.AppContainerProfileDeleted}; attempts "
+            + $"{report.ParentExit.ProfileDeletionAttempts}; HRESULT "
+            + $"0x{report.ParentExit.ProfileDeletionHResult:X8}");
         Console.WriteLine(
             $"Restricted low-integrity boundary: "
             + $"{report.RestrictedToken.LowIntegrityObserved}; read/write-block/control "
@@ -1142,7 +1156,9 @@ internal sealed record ThumbnailWorkerParentExitResult(
     bool ParentExited,
     bool OrphanExited,
     bool KillOnJobCloseConfigured,
-    bool AppContainerProfileDeleted);
+    bool AppContainerProfileDeleted,
+    int ProfileDeletionAttempts,
+    int ProfileDeletionHResult);
 
 internal sealed record ThumbnailWorkerPixelTransferResult(
     bool Succeeded,

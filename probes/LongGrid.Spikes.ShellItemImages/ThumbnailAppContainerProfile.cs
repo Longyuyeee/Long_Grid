@@ -176,6 +176,64 @@ internal sealed class ThumbnailAppContainerProfile : IDisposable
 
     internal static bool DeleteByName(string profileName)
     {
+        return TryDeleteByName(profileName, out _);
+    }
+
+    internal static async Task<ThumbnailAppContainerProfileDeleteResult>
+        DeleteByNameWithRetryAsync(
+            string profileName,
+            int maximumAttempts,
+            TimeSpan retryDelay)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(maximumAttempts, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(retryDelay, TimeSpan.Zero);
+
+        if (!IsOwnedProfileName(profileName))
+        {
+            return new ThumbnailAppContainerProfileDeleteResult(
+                Deleted: false,
+                Attempts: 0,
+                LastHResult: unchecked((int)0x80070057));
+        }
+
+        int lastHResult = 0;
+        for (int attempt = 1; attempt <= maximumAttempts; attempt++)
+        {
+            lastHResult = DeleteAppContainerProfile(profileName);
+            if (lastHResult >= 0)
+            {
+                return new ThumbnailAppContainerProfileDeleteResult(
+                    Deleted: true,
+                    Attempts: attempt,
+                    LastHResult: lastHResult);
+            }
+
+            if (attempt < maximumAttempts)
+            {
+                await Task.Delay(retryDelay);
+            }
+        }
+
+        return new ThumbnailAppContainerProfileDeleteResult(
+            Deleted: false,
+            Attempts: maximumAttempts,
+            LastHResult: lastHResult);
+    }
+
+    private static bool TryDeleteByName(string profileName, out int hResult)
+    {
+        if (!IsOwnedProfileName(profileName))
+        {
+            hResult = unchecked((int)0x80070057);
+            return false;
+        }
+
+        hResult = DeleteAppContainerProfile(profileName);
+        return hResult >= 0;
+    }
+
+    private static bool IsOwnedProfileName(string profileName)
+    {
         if (string.IsNullOrWhiteSpace(profileName)
             || !profileName.StartsWith(ProfilePrefix, StringComparison.Ordinal)
             || profileName.Length != ProfilePrefix.Length + 32)
@@ -184,8 +242,7 @@ internal sealed class ThumbnailAppContainerProfile : IDisposable
         }
 
         string suffix = profileName[ProfilePrefix.Length..];
-        return Guid.TryParseExact(suffix, "N", out _)
-            && DeleteAppContainerProfile(profileName) >= 0;
+        return Guid.TryParseExact(suffix, "N", out _);
     }
 
     public void Dispose()
@@ -277,3 +334,8 @@ internal sealed class ThumbnailAppContainerProfile : IDisposable
     [DllImport("advapi32.dll")]
     private static extern nint FreeSid(nint sid);
 }
+
+internal sealed record ThumbnailAppContainerProfileDeleteResult(
+    bool Deleted,
+    int Attempts,
+    int LastHResult);

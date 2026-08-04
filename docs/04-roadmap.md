@@ -59,8 +59,9 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] P0-07b2b2b2b4a 短时可见宿主输入开/关/重开、跨进程穿透和真实 UIA Raw View Fragment 树（Conditional Pass）。
 - [x] P0-07b2b2b2b4b1 显示/设备/电源/会话动态矩阵只读采证工具、脱敏场景判定与无事件防假阳性（Conditional Pass）。
 - [x] P0-08a 安全引用/托管移动纯计划、Shell 同卷移动、冲突预阻断、回调取消、部分成功和隐私安全报告（Conditional Pass；Explorer 撤销、跨卷、ACL/真实卷、云/网络/重解析点矩阵未关闭）。
-- [x] PR #2–#18、#25–#61、#63–#69 已收口，相关代码进入 `main`，旧远端功能分支已删除。
-- [x] `main` 严格要求 `build-test`，管理员同样受约束，禁止强推和删除；CI 强制执行配置/文件安全/缩略图 worker 探针，行覆盖率门禁 90%、分支门禁 75%，当前本地实测 91.43%/77.25%，待 PR CI 复核。
+- [x] Issue #21–#22 关闭就绪审计：自动证据、专用环境、#23 范围依赖和 Phase 1 项已分账（Not closable；不新增未经批准的 provider/架构/故障矩阵）。
+- [x] PR #2–#18、#25–#61、#63–#77 已收口，相关代码进入 `main`，旧远端功能分支已删除。
+- [x] `main` 严格要求 `build-test`，管理员同样受约束，禁止强推和删除；CI 强制执行配置/文件安全/缩略图 worker 探针，行覆盖率门禁 90%、分支门禁 75%，当前本地实测 91.37%/77.55%。
 - [x] 建立 `Phase 0 Exit` milestone 和 Issue #19–#24 跟踪剩余门禁。
 - [ ] P0-07b2b2b2b4b2 在受控实机执行缩放、旋转、拔插、投影、睡眠、RDP 和 WM_DPICHANGED 动态矩阵。
 - [x] Issue #20 匿名动态矩阵入口、I20/observer 映射、恢复确认和 CI `PendingManualEvidence` 合同（Ready to execute；I20-01–I20-08 真实硬件/会话结果仍 Pending）。

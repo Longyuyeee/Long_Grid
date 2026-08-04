@@ -120,6 +120,8 @@ dotnet run --project probes/LongGrid.Spikes.ShellItemImages --configuration Rele
 
 受限 worker 首次合入后的主干 CI 暴露了父进程退出测试的 ready-file 竞态：子宿主直接创建最终文件时，主探针可能在写句柄关闭前因“文件已存在”而读取，触发 sharing violation。修复后子宿主先完整写入同目录 `.pending` 文件并关闭句柄，再以原子重命名发布就绪信号；本地连续三轮完整矩阵均通过。该修复不放宽等待时间或性能预算。
 
+PR #78 首轮 CI 又暴露了 ready 信号之后的独立清理竞态：父进程和孤儿 Worker 均已退出，但主探针紧接着执行的唯一一次 `DeleteAppContainerProfile` 返回失败。修复仅对名称严格匹配探针前缀与随机 GUID 的自有 Profile 执行最多 20 次、间隔 50 ms 的有界重试，并记录尝试次数与最终 HRESULT；持续失败仍使矩阵失败。本地连续三轮完整矩阵均为 `ConditionalPass`，每轮 500 请求且 Profile 都在首次调用删除成功；修复提交的 Windows CI `30870884878` 随后全绿。这提高了退出与句柄实际释放之间的容忍度，不放宽 Profile 必须删除的安全门禁，也不改变产品支持范围。
+
 首版测量曾在启动 worker 后立即采空闲窗口，其中一次得到 62.5 ms/750 ms 并触发预算失败。审计确认该窗口混入了进程启动、JIT、COM 和 Shell provider 初始化，不是稳定空闲状态。实现因此增加一次成功提取预热，再在同一进程采样；修正后连续两轮均为 0 ms。阈值没有因失败结果而放宽。
 
 ## 5. 结论

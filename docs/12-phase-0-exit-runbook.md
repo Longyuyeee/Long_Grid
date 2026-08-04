@@ -83,6 +83,8 @@ dotnet test LongGrid.sln --configuration Release --no-build
 
 自动 CI 已覆盖安全引用、同卷受控移动、冲突预阻断、回调取消/部分成功，以及零 Capability AppContainer Worker 500 项预算、受控输入副本、有界 BGRA32 像素协议与故障矩阵、硬超时、Job Object 父退出/Profile 清理和连续超时退避。以下仍须专用环境：
 
+逐项关闭条件和范围依赖见[Issue #21–#22 关闭就绪审计](29-issue-21-22-closure-readiness-audit.md)。该审计结论为 `Not closable`：自动 `ConditionalPass` 不能替代专用环境结果，Issue #23 未批准的格式、架构和托管移动能力不得自动扩张为 Phase 0 必需项。
+
 | Issue | 剩余项 | 安全限制 | 状态 |
 |---|---|---|---|
 | #21 | Explorer UI 撤销/Explorer 重启 | 仅专用账户和自有文件 | Pending |
