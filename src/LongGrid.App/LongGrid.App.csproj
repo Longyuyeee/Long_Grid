@@ -16,6 +16,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" />
     <ProjectReference Include="..\LongGrid.Core\LongGrid.Core.csproj" />
+    <ProjectReference Include="..\LongGrid.Infrastructure\LongGrid.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

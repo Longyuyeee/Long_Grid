@@ -258,6 +258,160 @@ public sealed class ProductConfigurationStoreTests
                 writeLeaseRetryDelay: TimeSpan.Zero));
     }
 
+    [Fact]
+    public async Task SaveCoordinatorCoalescesWaitingDocumentsToLatestSnapshot()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = CreatePatientStore(directory.Path);
+        Directory.CreateDirectory(directory.Path);
+        await using FileStream lease = AcquireLease(store.WriteLeasePath);
+        ProductConfigurationSaveCoordinator coordinator = new(store);
+
+        Task first = coordinator.EnqueueAsync(CreateDocument("profile-first"));
+        Task[] merged = Enumerable.Range(1, 100)
+            .Select(index => coordinator.EnqueueAsync(CreateDocument($"profile-{index}")))
+            .ToArray();
+
+        await lease.DisposeAsync();
+        await Task.WhenAll(merged.Prepend(first));
+        await coordinator.CompleteAsync();
+
+        ProductConfigurationLoadResult result = await store.LoadAsync();
+        ProductConfigurationDocument backup = ProductConfigurationJson.Deserialize(
+            await File.ReadAllBytesAsync(store.BackupPath));
+        Assert.Equal("profile-100", result.Document?.ProfileId);
+        Assert.Equal("profile-first", backup.ProfileId);
+    }
+
+    [Fact]
+    public async Task SaveCoordinatorSnapshotsMutableExtensionDataAtEnqueue()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = CreatePatientStore(directory.Path);
+        Directory.CreateDirectory(directory.Path);
+        await using FileStream lease = AcquireLease(store.WriteLeasePath);
+        ProductConfigurationSaveCoordinator coordinator = new(store);
+        Dictionary<string, System.Text.Json.JsonElement> extensionData = new()
+        {
+            ["future"] = System.Text.Json.JsonSerializer.SerializeToElement(1),
+        };
+        ProductConfigurationDocument source = CreateDocument("profile") with
+        {
+            ExtensionData = extensionData,
+        };
+
+        Task save = coordinator.EnqueueAsync(source);
+        extensionData["future"] = System.Text.Json.JsonSerializer.SerializeToElement(2);
+        await lease.DisposeAsync();
+        await save;
+        await coordinator.CompleteAsync();
+
+        ProductConfigurationDocument persisted = (await store.LoadAsync()).Document!;
+        Assert.Equal(1, persisted.ExtensionData!["future"].GetInt32());
+    }
+
+    [Fact]
+    public async Task CallerCancellationDoesNotCancelAcceptedSave()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = CreatePatientStore(directory.Path);
+        Directory.CreateDirectory(directory.Path);
+        await using FileStream lease = AcquireLease(store.WriteLeasePath);
+        ProductConfigurationSaveCoordinator coordinator = new(store);
+        using CancellationTokenSource cancellation = new();
+
+        Task save = coordinator.EnqueueAsync(
+            CreateDocument("profile-accepted"),
+            cancellation.Token);
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => save);
+
+        await lease.DisposeAsync();
+        await coordinator.CompleteAsync();
+        Assert.Equal(
+            "profile-accepted",
+            (await store.LoadAsync()).Document?.ProfileId);
+    }
+
+    [Fact]
+    public async Task CompleteTimeoutKeepsAcceptedSaveAndRejectsNewWork()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = CreatePatientStore(directory.Path);
+        Directory.CreateDirectory(directory.Path);
+        await using FileStream lease = AcquireLease(store.WriteLeasePath);
+        ProductConfigurationSaveCoordinator coordinator = new(store);
+        Task accepted = coordinator.EnqueueAsync(CreateDocument("profile-accepted"));
+        using CancellationTokenSource timeout = new(TimeSpan.FromMilliseconds(40));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => coordinator.CompleteAsync(timeout.Token));
+        Assert.Throws<InvalidOperationException>(
+            () =>
+            {
+                _ = coordinator.EnqueueAsync(CreateDocument("profile-rejected"));
+            });
+
+        await lease.DisposeAsync();
+        await accepted;
+        await coordinator.CompleteAsync();
+        Assert.Equal(
+            "profile-accepted",
+            (await store.LoadAsync()).Document?.ProfileId);
+    }
+
+    [Fact]
+    public async Task FailedBatchDoesNotStopLaterRecoveryBatch()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        Directory.CreateDirectory(directory.Path);
+        await File.WriteAllTextAsync(store.PrimaryPath, "{ damaged");
+        ProductConfigurationSaveCoordinator coordinator = new(store);
+
+        ProductConfigurationSaveException exception = await Assert.ThrowsAsync<
+            ProductConfigurationSaveException>(
+            () => coordinator.EnqueueAsync(CreateDocument("profile-failed")));
+        Assert.Equal(ProductConfigurationSaveError.DamagedEvidence, exception.Error);
+
+        File.Delete(store.PrimaryPath);
+        await coordinator.EnqueueAsync(CreateDocument("profile-recovered"));
+        await coordinator.CompleteAsync();
+        Assert.Equal(
+            "profile-recovered",
+            (await store.LoadAsync()).Document?.ProfileId);
+    }
+
+    [Fact]
+    public async Task EmptyCoordinatorCompletesAndRejectsNewWork()
+    {
+        using TemporaryDirectory directory = new(create: false);
+        ProductConfigurationSaveCoordinator coordinator = new(
+            new ProductConfigurationStore(directory.Path));
+
+        await coordinator.CompleteAsync();
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+            {
+                _ = coordinator.EnqueueAsync(CreateDocument("profile"));
+            });
+        Assert.False(Directory.Exists(directory.Path));
+    }
+
+    private static ProductConfigurationStore CreatePatientStore(string directoryPath) =>
+        new(
+            directoryPath,
+            writeLeaseTimeout: TimeSpan.FromSeconds(5),
+            writeLeaseRetryDelay: TimeSpan.FromMilliseconds(5));
+
+    private static FileStream AcquireLease(string path) =>
+        new(
+            path,
+            FileMode.OpenOrCreate,
+            FileAccess.ReadWrite,
+            FileShare.None);
+
     private static ProductConfigurationDocument CreateDocument(string profileId) =>
         new()
         {

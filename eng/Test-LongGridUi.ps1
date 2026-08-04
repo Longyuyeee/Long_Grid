@@ -14,6 +14,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $xamlPath = Join-Path $projectRoot 'src\LongGrid.App\MainWindow.xaml'
 $codeBehindPath = Join-Path $projectRoot 'src\LongGrid.App\MainWindow.xaml.cs'
+$appCodePath = Join-Path $projectRoot 'src\LongGrid.App\App.xaml.cs'
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
 $runtimeIdentifier = "win-$Architecture"
 
@@ -49,6 +50,7 @@ function Get-XamlNodeByAutomationId {
 function Test-SourceContract {
     [xml]$document = Get-Content -LiteralPath $xamlPath -Raw -Encoding UTF8
     $codeBehind = Get-Content -LiteralPath $codeBehindPath -Raw -Encoding UTF8
+    $appCode = Get-Content -LiteralPath $appCodePath -Raw -Encoding UTF8
     $requiredIds = @(
         'LongGridRoot',
         'ShellNavigation',
@@ -275,6 +277,21 @@ function Test-SourceContract {
             "UI code-behind crossed the read-only slice boundary: '$pattern'."
     }
 
+    Assert-Condition ($appCode -match 'ProductConfigurationSaveCoordinator') `
+        'The App must own the formal product configuration save coordinator.'
+    Assert-Condition ($appCode -match 'AppWindow\.Closing\s*\+=') `
+        'The App must intercept window closing before configuration drain.'
+    Assert-Condition ($appCode -match 'ShutdownDrainTimeout\s*=\s*TimeSpan\.FromSeconds\(5\)') `
+        'The configuration shutdown drain must keep its audited five-second bound.'
+    Assert-Condition ($appCode -match 'args\.Cancel\s*=\s*true') `
+        'Window closing must be cancelled until the accepted save queue drains.'
+    Assert-Condition ($appCode -match 'configurationSaves\.CompleteAsync') `
+        'Window closing must complete and drain the configuration save coordinator.'
+    Assert-Condition ($appCode -match 'closingDrainInProgress') `
+        'Concurrent close requests must share one configuration drain attempt.'
+    Assert-Condition (-not ($appCode -match 'configurationSaves\.EnqueueAsync')) `
+        'The development read-only shell must not enqueue product configuration writes.'
+
     return [ordered]@{
         requiredAutomationIds = $requiredIds.Count
         accessKeys = $expectedAccessKeys.Count
@@ -285,6 +302,7 @@ function Test-SourceContract {
         coreRuntimeStatus = 'development-read-only'
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
+        configurationShutdownDrain = 'bounded-zero-write-retry'
         readOnlyBoundary = 'pass'
     }
 }
@@ -404,6 +422,25 @@ function Scroll-UiaElementIntoView {
         ([System.Windows.Automation.ScrollItemPattern]$pattern).ScrollIntoView()
         Start-Sleep -Milliseconds 250
     }
+}
+
+function Wait-UiaElementOnscreen {
+    param(
+        [System.Windows.Automation.AutomationElement]$Element,
+        [string]$FailureMessage,
+        [int]$TimeoutSeconds = 5
+    )
+
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        Scroll-UiaElementIntoView $Element
+        if (-not $Element.Current.IsOffscreen) {
+            return
+        }
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    throw $FailureMessage
 }
 
 function Test-LiveUi {
@@ -676,8 +713,8 @@ public static class LongGridWindowNative
         Assert-Condition ($recoveryStatus.Current.ItemStatus -eq 'ReviewRequiredRecoveryPreview') `
             'ReviewRequired recovery semantics were not exposed to UI Automation.'
         $recoveryDiff = Find-UiaElement $root 'RecoveryDiffPanel'
-        Scroll-UiaElementIntoView $recoveryDiff
-        Assert-Condition (-not $recoveryDiff.Current.IsOffscreen) `
+        Wait-UiaElementOnscreen `
+            $recoveryDiff `
             'The anonymous recovery difference did not become visible.'
         $reviewRecovery = Find-UiaElement $root 'ReviewRecoveryButton'
         Assert-Condition $reviewRecovery.Current.IsEnabled `
