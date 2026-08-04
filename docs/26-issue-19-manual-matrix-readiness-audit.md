@@ -1,8 +1,8 @@
 # Issue #19 人工输入与系统表面矩阵就绪审计
 
-审计日期：2026-08-03
+审计日期：2026-08-04（Unicode 窗口边界增量复审）
 
-基线：`main` / `853a606` + 当前 Issue #19 短生命周期分支
+基线：`main` / `19e2359` + Issue #19 Unicode 窗口边界分支
 
 结论：**Ready to execute / Pending manual evidence / 不得关闭 Issue #19**
 
@@ -40,6 +40,14 @@
 - 现有原型可能暴露未实现能力；应如实记录 Fail/Inconclusive，不在工具层掩盖；
 - 自动化通过不得更新 ADR-0001 的人工矩阵勾选项。
 
-## 5. 下一动作
+## 5. 2026-08-04 I19-01 尝试与缺陷收口
+
+匿名操作员 O1 按同一 `main` commit 启动 I19-01。第一次启动的进程正常响应，但外部窗口标题只有首字符，且通用 Windows 窗口控制工具无法返回该 ToolWindow；未发送任何键盘或鼠标输入，结果记为 `Inconclusive`。
+
+审计确认窗口类和创建函数使用 Unicode，但默认窗口过程与消息循环未显式绑定 `W` 入口。修复将它们统一为 `DefWindowProcW`、`GetMessageW`、`DispatchMessageW`，并在 interactive smoke 中通过 `GetWindowTextW` 要求完整标题。修复后 Release smoke 为 `NativeWindowTitleUnicodeVerified=true`，UIA、Pattern、事件、初始不激活和资源清理仍全部通过。
+
+第二次启动已能从进程回读完整标题，但通用控制工具仍按其普通窗口策略过滤 `WS_EX_TOOLWINDOW`。没有移除 ToolWindow 样式、猜测坐标或使用内部自动化冒充人工输入；未发送输入，I19-01 继续保持 `Inconclusive/Pending`。需要真人直接操作可见原型，或使用能显式定位 ToolWindow 且不改变其窗口语义的受控工具，才能产生最终人工证据。
+
+## 6. 下一动作
 
 按[Issue #19 运行手册](manual-testing/issue-19-input-system-surface-runbook.md)一次只执行一个场景，将脱敏结果写回 Issue #19。十项完成前，路线图中的 P0-04/P0-05b2 保持未勾选。

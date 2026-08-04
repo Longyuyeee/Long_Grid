@@ -104,6 +104,8 @@ Smoke 不注入鼠标或键盘。它先短时可见展示并检查初始不激�
 6. 确认自动 Pattern 前已隐藏，并在初次展示后和 UIA 操作后两个检查点确认原型 HWND 不是前台；
 7. 销毁窗口并复读 USER/GDI/进程句柄。
 
+窗口类、创建、默认窗口过程和消息循环统一使用 Win32 Unicode `W` 入口；smoke 还会通过 `GetWindowTextW` 回读完整原生标题。该门禁防止 ANSI 默认窗口过程把标题截断为首字符，进而破坏外部定位和辅助技术的窗口级语义。
+
 三轮独立进程结果：
 
 | 指标 | Run 1 | Run 2 | Run 3 |
@@ -122,6 +124,8 @@ Smoke 不注入鼠标或键盘。它先短时可见展示并检查初始不激�
 
 正式三轮运行时系统已有其他 UIA/窗口检查客户端连接，因此绝对 USER/GDI/句柄基线高于此前单独运行；验收条件是每个独立进程在预热后精确回到自身基线，而不是跨工具环境比较绝对值。
 
+2026-08-04 增量复核发现 Unicode 窗口类仍通过未显式指定的默认窗口过程/消息循环入口处理消息，外部 `WM_GETTEXT` 只能读到标题首字符。修复统一切换到 `DefWindowProcW`、`GetMessageW` 和 `DispatchMessageW`，并新增 `GetWindowTextW` 完整标题门禁。修复后单轮 Release smoke 的 `NativeWindowTitleUnicodeVerified=true`，其余 UIA、非激活和资源闭环字段继续通过；该单轮不能回填上表历史三轮。
+
 ## 7. 人工模式
 
 ```powershell
@@ -131,7 +135,7 @@ dotnet run --project probes/LongGrid.Spikes.DesktopHostWindowModels `
 
 按窗口内说明操作，Esc 退出。
 
-本轮尝试使用通用 Windows 窗口控制工具定位原型时，ToolWindow 未出现在其普通窗口列表中。没有回退为猜测坐标操作。该现象与 ToolWindow 的测试工具过滤一致，但不能替代 Alt+Tab/任务视图人工验证。
+本轮尝试使用通用 Windows 窗口控制工具定位原型时，首次暴露原生标题被截断为首字符的 Unicode 消息边界缺陷；修复后进程可正确回读完整标题，但 ToolWindow 仍未出现在工具的普通窗口列表中。两次均没有回退为猜测坐标操作，也没有发送输入。后者与 ToolWindow 的测试工具过滤一致，不能通过移除 `WS_EX_TOOLWINDOW` 规避，也不能替代 I19-01 或 Alt+Tab/任务视图人工验证。
 
 ## 8. 尚未通过
 

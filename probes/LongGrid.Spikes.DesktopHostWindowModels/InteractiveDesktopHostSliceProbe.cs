@@ -22,6 +22,7 @@ internal static class InteractiveDesktopHostSliceProbe
         InteractiveSliceClientResult clientResult;
         bool passiveWindowStyle = false;
         bool topmostAbsent = false;
+        bool nativeWindowTitleUnicodeVerified = false;
         bool initiallyDidNotActivate = false;
         bool hostNotForegroundAtCheckpoints = true;
         bool hiddenBeforeAutomatedPatterns = false;
@@ -33,6 +34,9 @@ internal static class InteractiveDesktopHostSliceProbe
             using var host = InteractiveDesktopHostWindow.Create();
             window = host.Window;
             created = ResourceSnapshot.Capture(process);
+            nativeWindowTitleUnicodeVerified =
+                NativeMethods.ReadWindowText(host.Window)
+                    == InteractiveDesktopHostWindow.WindowTitle;
             ulong extendedStyle = unchecked((ulong)
                 NativeMethods.GetWindowLongPtr(
                     host.Window,
@@ -70,6 +74,7 @@ internal static class InteractiveDesktopHostSliceProbe
             perMonitorV2Requested
             && passiveWindowStyle
             && topmostAbsent
+            && nativeWindowTitleUnicodeVerified
             && initiallyDidNotActivate
             && hiddenBeforeAutomatedPatterns
             && clientResult.TreeVerified
@@ -89,6 +94,8 @@ internal static class InteractiveDesktopHostSliceProbe
             PerMonitorV2Requested: perMonitorV2Requested,
             ContainerCount: 1,
             ItemCount: 3,
+            NativeWindowTitleUnicodeVerified:
+                nativeWindowTitleUnicodeVerified,
             UiaTreeVerified: clientResult.TreeVerified,
             PatternsVerified: clientResult.PatternsVerified,
             SelectionVerified: clientResult.SelectionVerified,
@@ -343,6 +350,9 @@ internal static class InteractiveDesktopHostSliceProbe
 
 internal sealed class InteractiveDesktopHostWindow : IDisposable
 {
+    internal const string WindowTitle =
+        "Long Grid interactive DesktopHost slice";
+
     private static readonly string[] ItemNames =
     [
         "需求文档",
@@ -482,7 +492,7 @@ internal sealed class InteractiveDesktopHostWindow : IDisposable
             window = NativeMethods.CreateWindowEx(
                 NativeMethods.WsExToolWindow,
                 className,
-                "Long Grid interactive DesktopHost slice",
+                WindowTitle,
                 NativeMethods.WsPopup,
                 bounds.Left,
                 bounds.Top,
@@ -1274,6 +1284,7 @@ internal sealed record InteractiveDesktopHostSliceReport(
     bool PerMonitorV2Requested,
     int ContainerCount,
     int ItemCount,
+    bool NativeWindowTitleUnicodeVerified,
     bool UiaTreeVerified,
     bool PatternsVerified,
     bool SelectionVerified,

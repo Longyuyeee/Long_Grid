@@ -19,6 +19,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 - Issue #21–#22 已按 D23 批准范围关闭；#21 的托管移动专用矩阵移出首发阻断项，#22 以 Windows 11 x64、隔离 Worker 安全分类和类型图标回退收口。现有自动探针继续作为回归门禁，未执行项保留后续里程碑而不提升为 Pass；
 - `LongGrid.Core.Configuration` 已建立第一个正式产品 v1 配置合同、资源预算、未知字段保留与有限错误边界；当前只允许安全引用，不执行文件 I/O，也不代表 Infrastructure、真实卷或应用生命周期接线完成；
 - Issue #19 已具备 I19-01–I19-10 的匿名单场景启动器、恢复纪律和 CI `PendingManualEvidence` 合同；该工具不合成输入、不改变系统设置、不重启 Explorer，也不替代真实人工结果；
+- Issue #19 的首轮外部操作尝试发现 Win32 Unicode 默认窗口过程/消息循环边界导致原生标题只剩首字符；修复后完整标题回读、UIA 与资源闭环通过，但通用工具仍按设计过滤 ToolWindow，未发送输入，I19-01 保持 `Inconclusive/Pending`；
 - Issue #20 已具备 I20-01–I20-08 到只读 observer 的固定映射、匿名操作员、受控环境/恢复计划确认和 CI `PendingManualEvidence` 合同；真实硬件、RDP、睡眠和人工视觉/输入结论仍未执行；
 - `LongGrid.App` 使用 .NET 8、Windows App SDK 2.3.1 Stable、WinUI 3 和 x64 开发目标；ADR-0001 继续保持 `Proposed`；
 - 新 UI Shell 是为解除“只有正式 App 存在后才能验证启动、主题和关闭”的循环门槛而建立的受控开发切片，不代表跳过 Issue #19–#24；
