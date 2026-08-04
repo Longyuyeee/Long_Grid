@@ -1,6 +1,7 @@
 using LongGrid.Infrastructure.Configuration;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.Windows.AppLifecycle;
 
 namespace LongGrid.App;
 
@@ -11,6 +12,7 @@ public partial class App : Application
     private MainWindow? window;
     private bool closeAfterDrain;
     private bool closingDrainInProgress;
+    private bool activationPending;
 
     public App()
     {
@@ -26,6 +28,50 @@ public partial class App : Application
     {
         window = new MainWindow();
         window.AppWindow.Closing += AppWindow_Closing;
+        window.Activate();
+
+        if (activationPending)
+        {
+            activationPending = false;
+            ActivateMainWindow();
+        }
+    }
+
+    internal void HandleActivation(AppActivationArguments activation)
+    {
+        ArgumentNullException.ThrowIfNull(activation);
+
+        if (window is null)
+        {
+            activationPending = true;
+            return;
+        }
+
+        if (!window.DispatcherQueue.HasThreadAccess)
+        {
+            _ = window.DispatcherQueue.TryEnqueue(ActivateMainWindow);
+            return;
+        }
+
+        ActivateMainWindow();
+    }
+
+    private void ActivateMainWindow()
+    {
+        if (window is null)
+        {
+            activationPending = true;
+            return;
+        }
+
+        if (window.AppWindow.Presenter is OverlappedPresenter
+            {
+                State: OverlappedPresenterState.Minimized,
+            } presenter)
+        {
+            presenter.Restore();
+        }
+
         window.Activate();
     }
 
@@ -57,6 +103,7 @@ public partial class App : Application
         }
 
         closeAfterDrain = true;
+        Program.ReleaseMainInstance();
         sender.Closing -= AppWindow_Closing;
         window?.Close();
     }

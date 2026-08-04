@@ -50,6 +50,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Issue #23 首发产品决策记录](docs/30-issue-23-product-decision-proposal.md)
 - [Issue #24 专用环境就绪审计](docs/31-issue-24-dedicated-environment-readiness-audit.md)
 - [Issue #24 生产配置边界专用环境运行手册](docs/manual-testing/issue-24-persistence-boundary-runbook.md)
+- [Long方格单实例激活与参数转发审计](docs/35-single-instance-activation-audit.md)
 - [正式产品配置存储适配器审计](docs/33-product-configuration-store-audit.md)
 - [配置 latest-wins 与 App 关闭排空审计](docs/34-configuration-shutdown-drain-audit.md)
 - [贡献指南](CONTRIBUTING.md)
@@ -63,7 +64,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 的首发范围已经批准，下一步完成 5 人验证，并执行 #19 人工输入/Narrator/系统表面矩阵和 #20 动态显示硬件矩阵；#21–#22 已按 Windows 11 x64、安全引用与类型图标回退范围关闭，#24 已具备正式配置存储、latest-wins 关闭排空和专用环境安全会话入口，仍需单实例激活、恢复 UI 与真实测试卷结果。许可证选择延期到正式分发或接受外部贡献之前。
+按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 的首发范围已经批准，下一步完成 5 人验证，并执行 #19 人工输入/Narrator/系统表面矩阵和 #20 动态显示硬件矩阵；#21–#22 已按 Windows 11 x64、安全引用与类型图标回退范围关闭，#24 已具备正式配置存储、latest-wins 关闭排空、完整单实例激活和专用环境安全会话入口，仍需恢复 UI、真实产品状态入队与真实测试卷结果。许可证选择延期到正式分发或接受外部贡献之前。
 
 ## 开发启动
 

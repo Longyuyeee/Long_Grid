@@ -90,6 +90,13 @@ jobs:
           -File ./eng/Test-LongGridUi.ps1
           -ContractOnly
 
+      - name: Validate single-instance activation contract
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Test-LongGridSingleInstance.ps1
+          -ContractOnly
+
       - name: Test
         run: >-
           dotnet test LongGrid.sln
