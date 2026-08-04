@@ -20,9 +20,13 @@ public sealed partial class MainWindow : Window
     private bool _initialSizeApplied;
     private string _organizationStartChoice = "suggested";
     private bool _practiceItemsAdded;
+    private readonly Func<Task<ProductConfigurationStartupState>> _acceptRecoveredBackup;
 
-    public MainWindow()
+    public MainWindow(
+        Func<Task<ProductConfigurationStartupState>> acceptRecoveredBackup)
     {
+        ArgumentNullException.ThrowIfNull(acceptRecoveredBackup);
+        _acceptRecoveredBackup = acceptRecoveredBackup;
         InitializeComponent();
         RootLayout.Loaded += RootLayout_Loaded;
         RootLayout.SizeChanged += RootLayout_SizeChanged;
@@ -240,6 +244,8 @@ public sealed partial class MainWindow : Window
         ProductConfigurationStartupState state)
     {
         ArgumentNullException.ThrowIfNull(state);
+        AcceptRecoveredBackupButton.Visibility = Visibility.Collapsed;
+        AcceptRecoveredBackupButton.IsEnabled = true;
 
         AutomationProperties.SetItemStatus(
             ConfigurationRecoveryBanner,
@@ -265,6 +271,7 @@ public sealed partial class MainWindow : Window
                 ConfigurationRecoveryBanner.Message =
                     $"主配置{DescribeConfigurationFailure(state.PrimaryFailure)}。" +
                     "Long方格已采用上次有效备份，但不会自动覆盖损坏证据。";
+                AcceptRecoveredBackupButton.Visibility = Visibility.Visible;
                 break;
             case ProductConfigurationStartupMode.SafeMode:
                 ConfigurationRecoveryBanner.Severity = InfoBarSeverity.Error;
@@ -278,6 +285,78 @@ public sealed partial class MainWindow : Window
                 throw new ArgumentOutOfRangeException(nameof(state));
         }
     }
+
+    private async void AcceptRecoveredBackupButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        AcceptRecoveredBackupButton.IsEnabled = false;
+        try
+        {
+            ContentDialog confirmation = new()
+            {
+                XamlRoot = RootLayout.XamlRoot,
+                Title = "接受已验证备份？",
+                Content =
+                    "Long方格将把当前损坏主配置归档为独立证据，并把已经通过校验的备份设为主配置。" +
+                    "原备份不会删除；此操作会写入配置目录，且不能在 Long方格内自动撤销。",
+                PrimaryButtonText = "确认接受备份",
+                CloseButtonText = "取消",
+                DefaultButton = ContentDialogButton.Close,
+            };
+
+            ContentDialogResult result = await confirmation.ShowAsync();
+            if (result is not ContentDialogResult.Primary)
+            {
+                return;
+            }
+
+            AutomationProperties.SetItemStatus(
+                ConfigurationRecoveryBanner,
+                "BackupAcceptanceInProgress");
+            ProductConfigurationStartupState state = await _acceptRecoveredBackup();
+            ApplyConfigurationStartupState(state);
+            ConfigurationRecoveryBanner.Severity = InfoBarSeverity.Success;
+            ConfigurationRecoveryBanner.Title = "已接受备份";
+            ConfigurationRecoveryBanner.Message =
+                "已验证备份现在是主配置；原损坏主配置已作为独立证据保留，原备份未删除。";
+            AutomationProperties.SetItemStatus(
+                ConfigurationRecoveryBanner,
+                "BackupAccepted:DamagedPrimaryArchived");
+        }
+        catch (ProductConfigurationRecoveryException exception)
+        {
+            if (exception.Error is ProductConfigurationRecoveryError.RecoveryNotAvailable)
+            {
+                AcceptRecoveredBackupButton.Visibility = Visibility.Collapsed;
+            }
+
+            ConfigurationRecoveryBanner.Severity = InfoBarSeverity.Error;
+            ConfigurationRecoveryBanner.Title = "未能接受备份";
+            ConfigurationRecoveryBanner.Message = DescribeRecoveryFailure(exception.Error);
+            AutomationProperties.SetItemStatus(
+                ConfigurationRecoveryBanner,
+                $"BackupAcceptanceFailed:{exception.Error}");
+        }
+        finally
+        {
+            AcceptRecoveredBackupButton.IsEnabled = true;
+        }
+    }
+
+    private static string DescribeRecoveryFailure(
+        ProductConfigurationRecoveryError error) => error switch
+        {
+            ProductConfigurationRecoveryError.ConfirmationRequired =>
+                "操作未获得明确确认，没有修改任何配置。",
+            ProductConfigurationRecoveryError.RecoveryNotAvailable =>
+                "恢复状态已经变化，没有执行写入；请重新启动后再检查。",
+            ProductConfigurationRecoveryError.WriteLeaseUnavailable =>
+                "其他 Long方格进程正在使用配置，没有执行写入；请稍后重试。",
+            ProductConfigurationRecoveryError.IoFailure =>
+                "暂时无法安全写入配置，没有自动删除或重置任何文件。",
+            _ => "恢复操作未完成，没有自动删除或重置任何文件。",
+        };
 
     private static string DescribeConfigurationFailure(
         ProductConfigurationStorageFailure failure) => failure switch

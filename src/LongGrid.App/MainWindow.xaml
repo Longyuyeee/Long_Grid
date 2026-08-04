@@ -128,7 +128,17 @@
                                 IsOpen="True"
                                 Severity="Informational"
                                 Title="安全只读原型"
-                                Message="当前界面不扫描真实桌面、不移动文件，也不连接 DesktopHost。" />
+                                Message="当前界面不扫描真实桌面、不移动文件，也不连接 DesktopHost。">
+                                <InfoBar.ActionButton>
+                                    <Button
+                                        x:Name="AcceptRecoveredBackupButton"
+                                        AutomationProperties.AutomationId="AcceptRecoveredBackupButton"
+                                        AutomationProperties.Name="检查并接受已验证备份"
+                                        Click="AcceptRecoveredBackupButton_Click"
+                                        Content="检查并接受备份"
+                                        Visibility="Collapsed" />
+                                </InfoBar.ActionButton>
+                            </InfoBar>
                             <StackPanel Spacing="8">
                                 <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="DESKTOP WORKSPACE" />
                                 <TextBlock Style="{StaticResource LongGridTitleTextStyle}" Text="把桌面还给专注本身" />

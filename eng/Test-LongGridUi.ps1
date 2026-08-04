@@ -60,6 +60,7 @@ function Test-SourceContract {
         'NavSafety',
         'NavRecovery',
         'OverviewPanel',
+        'AcceptRecoveredBackupButton',
         'FirstRunPanel',
         'AppearancePanel',
         'SafetyPanel',
@@ -154,6 +155,12 @@ function Test-SourceContract {
     Assert-Condition (
         $configurationRecoveryNode.GetAttribute('IsClosable') -eq 'False'
     ) 'Configuration recovery warnings must not be dismissible without resolution.'
+    $acceptBackupNode = Get-XamlNodeByAutomationId $document 'AcceptRecoveredBackupButton'
+    Assert-Condition ($acceptBackupNode.GetAttribute('Visibility') -eq 'Collapsed') `
+        'Backup acceptance must be unavailable until a validated recovery state is loaded.'
+    Assert-Condition (
+        $acceptBackupNode.GetAttribute('Click') -eq 'AcceptRecoveredBackupButton_Click'
+    ) 'Backup acceptance must use the audited confirmation handler.'
     $practiceNameNode = Get-XamlNodeByAutomationId $document 'PracticeContainerName'
     Assert-Condition ($practiceNameNode.GetAttribute('MaxLength') -eq '40') `
         'The anonymous practice-container name must remain bounded to 40 characters.'
@@ -260,6 +267,14 @@ function Test-SourceContract {
         'The UI must expose configuration safe mode as a separate state.'
     Assert-Condition (-not ($codeBehind -match 'PrimaryContractError|BackupContractError')) `
         'The UI must not expose raw configuration contract diagnostics.'
+    Assert-Condition ($codeBehind -match 'ContentDialogResult\.Primary') `
+        'Backup acceptance must require the destructive primary confirmation result.'
+    Assert-Condition ($codeBehind -match 'DefaultButton\s*=\s*ContentDialogButton\.Close') `
+        'The backup confirmation dialog must default keyboard focus to cancellation.'
+    Assert-Condition ($codeBehind -match 'BackupAccepted:DamagedPrimaryArchived') `
+        'Successful backup acceptance must expose evidence archival to UI Automation.'
+    Assert-Condition ($codeBehind -match 'ProductConfigurationRecoveryError\.WriteLeaseUnavailable') `
+        'The UI must map finite recovery contention without exposing storage details.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*CurrentModeValue') `
         'The current runtime mode must expose a machine-readable UIA status.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*FileOperationValue') `
@@ -297,6 +312,10 @@ function Test-SourceContract {
         'The App must read the formal configuration result before presenting recovery state.'
     Assert-Condition ($appCode -match 'ProductConfigurationStartupState\.FromLoadResult') `
         'The App must reduce storage results to the finite recovery presentation contract.'
+    Assert-Condition ($appCode -match 'configurationStore\.RecoverAsync') `
+        'The App must route confirmed backup acceptance through the formal store.'
+    Assert-Condition ($appCode -match 'UserConfirmed:\s*true') `
+        'The App recovery request must carry the explicit confirmation contract.'
     Assert-Condition ($appCode -match 'AppWindow\.Closing\s*\+=') `
         'The App must intercept window closing before configuration drain.'
     Assert-Condition ($appCode -match 'ShutdownDrainTimeout\s*=\s*TimeSpan\.FromSeconds\(5\)') `
@@ -321,8 +340,9 @@ function Test-SourceContract {
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
+        configurationRepair = 'confirmed-backup-acceptance-damage-archive'
         configurationShutdownDrain = 'bounded-zero-write-retry'
-        readOnlyBoundary = 'pass'
+        readOnlyBoundary = 'no-automatic-product-writes'
     }
 }
 

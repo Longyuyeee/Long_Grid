@@ -29,6 +29,27 @@ public enum ProductConfigurationSaveError
     IoFailure,
 }
 
+public enum ProductConfigurationRecoveryAction
+{
+    AcceptValidatedBackup,
+}
+
+public enum ProductConfigurationRecoveryError
+{
+    ConfirmationRequired,
+    RecoveryNotAvailable,
+    WriteLeaseUnavailable,
+    IoFailure,
+}
+
+public sealed record ProductConfigurationRecoveryRequest(
+    ProductConfigurationRecoveryAction Action,
+    bool UserConfirmed);
+
+public sealed record ProductConfigurationRecoveryResult(
+    ProductConfigurationRecoveryAction Action,
+    bool DamagedPrimaryArchived);
+
 public sealed record ProductConfigurationLoadResult(
     ProductConfigurationLoadStatus Status,
     ProductConfigurationDocument? Document,
@@ -42,6 +63,13 @@ public sealed class ProductConfigurationSaveException(
     : IOException($"Product configuration save failed: {error}.")
 {
     public ProductConfigurationSaveError Error { get; } = error;
+}
+
+public sealed class ProductConfigurationRecoveryException(
+    ProductConfigurationRecoveryError error)
+    : IOException($"Product configuration recovery failed: {error}.")
+{
+    public ProductConfigurationRecoveryError Error { get; } = error;
 }
 
 public sealed class ProductConfigurationStore
@@ -100,6 +128,8 @@ public sealed class ProductConfigurationStore
     public string TemporaryPath { get; }
 
     public string WriteLeasePath { get; }
+
+    internal string RecoveryTemporaryPath => PrimaryPath + ".recovery.new";
 
     public async Task<ProductConfigurationLoadResult> LoadAsync(
         CancellationToken cancellationToken = default)
@@ -239,6 +269,120 @@ public sealed class ProductConfigurationStore
         }
     }
 
+    public async Task<ProductConfigurationRecoveryResult> RecoverAsync(
+        ProductConfigurationRecoveryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (!request.UserConfirmed)
+        {
+            throw new ProductConfigurationRecoveryException(
+                ProductConfigurationRecoveryError.ConfirmationRequired);
+        }
+
+        if (request.Action is not ProductConfigurationRecoveryAction.AcceptValidatedBackup)
+        {
+            throw new ArgumentOutOfRangeException(nameof(request));
+        }
+
+        try
+        {
+            ProductConfigurationLoadResult preflight = await LoadAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (preflight.Status is not ProductConfigurationLoadStatus.RecoveredFromBackup)
+            {
+                throw new ProductConfigurationRecoveryException(
+                    ProductConfigurationRecoveryError.RecoveryNotAvailable);
+            }
+
+            await using FileStream writeLease = await AcquireWriteLeaseAsync(cancellationToken)
+                .ConfigureAwait(false);
+            ProductConfigurationLoadResult current = await LoadAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (current.Status is not ProductConfigurationLoadStatus.RecoveredFromBackup)
+            {
+                throw new ProductConfigurationRecoveryException(
+                    ProductConfigurationRecoveryError.RecoveryNotAvailable);
+            }
+
+            TryDeleteRecoveryTemporaryFile();
+            try
+            {
+                await using (FileStream source = new(
+                    BackupPath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read | FileShare.Delete,
+                    bufferSize: 4096,
+                    FileOptions.Asynchronous | FileOptions.SequentialScan))
+                await using (FileStream destination = new(
+                    RecoveryTemporaryPath,
+                    new FileStreamOptions
+                    {
+                        Access = FileAccess.Write,
+                        Mode = FileMode.CreateNew,
+                        Options = FileOptions.Asynchronous | FileOptions.WriteThrough,
+                        Share = FileShare.None,
+                    }))
+                {
+                    await source.CopyToAsync(destination, cancellationToken)
+                        .ConfigureAwait(false);
+                    await destination.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    destination.Flush(flushToDisk: true);
+                }
+
+                ReadAttempt staged = await TryReadAsync(
+                        RecoveryTemporaryPath,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (staged.Document is null)
+                {
+                    throw new ProductConfigurationRecoveryException(
+                        ProductConfigurationRecoveryError.RecoveryNotAvailable);
+                }
+
+                string damagedArchivePath = PrimaryPath + ".damaged." + Guid.NewGuid().ToString("N");
+                File.Replace(
+                    RecoveryTemporaryPath,
+                    PrimaryPath,
+                    damagedArchivePath,
+                    ignoreMetadataErrors: false);
+
+                return new(
+                    ProductConfigurationRecoveryAction.AcceptValidatedBackup,
+                    DamagedPrimaryArchived: true);
+            }
+            finally
+            {
+                TryDeleteRecoveryTemporaryFile();
+            }
+        }
+        catch (ProductConfigurationRecoveryException)
+        {
+            throw;
+        }
+        catch (ProductConfigurationSaveException exception) when (
+            exception.Error is ProductConfigurationSaveError.WriteLeaseUnavailable)
+        {
+            throw new ProductConfigurationRecoveryException(
+                ProductConfigurationRecoveryError.WriteLeaseUnavailable);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (IOException)
+        {
+            throw new ProductConfigurationRecoveryException(
+                ProductConfigurationRecoveryError.IoFailure);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw new ProductConfigurationRecoveryException(
+                ProductConfigurationRecoveryError.IoFailure);
+        }
+    }
+
     private async Task<FileStream> AcquireWriteLeaseAsync(
         CancellationToken cancellationToken)
     {
@@ -335,6 +479,20 @@ public sealed class ProductConfigurationStore
         try
         {
             File.Delete(TemporaryPath);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private void TryDeleteRecoveryTemporaryFile()
+    {
+        try
+        {
+            File.Delete(RecoveryTemporaryPath);
         }
         catch (IOException)
         {
