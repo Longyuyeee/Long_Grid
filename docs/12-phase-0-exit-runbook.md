@@ -64,6 +64,8 @@ dotnet test LongGrid.sln --configuration Release --no-build
 
 先按[P0-07b2b2b2b4b1 报告](spikes/P0-07b2b2b2b4b1-controlled-dynamic-matrix-harness.md)启动对应 `--matrix-scenario`。每次变化后等待稳定采样，再恢复原布局并复读窗口、Region、Composition、UIA 和资源状态。
 
+执行前先调用 `eng/Start-Issue20DisplayMatrixSession.ps1 -ValidateOnly`；随后按[Issue #20 单场景运行手册](manual-testing/issue-20-dynamic-display-session-runbook.md)启动 observer。`Observed Pass` 不是最终人工 Pass，最终状态在视觉、输入和恢复确认完成前保持 `PendingManualEvidence`。
+
 | ID | 场景 | 最低矩阵 | 通过条件 | 状态 |
 |---|---|---|---|---|
 | I20-01 | DPI 缩放 | 100%→150%→100%，跨屏移动 | 收到公开事件；稳定后 DIP/像素映射正确 | Pending |

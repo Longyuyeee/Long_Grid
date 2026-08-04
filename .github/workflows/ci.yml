@@ -45,6 +45,13 @@ jobs:
           -NoRestore
           -ValidateOnly
 
+      - name: Validate Issue 20 display matrix session chain
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Start-Issue20DisplayMatrixSession.ps1
+          -ValidateOnly
+
       - name: Validate Issue 19 manual matrix session chain
         shell: powershell
         run: >-

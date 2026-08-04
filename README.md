@@ -39,6 +39,8 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [布局恢复差异原型审计](docs/24-layout-recovery-difference-prototype-audit.md)
 - [Issue #19 人工矩阵就绪审计](docs/26-issue-19-manual-matrix-readiness-audit.md)
 - [Issue #19 输入与系统表面运行手册](docs/manual-testing/issue-19-input-system-surface-runbook.md)
+- [Issue #20 动态显示矩阵就绪审计](docs/27-issue-20-display-matrix-readiness-audit.md)
+- [Issue #20 动态显示与会话运行手册](docs/manual-testing/issue-20-dynamic-display-session-runbook.md)
 - [Issue #23 五人可用性测试计划](docs/usability/issue-23-first-organization-test-plan.md)
 - [Issue #23 五人测试主持人手册](docs/usability/issue-23-facilitator-runbook.md)
 - [Issue #23 五人测试就绪审计](docs/25-issue-23-usability-readiness-audit.md)
@@ -75,6 +77,16 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 ```
 
 正确结果保持 `PendingManualEvidence`；该预检不打开窗口，也不代表任何人工场景通过。
+
+Issue #20 动态显示与会话矩阵开始前，先验证只读 observer 会话链：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File ./eng/Start-Issue20DisplayMatrixSession.ps1 `
+  -ValidateOnly
+```
+
+预检固定保持 `PendingManualEvidence`；不会修改显示、设备、电源或会话状态。
 
 执行 Issue #23 五人测试前，先验证匿名会话链：
 
