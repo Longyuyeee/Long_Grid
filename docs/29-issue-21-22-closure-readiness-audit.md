@@ -75,3 +75,21 @@ Issue #22 当前不能关闭，因为首发格式、Windows build、架构和最
 - 当前机器 worker 的 500 个请求没有成功提取像素，而是安全返回访问拒绝并要求产品回退；这不能写成 500/500 提取成功，也不能证明支持任意真实 provider。
 
 该复核只刷新自动化回归证据，不改变 `Not closable` 判定。
+
+## 6. PR #78 CI 回归与修复审计
+
+PR #78 首轮 Windows CI 在“Thumbnail worker isolation probe”失败。报告中父进程正常退出、Job 配置有效、孤儿 Worker 已退出，其他正常回收路径的 Profile 也全部删除；唯一失败项是异常父退出场景的 `ParentExit.AppContainerProfileDeleted=false`。失败运行：[30870164681](https://github.com/Longyuyeee/Long_Grid/actions/runs/30870164681)。
+
+根因是主探针确认孤儿进程退出后立即且仅调用一次 `DeleteAppContainerProfile`。Windows 已报告进程退出并不保证相关 Profile 句柄在同一时刻完成释放，因此该单次调用存在很小的清理竞态。这不是隔离边界被绕过，也不能通过删除判定项解决。
+
+修复保持以下边界：
+
+- 仅允许删除名称严格满足 `LongGridThumbnailWorker` + 32 位 GUID 的探针自有 Profile；
+- 最多尝试 20 次，每次间隔 50 ms，重试间隔累计最多 950 ms；
+- 首次成功立即结束，不改变正常路径时延；
+- 所有尝试失败时仍返回失败，不把超时或“可能已删除”伪装为成功；
+- 报告新增尝试次数与最终 HRESULT，便于区分瞬时句柄释放和持续清理故障。
+
+修复后本机连续三轮执行与 CI 相同的完整 Worker Matrix：每轮 500 个压力请求、父进程退出、孤儿回收、Profile 删除、沙箱清理和临时预算均通过，三轮 Profile 都在第 1 次调用删除成功并返回 `0x00000000`，总体判定均为 `ConditionalPass`。完整 Release 构建为 0 警告、0 错误，Core 测试为 111/111。
+
+远端 CI 全绿前，本节只能证明本地回归和修复边界；Issue #22 继续保持 OPEN，`Not closable` 判定不变。
