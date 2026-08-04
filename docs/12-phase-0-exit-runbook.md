@@ -43,6 +43,8 @@ dotnet test LongGrid.sln --configuration Release --no-build
 
 前置条件：使用 P0-04/P0-05b1 可见交互切片；Narrator 结论必须人工听读确认。
 
+执行前先调用 `eng/Start-Issue19ManualMatrixSession.ps1 -ValidateOnly`；随后按[Issue #19 单场景运行手册](manual-testing/issue-19-input-system-surface-runbook.md)为每个 ID 启动全新进程。预检只证明入口与隐私合同可用，输出必须保持 `PendingManualEvidence`。
+
 | ID | 场景 | 最低操作 | 通过条件 | 状态 |
 |---|---|---|---|---|
 | I19-01 | 键盘 | Tab/Shift+Tab、方向键、Enter、Space、Esc | 焦点顺序与视觉顺序一致；选择、调用和退出可逆 | Pending |
@@ -109,7 +111,7 @@ Phase 0 必须关闭安全边界和已批准首发范围的兼容风险；正式
 | 许可证 | 在接受贡献或发布二进制前选择 | MIT、Apache-2.0、GPLv3 或闭源/双许可 | Pending owner decision |
 | 性能预算 | 以支持矩阵复测后批准 | 500 项 p95、内存、空闲 CPU 最终值 | Pending owner decision |
 
-5 人无提示测试必须覆盖：首次扫描说明、创建容器、添加安全引用、识别原生图标仍存在、区分引用与移动、撤销/恢复。每位参与者记录任务成功率、误解点、严重度和是否需要主持人提示；不能收集真实文件名或桌面截图。首次整理模式原型的执行步骤和匿名结果表见[Issue #23 五人可用性测试计划](usability/issue-23-first-organization-test-plan.md)；当前代码覆盖起点、模式、预览、单个匿名容器、三个匿名引用、拖放语义、两步撤销及布局恢复三态/过期/取消语义，真实扫描、Explorer/DesktopHost 拖放、显示硬件恢复、持久化与文件操作撤销仍必须保持 Pending。
+5 人无提示测试必须覆盖：首次扫描说明、创建容器、添加安全引用、识别原生图标仍存在、区分引用与移动、撤销/恢复。每位参与者记录任务成功率、误解点、严重度和是否需要主持人提示；不能收集真实文件名或桌面截图。首次整理模式原型的执行步骤和匿名结果表见[Issue #23 五人可用性测试计划](usability/issue-23-first-organization-test-plan.md)，会话隔离、隐私和主持纪律见[主持人运行手册](usability/issue-23-facilitator-runbook.md)；当前代码覆盖起点、模式、预览、单个匿名容器、三个匿名引用、拖放语义、两步撤销及布局恢复三态/过期/取消语义，真实扫描、Explorer/DesktopHost 拖放、显示硬件恢复、持久化与文件操作撤销仍必须保持 Pending。
 
 ## 7. Issue #24 与 ADR-0001
 
