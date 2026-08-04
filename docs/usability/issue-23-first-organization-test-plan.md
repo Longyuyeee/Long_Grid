@@ -84,16 +84,16 @@
 
 ## 7. 负责人决策（测试后填写）
 
-候选范围、证据和影响以[Issue #23 首发产品决策提案](../30-issue-23-product-decision-proposal.md)中的 D23-01–D23-11 为准。提案不等于批准。
+批准范围、证据和影响以[Issue #23 首发产品决策记录](../30-issue-23-product-decision-proposal.md)中的 D23-01–D23-11 为准。范围批准不等于五人测试通过。
 
 | 决策 ID | 选择 | 理由 | 日期 | 批准人 |
 |---|---|---|---|---|
-| D23-01–D23-03：整理模式/本地账户/Folder Portal | Pending | Pending | Pending | Pending |
-| D23-04–D23-05：Windows / 架构范围 | Pending | Pending | Pending | Pending |
-| D23-06：安装渠道 | Pending | Pending | Pending | Pending |
-| D23-07–D23-08：图像回退/原生桌面融合 | Pending | Pending | Pending | Pending |
-| D23-09：性能与资源预算 | Pending | Pending | Pending | Pending |
-| D23-10：ADR-0001 Go / Revise / No-Go | Pending | Pending | Pending | Pending |
-| D23-11：许可证与商业模式 | Pending | Pending | Pending | Pending |
+| D23-01–D23-03：整理模式/本地账户/Folder Portal | Approve | 仅安全引用、本地无账户、Portal 后移 | 2026-08-04 | ProjectOwner |
+| D23-04–D23-05：Windows / 架构范围 | Approve | Windows 11 x64 技术预览 | 2026-08-04 | ProjectOwner |
+| D23-06：安装渠道 | Approve | MSIX 目标渠道；当前仅开发入口 | 2026-08-04 | ProjectOwner |
+| D23-07–D23-08：图像回退/原生桌面融合 | Approve | 类型图标回退；接受 Explorer 图标共存 | 2026-08-04 | ProjectOwner |
+| D23-09：性能与资源预算 | Approve | 作为首片门禁；不是发布 SLA | 2026-08-04 | ProjectOwner |
+| D23-10：ADR-0001 Go / Revise / No-Go | Approve proposal | 保持 Proposed，等待人工/硬件证据 | 2026-08-04 | ProjectOwner |
+| D23-11：许可证与商业模式 | Defer | 当前开发跳过；分发/外部贡献前重开 | 2026-08-04 | ProjectOwner |
 
 测试结果、缺陷链接和决策写回 Issue #23 后，才能重新审计该出口门禁。

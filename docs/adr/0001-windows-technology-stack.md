@@ -2,7 +2,8 @@
 
 - 状态：Proposed
 - 日期：2026-07-29
-- 决策者：待项目负责人确认
+- 产品范围确认：2026-08-04 / ProjectOwner（D23-01–D23-10）
+- 最终技术决策者：待 #19/#20、安装和可用性证据完成后确认
 
 ## 背景
 
@@ -19,6 +20,8 @@ Phase 0 首选：
 - Core 保持纯 .NET，不依赖 UI 框架。
 - 通过探针决定桌面宿主是否继续使用 WinUI Composition，或切换为 WPF/原生 DirectComposition。
 - 发布架构不得依赖 `Progman`/`WorkerW`、Explorer 注入或内部 XAML。
+
+已批准的首个技术预览边界为 Windows 11 x64、完全本地无账户、仅安全引用、MSIX 目标渠道和类型图标安全回退。Windows 10、ARM64、托管移动、Folder Portal 与未验证 Provider 不属于首发承诺。该产品范围确认不把本 ADR 提升为 `Accepted`；真实输入、Narrator、动态显示、安装和五人测试仍决定最终 `Accepted` 或 `Revised`。
 
 不得将 Preview 或 Experimental SDK 用于发布构建。
 

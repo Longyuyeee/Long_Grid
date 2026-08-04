@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1、一键启动链、UI 自动化、响应式布局、Core 只读状态合同，以及首次整理、匿名容器、三个匿名引用、拖放语义、两步撤销和匿名恢复差异原型已建立，但不接真实桌面、Explorer 拖放、显示拓扑、DesktopHost、持久化或文件操作，不能视为正式 MVP。Issue #23 的 5 人测试与负责人决策仍未完成；多数系统能力仍是 Conditional Pass。
+> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1、一键启动链、UI 自动化、响应式布局、Core 只读状态合同，以及首次整理、匿名容器、三个匿名引用、拖放语义、两步撤销和匿名恢复差异原型已建立，但不接真实桌面、Explorer 拖放、显示拓扑、DesktopHost、持久化或文件操作，不能视为正式 MVP。Issue #23 的 D23-01–D23-10 首发范围已获负责人批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
 
 ## 产品原则
 
@@ -46,7 +46,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Issue #23 五人可用性测试计划](docs/usability/issue-23-first-organization-test-plan.md)
 - [Issue #23 五人测试主持人手册](docs/usability/issue-23-facilitator-runbook.md)
 - [Issue #23 五人测试就绪审计](docs/25-issue-23-usability-readiness-audit.md)
-- [Issue #23 首发产品决策提案](docs/30-issue-23-product-decision-proposal.md)
+- [Issue #23 首发产品决策记录](docs/30-issue-23-product-decision-proposal.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
 - [Long助手兼容协议交付包](docs/protocol/README.md)
@@ -58,7 +58,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：先由 Issue #23 明确首版范围并完成低保真/5 人验证，再执行 #19 人工输入/Narrator/系统表面矩阵和 #20 动态显示硬件矩阵，随后只按已批准支持范围收口 #21–#22；#24 先关闭配置合同，应用关闭、单实例和正式渲染接线在首个只读生产切片中验收。实机执行和负责人签字使用[Phase 0 出口执行手册](docs/12-phase-0-exit-runbook.md)；详细偏移依据和停止规则见[初始计划对齐与偏移审计](docs/13-original-plan-alignment-audit.md)。
+按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 的首发范围已经批准，下一步完成 5 人验证，并执行 #19 人工输入/Narrator/系统表面矩阵和 #20 动态显示硬件矩阵；#21–#22 只按 Windows 11 x64、安全引用与类型图标回退范围收口，#24 继续关闭配置存储边界。应用关闭、单实例和正式渲染接线在首个只读生产切片中验收。许可证选择延期到正式分发或接受外部贡献之前。
 
 ## 开发启动
 
