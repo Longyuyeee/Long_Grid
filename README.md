@@ -46,6 +46,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Issue #23 五人可用性测试计划](docs/usability/issue-23-first-organization-test-plan.md)
 - [Issue #23 五人测试主持人手册](docs/usability/issue-23-facilitator-runbook.md)
 - [Issue #23 五人测试就绪审计](docs/25-issue-23-usability-readiness-audit.md)
+- [Issue #23 首发产品决策提案](docs/30-issue-23-product-decision-proposal.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
 - [Long助手兼容协议交付包](docs/protocol/README.md)

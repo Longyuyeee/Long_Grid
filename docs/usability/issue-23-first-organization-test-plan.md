@@ -84,13 +84,16 @@
 
 ## 7. 负责人决策（测试后填写）
 
-| 决策 | 选择 | 理由 | 日期 | 批准人 |
+候选范围、证据和影响以[Issue #23 首发产品决策提案](../30-issue-23-product-decision-proposal.md)中的 D23-01–D23-11 为准。提案不等于批准。
+
+| 决策 ID | 选择 | 理由 | 日期 | 批准人 |
 |---|---|---|---|---|
-| 首版整理模式 | Pending | Pending | Pending | Pending |
-| 许可证 | Pending | Pending | Pending | Pending |
-| Windows / 架构范围 | Pending | Pending | Pending | Pending |
-| 安装渠道 | Pending | Pending | Pending | Pending |
-| 性能与资源预算 | Pending | Pending | Pending | Pending |
-| ADR-0001 Go / Revise / No-Go | Pending | Pending | Pending | Pending |
+| D23-01–D23-03：整理模式/本地账户/Folder Portal | Pending | Pending | Pending | Pending |
+| D23-04–D23-05：Windows / 架构范围 | Pending | Pending | Pending | Pending |
+| D23-06：安装渠道 | Pending | Pending | Pending | Pending |
+| D23-07–D23-08：图像回退/原生桌面融合 | Pending | Pending | Pending | Pending |
+| D23-09：性能与资源预算 | Pending | Pending | Pending | Pending |
+| D23-10：ADR-0001 Go / Revise / No-Go | Pending | Pending | Pending | Pending |
+| D23-11：许可证与商业模式 | Pending | Pending | Pending | Pending |
 
 测试结果、缺陷链接和决策写回 Issue #23 后，才能重新审计该出口门禁。
