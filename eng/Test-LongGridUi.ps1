@@ -60,7 +60,7 @@ function Test-SourceContract {
         'NavSafety',
         'NavRecovery',
         'OverviewPanel',
-        'AcceptRecoveredBackupButton',
+        'ConfigurationRecoveryActionButton',
         'FirstRunPanel',
         'AppearancePanel',
         'SafetyPanel',
@@ -155,12 +155,15 @@ function Test-SourceContract {
     Assert-Condition (
         $configurationRecoveryNode.GetAttribute('IsClosable') -eq 'False'
     ) 'Configuration recovery warnings must not be dismissible without resolution.'
-    $acceptBackupNode = Get-XamlNodeByAutomationId $document 'AcceptRecoveredBackupButton'
-    Assert-Condition ($acceptBackupNode.GetAttribute('Visibility') -eq 'Collapsed') `
-        'Backup acceptance must be unavailable until a validated recovery state is loaded.'
+    $configurationActionNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ConfigurationRecoveryActionButton'
+    Assert-Condition ($configurationActionNode.GetAttribute('Visibility') -eq 'Collapsed') `
+        'Configuration repair must be unavailable until a finite recovery state is loaded.'
     Assert-Condition (
-        $acceptBackupNode.GetAttribute('Click') -eq 'AcceptRecoveredBackupButton_Click'
-    ) 'Backup acceptance must use the audited confirmation handler.'
+        $configurationActionNode.GetAttribute('Click') -eq `
+            'ConfigurationRecoveryActionButton_Click'
+    ) 'Configuration repair must use the audited confirmation handler.'
     $practiceNameNode = Get-XamlNodeByAutomationId $document 'PracticeContainerName'
     Assert-Condition ($practiceNameNode.GetAttribute('MaxLength') -eq '40') `
         'The anonymous practice-container name must remain bounded to 40 characters.'
@@ -273,6 +276,10 @@ function Test-SourceContract {
         'The backup confirmation dialog must default keyboard focus to cancellation.'
     Assert-Condition ($codeBehind -match 'BackupAccepted:DamagedPrimaryArchived') `
         'Successful backup acceptance must expose evidence archival to UI Automation.'
+    Assert-Condition ($codeBehind -match 'ProductConfigurationRecoveryAction\.ResetSafeMode') `
+        'Safe mode must route to the finite reset action only after confirmation.'
+    Assert-Condition ($codeBehind -match 'SafeModeReset:DamagedEvidenceArchived') `
+        'Successful safe-mode reset must expose evidence archival to UI Automation.'
     Assert-Condition ($codeBehind -match 'ProductConfigurationRecoveryError\.WriteLeaseUnavailable') `
         'The UI must map finite recovery contention without exposing storage details.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*CurrentModeValue') `
@@ -340,7 +347,7 @@ function Test-SourceContract {
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
-        configurationRepair = 'confirmed-backup-acceptance-damage-archive'
+        configurationRepair = 'confirmed-backup-acceptance-and-safe-mode-reset'
         configurationShutdownDrain = 'bounded-zero-write-retry'
         readOnlyBoundary = 'no-automatic-product-writes'
     }

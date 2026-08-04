@@ -7,6 +7,21 @@ namespace LongGrid.Core.Tests.Configuration;
 public sealed class ProductConfigurationContractTests
 {
     [Fact]
+    public void EmptyProductDefaultIsValidAndContainsNoUserState()
+    {
+        ProductConfigurationDocument document = ProductConfigurationDefaults.CreateEmpty();
+
+        ProductConfigurationValidationResult result =
+            ProductConfigurationValidator.Validate(document);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(ProductConfigurationLimits.CurrentSchemaVersion, document.SchemaVersion);
+        Assert.Equal("default", document.ProfileId);
+        Assert.Empty(document.Containers);
+        Assert.Null(document.ExtensionData);
+    }
+
+    [Fact]
     public void ValidReferenceConfigurationRoundTripsWithCamelCaseEnums()
     {
         ProductConfigurationDocument source = CreateValidDocument();

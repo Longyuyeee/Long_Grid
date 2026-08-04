@@ -187,11 +187,13 @@ P0-06 已用独立临时沙箱验证版本化 JSON、同目录 `.new`、`Flush(f
 
 2026-08-04 的后续产品切片已将 latest-wins 协调器放入 `LongGrid.Infrastructure` 并接到 `LongGrid.App` 的 `AppWindow.Closing`：入队时深快照，等待批次只保留最新状态，调用方取消不撤销已接受保存，完成后拒绝新请求；关窗最多等待 5 秒，超时则保留窗口并允许再次排空。当前只读 UI 没有任何 `EnqueueAsync` 入口，启动与正常关闭不会创建配置目录或文件。该接线关闭了 App 排空结构门槛，但不代表真实产品状态已经启用持久化，也不替代单实例、恢复 UI 或真实卷证据。
 
-同日的单实例切片进一步关闭了上述单实例门槛：`LongGrid.App` 禁用 XAML 自动生成入口，在任何窗口或 Store 构造前用 Windows App SDK `AppInstance` 注册固定 key；第二进程只转发完整激活参数并退出。主实例对构造前激活进行进程内排队，并在窗口 `DispatcherQueue` 上恢复最小化状态和激活窗口；正常排空完成后先释放实例 key 再关窗。当前不解释激活 payload，也不将其映射为文件、插件或小组件操作；只读恢复状态 UI 与显式备份接受已接入，SafeMode 重置、真实状态入队、关闭竞态矩阵和真实卷证据仍属后续门槛。
+同日的单实例切片进一步关闭了上述单实例门槛：`LongGrid.App` 禁用 XAML 自动生成入口，在任何窗口或 Store 构造前用 Windows App SDK `AppInstance` 注册固定 key；第二进程只转发完整激活参数并退出。主实例对构造前激活进行进程内排队，并在窗口 `DispatcherQueue` 上恢复最小化状态和激活窗口；正常排空完成后先释放实例 key 再关窗。当前不解释激活 payload，也不将其映射为文件、插件或小组件操作；恢复状态 UI、显式备份接受与 SafeMode 空白重置已接入，外部导入、真实状态入队、关闭竞态矩阵和真实卷证据仍属后续门槛。
 
 配置恢复 UI 切片随后把正式 Store 的只读加载接到 App 启动，并通过 Infrastructure 的 `ProductConfigurationStartupState` 去除 Document、路径和原始合同错误后再进入 MainWindow。概览页复用已有 InfoBar 显示 Missing、LoadedPrimary、RecoveredBackupReadOnly 与 SafeMode；恢复和安全模式不触发自动写入，损坏证据仍由 Store 拒绝普通保存。
 
-已验证备份接受切片在该状态表面上增加唯一显式写入口。UI 入口默认折叠，只在 `RecoveredBackupReadOnly` 显示；默认取消的二次确认通过后，App 才向 Infrastructure 传递 `AcceptValidatedBackup + UserConfirmed`。Store 在写锁前预检、锁内复检，逐字节复制并复读备份到独立 `.recovery.new`，随后用一次 `File.Replace` 将其发布为主配置，并把原损坏主配置归档到随机后缀 `.damaged.*`；原 `.bak` 保持不变。取消、状态变化、锁超时、调用方取消或 I/O 失败均不覆盖主配置。公开恢复结果只携带有限动作、有限错误和证据归档布尔值，不返回路径、Document 或原始异常。SafeMode 重置仍需独立事务、确认与保留策略。
+已验证备份接受切片在该状态表面上增加首个显式写入口。UI 入口默认折叠，只在 `RecoveredBackupReadOnly` 显示；默认取消的二次确认通过后，App 才向 Infrastructure 传递 `AcceptValidatedBackup + UserConfirmed`。Store 在写锁前预检、锁内复检，逐字节复制并复读备份到独立 `.recovery.new`，随后用一次 `File.Replace` 将其发布为主配置，并把原损坏主配置归档到随机后缀 `.damaged.*`；原 `.bak` 保持不变。取消、状态变化、锁超时、调用方取消或 I/O 失败均不覆盖主配置。公开恢复结果只携带有限动作、有限错误和证据归档布尔值，不返回路径、Document 或原始异常。
+
+SafeMode 重置切片复用同一有限恢复入口，增加 `ResetSafeMode` 动作和 Core `ProductConfigurationDefaults.CreateEmpty()`。标准空白文档只包含当前 schema、固定非个人化 profile 与空容器集合。Store 在锁内先写穿并复读 `.recovery.new`，再把现存损坏备份原子改名为随机 `.backup` 证据；主配置存在时用 `File.Replace` 同时发布空白配置和归档 `.primary` 证据，主配置缺失时用同目录 `File.Move` 发布。发布失败会尝试把备份移回；若回滚也失败，则保留恢复暂存标记，使主备都缺失的下一次加载仍返回 SafeMode 并允许重试。外部导入、历史证据清理和真实卷耐久性仍为独立门槛。
 
 ## 8. 可观测性
 

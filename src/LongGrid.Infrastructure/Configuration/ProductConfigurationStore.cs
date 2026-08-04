@@ -32,6 +32,7 @@ public enum ProductConfigurationSaveError
 public enum ProductConfigurationRecoveryAction
 {
     AcceptValidatedBackup,
+    ResetSafeMode,
 }
 
 public enum ProductConfigurationRecoveryError
@@ -48,7 +49,8 @@ public sealed record ProductConfigurationRecoveryRequest(
 
 public sealed record ProductConfigurationRecoveryResult(
     ProductConfigurationRecoveryAction Action,
-    bool DamagedPrimaryArchived);
+    bool DamagedPrimaryArchived,
+    bool DamagedBackupArchived);
 
 public sealed record ProductConfigurationLoadResult(
     ProductConfigurationLoadStatus Status,
@@ -161,7 +163,8 @@ public sealed class ProductConfigurationStore
         }
 
         bool missing = primary.Failure == ProductConfigurationStorageFailure.Missing
-            && backup.Failure == ProductConfigurationStorageFailure.Missing;
+            && backup.Failure == ProductConfigurationStorageFailure.Missing
+            && !File.Exists(RecoveryTemporaryPath);
         return new(
             missing
                 ? ProductConfigurationLoadStatus.Missing
@@ -280,16 +283,27 @@ public sealed class ProductConfigurationStore
                 ProductConfigurationRecoveryError.ConfirmationRequired);
         }
 
-        if (request.Action is not ProductConfigurationRecoveryAction.AcceptValidatedBackup)
+        if (request.Action is not (
+            ProductConfigurationRecoveryAction.AcceptValidatedBackup or
+            ProductConfigurationRecoveryAction.ResetSafeMode))
         {
             throw new ArgumentOutOfRangeException(nameof(request));
         }
+
+        ProductConfigurationLoadStatus requiredStatus = request.Action switch
+        {
+            ProductConfigurationRecoveryAction.AcceptValidatedBackup =>
+                ProductConfigurationLoadStatus.RecoveredFromBackup,
+            ProductConfigurationRecoveryAction.ResetSafeMode =>
+                ProductConfigurationLoadStatus.SafeMode,
+            _ => throw new ArgumentOutOfRangeException(nameof(request)),
+        };
 
         try
         {
             ProductConfigurationLoadResult preflight = await LoadAsync(cancellationToken)
                 .ConfigureAwait(false);
-            if (preflight.Status is not ProductConfigurationLoadStatus.RecoveredFromBackup)
+            if (preflight.Status != requiredStatus)
             {
                 throw new ProductConfigurationRecoveryException(
                     ProductConfigurationRecoveryError.RecoveryNotAvailable);
@@ -299,63 +313,20 @@ public sealed class ProductConfigurationStore
                 .ConfigureAwait(false);
             ProductConfigurationLoadResult current = await LoadAsync(cancellationToken)
                 .ConfigureAwait(false);
-            if (current.Status is not ProductConfigurationLoadStatus.RecoveredFromBackup)
+            if (current.Status != requiredStatus)
             {
                 throw new ProductConfigurationRecoveryException(
                     ProductConfigurationRecoveryError.RecoveryNotAvailable);
             }
 
-            TryDeleteRecoveryTemporaryFile();
-            try
+            return request.Action switch
             {
-                await using (FileStream source = new(
-                    BackupPath,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.Read | FileShare.Delete,
-                    bufferSize: 4096,
-                    FileOptions.Asynchronous | FileOptions.SequentialScan))
-                await using (FileStream destination = new(
-                    RecoveryTemporaryPath,
-                    new FileStreamOptions
-                    {
-                        Access = FileAccess.Write,
-                        Mode = FileMode.CreateNew,
-                        Options = FileOptions.Asynchronous | FileOptions.WriteThrough,
-                        Share = FileShare.None,
-                    }))
-                {
-                    await source.CopyToAsync(destination, cancellationToken)
-                        .ConfigureAwait(false);
-                    await destination.FlushAsync(cancellationToken).ConfigureAwait(false);
-                    destination.Flush(flushToDisk: true);
-                }
-
-                ReadAttempt staged = await TryReadAsync(
-                        RecoveryTemporaryPath,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                if (staged.Document is null)
-                {
-                    throw new ProductConfigurationRecoveryException(
-                        ProductConfigurationRecoveryError.RecoveryNotAvailable);
-                }
-
-                string damagedArchivePath = PrimaryPath + ".damaged." + Guid.NewGuid().ToString("N");
-                File.Replace(
-                    RecoveryTemporaryPath,
-                    PrimaryPath,
-                    damagedArchivePath,
-                    ignoreMetadataErrors: false);
-
-                return new(
-                    ProductConfigurationRecoveryAction.AcceptValidatedBackup,
-                    DamagedPrimaryArchived: true);
-            }
-            finally
-            {
-                TryDeleteRecoveryTemporaryFile();
-            }
+                ProductConfigurationRecoveryAction.AcceptValidatedBackup =>
+                    await AcceptValidatedBackupAsync(cancellationToken).ConfigureAwait(false),
+                ProductConfigurationRecoveryAction.ResetSafeMode =>
+                    await ResetSafeModeAsync(cancellationToken).ConfigureAwait(false),
+                _ => throw new ArgumentOutOfRangeException(nameof(request)),
+            };
         }
         catch (ProductConfigurationRecoveryException)
         {
@@ -382,6 +353,158 @@ public sealed class ProductConfigurationStore
                 ProductConfigurationRecoveryError.IoFailure);
         }
     }
+
+    private async Task<ProductConfigurationRecoveryResult> AcceptValidatedBackupAsync(
+        CancellationToken cancellationToken)
+    {
+        TryDeleteRecoveryTemporaryFile();
+        try
+        {
+            await using (FileStream source = new(
+                BackupPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read | FileShare.Delete,
+                bufferSize: 4096,
+                FileOptions.Asynchronous | FileOptions.SequentialScan))
+            await using (FileStream destination = CreateRecoveryStagingStream())
+            {
+                await source.CopyToAsync(destination, cancellationToken)
+                    .ConfigureAwait(false);
+                await FlushToDiskAsync(destination, cancellationToken).ConfigureAwait(false);
+            }
+
+            await RequireValidRecoveryStagingAsync(cancellationToken).ConfigureAwait(false);
+            string damagedArchivePath = CreateDamageArchivePath("primary");
+            File.Replace(
+                RecoveryTemporaryPath,
+                PrimaryPath,
+                damagedArchivePath,
+                ignoreMetadataErrors: false);
+
+            return new(
+                ProductConfigurationRecoveryAction.AcceptValidatedBackup,
+                DamagedPrimaryArchived: true,
+                DamagedBackupArchived: false);
+        }
+        finally
+        {
+            TryDeleteRecoveryTemporaryFile();
+        }
+    }
+
+    private async Task<ProductConfigurationRecoveryResult> ResetSafeModeAsync(
+        CancellationToken cancellationToken)
+    {
+        byte[] resetDocument = ProductConfigurationJson.SerializeToUtf8Bytes(
+            ProductConfigurationDefaults.CreateEmpty());
+        TryDeleteRecoveryTemporaryFile();
+        string? backupArchivePath = null;
+        bool backupMoved = false;
+        bool resetPublished = false;
+        bool preserveRecoveryMarker = false;
+
+        try
+        {
+            await using (FileStream destination = CreateRecoveryStagingStream())
+            {
+                await destination.WriteAsync(resetDocument, cancellationToken)
+                    .ConfigureAwait(false);
+                await FlushToDiskAsync(destination, cancellationToken).ConfigureAwait(false);
+            }
+
+            await RequireValidRecoveryStagingAsync(cancellationToken).ConfigureAwait(false);
+
+            if (File.Exists(BackupPath))
+            {
+                backupArchivePath = CreateDamageArchivePath("backup");
+                File.Move(BackupPath, backupArchivePath);
+                backupMoved = true;
+            }
+
+            bool primaryExists = File.Exists(PrimaryPath);
+            if (primaryExists)
+            {
+                File.Replace(
+                    RecoveryTemporaryPath,
+                    PrimaryPath,
+                    CreateDamageArchivePath("primary"),
+                    ignoreMetadataErrors: false);
+            }
+            else
+            {
+                File.Move(RecoveryTemporaryPath, PrimaryPath);
+            }
+
+            resetPublished = true;
+            return new(
+                ProductConfigurationRecoveryAction.ResetSafeMode,
+                DamagedPrimaryArchived: primaryExists,
+                DamagedBackupArchived: backupMoved);
+        }
+        catch
+        {
+            if (backupMoved && !resetPublished && backupArchivePath is not null)
+            {
+                try
+                {
+                    File.Move(backupArchivePath, BackupPath);
+                    backupMoved = false;
+                }
+                catch (IOException)
+                {
+                    preserveRecoveryMarker = true;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    preserveRecoveryMarker = true;
+                }
+            }
+
+            throw;
+        }
+        finally
+        {
+            if (!preserveRecoveryMarker)
+            {
+                TryDeleteRecoveryTemporaryFile();
+            }
+        }
+    }
+
+    private FileStream CreateRecoveryStagingStream() =>
+        new(
+            RecoveryTemporaryPath,
+            new FileStreamOptions
+            {
+                Access = FileAccess.Write,
+                Mode = FileMode.CreateNew,
+                Options = FileOptions.Asynchronous | FileOptions.WriteThrough,
+                Share = FileShare.None,
+            });
+
+    private async Task RequireValidRecoveryStagingAsync(
+        CancellationToken cancellationToken)
+    {
+        ReadAttempt staged = await TryReadAsync(RecoveryTemporaryPath, cancellationToken)
+            .ConfigureAwait(false);
+        if (staged.Document is null)
+        {
+            throw new ProductConfigurationRecoveryException(
+                ProductConfigurationRecoveryError.RecoveryNotAvailable);
+        }
+    }
+
+    private static async Task FlushToDiskAsync(
+        FileStream stream,
+        CancellationToken cancellationToken)
+    {
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+        stream.Flush(flushToDisk: true);
+    }
+
+    private string CreateDamageArchivePath(string kind) =>
+        PrimaryPath + ".damaged." + Guid.NewGuid().ToString("N") + "." + kind;
 
     private async Task<FileStream> AcquireWriteLeaseAsync(
         CancellationToken cancellationToken)
