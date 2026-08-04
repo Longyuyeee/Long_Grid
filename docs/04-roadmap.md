@@ -51,7 +51,8 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] Issue #24 首个正式 Infrastructure 配置存储切片：同目录 `.new`、落盘 flush、正式 schema 复读、原子发布、上一版备份、主损坏恢复、安全模式、损坏证据保护和跨进程写租约（Partial；恢复 UI 与真实卷矩阵仍 Pending）。
 - [x] Issue #24 正式 latest-wins 与 App 关闭排空：入队深快照、等待批次合并、取消隔离、失败后继续、完成拒绝新请求，App 关窗 5 秒有界等待/超时保留窗口/重试；只读 Shell 零入队、启动关闭零写入。
 - [x] Issue #24 完整单实例激活：自定义 WinUI 入口在 XAML 初始化前注册固定 key，第二进程转发完整 `AppActivationArguments` 后退出，主实例排队早到激活并在 UI 线程恢复/激活窗口；真实双进程最小化恢复通过（关闭排空竞态、恢复 UI 与文件/URI/插件 payload 合同仍 Pending）。
-- [x] Issue #24 配置恢复状态 UI：App 只读加载正式 Store，有限启动状态不携带 Document/路径/原始合同错误；概览 InfoBar 区分无配置、主配置有效、备份只读恢复和安全模式，损坏状态零自动覆盖（显式修复流程与本机 UIA 环境证据仍 Pending/Inconclusive）。
+- [x] Issue #24 配置恢复状态 UI：App 只读加载正式 Store，有限启动状态不携带 Document/路径/原始合同错误；概览 InfoBar 区分无配置、主配置有效、备份只读恢复和安全模式，损坏状态零自动覆盖（本机 UIA 环境证据仍 Inconclusive）。
+- [x] Issue #24 已验证备份接受：仅在备份恢复态显示入口，二次确认默认取消；锁内复检后原子接受备份、保留原备份并归档损坏主配置，有限结果不泄露路径（SafeMode 重置与真实卷证据仍 Pending）。
 - [x] Issue #24 I24-01/I24-02 专用环境会话入口、独立卷标记/双确认安全合同和 CI `PendingDedicatedEnvironmentEvidence` 预检（Ready to schedule；真实卷结果仍 Pending）。
 - [x] P0-07a 静态双屏拓扑、混合 DPI、隐私安全指纹与资源稳定性（Conditional Pass）。
 - [x] P0-07b1 QueryDisplayConfig 活动路径、virtual-mode 索引、rotation 与 monitor 一一关联（Conditional Pass）。
@@ -80,7 +81,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2. 按 Issue #19 完成 P0-04/P0-05b2 人工输入、无障碍与系统表面矩阵；
 3. 按 Issue #20 完成 P0-07b2b2b2b4b2 动态显示硬件矩阵；
 4. 保持 Issue #21–#22 已关闭范围；不再机会主义扩展相邻格式、provider 或故障组合，后续能力通过独立里程碑重新准入；
-5. 按 Issue #24 复用已建立的正式配置存储；应用关闭排空、单实例和只读恢复状态 UI 已完成首片验收，显式修复、真实状态入队与真实卷证据继续按独立切片验收；
+5. 按 Issue #24 复用已建立的正式配置存储；应用关闭排空、单实例、只读恢复状态 UI 和显式备份接受已完成首片验收，SafeMode 重置、真实状态入队与真实卷证据继续按独立切片验收；
 6. 更新 ADR-0001 后，进入只读 MVP 垂直切片。
 
 执行停止规则：已有 Conditional Pass 的探针族，除 CI 回归、安全缺陷、明确支持决策或现有退出场景失败外，不再增加深度；每个新 PR 必须对应一个未满足的阶段退出条件。

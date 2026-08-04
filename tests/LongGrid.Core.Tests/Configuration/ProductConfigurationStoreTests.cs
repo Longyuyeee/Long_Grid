@@ -100,6 +100,179 @@ public sealed class ProductConfigurationStoreTests
     }
 
     [Fact]
+    public async Task ConfirmedBackupAcceptanceArchivesDamageAndKeepsBackup()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        ProductConfigurationDocument previous = CreateDocument("profile-previous");
+        await store.SaveAsync(previous);
+        await store.SaveAsync(CreateDocument("profile-current"));
+        byte[] backup = await File.ReadAllBytesAsync(store.BackupPath);
+        byte[] damaged = Encoding.UTF8.GetBytes("{ damaged");
+        await File.WriteAllBytesAsync(store.PrimaryPath, damaged);
+
+        ProductConfigurationRecoveryResult result = await store.RecoverAsync(
+            new(
+                ProductConfigurationRecoveryAction.AcceptValidatedBackup,
+                UserConfirmed: true));
+
+        ProductConfigurationLoadResult loaded = await store.LoadAsync();
+        string archive = Assert.Single(
+            Directory.GetFiles(directory.Path, "configuration.json.damaged.*"));
+        Assert.Equal(
+            ProductConfigurationRecoveryAction.AcceptValidatedBackup,
+            result.Action);
+        Assert.True(result.DamagedPrimaryArchived);
+        Assert.Equal(ProductConfigurationLoadStatus.LoadedPrimary, loaded.Status);
+        Assert.Equivalent(previous, loaded.Document, strict: true);
+        Assert.Equal(backup, await File.ReadAllBytesAsync(store.BackupPath));
+        Assert.Equal(damaged, await File.ReadAllBytesAsync(archive));
+        Assert.False(File.Exists(store.PrimaryPath + ".recovery.new"));
+    }
+
+    [Fact]
+    public async Task BackupAcceptanceWithoutConfirmationMakesNoChanges()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        await store.SaveAsync(CreateDocument("profile-previous"));
+        await store.SaveAsync(CreateDocument("profile-current"));
+        byte[] backup = await File.ReadAllBytesAsync(store.BackupPath);
+        byte[] damaged = Encoding.UTF8.GetBytes("{ damaged");
+        await File.WriteAllBytesAsync(store.PrimaryPath, damaged);
+        File.Delete(store.WriteLeasePath);
+
+        ProductConfigurationRecoveryException exception = await Assert.ThrowsAsync<
+            ProductConfigurationRecoveryException>(
+            () => store.RecoverAsync(
+                new(
+                    ProductConfigurationRecoveryAction.AcceptValidatedBackup,
+                    UserConfirmed: false)));
+
+        Assert.Equal(
+            ProductConfigurationRecoveryError.ConfirmationRequired,
+            exception.Error);
+        Assert.Equal(damaged, await File.ReadAllBytesAsync(store.PrimaryPath));
+        Assert.Equal(backup, await File.ReadAllBytesAsync(store.BackupPath));
+        Assert.Empty(Directory.GetFiles(directory.Path, "configuration.json.damaged.*"));
+        Assert.False(File.Exists(store.WriteLeasePath));
+    }
+
+    [Fact]
+    public async Task BackupAcceptanceOutsideRecoveryStateCreatesNoStorage()
+    {
+        using TemporaryDirectory directory = new(create: false);
+        ProductConfigurationStore store = new(directory.Path);
+
+        ProductConfigurationRecoveryException exception = await Assert.ThrowsAsync<
+            ProductConfigurationRecoveryException>(
+            () => store.RecoverAsync(
+                new(
+                    ProductConfigurationRecoveryAction.AcceptValidatedBackup,
+                    UserConfirmed: true)));
+
+        Assert.Equal(
+            ProductConfigurationRecoveryError.RecoveryNotAvailable,
+            exception.Error);
+        Assert.False(Directory.Exists(directory.Path));
+    }
+
+    [Fact]
+    public async Task BackupAcceptanceUsesBoundedWriteLeaseAndPreservesDamageOnTimeout()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(
+            directory.Path,
+            writeLeaseTimeout: TimeSpan.FromMilliseconds(40),
+            writeLeaseRetryDelay: TimeSpan.FromMilliseconds(5));
+        await store.SaveAsync(CreateDocument("profile-previous"));
+        await store.SaveAsync(CreateDocument("profile-current"));
+        byte[] damaged = Encoding.UTF8.GetBytes("{ damaged");
+        await File.WriteAllBytesAsync(store.PrimaryPath, damaged);
+        await using FileStream lease = AcquireLease(store.WriteLeasePath);
+
+        ProductConfigurationRecoveryException exception = await Assert.ThrowsAsync<
+            ProductConfigurationRecoveryException>(
+            () => store.RecoverAsync(
+                new(
+                    ProductConfigurationRecoveryAction.AcceptValidatedBackup,
+                    UserConfirmed: true)));
+
+        Assert.Equal(
+            ProductConfigurationRecoveryError.WriteLeaseUnavailable,
+            exception.Error);
+        Assert.Equal(damaged, await File.ReadAllBytesAsync(store.PrimaryPath));
+        Assert.Empty(Directory.GetFiles(directory.Path, "configuration.json.damaged.*"));
+        Assert.False(File.Exists(store.PrimaryPath + ".recovery.new"));
+    }
+
+    [Fact]
+    public async Task BackupAcceptanceLeaseWaitHonorsCallerCancellation()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(
+            directory.Path,
+            writeLeaseTimeout: TimeSpan.FromSeconds(2),
+            writeLeaseRetryDelay: TimeSpan.FromMilliseconds(10));
+        await store.SaveAsync(CreateDocument("profile-previous"));
+        await store.SaveAsync(CreateDocument("profile-current"));
+        byte[] damaged = Encoding.UTF8.GetBytes("{ damaged");
+        await File.WriteAllBytesAsync(store.PrimaryPath, damaged);
+        await using FileStream lease = AcquireLease(store.WriteLeasePath);
+        using CancellationTokenSource cancellation = new(TimeSpan.FromMilliseconds(40));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => store.RecoverAsync(
+                new(
+                    ProductConfigurationRecoveryAction.AcceptValidatedBackup,
+                    UserConfirmed: true),
+                cancellation.Token));
+
+        Assert.Equal(damaged, await File.ReadAllBytesAsync(store.PrimaryPath));
+        Assert.Empty(Directory.GetFiles(directory.Path, "configuration.json.damaged.*"));
+        Assert.False(File.Exists(store.PrimaryPath + ".recovery.new"));
+    }
+
+    [Fact]
+    public async Task BackupAcceptanceIoFailureIsFiniteAndPreservesDamage()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        await store.SaveAsync(CreateDocument("profile-previous"));
+        await store.SaveAsync(CreateDocument("profile-current"));
+        byte[] damaged = Encoding.UTF8.GetBytes("{ damaged");
+        await File.WriteAllBytesAsync(store.PrimaryPath, damaged);
+        Directory.CreateDirectory(store.PrimaryPath + ".recovery.new");
+
+        ProductConfigurationRecoveryException exception = await Assert.ThrowsAsync<
+            ProductConfigurationRecoveryException>(
+            () => store.RecoverAsync(
+                new(
+                    ProductConfigurationRecoveryAction.AcceptValidatedBackup,
+                    UserConfirmed: true)));
+
+        Assert.Equal(ProductConfigurationRecoveryError.IoFailure, exception.Error);
+        Assert.DoesNotContain(directory.Path, exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(damaged, await File.ReadAllBytesAsync(store.PrimaryPath));
+        Assert.Empty(Directory.GetFiles(directory.Path, "configuration.json.damaged.*"));
+    }
+
+    [Fact]
+    public async Task BackupAcceptanceRejectsNullAndUnknownRequestsBeforeStorage()
+    {
+        using TemporaryDirectory directory = new(create: false);
+        ProductConfigurationStore store = new(directory.Path);
+
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => store.RecoverAsync(null!));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => store.RecoverAsync(
+                new((ProductConfigurationRecoveryAction)999, UserConfirmed: true)));
+
+        Assert.False(Directory.Exists(directory.Path));
+    }
+
+    [Fact]
     public async Task InvalidPrimaryWithoutBackupEntersSafeMode()
     {
         using TemporaryDirectory directory = new();
