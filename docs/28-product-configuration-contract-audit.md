@@ -1,10 +1,10 @@
 # Issue #24 正式产品配置合同审计
 
-审计日期：2026-08-03
+审计日期：2026-08-04（专用环境入口增量复审）
 
-基线：`main` / `853a606` + 当前 Issue #24 短生命周期分支
+基线：`main` / `3dd39a0` + Issue #24 专用环境会话分支
 
-结论：**Core schema contract ready / Storage integration pending / 不得关闭 Issue #24**
+结论：**Core schema and dedicated-session contract ready / Real-volume and storage integration pending / 不得关闭 Issue #24**
 
 ## 1. 需求对齐
 
@@ -50,6 +50,12 @@ Core 测试覆盖：合法往返、camelCase 枚举、五层未知字段保留�
 - v2 迁移必须等真实新增字段出现后实现，不以 probe 的 `persistenceProbe` 假字段代替；
 - D23 已把托管移动、规则执行和未验证支持范围移出首发；这些能力不进入 v1。
 
-## 6. 下一动作
+## 6. 专用环境会话入口
+
+`eng/Start-Issue24PersistenceBoundarySession.ps1` 为 I24-01 真实容量/配额耗尽和 I24-02 只读独立卷建立统一入口。真实会话必须使用匿名 O1–O9、确认专用环境与恢复计划，并指向带固定标记的非工作区独立卷根目录。
+
+启动器只读取标记并输出脱敏合同；它不写卷、不填盘、不改变卷状态或 ACL、不运行配置探针、不截图、不写结果文件。CI 只调用 `-ValidateOnly`，固定输出 `PendingDedicatedEnvironmentEvidence`。因此入口就绪不提升 P0-06 的 `Conditional Pass`，也不产生真实卷结果。执行纪律见[专用环境运行手册](manual-testing/issue-24-persistence-boundary-runbook.md)，安全判定见[专用环境就绪审计](31-issue-24-dedicated-environment-readiness-audit.md)。
+
+## 7. 下一动作
 
 在专用环境完成真实卷证据后，以该 Core 合同建立 `LongGrid.Infrastructure` 适配器；适配器必须复用 P0-06 状态机语义，但不能直接引用或改名发布 spike 程序集。Issue #24 只有在正式存储边界与专用环境证据齐全后才能关闭。

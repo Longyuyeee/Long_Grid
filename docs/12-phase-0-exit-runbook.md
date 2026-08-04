@@ -119,11 +119,13 @@ Phase 0 必须关闭安全边界和已批准首发范围的兼容风险；正式
 
 Phase 0 必须确认正式 schema、迁移/回滚、原子存储、安全恢复、生产模块边界，并在可用的专用环境补真实卷只读/空间耗尽证据。这些是把探针合同迁入 `LongGrid.Infrastructure` 的前置条件。
 
+执行真实卷场景前先调用 `eng/Start-Issue24PersistenceBoundarySession.ps1 -ValidateOnly` 验证安全会话链，再按照[Issue #24 专用环境运行手册](manual-testing/issue-24-persistence-boundary-runbook.md)分别执行 I24-01 与 I24-02。预检固定保持 `PendingDedicatedEnvironmentEvidence`，不写卷、不填盘、不改变卷状态、不运行配置探针，也不产生最终结论；详细边界见[Issue #24 专用环境就绪审计](31-issue-24-dedicated-environment-readiness-audit.md)。
+
 `LongGrid.Core.Configuration` v1 已完成纯模型、验证、未知字段保留和 JSON 资源边界，当前仅允许安全引用；详见[正式产品配置合同审计](28-product-configuration-contract-audit.md)。该进展只关闭 schema 形状前置，不关闭真实卷、Infrastructure 原子存储或应用生命周期证据。
 
 应用关闭排空、完整单实例激活和正式渲染表面属于首个生产切片才能形成的集成证据，迁入 Phase 1 首片验收，不再要求它们在创建 `LongGrid.App`/`LongGrid.DesktopHost` 之前完成。对应 Issue 可以在 Phase 0 合同项关闭后保留明确的首片子任务，但不得形成循环门槛。
 
-D23 产品范围已经批准；只有 #19–#24 的其余必要证据齐全后，才能把[ADR-0001](adr/0001-windows-technology-stack.md)从 `Proposed` 改为 `Accepted`、`Revised` 或 `Rejected`。ADR 决定前不得创建公开安装承诺，也不得把探针项目改名冒充产品模块。
+D23 产品范围已经批准；只有 #19、#20、#23、#24 的其余必要证据齐全后，才能把[ADR-0001](adr/0001-windows-technology-stack.md)从 `Proposed` 改为 `Accepted`、`Revised` 或 `Rejected`。ADR 决定前不得创建公开安装承诺，也不得把探针项目改名冒充产品模块。
 
 ## 8. 单轮证据模板
 

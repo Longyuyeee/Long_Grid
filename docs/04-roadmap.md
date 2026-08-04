@@ -47,6 +47,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] Issue #19 匿名人工矩阵会话入口、单场景运行手册和 CI `PendingManualEvidence` 安全合同（Ready to execute；I19-01–I19-10 真实人工结果仍 Pending）。
 - [x] P0-06 版本化配置、同目录暂存、落盘校验、原子替换、备份恢复、安全模式、四检查点共 1,000 次及 ACL 生效期间子进程强杀、跨进程单写租约、有界可取消退避与具备入队快照/有界排空的 latest-wins 保存协调、确定性 v1→v2 示例迁移回滚、四类只读文件恢复、受控磁盘满注入及权限语义（Conditional Pass；Phase 0 仍缺断电、真实卷空间耗尽/只读、跨进程公平性和产品 schema；真实应用关闭/单实例接线列入首片验收）。
 - [x] Issue #24 正式 Core 配置 v1 合同、只读 reference 行为、未知字段保留、有限验证错误和 JSON 资源预算（Partial；Infrastructure 原子存储、真实卷、关闭排空和单实例仍 Pending）。
+- [x] Issue #24 I24-01/I24-02 专用环境会话入口、独立卷标记/双确认安全合同和 CI `PendingDedicatedEnvironmentEvidence` 预检（Ready to schedule；真实卷结果仍 Pending）。
 - [x] P0-07a 静态双屏拓扑、混合 DPI、隐私安全指纹与资源稳定性（Conditional Pass）。
 - [x] P0-07b1 QueryDisplayConfig 活动路径、virtual-mode 索引、rotation 与 monitor 一一关联（Conditional Pass）。
 - [x] P0-07b2a 拓扑精确/相似映射、歧义阻断、DIP 重映射与最小可见性恢复计划（Conditional Pass）。
