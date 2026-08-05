@@ -124,6 +124,8 @@ P0-02 已验证 Shell 会强烈合并高频变化：1,100 次沙箱操作每轮�
 
 `LongGrid.Core.Configuration` 现已将该形状固化为首个正式 v1 合同：最多 100 个容器/500 个项目、4 MiB UTF-8 JSON、有限 DIP/字符串边界、全局唯一对象 ID、未知字段保留和有限错误码。当前行为枚举只允许 `reference`，不把未批准的真实移动写入首版 schema；详细边界见[正式产品配置合同审计](28-product-configuration-contract-audit.md)。Core 合同本身不执行 I/O；首个正式磁盘适配器已进入 `LongGrid.Infrastructure`，其边界见[正式产品配置存储适配器审计](33-product-configuration-store-audit.md)。
 
+2026-08-05 的产品状态投影切片进一步建立 UI 无关 `ProductWorkspaceState`：容器、外观、DIP/显示器放置和引用不再从 WinUI 控件反推；项目引用必须携带已解析 `DesktopCatalogEntry/DesktopItemIdentity`。投影器只接受 filesystem provider 和完全限定 canonical target，固定映射为 current-v1 reference，并经正式 serializer/validator 生成深快照；显示名称、SourceId、ParsingName、Volume/File ID 不进入 v1。保存工作流可直接接收该状态，但 MainWindow 仍零普通保存调用。v1 无法跨重启保留文件系统稳定身份，后续必须用当前 Catalog 解析 target 并显式表达 missing/unresolved；详见[产品工作区状态与 v1 投影审计](44-product-workspace-state-projection-audit.md)。
+
 ## 5. 布局恢复算法
 
 1. 收集当前显示器的稳定属性：设备标识、工作区、方向、DPI 和相对拓扑。

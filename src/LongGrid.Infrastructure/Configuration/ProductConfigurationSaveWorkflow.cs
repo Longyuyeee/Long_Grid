@@ -31,6 +31,18 @@ public sealed class ProductConfigurationSaveWorkflow
     }
 
     public Task<ProductConfigurationSaveAttemptResult> SaveAsync(
+        ProductWorkspaceState state,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ProductWorkspaceProjectionResult projection =
+            ProductWorkspaceConfigurationProjector.Project(state);
+        return projection.IsSuccess
+            ? SaveAsync(projection.Document!, cancellationToken)
+            : RejectInvalidSave();
+    }
+
+    public Task<ProductConfigurationSaveAttemptResult> SaveAsync(
         ProductConfigurationDocument document,
         CancellationToken cancellationToken = default)
     {
@@ -52,11 +64,7 @@ public sealed class ProductConfigurationSaveWorkflow
             }
             catch (ProductConfigurationContractException)
             {
-                return Task.FromResult(
-                    new ProductConfigurationSaveAttemptResult(
-                        ProductConfigurationSaveAttemptStatus.Failed,
-                        ProductConfigurationSaveError.InvalidConfiguration,
-                        CanRetry: false));
+                return Task.FromResult(InvalidConfigurationResult());
             }
 
             Task save = coordinator.EnqueueAsync(captured, cancellationToken);
@@ -154,5 +162,26 @@ public sealed class ProductConfigurationSaveWorkflow
         new(
             ProductConfigurationSaveAttemptStatus.Completed,
             null,
+            CanRetry: false);
+
+    private Task<ProductConfigurationSaveAttemptResult> RejectInvalidSave()
+    {
+        lock (gate)
+        {
+            if (!accepting)
+            {
+                return Task.FromResult(CompletedResult());
+            }
+
+            ++latestAttempt;
+            retryDocument = null;
+            return Task.FromResult(InvalidConfigurationResult());
+        }
+    }
+
+    private static ProductConfigurationSaveAttemptResult InvalidConfigurationResult() =>
+        new(
+            ProductConfigurationSaveAttemptStatus.Failed,
+            ProductConfigurationSaveError.InvalidConfiguration,
             CanRetry: false);
 }
