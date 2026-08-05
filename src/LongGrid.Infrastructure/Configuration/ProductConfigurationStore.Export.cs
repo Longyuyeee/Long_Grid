@@ -138,7 +138,13 @@ public sealed partial class ProductConfigurationStore
         cancellationToken.ThrowIfCancellationRequested();
         if (!Directory.Exists(DirectoryPath))
         {
-            return Task.FromResult(new ProductConfigurationEvidenceInventory([], false, 0));
+            return Task.FromResult(new ProductConfigurationEvidenceInventory(
+                [],
+                false,
+                0,
+                0,
+                0,
+                null));
         }
 
         try
@@ -146,6 +152,9 @@ public sealed partial class ProductConfigurationStore
             List<ProductConfigurationEvidenceItem> items = [];
             int skippedUnsafeCount = 0;
             int scannedEntries = 0;
+            int observedItemCount = 0;
+            long observedSizeBytes = 0;
+            DateTimeOffset? oldestObservedArchivedUtc = null;
             bool truncated = false;
             foreach (string path in Directory.EnumerateFiles(DirectoryPath))
             {
@@ -170,6 +179,17 @@ public sealed partial class ProductConfigurationStore
                     continue;
                 }
 
+                observedItemCount++;
+                observedSizeBytes = info.Length > long.MaxValue - observedSizeBytes
+                    ? long.MaxValue
+                    : observedSizeBytes + info.Length;
+                DateTimeOffset archivedUtc = info.LastWriteTimeUtc;
+                if (oldestObservedArchivedUtc is null
+                    || archivedUtc < oldestObservedArchivedUtc.Value)
+                {
+                    oldestObservedArchivedUtc = archivedUtc;
+                }
+
                 if (items.Count == MaximumEvidenceItems)
                 {
                     truncated = true;
@@ -184,14 +204,17 @@ public sealed partial class ProductConfigurationStore
                         ? ProductConfigurationEvidenceRole.Primary
                         : ProductConfigurationEvidenceRole.Backup,
                     info.Length,
-                    info.LastWriteTimeUtc,
+                    archivedUtc,
                     path));
             }
 
             return Task.FromResult(new ProductConfigurationEvidenceInventory(
                 items.OrderByDescending(item => item.ArchivedUtc).ToArray(),
                 truncated,
-                skippedUnsafeCount));
+                skippedUnsafeCount,
+                observedItemCount,
+                observedSizeBytes,
+                oldestObservedArchivedUtc));
         }
         catch (IOException)
         {
@@ -223,7 +246,7 @@ public sealed partial class ProductConfigurationStore
         string validatedDirectory = ValidateExportDestination(
             destinationDirectory,
             destination);
-        ValidateEvidenceSelection(item);
+        RequireUnchangedEvidence(item);
         string origin = item.Origin is ProductConfigurationEvidenceOrigin.DamagedRecovery
             ? "Recovery"
             : "Import";
@@ -312,6 +335,64 @@ public sealed partial class ProductConfigurationStore
         }
     }
 
+    public async Task<ProductConfigurationEvidenceRemovalResult> RemoveEvidenceAsync(
+        ProductConfigurationEvidenceItem item,
+        bool userConfirmed,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (!userConfirmed)
+        {
+            throw new ProductConfigurationExportException(
+                ProductConfigurationExportError.ConfirmationRequired);
+        }
+
+        try
+        {
+            RequireUnchangedEvidence(item);
+            await using FileStream writeLease = await AcquireWriteLeaseAsync(cancellationToken)
+                .ConfigureAwait(false);
+            RequireUnchangedEvidence(item);
+            await using FileStream evidence = new(
+                item.SourcePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read | FileShare.Delete,
+                bufferSize: 4096,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            if (evidence.Length != item.SizeBytes
+                || File.GetLastWriteTimeUtc(item.SourcePath) != item.ArchivedUtc.UtcDateTime)
+            {
+                throw new ProductConfigurationExportException(
+                    ProductConfigurationExportError.EvidenceChanged);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            File.Delete(item.SourcePath);
+            return new(item.Origin, item.Role, item.SizeBytes);
+        }
+        catch (ProductConfigurationExportException)
+        {
+            throw;
+        }
+        catch (ProductConfigurationSaveException exception) when (
+            exception.Error is ProductConfigurationSaveError.WriteLeaseUnavailable)
+        {
+            throw new ProductConfigurationExportException(
+                ProductConfigurationExportError.WriteLeaseUnavailable);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            throw new ProductConfigurationExportException(
+                ProductConfigurationExportError.IoFailure);
+        }
+    }
+
     private void ValidateEvidenceSelection(ProductConfigurationEvidenceItem item)
     {
         string fullPath;
@@ -359,6 +440,31 @@ public sealed partial class ProductConfigurationStore
         {
             throw new ProductConfigurationExportException(
                 ProductConfigurationExportError.EvidenceNotAvailable);
+        }
+    }
+
+    private void RequireUnchangedEvidence(ProductConfigurationEvidenceItem item)
+    {
+        ValidateEvidenceSelection(item);
+        try
+        {
+            FileInfo info = new(item.SourcePath);
+            if (info.Length != item.SizeBytes
+                || info.LastWriteTimeUtc != item.ArchivedUtc.UtcDateTime)
+            {
+                throw new ProductConfigurationExportException(
+                    ProductConfigurationExportError.EvidenceChanged);
+            }
+        }
+        catch (ProductConfigurationExportException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            throw new ProductConfigurationExportException(
+                ProductConfigurationExportError.IoFailure);
         }
     }
 

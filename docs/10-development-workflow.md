@@ -510,7 +510,7 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 
 ## 21. 仓库落地顺序
 
-当前已完成基础解决方案、Core、测试、PR CI、桌面/Shell 数据链、DesktopHost/显示恢复系列探针、首个可交互宿主切片、正式配置存储、latest-wins 关闭排空、完整单实例激活、配置恢复状态 UI、经二次确认的恢复动作、当前 v1 本地 JSON 受限导入/导出、匿名证据清单和单项原始证据导出、文件安全与缩略图 worker 探针；开发期 App 已具备首次整理、匿名容器/项目、拖放语义、两步撤销和恢复差异原型，但除用户显式配置恢复/导入/导出事务外仍无自动产品状态写入。主干保护要求 `build-test`，CI 强制覆盖率、配置/恢复状态、单实例源码合同、文件安全、缩略图 worker 与依赖漏洞门禁，旧功能分支已删除；剩余门禁由 `Phase 0 Exit` milestone 与 Issue #19–#24 跟踪，实机与负责人步骤见[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)。多数能力仍为 Conditional Pass。当前事实与详细差距见[开发状态与后续方向审计](11-development-status-and-direction-audit.md)。
+当前已完成基础解决方案、Core、测试、PR CI、桌面/Shell 数据链、DesktopHost/显示恢复系列探针、首个可交互宿主切片、正式配置存储、latest-wins 关闭排空、完整单实例激活、配置恢复状态 UI、经二次确认的恢复动作、当前 v1 本地 JSON 受限导入/导出、匿名证据清单、单项原始证据导出和单项永久清理、文件安全与缩略图 worker 探针；开发期 App 已具备首次整理、匿名容器/项目、拖放语义、两步撤销和恢复差异原型，但除用户显式配置恢复/导入/导出/清理事务外仍无自动产品状态写入。未获批的保留期限或容量阈值不得转化为后台删除。主干保护要求 `build-test`，CI 强制覆盖率、配置/恢复状态、单实例源码合同、文件安全、缩略图 worker 与依赖漏洞门禁，旧功能分支已删除；剩余门禁由 `Phase 0 Exit` milestone 与 Issue #19–#24 跟踪，实机与负责人步骤见[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)。多数能力仍为 Conditional Pass。当前事实与详细差距见[开发状态与后续方向审计](11-development-status-and-direction-audit.md)。
 
 后续按以下顺序继续：
 

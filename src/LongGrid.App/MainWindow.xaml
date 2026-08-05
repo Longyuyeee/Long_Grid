@@ -790,7 +790,7 @@
                                     <TextBlock FontSize="16" FontWeight="SemiBold" Text="配置证据清单" />
                                     <TextBlock
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
-                                        Text="仅显示 Long方格归档证据的匿名类型、角色、大小和时间；不读取内容，不显示路径，也不提供自动清理。"
+                                        Text="仅显示 Long方格归档证据的匿名类型、角色、大小和时间；不读取内容或显示路径。阈值未批准前不自动清理；永久清理只作用于明确选择的一条。"
                                         TextWrapping="Wrap" />
                                     <Grid ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
@@ -826,6 +826,14 @@
                                         AutomationProperties.Name="导出所选原始配置证据"
                                         Click="ExportConfigurationEvidenceButton_Click"
                                         Content="导出所选证据…"
+                                        IsEnabled="False"
+                                        HorizontalAlignment="Left" />
+                                    <Button
+                                        x:Name="RemoveConfigurationEvidenceButton"
+                                        AutomationProperties.AutomationId="RemoveConfigurationEvidenceButton"
+                                        AutomationProperties.Name="永久清理所选配置证据"
+                                        Click="RemoveConfigurationEvidenceButton_Click"
+                                        Content="清理所选证据…"
                                         IsEnabled="False"
                                         HorizontalAlignment="Left" />
                                     <TextBlock FontSize="16" FontWeight="SemiBold" Text="仍需关闭的产品门槛" />

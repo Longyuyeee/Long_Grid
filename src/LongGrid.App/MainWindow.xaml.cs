@@ -38,6 +38,9 @@ public sealed partial class MainWindow : Window
     private readonly Func<
         ProductConfigurationEvidenceItem,
         Task<ProductConfigurationExportResult?>> _exportConfigurationEvidence;
+    private readonly Func<
+        ProductConfigurationEvidenceItem,
+        Task<ProductConfigurationEvidenceRemovalResult>> _removeConfigurationEvidence;
 
     public MainWindow(
         Func<
@@ -54,7 +57,10 @@ public sealed partial class MainWindow : Window
         Func<Task<ProductConfigurationEvidenceInventory>> loadConfigurationEvidence,
         Func<
             ProductConfigurationEvidenceItem,
-            Task<ProductConfigurationExportResult?>> exportConfigurationEvidence)
+            Task<ProductConfigurationExportResult?>> exportConfigurationEvidence,
+        Func<
+            ProductConfigurationEvidenceItem,
+            Task<ProductConfigurationEvidenceRemovalResult>> removeConfigurationEvidence)
     {
         ArgumentNullException.ThrowIfNull(recoverConfiguration);
         ArgumentNullException.ThrowIfNull(prepareConfigurationImport);
@@ -63,6 +69,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(exportConfiguration);
         ArgumentNullException.ThrowIfNull(loadConfigurationEvidence);
         ArgumentNullException.ThrowIfNull(exportConfigurationEvidence);
+        ArgumentNullException.ThrowIfNull(removeConfigurationEvidence);
         _recoverConfiguration = recoverConfiguration;
         _prepareConfigurationImport = prepareConfigurationImport;
         _commitConfigurationImport = commitConfigurationImport;
@@ -70,6 +77,7 @@ public sealed partial class MainWindow : Window
         _exportConfiguration = exportConfiguration;
         _loadConfigurationEvidence = loadConfigurationEvidence;
         _exportConfigurationEvidence = exportConfigurationEvidence;
+        _removeConfigurationEvidence = removeConfigurationEvidence;
         InitializeComponent();
         RootLayout.Loaded += RootLayout_Loaded;
         RootLayout.SizeChanged += RootLayout_SizeChanged;
@@ -633,18 +641,26 @@ public sealed partial class MainWindow : Window
                 .ToArray();
             ConfigurationEvidenceList.SelectedIndex = -1;
             ExportConfigurationEvidenceButton.IsEnabled = false;
+            RemoveConfigurationEvidenceButton.IsEnabled = false;
             string suffix = inventory.Truncated
-                ? "；清单已达到 256 条安全上限"
+                ? "；扫描已达到安全上限，数量与容量为至少值"
                 : string.Empty;
             if (inventory.SkippedUnsafeCount > 0)
             {
                 suffix += $"；已跳过 {inventory.SkippedUnsafeCount} 个重解析点";
             }
 
+            string observed =
+                $"观察到 {inventory.ObservedItemCount} 条、合计 " +
+                $"{FormatEvidenceSize(inventory.ObservedSizeBytes)}";
+            if (inventory.OldestObservedArchivedUtc is DateTimeOffset oldest)
+            {
+                observed += $"，最早归档于 {oldest.ToLocalTime():yyyy-MM-dd HH:mm}";
+            }
             SetEvidenceStatus(
-                inventory.Items.Count == 0
+                inventory.ObservedItemCount == 0
                     ? "没有发现由 Long方格生成的配置归档证据。"
-                    : $"已列出 {inventory.Items.Count} 条匿名证据元数据{suffix}。",
+                    : $"{observed}；已列出 {inventory.Items.Count} 条匿名元数据{suffix}。",
                 inventory.Truncated ? "EvidenceLoaded:Truncated" : "EvidenceLoaded");
         }
         catch (ProductConfigurationExportException exception)
@@ -652,6 +668,7 @@ public sealed partial class MainWindow : Window
             _configurationEvidenceInventory = null;
             ConfigurationEvidenceList.ItemsSource = null;
             ExportConfigurationEvidenceButton.IsEnabled = false;
+            RemoveConfigurationEvidenceButton.IsEnabled = false;
             SetEvidenceStatus(
                 DescribeExportFailure(exception.Error),
                 $"EvidenceFailed:{exception.Error}");
@@ -667,15 +684,88 @@ public sealed partial class MainWindow : Window
         SelectionChangedEventArgs e)
     {
         int selectedIndex = ConfigurationEvidenceList.SelectedIndex;
-        ExportConfigurationEvidenceButton.IsEnabled =
+        bool hasSelection =
             _configurationEvidenceInventory is not null
             && selectedIndex >= 0
             && selectedIndex < _configurationEvidenceInventory.Items.Count;
+        ExportConfigurationEvidenceButton.IsEnabled = hasSelection;
+        RemoveConfigurationEvidenceButton.IsEnabled = hasSelection;
         AutomationProperties.SetItemStatus(
             ConfigurationEvidenceList,
-            ExportConfigurationEvidenceButton.IsEnabled
-                ? "EvidenceSelectedForExplicitExport"
+            hasSelection
+                ? "EvidenceSelectedForExplicitActions"
                 : "NoEvidenceSelected");
+    }
+
+    private async void RemoveConfigurationEvidenceButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        int selectedIndex = ConfigurationEvidenceList.SelectedIndex;
+        if (_configurationEvidenceInventory is null
+            || selectedIndex < 0
+            || selectedIndex >= _configurationEvidenceInventory.Items.Count)
+        {
+            SetEvidenceStatus("请先刷新并选择一条证据。", "EvidenceSelectionRequired");
+            return;
+        }
+
+        ProductConfigurationEvidenceItem item =
+            _configurationEvidenceInventory.Items[selectedIndex];
+        ExportConfigurationEvidenceButton.IsEnabled = false;
+        RemoveConfigurationEvidenceButton.IsEnabled = false;
+        try
+        {
+            ContentDialog confirmation = new()
+            {
+                XamlRoot = RootLayout.XamlRoot,
+                Title = "永久清理这条配置证据？",
+                Content =
+                    $"所选条目为 {DescribeEvidenceOrigin(item.Origin)} / " +
+                    $"{DescribeEvidenceRole(item.Role)}，大小 {FormatEvidenceSize(item.SizeBytes)}。" +
+                    "此操作只清理当前明确选择的一条证据，无法撤销，也不会自动清理其他条目。" +
+                    "如需保留副本，请先取消并使用“导出所选证据”。",
+                PrimaryButtonText = "永久清理所选证据",
+                CloseButtonText = "取消",
+                DefaultButton = ContentDialogButton.Close,
+            };
+            ContentDialogResult result = await confirmation.ShowAsync();
+            if (result is not ContentDialogResult.Primary)
+            {
+                SetEvidenceStatus(
+                    "已取消清理，没有删除任何证据。",
+                    "EvidenceRemovalCancelled");
+                return;
+            }
+
+            SetEvidenceStatus(
+                "正在复核并清理唯一选中的证据……",
+                "EvidenceRemovalInProgress");
+            ProductConfigurationEvidenceRemovalResult removal =
+                await _removeConfigurationEvidence(item);
+            _configurationEvidenceInventory = null;
+            ConfigurationEvidenceList.ItemsSource = null;
+            ConfigurationEvidenceList.SelectedIndex = -1;
+            SetEvidenceStatus(
+                $"已永久清理 1 条 {DescribeEvidenceOrigin(removal.Origin)} / " +
+                $"{DescribeEvidenceRole(removal.Role)}证据，释放 " +
+                $"{FormatEvidenceSize(removal.SizeBytes)}；请刷新复核剩余容量。",
+                "EvidenceRemovalCommitted:SingleItem");
+        }
+        catch (ProductConfigurationExportException exception)
+        {
+            SetEvidenceStatus(
+                DescribeExportFailure(exception.Error),
+                $"EvidenceRemovalFailed:{exception.Error}");
+        }
+        finally
+        {
+            bool selectionStillValid =
+                _configurationEvidenceInventory is not null
+                && selectedIndex == ConfigurationEvidenceList.SelectedIndex;
+            ExportConfigurationEvidenceButton.IsEnabled = selectionStillValid;
+            RemoveConfigurationEvidenceButton.IsEnabled = selectionStillValid;
+        }
     }
 
     private async void ExportConfigurationEvidenceButton_Click(
@@ -694,6 +784,7 @@ public sealed partial class MainWindow : Window
         ProductConfigurationEvidenceItem item =
             _configurationEvidenceInventory.Items[selectedIndex];
         ExportConfigurationEvidenceButton.IsEnabled = false;
+        RemoveConfigurationEvidenceButton.IsEnabled = false;
         try
         {
             ContentDialog confirmation = new()
@@ -743,9 +834,11 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
-            ExportConfigurationEvidenceButton.IsEnabled =
+            bool selectionStillValid =
                 _configurationEvidenceInventory is not null
                 && selectedIndex == ConfigurationEvidenceList.SelectedIndex;
+            ExportConfigurationEvidenceButton.IsEnabled = selectionStillValid;
+            RemoveConfigurationEvidenceButton.IsEnabled = selectionStillValid;
         }
     }
 
@@ -765,7 +858,7 @@ public sealed partial class MainWindow : Window
         ProductConfigurationExportError error) => error switch
         {
             ProductConfigurationExportError.ConfirmationRequired =>
-                "导出尚未获得明确确认，没有写入文件。",
+                "操作尚未获得明确确认，没有写入、导出或清理证据。",
             ProductConfigurationExportError.ExportNotAvailable =>
                 "当前没有可导出的已验证配置；安全模式不会导出损坏内容。",
             ProductConfigurationExportError.DestinationNotUserSelected =>
@@ -777,17 +870,19 @@ public sealed partial class MainWindow : Window
             ProductConfigurationExportError.StoreChanged =>
                 "预览后配置状态发生变化；请重新开始导出。",
             ProductConfigurationExportError.EvidenceNotAvailable =>
-                "所选证据已不存在或不再属于可导出的 Long方格归档；请刷新清单。",
+                "所选证据已不存在或不再属于可处理的 Long方格归档；请刷新清单。",
             ProductConfigurationExportError.EvidenceChanged =>
-                "所选证据在刷新后发生变化；没有导出，请重新刷新清单。",
+                "所选证据在刷新后发生变化；没有执行操作，请重新刷新清单。",
             ProductConfigurationExportError.EvidenceTooLarge =>
                 "所选证据超过 64 MiB 单次导出上限，没有写入目标文件。",
             ProductConfigurationExportError.EvidenceVerificationFailed =>
                 "证据副本未通过逐字节完整性验证，没有发布目标文件。",
+            ProductConfigurationExportError.WriteLeaseUnavailable =>
+                "配置存储正被另一项操作使用；没有清理证据，请稍后重试。",
             ProductConfigurationExportError.DestinationUnavailable =>
                 "所选文件夹暂时不可用，没有覆盖任何文件。",
             ProductConfigurationExportError.IoFailure =>
-                "配置或证据元数据暂时无法读取；没有暴露文件内容。",
+                "配置或证据暂时无法安全处理；没有暴露文件内容。",
             _ => "导出未完成，没有覆盖既有文件。",
         };
 

@@ -36,7 +36,8 @@ public partial class App : Application
             () => configurationStore.PrepareExportAsync(),
             ExportConfigurationAsync,
             () => configurationStore.GetEvidenceInventoryAsync(),
-            ExportConfigurationEvidenceAsync);
+            ExportConfigurationEvidenceAsync,
+            item => configurationStore.RemoveEvidenceAsync(item, userConfirmed: true));
         window.AppWindow.Closing += AppWindow_Closing;
         window.Activate();
         _ = LoadConfigurationStartupStateAsync();
