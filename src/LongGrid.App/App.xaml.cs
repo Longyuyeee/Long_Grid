@@ -11,7 +11,7 @@ public partial class App : Application
 {
     private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(5);
     private readonly ProductConfigurationStore configurationStore;
-    private readonly ProductConfigurationSaveCoordinator configurationSaves;
+    private readonly ProductConfigurationSaveWorkflow configurationSaves;
     private MainWindow? window;
     private bool closeAfterDrain;
     private bool closingDrainInProgress;
@@ -24,7 +24,8 @@ public partial class App : Application
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LongGrid");
         configurationStore = new ProductConfigurationStore(configurationDirectory);
-        configurationSaves = new(configurationStore);
+        configurationSaves = new(
+            new ProductConfigurationSaveCoordinator(configurationStore));
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)

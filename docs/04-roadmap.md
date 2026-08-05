@@ -58,6 +58,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] Issue #24 受限配置导出与匿名证据清单：有效主/备份有限预览、确认后 FolderPicker、本地非重解析点目录、唯一文件名、写穿复读、不覆盖发布、存储冲突阻断，以及精确归档名称/4096 项扫描上限/256 项返回上限/无路径无内容只读清单（迁移、证据原文导出/保留/清理和真实卷结果仍 Pending）。
 - [x] Issue #24 单项原始证据显式导出：匿名单选、敏感内容警告、确认后 FolderPicker、来源目录/名称/元数据复检、64 MiB 上限、流式 SHA-256 复读、唯一 `.bin` 不覆盖发布和原证据保留（选择性单项删除已由后续切片完成；自动保留/容量策略仍 Pending）。
 - [x] Issue #24 证据生命周期基础：有界观察条数/总容量/最早时间、匿名单选、默认取消永久清理确认、清理前导出提示、锁前/锁内复检、有界写租约和单文件原子删除（自动保留阈值、批次日志、中断恢复和失败重试仍 Pending）。
+- [x] Issue #24 真实产品保存与显式重试合同：有限 Saved/Failed/NoRetryAvailable/Completed 结果、无效 schema 收敛、仅保留最新可重试深快照、新保存取代旧重试、取消不制造重复重试、关闭接收竞态封闭；匿名演示 UI 继续零入队（真实状态聚合、v1 投影和保存状态 UI 仍 Pending）。
 - [x] Issue #24 I24-01/I24-02 专用环境会话入口、独立卷标记/双确认安全合同和 CI `PendingDedicatedEnvironmentEvidence` 预检（Ready to schedule；真实卷结果仍 Pending）。
 - [x] P0-07a 静态双屏拓扑、混合 DPI、隐私安全指纹与资源稳定性（Conditional Pass）。
 - [x] P0-07b1 QueryDisplayConfig 活动路径、virtual-mode 索引、rotation 与 monitor 一一关联（Conditional Pass）。
