@@ -15,6 +15,10 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $xamlPath = Join-Path $projectRoot 'src\LongGrid.App\MainWindow.xaml'
 $codeBehindPath = Join-Path $projectRoot 'src\LongGrid.App\MainWindow.xaml.cs'
 $appCodePath = Join-Path $projectRoot 'src\LongGrid.App\App.xaml.cs'
+$referenceReviewCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceReferenceReview.cs'
+$referencePresentationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\ProductWorkspaceReferenceReviewPresentation.cs'
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
 $runtimeIdentifier = "win-$Architecture"
 
@@ -51,6 +55,14 @@ function Test-SourceContract {
     [xml]$document = Get-Content -LiteralPath $xamlPath -Raw -Encoding UTF8
     $codeBehind = Get-Content -LiteralPath $codeBehindPath -Raw -Encoding UTF8
     $appCode = Get-Content -LiteralPath $appCodePath -Raw -Encoding UTF8
+    $referenceReviewCode = Get-Content `
+        -LiteralPath $referenceReviewCodePath `
+        -Raw `
+        -Encoding UTF8
+    $referencePresentationCode = Get-Content `
+        -LiteralPath $referencePresentationCodePath `
+        -Raw `
+        -Encoding UTF8
     $requiredIds = @(
         'LongGridRoot',
         'ShellNavigation',
@@ -126,6 +138,14 @@ function Test-SourceContract {
         'ProductWorkspaceSessionTitle',
         'ProductWorkspaceSessionDetail',
         'ProductWorkspaceSessionSummary',
+        'ProductWorkspaceReferenceReviewCard',
+        'ProductWorkspaceReferenceReviewTitle',
+        'ProductWorkspaceReferenceReviewDetail',
+        'ProductWorkspaceReferenceReviewSelector',
+        'ProductWorkspaceReferenceKeepButton',
+        'ProductWorkspaceReferenceReselectButton',
+        'ProductWorkspaceReferenceRemoveButton',
+        'ProductWorkspaceReferenceReviewStatus',
         'ProductSaveStatusCard',
         'ProductSaveStatusTitle',
         'ProductSaveStatusDetail',
@@ -283,6 +303,29 @@ function Test-SourceContract {
         'ProductWorkspaceSessionCard'
     Assert-Condition (-not ($productSessionCardNode.OuterXml -match 'Storyboard|Transition')) `
         'Product session status must keep a Reduced Motion-safe static baseline.'
+
+    $referenceReviewStatusNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceReferenceReviewStatus'
+    Assert-Condition (
+        $referenceReviewStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite' -and
+        $referenceReviewStatusNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'ReferenceReviewUnavailable:Changed=False'
+    ) 'Reference review must start finite, unavailable, and unchanged.'
+    foreach ($buttonId in @(
+            'ProductWorkspaceReferenceKeepButton',
+            'ProductWorkspaceReferenceReselectButton',
+            'ProductWorkspaceReferenceRemoveButton'
+        )) {
+        $buttonNode = Get-XamlNodeByAutomationId $document $buttonId
+        Assert-Condition ($buttonNode.GetAttribute('IsEnabled') -eq 'False') `
+            "Reference review action '$buttonId' must start disabled."
+    }
+    $referenceReviewCardNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceReferenceReviewCard'
+    Assert-Condition (-not ($referenceReviewCardNode.OuterXml -match 'Storyboard|Transition')) `
+        'Reference review must keep a Reduced Motion-safe static baseline.'
 
     $productSaveDetailNode = Get-XamlNodeByAutomationId `
         $document `
@@ -534,6 +577,39 @@ function Test-SourceContract {
         'The development shell must not directly bypass the controller with ordinary writes.'
     Assert-Condition (-not ($codeBehind -match '\.(SaveAsync|EnqueueAsync)\(')) `
         'MainWindow must not directly call configuration save or queue APIs.'
+    Assert-Condition (-not ($appCode -match 'productWorkspaceSaves\.Submit\(')) `
+        'Reference review previews must not submit an ordinary product edit.'
+    Assert-Condition (
+        $appCode -match 'ProductWorkspaceReferenceReview\.Create' -and
+        $appCode -match 'ProductWorkspaceReferenceGate\.Evaluate' -and
+        $appCode -match 'productWorkspaceEditRevision' -and
+        $appCode -match 'catalog\.Generation'
+    ) 'The App must own the catalog-generation and edit-revision review boundary.'
+    foreach ($gateState in @(
+            'StaleCatalogGeneration',
+            'StaleEditRevision',
+            'ItemChanged',
+            'ContainerLocked',
+            'ConfirmationRequired',
+            'ReplacementRequired',
+            'ReplacementNotFound',
+            'ReplacementAmbiguous'
+        )) {
+        Assert-Condition ($referenceReviewCode.Contains($gateState)) `
+            "Reference review gate is missing finite state '$gateState'."
+    }
+    Assert-Condition (
+        $codeBehind -match '\{item\.Ordinal\}' -and
+        $codeBehind -match '\{candidate\.Ordinal\}' -and
+        $codeBehind -match 'Committed=False' -and
+        -not ($codeBehind -match 'PersistedTarget|CanonicalTarget|DisplayName')
+    ) 'Reference review presentation must remain anonymous and explicit about zero commit.'
+    Assert-Condition (
+        $referencePresentationCode -match 'CatalogGeneration' -and
+        $referencePresentationCode -match 'CatalogIndex' -and
+        -not ($referencePresentationCode -match `
+            'DesktopCatalogEntry|DisplayName|CanonicalTarget|PersistedTarget')
+    ) 'Reference candidate presentation must carry only an opaque generation/index handle.'
     foreach ($finiteStatus in @(
             'WorkspaceSaveClean',
             'WorkspaceSaveWaiting',
@@ -597,6 +673,7 @@ function Test-SourceContract {
         configurationShutdownDrain = 'controller-owned-bounded-zero-write-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-awaiting-authoritative-catalog-zero-write'
+        productReferenceReview = 'anonymous-generation-revision-gated-dry-run-zero-submit'
         productSavePresentation = 'privacy-safe-static-reduced-motion'
         readOnlyBoundary = 'no-automatic-product-writes-explicit-config-transactions-only'
     }
@@ -833,6 +910,12 @@ public static class LongGridWindowNative
         Assert-Condition (
             $productCatalogStatus.Current.ItemStatus.StartsWith('DesktopCatalog')
         ) 'The read-only desktop catalog did not expose a finite UIA state.'
+        $referenceReviewStatus = Find-UiaElement `
+            $root `
+            'ProductWorkspaceReferenceReviewStatus'
+        Assert-Condition (
+            $referenceReviewStatus.Current.ItemStatus.StartsWith('ReferenceReview')
+        ) 'The reference review did not expose a finite UIA state.'
         foreach ($item in @($overview, $firstRun, $appearance, $safety, $recovery)) {
             Assert-Condition $item.Current.IsKeyboardFocusable `
                 "Navigation item '$($item.Current.AutomationId)' is not keyboard focusable."

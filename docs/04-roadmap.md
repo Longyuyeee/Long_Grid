@@ -66,6 +66,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] Issue #24 App 控制器所有权与保存状态 UIA：后台快照 UI 线程封送、Clean/Waiting/Saving/Retrying/Saved/Failed 隐私安全映射、5 个新 AutomationId、重试有限委托、静态 Reduced Motion、controller 关闭/失败阻断/安全释放；匿名 UI 和普通 SaveAsync/EnqueueAsync 继续为零（干净会话真实 UIA 复跑、正式产品会话加载与首次普通入队仍 Pending）。
 - [x] Issue #24 正式产品会话加载：配置加载/恢复/导入复读统一进入 App 会话，Unavailable Catalog 与权威空 Catalog 明确分离，Loading/NoSaved/AwaitingCatalog/Ready/BackupReadOnly/SafeMode/Failed 有限状态、匿名解析计数及 4 个新 AutomationId；当前 Catalog 仍断开且普通提交为零（只读 Catalog 适配器、未解析引用 UI、干净会话 80-ID UIA 与首次普通入队仍 Pending）。
 - [x] Issue #24 只读物理 Desktop Catalog：用户/公共桌面第一层 reader、双来源完整性权威门禁、generation/latest-wins/取消/关闭排空 controller、App 自动首刷与显式刷新、ConnectedReadOnly runtime、5 个新 AutomationId；Partial 结果不参与 Missing 判断，Shell 虚拟项和普通提交仍关闭（未解析引用 UI、generation+revision 编辑门禁及干净会话 85-ID UIA 仍 Pending）。
+- [x] Issue #24 未解析引用审查与双版本门禁：稳定匿名审查列表、默认保留、显式候选重选、移除确认、Catalog generation + edit revision + 状态/锁定/候选唯一性复核、对话框期间旧 token 捕获及 8 个新 AutomationId；所有动作只返回 reducer 预演，普通 submit、配置修改和磁盘文件操作仍为零（干净会话 93-ID UIA 与首次单项真实入队仍 Pending）。
 - [x] Issue #24 I24-01/I24-02 专用环境会话入口、独立卷标记/双确认安全合同和 CI `PendingDedicatedEnvironmentEvidence` 预检（Ready to schedule；真实卷结果仍 Pending）。
 - [x] P0-07a 静态双屏拓扑、混合 DPI、隐私安全指纹与资源稳定性（Conditional Pass）。
 - [x] P0-07b1 QueryDisplayConfig 活动路径、virtual-mode 索引、rotation 与 monitor 一一关联（Conditional Pass）。

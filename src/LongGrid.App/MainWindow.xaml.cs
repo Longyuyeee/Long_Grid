@@ -45,6 +45,14 @@ public sealed partial class MainWindow : Window
         Task<ProductConfigurationEvidenceRemovalResult>> _removeConfigurationEvidence;
     private readonly Func<ProductWorkspaceSaveRetryResult> _retryProductWorkspaceSave;
     private readonly Func<Task> _refreshProductDesktopCatalog;
+    private readonly Func<
+        ProductWorkspaceReferenceReviewToken,
+        ProductWorkspaceReferenceAction,
+        bool,
+        ProductWorkspaceReferenceCandidatePresentation?,
+        ProductWorkspaceReferenceGateResult> _previewProductWorkspaceReferenceAction;
+    private ProductWorkspaceReferenceReviewPresentation _referenceReview =
+        ProductWorkspaceReferenceReviewPresentation.Unavailable;
 
     public MainWindow(
         Func<
@@ -66,7 +74,13 @@ public sealed partial class MainWindow : Window
             ProductConfigurationEvidenceItem,
             Task<ProductConfigurationEvidenceRemovalResult>> removeConfigurationEvidence,
         Func<ProductWorkspaceSaveRetryResult> retryProductWorkspaceSave,
-        Func<Task> refreshProductDesktopCatalog)
+        Func<Task> refreshProductDesktopCatalog,
+        Func<
+            ProductWorkspaceReferenceReviewToken,
+            ProductWorkspaceReferenceAction,
+            bool,
+            ProductWorkspaceReferenceCandidatePresentation?,
+            ProductWorkspaceReferenceGateResult> previewProductWorkspaceReferenceAction)
     {
         ArgumentNullException.ThrowIfNull(recoverConfiguration);
         ArgumentNullException.ThrowIfNull(prepareConfigurationImport);
@@ -78,6 +92,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(removeConfigurationEvidence);
         ArgumentNullException.ThrowIfNull(retryProductWorkspaceSave);
         ArgumentNullException.ThrowIfNull(refreshProductDesktopCatalog);
+        ArgumentNullException.ThrowIfNull(previewProductWorkspaceReferenceAction);
         _recoverConfiguration = recoverConfiguration;
         _prepareConfigurationImport = prepareConfigurationImport;
         _commitConfigurationImport = commitConfigurationImport;
@@ -88,6 +103,8 @@ public sealed partial class MainWindow : Window
         _removeConfigurationEvidence = removeConfigurationEvidence;
         _retryProductWorkspaceSave = retryProductWorkspaceSave;
         _refreshProductDesktopCatalog = refreshProductDesktopCatalog;
+        _previewProductWorkspaceReferenceAction =
+            previewProductWorkspaceReferenceAction;
         InitializeComponent();
         RootLayout.Loaded += RootLayout_Loaded;
         RootLayout.SizeChanged += RootLayout_SizeChanged;
@@ -253,6 +270,241 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceSessionDetail,
             automationStatus);
     }
+
+    internal void ApplyProductWorkspaceReferenceReview(
+        ProductWorkspaceReferenceReviewPresentation presentation)
+    {
+        ArgumentNullException.ThrowIfNull(presentation);
+        _referenceReview = presentation;
+        ProductWorkspaceReferenceReviewSelector.ItemsSource =
+            presentation.Snapshot?.Items
+                .Select(item =>
+                    $"引用 {item.Ordinal} · {DescribeReferenceResolution(item.Resolution)}")
+                .ToArray()
+            ?? Array.Empty<string>();
+        ProductWorkspaceReferenceReviewSelector.SelectedIndex =
+            presentation.Snapshot?.Items.Count > 0 ? 0 : -1;
+
+        int count = presentation.Snapshot?.Items.Count ?? 0;
+        ProductWorkspaceReferenceReviewTitle.Text = count > 0
+            ? $"发现 {count} 个待审查引用"
+            : "没有待审查引用";
+        ProductWorkspaceReferenceReviewDetail.Text = presentation.Error !=
+            ProductWorkspaceReferenceReviewError.None
+            ? "审查快照未通过校验；所有操作均保持关闭。"
+            : presentation.Snapshot is null
+                ? "等待正式产品会话与权威桌面目录；配置未改变。"
+                : count == 0
+                    ? "当前引用均已解析；配置未改变。"
+                    : presentation.IsReadOnly
+                        ? "备份会话保持只读；接受备份前不可预演修改。"
+                        : "仅显示匿名序号。操作会先做代际与修订校验，本阶段不会提交。";
+        ProductWorkspaceReferenceReviewStatus.Text = "尚未执行预演；配置未改变。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceReferenceReviewStatus,
+            presentation.Snapshot is null
+                ? "ReferenceReviewUnavailable:Changed=False"
+                : $"ReferenceReviewReady:Generation={presentation.Snapshot.CatalogGeneration}:" +
+                    $"Revision={presentation.Snapshot.EditRevision}:Items={count}:" +
+                    $"ReadOnly={presentation.IsReadOnly}:Changed=False");
+        UpdateProductWorkspaceReferenceButtons();
+    }
+
+    private void ProductWorkspaceReferenceReviewSelector_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e) =>
+        UpdateProductWorkspaceReferenceButtons();
+
+    private void UpdateProductWorkspaceReferenceButtons()
+    {
+        int index = ProductWorkspaceReferenceReviewSelector.SelectedIndex;
+        bool enabled = !_referenceReview.IsReadOnly
+            && _referenceReview.Snapshot is not null
+            && index >= 0
+            && index < _referenceReview.Snapshot.Items.Count
+            && !_referenceReview.Snapshot.Items[index].ContainerLocked;
+        ProductWorkspaceReferenceKeepButton.IsEnabled = enabled;
+        ProductWorkspaceReferenceReselectButton.IsEnabled =
+            enabled && _referenceReview.Candidates.Count > 0;
+        ProductWorkspaceReferenceRemoveButton.IsEnabled = enabled;
+    }
+
+    private void ProductWorkspaceReferenceKeepButton_Click(
+        object sender,
+        RoutedEventArgs e) =>
+        RunProductWorkspaceReferencePreview(
+            ProductWorkspaceReferenceAction.Keep,
+            confirmed: false,
+            replacement: null);
+
+    private async void ProductWorkspaceReferenceReselectButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ProductWorkspaceReferenceReviewToken? token = GetSelectedReferenceToken();
+        if (token is null)
+        {
+            ApplyProductWorkspaceReferencePreviewStatus(
+                ProductWorkspaceReferenceGateError.ItemChanged,
+                wouldChange: false);
+            return;
+        }
+
+        ProductWorkspaceReferenceCandidatePresentation[] candidates =
+            _referenceReview.Candidates.ToArray();
+        var selector = new ComboBox
+        {
+            Header = "请选择当前桌面目录中的匿名候选",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            ItemsSource = candidates.Select(candidate =>
+                $"候选 {candidate.Ordinal} · {candidate.KindLabel}")
+                .ToArray(),
+        };
+        var dialog = new ContentDialog
+        {
+            Title = "预演重选引用",
+            Content = selector,
+            PrimaryButtonText = "校验预演",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = RootLayout.XamlRoot,
+        };
+        ContentDialogResult result = await dialog.ShowAsync();
+        if (result != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        if (selector.SelectedIndex < 0
+            || selector.SelectedIndex >= candidates.Length)
+        {
+            ApplyProductWorkspaceReferencePreviewStatus(
+                ProductWorkspaceReferenceGateError.ReplacementRequired,
+                wouldChange: false);
+            return;
+        }
+
+        RunProductWorkspaceReferencePreview(
+            token,
+            ProductWorkspaceReferenceAction.Replace,
+            confirmed: true,
+            candidates[selector.SelectedIndex]);
+    }
+
+    private async void ProductWorkspaceReferenceRemoveButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ProductWorkspaceReferenceReviewToken? token = GetSelectedReferenceToken();
+        if (token is null)
+        {
+            ApplyProductWorkspaceReferencePreviewStatus(
+                ProductWorkspaceReferenceGateError.ItemChanged,
+                wouldChange: false);
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            Title = "预演移除引用",
+            Content = "确认仅预演从 Long方格配置中移除此引用。不会删除桌面文件，也不会在本阶段提交配置。",
+            PrimaryButtonText = "确认预演",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = RootLayout.XamlRoot,
+        };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            RunProductWorkspaceReferencePreview(
+                token,
+                ProductWorkspaceReferenceAction.Remove,
+                confirmed: true,
+                replacement: null);
+        }
+    }
+
+    private void RunProductWorkspaceReferencePreview(
+        ProductWorkspaceReferenceAction action,
+        bool confirmed,
+        ProductWorkspaceReferenceCandidatePresentation? replacement)
+    {
+        ProductWorkspaceReferenceReviewToken? token = GetSelectedReferenceToken();
+        if (token is null)
+        {
+            ApplyProductWorkspaceReferencePreviewStatus(
+                ProductWorkspaceReferenceGateError.ItemChanged,
+                wouldChange: false);
+            return;
+        }
+
+        RunProductWorkspaceReferencePreview(token, action, confirmed, replacement);
+    }
+
+    private void RunProductWorkspaceReferencePreview(
+        ProductWorkspaceReferenceReviewToken token,
+        ProductWorkspaceReferenceAction action,
+        bool confirmed,
+        ProductWorkspaceReferenceCandidatePresentation? replacement)
+    {
+        ProductWorkspaceReferenceGateResult result =
+            _previewProductWorkspaceReferenceAction(
+                token,
+                action,
+                confirmed,
+                replacement);
+        ApplyProductWorkspaceReferencePreviewStatus(result.Error, result.WouldChange);
+    }
+
+    private ProductWorkspaceReferenceReviewToken? GetSelectedReferenceToken()
+    {
+        int index = ProductWorkspaceReferenceReviewSelector.SelectedIndex;
+        return _referenceReview.Snapshot is not null && index >= 0
+            && index < _referenceReview.Snapshot.Items.Count
+                ? _referenceReview.Snapshot.Items[index].Token
+                : null;
+    }
+
+    private void ApplyProductWorkspaceReferencePreviewStatus(
+        ProductWorkspaceReferenceGateError error,
+        bool wouldChange)
+    {
+        ProductWorkspaceReferenceReviewStatus.Text = error switch
+        {
+            ProductWorkspaceReferenceGateError.None when wouldChange =>
+                "预演校验通过；若提交将改变配置，但本阶段未提交，配置未改变。",
+            ProductWorkspaceReferenceGateError.None =>
+                "已选择保留引用；配置未改变。",
+            ProductWorkspaceReferenceGateError.StaleCatalogGeneration =>
+                "桌面目录已刷新，请重新选择；配置未改变。",
+            ProductWorkspaceReferenceGateError.StaleEditRevision =>
+                "工作区已有更新，请重新审查；配置未改变。",
+            ProductWorkspaceReferenceGateError.ContainerLocked =>
+                "分组已锁定，预演被拒绝；配置未改变。",
+            ProductWorkspaceReferenceGateError.ConfirmationRequired =>
+                "需要明确确认，预演未执行；配置未改变。",
+            ProductWorkspaceReferenceGateError.ReplacementRequired =>
+                "请选择一个匿名候选；配置未改变。",
+            ProductWorkspaceReferenceGateError.ReplacementNotFound =>
+                "候选已不存在，请刷新后重选；配置未改变。",
+            ProductWorkspaceReferenceGateError.ReplacementAmbiguous =>
+                "候选身份不唯一，预演被拒绝；配置未改变。",
+            _ => "引用状态已变化或校验失败；配置未改变。",
+        };
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceReferenceReviewStatus,
+            $"ReferenceReviewPreview:{error}:WouldChange={wouldChange}:Committed=False");
+    }
+
+    private static string DescribeReferenceResolution(
+        ProductItemReferenceResolution resolution) => resolution switch
+        {
+            ProductItemReferenceResolution.Missing => "缺失",
+            ProductItemReferenceResolution.TypeChanged => "类型变化",
+            ProductItemReferenceResolution.Ambiguous => "身份歧义",
+            ProductItemReferenceResolution.UnsupportedTarget => "不支持的目标",
+            _ => "状态变化",
+        };
+
 
     private static (
         string Title,
