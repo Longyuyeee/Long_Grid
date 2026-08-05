@@ -735,9 +735,34 @@
                             </StackPanel>
                             <Border Style="{StaticResource LongGridCardStyle}">
                                 <StackPanel Spacing="14">
-                                    <InfoBar IsClosable="False" IsOpen="True" Severity="Success" Title="真实桌面保持不变" Message="没有目录枚举、Shell 通知、文件移动、删除、规则执行或配置写入。" />
+                                    <InfoBar IsClosable="False" IsOpen="True" Severity="Success" Title="真实桌面保持不变" Message="没有目录枚举、Shell 通知、文件移动、删除、规则执行或自动配置写入。" />
+                                    <TextBlock FontSize="16" FontWeight="SemiBold" Text="受限配置导入" />
+                                    <TextBlock
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="仅从你明确选择的本地 .json 文件生成有限预览；确认前不写入，导入不会扫描桌面或移动文件。" />
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button
+                                            x:Name="ImportConfigurationButton"
+                                            AutomationProperties.AutomationId="ImportConfigurationButton"
+                                            AutomationProperties.Name="选择并检查本地配置"
+                                            Click="ImportConfigurationButton_Click"
+                                            Content="选择配置…" />
+                                        <TextBlock
+                                            x:Name="ConfigurationImportStatus"
+                                            Grid.Column="1"
+                                            AutomationProperties.AutomationId="ConfigurationImportStatus"
+                                            AutomationProperties.LiveSetting="Polite"
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource LongGridSubtitleTextStyle}"
+                                            Text="尚未选择配置。"
+                                            TextWrapping="Wrap" />
+                                    </Grid>
                                     <TextBlock FontSize="16" FontWeight="SemiBold" Text="仍需关闭的产品门槛" />
-                                    <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="• Issue #19–#24 实机与负责人决策&#x0a;• ADR-0001 最终 Go / Revise / No-Go&#x0a;• UI Automation、Narrator、高对比和 DPI 实机矩阵&#x0a;• 单实例、配置排空、DesktopHost 与正式渲染接线" />
+                                    <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="• Issue #19–#24 实机与负责人决策&#x0a;• ADR-0001 最终 Go / Revise / No-Go&#x0a;• UI Automation、Narrator、高对比和 DPI 实机矩阵&#x0a;• 真实产品状态保存、DesktopHost 与正式渲染接线" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>

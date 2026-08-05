@@ -64,6 +64,8 @@ function Test-SourceContract {
         'FirstRunPanel',
         'AppearancePanel',
         'SafetyPanel',
+        'ImportConfigurationButton',
+        'ConfigurationImportStatus',
         'RecoveryPanel',
         'RecoverySafetyBanner',
         'RecoveryAutomaticScenarioButton',
@@ -164,6 +166,14 @@ function Test-SourceContract {
         $configurationActionNode.GetAttribute('Click') -eq `
             'ConfigurationRecoveryActionButton_Click'
     ) 'Configuration repair must use the audited confirmation handler.'
+    $importButtonNode = Get-XamlNodeByAutomationId $document 'ImportConfigurationButton'
+    Assert-Condition (
+        $importButtonNode.GetAttribute('Click') -eq 'ImportConfigurationButton_Click'
+    ) 'Configuration import must use the audited preview-and-confirm handler.'
+    $importStatusNode = Get-XamlNodeByAutomationId $document 'ConfigurationImportStatus'
+    Assert-Condition (
+        $importStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
+    ) 'Configuration import status must politely announce finite state changes.'
     $practiceNameNode = Get-XamlNodeByAutomationId $document 'PracticeContainerName'
     Assert-Condition ($practiceNameNode.GetAttribute('MaxLength') -eq '40') `
         'The anonymous practice-container name must remain bounded to 40 characters.'
@@ -280,6 +290,14 @@ function Test-SourceContract {
         'Safe mode must route to the finite reset action only after confirmation.'
     Assert-Condition ($codeBehind -match 'SafeModeReset:DamagedEvidenceArchived') `
         'Successful safe-mode reset must expose evidence archival to UI Automation.'
+    Assert-Condition ($codeBehind -match 'ProductConfigurationImportPlan') `
+        'Configuration import UI must receive only the opaque validated plan.'
+    Assert-Condition ($codeBehind -match 'ImportPreviewValidated') `
+        'Configuration import must expose a validated preview before confirmation.'
+    Assert-Condition ($codeBehind -match 'ImportCommitted:EvidencePreserved') `
+        'Successful configuration import must expose evidence preservation.'
+    Assert-Condition ($codeBehind -match 'ProductConfigurationImportError\.StoreChanged') `
+        'Configuration import must expose preview conflicts without overwriting state.'
     Assert-Condition ($codeBehind -match 'ProductConfigurationRecoveryError\.WriteLeaseUnavailable') `
         'The UI must map finite recovery contention without exposing storage details.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*CurrentModeValue') `
@@ -321,6 +339,16 @@ function Test-SourceContract {
         'The App must reduce storage results to the finite recovery presentation contract.'
     Assert-Condition ($appCode -match 'configurationStore\.RecoverAsync') `
         'The App must route confirmed backup acceptance through the formal store.'
+    Assert-Condition ($appCode -match 'FileOpenPicker') `
+        'The App must obtain configuration import authorization from the system picker.'
+    Assert-Condition ($appCode -match 'FileTypeFilter\.Add\("\.json"\)') `
+        'The configuration picker must expose only the JSON import type.'
+    Assert-Condition ($appCode -match 'FileAttributes\.ReparsePoint') `
+        'The App must classify reparse-point sources before opening configuration content.'
+    Assert-Condition ($appCode -match 'configurationStore\.PrepareImportAsync') `
+        'The App must route selected sources through bounded validation and preview.'
+    Assert-Condition ($appCode -match 'configurationStore\.ImportAsync') `
+        'The App must route confirmed imports through the formal atomic store transaction.'
     Assert-Condition ($appCode -match 'UserConfirmed:\s*true') `
         'The App recovery request must carry the explicit confirmation contract.'
     Assert-Condition ($appCode -match 'AppWindow\.Closing\s*\+=') `
@@ -347,9 +375,9 @@ function Test-SourceContract {
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
-        configurationRepair = 'confirmed-backup-acceptance-and-safe-mode-reset'
+        configurationRepair = 'confirmed-backup-acceptance-safe-mode-reset-and-bounded-import'
         configurationShutdownDrain = 'bounded-zero-write-retry'
-        readOnlyBoundary = 'no-automatic-product-writes'
+        readOnlyBoundary = 'no-automatic-product-writes-explicit-import-only'
     }
 }
 
