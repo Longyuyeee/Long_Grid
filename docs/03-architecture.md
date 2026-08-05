@@ -126,6 +126,8 @@ P0-02 已验证 Shell 会强烈合并高频变化：1,100 次沙箱操作每轮�
 
 2026-08-05 的产品状态投影切片进一步建立 UI 无关 `ProductWorkspaceState`：容器、外观、DIP/显示器放置和引用不再从 WinUI 控件反推；项目引用必须携带已解析 `DesktopCatalogEntry/DesktopItemIdentity`。投影器只接受 filesystem provider 和完全限定 canonical target，固定映射为 current-v1 reference，并经正式 serializer/validator 生成深快照；显示名称、SourceId、ParsingName、Volume/File ID 不进入 v1。保存工作流可直接接收该状态，但 MainWindow 仍零普通保存调用。v1 无法跨重启保留文件系统稳定身份，后续必须用当前 Catalog 解析 target 并显式表达 missing/unresolved；详见[产品工作区状态与 v1 投影审计](44-product-workspace-state-projection-audit.md)。
 
+同日的反向解析切片随后以同一内部身份策略把 current-v1 与调用方提供的当前 Catalog 快照解析为 `Resolved/Missing/TypeChanged/Ambiguous/UnsupportedTarget`。解析前验证并深快照配置，随后验证整个 Catalog；目标重复即歧义，不按来源顺序、显示名或类型猜测。未解析引用没有 Catalog Entry，但保留原领域 ID、kind、target 与扩展字段，重投影不会自动删除或改绑。resolver 本身不枚举文件系统、不执行 I/O；产品 reducer 与 MainWindow 普通保存仍未接入。详见[配置到桌面 Catalog 解析审计](45-configuration-catalog-resolution-audit.md)。
+
 ## 5. 布局恢复算法
 
 1. 收集当前显示器的稳定属性：设备标识、工作区、方向、DPI 和相对拓扑。
