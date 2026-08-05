@@ -2,6 +2,8 @@ using LongGrid.Infrastructure.Configuration;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
+using Windows.Storage;
+using Windows.Storage.Pickers;
 
 namespace LongGrid.App;
 
@@ -27,7 +29,10 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        window = new MainWindow(RecoverConfigurationAsync);
+        window = new MainWindow(
+            RecoverConfigurationAsync,
+            PrepareConfigurationImportAsync,
+            CommitConfigurationImportAsync);
         window.AppWindow.Closing += AppWindow_Closing;
         window.Activate();
         _ = LoadConfigurationStartupStateAsync();
@@ -57,6 +62,83 @@ public partial class App : Application
                 UserConfirmed: true));
         ProductConfigurationLoadResult loadResult =
             await configurationStore.LoadAsync();
+        return ProductConfigurationStartupState.FromLoadResult(loadResult);
+    }
+
+    private async Task<ProductConfigurationImportPlan?> PrepareConfigurationImportAsync()
+    {
+        if (window is null)
+        {
+            return null;
+        }
+
+        FileOpenPicker picker = new()
+        {
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+            ViewMode = PickerViewMode.List,
+        };
+        picker.FileTypeFilter.Add(".json");
+        nint windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(window);
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, windowHandle);
+        StorageFile? file = await picker.PickSingleFileAsync();
+        if (file is null)
+        {
+            return null;
+        }
+
+        bool isLocal = !string.IsNullOrWhiteSpace(file.Path);
+        bool isReparsePoint = false;
+        if (isLocal)
+        {
+            try
+            {
+                isReparsePoint = File.GetAttributes(file.Path)
+                    .HasFlag(System.IO.FileAttributes.ReparsePoint);
+            }
+            catch (IOException)
+            {
+                throw new ProductConfigurationImportException(
+                    ProductConfigurationImportError.SourceUnavailable);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                throw new ProductConfigurationImportException(
+                    ProductConfigurationImportError.SourceUnavailable);
+            }
+        }
+
+        try
+        {
+            await using Stream stream = await file.OpenStreamForReadAsync();
+            return await configurationStore.PrepareImportAsync(
+                stream,
+                new(
+                    UserSelected: true,
+                    FileExtension: file.FileType,
+                    IsLocalFileSystem: isLocal,
+                    IsReparsePoint: isReparsePoint));
+        }
+        catch (ProductConfigurationImportException)
+        {
+            throw;
+        }
+        catch (IOException)
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.SourceUnavailable);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.SourceUnavailable);
+        }
+    }
+
+    private async Task<ProductConfigurationStartupState> CommitConfigurationImportAsync(
+        ProductConfigurationImportPlan plan)
+    {
+        await configurationStore.ImportAsync(plan, userConfirmed: true);
+        ProductConfigurationLoadResult loadResult = await configurationStore.LoadAsync();
         return ProductConfigurationStartupState.FromLoadResult(loadResult);
     }
 

@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
 using LongGrid.Core.Configuration;
 
 namespace LongGrid.Infrastructure.Configuration;
@@ -133,6 +135,10 @@ public sealed class ProductConfigurationStore
 
     internal string RecoveryTemporaryPath => PrimaryPath + ".recovery.new";
 
+    internal string ImportTemporaryPath => PrimaryPath + ".import.new";
+
+    internal string AlternateImportTemporaryPath => PrimaryPath + ".import.next";
+
     public async Task<ProductConfigurationLoadResult> LoadAsync(
         CancellationToken cancellationToken = default)
     {
@@ -164,7 +170,9 @@ public sealed class ProductConfigurationStore
 
         bool missing = primary.Failure == ProductConfigurationStorageFailure.Missing
             && backup.Failure == ProductConfigurationStorageFailure.Missing
-            && !File.Exists(RecoveryTemporaryPath);
+            && !File.Exists(RecoveryTemporaryPath)
+            && !File.Exists(ImportTemporaryPath)
+            && !File.Exists(AlternateImportTemporaryPath);
         return new(
             missing
                 ? ProductConfigurationLoadStatus.Missing
@@ -354,6 +362,219 @@ public sealed class ProductConfigurationStore
         }
     }
 
+    public async Task<ProductConfigurationImportPlan> PrepareImportAsync(
+        Stream sourceStream,
+        ProductConfigurationImportSource source,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(sourceStream);
+        ArgumentNullException.ThrowIfNull(source);
+        ValidateImportSource(source);
+
+        if (!sourceStream.CanRead)
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.SourceUnavailable);
+        }
+
+        bool sourceReadCompleted = false;
+        try
+        {
+            byte[] payload = await ReadBoundedImportPayloadAsync(
+                    sourceStream,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            sourceReadCompleted = true;
+            ProductConfigurationDocument document;
+            try
+            {
+                document = ProductConfigurationJson.Deserialize(payload);
+            }
+            catch (ProductConfigurationContractException exception)
+            {
+                ProductConfigurationImportError error = exception.Error is
+                    ProductConfigurationError.DocumentTooLarge
+                        ? ProductConfigurationImportError.DocumentTooLarge
+                        : ProductConfigurationImportError.InvalidConfiguration;
+                throw new ProductConfigurationImportException(error);
+            }
+
+            string revisionBefore = await ComputeStoreRevisionAsync(cancellationToken)
+                .ConfigureAwait(false);
+            ProductConfigurationLoadResult current = await LoadAsync(cancellationToken)
+                .ConfigureAwait(false);
+            string revisionAfter = await ComputeStoreRevisionAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (!string.Equals(revisionBefore, revisionAfter, StringComparison.Ordinal))
+            {
+                throw new ProductConfigurationImportException(
+                    ProductConfigurationImportError.StoreChanged);
+            }
+
+            int itemCount = document.Containers.Sum(container => container.Items.Count);
+            ProductConfigurationImportPreview preview = new(
+                document.SchemaVersion,
+                document.Containers.Count,
+                itemCount,
+                MapImportExistingState(current.Status));
+            return new(preview, payload, revisionAfter);
+        }
+        catch (ProductConfigurationImportException)
+        {
+            throw;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (IOException)
+        {
+            throw new ProductConfigurationImportException(
+                sourceReadCompleted
+                    ? ProductConfigurationImportError.IoFailure
+                    : ProductConfigurationImportError.SourceUnavailable);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw new ProductConfigurationImportException(
+                sourceReadCompleted
+                    ? ProductConfigurationImportError.IoFailure
+                    : ProductConfigurationImportError.SourceUnavailable);
+        }
+    }
+
+    public async Task<ProductConfigurationImportResult> ImportAsync(
+        ProductConfigurationImportPlan plan,
+        bool userConfirmed,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        if (!userConfirmed)
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.ConfirmationRequired);
+        }
+
+        try
+        {
+            RequireValidImportPayload(plan.Payload.Span);
+            await RequireUnchangedStoreAsync(plan, cancellationToken).ConfigureAwait(false);
+
+            Directory.CreateDirectory(DirectoryPath);
+            await using FileStream writeLease = await AcquireWriteLeaseAsync(cancellationToken)
+                .ConfigureAwait(false);
+            await RequireUnchangedStoreAsync(plan, cancellationToken).ConfigureAwait(false);
+            ProductConfigurationLoadResult current = await LoadAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            string importStagingPath = File.Exists(ImportTemporaryPath)
+                ? AlternateImportTemporaryPath
+                : ImportTemporaryPath;
+            TryDeleteImportTemporaryFile(importStagingPath);
+            string? backupArchivePath = null;
+            bool backupMoved = false;
+            bool importPublished = false;
+            bool preserveImportMarker = false;
+            try
+            {
+                await using (FileStream destination = CreateImportStagingStream(
+                    importStagingPath))
+                {
+                    await destination.WriteAsync(plan.Payload, cancellationToken)
+                        .ConfigureAwait(false);
+                    await FlushToDiskAsync(destination, cancellationToken).ConfigureAwait(false);
+                }
+
+                await RequireValidImportStagingAsync(
+                        importStagingPath,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (current.Status is ProductConfigurationLoadStatus.SafeMode
+                    && File.Exists(BackupPath))
+                {
+                    backupArchivePath = CreateImportArchivePath("backup");
+                    File.Move(BackupPath, backupArchivePath);
+                    backupMoved = true;
+                }
+
+                bool primaryExists = File.Exists(PrimaryPath);
+                if (primaryExists)
+                {
+                    File.Replace(
+                        importStagingPath,
+                        PrimaryPath,
+                        CreateImportArchivePath("primary"),
+                        ignoreMetadataErrors: false);
+                }
+                else
+                {
+                    File.Move(importStagingPath, PrimaryPath);
+                }
+
+                importPublished = true;
+                TryDeleteRecoveryTemporaryFile();
+                TryDeleteImportTemporaryFile(ImportTemporaryPath);
+                TryDeleteImportTemporaryFile(AlternateImportTemporaryPath);
+                return new(
+                    PrimaryArchived: primaryExists,
+                    BackupArchived: backupMoved);
+            }
+            catch
+            {
+                if (backupMoved && !importPublished && backupArchivePath is not null)
+                {
+                    try
+                    {
+                        File.Move(backupArchivePath, BackupPath);
+                        backupMoved = false;
+                    }
+                    catch (IOException)
+                    {
+                        preserveImportMarker = true;
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        preserveImportMarker = true;
+                    }
+                }
+
+                throw;
+            }
+            finally
+            {
+                if (!preserveImportMarker)
+                {
+                    TryDeleteImportTemporaryFile(importStagingPath);
+                }
+            }
+        }
+        catch (ProductConfigurationImportException)
+        {
+            throw;
+        }
+        catch (ProductConfigurationSaveException exception) when (
+            exception.Error is ProductConfigurationSaveError.WriteLeaseUnavailable)
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.WriteLeaseUnavailable);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (IOException)
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.IoFailure);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.IoFailure);
+        }
+    }
+
     private async Task<ProductConfigurationRecoveryResult> AcceptValidatedBackupAsync(
         CancellationToken cancellationToken)
     {
@@ -483,6 +704,17 @@ public sealed class ProductConfigurationStore
                 Share = FileShare.None,
             });
 
+    private static FileStream CreateImportStagingStream(string path) =>
+        new(
+            path,
+            new FileStreamOptions
+            {
+                Access = FileAccess.Write,
+                Mode = FileMode.CreateNew,
+                Options = FileOptions.Asynchronous | FileOptions.WriteThrough,
+                Share = FileShare.None,
+            });
+
     private async Task RequireValidRecoveryStagingAsync(
         CancellationToken cancellationToken)
     {
@@ -492,6 +724,19 @@ public sealed class ProductConfigurationStore
         {
             throw new ProductConfigurationRecoveryException(
                 ProductConfigurationRecoveryError.RecoveryNotAvailable);
+        }
+    }
+
+    private static async Task RequireValidImportStagingAsync(
+        string path,
+        CancellationToken cancellationToken)
+    {
+        ReadAttempt staged = await TryReadAsync(path, cancellationToken)
+            .ConfigureAwait(false);
+        if (staged.Document is null)
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.InvalidConfiguration);
         }
     }
 
@@ -505,6 +750,185 @@ public sealed class ProductConfigurationStore
 
     private string CreateDamageArchivePath(string kind) =>
         PrimaryPath + ".damaged." + Guid.NewGuid().ToString("N") + "." + kind;
+
+    private string CreateImportArchivePath(string kind) =>
+        PrimaryPath + ".import." + Guid.NewGuid().ToString("N") + "." + kind;
+
+    private static void ValidateImportSource(ProductConfigurationImportSource source)
+    {
+        if (!source.UserSelected)
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.SourceNotUserSelected);
+        }
+
+        if (!string.Equals(source.FileExtension, ".json", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.UnsupportedFileType);
+        }
+
+        if (!source.IsLocalFileSystem)
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.NonLocalSource);
+        }
+
+        if (source.IsReparsePoint)
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.ReparsePointNotAllowed);
+        }
+    }
+
+    private static async Task<byte[]> ReadBoundedImportPayloadAsync(
+        Stream source,
+        CancellationToken cancellationToken)
+    {
+        int maximum = ProductConfigurationLimits.MaximumSerializedBytes;
+        using MemoryStream buffer = new(capacity: Math.Min(maximum, 64 * 1024));
+        byte[] chunk = new byte[16 * 1024];
+        while (buffer.Length <= maximum)
+        {
+            int remaining = maximum + 1 - checked((int)buffer.Length);
+            int read = await source.ReadAsync(
+                    chunk.AsMemory(0, Math.Min(chunk.Length, remaining)),
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (read == 0)
+            {
+                break;
+            }
+
+            buffer.Write(chunk, 0, read);
+        }
+
+        if (buffer.Length == 0)
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.EmptyDocument);
+        }
+
+        if (buffer.Length > maximum)
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.DocumentTooLarge);
+        }
+
+        return buffer.ToArray();
+    }
+
+    private static void RequireValidImportPayload(ReadOnlySpan<byte> payload)
+    {
+        try
+        {
+            _ = ProductConfigurationJson.Deserialize(payload);
+        }
+        catch (ProductConfigurationContractException)
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.InvalidConfiguration);
+        }
+    }
+
+    private async Task RequireUnchangedStoreAsync(
+        ProductConfigurationImportPlan plan,
+        CancellationToken cancellationToken)
+    {
+        string currentRevision = await ComputeStoreRevisionAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (!string.Equals(
+            plan.ExpectedStoreRevision,
+            currentRevision,
+            StringComparison.Ordinal))
+        {
+            throw new ProductConfigurationImportException(
+                ProductConfigurationImportError.StoreChanged);
+        }
+    }
+
+    private async Task<string> ComputeStoreRevisionAsync(
+        CancellationToken cancellationToken)
+    {
+        using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        await AppendRevisionFileAsync(hash, "primary", PrimaryPath, cancellationToken)
+            .ConfigureAwait(false);
+        await AppendRevisionFileAsync(hash, "backup", BackupPath, cancellationToken)
+            .ConfigureAwait(false);
+        await AppendRevisionFileAsync(
+                hash,
+                "recovery-marker",
+                RecoveryTemporaryPath,
+                cancellationToken)
+            .ConfigureAwait(false);
+        await AppendRevisionFileAsync(
+                hash,
+                "import-marker",
+                ImportTemporaryPath,
+                cancellationToken)
+            .ConfigureAwait(false);
+        await AppendRevisionFileAsync(
+                hash,
+                "alternate-import-marker",
+                AlternateImportTemporaryPath,
+                cancellationToken)
+            .ConfigureAwait(false);
+        return Convert.ToHexString(hash.GetHashAndReset());
+    }
+
+    private static async Task AppendRevisionFileAsync(
+        IncrementalHash hash,
+        string label,
+        string path,
+        CancellationToken cancellationToken)
+    {
+        hash.AppendData(Encoding.UTF8.GetBytes(label));
+        if (!File.Exists(path))
+        {
+            hash.AppendData([0]);
+            return;
+        }
+
+        hash.AppendData([1]);
+        await using FileStream stream = new(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read | FileShare.Delete,
+            bufferSize: 16 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        hash.AppendData(BitConverter.GetBytes(stream.Length));
+        int remaining = ProductConfigurationLimits.MaximumSerializedBytes + 1;
+        byte[] buffer = new byte[16 * 1024];
+        while (remaining > 0)
+        {
+            int read = await stream.ReadAsync(
+                    buffer.AsMemory(0, Math.Min(buffer.Length, remaining)),
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (read == 0)
+            {
+                break;
+            }
+
+            hash.AppendData(buffer, 0, read);
+            remaining -= read;
+        }
+    }
+
+    private static ProductConfigurationImportExistingState MapImportExistingState(
+        ProductConfigurationLoadStatus status) => status switch
+        {
+            ProductConfigurationLoadStatus.Missing =>
+                ProductConfigurationImportExistingState.NoSavedConfiguration,
+            ProductConfigurationLoadStatus.LoadedPrimary =>
+                ProductConfigurationImportExistingState.LoadedPrimary,
+            ProductConfigurationLoadStatus.RecoveredFromBackup =>
+                ProductConfigurationImportExistingState.RecoveredBackupReadOnly,
+            ProductConfigurationLoadStatus.SafeMode =>
+                ProductConfigurationImportExistingState.SafeMode,
+            _ => throw new ArgumentOutOfRangeException(nameof(status)),
+        };
 
     private async Task<FileStream> AcquireWriteLeaseAsync(
         CancellationToken cancellationToken)
@@ -616,6 +1040,20 @@ public sealed class ProductConfigurationStore
         try
         {
             File.Delete(RecoveryTemporaryPath);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private static void TryDeleteImportTemporaryFile(string path)
+    {
+        try
+        {
+            File.Delete(path);
         }
         catch (IOException)
         {

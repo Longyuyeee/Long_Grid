@@ -193,7 +193,9 @@ P0-06 已用独立临时沙箱验证版本化 JSON、同目录 `.new`、`Flush(f
 
 已验证备份接受切片在该状态表面上增加首个显式写入口。UI 入口默认折叠，只在 `RecoveredBackupReadOnly` 显示；默认取消的二次确认通过后，App 才向 Infrastructure 传递 `AcceptValidatedBackup + UserConfirmed`。Store 在写锁前预检、锁内复检，逐字节复制并复读备份到独立 `.recovery.new`，随后用一次 `File.Replace` 将其发布为主配置，并把原损坏主配置归档到随机后缀 `.damaged.*`；原 `.bak` 保持不变。取消、状态变化、锁超时、调用方取消或 I/O 失败均不覆盖主配置。公开恢复结果只携带有限动作、有限错误和证据归档布尔值，不返回路径、Document 或原始异常。
 
-SafeMode 重置切片复用同一有限恢复入口，增加 `ResetSafeMode` 动作和 Core `ProductConfigurationDefaults.CreateEmpty()`。标准空白文档只包含当前 schema、固定非个人化 profile 与空容器集合。Store 在锁内先写穿并复读 `.recovery.new`，再把现存损坏备份原子改名为随机 `.backup` 证据；主配置存在时用 `File.Replace` 同时发布空白配置和归档 `.primary` 证据，主配置缺失时用同目录 `File.Move` 发布。发布失败会尝试把备份移回；若回滚也失败，则保留恢复暂存标记，使主备都缺失的下一次加载仍返回 SafeMode 并允许重试。外部导入、历史证据清理和真实卷耐久性仍为独立门槛。
+SafeMode 重置切片复用同一有限恢复入口，增加 `ResetSafeMode` 动作和 Core `ProductConfigurationDefaults.CreateEmpty()`。标准空白文档只包含当前 schema、固定非个人化 profile 与空容器集合。Store 在锁内先写穿并复读 `.recovery.new`，再把现存损坏备份原子改名为随机 `.backup` 证据；主配置存在时用 `File.Replace` 同时发布空白配置和归档 `.primary` 证据，主配置缺失时用同目录 `File.Move` 发布。发布失败会尝试把备份移回；若回滚也失败，则保留恢复暂存标记，使主备都缺失的下一次加载仍返回 SafeMode 并允许重试。该切片当时未实现外部导入；后续已完成当前 v1 受限导入，历史证据生命周期和真实卷耐久性仍为独立门槛。
+
+受限配置导入切片在 App 的系统文件选择器与 Infrastructure Store 之间建立两阶段合同。App 只允许用户选择的本地 `.json`，拒绝所选文件重解析点；Store 有界读取并严格验证当前 v1，只向 UI 返回 schema/容器数/项目数/现有状态。预览前后、提交前和取得写租约后均通过主配置、备份与恢复/导入标记的有界 SHA-256 修订阻断陈旧计划。提交使用双导入暂存槽位、写穿复读与同目录原子发布；正常主配置、损坏主配置和 SafeMode 备份按实际状态分别归档，失败回滚备份，成功后才清理暂存。旧 schema 迁移、导出、证据生命周期、真实状态保存和真实卷耐久性仍为独立门槛。
 
 ## 8. 可观测性
 

@@ -4,7 +4,7 @@
 
 基线：`main` / `0f3959b` + Issue #24 SafeMode 重置增量分支
 
-结论：**Confirmed safe-mode reset pass / External import not implemented / Real-volume evidence pending / Issue #24 保持 OPEN**
+结论（本历史切片当时）：**Confirmed safe-mode reset pass / External import not implemented in this slice / Real-volume evidence pending / Issue #24 保持 OPEN**。当前 v1 受限导入已由后续切片完成，见 [`39-bounded-configuration-import-audit.md`](39-bounded-configuration-import-audit.md)。
 
 ## 1. 本轮目标与非目标
 
@@ -66,7 +66,7 @@ Core 新增 `ProductConfigurationDefaults.CreateEmpty()`，固定返回：
 
 Issue #24 仍需：
 
-1. 外部配置导入的来源授权、大小/类型/符号链接约束、预览、迁移、冲突和回滚合同；
+1. 外部配置导入的来源授权、大小/类型/重解析点约束、有限预览、冲突和回滚合同已由后续切片完成；仍需旧 schema 迁移、配置导出和证据生命周期；
 2. 多份 `.damaged.*` 的查看、导出、保留期限和明确删除策略；
 3. 经批准的真实产品状态保存入队、保存错误提示与重试；
 4. 真实待保存/恢复写入期间的第二实例激活与关闭排空竞态矩阵；

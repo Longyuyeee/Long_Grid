@@ -453,6 +453,329 @@ public sealed class ProductConfigurationStoreTests
             (await store.LoadAsync()).Status);
     }
 
+    [Theory]
+    [InlineData(false, ".json", true, false, ProductConfigurationImportError.SourceNotUserSelected)]
+    [InlineData(true, ".txt", true, false, ProductConfigurationImportError.UnsupportedFileType)]
+    [InlineData(true, ".json", false, false, ProductConfigurationImportError.NonLocalSource)]
+    [InlineData(true, ".json", true, true, ProductConfigurationImportError.ReparsePointNotAllowed)]
+    public async Task ImportSourcePolicyRejectsBeforeStorageCreation(
+        bool userSelected,
+        string extension,
+        bool local,
+        bool reparsePoint,
+        ProductConfigurationImportError expectedError)
+    {
+        using TemporaryDirectory directory = new(create: false);
+        ProductConfigurationStore store = new(directory.Path);
+        await using MemoryStream source = CreateImportStream(CreateDocument("imported"));
+
+        ProductConfigurationImportException exception = await Assert.ThrowsAsync<
+            ProductConfigurationImportException>(
+            () => store.PrepareImportAsync(
+                source,
+                new(userSelected, extension, local, reparsePoint)));
+
+        Assert.Equal(expectedError, exception.Error);
+        Assert.False(Directory.Exists(directory.Path));
+    }
+
+    [Fact]
+    public async Task ImportPreparationRejectsEmptyOversizedAndMalformedDocuments()
+    {
+        using TemporaryDirectory directory = new(create: false);
+        ProductConfigurationStore store = new(directory.Path);
+        ProductConfigurationImportSource source = ValidImportSource();
+        await using MemoryStream empty = new();
+        await using MemoryStream oversized = new(
+            new byte[ProductConfigurationLimits.MaximumSerializedBytes + 1]);
+        await using MemoryStream malformed = new(Encoding.UTF8.GetBytes("{ malformed"));
+
+        ProductConfigurationImportException emptyException = await Assert.ThrowsAsync<
+            ProductConfigurationImportException>(
+            () => store.PrepareImportAsync(empty, source));
+        ProductConfigurationImportException oversizedException = await Assert.ThrowsAsync<
+            ProductConfigurationImportException>(
+            () => store.PrepareImportAsync(oversized, source));
+        ProductConfigurationImportException malformedException = await Assert.ThrowsAsync<
+            ProductConfigurationImportException>(
+            () => store.PrepareImportAsync(malformed, source));
+
+        Assert.Equal(ProductConfigurationImportError.EmptyDocument, emptyException.Error);
+        Assert.Equal(ProductConfigurationImportError.DocumentTooLarge, oversizedException.Error);
+        Assert.Equal(ProductConfigurationImportError.InvalidConfiguration, malformedException.Error);
+        Assert.False(Directory.Exists(directory.Path));
+    }
+
+    [Fact]
+    public async Task ImportIntoMissingStorePublishesFinitePreviewAfterConfirmation()
+    {
+        using TemporaryDirectory directory = new(create: false);
+        ProductConfigurationStore store = new(directory.Path);
+        ProductConfigurationDocument imported = CreateDocument("imported");
+        await using MemoryStream source = CreateImportStream(imported);
+
+        ProductConfigurationImportPlan plan = await store.PrepareImportAsync(
+            source,
+            ValidImportSource());
+        ProductConfigurationImportResult result = await store.ImportAsync(
+            plan,
+            userConfirmed: true);
+
+        Assert.Equal(ProductConfigurationLimits.CurrentSchemaVersion, plan.Preview.SchemaVersion);
+        Assert.Equal(1, plan.Preview.ContainerCount);
+        Assert.Equal(1, plan.Preview.ItemCount);
+        Assert.Equal(
+            ProductConfigurationImportExistingState.NoSavedConfiguration,
+            plan.Preview.ExistingState);
+        Assert.False(result.PrimaryArchived);
+        Assert.False(result.BackupArchived);
+        Assert.Equivalent(imported, (await store.LoadAsync()).Document, strict: true);
+        Assert.False(File.Exists(store.PrimaryPath + ".import.new"));
+    }
+
+    [Fact]
+    public async Task UnconfirmedImportDoesNotCreateStorage()
+    {
+        using TemporaryDirectory directory = new(create: false);
+        ProductConfigurationStore store = new(directory.Path);
+        await using MemoryStream source = CreateImportStream(CreateDocument("imported"));
+        ProductConfigurationImportPlan plan = await store.PrepareImportAsync(
+            source,
+            ValidImportSource());
+
+        ProductConfigurationImportException exception = await Assert.ThrowsAsync<
+            ProductConfigurationImportException>(
+            () => store.ImportAsync(plan, userConfirmed: false));
+
+        Assert.Equal(ProductConfigurationImportError.ConfirmationRequired, exception.Error);
+        Assert.False(Directory.Exists(directory.Path));
+    }
+
+    [Fact]
+    public async Task ImportRejectsWhenStoreChangesAfterPreview()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        await store.SaveAsync(CreateDocument("before-preview"));
+        await using MemoryStream source = CreateImportStream(CreateDocument("imported"));
+        ProductConfigurationImportPlan plan = await store.PrepareImportAsync(
+            source,
+            ValidImportSource());
+        await store.SaveAsync(CreateDocument("changed-after-preview"));
+
+        ProductConfigurationImportException exception = await Assert.ThrowsAsync<
+            ProductConfigurationImportException>(
+            () => store.ImportAsync(plan, userConfirmed: true));
+
+        Assert.Equal(ProductConfigurationImportError.StoreChanged, exception.Error);
+        Assert.Equal("changed-after-preview", (await store.LoadAsync()).Document?.ProfileId);
+        Assert.Empty(Directory.GetFiles(directory.Path, "configuration.json.import.*"));
+        Assert.False(File.Exists(store.PrimaryPath + ".import.new"));
+    }
+
+    [Fact]
+    public async Task ImportMapsWriteLeaseContentionWithoutPublishing()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(
+            directory.Path,
+            writeLeaseTimeout: TimeSpan.FromMilliseconds(40),
+            writeLeaseRetryDelay: TimeSpan.FromMilliseconds(5));
+        await store.SaveAsync(CreateDocument("current"));
+        await using MemoryStream source = CreateImportStream(CreateDocument("imported"));
+        ProductConfigurationImportPlan plan = await store.PrepareImportAsync(
+            source,
+            ValidImportSource());
+        await using FileStream lease = AcquireLease(store.WriteLeasePath);
+
+        ProductConfigurationImportException exception = await Assert.ThrowsAsync<
+            ProductConfigurationImportException>(
+            () => store.ImportAsync(plan, userConfirmed: true));
+
+        Assert.Equal(ProductConfigurationImportError.WriteLeaseUnavailable, exception.Error);
+        Assert.Equal("current", (await store.LoadAsync()).Document?.ProfileId);
+        Assert.Empty(Directory.GetFiles(directory.Path, "configuration.json.import.*"));
+    }
+
+    [Fact]
+    public async Task ImportOverPrimaryArchivesPreviousPrimaryAndPreservesBackup()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        ProductConfigurationDocument backup = CreateDocument("backup");
+        ProductConfigurationDocument current = CreateDocument("current");
+        ProductConfigurationDocument imported = CreateDocument("imported");
+        await store.SaveAsync(backup);
+        await store.SaveAsync(current);
+        byte[] backupBytes = await File.ReadAllBytesAsync(store.BackupPath);
+        await using MemoryStream source = CreateImportStream(imported);
+        ProductConfigurationImportPlan plan = await store.PrepareImportAsync(
+            source,
+            ValidImportSource());
+
+        ProductConfigurationImportResult result = await store.ImportAsync(
+            plan,
+            userConfirmed: true);
+
+        string primaryArchive = Assert.Single(
+            Directory.GetFiles(directory.Path, "configuration.json.import.*.primary"));
+        Assert.True(result.PrimaryArchived);
+        Assert.False(result.BackupArchived);
+        Assert.Equal(
+            ProductConfigurationImportExistingState.LoadedPrimary,
+            plan.Preview.ExistingState);
+        Assert.Equal("current", ReadDocument(primaryArchive).ProfileId);
+        Assert.Equal(backupBytes, await File.ReadAllBytesAsync(store.BackupPath));
+        Assert.Equivalent(imported, (await store.LoadAsync()).Document, strict: true);
+    }
+
+    [Fact]
+    public async Task ImportFromBackupRecoveryArchivesDamagedPrimaryAndKeepsBackup()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        await store.SaveAsync(CreateDocument("backup"));
+        await store.SaveAsync(CreateDocument("damaged-current"));
+        byte[] damagedPrimary = Encoding.UTF8.GetBytes("{ damaged-primary");
+        await File.WriteAllBytesAsync(store.PrimaryPath, damagedPrimary);
+        byte[] backupBytes = await File.ReadAllBytesAsync(store.BackupPath);
+        await using MemoryStream source = CreateImportStream(CreateDocument("imported"));
+        ProductConfigurationImportPlan plan = await store.PrepareImportAsync(
+            source,
+            ValidImportSource());
+
+        ProductConfigurationImportResult result = await store.ImportAsync(
+            plan,
+            userConfirmed: true);
+
+        string primaryArchive = Assert.Single(
+            Directory.GetFiles(directory.Path, "configuration.json.import.*.primary"));
+        Assert.Equal(
+            ProductConfigurationImportExistingState.RecoveredBackupReadOnly,
+            plan.Preview.ExistingState);
+        Assert.True(result.PrimaryArchived);
+        Assert.False(result.BackupArchived);
+        Assert.Equal(damagedPrimary, await File.ReadAllBytesAsync(primaryArchive));
+        Assert.Equal(backupBytes, await File.ReadAllBytesAsync(store.BackupPath));
+        Assert.Equal("imported", (await store.LoadAsync()).Document?.ProfileId);
+    }
+
+    [Fact]
+    public async Task ImportFromSafeModeArchivesBothDamagedFiles()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        byte[] damagedPrimary = Encoding.UTF8.GetBytes("{ damaged-primary");
+        byte[] damagedBackup = Encoding.UTF8.GetBytes("{ damaged-backup");
+        await File.WriteAllBytesAsync(store.PrimaryPath, damagedPrimary);
+        await File.WriteAllBytesAsync(store.BackupPath, damagedBackup);
+        await using MemoryStream source = CreateImportStream(CreateDocument("imported"));
+        ProductConfigurationImportPlan plan = await store.PrepareImportAsync(
+            source,
+            ValidImportSource());
+
+        ProductConfigurationImportResult result = await store.ImportAsync(
+            plan,
+            userConfirmed: true);
+
+        string primaryArchive = Assert.Single(
+            Directory.GetFiles(directory.Path, "configuration.json.import.*.primary"));
+        string backupArchive = Assert.Single(
+            Directory.GetFiles(directory.Path, "configuration.json.import.*.backup"));
+        Assert.Equal(ProductConfigurationImportExistingState.SafeMode, plan.Preview.ExistingState);
+        Assert.True(result.PrimaryArchived);
+        Assert.True(result.BackupArchived);
+        Assert.Equal(damagedPrimary, await File.ReadAllBytesAsync(primaryArchive));
+        Assert.Equal(damagedBackup, await File.ReadAllBytesAsync(backupArchive));
+        Assert.False(File.Exists(store.BackupPath));
+        Assert.Equal("imported", (await store.LoadAsync()).Document?.ProfileId);
+    }
+
+    [Fact]
+    public async Task ImportPublishFailureRollsBackSafeModeBackup()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        Directory.CreateDirectory(store.PrimaryPath);
+        byte[] damagedBackup = Encoding.UTF8.GetBytes("{ damaged-backup");
+        await File.WriteAllBytesAsync(store.BackupPath, damagedBackup);
+        await using MemoryStream source = CreateImportStream(CreateDocument("imported"));
+        ProductConfigurationImportPlan plan = await store.PrepareImportAsync(
+            source,
+            ValidImportSource());
+
+        ProductConfigurationImportException exception = await Assert.ThrowsAsync<
+            ProductConfigurationImportException>(
+            () => store.ImportAsync(plan, userConfirmed: true));
+
+        Assert.Equal(ProductConfigurationImportError.IoFailure, exception.Error);
+        Assert.Equal(damagedBackup, await File.ReadAllBytesAsync(store.BackupPath));
+        Assert.Empty(Directory.GetFiles(directory.Path, "configuration.json.import.*.backup"));
+        Assert.False(File.Exists(store.PrimaryPath + ".import.new"));
+        Assert.Equal(ProductConfigurationLoadStatus.SafeMode, (await store.LoadAsync()).Status);
+    }
+
+    [Fact]
+    public async Task InterruptedImportMarkerPreventsMissingState()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        await File.WriteAllBytesAsync(
+            store.PrimaryPath + ".import.new",
+            ProductConfigurationJson.SerializeToUtf8Bytes(CreateDocument("staged")));
+
+        ProductConfigurationLoadResult result = await store.LoadAsync();
+
+        Assert.Equal(ProductConfigurationLoadStatus.SafeMode, result.Status);
+        Assert.Equal(ProductConfigurationStorageFailure.Missing, result.PrimaryFailure);
+        Assert.Equal(ProductConfigurationStorageFailure.Missing, result.BackupFailure);
+    }
+
+    [Fact]
+    public async Task ImportWithExistingMarkerStagesSeparatelyAndCleansBothAfterPublish()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        await File.WriteAllBytesAsync(
+            store.PrimaryPath + ".import.new",
+            ProductConfigurationJson.SerializeToUtf8Bytes(CreateDocument("interrupted")));
+        await using MemoryStream source = CreateImportStream(CreateDocument("new-import"));
+        ProductConfigurationImportPlan plan = await store.PrepareImportAsync(
+            source,
+            ValidImportSource());
+
+        await store.ImportAsync(plan, userConfirmed: true);
+
+        Assert.Equal("new-import", (await store.LoadAsync()).Document?.ProfileId);
+        Assert.False(File.Exists(store.PrimaryPath + ".import.new"));
+        Assert.False(File.Exists(store.PrimaryPath + ".import.next"));
+    }
+
+    [Fact]
+    public async Task FailedImportPreservesEarlierMarkerAndSafeMode()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        Directory.CreateDirectory(store.PrimaryPath);
+        byte[] interrupted = ProductConfigurationJson.SerializeToUtf8Bytes(
+            CreateDocument("interrupted"));
+        await File.WriteAllBytesAsync(store.PrimaryPath + ".import.new", interrupted);
+        await using MemoryStream source = CreateImportStream(CreateDocument("new-import"));
+        ProductConfigurationImportPlan plan = await store.PrepareImportAsync(
+            source,
+            ValidImportSource());
+
+        ProductConfigurationImportException exception = await Assert.ThrowsAsync<
+            ProductConfigurationImportException>(
+            () => store.ImportAsync(plan, userConfirmed: true));
+
+        Assert.Equal(ProductConfigurationImportError.IoFailure, exception.Error);
+        Assert.Equal(interrupted, await File.ReadAllBytesAsync(
+            store.PrimaryPath + ".import.new"));
+        Assert.False(File.Exists(store.PrimaryPath + ".import.next"));
+        Assert.Equal(ProductConfigurationLoadStatus.SafeMode, (await store.LoadAsync()).Status);
+    }
+
     [Fact]
     public async Task InvalidPrimaryWithoutBackupEntersSafeMode()
     {
@@ -777,6 +1100,19 @@ public sealed class ProductConfigurationStoreTests
             FileMode.OpenOrCreate,
             FileAccess.ReadWrite,
             FileShare.None);
+
+    private static ProductConfigurationImportSource ValidImportSource() =>
+        new(
+            UserSelected: true,
+            FileExtension: ".json",
+            IsLocalFileSystem: true,
+            IsReparsePoint: false);
+
+    private static MemoryStream CreateImportStream(ProductConfigurationDocument document) =>
+        new(ProductConfigurationJson.SerializeToUtf8Bytes(document));
+
+    private static ProductConfigurationDocument ReadDocument(string path) =>
+        ProductConfigurationJson.Deserialize(File.ReadAllBytes(path));
 
     private static ProductConfigurationDocument CreateDocument(string profileId) =>
         new()

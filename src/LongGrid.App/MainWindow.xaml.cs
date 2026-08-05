@@ -24,14 +24,26 @@ public sealed partial class MainWindow : Window
     private readonly Func<
         ProductConfigurationRecoveryAction,
         Task<ProductConfigurationStartupState>> _recoverConfiguration;
+    private readonly Func<Task<ProductConfigurationImportPlan?>> _prepareConfigurationImport;
+    private readonly Func<
+        ProductConfigurationImportPlan,
+        Task<ProductConfigurationStartupState>> _commitConfigurationImport;
 
     public MainWindow(
         Func<
             ProductConfigurationRecoveryAction,
-            Task<ProductConfigurationStartupState>> recoverConfiguration)
+            Task<ProductConfigurationStartupState>> recoverConfiguration,
+        Func<Task<ProductConfigurationImportPlan?>> prepareConfigurationImport,
+        Func<
+            ProductConfigurationImportPlan,
+            Task<ProductConfigurationStartupState>> commitConfigurationImport)
     {
         ArgumentNullException.ThrowIfNull(recoverConfiguration);
+        ArgumentNullException.ThrowIfNull(prepareConfigurationImport);
+        ArgumentNullException.ThrowIfNull(commitConfigurationImport);
         _recoverConfiguration = recoverConfiguration;
+        _prepareConfigurationImport = prepareConfigurationImport;
+        _commitConfigurationImport = commitConfigurationImport;
         InitializeComponent();
         RootLayout.Loaded += RootLayout_Loaded;
         RootLayout.SizeChanged += RootLayout_SizeChanged;
@@ -407,6 +419,115 @@ public sealed partial class MainWindow : Window
             ProductConfigurationStorageFailure.InvalidConfiguration => "未通过内容校验",
             ProductConfigurationStorageFailure.IoFailure => "暂时无法读取",
             _ => "处于未知状态",
+        };
+
+    private async void ImportConfigurationButton_Click(object sender, RoutedEventArgs e)
+    {
+        ImportConfigurationButton.IsEnabled = false;
+        try
+        {
+            SetImportStatus("正在等待选择本地 JSON 配置……", "ImportPickerOpen");
+            ProductConfigurationImportPlan? plan = await _prepareConfigurationImport();
+            if (plan is null)
+            {
+                SetImportStatus("已取消选择，没有读取或修改配置。", "ImportCancelled");
+                return;
+            }
+
+            ProductConfigurationImportPreview preview = plan.Preview;
+            SetImportStatus(
+                $"已验证 v{preview.SchemaVersion}：{preview.ContainerCount} 个容器、" +
+                $"{preview.ItemCount} 个引用项目。",
+                "ImportPreviewValidated");
+            ContentDialog confirmation = new()
+            {
+                XamlRoot = RootLayout.XamlRoot,
+                Title = "导入这份已验证配置？",
+                Content =
+                    $"配置使用 v{preview.SchemaVersion}，包含 {preview.ContainerCount} 个容器和 " +
+                    $"{preview.ItemCount} 个引用项目。{DescribeImportReplacement(preview.ExistingState)}" +
+                    "现存主配置和损坏备份会按实际状态分别归档；此操作会写入配置目录，" +
+                    "且不能在 Long方格内自动撤销。",
+                PrimaryButtonText = "确认导入",
+                CloseButtonText = "取消",
+                DefaultButton = ContentDialogButton.Close,
+            };
+
+            ContentDialogResult confirmationResult = await confirmation.ShowAsync();
+            if (confirmationResult is not ContentDialogResult.Primary)
+            {
+                SetImportStatus("已取消导入，没有修改配置。", "ImportCancelledAfterPreview");
+                return;
+            }
+
+            SetImportStatus("正在复核配置状态并安全导入……", "ImportCommitInProgress");
+            ProductConfigurationStartupState state =
+                await _commitConfigurationImport(plan);
+            ApplyConfigurationStartupState(state);
+            SetImportStatus(
+                "配置已导入并通过复读校验；原配置证据已按实际状态保留。",
+                "ImportCommitted:EvidencePreserved");
+        }
+        catch (ProductConfigurationImportException exception)
+        {
+            SetImportStatus(
+                DescribeImportFailure(exception.Error),
+                $"ImportFailed:{exception.Error}");
+        }
+        finally
+        {
+            ImportConfigurationButton.IsEnabled = true;
+        }
+    }
+
+    private void SetImportStatus(string text, string automationStatus)
+    {
+        ConfigurationImportStatus.Text = text;
+        AutomationProperties.SetItemStatus(ConfigurationImportStatus, automationStatus);
+    }
+
+    private static string DescribeImportReplacement(
+        ProductConfigurationImportExistingState state) => state switch
+        {
+            ProductConfigurationImportExistingState.NoSavedConfiguration =>
+                "当前没有已保存配置；确认后会创建首份主配置。",
+            ProductConfigurationImportExistingState.LoadedPrimary =>
+                "当前主配置会被替换并归档。",
+            ProductConfigurationImportExistingState.RecoveredBackupReadOnly =>
+                "当前损坏主配置会归档，已验证备份保持不变。",
+            ProductConfigurationImportExistingState.SafeMode =>
+                "当前处于安全模式，现存损坏主配置和备份会分别归档。",
+            _ => throw new ArgumentOutOfRangeException(nameof(state)),
+        };
+
+    private static string DescribeImportFailure(
+        ProductConfigurationImportError error) => error switch
+        {
+            ProductConfigurationImportError.SourceNotUserSelected =>
+                "导入来源没有获得用户选择授权，没有读取或写入配置。",
+            ProductConfigurationImportError.UnsupportedFileType =>
+                "仅支持用户选择的 .json 配置文件。",
+            ProductConfigurationImportError.NonLocalSource =>
+                "当前切片仅允许本地文件系统来源，不读取云端或虚拟提供程序来源。",
+            ProductConfigurationImportError.ReparsePointNotAllowed =>
+                "为避免链接跳转到未授权位置，不能导入重解析点来源。",
+            ProductConfigurationImportError.EmptyDocument =>
+                "所选配置为空，没有执行写入。",
+            ProductConfigurationImportError.DocumentTooLarge =>
+                "所选配置超过 4 MiB 安全上限，没有执行写入。",
+            ProductConfigurationImportError.InvalidConfiguration =>
+                "所选文件不是当前版本支持的有效 Long方格配置。",
+            ProductConfigurationImportError.StoreChanged =>
+                "预览后本机配置已经变化，没有覆盖新状态；请重新选择并检查。",
+            ProductConfigurationImportError.WriteLeaseUnavailable =>
+                "其他 Long方格进程正在使用配置，没有执行导入；请稍后重试。",
+            ProductConfigurationImportError.SourceUnavailable =>
+                "暂时无法安全读取所选来源，没有执行写入。",
+            ProductConfigurationImportError.ConfirmationRequired =>
+                "导入未获得明确确认，没有修改配置。",
+            ProductConfigurationImportError.IoFailure =>
+                "暂时无法安全发布配置；原配置证据没有被静默丢弃。",
+            _ => "配置导入未完成，没有静默覆盖现有配置。",
         };
 
     private void StartChoice_Click(object sender, RoutedEventArgs e)
