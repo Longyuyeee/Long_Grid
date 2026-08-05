@@ -63,6 +63,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] Issue #24 配置到 Catalog 有限解析：统一身份策略、resolved/missing/type-changed/ambiguous/unsupported-target 状态、无效配置/Catalog 有限失败、重复候选零自动选择、未解析领域 ID/kind/target/扩展字段无损重投影和匿名分类计数；不枚举文件系统且匿名 UI 继续零入队（产品 reducer、连续编辑保存状态机和保存 UIA 仍 Pending）。
 - [x] Issue #24 产品工作区 reducer 与连续保存纯状态：不可变创建/重命名/外观/放置/锁定/引用操作、锁定保护、未解析引用显式删除确认、重新选择保留领域 ID/未知字段、正式 v1 双重校验，以及 revision 驱动的最新防抖、保存/失败/重试和陈旧结果隔离；计时控制器、工作流映射、关闭竞态、保存 UIA 与普通 UI 入队仍 Pending。
 - [x] Issue #24 产品工作区连续保存控制器：接受时 v1 深快照、默认 400 ms/最大 10 秒可替换防抖、新编辑取消旧等待但不撤销已接受保存、正式错误与重试不一致有限映射、关闭强制刷新、最新失败阻止关闭、超时恢复接收和安全异步释放；App 所有权、保存 presenter/UIA、Reduced Motion 与普通 UI 入队仍 Pending。
+- [x] Issue #24 App 控制器所有权与保存状态 UIA：后台快照 UI 线程封送、Clean/Waiting/Saving/Retrying/Saved/Failed 隐私安全映射、5 个新 AutomationId、重试有限委托、静态 Reduced Motion、controller 关闭/失败阻断/安全释放；匿名 UI 和普通 SaveAsync/EnqueueAsync 继续为零（干净会话真实 UIA 复跑、正式产品会话加载与首次普通入队仍 Pending）。
 - [x] Issue #24 I24-01/I24-02 专用环境会话入口、独立卷标记/双确认安全合同和 CI `PendingDedicatedEnvironmentEvidence` 预检（Ready to schedule；真实卷结果仍 Pending）。
 - [x] P0-07a 静态双屏拓扑、混合 DPI、隐私安全指纹与资源稳定性（Conditional Pass）。
 - [x] P0-07b1 QueryDisplayConfig 活动路径、virtual-mode 索引、rotation 与 monitor 一一关联（Conditional Pass）。

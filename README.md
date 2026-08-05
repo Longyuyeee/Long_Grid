@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期 `LongGrid.App` UI Shell、Design Token、品牌 RC1、一键启动链、UI 自动化、响应式布局、Core 只读状态合同，以及首次整理、匿名容器、三个匿名引用、拖放语义、两步撤销和匿名恢复差异原型已建立，但不接真实桌面、Explorer 拖放、显示拓扑、DesktopHost、普通产品状态自动持久化或桌面文件操作；配置边界已具备 UI 无关产品工作区状态、Catalog 身份到 v1 的验证投影、v1 到当前 Catalog 的有限解析、不可变编辑 reducer、revision 保存纯状态机，以及接受时深快照、400 ms 可替换防抖、正式错误映射、显式重试和失败阻止关闭的 Infrastructure 控制器，并允许用户二次确认后的恢复、受限导入/导出和证据管理，但控制器尚未注入演示 UI，普通产品写入继续为零，不能视为正式 MVP。未批准保留/容量阈值前不会自动删除。Issue #23 的 D23-01–D23-10 首发范围已获负责人批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
+> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、76-ID UIA、响应式布局、只读运行状态、匿名整理/拖放/撤销/恢复原型，以及产品状态/Catalog 双向有限转换、不可变 reducer、revision 状态机、接受时深快照、400 ms 防抖、有限错误/重试与失败阻止关闭控制器。App 现在唯一持有控制器并显示隐私安全、静态 Reduced Motion 保存状态，但匿名原型不提交控制器，App/MainWindow 普通保存调用仍为零，不能视为正式 MVP。修正后的真实 UIA 复跑受先前原生崩溃残留的无窗口单实例污染而保持 Inconclusive；未批准保留/容量阈值前不会自动删除。Issue #23 首发范围已批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
 
 ## 产品原则
 
@@ -63,6 +63,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格配置到桌面 Catalog 解析审计](docs/45-configuration-catalog-resolution-audit.md)
 - [Long方格产品工作区 reducer 与连续保存状态审计](docs/46-product-workspace-reducer-save-state-audit.md)
 - [Long方格产品工作区连续保存控制器审计](docs/47-product-workspace-save-controller-audit.md)
+- [Long方格 App 保存状态与关闭接线审计](docs/48-app-product-save-status-ui-audit.md)
 - [正式产品配置存储适配器审计](docs/33-product-configuration-store-audit.md)
 - [配置 latest-wins 与 App 关闭排空审计](docs/34-configuration-shutdown-drain-audit.md)
 - [贡献指南](CONTRIBUTING.md)
@@ -76,7 +77,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 的首发范围已经批准，下一步完成 5 人验证，并执行 #19 人工输入/Narrator/系统表面矩阵和 #20 动态显示硬件矩阵；#21–#22 已关闭，#24 已具备正式配置存储、产品状态/Catalog 双向有限转换、不可变 reducer、revision 纯状态、接受时深快照、可替换防抖、正式工作流错误映射、显式重试、关闭强制刷新与失败阻断，以及恢复/导入/导出和证据管理。下一条产品切片应建立 App 级控制器所有权、保存 presenter/UIA、Reduced Motion 和关闭接线；受控产品状态及 UIA 自动化通过后才能首次真实普通入队。正式 schema 迁移等待真实 v2 字段准入，自动保留/容量策略仍需负责人批准，真实测试卷结果仍 Pending。许可证选择延期到正式分发或接受外部贡献之前。
+按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 首发范围已批准，仍需完成 5 人验证、#19 输入/Narrator/系统表面和 #20 动态显示矩阵；#24 已具备正式配置存储、产品状态/Catalog 转换、reducer、连续保存控制器、App 所有权、隐私安全保存 UIA、静态 Reduced Motion 和关闭失败阻断。下一步先在干净会话关闭 76-ID 真实 UIA Inconclusive，再建立正式配置/Catalog 到 App 产品会话的加载所有权；只有真实状态来源和 UIA 通过后才允许首次普通入队。正式 v2、自动保留/容量策略和真实测试卷仍 Pending。许可证选择延期到正式分发或接受外部贡献之前。
 
 ## 开发启动
 

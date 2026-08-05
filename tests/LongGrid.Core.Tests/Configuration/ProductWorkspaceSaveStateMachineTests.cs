@@ -45,6 +45,7 @@ public sealed class ProductWorkspaceSaveStateMachineTests
         Assert.Equal(ProductWorkspaceSaveCommandKind.Save, latest.Command.Kind);
         Assert.Equal(ProductWorkspaceSaveStatus.Saving, latest.Snapshot.Status);
         Assert.Equal(2, latest.Snapshot.ActiveSaveRevision);
+        Assert.Equal(ProductWorkspaceSaveActivity.Save, latest.Snapshot.Activity);
     }
 
     [Fact]
@@ -58,6 +59,7 @@ public sealed class ProductWorkspaceSaveStateMachineTests
         Assert.Equal(ProductWorkspaceSaveStatus.Saved, completed.Snapshot.Status);
         Assert.Equal(1, completed.Snapshot.SavedRevision);
         Assert.Null(completed.Snapshot.ActiveSaveRevision);
+        Assert.Equal(ProductWorkspaceSaveActivity.None, completed.Snapshot.Activity);
         Assert.Equal(ProductWorkspaceSaveCommandKind.None, completed.Command.Kind);
     }
 
@@ -74,10 +76,12 @@ public sealed class ProductWorkspaceSaveStateMachineTests
             ProductWorkspaceSaveStateMachine.RetryRequested(failed.Snapshot);
 
         Assert.Equal(ProductWorkspaceSaveStatus.Failed, failed.Snapshot.Status);
+        Assert.Equal(ProductWorkspaceSaveActivity.None, failed.Snapshot.Activity);
         Assert.True(failed.Snapshot.CanRetry);
         Assert.Equal(ProductWorkspaceSaveCommandKind.Retry, retry.Command.Kind);
         Assert.Equal(1, retry.Command.Revision);
         Assert.Equal(ProductWorkspaceSaveStatus.Saving, retry.Snapshot.Status);
+        Assert.Equal(ProductWorkspaceSaveActivity.Retry, retry.Snapshot.Activity);
         Assert.False(retry.Snapshot.CanRetry);
     }
 

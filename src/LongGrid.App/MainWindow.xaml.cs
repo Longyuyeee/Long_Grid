@@ -1,3 +1,4 @@
+using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopHost;
 using LongGrid.Core.FileOperations;
 using LongGrid.Core.Runtime;
@@ -41,6 +42,7 @@ public sealed partial class MainWindow : Window
     private readonly Func<
         ProductConfigurationEvidenceItem,
         Task<ProductConfigurationEvidenceRemovalResult>> _removeConfigurationEvidence;
+    private readonly Func<ProductWorkspaceSaveRetryResult> _retryProductWorkspaceSave;
 
     public MainWindow(
         Func<
@@ -60,7 +62,8 @@ public sealed partial class MainWindow : Window
             Task<ProductConfigurationExportResult?>> exportConfigurationEvidence,
         Func<
             ProductConfigurationEvidenceItem,
-            Task<ProductConfigurationEvidenceRemovalResult>> removeConfigurationEvidence)
+            Task<ProductConfigurationEvidenceRemovalResult>> removeConfigurationEvidence,
+        Func<ProductWorkspaceSaveRetryResult> retryProductWorkspaceSave)
     {
         ArgumentNullException.ThrowIfNull(recoverConfiguration);
         ArgumentNullException.ThrowIfNull(prepareConfigurationImport);
@@ -70,6 +73,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(loadConfigurationEvidence);
         ArgumentNullException.ThrowIfNull(exportConfigurationEvidence);
         ArgumentNullException.ThrowIfNull(removeConfigurationEvidence);
+        ArgumentNullException.ThrowIfNull(retryProductWorkspaceSave);
         _recoverConfiguration = recoverConfiguration;
         _prepareConfigurationImport = prepareConfigurationImport;
         _commitConfigurationImport = commitConfigurationImport;
@@ -78,6 +82,7 @@ public sealed partial class MainWindow : Window
         _loadConfigurationEvidence = loadConfigurationEvidence;
         _exportConfigurationEvidence = exportConfigurationEvidence;
         _removeConfigurationEvidence = removeConfigurationEvidence;
+        _retryProductWorkspaceSave = retryProductWorkspaceSave;
         InitializeComponent();
         RootLayout.Loaded += RootLayout_Loaded;
         RootLayout.SizeChanged += RootLayout_SizeChanged;
@@ -91,6 +96,123 @@ public sealed partial class MainWindow : Window
         SafeReferenceMode.IsChecked = true;
         ApplyOrganizationMode(FileOrganizationMode.SafeReference);
         ShellNavigation.SelectedItem = ShellNavigation.MenuItems[0];
+    }
+
+    internal void ApplyProductWorkspaceSaveState(
+        ProductWorkspaceSaveSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        (string title,
+            string detail,
+            string automationStatus,
+            Symbol icon,
+            bool retryVisible) = DescribeProductWorkspaceSaveState(snapshot);
+        ProductSaveStatusTitle.Text = title;
+        ProductSaveStatusDetail.Text = detail;
+        ProductSaveStatusIcon.Symbol = icon;
+        ProductSaveRetryButton.Visibility = retryVisible
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        ProductSaveRetryButton.IsEnabled = retryVisible && snapshot.CanRetry;
+        AutomationProperties.SetItemStatus(
+            ProductSaveStatusDetail,
+            automationStatus);
+    }
+
+    private static (
+        string Title,
+        string Detail,
+        string AutomationStatus,
+        Symbol Icon,
+        bool RetryVisible) DescribeProductWorkspaceSaveState(
+        ProductWorkspaceSaveSnapshot snapshot)
+    {
+        string revision = snapshot.CurrentRevision.ToString(
+            System.Globalization.CultureInfo.InvariantCulture);
+        return snapshot.Status switch
+        {
+            ProductWorkspaceSaveStatus.Clean => (
+                "自动保存待命",
+                "尚无需要保存的产品编辑；匿名示例仍只存在于内存中。",
+                $"WorkspaceSaveClean:Revision={revision}:Motion=Static",
+                Symbol.Save,
+                false),
+            ProductWorkspaceSaveStatus.WaitingForDebounce => (
+                "正在准备保存",
+                "正在合并连续编辑；不会读取界面显示名称作为文件身份。",
+                $"WorkspaceSaveWaiting:Revision={revision}:Motion=Static",
+                Symbol.Clock,
+                false),
+            ProductWorkspaceSaveStatus.Saving
+                when snapshot.Activity == ProductWorkspaceSaveActivity.Retry => (
+                    "正在重试保存",
+                    "正在重试最近一次明确保留的配置快照。",
+                    $"WorkspaceSaveRetrying:Revision={revision}:Motion=Static",
+                    Symbol.Sync,
+                    false),
+            ProductWorkspaceSaveStatus.Saving => (
+                "正在安全保存",
+                "正在提交已验证的配置快照；原始桌面文件保持不变。",
+                $"WorkspaceSaveSaving:Revision={revision}:Motion=Static",
+                Symbol.Sync,
+                false),
+            ProductWorkspaceSaveStatus.Saved => (
+                "更改已保存",
+                "最近一次产品编辑已安全保存。",
+                $"WorkspaceSaveSaved:Revision={revision}:Motion=Static",
+                Symbol.Accept,
+                false),
+            ProductWorkspaceSaveStatus.Failed => DescribeProductWorkspaceSaveFailure(
+                snapshot,
+                revision),
+            _ => (
+                "保存状态不可用",
+                "当前无法确认保存状态；不会执行额外文件操作。",
+                $"WorkspaceSaveUnavailable:Revision={revision}:Motion=Static",
+                Symbol.Important,
+                false),
+        };
+    }
+
+    private static (
+        string Title,
+        string Detail,
+        string AutomationStatus,
+        Symbol Icon,
+        bool RetryVisible) DescribeProductWorkspaceSaveFailure(
+        ProductWorkspaceSaveSnapshot snapshot,
+        string revision)
+    {
+        string detail = snapshot.Failure switch
+        {
+            ProductWorkspaceSaveFailure.InvalidConfiguration =>
+                "更改未通过配置校验；请修正产品状态后再保存。",
+            ProductWorkspaceSaveFailure.DamagedEvidence =>
+                "配置证据需要先安全处理；现有证据没有被覆盖。",
+            ProductWorkspaceSaveFailure.WriteLeaseUnavailable =>
+                "另一项配置操作正在进行；可以稍后重试。",
+            ProductWorkspaceSaveFailure.IoFailure =>
+                "暂时无法安全写入配置；没有覆盖已提交内容。",
+            ProductWorkspaceSaveFailure.RetryUnavailable =>
+                "最近失败的快照已不可重试；请进行新的有效编辑。",
+            _ => "保存没有完成；不会执行额外文件操作。",
+        };
+        string failure = snapshot.Failure.ToString();
+        return (
+            "更改尚未保存",
+            detail,
+            $"WorkspaceSaveFailed:{failure}:Retry={snapshot.CanRetry}:Revision={revision}:Motion=Static",
+            Symbol.Important,
+            snapshot.CanRetry);
+    }
+
+    private void ProductSaveRetryButton_Click(object sender, RoutedEventArgs e)
+    {
+        ProductWorkspaceSaveRetryResult result = _retryProductWorkspaceSave();
+        if (result.Status != ProductWorkspaceSaveRetryStatus.Accepted)
+        {
+            ApplyProductWorkspaceSaveState(result.Snapshot);
+        }
     }
 
     private void ApplyRuntimeStatus(RuntimeStatusSnapshot snapshot)
