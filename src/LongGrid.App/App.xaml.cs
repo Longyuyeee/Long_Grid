@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using LongGrid.Core.Configuration;
 using LongGrid.Infrastructure.Configuration;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -15,8 +16,12 @@ namespace LongGrid.App;
 public partial class App : Application
 {
     private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(5);
+    private static readonly ProductWorkspaceCatalogSnapshot DevelopmentCatalogSnapshot =
+        ProductWorkspaceCatalogSnapshot.Unavailable;
     private readonly ProductConfigurationStore configurationStore;
     private readonly ProductWorkspaceSaveController productWorkspaceSaves;
+    private ProductWorkspaceSessionSnapshot productWorkspaceSession =
+        ProductWorkspaceSessionSnapshot.Initial;
     private MainWindow? window;
     private bool closeAfterDrain;
     private bool closingDrainInProgress;
@@ -48,6 +53,7 @@ public partial class App : Application
             () => productWorkspaceSaves.Retry());
         productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
         window.ApplyProductWorkspaceSaveState(productWorkspaceSaves.Snapshot);
+        window.ApplyProductWorkspaceSessionState(productWorkspaceSession);
         window.AppWindow.Closing += AppWindow_Closing;
         window.Activate();
         _ = LoadConfigurationStartupStateAsync();
@@ -64,8 +70,7 @@ public partial class App : Application
         await Task.Yield();
         ProductConfigurationLoadResult loadResult =
             await configurationStore.LoadAsync();
-        window?.ApplyConfigurationStartupState(
-            ProductConfigurationStartupState.FromLoadResult(loadResult));
+        ApplyProductConfigurationLoadResult(loadResult);
     }
 
     private async Task<ProductConfigurationStartupState> RecoverConfigurationAsync(
@@ -77,7 +82,7 @@ public partial class App : Application
                 UserConfirmed: true));
         ProductConfigurationLoadResult loadResult =
             await configurationStore.LoadAsync();
-        return ProductConfigurationStartupState.FromLoadResult(loadResult);
+        return ApplyProductConfigurationLoadResult(loadResult);
     }
 
     private async Task<ProductConfigurationImportPlan?> PrepareConfigurationImportAsync()
@@ -154,7 +159,20 @@ public partial class App : Application
     {
         await configurationStore.ImportAsync(plan, userConfirmed: true);
         ProductConfigurationLoadResult loadResult = await configurationStore.LoadAsync();
-        return ProductConfigurationStartupState.FromLoadResult(loadResult);
+        return ApplyProductConfigurationLoadResult(loadResult);
+    }
+
+    private ProductConfigurationStartupState ApplyProductConfigurationLoadResult(
+        ProductConfigurationLoadResult loadResult)
+    {
+        ProductConfigurationStartupState startupState =
+            ProductConfigurationStartupState.FromLoadResult(loadResult);
+        productWorkspaceSession = ProductWorkspaceSessionLoader.Load(
+            loadResult,
+            DevelopmentCatalogSnapshot);
+        window?.ApplyConfigurationStartupState(startupState);
+        window?.ApplyProductWorkspaceSessionState(productWorkspaceSession);
+        return startupState;
     }
 
     private async Task<ProductConfigurationExportResult?> ExportConfigurationAsync(

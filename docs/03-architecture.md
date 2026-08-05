@@ -134,6 +134,8 @@ P0-02 已验证 Shell 会强烈合并高频变化：1,100 次沙箱操作每轮�
 
 下一 App 切片把该 controller 作为 App 唯一普通保存编排所有权：后台快照事件经 DispatcherQueue 回到 UI 线程；关闭用 controller 强制刷新、失败阻断、5 秒等待和安全释放；MainWindow 只获得有限 Retry 委托。概览保存卡以 5 个新 AutomationId 映射 Clean/Waiting/Saving/Retrying/Saved/Failed，UIA 只含枚举、revision 和重试标志。状态卡无 Storyboard/Transition，形成静态 Reduced Motion 基线。匿名练习仍零提交，App/MainWindow 没有普通 SaveAsync/EnqueueAsync。真实 UIA 修正后复跑受残留无窗口单实例污染而 Inconclusive，详见[App 保存状态与关闭接线审计](48-app-product-save-status-ui-audit.md)。
 
+正式产品会话加载层进一步把 `ProductConfigurationLoadResult` 与显式 `ProductWorkspaceCatalogSnapshot` 合成为有限 `ProductWorkspaceSessionSnapshot`。Catalog 的 `Unavailable` 与权威 `Available([])` 是不同类型状态：前者停在 AwaitingCatalog 且不分类引用，后者才允许 resolver 得出 Missing。App 在启动、恢复和导入复读后统一刷新存储提示与产品会话；会话覆盖 Loading/NoSavedConfiguration/AwaitingCatalog/Ready/RecoveredBackupReadOnly/SafeMode/Failed，UIA 仅暴露来源枚举、只读标志及匿名解析计数。当前开发期 Catalog 仍断开，普通提交继续为零，详见[正式产品工作区会话加载审计](49-product-workspace-session-load-audit.md)。
+
 ## 5. 布局恢复算法
 
 1. 收集当前显示器的稳定属性：设备标识、工作区、方向、DPI 和相对拓扑。

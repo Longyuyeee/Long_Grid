@@ -117,6 +117,10 @@ function Test-SourceContract {
         'CurrentModeValue',
         'FileOperationValue',
         'DesktopHostValue',
+        'ProductWorkspaceSessionCard',
+        'ProductWorkspaceSessionTitle',
+        'ProductWorkspaceSessionDetail',
+        'ProductWorkspaceSessionSummary',
         'ProductSaveStatusCard',
         'ProductSaveStatusTitle',
         'ProductSaveStatusDetail',
@@ -239,6 +243,20 @@ function Test-SourceContract {
     ) 'The anonymous container undo action must keep its Ctrl+Z accelerator.'
     Assert-Condition (-not ($document.OuterXml -match 'AllowDrop')) `
         'The semantic practice must not masquerade as an Explorer drop target.'
+
+    $productSessionDetailNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceSessionDetail'
+    Assert-Condition (
+        $productSessionDetailNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite' -and
+        $productSessionDetailNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'WorkspaceSessionLoading:Source=None:Catalog=Unavailable:ReadOnly=True'
+    ) 'Product session loading must start finite, read-only, and catalog-unavailable.'
+    $productSessionCardNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceSessionCard'
+    Assert-Condition (-not ($productSessionCardNode.OuterXml -match 'Storyboard|Transition')) `
+        'Product session status must keep a Reduced Motion-safe static baseline.'
 
     $productSaveDetailNode = Get-XamlNodeByAutomationId `
         $document `
@@ -463,6 +481,11 @@ function Test-SourceContract {
         'Window closing must be cancelled until the accepted save queue drains.'
     Assert-Condition ($appCode -match 'ProductWorkspaceSaveController') `
         'The App must own the product workspace save controller.'
+    Assert-Condition (
+        $appCode -match 'ProductWorkspaceSessionSnapshot' -and
+        $appCode -match 'ProductWorkspaceSessionLoader\.Load' -and
+        $appCode -match 'ProductWorkspaceCatalogSnapshot\.Unavailable'
+    ) 'The App must own a finite product session without treating an empty catalog as current.'
     Assert-Condition ($appCode -match 'productWorkspaceSaves\.CompleteAsync\(timeout\.Token\)') `
         'Window closing must complete through the product workspace controller.'
     Assert-Condition ($appCode -match 'BlockedByFailure') `
@@ -499,6 +522,20 @@ function Test-SourceContract {
         Assert-Condition ($codeBehind.Contains($finiteFailure)) `
             "Product save presentation is missing finite failure '$finiteFailure'."
     }
+    foreach ($finiteSession in @(
+            'WorkspaceSession',
+            'NoSavedConfiguration',
+            'AwaitingCatalog',
+            'Ready',
+            'RecoveredBackupReadOnly',
+            'SafeMode',
+            'InconsistentLoadResult',
+            'InvalidConfiguration',
+            'InvalidCatalog'
+        )) {
+        Assert-Condition ($codeBehind.Contains($finiteSession)) `
+            "Product session presentation is missing finite state '$finiteSession'."
+    }
 
     return [ordered]@{
         requiredAutomationIds = $requiredIds.Count
@@ -513,6 +550,7 @@ function Test-SourceContract {
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
         configurationRepair = 'confirmed-recovery-bounded-import-export-evidence-inventory-export-and-single-removal'
         configurationShutdownDrain = 'controller-owned-bounded-zero-write-retry'
+        productWorkspaceSession = 'formal-load-awaiting-authoritative-catalog-zero-write'
         productSavePresentation = 'privacy-safe-static-reduced-motion'
         readOnlyBoundary = 'no-automatic-product-writes-explicit-config-transactions-only'
     }
@@ -741,6 +779,10 @@ public static class LongGridWindowNative
         $productSaveMotion = Find-UiaElement $root 'ProductSaveMotionPolicy'
         Assert-Condition ($productSaveMotion.Current.Name.Length -gt 0) `
             'The Reduced Motion-safe product save policy was not exposed.'
+        $productSessionStatus = Find-UiaElement $root 'ProductWorkspaceSessionDetail'
+        Assert-Condition (
+            $productSessionStatus.Current.ItemStatus.StartsWith('WorkspaceSession')
+        ) 'The product session did not expose a finite UIA state.'
         foreach ($item in @($overview, $firstRun, $appearance, $safety, $recovery)) {
             Assert-Condition $item.Current.IsKeyboardFocusable `
                 "Navigation item '$($item.Current.AutomationId)' is not keyboard focusable."
@@ -1010,6 +1052,7 @@ public static class LongGridWindowNative
             coreRuntimeStatus = 'development-read-only'
             firstOrganizationPrototype = 'blank-suggested-safe-preview-items-drop-semantics-two-step-undo'
             layoutRecoveryPrototype = 'review-expired-review-acknowledged-blocked-automatic-cancelled'
+            productWorkspaceSession = $productSessionStatus.Current.ItemStatus
             productSavePresentation = $productSaveStatus.Current.ItemStatus
             themeRoundTrip = 'system-dark-system'
             safetyNavigation = 'pass'
