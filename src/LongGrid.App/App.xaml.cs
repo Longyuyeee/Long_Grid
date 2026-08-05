@@ -35,7 +35,8 @@ public partial class App : Application
             CommitConfigurationImportAsync,
             () => configurationStore.PrepareExportAsync(),
             ExportConfigurationAsync,
-            () => configurationStore.GetEvidenceInventoryAsync());
+            () => configurationStore.GetEvidenceInventoryAsync(),
+            ExportConfigurationEvidenceAsync);
         window.AppWindow.Closing += AppWindow_Closing;
         window.Activate();
         _ = LoadConfigurationStartupStateAsync();
@@ -148,6 +149,37 @@ public partial class App : Application
     private async Task<ProductConfigurationExportResult?> ExportConfigurationAsync(
         ProductConfigurationExportPlan plan)
     {
+        SelectedExportDestination? selected = await PickExportDestinationAsync();
+        if (selected is null)
+        {
+            return null;
+        }
+
+        return await configurationStore.ExportAsync(
+            plan,
+            selected.Path,
+            selected.Metadata,
+            userConfirmed: true);
+    }
+
+    private async Task<ProductConfigurationExportResult?> ExportConfigurationEvidenceAsync(
+        ProductConfigurationEvidenceItem item)
+    {
+        SelectedExportDestination? selected = await PickExportDestinationAsync();
+        if (selected is null)
+        {
+            return null;
+        }
+
+        return await configurationStore.ExportEvidenceAsync(
+            item,
+            selected.Path,
+            selected.Metadata,
+            userConfirmed: true);
+    }
+
+    private async Task<SelectedExportDestination?> PickExportDestinationAsync()
+    {
         if (window is null)
         {
             return null;
@@ -187,15 +219,17 @@ public partial class App : Application
             }
         }
 
-        return await configurationStore.ExportAsync(
-            plan,
+        return new(
             folder.Path,
             new(
                 UserSelected: true,
                 IsLocalFileSystem: isLocal,
-                IsReparsePoint: isReparsePoint),
-            userConfirmed: true);
+                IsReparsePoint: isReparsePoint));
     }
+
+    private sealed record SelectedExportDestination(
+        string Path,
+        ProductConfigurationExportDestination Metadata);
 
     internal void HandleActivation(AppActivationArguments activation)
     {

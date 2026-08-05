@@ -21,6 +21,7 @@ public sealed partial class MainWindow : Window
     private string _organizationStartChoice = "suggested";
     private bool _practiceItemsAdded;
     private ProductConfigurationStartupMode _configurationStartupMode;
+    private ProductConfigurationEvidenceInventory? _configurationEvidenceInventory;
     private readonly Func<
         ProductConfigurationRecoveryAction,
         Task<ProductConfigurationStartupState>> _recoverConfiguration;
@@ -34,6 +35,9 @@ public sealed partial class MainWindow : Window
         Task<ProductConfigurationExportResult?>> _exportConfiguration;
     private readonly Func<Task<ProductConfigurationEvidenceInventory>>
         _loadConfigurationEvidence;
+    private readonly Func<
+        ProductConfigurationEvidenceItem,
+        Task<ProductConfigurationExportResult?>> _exportConfigurationEvidence;
 
     public MainWindow(
         Func<
@@ -47,7 +51,10 @@ public sealed partial class MainWindow : Window
         Func<
             ProductConfigurationExportPlan,
             Task<ProductConfigurationExportResult?>> exportConfiguration,
-        Func<Task<ProductConfigurationEvidenceInventory>> loadConfigurationEvidence)
+        Func<Task<ProductConfigurationEvidenceInventory>> loadConfigurationEvidence,
+        Func<
+            ProductConfigurationEvidenceItem,
+            Task<ProductConfigurationExportResult?>> exportConfigurationEvidence)
     {
         ArgumentNullException.ThrowIfNull(recoverConfiguration);
         ArgumentNullException.ThrowIfNull(prepareConfigurationImport);
@@ -55,12 +62,14 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(prepareConfigurationExport);
         ArgumentNullException.ThrowIfNull(exportConfiguration);
         ArgumentNullException.ThrowIfNull(loadConfigurationEvidence);
+        ArgumentNullException.ThrowIfNull(exportConfigurationEvidence);
         _recoverConfiguration = recoverConfiguration;
         _prepareConfigurationImport = prepareConfigurationImport;
         _commitConfigurationImport = commitConfigurationImport;
         _prepareConfigurationExport = prepareConfigurationExport;
         _exportConfiguration = exportConfiguration;
         _loadConfigurationEvidence = loadConfigurationEvidence;
+        _exportConfigurationEvidence = exportConfigurationEvidence;
         InitializeComponent();
         RootLayout.Loaded += RootLayout_Loaded;
         RootLayout.SizeChanged += RootLayout_SizeChanged;
@@ -617,10 +626,13 @@ public sealed partial class MainWindow : Window
             SetEvidenceStatus("正在读取归档证据的有限元数据……", "EvidenceLoading");
             ProductConfigurationEvidenceInventory inventory =
                 await _loadConfigurationEvidence();
+            _configurationEvidenceInventory = inventory;
             ConfigurationEvidenceList.ItemsSource = inventory.Items.Select(item =>
                 $"{DescribeEvidenceOrigin(item.Origin)} · {DescribeEvidenceRole(item.Role)} · " +
                 $"{FormatEvidenceSize(item.SizeBytes)} · {item.ArchivedUtc.ToLocalTime():yyyy-MM-dd HH:mm}")
                 .ToArray();
+            ConfigurationEvidenceList.SelectedIndex = -1;
+            ExportConfigurationEvidenceButton.IsEnabled = false;
             string suffix = inventory.Truncated
                 ? "；清单已达到 256 条安全上限"
                 : string.Empty;
@@ -637,7 +649,9 @@ public sealed partial class MainWindow : Window
         }
         catch (ProductConfigurationExportException exception)
         {
+            _configurationEvidenceInventory = null;
             ConfigurationEvidenceList.ItemsSource = null;
+            ExportConfigurationEvidenceButton.IsEnabled = false;
             SetEvidenceStatus(
                 DescribeExportFailure(exception.Error),
                 $"EvidenceFailed:{exception.Error}");
@@ -645,6 +659,93 @@ public sealed partial class MainWindow : Window
         finally
         {
             RefreshConfigurationEvidenceButton.IsEnabled = true;
+        }
+    }
+
+    private void ConfigurationEvidenceList_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e)
+    {
+        int selectedIndex = ConfigurationEvidenceList.SelectedIndex;
+        ExportConfigurationEvidenceButton.IsEnabled =
+            _configurationEvidenceInventory is not null
+            && selectedIndex >= 0
+            && selectedIndex < _configurationEvidenceInventory.Items.Count;
+        AutomationProperties.SetItemStatus(
+            ConfigurationEvidenceList,
+            ExportConfigurationEvidenceButton.IsEnabled
+                ? "EvidenceSelectedForExplicitExport"
+                : "NoEvidenceSelected");
+    }
+
+    private async void ExportConfigurationEvidenceButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        int selectedIndex = ConfigurationEvidenceList.SelectedIndex;
+        if (_configurationEvidenceInventory is null
+            || selectedIndex < 0
+            || selectedIndex >= _configurationEvidenceInventory.Items.Count)
+        {
+            SetEvidenceStatus("请先刷新并选择一条证据。", "EvidenceSelectionRequired");
+            return;
+        }
+
+        ProductConfigurationEvidenceItem item =
+            _configurationEvidenceInventory.Items[selectedIndex];
+        ExportConfigurationEvidenceButton.IsEnabled = false;
+        try
+        {
+            ContentDialog confirmation = new()
+            {
+                XamlRoot = RootLayout.XamlRoot,
+                Title = "导出这条原始配置证据？",
+                Content =
+                    $"所选条目为 {DescribeEvidenceOrigin(item.Origin)} / " +
+                    $"{DescribeEvidenceRole(item.Role)}，大小 {FormatEvidenceSize(item.SizeBytes)}。" +
+                    "原始证据可能损坏，也可能包含保存过的文件路径、名称或其他私人配置。" +
+                    "确认后才会请求选择本地文件夹；Long方格会创建独立 .bin 副本，原证据不会删除或修改。",
+                PrimaryButtonText = "确认并选择文件夹",
+                CloseButtonText = "取消",
+                DefaultButton = ContentDialogButton.Close,
+            };
+            ContentDialogResult result = await confirmation.ShowAsync();
+            if (result is not ContentDialogResult.Primary)
+            {
+                SetEvidenceStatus(
+                    "已取消证据导出，没有请求文件夹权限或写入文件。",
+                    "EvidenceExportCancelled");
+                return;
+            }
+
+            SetEvidenceStatus(
+                "正在等待选择本地文件夹……",
+                "EvidenceExportFolderPickerOpen");
+            ProductConfigurationExportResult? exportResult =
+                await _exportConfigurationEvidence(item);
+            if (exportResult is null)
+            {
+                SetEvidenceStatus(
+                    "已取消文件夹选择，没有写入文件。",
+                    "EvidenceExportFolderPickerCancelled");
+                return;
+            }
+
+            SetEvidenceStatus(
+                $"已安全导出为 {exportResult.FileName}；原证据保持不变。",
+                "EvidenceExportCommitted:SourcePreserved");
+        }
+        catch (ProductConfigurationExportException exception)
+        {
+            SetEvidenceStatus(
+                DescribeExportFailure(exception.Error),
+                $"EvidenceExportFailed:{exception.Error}");
+        }
+        finally
+        {
+            ExportConfigurationEvidenceButton.IsEnabled =
+                _configurationEvidenceInventory is not null
+                && selectedIndex == ConfigurationEvidenceList.SelectedIndex;
         }
     }
 
@@ -675,6 +776,14 @@ public sealed partial class MainWindow : Window
                 "为避免链接跳转到未授权位置，不能使用重解析点文件夹。",
             ProductConfigurationExportError.StoreChanged =>
                 "预览后配置状态发生变化；请重新开始导出。",
+            ProductConfigurationExportError.EvidenceNotAvailable =>
+                "所选证据已不存在或不再属于可导出的 Long方格归档；请刷新清单。",
+            ProductConfigurationExportError.EvidenceChanged =>
+                "所选证据在刷新后发生变化；没有导出，请重新刷新清单。",
+            ProductConfigurationExportError.EvidenceTooLarge =>
+                "所选证据超过 64 MiB 单次导出上限，没有写入目标文件。",
+            ProductConfigurationExportError.EvidenceVerificationFailed =>
+                "证据副本未通过逐字节完整性验证，没有发布目标文件。",
             ProductConfigurationExportError.DestinationUnavailable =>
                 "所选文件夹暂时不可用，没有覆盖任何文件。",
             ProductConfigurationExportError.IoFailure =>
