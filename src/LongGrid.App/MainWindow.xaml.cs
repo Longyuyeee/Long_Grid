@@ -3,6 +3,7 @@ using LongGrid.Core.DesktopHost;
 using LongGrid.Core.FileOperations;
 using LongGrid.Core.Runtime;
 using LongGrid.Infrastructure.Configuration;
+using LongGrid.Infrastructure.DesktopItems;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -43,6 +44,7 @@ public sealed partial class MainWindow : Window
         ProductConfigurationEvidenceItem,
         Task<ProductConfigurationEvidenceRemovalResult>> _removeConfigurationEvidence;
     private readonly Func<ProductWorkspaceSaveRetryResult> _retryProductWorkspaceSave;
+    private readonly Func<Task> _refreshProductDesktopCatalog;
 
     public MainWindow(
         Func<
@@ -63,7 +65,8 @@ public sealed partial class MainWindow : Window
         Func<
             ProductConfigurationEvidenceItem,
             Task<ProductConfigurationEvidenceRemovalResult>> removeConfigurationEvidence,
-        Func<ProductWorkspaceSaveRetryResult> retryProductWorkspaceSave)
+        Func<ProductWorkspaceSaveRetryResult> retryProductWorkspaceSave,
+        Func<Task> refreshProductDesktopCatalog)
     {
         ArgumentNullException.ThrowIfNull(recoverConfiguration);
         ArgumentNullException.ThrowIfNull(prepareConfigurationImport);
@@ -74,6 +77,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(exportConfigurationEvidence);
         ArgumentNullException.ThrowIfNull(removeConfigurationEvidence);
         ArgumentNullException.ThrowIfNull(retryProductWorkspaceSave);
+        ArgumentNullException.ThrowIfNull(refreshProductDesktopCatalog);
         _recoverConfiguration = recoverConfiguration;
         _prepareConfigurationImport = prepareConfigurationImport;
         _commitConfigurationImport = commitConfigurationImport;
@@ -83,6 +87,7 @@ public sealed partial class MainWindow : Window
         _exportConfigurationEvidence = exportConfigurationEvidence;
         _removeConfigurationEvidence = removeConfigurationEvidence;
         _retryProductWorkspaceSave = retryProductWorkspaceSave;
+        _refreshProductDesktopCatalog = refreshProductDesktopCatalog;
         InitializeComponent();
         RootLayout.Loaded += RootLayout_Loaded;
         RootLayout.SizeChanged += RootLayout_SizeChanged;
@@ -96,6 +101,139 @@ public sealed partial class MainWindow : Window
         SafeReferenceMode.IsChecked = true;
         ApplyOrganizationMode(FileOrganizationMode.SafeReference);
         ShellNavigation.SelectedItem = ShellNavigation.MenuItems[0];
+    }
+
+    internal void ApplyProductDesktopCatalogState(
+        ProductDesktopCatalogSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        (string title,
+            string detail,
+            string sourceSummary,
+            string automationStatus,
+            Symbol icon) = DescribeProductDesktopCatalog(snapshot);
+        ProductDesktopCatalogTitle.Text = title;
+        ProductDesktopCatalogDetail.Text = detail;
+        ProductDesktopCatalogGeneration.Text = sourceSummary;
+        ProductDesktopCatalogIcon.Symbol = icon;
+        AutomationProperties.SetItemStatus(
+            ProductDesktopCatalogDetail,
+            automationStatus);
+        ApplyRuntimeStatus(
+            RuntimeStatusSnapshot.CreateDevelopmentReadOnly(
+                desktopCatalogConnected: snapshot.IsAuthoritative));
+        CurrentModeDetail.Text = snapshot.Status switch
+        {
+            ProductDesktopCatalogStatus.Ready => "物理桌面目录已只读连接",
+            ProductDesktopCatalogStatus.Refreshing => "正在刷新只读桌面目录",
+            ProductDesktopCatalogStatus.Partial => "桌面目录结果不完整，未用于解析",
+            _ => "桌面目录当前未连接",
+        };
+        AutomationProperties.SetItemStatus(
+            CurrentModeValue,
+            $"DevelopmentReadOnly:Catalog={snapshot.Status}:Generation={snapshot.Generation}");
+    }
+
+    private static (
+        string Title,
+        string Detail,
+        string SourceSummary,
+        string AutomationStatus,
+        Symbol Icon) DescribeProductDesktopCatalog(
+        ProductDesktopCatalogSnapshot snapshot)
+    {
+        string authority = snapshot.IsAuthoritative.ToString(
+            System.Globalization.CultureInfo.InvariantCulture);
+        string prefix =
+            $"DesktopCatalog{snapshot.Status}:Generation={snapshot.Generation}:" +
+            $"Items={snapshot.Entries.Count}:Authoritative={authority}";
+        string sources = snapshot.Sources.Count == 0
+            ? $"刷新代次 {snapshot.Generation} · 来源状态尚不可用"
+            : $"刷新代次 {snapshot.Generation} · " + string.Join(
+                " · ",
+                snapshot.Sources.Select(source =>
+                    $"{DescribeProductDesktopCatalogSource(source.Source)} " +
+                    $"{DescribeProductDesktopCatalogSourceStatus(source.Status)} " +
+                    $"({source.ItemCount})"));
+        return snapshot.Status switch
+        {
+            ProductDesktopCatalogStatus.Unavailable => (
+                "桌面目录当前不可用",
+                "用户桌面与公共桌面尚未形成完整快照；不会把空结果用于引用解析。",
+                sources,
+                prefix,
+                Symbol.Folder),
+            ProductDesktopCatalogStatus.Refreshing => (
+                "正在只读刷新桌面目录",
+                "仅枚举用户桌面和公共桌面第一层；不会打开、移动、重命名或删除项目。",
+                sources,
+                prefix,
+                Symbol.Sync),
+            ProductDesktopCatalogStatus.Ready => (
+                "只读桌面目录已就绪",
+                "用户桌面和公共桌面均完整读取；该代次可以用于正式引用解析。",
+                sources,
+                prefix,
+                Symbol.Accept),
+            ProductDesktopCatalogStatus.Partial => (
+                "桌面目录结果不完整",
+                "至少一个来源缺失或读取不完整；已收集项目不会用于缺失引用判断。",
+                sources,
+                prefix,
+                Symbol.Important),
+            ProductDesktopCatalogStatus.Failed => (
+                "桌面目录读取失败",
+                "只读读取没有形成安全快照；不会显示路径，也不会修改桌面项目。",
+                sources,
+                prefix,
+                Symbol.Important),
+            ProductDesktopCatalogStatus.Cancelled => (
+                "桌面目录刷新已取消",
+                "本代次没有发布目录项目；正式产品会话保持 Catalog 未连接状态。",
+                sources,
+                prefix,
+                Symbol.Cancel),
+            _ => (
+                "桌面目录状态不可用",
+                "不会使用未知目录状态解析或保存产品工作区。",
+                sources,
+                $"DesktopCatalogUnknown:Generation={snapshot.Generation}:Items=0:Authoritative=False",
+                Symbol.Important),
+        };
+    }
+
+    private static string DescribeProductDesktopCatalogSource(
+        ProductDesktopCatalogSourceKind source) => source switch
+        {
+            ProductDesktopCatalogSourceKind.UserDesktop => "用户桌面",
+            ProductDesktopCatalogSourceKind.PublicDesktop => "公共桌面",
+            _ => "未知来源",
+        };
+
+    private static string DescribeProductDesktopCatalogSourceStatus(
+        ProductDesktopCatalogSourceStatus status) => status switch
+        {
+            ProductDesktopCatalogSourceStatus.Ready => "已完成",
+            ProductDesktopCatalogSourceStatus.Missing => "不存在",
+            ProductDesktopCatalogSourceStatus.Partial => "不完整",
+            ProductDesktopCatalogSourceStatus.AccessDenied => "无权读取",
+            ProductDesktopCatalogSourceStatus.IoFailure => "读取失败",
+            _ => "状态未知",
+        };
+
+    private async void ProductDesktopCatalogRefreshButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ProductDesktopCatalogRefreshButton.IsEnabled = false;
+        try
+        {
+            await _refreshProductDesktopCatalog();
+        }
+        finally
+        {
+            ProductDesktopCatalogRefreshButton.IsEnabled = true;
+        }
     }
 
     internal void ApplyProductWorkspaceSessionState(
@@ -337,6 +475,7 @@ public sealed partial class MainWindow : Window
         CurrentModeDetail.Text = snapshot.DesktopCatalog switch
         {
             RuntimeCapabilityState.Disconnected => "桌面目录保持未连接",
+            RuntimeCapabilityState.ConnectedReadOnly => "物理桌面目录已只读连接",
             _ => "桌面目录状态不可用",
         };
         AutomationProperties.SetItemStatus(

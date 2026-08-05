@@ -136,6 +136,8 @@ P0-02 已验证 Shell 会强烈合并高频变化：1,100 次沙箱操作每轮�
 
 正式产品会话加载层进一步把 `ProductConfigurationLoadResult` 与显式 `ProductWorkspaceCatalogSnapshot` 合成为有限 `ProductWorkspaceSessionSnapshot`。Catalog 的 `Unavailable` 与权威 `Available([])` 是不同类型状态：前者停在 AwaitingCatalog 且不分类引用，后者才允许 resolver 得出 Missing。App 在启动、恢复和导入复读后统一刷新存储提示与产品会话；会话覆盖 Loading/NoSavedConfiguration/AwaitingCatalog/Ready/RecoveredBackupReadOnly/SafeMode/Failed，UIA 仅暴露来源枚举、只读标志及匿名解析计数。当前开发期 Catalog 仍断开，普通提交继续为零，详见[正式产品工作区会话加载审计](49-product-workspace-session-load-audit.md)。
 
+只读物理 Desktop Catalog 层把 P0-01a 的用户桌面/公共桌面第一层枚举晋升为 Infrastructure reader，并用 controller 提供递增 generation、并发 latest-wins、有限取消和关闭排空。只有两个来源都完整 Ready 才发布 Authoritative Catalog；Partial/Missing/AccessDenied/IoFailure 收集项只作匿名诊断，转换到产品会话时仍为 Unavailable。App 自动首刷并提供显式刷新，配置加载与目录刷新任意顺序汇合；Core 只在 Ready 时报告 ConnectedReadOnly，文件操作仍 DisabledBySafetyPolicy。Shell COM 虚拟项继续留在 Spike，详见[只读物理桌面目录与刷新代次审计](50-readonly-physical-desktop-catalog-audit.md)。
+
 ## 5. 布局恢复算法
 
 1. 收集当前显示器的稳定属性：设备标识、工作区、方向、DPI 和相对拓扑。

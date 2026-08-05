@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、80-ID UIA、响应式布局、匿名交互原型，以及产品状态/Catalog 转换、reducer、连续保存控制器和 App 保存状态。正式配置现在统一进入有限产品会话：明确区分无配置、等待 Catalog、主配置就绪、备份只读、安全模式和失败；当前 Catalog 断开时不会用空数组把引用误判为 Missing。匿名原型仍不进入正式会话或保存控制器，App/MainWindow 普通保存调用为零。真实 UIA 复跑受当前 Windows 会话残留无窗口单实例污染而保持 Inconclusive；自动保留/容量阈值未批准。Issue #23 首发范围已批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
+> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、85-ID UIA、响应式布局、匿名交互原型、产品状态/Catalog 转换、reducer、连续保存控制器和有限正式会话。用户桌面与公共桌面第一层现在通过 generation/latest-wins 只读适配器接入；只有双来源完整成功才作为权威 Catalog 解析配置，Partial/失败不会制造 Missing。Shell 虚拟项仍留在 Spike。匿名原型不进入正式会话，文件操作和 App/MainWindow 普通保存调用仍为零。真实 UIA 复跑受当前 Windows 会话残留无窗口单实例污染而保持 Inconclusive；自动保留/容量阈值未批准。Issue #23 首发范围已批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
 
 ## 产品原则
 
@@ -65,6 +65,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格产品工作区连续保存控制器审计](docs/47-product-workspace-save-controller-audit.md)
 - [Long方格 App 保存状态与关闭接线审计](docs/48-app-product-save-status-ui-audit.md)
 - [Long方格正式产品工作区会话加载审计](docs/49-product-workspace-session-load-audit.md)
+- [Long方格只读物理桌面目录与刷新代次审计](docs/50-readonly-physical-desktop-catalog-audit.md)
 - [正式产品配置存储适配器审计](docs/33-product-configuration-store-audit.md)
 - [配置 latest-wins 与 App 关闭排空审计](docs/34-configuration-shutdown-drain-audit.md)
 - [贡献指南](CONTRIBUTING.md)
@@ -78,7 +79,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 首发范围已批准，仍需完成 5 人验证、#19 输入/Narrator/系统表面和 #20 动态显示矩阵；#24 已具备正式配置存储、状态/Catalog 转换、reducer、连续保存控制器、App 保存状态和有限产品会话加载。下一步接入经过验证的只读 Desktop Catalog 适配器，展示未解析引用的保留/重新选择/删除确认，并在干净会话关闭 80-ID UIA Inconclusive；只有真实状态来源、解析 UI 和关闭证据通过后才允许首次普通 controller submission。正式 v2、自动保留/容量策略和真实测试卷仍 Pending。许可证选择延期到正式分发或接受外部贡献之前。
+按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 首发范围已批准，仍需完成 5 人验证、#19 输入/Narrator/系统表面和 #20 动态显示矩阵；#24 已具备正式配置存储、reducer、连续保存、有限产品会话，以及用户/公共桌面第一层的权威门禁只读 Catalog。下一步展示未解析引用的默认保留、显式重新选择和删除确认，并为 Catalog generation + 编辑 revision 建立组合门禁；同时在干净会话关闭 85-ID UIA Inconclusive。通过后才允许首次普通 controller submission。Shell 虚拟项、正式 v2、自动保留/容量策略和真实测试卷仍 Pending。许可证选择延期到正式分发或接受外部贡献之前。
 
 ## 开发启动
 

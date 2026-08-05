@@ -117,6 +117,11 @@ function Test-SourceContract {
         'CurrentModeValue',
         'FileOperationValue',
         'DesktopHostValue',
+        'ProductDesktopCatalogCard',
+        'ProductDesktopCatalogTitle',
+        'ProductDesktopCatalogDetail',
+        'ProductDesktopCatalogGeneration',
+        'ProductDesktopCatalogRefreshButton',
         'ProductWorkspaceSessionCard',
         'ProductWorkspaceSessionTitle',
         'ProductWorkspaceSessionDetail',
@@ -243,6 +248,27 @@ function Test-SourceContract {
     ) 'The anonymous container undo action must keep its Ctrl+Z accelerator.'
     Assert-Condition (-not ($document.OuterXml -match 'AllowDrop')) `
         'The semantic practice must not masquerade as an Explorer drop target.'
+
+    $productCatalogDetailNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductDesktopCatalogDetail'
+    Assert-Condition (
+        $productCatalogDetailNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite' -and
+        $productCatalogDetailNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'DesktopCatalogUnavailable:Generation=0:Items=0:Authoritative=False'
+    ) 'Desktop catalog must start finite, unavailable, and non-authoritative.'
+    $productCatalogRefreshNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductDesktopCatalogRefreshButton'
+    Assert-Condition (
+        $productCatalogRefreshNode.GetAttribute('Click') -eq `
+            'ProductDesktopCatalogRefreshButton_Click'
+    ) 'Desktop catalog refresh must remain an explicit read-only action.'
+    $productCatalogCardNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductDesktopCatalogCard'
+    Assert-Condition (-not ($productCatalogCardNode.OuterXml -match 'Storyboard|Transition')) `
+        'Desktop catalog status must keep a Reduced Motion-safe static baseline.'
 
     $productSessionDetailNode = Get-XamlNodeByAutomationId `
         $document `
@@ -484,8 +510,14 @@ function Test-SourceContract {
     Assert-Condition (
         $appCode -match 'ProductWorkspaceSessionSnapshot' -and
         $appCode -match 'ProductWorkspaceSessionLoader\.Load' -and
-        $appCode -match 'ProductWorkspaceCatalogSnapshot\.Unavailable'
-    ) 'The App must own a finite product session without treating an empty catalog as current.'
+        $appCode -match 'ProductWorkspaceCatalogSnapshot\.Unavailable' -and
+        $appCode -match 'snapshot\.IsAuthoritative'
+    ) 'The App must resolve sessions only from an authoritative desktop catalog.'
+    Assert-Condition (
+        $appCode -match 'ProductDesktopCatalogController' -and
+        $appCode -match 'ProductDesktopCatalogReader\.CreateForCurrentUser' -and
+        $appCode -match 'RefreshProductDesktopCatalogAsync'
+    ) 'The App must own the audited read-only physical desktop catalog controller.'
     Assert-Condition ($appCode -match 'productWorkspaceSaves\.CompleteAsync\(timeout\.Token\)') `
         'Window closing must complete through the product workspace controller.'
     Assert-Condition ($appCode -match 'BlockedByFailure') `
@@ -493,8 +525,9 @@ function Test-SourceContract {
     Assert-Condition (
         $appCode -match 'CA1001:Types that own disposable fields should be disposable' -and
         $appCode -match 'WinUI owns the Application lifetime' -and
+        $appCode -match 'await\s+productDesktopCatalog\.DisposeAsync' -and
         $appCode -match 'await\s+productWorkspaceSaves\.DisposeAsync'
-    ) 'The WinUI-owned App lifetime must document and await controller disposal.'
+    ) 'The WinUI-owned App lifetime must document and await both controller disposals.'
     Assert-Condition ($appCode -match 'closingDrainInProgress') `
         'Concurrent close requests must share one configuration drain attempt.'
     Assert-Condition (-not ($appCode -match '\.(SaveAsync|EnqueueAsync)\(')) `
@@ -536,6 +569,18 @@ function Test-SourceContract {
         Assert-Condition ($codeBehind.Contains($finiteSession)) `
             "Product session presentation is missing finite state '$finiteSession'."
     }
+    foreach ($finiteCatalog in @(
+            'DesktopCatalog',
+            'Refreshing',
+            'Ready',
+            'Partial',
+            'Failed',
+            'Cancelled',
+            'Authoritative'
+        )) {
+        Assert-Condition ($codeBehind.Contains($finiteCatalog)) `
+            "Desktop catalog presentation is missing finite state '$finiteCatalog'."
+    }
 
     return [ordered]@{
         requiredAutomationIds = $requiredIds.Count
@@ -550,6 +595,7 @@ function Test-SourceContract {
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
         configurationRepair = 'confirmed-recovery-bounded-import-export-evidence-inventory-export-and-single-removal'
         configurationShutdownDrain = 'controller-owned-bounded-zero-write-retry'
+        productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-awaiting-authoritative-catalog-zero-write'
         productSavePresentation = 'privacy-safe-static-reduced-motion'
         readOnlyBoundary = 'no-automatic-product-writes-explicit-config-transactions-only'
@@ -783,6 +829,10 @@ public static class LongGridWindowNative
         Assert-Condition (
             $productSessionStatus.Current.ItemStatus.StartsWith('WorkspaceSession')
         ) 'The product session did not expose a finite UIA state.'
+        $productCatalogStatus = Find-UiaElement $root 'ProductDesktopCatalogDetail'
+        Assert-Condition (
+            $productCatalogStatus.Current.ItemStatus.StartsWith('DesktopCatalog')
+        ) 'The read-only desktop catalog did not expose a finite UIA state.'
         foreach ($item in @($overview, $firstRun, $appearance, $safety, $recovery)) {
             Assert-Condition $item.Current.IsKeyboardFocusable `
                 "Navigation item '$($item.Current.AutomationId)' is not keyboard focusable."
@@ -1052,6 +1102,7 @@ public static class LongGridWindowNative
             coreRuntimeStatus = 'development-read-only'
             firstOrganizationPrototype = 'blank-suggested-safe-preview-items-drop-semantics-two-step-undo'
             layoutRecoveryPrototype = 'review-expired-review-acknowledged-blocked-automatic-cancelled'
+            productDesktopCatalog = $productCatalogStatus.Current.ItemStatus
             productWorkspaceSession = $productSessionStatus.Current.ItemStatus
             productSavePresentation = $productSaveStatus.Current.ItemStatus
             themeRoundTrip = 'system-dark-system'

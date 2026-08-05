@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using LongGrid.Core.Configuration;
 using LongGrid.Infrastructure.Configuration;
+using LongGrid.Infrastructure.DesktopItems;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
@@ -12,16 +13,16 @@ namespace LongGrid.App;
 [SuppressMessage(
     "Reliability",
     "CA1001:Types that own disposable fields should be disposable",
-    Justification = "WinUI owns the Application lifetime; the audited closing handler awaits the controller before releasing the main instance.")]
+    Justification = "WinUI owns the Application lifetime; the audited closing handler awaits both controllers before releasing the main instance.")]
 public partial class App : Application
 {
     private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(5);
-    private static readonly ProductWorkspaceCatalogSnapshot DevelopmentCatalogSnapshot =
-        ProductWorkspaceCatalogSnapshot.Unavailable;
     private readonly ProductConfigurationStore configurationStore;
     private readonly ProductWorkspaceSaveController productWorkspaceSaves;
+    private readonly ProductDesktopCatalogController productDesktopCatalog;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
+    private ProductConfigurationLoadResult? currentConfigurationLoadResult;
     private MainWindow? window;
     private bool closeAfterDrain;
     private bool closingDrainInProgress;
@@ -37,6 +38,8 @@ public partial class App : Application
         var saveWorkflow = new ProductConfigurationSaveWorkflow(
             new ProductConfigurationSaveCoordinator(configurationStore));
         productWorkspaceSaves = new(saveWorkflow);
+        productDesktopCatalog = new(
+            ProductDesktopCatalogReader.CreateForCurrentUser());
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -50,13 +53,17 @@ public partial class App : Application
             () => configurationStore.GetEvidenceInventoryAsync(),
             ExportConfigurationEvidenceAsync,
             item => configurationStore.RemoveEvidenceAsync(item, userConfirmed: true),
-            () => productWorkspaceSaves.Retry());
+            () => productWorkspaceSaves.Retry(),
+            RefreshProductDesktopCatalogAsync);
         productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
+        productDesktopCatalog.SnapshotChanged += ProductDesktopCatalog_SnapshotChanged;
         window.ApplyProductWorkspaceSaveState(productWorkspaceSaves.Snapshot);
         window.ApplyProductWorkspaceSessionState(productWorkspaceSession);
+        window.ApplyProductDesktopCatalogState(productDesktopCatalog.Snapshot);
         window.AppWindow.Closing += AppWindow_Closing;
         window.Activate();
         _ = LoadConfigurationStartupStateAsync();
+        _ = RefreshProductDesktopCatalogAsync();
 
         if (activationPending)
         {
@@ -165,15 +172,62 @@ public partial class App : Application
     private ProductConfigurationStartupState ApplyProductConfigurationLoadResult(
         ProductConfigurationLoadResult loadResult)
     {
+        currentConfigurationLoadResult = loadResult;
         ProductConfigurationStartupState startupState =
             ProductConfigurationStartupState.FromLoadResult(loadResult);
         productWorkspaceSession = ProductWorkspaceSessionLoader.Load(
             loadResult,
-            DevelopmentCatalogSnapshot);
+            CreateWorkspaceCatalogSnapshot(productDesktopCatalog.Snapshot));
         window?.ApplyConfigurationStartupState(startupState);
         window?.ApplyProductWorkspaceSessionState(productWorkspaceSession);
         return startupState;
     }
+
+    private async Task RefreshProductDesktopCatalogAsync()
+    {
+        _ = await productDesktopCatalog.RefreshAsync();
+    }
+
+    private void ProductDesktopCatalog_SnapshotChanged(
+        object? sender,
+        ProductDesktopCatalogSnapshot snapshot)
+    {
+        MainWindow? currentWindow = window;
+        if (currentWindow is null)
+        {
+            return;
+        }
+
+        if (currentWindow.DispatcherQueue.HasThreadAccess)
+        {
+            ApplyProductDesktopCatalogSnapshot(snapshot);
+            return;
+        }
+
+        _ = currentWindow.DispatcherQueue.TryEnqueue(
+            () => ApplyProductDesktopCatalogSnapshot(snapshot));
+    }
+
+    private void ApplyProductDesktopCatalogSnapshot(
+        ProductDesktopCatalogSnapshot snapshot)
+    {
+        window?.ApplyProductDesktopCatalogState(snapshot);
+        if (currentConfigurationLoadResult is null)
+        {
+            return;
+        }
+
+        productWorkspaceSession = ProductWorkspaceSessionLoader.Load(
+            currentConfigurationLoadResult,
+            CreateWorkspaceCatalogSnapshot(snapshot));
+        window?.ApplyProductWorkspaceSessionState(productWorkspaceSession);
+    }
+
+    private static ProductWorkspaceCatalogSnapshot CreateWorkspaceCatalogSnapshot(
+        ProductDesktopCatalogSnapshot snapshot) =>
+        snapshot.IsAuthoritative
+            ? ProductWorkspaceCatalogSnapshot.Available(snapshot.Entries)
+            : ProductWorkspaceCatalogSnapshot.Unavailable;
 
     private async Task<ProductConfigurationExportResult?> ExportConfigurationAsync(
         ProductConfigurationExportPlan plan)
@@ -353,6 +407,8 @@ public partial class App : Application
             return;
         }
 
+        productDesktopCatalog.SnapshotChanged -= ProductDesktopCatalog_SnapshotChanged;
+        await productDesktopCatalog.DisposeAsync();
         await productWorkspaceSaves.DisposeAsync();
 
         closeAfterDrain = true;
