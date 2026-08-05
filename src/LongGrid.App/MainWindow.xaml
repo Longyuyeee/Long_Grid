@@ -761,6 +761,64 @@
                                             Text="尚未选择配置。"
                                             TextWrapping="Wrap" />
                                     </Grid>
+                                    <TextBlock FontSize="16" FontWeight="SemiBold" Text="安全导出" />
+                                    <TextBlock
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="先生成有限预览并确认，再由你选择本地文件夹；导出内容包含配置中保存的引用目标，使用唯一文件名，不覆盖既有文件，也不修改 Long方格配置存储。"
+                                        TextWrapping="Wrap" />
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button
+                                            x:Name="ExportConfigurationButton"
+                                            AutomationProperties.AutomationId="ExportConfigurationButton"
+                                            AutomationProperties.Name="预览并导出已验证配置"
+                                            Click="ExportConfigurationButton_Click"
+                                            Content="导出配置…" />
+                                        <TextBlock
+                                            x:Name="ConfigurationExportStatus"
+                                            Grid.Column="1"
+                                            AutomationProperties.AutomationId="ConfigurationExportStatus"
+                                            AutomationProperties.LiveSetting="Polite"
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource LongGridSubtitleTextStyle}"
+                                            Text="尚未准备导出。"
+                                            TextWrapping="Wrap" />
+                                    </Grid>
+                                    <TextBlock FontSize="16" FontWeight="SemiBold" Text="配置证据清单" />
+                                    <TextBlock
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="仅显示 Long方格归档证据的匿名类型、角色、大小和时间；不读取内容，不显示路径，也不提供自动清理。"
+                                        TextWrapping="Wrap" />
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button
+                                            x:Name="RefreshConfigurationEvidenceButton"
+                                            AutomationProperties.AutomationId="RefreshConfigurationEvidenceButton"
+                                            AutomationProperties.Name="刷新配置证据清单"
+                                            Click="RefreshConfigurationEvidenceButton_Click"
+                                            Content="刷新证据" />
+                                        <TextBlock
+                                            x:Name="ConfigurationEvidenceStatus"
+                                            Grid.Column="1"
+                                            AutomationProperties.AutomationId="ConfigurationEvidenceStatus"
+                                            AutomationProperties.LiveSetting="Polite"
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource LongGridSubtitleTextStyle}"
+                                            Text="尚未读取证据元数据。"
+                                            TextWrapping="Wrap" />
+                                    </Grid>
+                                    <ListView
+                                        x:Name="ConfigurationEvidenceList"
+                                        AutomationProperties.AutomationId="ConfigurationEvidenceList"
+                                        AutomationProperties.Name="配置证据匿名清单"
+                                        MaxHeight="220"
+                                        SelectionMode="None" />
                                     <TextBlock FontSize="16" FontWeight="SemiBold" Text="仍需关闭的产品门槛" />
                                     <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="• Issue #19–#24 实机与负责人决策&#x0a;• ADR-0001 最终 Go / Revise / No-Go&#x0a;• UI Automation、Narrator、高对比和 DPI 实机矩阵&#x0a;• 真实产品状态保存、DesktopHost 与正式渲染接线" />
                                 </StackPanel>

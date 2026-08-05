@@ -76,7 +76,7 @@ public sealed class ProductConfigurationRecoveryException(
     public ProductConfigurationRecoveryError Error { get; } = error;
 }
 
-public sealed class ProductConfigurationStore
+public sealed partial class ProductConfigurationStore
 {
     private static readonly TimeSpan MinimumRetryDelay = TimeSpan.FromMilliseconds(1);
     private readonly TimeSpan writeLeaseTimeout;
