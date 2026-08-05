@@ -202,6 +202,46 @@
                             </Grid>
 
                             <Border
+                                x:Name="ProductWorkspaceSessionCard"
+                                AutomationProperties.AccessibilityView="Content"
+                                AutomationProperties.AutomationId="ProductWorkspaceSessionCard"
+                                AutomationProperties.Name="正式产品工作区会话状态"
+                                Style="{StaticResource LongGridCardStyle}">
+                                <Grid ColumnSpacing="14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <SymbolIcon
+                                        x:Name="ProductWorkspaceSessionIcon"
+                                        Margin="2,2,0,0"
+                                        Symbol="Clock" />
+                                    <StackPanel Grid.Column="1" Spacing="4">
+                                        <TextBlock
+                                            x:Name="ProductWorkspaceSessionTitle"
+                                            AutomationProperties.AutomationId="ProductWorkspaceSessionTitle"
+                                            FontSize="16"
+                                            FontWeight="SemiBold"
+                                            Text="正在建立产品会话" />
+                                        <TextBlock
+                                            x:Name="ProductWorkspaceSessionDetail"
+                                            AutomationProperties.AutomationId="ProductWorkspaceSessionDetail"
+                                            AutomationProperties.ItemStatus="WorkspaceSessionLoading:Source=None:Catalog=Unavailable:ReadOnly=True"
+                                            AutomationProperties.LiveSetting="Polite"
+                                            Style="{StaticResource LongGridSubtitleTextStyle}"
+                                            Text="正在安全读取正式配置；不会把空目录清单冒充当前桌面状态。"
+                                            TextWrapping="Wrap" />
+                                        <TextBlock
+                                            x:Name="ProductWorkspaceSessionSummary"
+                                            AutomationProperties.AutomationId="ProductWorkspaceSessionSummary"
+                                            FontSize="11"
+                                            Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                            Text="引用解析计数尚不可用" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Border
                                 x:Name="ProductSaveStatusCard"
                                 AutomationProperties.AccessibilityView="Content"
                                 AutomationProperties.AutomationId="ProductSaveStatusCard"

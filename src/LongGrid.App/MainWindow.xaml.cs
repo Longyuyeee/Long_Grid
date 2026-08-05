@@ -98,6 +98,118 @@ public sealed partial class MainWindow : Window
         ShellNavigation.SelectedItem = ShellNavigation.MenuItems[0];
     }
 
+    internal void ApplyProductWorkspaceSessionState(
+        ProductWorkspaceSessionSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        (string title,
+            string detail,
+            string summary,
+            string automationStatus,
+            Symbol icon) = DescribeProductWorkspaceSession(snapshot);
+        ProductWorkspaceSessionTitle.Text = title;
+        ProductWorkspaceSessionDetail.Text = detail;
+        ProductWorkspaceSessionSummary.Text = summary;
+        ProductWorkspaceSessionIcon.Symbol = icon;
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceSessionDetail,
+            automationStatus);
+    }
+
+    private static (
+        string Title,
+        string Detail,
+        string Summary,
+        string AutomationStatus,
+        Symbol Icon) DescribeProductWorkspaceSession(
+        ProductWorkspaceSessionSnapshot snapshot)
+    {
+        string source = snapshot.Source.ToString();
+        string catalog = snapshot.CatalogAvailability.ToString();
+        string readOnly = snapshot.IsReadOnly.ToString(
+            System.Globalization.CultureInfo.InvariantCulture);
+        string statusPrefix =
+            $"WorkspaceSession{snapshot.Status}:Source={source}:Catalog={catalog}:ReadOnly={readOnly}";
+        return snapshot.Status switch
+        {
+            ProductWorkspaceSessionStatus.Loading => (
+                "正在建立产品会话",
+                "正在安全读取正式配置；不会把空目录清单冒充当前桌面状态。",
+                "引用解析计数尚不可用",
+                statusPrefix,
+                Symbol.Clock),
+            ProductWorkspaceSessionStatus.NoSavedConfiguration => (
+                "尚无正式产品会话",
+                "没有发现已保存配置；本次启动不会自动创建配置或提交匿名示例。",
+                "正式容器 0 · 正式引用 0",
+                statusPrefix,
+                Symbol.Document),
+            ProductWorkspaceSessionStatus.AwaitingCatalog => (
+                "等待受控桌面目录",
+                "配置已通过校验，但当前 Desktop Catalog 尚未连接；不会把所有引用误判为缺失。",
+                snapshot.IsReadOnly
+                    ? "配置来源：已验证备份 · 保持只读"
+                    : "配置来源：主配置 · 尚未解析引用",
+                statusPrefix,
+                Symbol.Clock),
+            ProductWorkspaceSessionStatus.Ready => (
+                "正式产品会话已解析",
+                "配置已与当前受控 Desktop Catalog 对齐；开发期界面仍未开放普通编辑提交。",
+                DescribeProductWorkspaceResolutionSummary(snapshot.Summary),
+                AddProductWorkspaceCounts(statusPrefix, snapshot.Summary),
+                Symbol.Accept),
+            ProductWorkspaceSessionStatus.RecoveredBackupReadOnly => (
+                "备份产品会话已只读解析",
+                "已验证备份与当前受控 Desktop Catalog 完成对齐；接受备份前不会开放编辑。",
+                DescribeProductWorkspaceResolutionSummary(snapshot.Summary),
+                AddProductWorkspaceCounts(statusPrefix, snapshot.Summary),
+                Symbol.Permissions),
+            ProductWorkspaceSessionStatus.SafeMode => (
+                "产品会话处于安全模式",
+                "主配置与备份均不可安全加载；没有创建产品状态，也没有覆盖损坏证据。",
+                "引用解析未执行",
+                statusPrefix,
+                Symbol.Important),
+            ProductWorkspaceSessionStatus.Failed => (
+                "产品会话未能建立",
+                DescribeProductWorkspaceSessionFailure(snapshot.Failure),
+                "引用解析未提交",
+                $"{statusPrefix}:Failure={snapshot.Failure}",
+                Symbol.Important),
+            _ => (
+                "产品会话状态不可用",
+                "当前无法确认正式产品状态；不会执行保存或文件操作。",
+                "引用解析未执行",
+                $"WorkspaceSessionUnavailable:Source={source}:Catalog={catalog}:ReadOnly=True",
+                Symbol.Important),
+        };
+    }
+
+    private static string DescribeProductWorkspaceResolutionSummary(
+        ProductWorkspaceResolutionSummary summary) =>
+        $"已解析 {summary.Resolved} · 缺失 {summary.Missing} · " +
+        $"类型变化 {summary.TypeChanged} · 歧义 {summary.Ambiguous} · " +
+        $"不支持 {summary.UnsupportedTarget}";
+
+    private static string AddProductWorkspaceCounts(
+        string prefix,
+        ProductWorkspaceResolutionSummary summary) =>
+        $"{prefix}:Resolved={summary.Resolved}:Missing={summary.Missing}:" +
+        $"TypeChanged={summary.TypeChanged}:Ambiguous={summary.Ambiguous}:" +
+        $"Unsupported={summary.UnsupportedTarget}";
+
+    private static string DescribeProductWorkspaceSessionFailure(
+        ProductWorkspaceSessionFailure failure) => failure switch
+        {
+            ProductWorkspaceSessionFailure.InconsistentLoadResult =>
+                "配置存储返回了不一致状态；已停止建立会话且不会写回。",
+            ProductWorkspaceSessionFailure.InvalidConfiguration =>
+                "配置未通过正式产品状态校验；已停止建立会话且不会写回。",
+            ProductWorkspaceSessionFailure.InvalidCatalog =>
+                "Desktop Catalog 快照未通过身份校验；不会自动绑定或删除引用。",
+            _ => "产品会话加载没有完成；不会执行额外配置或文件操作。",
+        };
+
     internal void ApplyProductWorkspaceSaveState(
         ProductWorkspaceSaveSnapshot snapshot)
     {
