@@ -132,6 +132,8 @@ P0-02 已验证 Shell 会强烈合并高频变化：1,100 次沙箱操作每轮�
 
 后续 Infrastructure 切片以 `ProductWorkspaceSaveController` 编排纯状态机与正式保存工作流。Reducer 成功且 `Changed=true` 的状态在接受时立即投影为独立 v1 文档，随后用默认 400 ms、最大 10 秒且可替换的调度器防抖；新编辑取消旧等待但不撤销已接受保存，陈旧完成不覆盖最新状态。四类正式错误映射为产品失败，工作流重试快照不一致收敛为不可重试 `RetryUnavailable`。关闭会立即刷新最新等待状态并等待已接受操作，最新失败保留窗口，调用方超时只取消等待。控制器仍未注入 MainWindow；可见 presenter、UIA 和 ordinary save 继续受门禁。详见[产品工作区连续保存控制器审计](47-product-workspace-save-controller-audit.md)。
 
+下一 App 切片把该 controller 作为 App 唯一普通保存编排所有权：后台快照事件经 DispatcherQueue 回到 UI 线程；关闭用 controller 强制刷新、失败阻断、5 秒等待和安全释放；MainWindow 只获得有限 Retry 委托。概览保存卡以 5 个新 AutomationId 映射 Clean/Waiting/Saving/Retrying/Saved/Failed，UIA 只含枚举、revision 和重试标志。状态卡无 Storyboard/Transition，形成静态 Reduced Motion 基线。匿名练习仍零提交，App/MainWindow 没有普通 SaveAsync/EnqueueAsync。真实 UIA 修正后复跑受残留无窗口单实例污染而 Inconclusive，详见[App 保存状态与关闭接线审计](48-app-product-save-status-ui-audit.md)。
+
 ## 5. 布局恢复算法
 
 1. 收集当前显示器的稳定属性：设备标识、工作区、方向、DPI 和相对拓扑。

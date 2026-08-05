@@ -201,6 +201,56 @@
                                 </Border>
                             </Grid>
 
+                            <Border
+                                x:Name="ProductSaveStatusCard"
+                                AutomationProperties.AccessibilityView="Content"
+                                AutomationProperties.AutomationId="ProductSaveStatusCard"
+                                AutomationProperties.Name="产品工作区自动保存状态"
+                                Style="{StaticResource LongGridCardStyle}">
+                                <Grid ColumnSpacing="14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <SymbolIcon
+                                        x:Name="ProductSaveStatusIcon"
+                                        Margin="2,2,0,0"
+                                        Symbol="Save" />
+                                    <StackPanel Grid.Column="1" Spacing="4">
+                                        <TextBlock
+                                            x:Name="ProductSaveStatusTitle"
+                                            AutomationProperties.AutomationId="ProductSaveStatusTitle"
+                                            FontSize="16"
+                                            FontWeight="SemiBold"
+                                            Text="自动保存待命" />
+                                        <TextBlock
+                                            x:Name="ProductSaveStatusDetail"
+                                            AutomationProperties.AutomationId="ProductSaveStatusDetail"
+                                            AutomationProperties.ItemStatus="WorkspaceSaveClean:Revision=0:Motion=Static"
+                                            AutomationProperties.LiveSetting="Polite"
+                                            Style="{StaticResource LongGridSubtitleTextStyle}"
+                                            Text="尚无需要保存的产品编辑；匿名示例仍只存在于内存中。"
+                                            TextWrapping="Wrap" />
+                                        <TextBlock
+                                            x:Name="ProductSaveMotionPolicy"
+                                            AutomationProperties.AutomationId="ProductSaveMotionPolicy"
+                                            FontSize="11"
+                                            Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                            Text="静态状态切换 · 遵循减少动画偏好" />
+                                    </StackPanel>
+                                    <Button
+                                        x:Name="ProductSaveRetryButton"
+                                        Grid.Column="2"
+                                        AutomationProperties.AutomationId="ProductSaveRetryButton"
+                                        AutomationProperties.Name="重试保存产品工作区"
+                                        Click="ProductSaveRetryButton_Click"
+                                        Content="重试保存"
+                                        IsEnabled="False"
+                                        Visibility="Collapsed" />
+                                </Grid>
+                            </Border>
+
                             <Border Style="{StaticResource LongGridCardStyle}">
                                 <StackPanel Spacing="18">
                                     <Grid>

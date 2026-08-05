@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using LongGrid.Infrastructure.Configuration;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -7,11 +8,15 @@ using Windows.Storage.Pickers;
 
 namespace LongGrid.App;
 
+[SuppressMessage(
+    "Reliability",
+    "CA1001:Types that own disposable fields should be disposable",
+    Justification = "WinUI owns the Application lifetime; the audited closing handler awaits the controller before releasing the main instance.")]
 public partial class App : Application
 {
     private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(5);
     private readonly ProductConfigurationStore configurationStore;
-    private readonly ProductConfigurationSaveWorkflow configurationSaves;
+    private readonly ProductWorkspaceSaveController productWorkspaceSaves;
     private MainWindow? window;
     private bool closeAfterDrain;
     private bool closingDrainInProgress;
@@ -24,8 +29,9 @@ public partial class App : Application
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LongGrid");
         configurationStore = new ProductConfigurationStore(configurationDirectory);
-        configurationSaves = new(
+        var saveWorkflow = new ProductConfigurationSaveWorkflow(
             new ProductConfigurationSaveCoordinator(configurationStore));
+        productWorkspaceSaves = new(saveWorkflow);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -38,7 +44,10 @@ public partial class App : Application
             ExportConfigurationAsync,
             () => configurationStore.GetEvidenceInventoryAsync(),
             ExportConfigurationEvidenceAsync,
-            item => configurationStore.RemoveEvidenceAsync(item, userConfirmed: true));
+            item => configurationStore.RemoveEvidenceAsync(item, userConfirmed: true),
+            () => productWorkspaceSaves.Retry());
+        productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
+        window.ApplyProductWorkspaceSaveState(productWorkspaceSaves.Snapshot);
         window.AppWindow.Closing += AppWindow_Closing;
         window.Activate();
         _ = LoadConfigurationStartupStateAsync();
@@ -271,6 +280,26 @@ public partial class App : Application
         window.Activate();
     }
 
+    private void ProductWorkspaceSaves_SnapshotChanged(
+        object? sender,
+        LongGrid.Core.Configuration.ProductWorkspaceSaveSnapshot snapshot)
+    {
+        MainWindow? currentWindow = window;
+        if (currentWindow is null)
+        {
+            return;
+        }
+
+        if (currentWindow.DispatcherQueue.HasThreadAccess)
+        {
+            currentWindow.ApplyProductWorkspaceSaveState(snapshot);
+            return;
+        }
+
+        _ = currentWindow.DispatcherQueue.TryEnqueue(
+            () => currentWindow.ApplyProductWorkspaceSaveState(snapshot));
+    }
+
     private async void AppWindow_Closing(
         AppWindow sender,
         AppWindowClosingEventArgs args)
@@ -288,9 +317,10 @@ public partial class App : Application
 
         closingDrainInProgress = true;
         using CancellationTokenSource timeout = new(ShutdownDrainTimeout);
+        ProductWorkspaceSaveCompletionResult completion;
         try
         {
-            await configurationSaves.CompleteAsync(timeout.Token);
+            completion = await productWorkspaceSaves.CompleteAsync(timeout.Token);
         }
         catch (OperationCanceledException) when (timeout.IsCancellationRequested)
         {
@@ -298,8 +328,18 @@ public partial class App : Application
             return;
         }
 
+        if (completion.Status == ProductWorkspaceSaveCompletionStatus.BlockedByFailure)
+        {
+            window?.ApplyProductWorkspaceSaveState(completion.Snapshot);
+            closingDrainInProgress = false;
+            return;
+        }
+
+        await productWorkspaceSaves.DisposeAsync();
+
         closeAfterDrain = true;
         Program.ReleaseMainInstance();
+        productWorkspaceSaves.SnapshotChanged -= ProductWorkspaceSaves_SnapshotChanged;
         sender.Closing -= AppWindow_Closing;
         window?.Close();
     }

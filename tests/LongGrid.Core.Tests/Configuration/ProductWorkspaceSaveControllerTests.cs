@@ -219,6 +219,7 @@ public sealed class ProductWorkspaceSaveControllerTests
         scheduler.Release(0);
         await WaitForStatusAsync(controller, ProductWorkspaceSaveStatus.Failed);
         ProductWorkspaceSaveRetryResult retry = controller.Retry();
+        Assert.Equal(ProductWorkspaceSaveActivity.Retry, retry.Snapshot.Activity);
         await WaitForStatusAsync(controller, ProductWorkspaceSaveStatus.Saved);
 
         Assert.Equal(ProductWorkspaceSaveRetryStatus.Accepted, retry.Status);

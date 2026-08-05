@@ -27,6 +27,13 @@ public enum ProductWorkspaceSaveFailure
     RetryUnavailable,
 }
 
+public enum ProductWorkspaceSaveActivity
+{
+    None,
+    Save,
+    Retry,
+}
+
 public sealed record ProductWorkspaceSaveSnapshot(
     ProductWorkspaceSaveStatus Status,
     long CurrentRevision,
@@ -35,6 +42,8 @@ public sealed record ProductWorkspaceSaveSnapshot(
     ProductWorkspaceSaveFailure Failure,
     bool CanRetry)
 {
+    public ProductWorkspaceSaveActivity Activity { get; init; }
+
     public static ProductWorkspaceSaveSnapshot Initial { get; } =
         new(
             ProductWorkspaceSaveStatus.Clean,
@@ -69,6 +78,7 @@ public static class ProductWorkspaceSaveStateMachine
             {
                 Status = ProductWorkspaceSaveStatus.WaitingForDebounce,
                 CurrentRevision = revision,
+                Activity = ProductWorkspaceSaveActivity.None,
                 Failure = ProductWorkspaceSaveFailure.None,
                 CanRetry = false,
             },
@@ -91,6 +101,7 @@ public static class ProductWorkspaceSaveStateMachine
             {
                 Status = ProductWorkspaceSaveStatus.Saving,
                 ActiveSaveRevision = revision,
+                Activity = ProductWorkspaceSaveActivity.Save,
             },
             new(ProductWorkspaceSaveCommandKind.Save, revision));
     }
@@ -124,6 +135,7 @@ public static class ProductWorkspaceSaveStateMachine
                     Status = ProductWorkspaceSaveStatus.Saved,
                     SavedRevision = revision,
                     ActiveSaveRevision = null,
+                    Activity = ProductWorkspaceSaveActivity.None,
                     Failure = ProductWorkspaceSaveFailure.None,
                     CanRetry = false,
                 });
@@ -134,6 +146,7 @@ public static class ProductWorkspaceSaveStateMachine
             {
                 Status = ProductWorkspaceSaveStatus.Failed,
                 ActiveSaveRevision = null,
+                Activity = ProductWorkspaceSaveActivity.None,
                 Failure = failure,
                 CanRetry = IsRetryable(failure),
             });
@@ -154,6 +167,7 @@ public static class ProductWorkspaceSaveStateMachine
             {
                 Status = ProductWorkspaceSaveStatus.Saving,
                 ActiveSaveRevision = snapshot.CurrentRevision,
+                Activity = ProductWorkspaceSaveActivity.Retry,
                 Failure = ProductWorkspaceSaveFailure.None,
                 CanRetry = false,
             },

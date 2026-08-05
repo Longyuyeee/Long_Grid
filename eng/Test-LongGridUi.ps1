@@ -117,6 +117,11 @@ function Test-SourceContract {
         'CurrentModeValue',
         'FileOperationValue',
         'DesktopHostValue',
+        'ProductSaveStatusCard',
+        'ProductSaveStatusTitle',
+        'ProductSaveStatusDetail',
+        'ProductSaveMotionPolicy',
+        'ProductSaveRetryButton',
         'ResponsiveStatusText',
         'ContentScrollViewer',
         'ThemeSystem',
@@ -234,6 +239,28 @@ function Test-SourceContract {
     ) 'The anonymous container undo action must keep its Ctrl+Z accelerator.'
     Assert-Condition (-not ($document.OuterXml -match 'AllowDrop')) `
         'The semantic practice must not masquerade as an Explorer drop target.'
+
+    $productSaveDetailNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductSaveStatusDetail'
+    Assert-Condition (
+        $productSaveDetailNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite' -and
+        $productSaveDetailNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'WorkspaceSaveClean:Revision=0:Motion=Static'
+    ) 'Product save state must start honest and use polite finite announcements.'
+    $productSaveRetryNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductSaveRetryButton'
+    Assert-Condition (
+        $productSaveRetryNode.GetAttribute('Visibility') -eq 'Collapsed' -and
+        $productSaveRetryNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $productSaveRetryNode.GetAttribute('Click') -eq 'ProductSaveRetryButton_Click'
+    ) 'Product save retry must remain unavailable until a retryable finite failure.'
+    $productSaveCardNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductSaveStatusCard'
+    Assert-Condition (-not ($productSaveCardNode.OuterXml -match 'Storyboard|Transition')) `
+        'Product save status must keep a Reduced Motion-safe static transition baseline.'
 
     $scrollViewer = $document.SelectSingleNode("//*[local-name()='ScrollViewer']")
     Assert-Condition ($null -ne $scrollViewer) 'The content ScrollViewer is missing.'
@@ -434,12 +461,44 @@ function Test-SourceContract {
         'The configuration shutdown drain must keep its audited five-second bound.'
     Assert-Condition ($appCode -match 'args\.Cancel\s*=\s*true') `
         'Window closing must be cancelled until the accepted save queue drains.'
-    Assert-Condition ($appCode -match 'configurationSaves\.CompleteAsync') `
-        'Window closing must complete and drain the configuration save coordinator.'
+    Assert-Condition ($appCode -match 'ProductWorkspaceSaveController') `
+        'The App must own the product workspace save controller.'
+    Assert-Condition ($appCode -match 'productWorkspaceSaves\.CompleteAsync\(timeout\.Token\)') `
+        'Window closing must complete through the product workspace controller.'
+    Assert-Condition ($appCode -match 'BlockedByFailure') `
+        'A latest save failure must keep the window open for correction or retry.'
+    Assert-Condition (
+        $appCode -match 'CA1001:Types that own disposable fields should be disposable' -and
+        $appCode -match 'WinUI owns the Application lifetime' -and
+        $appCode -match 'await\s+productWorkspaceSaves\.DisposeAsync'
+    ) 'The WinUI-owned App lifetime must document and await controller disposal.'
     Assert-Condition ($appCode -match 'closingDrainInProgress') `
         'Concurrent close requests must share one configuration drain attempt.'
-    Assert-Condition (-not ($appCode -match 'configurationSaves\.EnqueueAsync')) `
-        'The development read-only shell must not enqueue product configuration writes.'
+    Assert-Condition (-not ($appCode -match '\.(SaveAsync|EnqueueAsync)\(')) `
+        'The development shell must not directly bypass the controller with ordinary writes.'
+    Assert-Condition (-not ($codeBehind -match '\.(SaveAsync|EnqueueAsync)\(')) `
+        'MainWindow must not directly call configuration save or queue APIs.'
+    foreach ($finiteStatus in @(
+            'WorkspaceSaveClean',
+            'WorkspaceSaveWaiting',
+            'WorkspaceSaveSaving',
+            'WorkspaceSaveRetrying',
+            'WorkspaceSaveSaved',
+            'WorkspaceSaveFailed'
+        )) {
+        Assert-Condition ($codeBehind.Contains($finiteStatus)) `
+            "Product save presentation is missing finite status '$finiteStatus'."
+    }
+    foreach ($finiteFailure in @(
+            'InvalidConfiguration',
+            'DamagedEvidence',
+            'WriteLeaseUnavailable',
+            'IoFailure',
+            'RetryUnavailable'
+        )) {
+        Assert-Condition ($codeBehind.Contains($finiteFailure)) `
+            "Product save presentation is missing finite failure '$finiteFailure'."
+    }
 
     return [ordered]@{
         requiredAutomationIds = $requiredIds.Count
@@ -453,7 +512,8 @@ function Test-SourceContract {
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
         configurationRepair = 'confirmed-recovery-bounded-import-export-evidence-inventory-export-and-single-removal'
-        configurationShutdownDrain = 'bounded-zero-write-retry'
+        configurationShutdownDrain = 'controller-owned-bounded-zero-write-retry'
+        productSavePresentation = 'privacy-safe-static-reduced-motion'
         readOnlyBoundary = 'no-automatic-product-writes-explicit-config-transactions-only'
     }
 }
@@ -673,6 +733,14 @@ public static class LongGridWindowNative
         $appearance = Find-UiaElement $root 'NavAppearance'
         $safety = Find-UiaElement $root 'NavSafety'
         $recovery = Find-UiaElement $root 'NavRecovery'
+        $productSaveStatus = Find-UiaElement $root 'ProductSaveStatusDetail'
+        Assert-Condition (
+            $productSaveStatus.Current.ItemStatus -eq `
+                'WorkspaceSaveClean:Revision=0:Motion=Static'
+        ) 'The initial product save state did not remain honest and static.'
+        $productSaveMotion = Find-UiaElement $root 'ProductSaveMotionPolicy'
+        Assert-Condition ($productSaveMotion.Current.Name.Length -gt 0) `
+            'The Reduced Motion-safe product save policy was not exposed.'
         foreach ($item in @($overview, $firstRun, $appearance, $safety, $recovery)) {
             Assert-Condition $item.Current.IsKeyboardFocusable `
                 "Navigation item '$($item.Current.AutomationId)' is not keyboard focusable."
@@ -942,6 +1010,7 @@ public static class LongGridWindowNative
             coreRuntimeStatus = 'development-read-only'
             firstOrganizationPrototype = 'blank-suggested-safe-preview-items-drop-semantics-two-step-undo'
             layoutRecoveryPrototype = 'review-expired-review-acknowledged-blocked-automatic-cancelled'
+            productSavePresentation = $productSaveStatus.Current.ItemStatus
             themeRoundTrip = 'system-dark-system'
             safetyNavigation = 'pass'
         }
