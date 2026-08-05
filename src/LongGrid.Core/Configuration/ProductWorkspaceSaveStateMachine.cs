@@ -24,6 +24,7 @@ public enum ProductWorkspaceSaveFailure
     DamagedEvidence,
     WriteLeaseUnavailable,
     IoFailure,
+    RetryUnavailable,
 }
 
 public sealed record ProductWorkspaceSaveSnapshot(

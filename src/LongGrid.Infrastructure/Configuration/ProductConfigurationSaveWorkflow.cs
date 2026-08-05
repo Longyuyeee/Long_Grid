@@ -16,6 +16,7 @@ public sealed record ProductConfigurationSaveAttemptResult(
     bool CanRetry);
 
 public sealed class ProductConfigurationSaveWorkflow
+    : IProductConfigurationSaveWorkflow
 {
     private readonly object gate = new();
     private readonly ProductConfigurationSaveCoordinator coordinator;

@@ -130,6 +130,8 @@ P0-02 已验证 Shell 会强烈合并高频变化：1,100 次沙箱操作每轮�
 
 同日的下一产品切片建立纯 `ProductWorkspaceReducer` 与 `ProductWorkspaceSaveStateMachine`。所有创建、重命名、外观/放置、锁定、添加/替换/移除引用操作先后经正式 projector/validator 复核并返回深快照；锁定容器禁止内容和布局修改，未解析引用删除必须显式确认，重新选择保留领域 ID 与未知字段。保存状态机以单调 revision 表达防抖等待、保存、成功、有限失败和重试，只允许最新防抖发出保存命令，并丢弃旧保存结果对当前 UI 状态的影响。它不包含计时器、I/O 或 WinUI；应用层控制器、关闭编排和保存 UIA 仍是下一门禁。详见[产品工作区 reducer 与连续保存状态审计](46-product-workspace-reducer-save-state-audit.md)。
 
+后续 Infrastructure 切片以 `ProductWorkspaceSaveController` 编排纯状态机与正式保存工作流。Reducer 成功且 `Changed=true` 的状态在接受时立即投影为独立 v1 文档，随后用默认 400 ms、最大 10 秒且可替换的调度器防抖；新编辑取消旧等待但不撤销已接受保存，陈旧完成不覆盖最新状态。四类正式错误映射为产品失败，工作流重试快照不一致收敛为不可重试 `RetryUnavailable`。关闭会立即刷新最新等待状态并等待已接受操作，最新失败保留窗口，调用方超时只取消等待。控制器仍未注入 MainWindow；可见 presenter、UIA 和 ordinary save 继续受门禁。详见[产品工作区连续保存控制器审计](47-product-workspace-save-controller-audit.md)。
+
 ## 5. 布局恢复算法
 
 1. 收集当前显示器的稳定属性：设备标识、工作区、方向、DPI 和相对拓扑。
