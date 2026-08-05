@@ -72,6 +72,7 @@ function Test-SourceContract {
         'ConfigurationEvidenceStatus',
         'ConfigurationEvidenceList',
         'ExportConfigurationEvidenceButton',
+        'RemoveConfigurationEvidenceButton',
         'RecoveryPanel',
         'RecoverySafetyBanner',
         'RecoveryAutomaticScenarioButton',
@@ -213,6 +214,14 @@ function Test-SourceContract {
         $evidenceExportNode.GetAttribute('Click') -eq `
             'ExportConfigurationEvidenceButton_Click'
     ) 'Raw evidence export must remain disabled until an explicit selection.'
+    $evidenceRemovalNode = Get-XamlNodeByAutomationId `
+        $document `
+        'RemoveConfigurationEvidenceButton'
+    Assert-Condition (
+        $evidenceRemovalNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $evidenceRemovalNode.GetAttribute('Click') -eq `
+            'RemoveConfigurationEvidenceButton_Click'
+    ) 'Evidence removal must remain disabled until one explicit anonymous selection.'
     $practiceNameNode = Get-XamlNodeByAutomationId $document 'PracticeContainerName'
     Assert-Condition ($practiceNameNode.GetAttribute('MaxLength') -eq '40') `
         'The anonymous practice-container name must remain bounded to 40 characters.'
@@ -351,6 +360,15 @@ function Test-SourceContract {
         'Raw evidence export must request a destination only after confirmation.'
     Assert-Condition ($codeBehind -match 'EvidenceExportCommitted:SourcePreserved') `
         'Raw evidence export must disclose source preservation.'
+    Assert-Condition ($codeBehind -match 'EvidenceRemovalCommitted:SingleItem') `
+        'Evidence removal must disclose the single-item destructive boundary.'
+    Assert-Condition (
+        $codeBehind -match 'EvidenceRemovalCancelled' -and
+        $codeBehind -match 'EvidenceRemovalInProgress'
+    ) `
+        'Evidence removal must expose cancel and in-progress states before deletion.'
+    Assert-Condition ($codeBehind -match 'ObservedSizeBytes') `
+        'Evidence inventory must expose bounded observed capacity metadata.'
     Assert-Condition ($codeBehind -match 'ProductConfigurationExportError\.EvidenceChanged') `
         'Raw evidence export must expose stale inventory without publishing it.'
     Assert-Condition (-not ($codeBehind -match 'Evidence.*(Path|FileName)')) `
@@ -434,7 +452,7 @@ function Test-SourceContract {
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
-        configurationRepair = 'confirmed-recovery-bounded-import-export-evidence-inventory-and-evidence-export'
+        configurationRepair = 'confirmed-recovery-bounded-import-export-evidence-inventory-export-and-single-removal'
         configurationShutdownDrain = 'bounded-zero-write-retry'
         readOnlyBoundary = 'no-automatic-product-writes-explicit-config-transactions-only'
     }

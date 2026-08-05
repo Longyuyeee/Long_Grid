@@ -12,6 +12,7 @@ public enum ProductConfigurationExportError
     EvidenceChanged,
     EvidenceTooLarge,
     EvidenceVerificationFailed,
+    WriteLeaseUnavailable,
     DestinationUnavailable,
     IoFailure,
 }
@@ -105,4 +106,12 @@ public sealed class ProductConfigurationEvidenceItem
 public sealed record ProductConfigurationEvidenceInventory(
     IReadOnlyList<ProductConfigurationEvidenceItem> Items,
     bool Truncated,
-    int SkippedUnsafeCount);
+    int SkippedUnsafeCount,
+    int ObservedItemCount,
+    long ObservedSizeBytes,
+    DateTimeOffset? OldestObservedArchivedUtc);
+
+public sealed record ProductConfigurationEvidenceRemovalResult(
+    ProductConfigurationEvidenceOrigin Origin,
+    ProductConfigurationEvidenceRole Role,
+    long SizeBytes);
