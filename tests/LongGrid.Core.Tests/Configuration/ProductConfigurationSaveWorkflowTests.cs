@@ -241,15 +241,13 @@ public sealed class ProductConfigurationSaveWorkflowTests
                     },
                     Items =
                     [
-                        new ProductItemReferenceState
-                        {
-                            Id = "item-1",
-                            CatalogEntry = new DesktopCatalogEntry(
+                        ProductItemReferenceState.CreateResolved(
+                            "item-1",
+                            new DesktopCatalogEntry(
                                 new DesktopItemIdentity("filesystem", target),
                                 "user-desktop",
                                 "Project",
-                                DesktopItemKind.Directory),
-                        },
+                                DesktopItemKind.Directory)),
                     ],
                 },
             ],

@@ -59,7 +59,8 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] Issue #24 单项原始证据显式导出：匿名单选、敏感内容警告、确认后 FolderPicker、来源目录/名称/元数据复检、64 MiB 上限、流式 SHA-256 复读、唯一 `.bin` 不覆盖发布和原证据保留（选择性单项删除已由后续切片完成；自动保留/容量策略仍 Pending）。
 - [x] Issue #24 证据生命周期基础：有界观察条数/总容量/最早时间、匿名单选、默认取消永久清理确认、清理前导出提示、锁前/锁内复检、有界写租约和单文件原子删除（自动保留阈值、批次日志、中断恢复和失败重试仍 Pending）。
 - [x] Issue #24 真实产品保存与显式重试合同：有限 Saved/Failed/NoRetryAvailable/Completed 结果、无效 schema 收敛、仅保留最新可重试深快照、新保存取代旧重试、取消不制造重复重试、关闭接收竞态封闭；匿名演示 UI 继续零入队（产品状态/v1 投影已由后续切片完成，配置恢复解析和保存状态 UI 仍 Pending）。
-- [x] Issue #24 产品工作区状态与 v1 投影：UI 无关 profile/container/appearance/placement/reference 状态、已解析 Catalog Entry 输入、filesystem/绝对 canonical target/可选稳定身份成对复核、四类型确定映射、未知字段深快照及工作区直达有限保存入口；匿名 UI 继续零入队（配置到 Catalog 的 missing/unresolved 恢复、产品 reducer 和保存状态 UI 仍 Pending）。
+- [x] Issue #24 产品工作区状态与 v1 投影：UI 无关 profile/container/appearance/placement/reference 状态、已解析 Catalog Entry 输入、filesystem/绝对 canonical target/可选稳定身份成对复核、四类型确定映射、未知字段深快照及工作区直达有限保存入口；匿名 UI 继续零入队（配置到 Catalog 的有限恢复已由后续切片完成，产品 reducer 和保存状态 UI 仍 Pending）。
+- [x] Issue #24 配置到 Catalog 有限解析：统一身份策略、resolved/missing/type-changed/ambiguous/unsupported-target 状态、无效配置/Catalog 有限失败、重复候选零自动选择、未解析领域 ID/kind/target/扩展字段无损重投影和匿名分类计数；不枚举文件系统且匿名 UI 继续零入队（产品 reducer、连续编辑保存状态机和保存 UIA 仍 Pending）。
 - [x] Issue #24 I24-01/I24-02 专用环境会话入口、独立卷标记/双确认安全合同和 CI `PendingDedicatedEnvironmentEvidence` 预检（Ready to schedule；真实卷结果仍 Pending）。
 - [x] P0-07a 静态双屏拓扑、混合 DPI、隐私安全指纹与资源稳定性（Conditional Pass）。
 - [x] P0-07b1 QueryDisplayConfig 活动路径、virtual-mode 索引、rotation 与 monitor 一一关联（Conditional Pass）。

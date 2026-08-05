@@ -55,11 +55,80 @@ public sealed record ProductContainerPlacementState
     public IDictionary<string, JsonElement>? ExtensionData { get; init; }
 }
 
+public enum ProductItemReferenceResolution
+{
+    Resolved,
+    Missing,
+    TypeChanged,
+    Ambiguous,
+    UnsupportedTarget,
+}
+
 public sealed record ProductItemReferenceState
 {
-    public required string Id { get; init; }
+    private ProductItemReferenceState(
+        string id,
+        ConfigurationItemKind persistedKind,
+        string persistedTarget,
+        ProductItemReferenceResolution resolution,
+        DesktopCatalogEntry? catalogEntry,
+        IDictionary<string, JsonElement>? extensionData)
+    {
+        Id = id;
+        PersistedKind = persistedKind;
+        PersistedTarget = persistedTarget;
+        Resolution = resolution;
+        CatalogEntry = catalogEntry;
+        ExtensionData = extensionData;
+    }
 
-    public required DesktopCatalogEntry CatalogEntry { get; init; }
+    public string Id { get; }
 
-    public IDictionary<string, JsonElement>? ExtensionData { get; init; }
+    public ConfigurationItemKind PersistedKind { get; }
+
+    public string PersistedTarget { get; }
+
+    public ProductItemReferenceResolution Resolution { get; }
+
+    public DesktopCatalogEntry? CatalogEntry { get; }
+
+    public IDictionary<string, JsonElement>? ExtensionData { get; }
+
+    public static ProductItemReferenceState CreateResolved(
+        string id,
+        DesktopCatalogEntry catalogEntry,
+        IDictionary<string, JsonElement>? extensionData = null)
+    {
+        ArgumentNullException.ThrowIfNull(catalogEntry);
+        return new(
+            id,
+            Enum.IsDefined(catalogEntry.Kind)
+                ? ProductWorkspaceIdentityPolicy.MapKind(catalogEntry.Kind)
+                : default,
+            catalogEntry.Identity?.CanonicalTarget ?? string.Empty,
+            ProductItemReferenceResolution.Resolved,
+            catalogEntry,
+            extensionData);
+    }
+
+    internal static ProductItemReferenceState RestoreUnresolved(
+        string id,
+        ConfigurationItemKind persistedKind,
+        string persistedTarget,
+        ProductItemReferenceResolution resolution,
+        IDictionary<string, JsonElement>? extensionData)
+    {
+        if (resolution == ProductItemReferenceResolution.Resolved)
+        {
+            throw new ArgumentOutOfRangeException(nameof(resolution));
+        }
+
+        return new(
+            id,
+            persistedKind,
+            persistedTarget,
+            resolution,
+            catalogEntry: null,
+            extensionData);
+    }
 }

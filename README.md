@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期 `LongGrid.App` UI Shell、Design Token、品牌 RC1、一键启动链、UI 自动化、响应式布局、Core 只读状态合同，以及首次整理、匿名容器、三个匿名引用、拖放语义、两步撤销和匿名恢复差异原型已建立，但不接真实桌面、Explorer 拖放、显示拓扑、DesktopHost、普通产品状态自动持久化或桌面文件操作；配置边界已具备 UI 无关产品工作区状态、Catalog 身份到 v1 的验证投影、有限保存结果与显式重试基础，并允许用户二次确认后的恢复动作、当前 v1 本地 JSON 受限导入/导出、匿名证据清单、单项原始证据显式导出、只读生命周期统计和明确单项清理，但演示 UI 继续零写入，不能视为正式 MVP。未批准保留/容量阈值前不会自动删除。Issue #23 的 D23-01–D23-10 首发范围已获负责人批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
+> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期 `LongGrid.App` UI Shell、Design Token、品牌 RC1、一键启动链、UI 自动化、响应式布局、Core 只读状态合同，以及首次整理、匿名容器、三个匿名引用、拖放语义、两步撤销和匿名恢复差异原型已建立，但不接真实桌面、Explorer 拖放、显示拓扑、DesktopHost、普通产品状态自动持久化或桌面文件操作；配置边界已具备 UI 无关产品工作区状态、Catalog 身份到 v1 的验证投影、v1 到当前 Catalog 的 resolved/missing/type-changed/ambiguous/unsupported 解析、有限保存结果与显式重试基础，并允许用户二次确认后的恢复动作、当前 v1 本地 JSON 受限导入/导出、匿名证据清单、单项原始证据显式导出、只读生命周期统计和明确单项清理，但演示 UI 继续零写入，不能视为正式 MVP。未批准保留/容量阈值前不会自动删除。Issue #23 的 D23-01–D23-10 首发范围已获负责人批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
 
 ## 产品原则
 
@@ -60,6 +60,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格配置证据生命周期基础审计](docs/42-configuration-evidence-lifecycle-foundation-audit.md)
 - [Long方格真实产品状态保存与重试合同审计](docs/43-product-state-save-retry-contract-audit.md)
 - [Long方格产品工作区状态与 v1 投影审计](docs/44-product-workspace-state-projection-audit.md)
+- [Long方格配置到桌面 Catalog 解析审计](docs/45-configuration-catalog-resolution-audit.md)
 - [正式产品配置存储适配器审计](docs/33-product-configuration-store-audit.md)
 - [配置 latest-wins 与 App 关闭排空审计](docs/34-configuration-shutdown-drain-audit.md)
 - [贡献指南](CONTRIBUTING.md)
@@ -73,7 +74,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 的首发范围已经批准，下一步完成 5 人验证，并执行 #19 人工输入/Narrator/系统表面矩阵和 #20 动态显示硬件矩阵；#21–#22 已按 Windows 11 x64、安全引用与类型图标回退范围关闭，#24 已具备正式配置存储、Catalog 身份到 UI 无关产品状态/v1 的验证投影、latest-wins 关闭排空、有限保存结果与显式重试合同、完整单实例激活、恢复状态 UI、显式恢复动作、当前 v1 本地 JSON 受限导入/导出、匿名证据清单、单项原始证据显式导出、观察容量/最早时间和明确单项清理，以及专用环境安全会话入口。下一条产品切片应建立配置加载到当前 Catalog 的解析与 missing/unresolved 状态；该合同完成后才能接普通产品 reducer、保存状态 UI 和首次真实入队。正式 schema 迁移等待真实 v2 字段准入，自动保留/容量策略仍需负责人批准，真实测试卷结果仍 Pending。许可证选择延期到正式分发或接受外部贡献之前。
+按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 的首发范围已经批准，下一步完成 5 人验证，并执行 #19 人工输入/Narrator/系统表面矩阵和 #20 动态显示硬件矩阵；#21–#22 已按 Windows 11 x64、安全引用与类型图标回退范围关闭，#24 已具备正式配置存储、Catalog 身份与 UI 无关产品状态/v1 的双向有限转换、未解析引用无损保留、latest-wins 关闭排空、有限保存结果与显式重试合同、完整单实例激活、恢复状态 UI、显式恢复动作、当前 v1 本地 JSON 受限导入/导出、匿名证据清单、单项原始证据显式导出、观察容量/最早时间和明确单项清理，以及专用环境安全会话入口。下一条产品切片应建立 reducer、连续编辑/保存状态机和保存 UIA 合同；完成这些合同后才能首次真实普通入队。正式 schema 迁移等待真实 v2 字段准入，自动保留/容量策略仍需负责人批准，真实测试卷结果仍 Pending。许可证选择延期到正式分发或接受外部贡献之前。
 
 ## 开发启动
 

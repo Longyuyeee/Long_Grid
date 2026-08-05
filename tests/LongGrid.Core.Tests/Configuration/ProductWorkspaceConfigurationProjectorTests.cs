@@ -54,7 +54,7 @@ public sealed class ProductWorkspaceConfigurationProjectorTests
             DisplayName: "display-private",
             DesktopItemKind.Directory);
         ProductWorkspaceState state = CreateState(
-            [new ProductItemReferenceState { Id = "item-1", CatalogEntry = entry }]);
+            [ProductItemReferenceState.CreateResolved("item-1", entry)]);
 
         ProductWorkspaceProjectionResult result =
             ProductWorkspaceConfigurationProjector.Project(state);
@@ -119,10 +119,10 @@ public sealed class ProductWorkspaceConfigurationProjectorTests
                     },
                     Items =
                     [
-                        container.Items[0] with
-                        {
-                            ExtensionData = Extension("itemFuture", 5),
-                        },
+                        ProductItemReferenceState.CreateResolved(
+                            container.Items[0].Id,
+                            container.Items[0].CatalogEntry!,
+                            Extension("itemFuture", 5)),
                     ],
                 },
             ],
@@ -150,13 +150,12 @@ public sealed class ProductWorkspaceConfigurationProjectorTests
     [Fact]
     public void RelativeOrDisplayTextTargetIsRejectedWithoutDocumentContent()
     {
-        ProductItemReferenceState item = CreateItem() with
+        DesktopCatalogEntry entry = CreateItem().CatalogEntry! with
         {
-            CatalogEntry = CreateItem().CatalogEntry with
-            {
-                Identity = new DesktopItemIdentity("filesystem", "Project folder"),
-            },
+            Identity = new DesktopItemIdentity("filesystem", "Project folder"),
         };
+        ProductItemReferenceState item =
+            ProductItemReferenceState.CreateResolved("item-1", entry);
 
         ProductWorkspaceProjectionResult result =
             ProductWorkspaceConfigurationProjector.Project(CreateState([item]));
@@ -171,15 +170,14 @@ public sealed class ProductWorkspaceConfigurationProjectorTests
     [Fact]
     public void UnsupportedProviderIsRejectedWithoutFallingBackToDisplayText()
     {
-        ProductItemReferenceState item = CreateItem() with
+        DesktopCatalogEntry entry = CreateItem().CatalogEntry! with
         {
-            CatalogEntry = CreateItem().CatalogEntry with
-            {
-                Identity = new DesktopItemIdentity(
-                    "shell-display-name",
-                    CreateAbsoluteTarget("Project")),
-            },
+            Identity = new DesktopItemIdentity(
+                "shell-display-name",
+                CreateAbsoluteTarget("Project")),
         };
+        ProductItemReferenceState item =
+            ProductItemReferenceState.CreateResolved("item-1", entry);
 
         ProductWorkspaceProjectionResult result =
             ProductWorkspaceConfigurationProjector.Project(CreateState([item]));
@@ -193,16 +191,15 @@ public sealed class ProductWorkspaceConfigurationProjectorTests
     [Fact]
     public void PartialStableFileIdentityIsRejectedAsInvalidState()
     {
-        ProductItemReferenceState item = CreateItem() with
+        DesktopCatalogEntry entry = CreateItem().CatalogEntry! with
         {
-            CatalogEntry = CreateItem().CatalogEntry with
-            {
-                Identity = new DesktopItemIdentity(
-                    "filesystem",
-                    CreateAbsoluteTarget("Project"),
-                    VolumeId: "volume-only"),
-            },
+            Identity = new DesktopItemIdentity(
+                "filesystem",
+                CreateAbsoluteTarget("Project"),
+                VolumeId: "volume-only"),
         };
+        ProductItemReferenceState item =
+            ProductItemReferenceState.CreateResolved("item-1", entry);
 
         ProductWorkspaceProjectionResult result =
             ProductWorkspaceConfigurationProjector.Project(CreateState([item]));
@@ -280,17 +277,15 @@ public sealed class ProductWorkspaceConfigurationProjectorTests
         string id = "item-1",
         DesktopItemKind kind = DesktopItemKind.Directory,
         string name = "Project") =>
-        new()
-        {
-            Id = id,
-            CatalogEntry = new DesktopCatalogEntry(
+        ProductItemReferenceState.CreateResolved(
+            id,
+            new DesktopCatalogEntry(
                 new DesktopItemIdentity(
                     "filesystem",
                     CreateAbsoluteTarget(name)),
                 "user-desktop",
                 name,
-                kind),
-        };
+                kind));
 
     private static string CreateAbsoluteTarget(string name) =>
         Path.Combine(

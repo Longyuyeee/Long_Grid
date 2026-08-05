@@ -22,8 +22,6 @@ public sealed record ProductWorkspaceProjectionResult(
 
 public static class ProductWorkspaceConfigurationProjector
 {
-    private const string FileSystemProvider = "filesystem";
-
     public static ProductWorkspaceProjectionResult Project(
         ProductWorkspaceState state)
     {
@@ -133,29 +131,52 @@ public static class ProductWorkspaceConfigurationProjector
         out DesktopItemReferenceConfiguration? projected)
     {
         projected = null;
-        DesktopCatalogEntry? entry = item?.CatalogEntry;
-        DesktopItemIdentity? identity = entry?.Identity;
-        if (item is null
-            || entry is null
-            || identity is null
-            || string.IsNullOrWhiteSpace(entry.SourceId)
-            || string.IsNullOrWhiteSpace(entry.DisplayName)
-            || !Enum.IsDefined(entry.Kind)
-            || !HasConsistentOptionalFileIdentity(identity))
+        if (item is null || !Enum.IsDefined(item.Resolution))
         {
             return Failure(ProductWorkspaceProjectionError.InvalidState);
         }
 
-        if (!string.Equals(
-            identity.Provider,
-            FileSystemProvider,
-            StringComparison.OrdinalIgnoreCase))
+        if (item.Resolution != ProductItemReferenceResolution.Resolved)
+        {
+            if (item.CatalogEntry is not null
+                || !Enum.IsDefined(item.PersistedKind)
+                || string.IsNullOrWhiteSpace(item.PersistedTarget))
+            {
+                return Failure(ProductWorkspaceProjectionError.InvalidState);
+            }
+
+            projected = new DesktopItemReferenceConfiguration
+            {
+                Id = item.Id,
+                Kind = item.PersistedKind,
+                Target = item.PersistedTarget,
+                Behavior = ConfigurationItemBehavior.Reference,
+                ExtensionData = item.ExtensionData,
+            };
+            return null;
+        }
+
+        ProductItemReferenceState resolvedItem = item!;
+        DesktopCatalogEntry? entry = resolvedItem.CatalogEntry;
+        DesktopItemIdentity? identity = entry?.Identity;
+        if (entry is null
+            || identity is null
+            || string.IsNullOrWhiteSpace(entry.SourceId)
+            || string.IsNullOrWhiteSpace(entry.DisplayName)
+            || !Enum.IsDefined(entry.Kind)
+            || !ProductWorkspaceIdentityPolicy.HasConsistentOptionalFileIdentity(
+                identity))
+        {
+            return Failure(ProductWorkspaceProjectionError.InvalidState);
+        }
+
+        if (!ProductWorkspaceIdentityPolicy.IsSupportedProvider(identity.Provider))
         {
             return Failure(
                 ProductWorkspaceProjectionError.UnsupportedIdentityProvider);
         }
 
-        if (!TryNormalizeCanonicalTarget(
+        if (!ProductWorkspaceIdentityPolicy.TryNormalizeCanonicalTarget(
             identity.CanonicalTarget,
             out string? canonicalTarget))
         {
@@ -164,54 +185,14 @@ public static class ProductWorkspaceConfigurationProjector
 
         projected = new DesktopItemReferenceConfiguration
         {
-            Id = item.Id,
-            Kind = MapKind(entry.Kind),
+            Id = resolvedItem.Id,
+            Kind = ProductWorkspaceIdentityPolicy.MapKind(entry.Kind),
             Target = canonicalTarget!,
             Behavior = ConfigurationItemBehavior.Reference,
-            ExtensionData = item.ExtensionData,
+            ExtensionData = resolvedItem.ExtensionData,
         };
         return null;
     }
-
-    private static bool HasConsistentOptionalFileIdentity(
-        DesktopItemIdentity identity) =>
-        string.IsNullOrWhiteSpace(identity.VolumeId)
-            == string.IsNullOrWhiteSpace(identity.FileId);
-
-    private static bool TryNormalizeCanonicalTarget(
-        string? target,
-        out string? canonicalTarget)
-    {
-        canonicalTarget = null;
-        if (string.IsNullOrWhiteSpace(target)
-            || !Path.IsPathFullyQualified(target))
-        {
-            return false;
-        }
-
-        try
-        {
-            canonicalTarget = Path.GetFullPath(target);
-            return true;
-        }
-        catch (Exception exception)
-            when (exception is ArgumentException
-                or NotSupportedException
-                or PathTooLongException)
-        {
-            return false;
-        }
-    }
-
-    private static ConfigurationItemKind MapKind(DesktopItemKind kind) =>
-        kind switch
-        {
-            DesktopItemKind.File => ConfigurationItemKind.File,
-            DesktopItemKind.Directory => ConfigurationItemKind.Folder,
-            DesktopItemKind.Shortcut => ConfigurationItemKind.Shortcut,
-            DesktopItemKind.InternetShortcut => ConfigurationItemKind.Url,
-            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
-        };
 
     private static ProductWorkspaceProjectionResult Failure(
         ProductWorkspaceProjectionError error,
