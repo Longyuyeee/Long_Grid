@@ -290,6 +290,64 @@
                             </Border>
 
                             <Border
+                                x:Name="ProductWorkspaceReferenceReviewCard"
+                                AutomationProperties.AccessibilityView="Content"
+                                AutomationProperties.AutomationId="ProductWorkspaceReferenceReviewCard"
+                                AutomationProperties.Name="未解析引用审查"
+                                Style="{StaticResource LongGridCardStyle}">
+                                <StackPanel Spacing="10">
+                                    <TextBlock
+                                        x:Name="ProductWorkspaceReferenceReviewTitle"
+                                        AutomationProperties.AutomationId="ProductWorkspaceReferenceReviewTitle"
+                                        FontSize="16"
+                                        FontWeight="SemiBold"
+                                        Text="没有待审查引用" />
+                                    <TextBlock
+                                        x:Name="ProductWorkspaceReferenceReviewDetail"
+                                        AutomationProperties.AutomationId="ProductWorkspaceReferenceReviewDetail"
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="等待正式产品会话与权威桌面目录；配置未改变。"
+                                        TextWrapping="Wrap" />
+                                    <ComboBox
+                                        x:Name="ProductWorkspaceReferenceReviewSelector"
+                                        AutomationProperties.AutomationId="ProductWorkspaceReferenceReviewSelector"
+                                        AutomationProperties.Name="选择匿名待审查引用"
+                                        Header="待审查引用"
+                                        HorizontalAlignment="Stretch"
+                                        SelectionChanged="ProductWorkspaceReferenceReviewSelector_SelectionChanged" />
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button
+                                            x:Name="ProductWorkspaceReferenceKeepButton"
+                                            AutomationProperties.AutomationId="ProductWorkspaceReferenceKeepButton"
+                                            Click="ProductWorkspaceReferenceKeepButton_Click"
+                                            Content="保留引用"
+                                            IsEnabled="False" />
+                                        <Button
+                                            x:Name="ProductWorkspaceReferenceReselectButton"
+                                            AutomationProperties.AutomationId="ProductWorkspaceReferenceReselectButton"
+                                            Click="ProductWorkspaceReferenceReselectButton_Click"
+                                            Content="预演重选"
+                                            IsEnabled="False" />
+                                        <Button
+                                            x:Name="ProductWorkspaceReferenceRemoveButton"
+                                            AutomationProperties.AutomationId="ProductWorkspaceReferenceRemoveButton"
+                                            Click="ProductWorkspaceReferenceRemoveButton_Click"
+                                            Content="预演移除"
+                                            IsEnabled="False" />
+                                    </StackPanel>
+                                    <TextBlock
+                                        x:Name="ProductWorkspaceReferenceReviewStatus"
+                                        AutomationProperties.AutomationId="ProductWorkspaceReferenceReviewStatus"
+                                        AutomationProperties.ItemStatus="ReferenceReviewUnavailable:Changed=False"
+                                        AutomationProperties.LiveSetting="Polite"
+                                        FontSize="11"
+                                        Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                        Text="尚未执行预演；配置未改变。"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border
                                 x:Name="ProductSaveStatusCard"
                                 AutomationProperties.AccessibilityView="Content"
                                 AutomationProperties.AutomationId="ProductSaveStatusCard"

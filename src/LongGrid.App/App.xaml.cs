@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using LongGrid.Core.Configuration;
+using LongGrid.Core.DesktopItems;
 using LongGrid.Infrastructure.Configuration;
 using LongGrid.Infrastructure.DesktopItems;
 using Microsoft.UI.Windowing;
@@ -22,6 +23,7 @@ public partial class App : Application
     private readonly ProductDesktopCatalogController productDesktopCatalog;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
+    private readonly long productWorkspaceEditRevision;
     private ProductConfigurationLoadResult? currentConfigurationLoadResult;
     private MainWindow? window;
     private bool closeAfterDrain;
@@ -40,6 +42,7 @@ public partial class App : Application
         productWorkspaceSaves = new(saveWorkflow);
         productDesktopCatalog = new(
             ProductDesktopCatalogReader.CreateForCurrentUser());
+        productWorkspaceEditRevision = 0;
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -54,12 +57,14 @@ public partial class App : Application
             ExportConfigurationEvidenceAsync,
             item => configurationStore.RemoveEvidenceAsync(item, userConfirmed: true),
             () => productWorkspaceSaves.Retry(),
-            RefreshProductDesktopCatalogAsync);
+            RefreshProductDesktopCatalogAsync,
+            PreviewProductWorkspaceReferenceAction);
         productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
         productDesktopCatalog.SnapshotChanged += ProductDesktopCatalog_SnapshotChanged;
         window.ApplyProductWorkspaceSaveState(productWorkspaceSaves.Snapshot);
         window.ApplyProductWorkspaceSessionState(productWorkspaceSession);
         window.ApplyProductDesktopCatalogState(productDesktopCatalog.Snapshot);
+        ApplyProductWorkspaceReferenceReview();
         window.AppWindow.Closing += AppWindow_Closing;
         window.Activate();
         _ = LoadConfigurationStartupStateAsync();
@@ -180,6 +185,7 @@ public partial class App : Application
             CreateWorkspaceCatalogSnapshot(productDesktopCatalog.Snapshot));
         window?.ApplyConfigurationStartupState(startupState);
         window?.ApplyProductWorkspaceSessionState(productWorkspaceSession);
+        ApplyProductWorkspaceReferenceReview();
         return startupState;
     }
 
@@ -221,7 +227,81 @@ public partial class App : Application
             currentConfigurationLoadResult,
             CreateWorkspaceCatalogSnapshot(snapshot));
         window?.ApplyProductWorkspaceSessionState(productWorkspaceSession);
+        ApplyProductWorkspaceReferenceReview();
     }
+
+    private void ApplyProductWorkspaceReferenceReview()
+    {
+        MainWindow? currentWindow = window;
+        ProductDesktopCatalogSnapshot catalog = productDesktopCatalog.Snapshot;
+        if (currentWindow is null || !catalog.IsAuthoritative
+            || productWorkspaceSession.State is null)
+        {
+            currentWindow?.ApplyProductWorkspaceReferenceReview(
+                ProductWorkspaceReferenceReviewPresentation.Unavailable);
+            return;
+        }
+
+        ProductWorkspaceReferenceReviewResult review =
+            ProductWorkspaceReferenceReview.Create(
+                productWorkspaceSession.State,
+                catalog.Generation,
+                productWorkspaceEditRevision);
+        IReadOnlyList<ProductWorkspaceReferenceCandidatePresentation> candidates =
+            catalog.Entries
+                .Select((entry, index) => new ProductWorkspaceReferenceCandidatePresentation(
+                    index + 1,
+                    DescribeDesktopItemKind(entry.Kind),
+                    catalog.Generation,
+                    index))
+                .ToArray();
+        currentWindow.ApplyProductWorkspaceReferenceReview(
+            new(
+                review.Snapshot,
+                candidates,
+                productWorkspaceSession.IsReadOnly,
+                review.Error));
+    }
+
+    private ProductWorkspaceReferenceGateResult PreviewProductWorkspaceReferenceAction(
+        ProductWorkspaceReferenceReviewToken token,
+        ProductWorkspaceReferenceAction action,
+        bool confirmed,
+        ProductWorkspaceReferenceCandidatePresentation? replacement)
+    {
+        ProductDesktopCatalogSnapshot catalog = productDesktopCatalog.Snapshot;
+        if (!catalog.IsAuthoritative || productWorkspaceSession.State is null
+            || productWorkspaceSession.IsReadOnly)
+        {
+            return new(
+                ProductWorkspaceReferenceGateError.InvalidState,
+                null,
+                WouldChange: false);
+        }
+
+        DesktopCatalogEntry? replacementEntry = replacement is not null
+            && replacement.CatalogGeneration == catalog.Generation
+            && replacement.CatalogIndex >= 0
+            && replacement.CatalogIndex < catalog.Entries.Count
+                ? catalog.Entries[replacement.CatalogIndex]
+                : null;
+
+        return ProductWorkspaceReferenceGate.Evaluate(
+            productWorkspaceSession.State,
+            catalog.Generation,
+            productWorkspaceEditRevision,
+            catalog.Entries,
+            new(token, action, confirmed, replacementEntry));
+    }
+
+    private static string DescribeDesktopItemKind(DesktopItemKind kind) => kind switch
+    {
+        DesktopItemKind.File => "文件",
+        DesktopItemKind.Directory => "文件夹",
+        DesktopItemKind.Shortcut => "快捷方式",
+        DesktopItemKind.InternetShortcut => "网址快捷方式",
+        _ => "未知类型",
+    };
 
     private static ProductWorkspaceCatalogSnapshot CreateWorkspaceCatalogSnapshot(
         ProductDesktopCatalogSnapshot snapshot) =>

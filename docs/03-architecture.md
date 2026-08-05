@@ -138,6 +138,8 @@ P0-02 已验证 Shell 会强烈合并高频变化：1,100 次沙箱操作每轮�
 
 只读物理 Desktop Catalog 层把 P0-01a 的用户桌面/公共桌面第一层枚举晋升为 Infrastructure reader，并用 controller 提供递增 generation、并发 latest-wins、有限取消和关闭排空。只有两个来源都完整 Ready 才发布 Authoritative Catalog；Partial/Missing/AccessDenied/IoFailure 收集项只作匿名诊断，转换到产品会话时仍为 Unavailable。App 自动首刷并提供显式刷新，配置加载与目录刷新任意顺序汇合；Core 只在 Ready 时报告 ConnectedReadOnly，文件操作仍 DisabledBySafetyPolicy。Shell COM 虚拟项继续留在 Spike，详见[只读物理桌面目录与刷新代次审计](50-readonly-physical-desktop-catalog-audit.md)。
 
+未解析引用审查层随后把会话中的非 Resolved 项投影为稳定匿名序号，并为每项签发包含 Catalog generation、edit revision、内部领域 ID 与预期解析状态的 token。Keep 不产生 edit；Replace 必须显式选择且当前 Catalog 身份唯一；Remove 必须明确确认。Gate 在每次预演时复核代际、修订、对象状态、锁定及候选，返回有限失败或 reducer 深快照。WinUI 在对话框打开前捕获 token/候选，目录刷新不能让旧选择静默指向新对象。当前只做 dry-run，App 不替换 session、不递增 revision、不调用普通 submit，也不触碰桌面文件，详见[未解析引用审查与双版本门禁审计](51-unresolved-reference-review-gate-audit.md)。
+
 ## 5. 布局恢复算法
 
 1. 收集当前显示器的稳定属性：设备标识、工作区、方向、DPI 和相对拓扑。
