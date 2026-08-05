@@ -1,4 +1,5 @@
 using LongGrid.Core.Configuration;
+using LongGrid.Core.DesktopItems;
 using LongGrid.Infrastructure.Configuration;
 
 namespace LongGrid.Core.Tests.Configuration;
@@ -158,6 +159,51 @@ public sealed class ProductConfigurationSaveWorkflowTests
             (await store.LoadAsync()).Document?.ProfileId);
     }
 
+    [Fact]
+    public async Task WorkspaceStateProjectsBeforeEnteringSaveQueue()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        ProductConfigurationSaveWorkflow workflow = CreateWorkflow(store);
+        string target = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid.SaveWorkflow.Tests",
+            "Project");
+        ProductWorkspaceState state = CreateWorkspaceState(target);
+
+        ProductConfigurationSaveAttemptResult result =
+            await workflow.SaveAsync(state);
+        await workflow.CompleteAsync();
+
+        Assert.Equal(ProductConfigurationSaveAttemptStatus.Saved, result.Status);
+        ProductConfigurationDocument persisted =
+            (await store.LoadAsync()).Document!;
+        Assert.Equal(Path.GetFullPath(target), persisted.Containers[0].Items[0].Target);
+    }
+
+    [Fact]
+    public async Task InvalidWorkspaceStateReturnsFiniteFailureWithoutWriting()
+    {
+        using TemporaryDirectory directory = new(create: false);
+        ProductConfigurationSaveWorkflow workflow = CreateWorkflow(
+            new ProductConfigurationStore(directory.Path));
+        ProductWorkspaceState state = CreateWorkspaceState("display text only");
+
+        ProductConfigurationSaveAttemptResult result =
+            await workflow.SaveAsync(state);
+        ProductConfigurationSaveAttemptResult retry =
+            await workflow.RetryAsync();
+        await workflow.CompleteAsync();
+
+        Assert.Equal(ProductConfigurationSaveAttemptStatus.Failed, result.Status);
+        Assert.Equal(ProductConfigurationSaveError.InvalidConfiguration, result.Error);
+        Assert.False(result.CanRetry);
+        Assert.Equal(
+            ProductConfigurationSaveAttemptStatus.NoRetryAvailable,
+            retry.Status);
+        Assert.False(Directory.Exists(directory.Path));
+    }
+
     private static ProductConfigurationSaveWorkflow CreateWorkflow(
         ProductConfigurationStore store) =>
         new(new ProductConfigurationSaveCoordinator(store));
@@ -168,6 +214,45 @@ public sealed class ProductConfigurationSaveWorkflowTests
             SchemaVersion = ProductConfigurationLimits.CurrentSchemaVersion,
             ProfileId = profileId,
             Containers = [],
+        };
+
+    private static ProductWorkspaceState CreateWorkspaceState(string target) =>
+        new()
+        {
+            ProfileId = "default",
+            Containers =
+            [
+                new ProductContainerState
+                {
+                    Id = "container-1",
+                    Name = "Current project",
+                    Appearance = new ProductContainerAppearanceState
+                    {
+                        Color = "#334155",
+                        Opacity = 0.72,
+                    },
+                    Placement = new ProductContainerPlacementState
+                    {
+                        DisplayKey = "display-a",
+                        XDip = 32,
+                        YDip = 48,
+                        WidthDip = 420,
+                        HeightDip = 300,
+                    },
+                    Items =
+                    [
+                        new ProductItemReferenceState
+                        {
+                            Id = "item-1",
+                            CatalogEntry = new DesktopCatalogEntry(
+                                new DesktopItemIdentity("filesystem", target),
+                                "user-desktop",
+                                "Project",
+                                DesktopItemKind.Directory),
+                        },
+                    ],
+                },
+            ],
         };
 
     private sealed class TemporaryDirectory : IDisposable
