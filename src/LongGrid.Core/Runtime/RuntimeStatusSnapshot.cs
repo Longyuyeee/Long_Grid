@@ -31,10 +31,13 @@ public sealed record RuntimeStatusSnapshot
     public bool AllowsFileOperations =>
         FileOperations != RuntimeCapabilityState.DisabledBySafetyPolicy;
 
-    public static RuntimeStatusSnapshot CreateDevelopmentReadOnly() =>
+    public static RuntimeStatusSnapshot CreateDevelopmentReadOnly(
+        bool desktopCatalogConnected = false) =>
         new(
             RuntimeMode.DevelopmentReadOnly,
-            RuntimeCapabilityState.Disconnected,
+            desktopCatalogConnected
+                ? RuntimeCapabilityState.ConnectedReadOnly
+                : RuntimeCapabilityState.Disconnected,
             RuntimeCapabilityState.DisabledBySafetyPolicy,
             RuntimeCapabilityState.Disconnected);
 }

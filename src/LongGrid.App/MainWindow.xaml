@@ -202,6 +202,54 @@
                             </Grid>
 
                             <Border
+                                x:Name="ProductDesktopCatalogCard"
+                                AutomationProperties.AccessibilityView="Content"
+                                AutomationProperties.AutomationId="ProductDesktopCatalogCard"
+                                AutomationProperties.Name="只读桌面目录状态"
+                                Style="{StaticResource LongGridCardStyle}">
+                                <Grid ColumnSpacing="14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <SymbolIcon
+                                        x:Name="ProductDesktopCatalogIcon"
+                                        Margin="2,2,0,0"
+                                        Symbol="Folder" />
+                                    <StackPanel Grid.Column="1" Spacing="4">
+                                        <TextBlock
+                                            x:Name="ProductDesktopCatalogTitle"
+                                            AutomationProperties.AutomationId="ProductDesktopCatalogTitle"
+                                            FontSize="16"
+                                            FontWeight="SemiBold"
+                                            Text="桌面目录尚未读取" />
+                                        <TextBlock
+                                            x:Name="ProductDesktopCatalogDetail"
+                                            AutomationProperties.AutomationId="ProductDesktopCatalogDetail"
+                                            AutomationProperties.ItemStatus="DesktopCatalogUnavailable:Generation=0:Items=0:Authoritative=False"
+                                            AutomationProperties.LiveSetting="Polite"
+                                            Style="{StaticResource LongGridSubtitleTextStyle}"
+                                            Text="只读适配器尚未发布权威快照；不会执行文件写入。"
+                                            TextWrapping="Wrap" />
+                                        <TextBlock
+                                            x:Name="ProductDesktopCatalogGeneration"
+                                            AutomationProperties.AutomationId="ProductDesktopCatalogGeneration"
+                                            FontSize="11"
+                                            Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                            Text="刷新代次 0 · 用户桌面 未读取 · 公共桌面 未读取" />
+                                    </StackPanel>
+                                    <Button
+                                        x:Name="ProductDesktopCatalogRefreshButton"
+                                        Grid.Column="2"
+                                        AutomationProperties.AutomationId="ProductDesktopCatalogRefreshButton"
+                                        AutomationProperties.Name="刷新只读桌面目录"
+                                        Click="ProductDesktopCatalogRefreshButton_Click"
+                                        Content="刷新目录" />
+                                </Grid>
+                            </Border>
+
+                            <Border
                                 x:Name="ProductWorkspaceSessionCard"
                                 AutomationProperties.AccessibilityView="Content"
                                 AutomationProperties.AutomationId="ProductWorkspaceSessionCard"

@@ -36,4 +36,21 @@ public sealed class RuntimeStatusSnapshotTests
         Assert.Equal(first, second);
         Assert.NotSame(first, second);
     }
+
+    [Fact]
+    public void ReadOnlyCatalogConnectionDoesNotEnableFileOperations()
+    {
+        RuntimeStatusSnapshot snapshot =
+            RuntimeStatusSnapshot.CreateDevelopmentReadOnly(
+                desktopCatalogConnected: true);
+
+        Assert.Equal(
+            RuntimeCapabilityState.ConnectedReadOnly,
+            snapshot.DesktopCatalog);
+        Assert.True(snapshot.HasExternalConnection);
+        Assert.False(snapshot.AllowsFileOperations);
+        Assert.Equal(
+            RuntimeCapabilityState.DisabledBySafetyPolicy,
+            snapshot.FileOperations);
+    }
 }
