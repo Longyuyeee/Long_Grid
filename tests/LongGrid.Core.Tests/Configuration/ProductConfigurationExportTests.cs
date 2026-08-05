@@ -323,8 +323,212 @@ public sealed class ProductConfigurationExportTests
         Assert.True(inventory.Truncated);
     }
 
+    [Fact]
+    public async Task ConfirmedEvidenceExportCopiesExactBytesWithoutChangingArchive()
+    {
+        using TemporaryDirectory storeDirectory = new();
+        using TemporaryDirectory destination = new();
+        ProductConfigurationStore store = new(storeDirectory.Path);
+        byte[] evidence = "{ damaged configuration with a private target }"u8.ToArray();
+        string evidencePath = CreateEvidencePath(storeDirectory.Path);
+        await File.WriteAllBytesAsync(evidencePath, evidence);
+        ProductConfigurationEvidenceItem item = Assert.Single(
+            (await store.GetEvidenceInventoryAsync()).Items);
+
+        ProductConfigurationExportResult result = await store.ExportEvidenceAsync(
+            item,
+            destination.Path,
+            LocalDestination(),
+            userConfirmed: true);
+
+        Assert.Equal(
+            evidence,
+            await File.ReadAllBytesAsync(Path.Combine(destination.Path, result.FileName)));
+        Assert.Equal(evidence, await File.ReadAllBytesAsync(evidencePath));
+        Assert.EndsWith(".bin", result.FileName, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("0123456789abcdef", result.FileName, StringComparison.Ordinal);
+        Assert.DoesNotContain(storeDirectory.Path, result.FileName, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(Directory.GetFiles(destination.Path, "*.new"));
+    }
+
+    [Fact]
+    public async Task UnconfirmedEvidenceExportCreatesNoFile()
+    {
+        using TemporaryDirectory storeDirectory = new();
+        using TemporaryDirectory destination = new();
+        ProductConfigurationStore store = new(storeDirectory.Path);
+        await File.WriteAllBytesAsync(CreateEvidencePath(storeDirectory.Path), [1, 2, 3]);
+        ProductConfigurationEvidenceItem item = Assert.Single(
+            (await store.GetEvidenceInventoryAsync()).Items);
+
+        ProductConfigurationExportException exception = await Assert.ThrowsAsync<
+            ProductConfigurationExportException>(() => store.ExportEvidenceAsync(
+                item,
+                destination.Path,
+                LocalDestination(),
+                userConfirmed: false));
+
+        Assert.Equal(ProductConfigurationExportError.ConfirmationRequired, exception.Error);
+        Assert.Empty(Directory.GetFiles(destination.Path));
+    }
+
+    [Fact]
+    public async Task EvidenceChangedAfterInventoryIsNotExported()
+    {
+        using TemporaryDirectory storeDirectory = new();
+        using TemporaryDirectory destination = new();
+        ProductConfigurationStore store = new(storeDirectory.Path);
+        string evidencePath = CreateEvidencePath(storeDirectory.Path);
+        await File.WriteAllBytesAsync(evidencePath, [1, 2, 3]);
+        ProductConfigurationEvidenceItem item = Assert.Single(
+            (await store.GetEvidenceInventoryAsync()).Items);
+        await File.WriteAllBytesAsync(evidencePath, [1, 2, 3, 4]);
+
+        ProductConfigurationExportException exception = await Assert.ThrowsAsync<
+            ProductConfigurationExportException>(() => store.ExportEvidenceAsync(
+                item,
+                destination.Path,
+                LocalDestination(),
+                userConfirmed: true));
+
+        Assert.Equal(ProductConfigurationExportError.EvidenceChanged, exception.Error);
+        Assert.Empty(Directory.GetFiles(destination.Path));
+    }
+
+    [Fact]
+    public async Task MissingEvidenceAfterInventoryReturnsFiniteError()
+    {
+        using TemporaryDirectory storeDirectory = new();
+        using TemporaryDirectory destination = new();
+        ProductConfigurationStore store = new(storeDirectory.Path);
+        string evidencePath = CreateEvidencePath(storeDirectory.Path);
+        await File.WriteAllBytesAsync(evidencePath, [1, 2, 3]);
+        ProductConfigurationEvidenceItem item = Assert.Single(
+            (await store.GetEvidenceInventoryAsync()).Items);
+        File.Delete(evidencePath);
+
+        ProductConfigurationExportException exception = await Assert.ThrowsAsync<
+            ProductConfigurationExportException>(() => store.ExportEvidenceAsync(
+                item,
+                destination.Path,
+                LocalDestination(),
+                userConfirmed: true));
+
+        Assert.Equal(ProductConfigurationExportError.EvidenceNotAvailable, exception.Error);
+        Assert.Empty(Directory.GetFiles(destination.Path));
+    }
+
+    [Fact]
+    public async Task OversizedEvidenceIsRejectedBeforeDestinationWrite()
+    {
+        using TemporaryDirectory storeDirectory = new();
+        using TemporaryDirectory destination = new();
+        ProductConfigurationStore store = new(storeDirectory.Path);
+        string evidencePath = CreateEvidencePath(storeDirectory.Path);
+        await using (FileStream stream = new(evidencePath, FileMode.CreateNew, FileAccess.Write))
+        {
+            stream.SetLength((64L * 1024 * 1024) + 1);
+        }
+
+        ProductConfigurationEvidenceItem item = Assert.Single(
+            (await store.GetEvidenceInventoryAsync()).Items);
+
+        ProductConfigurationExportException exception = await Assert.ThrowsAsync<
+            ProductConfigurationExportException>(() => store.ExportEvidenceAsync(
+                item,
+                destination.Path,
+                LocalDestination(),
+                userConfirmed: true));
+
+        Assert.Equal(ProductConfigurationExportError.EvidenceTooLarge, exception.Error);
+        Assert.Empty(Directory.GetFiles(destination.Path));
+    }
+
+    [Fact]
+    public async Task ImportBackupEvidenceUsesFiniteOutputRoleWithoutSourceIdentifier()
+    {
+        using TemporaryDirectory storeDirectory = new();
+        using TemporaryDirectory destination = new();
+        ProductConfigurationStore store = new(storeDirectory.Path);
+        string evidencePath = Path.Combine(
+            storeDirectory.Path,
+            "configuration.json.import.fedcba9876543210fedcba9876543210.backup");
+        await File.WriteAllBytesAsync(evidencePath, [4, 5, 6]);
+        ProductConfigurationEvidenceItem item = Assert.Single(
+            (await store.GetEvidenceInventoryAsync()).Items);
+
+        ProductConfigurationExportResult result = await store.ExportEvidenceAsync(
+            item,
+            destination.Path,
+            LocalDestination(),
+            userConfirmed: true);
+
+        Assert.Contains("-Import-Backup-", result.FileName, StringComparison.Ordinal);
+        Assert.DoesNotContain("fedcba9876543210", result.FileName, StringComparison.Ordinal);
+        Assert.Equal(
+            new byte[] { 4, 5, 6 },
+            await File.ReadAllBytesAsync(Path.Combine(destination.Path, result.FileName)));
+    }
+
+    [Fact]
+    public async Task EvidenceReadContentionReturnsFiniteErrorWithoutTemporaryFile()
+    {
+        using TemporaryDirectory storeDirectory = new();
+        using TemporaryDirectory destination = new();
+        ProductConfigurationStore store = new(storeDirectory.Path);
+        string evidencePath = CreateEvidencePath(storeDirectory.Path);
+        await File.WriteAllBytesAsync(evidencePath, [1, 2, 3]);
+        ProductConfigurationEvidenceItem item = Assert.Single(
+            (await store.GetEvidenceInventoryAsync()).Items);
+        await using FileStream lease = new(
+            evidencePath,
+            FileMode.Open,
+            FileAccess.ReadWrite,
+            FileShare.None);
+
+        ProductConfigurationExportException exception = await Assert.ThrowsAsync<
+            ProductConfigurationExportException>(() => store.ExportEvidenceAsync(
+                item,
+                destination.Path,
+                LocalDestination(),
+                userConfirmed: true));
+
+        Assert.Equal(ProductConfigurationExportError.IoFailure, exception.Error);
+        Assert.Empty(Directory.GetFiles(destination.Path));
+    }
+
+    [Fact]
+    public async Task CancelledEvidenceExportCleansTemporaryFileAndPreservesSource()
+    {
+        using TemporaryDirectory storeDirectory = new();
+        using TemporaryDirectory destination = new();
+        ProductConfigurationStore store = new(storeDirectory.Path);
+        string evidencePath = CreateEvidencePath(storeDirectory.Path);
+        byte[] evidence = new byte[1024 * 1024];
+        await File.WriteAllBytesAsync(evidencePath, evidence);
+        ProductConfigurationEvidenceItem item = Assert.Single(
+            (await store.GetEvidenceInventoryAsync()).Items);
+        using CancellationTokenSource cancellation = new();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => store.ExportEvidenceAsync(
+                item,
+                destination.Path,
+                LocalDestination(),
+                userConfirmed: true,
+                cancellation.Token));
+
+        Assert.Empty(Directory.GetFiles(destination.Path));
+        Assert.Equal(evidence, await File.ReadAllBytesAsync(evidencePath));
+    }
+
     private static ProductConfigurationExportDestination LocalDestination() =>
         new(UserSelected: true, IsLocalFileSystem: true, IsReparsePoint: false);
+
+    private static string CreateEvidencePath(string directoryPath) => Path.Combine(
+        directoryPath,
+        "configuration.json.damaged.0123456789abcdef0123456789abcdef.primary");
 
     private static ProductConfigurationDocument CreateDocument(string profileId) => new()
     {

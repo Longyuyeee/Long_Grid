@@ -8,6 +8,10 @@ public enum ProductConfigurationExportError
     NonLocalDestination,
     ReparsePointNotAllowed,
     StoreChanged,
+    EvidenceNotAvailable,
+    EvidenceChanged,
+    EvidenceTooLarge,
+    EvidenceVerificationFailed,
     DestinationUnavailable,
     IoFailure,
 }
@@ -71,11 +75,32 @@ public enum ProductConfigurationEvidenceRole
     Backup,
 }
 
-public sealed record ProductConfigurationEvidenceItem(
-    ProductConfigurationEvidenceOrigin Origin,
-    ProductConfigurationEvidenceRole Role,
-    long SizeBytes,
-    DateTimeOffset ArchivedUtc);
+public sealed class ProductConfigurationEvidenceItem
+{
+    internal ProductConfigurationEvidenceItem(
+        ProductConfigurationEvidenceOrigin origin,
+        ProductConfigurationEvidenceRole role,
+        long sizeBytes,
+        DateTimeOffset archivedUtc,
+        string sourcePath)
+    {
+        Origin = origin;
+        Role = role;
+        SizeBytes = sizeBytes;
+        ArchivedUtc = archivedUtc;
+        SourcePath = sourcePath;
+    }
+
+    public ProductConfigurationEvidenceOrigin Origin { get; }
+
+    public ProductConfigurationEvidenceRole Role { get; }
+
+    public long SizeBytes { get; }
+
+    public DateTimeOffset ArchivedUtc { get; }
+
+    internal string SourcePath { get; }
+}
 
 public sealed record ProductConfigurationEvidenceInventory(
     IReadOnlyList<ProductConfigurationEvidenceItem> Items,

@@ -71,6 +71,7 @@ function Test-SourceContract {
         'RefreshConfigurationEvidenceButton',
         'ConfigurationEvidenceStatus',
         'ConfigurationEvidenceList',
+        'ExportConfigurationEvidenceButton',
         'RecoveryPanel',
         'RecoverySafetyBanner',
         'RecoveryAutomaticScenarioButton',
@@ -198,6 +199,20 @@ function Test-SourceContract {
     Assert-Condition (
         $evidenceStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
     ) 'Configuration evidence status must politely announce finite state changes.'
+    $evidenceListNode = Get-XamlNodeByAutomationId $document 'ConfigurationEvidenceList'
+    Assert-Condition (
+        $evidenceListNode.GetAttribute('SelectionMode') -eq 'Single' -and
+        $evidenceListNode.GetAttribute('SelectionChanged') -eq `
+            'ConfigurationEvidenceList_SelectionChanged'
+    ) 'Configuration evidence must require one explicit anonymous selection.'
+    $evidenceExportNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ExportConfigurationEvidenceButton'
+    Assert-Condition (
+        $evidenceExportNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $evidenceExportNode.GetAttribute('Click') -eq `
+            'ExportConfigurationEvidenceButton_Click'
+    ) 'Raw evidence export must remain disabled until an explicit selection.'
     $practiceNameNode = Get-XamlNodeByAutomationId $document 'PracticeContainerName'
     Assert-Condition ($practiceNameNode.GetAttribute('MaxLength') -eq '40') `
         'The anonymous practice-container name must remain bounded to 40 characters.'
@@ -332,6 +347,12 @@ function Test-SourceContract {
         'Configuration export must expose preview conflicts without publishing stale state.'
     Assert-Condition ($codeBehind -match 'ConfigurationEvidenceList\.ItemsSource') `
         'Configuration evidence must expose only the finite inventory contract.'
+    Assert-Condition ($codeBehind -match 'EvidenceExportFolderPickerOpen') `
+        'Raw evidence export must request a destination only after confirmation.'
+    Assert-Condition ($codeBehind -match 'EvidenceExportCommitted:SourcePreserved') `
+        'Raw evidence export must disclose source preservation.'
+    Assert-Condition ($codeBehind -match 'ProductConfigurationExportError\.EvidenceChanged') `
+        'Raw evidence export must expose stale inventory without publishing it.'
     Assert-Condition (-not ($codeBehind -match 'Evidence.*(Path|FileName)')) `
         'Configuration evidence UI must not receive archive paths or file names.'
     Assert-Condition ($appCode -match 'FolderPicker') `
@@ -413,7 +434,7 @@ function Test-SourceContract {
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
-        configurationRepair = 'confirmed-recovery-bounded-import-export-and-evidence-inventory'
+        configurationRepair = 'confirmed-recovery-bounded-import-export-evidence-inventory-and-evidence-export'
         configurationShutdownDrain = 'bounded-zero-write-retry'
         readOnlyBoundary = 'no-automatic-product-writes-explicit-config-transactions-only'
     }

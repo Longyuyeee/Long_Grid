@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using LongGrid.Core.Configuration;
 
@@ -7,6 +8,7 @@ public sealed partial class ProductConfigurationStore
 {
     private const int MaximumEvidenceItems = 256;
     private const int MaximumEvidenceScanEntries = 4096;
+    private const long MaximumEvidenceExportBytes = 64L * 1024 * 1024;
     public async Task<ProductConfigurationExportPlan> PrepareExportAsync(
         CancellationToken cancellationToken = default)
     {
@@ -51,12 +53,8 @@ public sealed partial class ProductConfigurationStore
         {
             throw;
         }
-        catch (IOException)
-        {
-            throw new ProductConfigurationExportException(
-                ProductConfigurationExportError.IoFailure);
-        }
-        catch (UnauthorizedAccessException)
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
         {
             throw new ProductConfigurationExportException(
                 ProductConfigurationExportError.IoFailure);
@@ -159,11 +157,7 @@ public sealed partial class ProductConfigurationStore
                 }
 
                 scannedEntries++;
-                Match match = Regex.Match(
-                    Path.GetFileName(path),
-                    "^" + Regex.Escape(Path.GetFileName(PrimaryPath))
-                        + "\\.(damaged|import)\\.[0-9a-f]{32}\\.(primary|backup)$",
-                    RegexOptions.CultureInvariant);
+                Match match = MatchEvidenceFile(path);
                 if (!match.Success)
                 {
                     continue;
@@ -190,7 +184,8 @@ public sealed partial class ProductConfigurationStore
                         ? ProductConfigurationEvidenceRole.Primary
                         : ProductConfigurationEvidenceRole.Backup,
                     info.Length,
-                    info.LastWriteTimeUtc));
+                    info.LastWriteTimeUtc,
+                    path));
             }
 
             return Task.FromResult(new ProductConfigurationEvidenceInventory(
@@ -208,6 +203,192 @@ public sealed partial class ProductConfigurationStore
             throw new ProductConfigurationExportException(
                 ProductConfigurationExportError.IoFailure);
         }
+    }
+
+    public async Task<ProductConfigurationExportResult> ExportEvidenceAsync(
+        ProductConfigurationEvidenceItem item,
+        string destinationDirectory,
+        ProductConfigurationExportDestination destination,
+        bool userConfirmed,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(destination);
+        if (!userConfirmed)
+        {
+            throw new ProductConfigurationExportException(
+                ProductConfigurationExportError.ConfirmationRequired);
+        }
+
+        string validatedDirectory = ValidateExportDestination(
+            destinationDirectory,
+            destination);
+        ValidateEvidenceSelection(item);
+        string origin = item.Origin is ProductConfigurationEvidenceOrigin.DamagedRecovery
+            ? "Recovery"
+            : "Import";
+        string role = item.Role is ProductConfigurationEvidenceRole.Primary
+            ? "Primary"
+            : "Backup";
+        string fileName = $"LongGrid-Configuration-Evidence-{origin}-{role}-{DateTime.UtcNow:yyyyMMddTHHmmssfffZ}-{Guid.NewGuid():N}.bin";
+        string finalPath = Path.Combine(validatedDirectory, fileName);
+        string temporaryPath = finalPath + ".new";
+        try
+        {
+            await using FileStream source = new(
+                item.SourcePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 64 * 1024,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            if (source.Length != item.SizeBytes
+                || File.GetLastWriteTimeUtc(item.SourcePath) != item.ArchivedUtc.UtcDateTime)
+            {
+                throw new ProductConfigurationExportException(
+                    ProductConfigurationExportError.EvidenceChanged);
+            }
+
+            if (source.Length > MaximumEvidenceExportBytes)
+            {
+                throw new ProductConfigurationExportException(
+                    ProductConfigurationExportError.EvidenceTooLarge);
+            }
+
+            byte[] sourceHash;
+            using (IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
+            {
+                await using FileStream target = new(
+                    temporaryPath,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None,
+                    bufferSize: 64 * 1024,
+                    FileOptions.Asynchronous | FileOptions.WriteThrough);
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = await source.ReadAsync(buffer, cancellationToken)
+                    .ConfigureAwait(false)) != 0)
+                {
+                    await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken)
+                        .ConfigureAwait(false);
+                    hash.AppendData(buffer, 0, read);
+                }
+
+                await target.FlushAsync(cancellationToken).ConfigureAwait(false);
+                target.Flush(flushToDisk: true);
+                sourceHash = hash.GetHashAndReset();
+            }
+
+            byte[] stagedHash = await ComputeFileHashAsync(
+                    temporaryPath,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (!CryptographicOperations.FixedTimeEquals(sourceHash, stagedHash))
+            {
+                throw new ProductConfigurationExportException(
+                    ProductConfigurationExportError.EvidenceVerificationFailed);
+            }
+
+            File.Move(temporaryPath, finalPath);
+            return new(fileName);
+        }
+        catch (ProductConfigurationExportException)
+        {
+            TryDeleteExportTemporaryFile(temporaryPath);
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            TryDeleteExportTemporaryFile(temporaryPath);
+            throw;
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            TryDeleteExportTemporaryFile(temporaryPath);
+            throw new ProductConfigurationExportException(
+                ProductConfigurationExportError.IoFailure);
+        }
+    }
+
+    private void ValidateEvidenceSelection(ProductConfigurationEvidenceItem item)
+    {
+        string fullPath;
+        try
+        {
+            fullPath = Path.GetFullPath(item.SourcePath);
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException)
+        {
+            throw new ProductConfigurationExportException(
+                ProductConfigurationExportError.EvidenceNotAvailable);
+        }
+
+        if (!string.Equals(
+                Path.GetDirectoryName(fullPath),
+                DirectoryPath,
+                StringComparison.OrdinalIgnoreCase)
+            || !MatchEvidenceFile(fullPath).Success)
+        {
+            throw new ProductConfigurationExportException(
+                ProductConfigurationExportError.EvidenceNotAvailable);
+        }
+
+        try
+        {
+            FileInfo info = new(fullPath);
+            if (!info.Exists)
+            {
+                throw new ProductConfigurationExportException(
+                    ProductConfigurationExportError.EvidenceNotAvailable);
+            }
+
+            if (info.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            {
+                throw new ProductConfigurationExportException(
+                    ProductConfigurationExportError.ReparsePointNotAllowed);
+            }
+        }
+        catch (ProductConfigurationExportException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            throw new ProductConfigurationExportException(
+                ProductConfigurationExportError.EvidenceNotAvailable);
+        }
+    }
+
+    private Match MatchEvidenceFile(string path) => Regex.Match(
+        Path.GetFileName(path),
+        "^" + Regex.Escape(Path.GetFileName(PrimaryPath))
+            + "\\.(damaged|import)\\.[0-9a-f]{32}\\.(primary|backup)$",
+        RegexOptions.CultureInvariant);
+
+    private static async Task<byte[]> ComputeFileHashAsync(
+        string path,
+        CancellationToken cancellationToken)
+    {
+        using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        await using FileStream stream = new(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 64 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        byte[] buffer = new byte[64 * 1024];
+        int read;
+        while ((read = await stream.ReadAsync(buffer, cancellationToken)
+            .ConfigureAwait(false)) != 0)
+        {
+            hash.AppendData(buffer, 0, read);
+        }
+
+        return hash.GetHashAndReset();
     }
 
     private static string ValidateExportDestination(

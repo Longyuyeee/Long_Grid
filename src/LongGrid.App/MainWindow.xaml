@@ -818,7 +818,16 @@
                                         AutomationProperties.AutomationId="ConfigurationEvidenceList"
                                         AutomationProperties.Name="配置证据匿名清单"
                                         MaxHeight="220"
-                                        SelectionMode="None" />
+                                        SelectionChanged="ConfigurationEvidenceList_SelectionChanged"
+                                        SelectionMode="Single" />
+                                    <Button
+                                        x:Name="ExportConfigurationEvidenceButton"
+                                        AutomationProperties.AutomationId="ExportConfigurationEvidenceButton"
+                                        AutomationProperties.Name="导出所选原始配置证据"
+                                        Click="ExportConfigurationEvidenceButton_Click"
+                                        Content="导出所选证据…"
+                                        IsEnabled="False"
+                                        HorizontalAlignment="Left" />
                                     <TextBlock FontSize="16" FontWeight="SemiBold" Text="仍需关闭的产品门槛" />
                                     <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="• Issue #19–#24 实机与负责人决策&#x0a;• ADR-0001 最终 Go / Revise / No-Go&#x0a;• UI Automation、Narrator、高对比和 DPI 实机矩阵&#x0a;• 真实产品状态保存、DesktopHost 与正式渲染接线" />
                                 </StackPanel>
