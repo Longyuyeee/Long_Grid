@@ -66,6 +66,11 @@ function Test-SourceContract {
         'SafetyPanel',
         'ImportConfigurationButton',
         'ConfigurationImportStatus',
+        'ExportConfigurationButton',
+        'ConfigurationExportStatus',
+        'RefreshConfigurationEvidenceButton',
+        'ConfigurationEvidenceStatus',
+        'ConfigurationEvidenceList',
         'RecoveryPanel',
         'RecoverySafetyBanner',
         'RecoveryAutomaticScenarioButton',
@@ -174,6 +179,25 @@ function Test-SourceContract {
     Assert-Condition (
         $importStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
     ) 'Configuration import status must politely announce finite state changes.'
+    $exportButtonNode = Get-XamlNodeByAutomationId $document 'ExportConfigurationButton'
+    Assert-Condition (
+        $exportButtonNode.GetAttribute('Click') -eq 'ExportConfigurationButton_Click'
+    ) 'Configuration export must use the audited preview-and-confirm handler.'
+    $exportStatusNode = Get-XamlNodeByAutomationId $document 'ConfigurationExportStatus'
+    Assert-Condition (
+        $exportStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
+    ) 'Configuration export status must politely announce finite state changes.'
+    $evidenceButtonNode = Get-XamlNodeByAutomationId `
+        $document `
+        'RefreshConfigurationEvidenceButton'
+    Assert-Condition (
+        $evidenceButtonNode.GetAttribute('Click') -eq `
+            'RefreshConfigurationEvidenceButton_Click'
+    ) 'Configuration evidence must use the audited read-only refresh handler.'
+    $evidenceStatusNode = Get-XamlNodeByAutomationId $document 'ConfigurationEvidenceStatus'
+    Assert-Condition (
+        $evidenceStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
+    ) 'Configuration evidence status must politely announce finite state changes.'
     $practiceNameNode = Get-XamlNodeByAutomationId $document 'PracticeContainerName'
     Assert-Condition ($practiceNameNode.GetAttribute('MaxLength') -eq '40') `
         'The anonymous practice-container name must remain bounded to 40 characters.'
@@ -298,6 +322,20 @@ function Test-SourceContract {
         'Successful configuration import must expose evidence preservation.'
     Assert-Condition ($codeBehind -match 'ProductConfigurationImportError\.StoreChanged') `
         'Configuration import must expose preview conflicts without overwriting state.'
+    Assert-Condition ($codeBehind -match 'ProductConfigurationExportPlan') `
+        'Configuration export UI must receive only the opaque validated plan.'
+    Assert-Condition ($codeBehind -match 'ExportPreviewValidated') `
+        'Configuration export must expose a validated preview before folder selection.'
+    Assert-Condition ($codeBehind -match 'ExportFolderPickerOpen') `
+        'Configuration export must request a destination only after confirmation.'
+    Assert-Condition ($codeBehind -match 'ProductConfigurationExportError\.StoreChanged') `
+        'Configuration export must expose preview conflicts without publishing stale state.'
+    Assert-Condition ($codeBehind -match 'ConfigurationEvidenceList\.ItemsSource') `
+        'Configuration evidence must expose only the finite inventory contract.'
+    Assert-Condition (-not ($codeBehind -match 'Evidence.*(Path|FileName)')) `
+        'Configuration evidence UI must not receive archive paths or file names.'
+    Assert-Condition ($appCode -match 'FolderPicker') `
+        'Configuration export folder authorization must remain in the app boundary.'
     Assert-Condition ($codeBehind -match 'ProductConfigurationRecoveryError\.WriteLeaseUnavailable') `
         'The UI must map finite recovery contention without exposing storage details.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*CurrentModeValue') `
@@ -375,9 +413,9 @@ function Test-SourceContract {
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
-        configurationRepair = 'confirmed-backup-acceptance-safe-mode-reset-and-bounded-import'
+        configurationRepair = 'confirmed-recovery-bounded-import-export-and-evidence-inventory'
         configurationShutdownDrain = 'bounded-zero-write-retry'
-        readOnlyBoundary = 'no-automatic-product-writes-explicit-import-only'
+        readOnlyBoundary = 'no-automatic-product-writes-explicit-config-transactions-only'
     }
 }
 

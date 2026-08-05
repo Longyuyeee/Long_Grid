@@ -32,7 +32,10 @@ public partial class App : Application
         window = new MainWindow(
             RecoverConfigurationAsync,
             PrepareConfigurationImportAsync,
-            CommitConfigurationImportAsync);
+            CommitConfigurationImportAsync,
+            () => configurationStore.PrepareExportAsync(),
+            ExportConfigurationAsync,
+            () => configurationStore.GetEvidenceInventoryAsync());
         window.AppWindow.Closing += AppWindow_Closing;
         window.Activate();
         _ = LoadConfigurationStartupStateAsync();
@@ -140,6 +143,58 @@ public partial class App : Application
         await configurationStore.ImportAsync(plan, userConfirmed: true);
         ProductConfigurationLoadResult loadResult = await configurationStore.LoadAsync();
         return ProductConfigurationStartupState.FromLoadResult(loadResult);
+    }
+
+    private async Task<ProductConfigurationExportResult?> ExportConfigurationAsync(
+        ProductConfigurationExportPlan plan)
+    {
+        if (window is null)
+        {
+            return null;
+        }
+
+        FolderPicker picker = new()
+        {
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+        };
+        picker.FileTypeFilter.Add("*");
+        nint windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(window);
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, windowHandle);
+        StorageFolder? folder = await picker.PickSingleFolderAsync();
+        if (folder is null)
+        {
+            return null;
+        }
+
+        bool isLocal = !string.IsNullOrWhiteSpace(folder.Path);
+        bool isReparsePoint = false;
+        if (isLocal)
+        {
+            try
+            {
+                isReparsePoint = File.GetAttributes(folder.Path)
+                    .HasFlag(System.IO.FileAttributes.ReparsePoint);
+            }
+            catch (IOException)
+            {
+                throw new ProductConfigurationExportException(
+                    ProductConfigurationExportError.DestinationUnavailable);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                throw new ProductConfigurationExportException(
+                    ProductConfigurationExportError.DestinationUnavailable);
+            }
+        }
+
+        return await configurationStore.ExportAsync(
+            plan,
+            folder.Path,
+            new(
+                UserSelected: true,
+                IsLocalFileSystem: isLocal,
+                IsReparsePoint: isReparsePoint),
+            userConfirmed: true);
     }
 
     internal void HandleActivation(AppActivationArguments activation)
