@@ -27,6 +27,10 @@ $workspaceReadPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReadPresentation.cs'
 $containerEditPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceContainerEditPresentation.cs'
+$layoutRecoveryPreviewCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceLayoutRecoveryPreview.cs'
+$layoutRecoveryPresentationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\ProductWorkspaceLayoutRecoveryPresentation.cs'
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
 $runtimeIdentifier = "win-$Architecture"
 
@@ -85,6 +89,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $containerEditPresentationCode = Get-Content `
         -LiteralPath $containerEditPresentationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $layoutRecoveryPreviewCode = Get-Content `
+        -LiteralPath $layoutRecoveryPreviewCodePath `
+        -Raw `
+        -Encoding UTF8
+    $layoutRecoveryPresentationCode = Get-Content `
+        -LiteralPath $layoutRecoveryPresentationCodePath `
         -Raw `
         -Encoding UTF8
     $requiredIds = @(
@@ -162,6 +174,10 @@ function Test-SourceContract {
         'ProductWorkspaceSessionTitle',
         'ProductWorkspaceSessionDetail',
         'ProductWorkspaceSessionSummary',
+        'ProductWorkspaceLayoutRecoveryCard',
+        'ProductWorkspaceLayoutRecoveryTitle',
+        'ProductWorkspaceLayoutRecoveryDetail',
+        'ProductWorkspaceLayoutRecoverySummary',
         'ProductWorkspaceViewCard',
         'ProductWorkspaceViewTitle',
         'ProductWorkspaceViewDetail',
@@ -346,6 +362,20 @@ function Test-SourceContract {
         'ProductWorkspaceSessionCard'
     Assert-Condition (-not ($productSessionCardNode.OuterXml -match 'Storyboard|Transition')) `
         'Product session status must keep a Reduced Motion-safe static baseline.'
+
+    $layoutRecoveryDetailNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceLayoutRecoveryDetail'
+    Assert-Condition (
+        $layoutRecoveryDetailNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite' -and
+        $layoutRecoveryDetailNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'LayoutRecoveryPreviewUnavailableSession:Containers=0:Mappings=0:Unresolved=0:Corrected=0:DesktopWindowsChanged=False'
+    ) 'Layout recovery preview must start finite, unavailable, and non-mutating.'
+    $layoutRecoveryCardNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceLayoutRecoveryCard'
+    Assert-Condition (-not ($layoutRecoveryCardNode.OuterXml -match 'Storyboard|Transition')) `
+        'Layout recovery preview must keep a Reduced Motion-safe static baseline.'
 
     $workspaceViewStatusNode = Get-XamlNodeByAutomationId `
         $document `
@@ -823,6 +853,26 @@ function Test-SourceContract {
         -not ($containerEditPresentationCode -match `
             'ContainerId|PersistedTarget|CanonicalTarget|DisplayKey|ProfileId')
     ) 'Container editor presentation must use revision plus ordinal without persistence identity.'
+    foreach ($previewStatus in @(
+            'UnavailableSession',
+            'AwaitingAuthoritativeTopology',
+            'SavedTopologyMissing',
+            'Automatic',
+            'ReviewRequired',
+            'Blocked',
+            'InvalidState'
+        )) {
+        Assert-Condition ($layoutRecoveryPreviewCode.Contains($previewStatus)) `
+            "Layout recovery preview is missing finite status '$previewStatus'."
+    }
+    Assert-Condition (
+        $layoutRecoveryPreviewCode -match 'LayoutRecoveryPlanner\.Create' -and
+        $layoutRecoveryPreviewCode -match 'DesktopWindowsChanged:\s*false' -and
+        $layoutRecoveryPresentationCode -match 'DesktopWindowsChanged=False' -and
+        $appCode -match 'currentTopologyAuthoritative:\s*false' -and
+        -not ($layoutRecoveryPresentationCode -match `
+            'ContainerId|DisplayKey|StableId|RequestedBounds|ProposedBounds')
+    ) 'Product layout recovery preview must be finite, count-only, and non-mutating.'
     Assert-Condition (
         $referencePresentationCode -match 'CatalogGeneration' -and
         $referencePresentationCode -match 'CatalogIndex' -and
@@ -892,6 +942,7 @@ function Test-SourceContract {
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
+        productLayoutRecovery = 'readonly-authoritative-topology-and-saved-metadata-gated-preview'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'

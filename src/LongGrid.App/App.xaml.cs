@@ -238,6 +238,14 @@ public partial class App : Application
         }
 
         currentWindow.ApplyProductWorkspaceSessionState(productWorkspaceSession);
+        ProductWorkspaceLayoutRecoveryPreviewResult layoutPreview =
+            ProductWorkspaceLayoutRecoveryPreview.Create(
+                productWorkspaceSession.State,
+                savedTopology: null,
+                currentTopology: null,
+                currentTopologyAuthoritative: false);
+        currentWindow.ApplyProductWorkspaceLayoutRecoveryPreview(
+            ProductWorkspaceLayoutRecoveryPresentation.Create(layoutPreview));
         ProductWorkspaceReadResult readModel = productWorkspaceSession.State is null
             ? new(
                 ProductWorkspaceProjectionError.InvalidState,
