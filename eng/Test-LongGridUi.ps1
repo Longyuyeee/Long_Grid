@@ -51,6 +51,8 @@ $windowsDesktopHostWindowInspectorCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostWindowInspector.cs'
 $verifiedWindowBatchAdapterCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostVerifiedWindowBatchAdapter.cs'
+$desktopHostThreadDispatcherCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostThreadDispatcher.cs'
 $configurationCompareExchangeCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\Configuration\ProductConfigurationStore.CompareExchange.cs'
 $compositeConfigurationAdapterCodePath = Join-Path $projectRoot `
@@ -161,6 +163,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $verifiedWindowBatchAdapterCode = Get-Content `
         -LiteralPath $verifiedWindowBatchAdapterCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopHostThreadDispatcherCode = Get-Content `
+        -LiteralPath $desktopHostThreadDispatcherCodePath `
         -Raw `
         -Encoding UTF8
     $configurationCompareExchangeCode = Get-Content `
@@ -1036,7 +1042,10 @@ function Test-SourceContract {
     Assert-Condition (
         $verifiedWindowBatchAdapterCode -match `
             'IProductWorkspaceCompositeWindowLayer' -and
-        $verifiedWindowBatchAdapterCode -match 'TryUseExactVerifiedWindows' -and
+        $verifiedWindowBatchAdapterCode -match 'TryPrepareExactVerifiedWindows' -and
+        $verifiedWindowBatchAdapterCode -match 'TryUsePreparedVerifiedWindows' -and
+        $verifiedWindowBatchAdapterCode -match 'TargetThreadId' -and
+        $verifiedWindowBatchAdapterCode -match 'dispatcher\.Invoke' -and
         $verifiedWindowBatchAdapterCode -match 'WindowSnapshot' -and
         $verifiedWindowBatchAdapterCode -match 'RegistryGeneration' -and
         $verifiedWindowBatchAdapterCode -match 'BeginDeferWindowPos' -and
@@ -1050,7 +1059,18 @@ function Test-SourceContract {
             'SetWindowPos|MoveWindow|ShowWindow|SetForegroundWindow|SetWindowRgn') -and
         -not ($appCode -match `
             'ProductDesktopHostVerifiedWindowBatchAdapter|WindowsProductDesktopHostWindowBatchMutator')
-    ) 'Verified product windows must use one generation-bound, ownership-reread native batch without App wiring, activation, Z-order, or region changes.'
+    ) 'Verified product windows must prepare and reread one generation-bound native batch on the exact host thread without App wiring, activation, Z-order, or region changes.'
+    Assert-Condition (
+        $desktopHostThreadDispatcherCode -match 'SynchronizationContext' -and
+        $desktopHostThreadDispatcherCode -match 'GetCurrentThreadId' -and
+        $desktopHostThreadDispatcherCode -match 'QueueTimedOut' -and
+        $desktopHostThreadDispatcherCode -match 'Pending' -and
+        $desktopHostThreadDispatcherCode -match 'Cancelled' -and
+        $desktopHostThreadDispatcherCode -match 'Running' -and
+        $desktopHostThreadDispatcherCode -match 'CompareExchange' -and
+        -not ($appCode -match `
+            'SynchronizationContextProductDesktopHostThreadDispatcher|IProductDesktopHostThreadDispatcher')
+    ) 'DesktopHost dispatch must cancel only work that has not started, await running native work, and remain App-blocked.'
     Assert-Condition (
         $configurationCompareExchangeCode -match `
             'CompareExchangePrimaryAsync' -and
@@ -1063,6 +1083,10 @@ function Test-SourceContract {
             'IProductWorkspaceCompositeConfigurationLayer' -and
         $compositeConfigurationAdapterCode -match 'ConfigurationSnapshot' -and
         $compositeConfigurationAdapterCode -match 'lastPublishedFingerprint' -and
+        $compositeConfigurationAdapterCode -match `
+            'ProductWorkspaceCompositeBindingState' -and
+        $compositeConfigurationAdapterCode -match 'lastPublishedBinding' -and
+        $compositeConfigurationAdapterCode -match 'TryExchange' -and
         $compositeConfigurationAdapterCode -match 'CompareExchangePrimaryAsync' -and
         $compositeConfigurationAdapterCode -match 'VerifyRestored' -and
         -not ($appCode -match `
@@ -1151,7 +1175,7 @@ function Test-SourceContract {
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
-        productLayoutRecovery = 'window-and-configuration-production-adapters-compensation-ready-app-blocked'
+        productLayoutRecovery = 'thread-dispatched-dual-adapter-fault-matrix-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'
