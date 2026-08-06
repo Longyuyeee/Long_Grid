@@ -44,7 +44,8 @@ internal sealed record ProductWorkspaceReadPresentation(
                     $"{container.Items.Count} 个引用 · " +
                     $"{container.UnresolvedCount} 个待处理",
                 $"{(container.IsCollapsed ? "已折叠" : "已展开")} · " +
-                    $"不透明度 {container.Opacity:P0}",
+                    $"不透明度 {container.Opacity:P0} · " +
+                    $"{container.WidthDip:0} × {container.HeightDip:0} DIP",
                 $"WorkspaceContainer:{container.Ordinal}:Items={container.Items.Count}:" +
                     $"Resolved={container.ResolvedCount}:Unresolved={container.UnresolvedCount}:" +
                     $"Locked={container.IsLocked}:Collapsed={container.IsCollapsed}",

@@ -9,7 +9,11 @@ internal sealed record ProductWorkspaceContainerEditCandidatePresentation(
     bool IsLocked,
     bool IsCollapsed,
     string Color,
-    double Opacity)
+    double Opacity,
+    double XDip,
+    double YDip,
+    double WidthDip,
+    double HeightDip)
 {
     public string AccessibilityName => $"方格 {Ordinal}，{DisplayName}";
 }
@@ -24,12 +28,25 @@ internal sealed record ProductWorkspaceContainerOpacityChoicePresentation(
     string DisplayName,
     double Opacity);
 
+internal sealed record ProductWorkspaceContainerPositionChoicePresentation(
+    ProductWorkspaceContainerPositionPreset Preset,
+    string DisplayName,
+    double XDip,
+    double YDip);
+
+internal sealed record ProductWorkspaceContainerSizeChoicePresentation(
+    ProductWorkspaceContainerSizePreset Preset,
+    string DisplayName,
+    double WidthDip,
+    double HeightDip);
+
 internal sealed record ProductWorkspaceContainerEditPresentation(
     long EditRevision,
     bool CanCreate,
     bool CanRename,
     bool CanUpdateState,
     bool CanUpdateAppearance,
+    bool CanUpdatePlacement,
     IReadOnlyList<ProductWorkspaceContainerEditCandidatePresentation> Candidates)
 {
     public static IReadOnlyList<ProductWorkspaceContainerColorChoicePresentation>
@@ -67,6 +84,52 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
                 ProductWorkspaceCommitCoordinator.ResolveOpacity(preset)))
             .ToArray();
 
+    public static IReadOnlyList<ProductWorkspaceContainerPositionChoicePresentation>
+        PositionChoices
+    { get; } =
+        Enum.GetValues<ProductWorkspaceContainerPositionPreset>()
+            .Select(preset =>
+            {
+                (double xDip, double yDip) =
+                    ProductWorkspaceCommitCoordinator.ResolvePosition(preset);
+                return new ProductWorkspaceContainerPositionChoicePresentation(
+                    preset,
+                    preset switch
+                    {
+                        ProductWorkspaceContainerPositionPreset.Start => "起始位 · 32, 48 DIP",
+                        ProductWorkspaceContainerPositionPreset.OffsetOne => "偏移一 · 56, 72 DIP",
+                        ProductWorkspaceContainerPositionPreset.OffsetTwo => "偏移二 · 80, 96 DIP",
+                        ProductWorkspaceContainerPositionPreset.OffsetThree => "偏移三 · 104, 120 DIP",
+                        _ => preset.ToString(),
+                    },
+                    xDip,
+                    yDip);
+            })
+            .ToArray();
+
+    public static IReadOnlyList<ProductWorkspaceContainerSizeChoicePresentation>
+        SizeChoices
+    { get; } =
+        Enum.GetValues<ProductWorkspaceContainerSizePreset>()
+            .Select(preset =>
+            {
+                (double widthDip, double heightDip) =
+                    ProductWorkspaceCommitCoordinator.ResolveSize(preset);
+                return new ProductWorkspaceContainerSizeChoicePresentation(
+                    preset,
+                    preset switch
+                    {
+                        ProductWorkspaceContainerSizePreset.Compact => "紧凑 · 280 × 192 DIP",
+                        ProductWorkspaceContainerSizePreset.Standard => "标准 · 360 × 240 DIP",
+                        ProductWorkspaceContainerSizePreset.Wide => "宽屏 · 480 × 280 DIP",
+                        ProductWorkspaceContainerSizePreset.Large => "大号 · 560 × 360 DIP",
+                        _ => preset.ToString(),
+                    },
+                    widthDip,
+                    heightDip);
+            })
+            .ToArray();
+
     public static ProductWorkspaceContainerEditPresentation Unavailable { get; } =
         new(
             0,
@@ -74,6 +137,7 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
             CanRename: false,
             CanUpdateState: false,
             CanUpdateAppearance: false,
+            CanUpdatePlacement: false,
             Array.Empty<ProductWorkspaceContainerEditCandidatePresentation>());
 
     public static ProductWorkspaceContainerEditPresentation Create(
@@ -89,7 +153,11 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
                 container.IsLocked,
                 container.IsCollapsed,
                 container.Color,
-                container.Opacity))
+                container.Opacity,
+                container.XDip,
+                container.YDip,
+                container.WidthDip,
+                container.HeightDip))
             .ToArray();
         return new(
             editRevision,
@@ -97,6 +165,7 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
             CanRename: canEdit && candidates.Length > 0,
             CanUpdateState: canEdit && candidates.Length > 0,
             CanUpdateAppearance: canEdit && candidates.Length > 0,
+            CanUpdatePlacement: canEdit && candidates.Length > 0,
             candidates);
     }
 
@@ -108,5 +177,6 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
             CanRename: false,
             CanUpdateState: false,
             CanUpdateAppearance: false,
+            CanUpdatePlacement: false,
             Array.Empty<ProductWorkspaceContainerEditCandidatePresentation>());
 }

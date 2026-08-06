@@ -175,6 +175,9 @@ function Test-SourceContract {
         'ProductWorkspaceContainerColorSelector',
         'ProductWorkspaceContainerOpacitySelector',
         'ProductWorkspaceContainerAppearanceButton',
+        'ProductWorkspaceContainerPositionSelector',
+        'ProductWorkspaceContainerSizeSelector',
+        'ProductWorkspaceContainerPlacementButton',
         'ProductWorkspaceContainerEditStatus',
         'ProductWorkspaceContainerList',
         'ProductWorkspaceViewStatus',
@@ -377,7 +380,8 @@ function Test-SourceContract {
             'ProductWorkspaceContainerRenameButton',
             'ProductWorkspaceContainerLockButton',
             'ProductWorkspaceContainerCollapseButton',
-            'ProductWorkspaceContainerAppearanceButton'
+            'ProductWorkspaceContainerAppearanceButton',
+            'ProductWorkspaceContainerPlacementButton'
         )) {
         $buttonNode = Get-XamlNodeByAutomationId $document $buttonId
         Assert-Condition ($buttonNode.GetAttribute('IsEnabled') -eq 'False') `
@@ -390,6 +394,8 @@ function Test-SourceContract {
             'ProductWorkspaceContainerCollapseButton_Click'
         ProductWorkspaceContainerAppearanceButton = `
             'ProductWorkspaceContainerAppearanceButton_Click'
+        ProductWorkspaceContainerPlacementButton = `
+            'ProductWorkspaceContainerPlacementButton_Click'
     }
     foreach ($selectorId in @(
             'ProductWorkspaceContainerColorSelector',
@@ -401,6 +407,17 @@ function Test-SourceContract {
             $selectorNode.GetAttribute('SelectionChanged') -eq `
                 'ProductWorkspaceContainerAppearanceSelector_SelectionChanged'
         ) "Container appearance selector '$selectorId' must start disabled and use the audited handler."
+    }
+    foreach ($selectorId in @(
+            'ProductWorkspaceContainerPositionSelector',
+            'ProductWorkspaceContainerSizeSelector'
+        )) {
+        $selectorNode = Get-XamlNodeByAutomationId $document $selectorId
+        Assert-Condition (
+            $selectorNode.GetAttribute('IsEnabled') -eq 'False' -and
+            $selectorNode.GetAttribute('SelectionChanged') -eq `
+                'ProductWorkspaceContainerPlacementSelector_SelectionChanged'
+        ) "Container placement selector '$selectorId' must start disabled and use the audited handler."
     }
     foreach ($entry in $containerStateHandlers.GetEnumerator()) {
         $buttonNode = Get-XamlNodeByAutomationId $document $entry.Key
@@ -776,7 +793,12 @@ function Test-SourceContract {
         $appCode -match 'CreateDefaultContainer' -and
         $appCode -match 'DisplayKey\s*=\s*"display-unassigned"'
     ) 'App must support first-container creation through the shared audited coordinator.'
-    foreach ($stateAction in @('SetLocked', 'SetCollapsed', 'SetAppearancePreset')) {
+    foreach ($stateAction in @(
+            'SetLocked',
+            'SetCollapsed',
+            'SetAppearancePreset',
+            'SetPlacementPreset'
+        )) {
         Assert-Condition ($referenceCommitCode.Contains($stateAction)) `
             "Shared coordinator must expose finite container action '$stateAction'."
     }
@@ -793,8 +815,11 @@ function Test-SourceContract {
         $containerEditPresentationCode -match 'IsCollapsed' -and
         $containerEditPresentationCode -match 'ColorChoices' -and
         $containerEditPresentationCode -match 'OpacityChoices' -and
+        $containerEditPresentationCode -match 'PositionChoices' -and
+        $containerEditPresentationCode -match 'SizeChoices' -and
         $containerEditPresentationCode -match 'CanUpdateState' -and
         $containerEditPresentationCode -match 'CanUpdateAppearance' -and
+        $containerEditPresentationCode -match 'CanUpdatePlacement' -and
         -not ($containerEditPresentationCode -match `
             'ContainerId|PersistedTarget|CanonicalTarget|DisplayKey|ProfileId')
     ) 'Container editor presentation must use revision plus ordinal without persistence identity.'
@@ -868,7 +893,7 @@ function Test-SourceContract {
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
-        productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-config-only'
+        productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
         productSavePresentation = 'privacy-safe-static-reduced-motion'
         readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'
