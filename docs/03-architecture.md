@@ -298,4 +298,6 @@ Long Grid 必须显式区分：
 
 DesktopHost 使用状态机管理 `Hidden / DesktopPassive / DesktopEditing / Peek / Suspended / Recovering`。普通桌面状态不得置顶，Peek 才临时提升层级；全屏、锁屏和演示场景默认隐藏或降频。
 
+正式容器外观编辑只接受 `ProductWorkspaceContainerColorPreset` 与 `ProductWorkspaceContainerOpacityPreset` 两组有限枚举，由 Infrastructure 提交边界映射为 v1 `#RRGGBB` 和有限透明度值；UI 不得提交任意 Brush/XAML/颜色字符串或连续浮点数。该动作复用统一 workspace revision、Core reducer、v1 projection 和唯一保存控制器，锁定容器必须先显式解锁，且外观提交不得改变引用或桌面文件。详细边界见[正式容器受限外观提交审计](56-container-finite-appearance-commit-audit.md)。
+
 详细实现依据见[核心 Windows 能力实现审计](08-core-windows-implementation-audit.md)。

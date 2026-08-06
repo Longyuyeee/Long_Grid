@@ -172,6 +172,9 @@ function Test-SourceContract {
         'ProductWorkspaceContainerRenameButton',
         'ProductWorkspaceContainerLockButton',
         'ProductWorkspaceContainerCollapseButton',
+        'ProductWorkspaceContainerColorSelector',
+        'ProductWorkspaceContainerOpacitySelector',
+        'ProductWorkspaceContainerAppearanceButton',
         'ProductWorkspaceContainerEditStatus',
         'ProductWorkspaceContainerList',
         'ProductWorkspaceViewStatus',
@@ -373,7 +376,8 @@ function Test-SourceContract {
             'ProductWorkspaceContainerCreateButton',
             'ProductWorkspaceContainerRenameButton',
             'ProductWorkspaceContainerLockButton',
-            'ProductWorkspaceContainerCollapseButton'
+            'ProductWorkspaceContainerCollapseButton',
+            'ProductWorkspaceContainerAppearanceButton'
         )) {
         $buttonNode = Get-XamlNodeByAutomationId $document $buttonId
         Assert-Condition ($buttonNode.GetAttribute('IsEnabled') -eq 'False') `
@@ -384,6 +388,19 @@ function Test-SourceContract {
             'ProductWorkspaceContainerLockButton_Click'
         ProductWorkspaceContainerCollapseButton = `
             'ProductWorkspaceContainerCollapseButton_Click'
+        ProductWorkspaceContainerAppearanceButton = `
+            'ProductWorkspaceContainerAppearanceButton_Click'
+    }
+    foreach ($selectorId in @(
+            'ProductWorkspaceContainerColorSelector',
+            'ProductWorkspaceContainerOpacitySelector'
+        )) {
+        $selectorNode = Get-XamlNodeByAutomationId $document $selectorId
+        Assert-Condition (
+            $selectorNode.GetAttribute('IsEnabled') -eq 'False' -and
+            $selectorNode.GetAttribute('SelectionChanged') -eq `
+                'ProductWorkspaceContainerAppearanceSelector_SelectionChanged'
+        ) "Container appearance selector '$selectorId' must start disabled and use the audited handler."
     }
     foreach ($entry in $containerStateHandlers.GetEnumerator()) {
         $buttonNode = Get-XamlNodeByAutomationId $document $entry.Key
@@ -759,7 +776,7 @@ function Test-SourceContract {
         $appCode -match 'CreateDefaultContainer' -and
         $appCode -match 'DisplayKey\s*=\s*"display-unassigned"'
     ) 'App must support first-container creation through the shared audited coordinator.'
-    foreach ($stateAction in @('SetLocked', 'SetCollapsed')) {
+    foreach ($stateAction in @('SetLocked', 'SetCollapsed', 'SetAppearancePreset')) {
         Assert-Condition ($referenceCommitCode.Contains($stateAction)) `
             "Shared coordinator must expose finite container action '$stateAction'."
     }
@@ -774,7 +791,10 @@ function Test-SourceContract {
         $containerEditPresentationCode -match 'Ordinal' -and
         $containerEditPresentationCode -match 'IsLocked' -and
         $containerEditPresentationCode -match 'IsCollapsed' -and
+        $containerEditPresentationCode -match 'ColorChoices' -and
+        $containerEditPresentationCode -match 'OpacityChoices' -and
         $containerEditPresentationCode -match 'CanUpdateState' -and
+        $containerEditPresentationCode -match 'CanUpdateAppearance' -and
         -not ($containerEditPresentationCode -match `
             'ContainerId|PersistedTarget|CanonicalTarget|DisplayKey|ProfileId')
     ) 'Container editor presentation must use revision plus ordinal without persistence identity.'
@@ -848,7 +868,7 @@ function Test-SourceContract {
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
-        productContainerEdits = 'shared-revision-create-rename-lock-collapse-config-only'
+        productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
         productSavePresentation = 'privacy-safe-static-reduced-motion'
         readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'

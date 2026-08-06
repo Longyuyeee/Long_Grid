@@ -362,6 +362,38 @@
                                                 Content="折叠并保存"
                                                 IsEnabled="False" />
                                         </StackPanel>
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <ComboBox
+                                                x:Name="ProductWorkspaceContainerColorSelector"
+                                                AutomationProperties.AutomationId="ProductWorkspaceContainerColorSelector"
+                                                AutomationProperties.Name="选择正式方格颜色预设"
+                                                DisplayMemberPath="DisplayName"
+                                                Header="颜色预设"
+                                                HorizontalAlignment="Stretch"
+                                                IsEnabled="False"
+                                                SelectionChanged="ProductWorkspaceContainerAppearanceSelector_SelectionChanged" />
+                                            <ComboBox
+                                                x:Name="ProductWorkspaceContainerOpacitySelector"
+                                                Grid.Column="1"
+                                                AutomationProperties.AutomationId="ProductWorkspaceContainerOpacitySelector"
+                                                AutomationProperties.Name="选择正式方格透明度预设"
+                                                DisplayMemberPath="DisplayName"
+                                                Header="透明度"
+                                                HorizontalAlignment="Stretch"
+                                                IsEnabled="False"
+                                                SelectionChanged="ProductWorkspaceContainerAppearanceSelector_SelectionChanged" />
+                                        </Grid>
+                                        <Button
+                                            x:Name="ProductWorkspaceContainerAppearanceButton"
+                                            AutomationProperties.AutomationId="ProductWorkspaceContainerAppearanceButton"
+                                            AutomationProperties.Name="应用所选正式方格外观预设并保存"
+                                            Click="ProductWorkspaceContainerAppearanceButton_Click"
+                                            Content="应用外观并保存"
+                                            IsEnabled="False" />
                                         <TextBlock
                                             x:Name="ProductWorkspaceContainerEditStatus"
                                             AutomationProperties.AutomationId="ProductWorkspaceContainerEditStatus"

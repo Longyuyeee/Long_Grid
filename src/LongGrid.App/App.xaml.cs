@@ -344,7 +344,9 @@ public partial class App : Application
         long expectedEditRevision,
         int containerOrdinal,
         string name,
-        bool? stateValue)
+        bool? stateValue,
+        ProductWorkspaceContainerColorPreset? colorPreset,
+        ProductWorkspaceContainerOpacityPreset? opacityPreset)
     {
         ProductWorkspaceState? state = productWorkspaceSession.State;
         bool creatingFirstConfiguration =
@@ -386,7 +388,9 @@ public partial class App : Application
                     containerOrdinal,
                     normalizedName,
                     newContainer,
-                    stateValue));
+                    stateValue,
+                    colorPreset,
+                    opacityPreset));
         if (!result.IsAccepted)
         {
             return result;
