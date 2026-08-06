@@ -57,6 +57,8 @@ public sealed partial class MainWindow : Window
         int,
         string,
         bool?,
+        ProductWorkspaceContainerColorPreset?,
+        ProductWorkspaceContainerOpacityPreset?,
         ProductWorkspaceContainerCommitResult> _commitProductWorkspaceContainerAction;
     private ProductWorkspaceReferenceReviewPresentation _referenceReview =
         ProductWorkspaceReferenceReviewPresentation.Unavailable;
@@ -96,6 +98,8 @@ public sealed partial class MainWindow : Window
             int,
             string,
             bool?,
+            ProductWorkspaceContainerColorPreset?,
+            ProductWorkspaceContainerOpacityPreset?,
             ProductWorkspaceContainerCommitResult> commitProductWorkspaceContainerAction)
     {
         ArgumentNullException.ThrowIfNull(recoverConfiguration);
@@ -314,6 +318,10 @@ public sealed partial class MainWindow : Window
                 : 0;
         _containerEditor = presentation;
         ProductWorkspaceContainerEditSelector.ItemsSource = presentation.Candidates;
+        ProductWorkspaceContainerColorSelector.ItemsSource =
+            ProductWorkspaceContainerEditPresentation.ColorChoices;
+        ProductWorkspaceContainerOpacitySelector.ItemsSource =
+            ProductWorkspaceContainerEditPresentation.OpacityChoices;
         ProductWorkspaceContainerEditSelector.SelectedIndex =
             previousOrdinal > 0 && previousOrdinal <= presentation.Candidates.Count
                 ? previousOrdinal - 1
@@ -327,6 +335,7 @@ public sealed partial class MainWindow : Window
                 $"Candidates={presentation.Candidates.Count}:" +
                 $"CanCreate={presentation.CanCreate}:CanRename={presentation.CanRename}:" +
                 $"CanUpdateState={presentation.CanUpdateState}:" +
+                $"CanUpdateAppearance={presentation.CanUpdateAppearance}:" +
                 "Changed=False:DesktopFilesChanged=False");
         UpdateProductWorkspaceContainerEditButtons();
     }
@@ -339,6 +348,12 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerEditCandidatePresentation selected)
         {
             ProductWorkspaceContainerNameEditor.Text = selected.DisplayName;
+            ApplyProductWorkspaceContainerAppearanceSelection(selected);
+        }
+        else
+        {
+            ProductWorkspaceContainerColorSelector.SelectedIndex = -1;
+            ProductWorkspaceContainerOpacitySelector.SelectedIndex = -1;
         }
 
         UpdateProductWorkspaceContainerEditButtons();
@@ -348,6 +363,39 @@ public sealed partial class MainWindow : Window
         object sender,
         TextChangedEventArgs e) =>
         UpdateProductWorkspaceContainerEditButtons();
+
+    private void ProductWorkspaceContainerAppearanceSelector_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e) =>
+        UpdateProductWorkspaceContainerEditButtons();
+
+    private static int FindColorChoiceIndex(string color) =>
+        ProductWorkspaceContainerEditPresentation.ColorChoices
+            .Select((choice, index) => (choice, index))
+            .Where(pair => string.Equals(
+                pair.choice.Color,
+                color,
+                StringComparison.OrdinalIgnoreCase))
+            .Select(pair => pair.index)
+            .DefaultIfEmpty(-1)
+            .First();
+
+    private static int FindOpacityChoiceIndex(double opacity) =>
+        ProductWorkspaceContainerEditPresentation.OpacityChoices
+            .Select((choice, index) => (choice, index))
+            .Where(pair => Math.Abs(pair.choice.Opacity - opacity) < 0.000001)
+            .Select(pair => pair.index)
+            .DefaultIfEmpty(-1)
+            .First();
+
+    private void ApplyProductWorkspaceContainerAppearanceSelection(
+        ProductWorkspaceContainerEditCandidatePresentation selected)
+    {
+        ProductWorkspaceContainerColorSelector.SelectedIndex =
+            FindColorChoiceIndex(selected.Color);
+        ProductWorkspaceContainerOpacitySelector.SelectedIndex =
+            FindOpacityChoiceIndex(selected.Opacity);
+    }
 
     private void UpdateProductWorkspaceContainerEditButtons()
     {
@@ -369,6 +417,26 @@ public sealed partial class MainWindow : Window
             _containerEditor.CanUpdateState
             && selected is not null
             && !selected.IsLocked;
+        bool canEditAppearance = _containerEditor.CanUpdateAppearance
+            && selected is not null
+            && !selected.IsLocked;
+        ProductWorkspaceContainerColorSelector.IsEnabled = canEditAppearance;
+        ProductWorkspaceContainerOpacitySelector.IsEnabled = canEditAppearance;
+        ProductWorkspaceContainerColorChoicePresentation? colorChoice =
+            ProductWorkspaceContainerColorSelector.SelectedItem as
+                ProductWorkspaceContainerColorChoicePresentation;
+        ProductWorkspaceContainerOpacityChoicePresentation? opacityChoice =
+            ProductWorkspaceContainerOpacitySelector.SelectedItem as
+                ProductWorkspaceContainerOpacityChoicePresentation;
+        ProductWorkspaceContainerAppearanceButton.IsEnabled =
+            canEditAppearance
+            && colorChoice is not null
+            && opacityChoice is not null
+            && (!string.Equals(
+                    colorChoice.Color,
+                    selected!.Color,
+                    StringComparison.OrdinalIgnoreCase)
+                || Math.Abs(opacityChoice.Opacity - selected.Opacity) >= 0.000001);
         ProductWorkspaceContainerLockButton.Content = selected?.IsLocked == true
             ? "解锁并保存"
             : "锁定并保存";
@@ -430,10 +498,33 @@ public sealed partial class MainWindow : Window
             !selected.IsCollapsed);
     }
 
+    private void ProductWorkspaceContainerAppearanceButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (ProductWorkspaceContainerEditSelector.SelectedItem is not
+                ProductWorkspaceContainerEditCandidatePresentation selected
+            || ProductWorkspaceContainerColorSelector.SelectedItem is not
+                ProductWorkspaceContainerColorChoicePresentation color
+            || ProductWorkspaceContainerOpacitySelector.SelectedItem is not
+                ProductWorkspaceContainerOpacityChoicePresentation opacity)
+        {
+            return;
+        }
+
+        RunProductWorkspaceContainerCommit(
+            ProductWorkspaceContainerCommitAction.SetAppearancePreset,
+            selected.Ordinal,
+            colorPreset: color.Preset,
+            opacityPreset: opacity.Preset);
+    }
+
     private void RunProductWorkspaceContainerCommit(
         ProductWorkspaceContainerCommitAction action,
         int containerOrdinal,
-        bool? stateValue = null)
+        bool? stateValue = null,
+        ProductWorkspaceContainerColorPreset? colorPreset = null,
+        ProductWorkspaceContainerOpacityPreset? opacityPreset = null)
     {
         string name = ProductWorkspaceContainerNameEditor.Text.Trim();
         ProductWorkspaceContainerCommitResult result =
@@ -442,7 +533,9 @@ public sealed partial class MainWindow : Window
                 _containerEditor.EditRevision,
                 containerOrdinal,
                 name,
-                stateValue);
+                stateValue,
+                colorPreset,
+                opacityPreset);
         bool changed = result.IsAccepted;
         ProductWorkspaceContainerEditStatus.Text = result.Status switch
         {
@@ -453,7 +546,9 @@ public sealed partial class MainWindow : Window
                         ? "正式方格名称已更新并进入安全保存队列；桌面文件未改变。"
                         : action == ProductWorkspaceContainerCommitAction.SetLocked
                             ? "正式方格锁定状态已更新并进入安全保存队列；桌面文件未改变。"
-                            : "正式方格折叠状态已更新并进入安全保存队列；桌面文件未改变。",
+                            : action == ProductWorkspaceContainerCommitAction.SetCollapsed
+                                ? "正式方格折叠状态已更新并进入安全保存队列；桌面文件未改变。"
+                                : "正式方格外观预设已更新并进入安全保存队列；桌面文件未改变。",
             ProductWorkspaceContainerCommitStatus.NoChange =>
                 action == ProductWorkspaceContainerCommitAction.Rename
                     ? "名称没有变化，因此没有提交保存。"
@@ -464,7 +559,9 @@ public sealed partial class MainWindow : Window
                 when result.EditError == ProductWorkspaceEditError.ContainerLocked =>
                 action == ProductWorkspaceContainerCommitAction.SetCollapsed
                     ? "所选方格已锁定，请先解锁再更改折叠状态。"
-                    : "所选方格已锁定，未执行重命名。",
+                    : action == ProductWorkspaceContainerCommitAction.SetAppearancePreset
+                        ? "所选方格已锁定，请先解锁再更改外观。"
+                        : "所选方格已锁定，未执行重命名。",
             ProductWorkspaceContainerCommitStatus.ReducerRejected =>
                 "名称或容器状态未通过正式配置校验，未执行保存。",
             ProductWorkspaceContainerCommitStatus.SaveRejected =>

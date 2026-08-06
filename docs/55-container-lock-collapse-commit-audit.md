@@ -58,4 +58,4 @@ NoChange、stale revision、锁定拒绝、无效请求和 save rejection 均不
 
 ## 5. 后续方向
 
-下一切片建议开放颜色与透明度编辑，但必须使用设计 token/受限颜色格式和有限数值，不允许任意 XAML/brush 输入。之后再进入布局坐标/尺寸编辑；布局能力需要与显示拓扑和 DesktopHost 恢复合同对齐。容器删除与跨动作撤销仍应在布局稳定后单独准入。
+颜色与透明度已按固定预设进入[正式容器受限外观提交审计](56-container-finite-appearance-commit-audit.md)。下一切片进入布局坐标/尺寸编辑；布局能力需要与显示拓扑和 DesktopHost 恢复合同对齐。容器删除与跨动作撤销仍应在布局稳定后单独准入。

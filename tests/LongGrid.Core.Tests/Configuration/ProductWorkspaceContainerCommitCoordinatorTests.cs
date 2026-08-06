@@ -273,6 +273,87 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
         Assert.Equal(0, saves.Snapshot.CurrentRevision);
     }
 
+    [Fact]
+    public async Task AppearancePresetUsesFiniteValuesAndPreservesOtherState()
+    {
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        ProductWorkspaceState state = MissingReferenceState();
+        long revision = coordinator.AdvanceExternalRevision();
+
+        ProductWorkspaceContainerCommitResult changed = coordinator.CommitContainer(
+            state,
+            new(
+                ProductWorkspaceContainerCommitAction.SetAppearancePreset,
+                revision,
+                1,
+                string.Empty,
+                ColorPreset: ProductWorkspaceContainerColorPreset.Emerald,
+                OpacityPreset: ProductWorkspaceContainerOpacityPreset.Soft));
+        ProductWorkspaceContainerCommitResult noChange = coordinator.CommitContainer(
+            changed.State!,
+            new(
+                ProductWorkspaceContainerCommitAction.SetAppearancePreset,
+                changed.EditRevision,
+                1,
+                string.Empty,
+                ColorPreset: ProductWorkspaceContainerColorPreset.Emerald,
+                OpacityPreset: ProductWorkspaceContainerOpacityPreset.Soft));
+
+        Assert.True(changed.IsAccepted);
+        Assert.Equal("#059669", changed.State!.Containers[0].Appearance.Color);
+        Assert.Equal(0.72, changed.State.Containers[0].Appearance.Opacity);
+        Assert.False(changed.State.Containers[0].Appearance.Collapsed);
+        Assert.Single(changed.State.Containers[0].Items);
+        Assert.Equal(ProductWorkspaceContainerCommitStatus.NoChange, noChange.Status);
+        Assert.Equal(changed.EditRevision, coordinator.CurrentEditRevision);
+    }
+
+    [Fact]
+    public async Task LockedOrUndefinedAppearancePresetNeverSubmits()
+    {
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        long revision = coordinator.AdvanceExternalRevision();
+        ProductContainerState locked = Container("container-1", "Work") with
+        {
+            IsLocked = true,
+        };
+
+        ProductWorkspaceContainerCommitResult lockedResult =
+            coordinator.CommitContainer(
+                State(locked),
+                new(
+                    ProductWorkspaceContainerCommitAction.SetAppearancePreset,
+                    revision,
+                    1,
+                    string.Empty,
+                    ColorPreset: ProductWorkspaceContainerColorPreset.Azure,
+                    OpacityPreset: ProductWorkspaceContainerOpacityPreset.Strong));
+        ProductWorkspaceContainerCommitResult undefinedResult =
+            coordinator.CommitContainer(
+                State(Container("container-1", "Work")),
+                new(
+                    ProductWorkspaceContainerCommitAction.SetAppearancePreset,
+                    revision,
+                    1,
+                    string.Empty,
+                    ColorPreset: (ProductWorkspaceContainerColorPreset)999,
+                    OpacityPreset: ProductWorkspaceContainerOpacityPreset.Strong));
+
+        Assert.Equal(
+            ProductWorkspaceContainerCommitStatus.ReducerRejected,
+            lockedResult.Status);
+        Assert.Equal(ProductWorkspaceEditError.ContainerLocked, lockedResult.EditError);
+        Assert.Equal(
+            ProductWorkspaceContainerCommitStatus.InvalidRequest,
+            undefinedResult.Status);
+        Assert.Equal(0, saves.Snapshot.CurrentRevision);
+        Assert.Equal(0, workflow.SaveCalls);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
@@ -299,7 +380,7 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
     }
 
     [Fact]
-    public async Task RealStoreReloadsRenameAndCollapseWithoutChangingReferencedFile()
+    public async Task RealStoreReloadsContainerEditsWithoutChangingReferencedFile()
     {
         string sandbox = Path.Combine(
             Path.GetTempPath(),
@@ -355,13 +436,26 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
                         1,
                         string.Empty,
                         StateValue: true));
+            ProductWorkspaceContainerCommitResult appearance =
+                coordinator.CommitContainer(
+                    collapsed.State!,
+                    new(
+                        ProductWorkspaceContainerCommitAction.SetAppearancePreset,
+                        collapsed.EditRevision,
+                        1,
+                        string.Empty,
+                        ColorPreset: ProductWorkspaceContainerColorPreset.Amber,
+                        OpacityPreset: ProductWorkspaceContainerOpacityPreset.Subtle));
             _ = await saves.CompleteAsync();
             ProductConfigurationLoadResult reloaded = await store.LoadAsync();
 
             Assert.True(result.IsAccepted);
             Assert.True(collapsed.IsAccepted);
+            Assert.True(appearance.IsAccepted);
             Assert.Equal("After", reloaded.Document!.Containers[0].Name);
             Assert.True(reloaded.Document.Containers[0].Appearance.Collapsed);
+            Assert.Equal("#D97706", reloaded.Document.Containers[0].Appearance.Color);
+            Assert.Equal(0.56, reloaded.Document.Containers[0].Appearance.Opacity);
             Assert.True(File.Exists(referencedPath));
             Assert.Equal(
                 "keep-original-file",

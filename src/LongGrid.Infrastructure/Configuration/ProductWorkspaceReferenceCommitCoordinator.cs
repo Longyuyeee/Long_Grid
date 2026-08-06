@@ -32,6 +32,24 @@ public enum ProductWorkspaceContainerCommitAction
     Rename,
     SetLocked,
     SetCollapsed,
+    SetAppearancePreset,
+}
+
+public enum ProductWorkspaceContainerColorPreset
+{
+    Azure,
+    Indigo,
+    Slate,
+    Emerald,
+    Amber,
+}
+
+public enum ProductWorkspaceContainerOpacityPreset
+{
+    Solid,
+    Strong,
+    Soft,
+    Subtle,
 }
 
 public enum ProductWorkspaceContainerCommitStatus
@@ -50,7 +68,9 @@ public sealed record ProductWorkspaceContainerCommitRequest(
     int ContainerOrdinal,
     string Name,
     ProductContainerState? NewContainer = null,
-    bool? StateValue = null);
+    bool? StateValue = null,
+    ProductWorkspaceContainerColorPreset? ColorPreset = null,
+    ProductWorkspaceContainerOpacityPreset? OpacityPreset = null);
 
 public sealed record ProductWorkspaceContainerCommitResult(
     ProductWorkspaceContainerCommitStatus Status,
@@ -204,6 +224,8 @@ public sealed class ProductWorkspaceCommitCoordinator
                     when request.NewContainer is not null
                         && request.ContainerOrdinal == 0
                         && request.StateValue is null
+                        && request.ColorPreset is null
+                        && request.OpacityPreset is null
                         && string.Equals(
                             request.Name,
                             request.NewContainer.Name,
@@ -214,6 +236,8 @@ public sealed class ProductWorkspaceCommitCoordinator
                 ProductWorkspaceContainerCommitAction.Rename
                     when request.NewContainer is null
                         && request.StateValue is null
+                        && request.ColorPreset is null
+                        && request.OpacityPreset is null
                         && target is not null =>
                     ProductWorkspaceReducer.RenameContainer(
                         state,
@@ -222,6 +246,8 @@ public sealed class ProductWorkspaceCommitCoordinator
                 ProductWorkspaceContainerCommitAction.SetLocked
                     when request.NewContainer is null
                         && request.StateValue is not null
+                        && request.ColorPreset is null
+                        && request.OpacityPreset is null
                         && target is not null =>
                     ProductWorkspaceReducer.SetContainerLocked(
                         state,
@@ -230,6 +256,8 @@ public sealed class ProductWorkspaceCommitCoordinator
                 ProductWorkspaceContainerCommitAction.SetCollapsed
                     when request.NewContainer is null
                         && request.StateValue is not null
+                        && request.ColorPreset is null
+                        && request.OpacityPreset is null
                         && target is not null =>
                     ProductWorkspaceReducer.UpdateAppearance(
                         state,
@@ -237,6 +265,22 @@ public sealed class ProductWorkspaceCommitCoordinator
                         target.Appearance with
                         {
                             Collapsed = request.StateValue.Value,
+                        }),
+                ProductWorkspaceContainerCommitAction.SetAppearancePreset
+                    when request.NewContainer is null
+                        && request.StateValue is null
+                        && request.ColorPreset is not null
+                        && request.OpacityPreset is not null
+                        && Enum.IsDefined(request.ColorPreset.Value)
+                        && Enum.IsDefined(request.OpacityPreset.Value)
+                        && target is not null =>
+                    ProductWorkspaceReducer.UpdateAppearance(
+                        state,
+                        target.Id,
+                        target.Appearance with
+                        {
+                            Color = ResolveColor(request.ColorPreset.Value),
+                            Opacity = ResolveOpacity(request.OpacityPreset.Value),
                         }),
                 _ => null!,
             };
@@ -294,6 +338,27 @@ public sealed class ProductWorkspaceCommitCoordinator
                 projection.Document);
         }
     }
+
+    public static string ResolveColor(ProductWorkspaceContainerColorPreset preset) =>
+        preset switch
+        {
+            ProductWorkspaceContainerColorPreset.Azure => "#2563EB",
+            ProductWorkspaceContainerColorPreset.Indigo => "#5B5FF5",
+            ProductWorkspaceContainerColorPreset.Slate => "#334155",
+            ProductWorkspaceContainerColorPreset.Emerald => "#059669",
+            ProductWorkspaceContainerColorPreset.Amber => "#D97706",
+            _ => throw new ArgumentOutOfRangeException(nameof(preset)),
+        };
+
+    public static double ResolveOpacity(
+        ProductWorkspaceContainerOpacityPreset preset) => preset switch
+        {
+            ProductWorkspaceContainerOpacityPreset.Solid => 1.0,
+            ProductWorkspaceContainerOpacityPreset.Strong => 0.88,
+            ProductWorkspaceContainerOpacityPreset.Soft => 0.72,
+            ProductWorkspaceContainerOpacityPreset.Subtle => 0.56,
+            _ => throw new ArgumentOutOfRangeException(nameof(preset)),
+        };
 
     private ProductWorkspaceContainerCommitResult ContainerFailure(
         ProductWorkspaceContainerCommitStatus status,
