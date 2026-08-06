@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、116-ID UIA、响应式布局、正式工作区视图和有限产品会话。用户桌面与公共桌面第一层通过 generation/latest-wins 只读适配器接入；只有双来源完整成功才作为权威 Catalog。正式 session 可投影为脱敏容器/引用视图；有限容器编辑与引用编辑共享同一 edit revision、v1 投影和 App-owned 保存控制器。产品布局恢复预览已接入生产级只读当前显示拓扑：只有 CCD/Monitor 数量、强身份、Bounds、可用性、旋转和 WorkArea 全部对账才权威；否则保持 Awaiting，不冒充 Automatic。v1 仍缺保存时拓扑，因此强样本成立后停在 SavedTopologyMissing。所有桌面文件与真实窗口操作仍为零。真实 UIA 复跑受当前 Windows 会话残留无窗口单实例污染而保持 Inconclusive；自动保留/容量阈值未批准。Issue #23 首发范围已批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
+> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、116-ID UIA、响应式布局、正式工作区视图和有限产品会话。用户桌面与公共桌面第一层通过 generation/latest-wins 只读适配器接入；只有双来源完整成功才作为权威 Catalog。正式 session 可投影为脱敏容器/引用视图；有限容器编辑与引用编辑共享同一 edit revision、v2 投影和 App-owned 保存控制器。v2 已保存布局提交时的脱敏显示拓扑，旧 v1 在内存迁移后明确保持“无保存快照”；只有保存时与当前两侧证据均有效时才进入恢复规划。所有桌面文件与真实窗口操作仍为零。真实 UIA 复跑受当前 Windows 会话残留无窗口单实例污染而保持 Inconclusive；自动保留/容量阈值未批准。Issue #23 首发范围已批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
 
 ## 产品原则
 
@@ -75,6 +75,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格正式容器受限布局预设提交审计](docs/57-container-bounded-placement-commit-audit.md)
 - [Long方格产品布局恢复只读预览合同审计](docs/58-product-layout-recovery-preview-contract-audit.md)
 - [Long方格产品显示拓扑只读适配器审计](docs/59-product-display-topology-adapter-audit.md)
+- [Long方格 v2 保存时显示拓扑合同与迁移审计](docs/60-versioned-saved-display-topology-audit.md)
 - [正式产品配置存储适配器审计](docs/33-product-configuration-store-audit.md)
 - [配置 latest-wins 与 App 关闭排空审计](docs/34-configuration-shutdown-drain-audit.md)
 - [贡献指南](CONTRIBUTING.md)
@@ -88,7 +89,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 首发范围已批准，仍需完成 5 人验证、#19 输入/Narrator/系统表面和 #20 动态显示矩阵；#24 已具备正式配置存储、有限产品会话、权威门禁只读 Catalog、有限产品编辑、布局恢复双拓扑门禁预览和生产级只读当前拓扑适配器。下一步设计保存时拓扑的版本化配置合同与迁移；同时仍需在干净会话关闭 116-ID UIA Inconclusive。Shell 虚拟项、DesktopHost 真实提交、自动保留/容量策略和真实测试卷仍 Pending。许可证选择延期到正式分发或接受外部贡献之前。
+按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 首发范围已批准，仍需完成 5 人验证、#19 输入/Narrator/系统表面和 #20 动态显示矩阵；#24 已具备正式配置存储、有限产品会话、权威门禁只读 Catalog、有限产品编辑、生产级只读当前拓扑、v2 保存时拓扑和布局恢复双拓扑门禁预览。下一步应增加用户可审查的恢复确认状态与令牌，仍只提交配置布局，不连接 DesktopHost 或移动真实窗口；同时需在干净会话关闭 116-ID UIA Inconclusive。Shell 虚拟项、DesktopHost 真实提交、自动保留/容量策略和真实测试卷仍 Pending。许可证选择延期到正式分发或接受外部贡献之前。
 
 ## 开发启动
 

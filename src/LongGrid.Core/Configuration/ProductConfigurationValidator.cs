@@ -2,13 +2,17 @@ namespace LongGrid.Core.Configuration;
 
 public static class ProductConfigurationLimits
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
+    public const int PreviousSchemaVersion = 1;
     public const int MaximumSerializedBytes = 4 * 1024 * 1024;
     public const int MaximumContainers = 100;
     public const int MaximumItems = 500;
     public const int MaximumIdLength = 128;
     public const int MaximumNameLength = 256;
     public const int MaximumDisplayKeyLength = 256;
+    public const int MaximumSavedDisplays = 32;
+    public const int MaximumDisplayCoordinate = 1_000_000;
+    public const int MaximumDisplayDimension = 100_000;
     public const int MaximumTargetLength = 32_768;
     public const int MaximumExtensionPropertiesPerObject = 64;
     public const int MaximumExtensionPropertyNameLength = 128;
@@ -30,6 +34,7 @@ public enum ProductConfigurationError
     InvalidContainer,
     InvalidAppearance,
     InvalidPlacement,
+    InvalidDisplayTopology,
     TooManyItems,
     InvalidItem,
     InvalidExtensionData,
@@ -66,7 +71,8 @@ public static class ProductConfigurationValidator
             document.ExtensionData,
             "schemaVersion",
             "profileId",
-            "containers"))
+            "containers",
+            "savedDisplayTopology"))
         {
             return new(ProductConfigurationError.InvalidExtensionData);
         }
@@ -74,6 +80,11 @@ public static class ProductConfigurationValidator
         if (document.Containers.Count > ProductConfigurationLimits.MaximumContainers)
         {
             return new(ProductConfigurationError.TooManyContainers);
+        }
+
+        if (!IsValidSavedDisplayTopology(document.SavedDisplayTopology))
+        {
+            return new(ProductConfigurationError.InvalidDisplayTopology);
         }
 
         HashSet<string> objectIds = new(StringComparer.Ordinal);
@@ -169,6 +180,77 @@ public static class ProductConfigurationValidator
 
         return ProductConfigurationValidationResult.Valid;
     }
+
+    private static bool IsValidSavedDisplayTopology(
+        IReadOnlyList<SavedDisplayConfiguration>? displays)
+    {
+        if (displays is null)
+        {
+            return true;
+        }
+
+        if (displays.Count is 0 or > ProductConfigurationLimits.MaximumSavedDisplays
+            || displays.Count(display => display?.IsPrimary == true) != 1)
+        {
+            return false;
+        }
+
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (SavedDisplayConfiguration? display in displays)
+        {
+            if (display is null
+                || !IsBoundedText(
+                    display.StableId,
+                    ProductConfigurationLimits.MaximumDisplayKeyLength)
+                || !ids.Add(display.StableId)
+                || display.EffectiveDpi is < 48 or > 768
+                || !Enum.IsDefined(display.Rotation)
+                || display.Rotation == LongGrid.Core.DesktopHost.DisplayRotation.Unknown
+                || !IsValidRect(display.Bounds)
+                || !IsValidRect(display.WorkArea)
+                || !Contains(display.Bounds, display.WorkArea)
+                || !IsValidExtensionData(
+                    display.ExtensionData,
+                    "stableId",
+                    "bounds",
+                    "workArea",
+                    "effectiveDpi",
+                    "rotation",
+                    "isPrimary")
+                || !IsValidRectExtensionData(display.Bounds)
+                || !IsValidRectExtensionData(display.WorkArea))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsValidRect(PixelRectConfiguration? rect) =>
+        rect is not null
+        && Math.Abs((long)rect.Left) <= ProductConfigurationLimits.MaximumDisplayCoordinate
+        && Math.Abs((long)rect.Top) <= ProductConfigurationLimits.MaximumDisplayCoordinate
+        && rect.Width is > 0 and <= ProductConfigurationLimits.MaximumDisplayDimension
+        && rect.Height is > 0 and <= ProductConfigurationLimits.MaximumDisplayDimension
+        && (long)rect.Left + rect.Width <= ProductConfigurationLimits.MaximumDisplayCoordinate
+        && (long)rect.Top + rect.Height <= ProductConfigurationLimits.MaximumDisplayCoordinate;
+
+    private static bool Contains(
+        PixelRectConfiguration bounds,
+        PixelRectConfiguration workArea) =>
+        workArea.Left >= bounds.Left
+        && workArea.Top >= bounds.Top
+        && (long)workArea.Left + workArea.Width <= (long)bounds.Left + bounds.Width
+        && (long)workArea.Top + workArea.Height <= (long)bounds.Top + bounds.Height;
+
+    private static bool IsValidRectExtensionData(PixelRectConfiguration rect) =>
+        IsValidExtensionData(
+            rect.ExtensionData,
+            "left",
+            "top",
+            "width",
+            "height");
 
     private static bool IsValidAppearance(ContainerAppearanceConfiguration? appearance) =>
         appearance is not null

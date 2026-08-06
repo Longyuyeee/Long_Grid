@@ -76,6 +76,8 @@ public static class ProductConfigurationJson
                 ProductConfigurationError.MalformedJson);
         }
 
+        document = Migrate(document);
+
         ProductConfigurationValidationResult validation =
             ProductConfigurationValidator.Validate(document);
         if (!validation.IsValid)
@@ -84,6 +86,27 @@ public static class ProductConfigurationJson
         }
 
         return document;
+    }
+
+    private static ProductConfigurationDocument Migrate(
+        ProductConfigurationDocument document)
+    {
+        if (document.SchemaVersion == ProductConfigurationLimits.CurrentSchemaVersion)
+        {
+            return document;
+        }
+
+        if (document.SchemaVersion == ProductConfigurationLimits.PreviousSchemaVersion
+            && document.SavedDisplayTopology is null)
+        {
+            return document with
+            {
+                SchemaVersion = ProductConfigurationLimits.CurrentSchemaVersion,
+            };
+        }
+
+        throw new ProductConfigurationContractException(
+            ProductConfigurationError.UnsupportedSchema);
     }
 
     private static JsonSerializerOptions CreateOptions() =>

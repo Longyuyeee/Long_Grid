@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using LongGrid.Core.Configuration;
+using LongGrid.Core.DesktopHost;
 
 namespace LongGrid.Core.Tests.Configuration;
 
@@ -81,6 +82,8 @@ public sealed class ProductConfigurationContractTests
         using JsonDocument roundTrip = JsonDocument.Parse(serialized);
 
         JsonElement root = roundTrip.RootElement;
+        Assert.Equal(2, root.GetProperty("schemaVersion").GetInt32());
+        Assert.Null(document.SavedDisplayTopology);
         JsonElement container = root.GetProperty("containers")[0];
         Assert.True(root.GetProperty("rootFuture").GetProperty("enabled").GetBoolean());
         Assert.Equal(7, container.GetProperty("containerFuture").GetInt32());
@@ -100,7 +103,7 @@ public sealed class ProductConfigurationContractTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(2)]
+    [InlineData(3)]
     public void UnsupportedSchemaIsRejectedWithoutDocumentContent(int schemaVersion)
     {
         ProductConfigurationDocument source = CreateValidDocument() with
@@ -114,6 +117,193 @@ public sealed class ProductConfigurationContractTests
 
         Assert.Equal(ProductConfigurationError.UnsupportedSchema, exception.Error);
         Assert.DoesNotContain("container-1", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SavedDisplayTopologyRoundTripsInCurrentSchema()
+    {
+        ProductConfigurationDocument source = CreateValidDocument() with
+        {
+            SavedDisplayTopology =
+            [
+                new SavedDisplayConfiguration
+                {
+                    StableId = "display-a",
+                    Bounds = new() { Left = -1920, Top = 0, Width = 1920, Height = 1080 },
+                    WorkArea = new() { Left = -1920, Top = 0, Width = 1920, Height = 1040 },
+                    EffectiveDpi = 144,
+                    Rotation = DisplayRotation.Landscape,
+                    IsPrimary = true,
+                },
+            ],
+        };
+
+        ProductConfigurationDocument restored = ProductConfigurationJson.Deserialize(
+            ProductConfigurationJson.SerializeToUtf8Bytes(source));
+
+        Assert.Equivalent(source, restored, strict: true);
+    }
+
+    [Fact]
+    public void VersionOneDocumentMigratesWithoutInventingSavedTopology()
+    {
+        byte[] source = Encoding.UTF8.GetBytes(
+            """
+            { "schemaVersion": 1, "profileId": "default", "containers": [] }
+            """);
+
+        ProductConfigurationDocument migrated = ProductConfigurationJson.Deserialize(source);
+
+        Assert.Equal(ProductConfigurationLimits.CurrentSchemaVersion, migrated.SchemaVersion);
+        Assert.Null(migrated.SavedDisplayTopology);
+    }
+
+    [Fact]
+    public void VersionOneCannotSmuggleVersionTwoTopology()
+    {
+        byte[] source = Encoding.UTF8.GetBytes(
+            """
+            {
+              "schemaVersion": 1,
+              "profileId": "default",
+              "containers": [],
+              "savedDisplayTopology": []
+            }
+            """);
+
+        ProductConfigurationContractException exception = Assert.Throws<
+            ProductConfigurationContractException>(
+            () => ProductConfigurationJson.Deserialize(source));
+
+        Assert.Equal(ProductConfigurationError.UnsupportedSchema, exception.Error);
+    }
+
+    [Fact]
+    public void FutureSchemaIsRejectedDuringDeserialize()
+    {
+        byte[] source = Encoding.UTF8.GetBytes(
+            """
+            { "schemaVersion": 3, "profileId": "default", "containers": [] }
+            """);
+
+        ProductConfigurationContractException exception = Assert.Throws<
+            ProductConfigurationContractException>(
+            () => ProductConfigurationJson.Deserialize(source));
+
+        Assert.Equal(ProductConfigurationError.UnsupportedSchema, exception.Error);
+    }
+
+    [Fact]
+    public void InvalidSavedDisplaySetShapesAreRejected()
+    {
+        SavedDisplayConfiguration valid = new()
+        {
+            StableId = "display-a",
+            Bounds = new() { Width = 1920, Height = 1080 },
+            WorkArea = new() { Width = 1920, Height = 1040 },
+            EffectiveDpi = 96,
+            Rotation = DisplayRotation.Landscape,
+            IsPrimary = true,
+        };
+        IReadOnlyList<IReadOnlyList<SavedDisplayConfiguration>> invalidSets =
+        [
+            Array.Empty<SavedDisplayConfiguration>(),
+            [valid with { IsPrimary = false }],
+            [valid, valid with { IsPrimary = false }],
+            [valid with { StableId = " " }],
+            [valid with { Rotation = DisplayRotation.Unknown }],
+            [valid with { Rotation = (DisplayRotation)99 }],
+            [valid with { EffectiveDpi = 769 }],
+            [valid with { Bounds = valid.Bounds with { Left = 1_000_001 } }],
+            [valid with { Bounds = valid.Bounds with { Width = 100_001 } }],
+            [valid with
+            {
+                ExtensionData = new Dictionary<string, JsonElement>
+                {
+                    ["stableId"] = JsonSerializer.SerializeToElement("shadow"),
+                },
+            }],
+            [valid with
+            {
+                Bounds = valid.Bounds with
+                {
+                    ExtensionData = new Dictionary<string, JsonElement>
+                    {
+                        ["left"] = JsonSerializer.SerializeToElement(1),
+                    },
+                },
+            }],
+            Enumerable.Repeat(valid, ProductConfigurationLimits.MaximumSavedDisplays + 1)
+                .ToArray(),
+        ];
+
+        foreach (IReadOnlyList<SavedDisplayConfiguration> displays in invalidSets)
+        {
+            ProductConfigurationValidationResult result =
+                ProductConfigurationValidator.Validate(
+                    CreateValidDocument() with { SavedDisplayTopology = displays });
+
+            Assert.Equal(ProductConfigurationError.InvalidDisplayTopology, result.Error);
+        }
+
+        ProductConfigurationValidationResult nullEntry =
+            ProductConfigurationValidator.Validate(
+                CreateValidDocument() with
+                {
+                    SavedDisplayTopology = new SavedDisplayConfiguration[] { null! },
+                });
+        Assert.Equal(
+            ProductConfigurationError.InvalidDisplayTopology,
+            nullEntry.Error);
+    }
+
+    [Theory]
+    [InlineData(0, 0, 1920, 1080, 0, 0, 1920, 1040, 96, true)]
+    [InlineData(0, 0, 0, 1080, 0, 0, 1920, 1040, 96, false)]
+    [InlineData(0, 0, 1920, 1080, -1, 0, 1920, 1040, 96, false)]
+    [InlineData(0, 0, 1920, 1080, 0, 0, 1920, 1040, 47, false)]
+    public void SavedDisplayTopologyValidationIsFinite(
+        int left,
+        int top,
+        int width,
+        int height,
+        int workLeft,
+        int workTop,
+        int workWidth,
+        int workHeight,
+        uint dpi,
+        bool expectedValid)
+    {
+        ProductConfigurationDocument source = CreateValidDocument() with
+        {
+            SavedDisplayTopology =
+            [
+                new SavedDisplayConfiguration
+                {
+                    StableId = "display-a",
+                    Bounds = new() { Left = left, Top = top, Width = width, Height = height },
+                    WorkArea = new()
+                    {
+                        Left = workLeft,
+                        Top = workTop,
+                        Width = workWidth,
+                        Height = workHeight,
+                    },
+                    EffectiveDpi = dpi,
+                    Rotation = DisplayRotation.Landscape,
+                    IsPrimary = true,
+                },
+            ],
+        };
+
+        ProductConfigurationValidationResult result =
+            ProductConfigurationValidator.Validate(source);
+
+        Assert.Equal(expectedValid, result.IsValid);
+        if (!expectedValid)
+        {
+            Assert.Equal(ProductConfigurationError.InvalidDisplayTopology, result.Error);
+        }
     }
 
     [Fact]

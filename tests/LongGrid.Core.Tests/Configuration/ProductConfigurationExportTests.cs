@@ -696,7 +696,7 @@ public sealed class ProductConfigurationExportTests
 
     private static ProductConfigurationDocument CreateDocument(string profileId) => new()
     {
-        SchemaVersion = 1,
+        SchemaVersion = ProductConfigurationLimits.CurrentSchemaVersion,
         ProfileId = profileId,
         Containers =
         [
