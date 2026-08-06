@@ -510,7 +510,7 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 
 ## 21. 仓库落地顺序
 
-当前已完成基础解决方案、Core、测试、PR CI、桌面/Shell 数据链、DesktopHost/显示恢复系列探针、正式配置存储、latest-wins 关闭排空、完整单实例激活、恢复/导入/导出/证据事务、文件安全与缩略图 worker 探针；开发期 App 已具备正式工作区视图、引用编辑提交，以及容器首次创建/重命名。所有产品编辑必须通过统一 `ProductWorkspaceCommitCoordinator` 的共享 edit revision、v1 投影、唯一保存控制器和内存基线重建；不得为不同编辑类型建立互不知情的 revision。桌面文件操作不得与配置编辑混合准入。未获批的保留期限或容量阈值不得转化为后台删除。主干保护要求 `build-test`，CI 强制覆盖率、配置/恢复状态、单实例源码合同、文件安全、缩略图 worker 与依赖漏洞门禁；剩余门禁由 `Phase 0 Exit` milestone 与 Issue #19–#24 跟踪，实机与负责人步骤见[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)。多数能力仍为 Conditional Pass。当前事实与详细差距见[开发状态与后续方向审计](11-development-status-and-direction-audit.md)。
+当前已完成基础解决方案、Core、测试、PR CI、桌面/Shell 数据链、DesktopHost/显示恢复系列探针、正式配置存储、latest-wins 关闭排空、完整单实例激活、恢复/导入/导出/证据事务、文件安全与缩略图 worker 探针；开发期 App 已具备正式工作区视图、引用编辑提交，以及容器创建/重命名/锁定/折叠。所有产品编辑必须通过统一 `ProductWorkspaceCommitCoordinator` 的共享 edit revision、v1 投影、唯一保存控制器和内存基线重建；锁定容器不得被外观、布局或内容编辑绕过，只有显式解锁例外。桌面文件操作不得与配置编辑混合准入。未获批的保留期限或容量阈值不得转化为后台删除。主干保护要求 `build-test`，CI 强制覆盖率、配置/恢复状态、单实例源码合同、文件安全、缩略图 worker 与依赖漏洞门禁；剩余门禁由 `Phase 0 Exit` milestone 与 Issue #19–#24 跟踪，实机与负责人步骤见[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)。多数能力仍为 Conditional Pass。当前事实与详细差距见[开发状态与后续方向审计](11-development-status-and-direction-audit.md)。
 
 后续按以下顺序继续：
 

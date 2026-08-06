@@ -56,6 +56,7 @@ public sealed partial class MainWindow : Window
         long,
         int,
         string,
+        bool?,
         ProductWorkspaceContainerCommitResult> _commitProductWorkspaceContainerAction;
     private ProductWorkspaceReferenceReviewPresentation _referenceReview =
         ProductWorkspaceReferenceReviewPresentation.Unavailable;
@@ -94,6 +95,7 @@ public sealed partial class MainWindow : Window
             long,
             int,
             string,
+            bool?,
             ProductWorkspaceContainerCommitResult> commitProductWorkspaceContainerAction)
     {
         ArgumentNullException.ThrowIfNull(recoverConfiguration);
@@ -306,10 +308,16 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerEditPresentation presentation)
     {
         ArgumentNullException.ThrowIfNull(presentation);
+        int previousOrdinal = ProductWorkspaceContainerEditSelector.SelectedItem is
+            ProductWorkspaceContainerEditCandidatePresentation previous
+                ? previous.Ordinal
+                : 0;
         _containerEditor = presentation;
         ProductWorkspaceContainerEditSelector.ItemsSource = presentation.Candidates;
         ProductWorkspaceContainerEditSelector.SelectedIndex =
-            presentation.Candidates.Count > 0 ? 0 : -1;
+            previousOrdinal > 0 && previousOrdinal <= presentation.Candidates.Count
+                ? previousOrdinal - 1
+                : presentation.Candidates.Count > 0 ? 0 : -1;
         ProductWorkspaceContainerEditStatus.Text = presentation.CanCreate
             ? "仅更改 Long方格配置；不会移动、删除或重命名桌面文件。"
             : "当前会话保持只读；容器配置未改变。";
@@ -318,6 +326,7 @@ public sealed partial class MainWindow : Window
             $"WorkspaceContainerEditReady:Revision={presentation.EditRevision}:" +
                 $"Candidates={presentation.Candidates.Count}:" +
                 $"CanCreate={presentation.CanCreate}:CanRename={presentation.CanRename}:" +
+                $"CanUpdateState={presentation.CanUpdateState}:" +
                 "Changed=False:DesktopFilesChanged=False");
         UpdateProductWorkspaceContainerEditButtons();
     }
@@ -351,6 +360,22 @@ public sealed partial class MainWindow : Window
             && hasName
             && ProductWorkspaceContainerEditSelector.SelectedItem is
                 ProductWorkspaceContainerEditCandidatePresentation;
+        ProductWorkspaceContainerEditCandidatePresentation? selected =
+            ProductWorkspaceContainerEditSelector.SelectedItem as
+                ProductWorkspaceContainerEditCandidatePresentation;
+        ProductWorkspaceContainerLockButton.IsEnabled =
+            _containerEditor.CanUpdateState && selected is not null;
+        ProductWorkspaceContainerCollapseButton.IsEnabled =
+            _containerEditor.CanUpdateState
+            && selected is not null
+            && !selected.IsLocked;
+        ProductWorkspaceContainerLockButton.Content = selected?.IsLocked == true
+            ? "解锁并保存"
+            : "锁定并保存";
+        ProductWorkspaceContainerCollapseButton.Content =
+            selected?.IsCollapsed == true
+                ? "展开并保存"
+                : "折叠并保存";
     }
 
     private void ProductWorkspaceContainerCreateButton_Click(
@@ -373,9 +398,42 @@ public sealed partial class MainWindow : Window
             ordinal);
     }
 
+    private void ProductWorkspaceContainerLockButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (ProductWorkspaceContainerEditSelector.SelectedItem is not
+            ProductWorkspaceContainerEditCandidatePresentation selected)
+        {
+            return;
+        }
+
+        RunProductWorkspaceContainerCommit(
+            ProductWorkspaceContainerCommitAction.SetLocked,
+            selected.Ordinal,
+            !selected.IsLocked);
+    }
+
+    private void ProductWorkspaceContainerCollapseButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (ProductWorkspaceContainerEditSelector.SelectedItem is not
+            ProductWorkspaceContainerEditCandidatePresentation selected)
+        {
+            return;
+        }
+
+        RunProductWorkspaceContainerCommit(
+            ProductWorkspaceContainerCommitAction.SetCollapsed,
+            selected.Ordinal,
+            !selected.IsCollapsed);
+    }
+
     private void RunProductWorkspaceContainerCommit(
         ProductWorkspaceContainerCommitAction action,
-        int containerOrdinal)
+        int containerOrdinal,
+        bool? stateValue = null)
     {
         string name = ProductWorkspaceContainerNameEditor.Text.Trim();
         ProductWorkspaceContainerCommitResult result =
@@ -383,21 +441,30 @@ public sealed partial class MainWindow : Window
                 action,
                 _containerEditor.EditRevision,
                 containerOrdinal,
-                name);
+                name,
+                stateValue);
         bool changed = result.IsAccepted;
         ProductWorkspaceContainerEditStatus.Text = result.Status switch
         {
             ProductWorkspaceContainerCommitStatus.Accepted =>
                 action == ProductWorkspaceContainerCommitAction.Create
                     ? "正式方格已创建并进入安全保存队列；桌面文件未改变。"
-                    : "正式方格名称已更新并进入安全保存队列；桌面文件未改变。",
+                    : action == ProductWorkspaceContainerCommitAction.Rename
+                        ? "正式方格名称已更新并进入安全保存队列；桌面文件未改变。"
+                        : action == ProductWorkspaceContainerCommitAction.SetLocked
+                            ? "正式方格锁定状态已更新并进入安全保存队列；桌面文件未改变。"
+                            : "正式方格折叠状态已更新并进入安全保存队列；桌面文件未改变。",
             ProductWorkspaceContainerCommitStatus.NoChange =>
-                "名称没有变化，因此没有提交保存。",
+                action == ProductWorkspaceContainerCommitAction.Rename
+                    ? "名称没有变化，因此没有提交保存。"
+                    : "容器状态没有变化，因此没有提交保存。",
             ProductWorkspaceContainerCommitStatus.StaleEditRevision =>
                 "工作区已发生更新，请按当前列表重新操作。",
             ProductWorkspaceContainerCommitStatus.ReducerRejected
                 when result.EditError == ProductWorkspaceEditError.ContainerLocked =>
-                "所选方格已锁定，未执行重命名。",
+                action == ProductWorkspaceContainerCommitAction.SetCollapsed
+                    ? "所选方格已锁定，请先解锁再更改折叠状态。"
+                    : "所选方格已锁定，未执行重命名。",
             ProductWorkspaceContainerCommitStatus.ReducerRejected =>
                 "名称或容器状态未通过正式配置校验，未执行保存。",
             ProductWorkspaceContainerCommitStatus.SaveRejected =>
@@ -409,7 +476,8 @@ public sealed partial class MainWindow : Window
             $"WorkspaceContainerEdit:{result.Status}:Action={action}:" +
                 $"Revision={result.EditRevision}:Changed={changed}:" +
                 "DesktopFilesChanged=False");
-        if (changed)
+        if (changed && action is ProductWorkspaceContainerCommitAction.Create
+            or ProductWorkspaceContainerCommitAction.Rename)
         {
             ProductWorkspaceContainerNameEditor.Text = string.Empty;
         }

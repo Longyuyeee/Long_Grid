@@ -4,7 +4,9 @@ namespace LongGrid.App;
 
 internal sealed record ProductWorkspaceContainerEditCandidatePresentation(
     int Ordinal,
-    string DisplayName)
+    string DisplayName,
+    bool IsLocked,
+    bool IsCollapsed)
 {
     public string AccessibilityName => $"方格 {Ordinal}，{DisplayName}";
 }
@@ -13,6 +15,7 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
     long EditRevision,
     bool CanCreate,
     bool CanRename,
+    bool CanUpdateState,
     IReadOnlyList<ProductWorkspaceContainerEditCandidatePresentation> Candidates)
 {
     public static ProductWorkspaceContainerEditPresentation Unavailable { get; } =
@@ -20,6 +23,7 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
             0,
             CanCreate: false,
             CanRename: false,
+            CanUpdateState: false,
             Array.Empty<ProductWorkspaceContainerEditCandidatePresentation>());
 
     public static ProductWorkspaceContainerEditPresentation Create(
@@ -31,12 +35,15 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
         ProductWorkspaceContainerEditCandidatePresentation[] candidates = containers
             .Select(container => new ProductWorkspaceContainerEditCandidatePresentation(
                 container.Ordinal,
-                container.UserVisibleName))
+                container.UserVisibleName,
+                container.IsLocked,
+                container.IsCollapsed))
             .ToArray();
         return new(
             editRevision,
             CanCreate: canEdit,
             CanRename: canEdit && candidates.Length > 0,
+            CanUpdateState: canEdit && candidates.Length > 0,
             candidates);
     }
 
@@ -46,5 +53,6 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
             editRevision,
             CanCreate: true,
             CanRename: false,
+            CanUpdateState: false,
             Array.Empty<ProductWorkspaceContainerEditCandidatePresentation>());
 }

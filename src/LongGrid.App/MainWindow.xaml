@@ -346,6 +346,22 @@
                                                 Content="重命名并保存"
                                                 IsEnabled="False" />
                                         </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button
+                                                x:Name="ProductWorkspaceContainerLockButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceContainerLockButton"
+                                                AutomationProperties.Name="切换所选正式方格锁定状态并保存"
+                                                Click="ProductWorkspaceContainerLockButton_Click"
+                                                Content="锁定并保存"
+                                                IsEnabled="False" />
+                                            <Button
+                                                x:Name="ProductWorkspaceContainerCollapseButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceContainerCollapseButton"
+                                                AutomationProperties.Name="切换所选正式方格折叠状态并保存"
+                                                Click="ProductWorkspaceContainerCollapseButton_Click"
+                                                Content="折叠并保存"
+                                                IsEnabled="False" />
+                                        </StackPanel>
                                         <TextBlock
                                             x:Name="ProductWorkspaceContainerEditStatus"
                                             AutomationProperties.AutomationId="ProductWorkspaceContainerEditStatus"

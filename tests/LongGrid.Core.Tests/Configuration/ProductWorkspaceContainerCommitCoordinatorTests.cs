@@ -172,6 +172,107 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
         Assert.Equal(0, workflow.SaveCalls);
     }
 
+    [Fact]
+    public async Task ExplicitLockBlocksRenameAndExplicitUnlockStillSucceeds()
+    {
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        ProductWorkspaceState state = State(Container("container-1", "Work"));
+        long revision = coordinator.AdvanceExternalRevision();
+
+        ProductWorkspaceContainerCommitResult locked = coordinator.CommitContainer(
+            state,
+            new(
+                ProductWorkspaceContainerCommitAction.SetLocked,
+                revision,
+                1,
+                string.Empty,
+                StateValue: true));
+        ProductWorkspaceContainerCommitResult rename = coordinator.CommitContainer(
+            locked.State!,
+            new(
+                ProductWorkspaceContainerCommitAction.Rename,
+                locked.EditRevision,
+                1,
+                "Blocked"));
+        ProductWorkspaceContainerCommitResult unlocked = coordinator.CommitContainer(
+            locked.State!,
+            new(
+                ProductWorkspaceContainerCommitAction.SetLocked,
+                locked.EditRevision,
+                1,
+                string.Empty,
+                StateValue: false));
+
+        Assert.True(locked.IsAccepted);
+        Assert.True(locked.State!.Containers[0].IsLocked);
+        Assert.Equal(ProductWorkspaceEditError.ContainerLocked, rename.EditError);
+        Assert.True(unlocked.IsAccepted);
+        Assert.False(unlocked.State!.Containers[0].IsLocked);
+    }
+
+    [Fact]
+    public async Task CollapseChangesOnlyAppearanceAndNoOpDoesNotAdvance()
+    {
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        ProductWorkspaceState state = MissingReferenceState();
+        long revision = coordinator.AdvanceExternalRevision();
+
+        ProductWorkspaceContainerCommitResult collapsed = coordinator.CommitContainer(
+            state,
+            new(
+                ProductWorkspaceContainerCommitAction.SetCollapsed,
+                revision,
+                1,
+                string.Empty,
+                StateValue: true));
+        ProductWorkspaceContainerCommitResult noChange = coordinator.CommitContainer(
+            collapsed.State!,
+            new(
+                ProductWorkspaceContainerCommitAction.SetCollapsed,
+                collapsed.EditRevision,
+                1,
+                string.Empty,
+                StateValue: true));
+
+        Assert.True(collapsed.IsAccepted);
+        Assert.True(collapsed.State!.Containers[0].Appearance.Collapsed);
+        Assert.Single(collapsed.State.Containers[0].Items);
+        Assert.Equal(ProductWorkspaceContainerCommitStatus.NoChange, noChange.Status);
+        Assert.Equal(collapsed.EditRevision, coordinator.CurrentEditRevision);
+    }
+
+    [Fact]
+    public async Task LockedContainerRejectsCollapseWithoutSubmission()
+    {
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        ProductContainerState locked = Container("container-1", "Work") with
+        {
+            IsLocked = true,
+        };
+        long revision = coordinator.AdvanceExternalRevision();
+
+        ProductWorkspaceContainerCommitResult result = coordinator.CommitContainer(
+            State(locked),
+            new(
+                ProductWorkspaceContainerCommitAction.SetCollapsed,
+                revision,
+                1,
+                string.Empty,
+                StateValue: true));
+
+        Assert.Equal(
+            ProductWorkspaceContainerCommitStatus.ReducerRejected,
+            result.Status);
+        Assert.Equal(ProductWorkspaceEditError.ContainerLocked, result.EditError);
+        Assert.Equal(0, saves.Snapshot.CurrentRevision);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
@@ -198,7 +299,7 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
     }
 
     [Fact]
-    public async Task RealStoreReloadsRenameWithoutChangingReferencedFile()
+    public async Task RealStoreReloadsRenameAndCollapseWithoutChangingReferencedFile()
     {
         string sandbox = Path.Combine(
             Path.GetTempPath(),
@@ -245,11 +346,22 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
                         revision,
                         1,
                         "After"));
+            ProductWorkspaceContainerCommitResult collapsed =
+                coordinator.CommitContainer(
+                    result.State!,
+                    new(
+                        ProductWorkspaceContainerCommitAction.SetCollapsed,
+                        result.EditRevision,
+                        1,
+                        string.Empty,
+                        StateValue: true));
             _ = await saves.CompleteAsync();
             ProductConfigurationLoadResult reloaded = await store.LoadAsync();
 
             Assert.True(result.IsAccepted);
+            Assert.True(collapsed.IsAccepted);
             Assert.Equal("After", reloaded.Document!.Containers[0].Name);
+            Assert.True(reloaded.Document.Containers[0].Appearance.Collapsed);
             Assert.True(File.Exists(referencedPath));
             Assert.Equal(
                 "keep-original-file",

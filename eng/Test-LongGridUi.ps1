@@ -170,6 +170,8 @@ function Test-SourceContract {
         'ProductWorkspaceContainerNameEditor',
         'ProductWorkspaceContainerCreateButton',
         'ProductWorkspaceContainerRenameButton',
+        'ProductWorkspaceContainerLockButton',
+        'ProductWorkspaceContainerCollapseButton',
         'ProductWorkspaceContainerEditStatus',
         'ProductWorkspaceContainerList',
         'ProductWorkspaceViewStatus',
@@ -369,11 +371,24 @@ function Test-SourceContract {
     ) 'Formal container names must use the v1 bound and update explicit actions.'
     foreach ($buttonId in @(
             'ProductWorkspaceContainerCreateButton',
-            'ProductWorkspaceContainerRenameButton'
+            'ProductWorkspaceContainerRenameButton',
+            'ProductWorkspaceContainerLockButton',
+            'ProductWorkspaceContainerCollapseButton'
         )) {
         $buttonNode = Get-XamlNodeByAutomationId $document $buttonId
         Assert-Condition ($buttonNode.GetAttribute('IsEnabled') -eq 'False') `
             "Container edit action '$buttonId' must start disabled."
+    }
+    $containerStateHandlers = @{
+        ProductWorkspaceContainerLockButton = `
+            'ProductWorkspaceContainerLockButton_Click'
+        ProductWorkspaceContainerCollapseButton = `
+            'ProductWorkspaceContainerCollapseButton_Click'
+    }
+    foreach ($entry in $containerStateHandlers.GetEnumerator()) {
+        $buttonNode = Get-XamlNodeByAutomationId $document $entry.Key
+        Assert-Condition ($buttonNode.GetAttribute('Click') -eq $entry.Value) `
+            "Container state action '$($entry.Key)' must use its audited handler."
     }
     $containerEditStatusNode = Get-XamlNodeByAutomationId `
         $document `
@@ -744,6 +759,10 @@ function Test-SourceContract {
         $appCode -match 'CreateDefaultContainer' -and
         $appCode -match 'DisplayKey\s*=\s*"display-unassigned"'
     ) 'App must support first-container creation through the shared audited coordinator.'
+    foreach ($stateAction in @('SetLocked', 'SetCollapsed')) {
+        Assert-Condition ($referenceCommitCode.Contains($stateAction)) `
+            "Shared coordinator must expose finite container action '$stateAction'."
+    }
     Assert-Condition (
         $codeBehind -match 'WorkspaceContainerEdit:' -and
         $codeBehind -match 'DesktopFilesChanged=False' -and
@@ -753,6 +772,9 @@ function Test-SourceContract {
     Assert-Condition (
         $containerEditPresentationCode -match 'EditRevision' -and
         $containerEditPresentationCode -match 'Ordinal' -and
+        $containerEditPresentationCode -match 'IsLocked' -and
+        $containerEditPresentationCode -match 'IsCollapsed' -and
+        $containerEditPresentationCode -match 'CanUpdateState' -and
         -not ($containerEditPresentationCode -match `
             'ContainerId|PersistedTarget|CanonicalTarget|DisplayKey|ProfileId')
     ) 'Container editor presentation must use revision plus ordinal without persistence identity.'
@@ -826,7 +848,7 @@ function Test-SourceContract {
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
-        productContainerEdits = 'shared-revision-create-rename-config-only'
+        productContainerEdits = 'shared-revision-create-rename-lock-collapse-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
         productSavePresentation = 'privacy-safe-static-reduced-motion'
         readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'
