@@ -1,4 +1,5 @@
 using LongGrid.Core.Configuration;
+using LongGrid.Core.DesktopHost;
 using LongGrid.Core.DesktopItems;
 
 namespace LongGrid.Infrastructure.Configuration;
@@ -101,6 +102,28 @@ public sealed record ProductWorkspaceContainerCommitResult(
 {
     public bool IsAccepted =>
         Status == ProductWorkspaceContainerCommitStatus.Accepted
+        && State is not null
+        && Document is not null;
+}
+
+public enum ProductWorkspaceLayoutRecoveryCommitStatus
+{
+    Accepted,
+    GateRejected,
+    SaveRejected,
+    InvalidState,
+}
+
+public sealed record ProductWorkspaceLayoutRecoveryCommitResult(
+    ProductWorkspaceLayoutRecoveryCommitStatus Status,
+    ProductWorkspaceLayoutRecoveryConfirmationStatus ConfirmationStatus,
+    ProductWorkspaceSaveSubmissionStatus? SubmissionStatus,
+    long EditRevision,
+    ProductWorkspaceState? State,
+    ProductConfigurationDocument? Document)
+{
+    public bool IsAccepted =>
+        Status == ProductWorkspaceLayoutRecoveryCommitStatus.Accepted
         && State is not null
         && Document is not null;
 }
@@ -381,6 +404,76 @@ public sealed class ProductWorkspaceCommitCoordinator
             return new(
                 ProductWorkspaceContainerCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
+                submission.Status,
+                editRevision,
+                edit.State,
+                projection.Document);
+        }
+    }
+
+    public ProductWorkspaceLayoutRecoveryCommitResult CommitLayoutRecovery(
+        ProductWorkspaceState state,
+        IReadOnlyList<DisplayTopologyNode>? currentTopology,
+        bool currentTopologyAuthoritative,
+        long topologyGeneration,
+        ProductWorkspaceLayoutRecoveryReviewToken token,
+        bool confirmed)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(token);
+
+        lock (gate)
+        {
+            ProductWorkspaceLayoutRecoveryConfirmationResult confirmation =
+                ProductWorkspaceLayoutRecoveryReview.Confirm(
+                    state,
+                    currentTopology,
+                    currentTopologyAuthoritative,
+                    topologyGeneration,
+                    editRevision,
+                    token,
+                    confirmed);
+            if (!confirmation.IsAccepted)
+            {
+                return new(
+                    ProductWorkspaceLayoutRecoveryCommitStatus.GateRejected,
+                    confirmation.Status,
+                    null,
+                    editRevision,
+                    null,
+                    null);
+            }
+
+            ProductWorkspaceEditResult edit = confirmation.Edit!;
+            ProductWorkspaceProjectionResult projection =
+                ProductWorkspaceConfigurationProjector.Project(edit.State!);
+            if (!projection.IsSuccess)
+            {
+                return new(
+                    ProductWorkspaceLayoutRecoveryCommitStatus.InvalidState,
+                    ProductWorkspaceLayoutRecoveryConfirmationStatus.InvalidState,
+                    ProductWorkspaceSaveSubmissionStatus.InvalidState,
+                    editRevision,
+                    null,
+                    null);
+            }
+
+            ProductWorkspaceSaveSubmissionResult submission = saves.Submit(edit);
+            if (!submission.IsAccepted)
+            {
+                return new(
+                    ProductWorkspaceLayoutRecoveryCommitStatus.SaveRejected,
+                    confirmation.Status,
+                    submission.Status,
+                    editRevision,
+                    null,
+                    null);
+            }
+
+            editRevision = checked(editRevision + 1);
+            return new(
+                ProductWorkspaceLayoutRecoveryCommitStatus.Accepted,
+                confirmation.Status,
                 submission.Status,
                 editRevision,
                 edit.State,

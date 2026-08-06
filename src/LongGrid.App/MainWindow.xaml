@@ -316,6 +316,14 @@
                                         FontSize="11"
                                         Foreground="{ThemeResource LongGridTextSecondaryBrush}"
                                         Text="容器与显示拓扑尚不可用" />
+                                    <Button
+                                        x:Name="ProductWorkspaceLayoutRecoveryConfirmButton"
+                                        AutomationProperties.AutomationId="ProductWorkspaceLayoutRecoveryConfirmButton"
+                                        AutomationProperties.Name="审查并确认配置级布局恢复"
+                                        Click="ProductWorkspaceLayoutRecoveryConfirmButton_Click"
+                                        Content="审查并确认配置恢复"
+                                        IsEnabled="False"
+                                        Visibility="Collapsed" />
                                 </StackPanel>
                             </Border>
 

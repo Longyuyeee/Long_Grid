@@ -63,7 +63,8 @@ public partial class App : Application
             () => productWorkspaceSaves.Retry(),
             RefreshProductDesktopCatalogAsync,
             CommitProductWorkspaceReferenceAction,
-            CommitProductWorkspaceContainerAction);
+            CommitProductWorkspaceContainerAction,
+            CommitProductWorkspaceLayoutRecovery);
         productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
         productDesktopCatalog.SnapshotChanged += ProductDesktopCatalog_SnapshotChanged;
         productDisplayTopology.SnapshotChanged +=
@@ -271,17 +272,21 @@ public partial class App : Application
 
         currentWindow.ApplyProductWorkspaceSessionState(productWorkspaceSession);
         ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
-        ProductWorkspaceLayoutRecoveryPreviewResult layoutPreview =
-            ProductWorkspaceLayoutRecoveryPreview.Create(
+        ProductWorkspaceLayoutRecoveryReviewResult layoutReview =
+            ProductWorkspaceLayoutRecoveryReview.Prepare(
                 productWorkspaceSession.State,
-                savedTopology: ProductSavedDisplayTopology.ToNodes(
-                    productWorkspaceSession.State?.SavedDisplayTopology),
                 currentTopology: topology.IsAuthoritative
                     ? topology.Displays
                     : null,
-                currentTopologyAuthoritative: topology.IsAuthoritative);
+                currentTopologyAuthoritative: topology.IsAuthoritative,
+                topologyGeneration: topology.Generation,
+                editRevision: workspaceCommits.CurrentEditRevision);
+        if (productWorkspaceSession.IsReadOnly)
+        {
+            layoutReview = layoutReview with { Token = null };
+        }
         currentWindow.ApplyProductWorkspaceLayoutRecoveryPreview(
-            ProductWorkspaceLayoutRecoveryPresentation.Create(layoutPreview));
+            ProductWorkspaceLayoutRecoveryPresentation.Create(layoutReview));
         ProductWorkspaceReadResult readModel = productWorkspaceSession.State is null
             ? new(
                 ProductWorkspaceProjectionError.InvalidState,
@@ -470,6 +475,46 @@ public partial class App : Application
             currentConfigurationLoadResult,
             CreateWorkspaceCatalogSnapshot(catalog));
         ApplyProductWorkspaceSessionViews();
+    }
+
+    private ProductWorkspaceLayoutRecoveryCommitResult
+        CommitProductWorkspaceLayoutRecovery(
+            ProductWorkspaceLayoutRecoveryReviewToken token,
+            bool confirmed)
+    {
+        ProductWorkspaceState? state = productWorkspaceSession.State;
+        ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
+        if (state is null || productWorkspaceSession.IsReadOnly)
+        {
+            return new(
+                ProductWorkspaceLayoutRecoveryCommitStatus.InvalidState,
+                ProductWorkspaceLayoutRecoveryConfirmationStatus.InvalidState,
+                null,
+                workspaceCommits.CurrentEditRevision,
+                null,
+                null);
+        }
+
+        ProductWorkspaceLayoutRecoveryCommitResult result =
+            workspaceCommits.CommitLayoutRecovery(
+                state,
+                topology.IsAuthoritative ? topology.Displays : null,
+                topology.IsAuthoritative,
+                topology.Generation,
+                token,
+                confirmed);
+        if (result.IsAccepted)
+        {
+            ApplyAcceptedProductWorkspaceDocument(
+                result.Document!,
+                productDesktopCatalog.Snapshot);
+        }
+        else
+        {
+            ApplyProductWorkspaceSessionViews();
+        }
+
+        return result;
     }
 
     private ProductWorkspaceState StampAuthoritativeDisplayTopology(
