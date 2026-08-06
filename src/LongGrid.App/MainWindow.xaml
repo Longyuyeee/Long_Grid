@@ -326,13 +326,13 @@
                                             x:Name="ProductWorkspaceReferenceReselectButton"
                                             AutomationProperties.AutomationId="ProductWorkspaceReferenceReselectButton"
                                             Click="ProductWorkspaceReferenceReselectButton_Click"
-                                            Content="预演重选"
+                                            Content="重选并保存"
                                             IsEnabled="False" />
                                         <Button
                                             x:Name="ProductWorkspaceReferenceRemoveButton"
                                             AutomationProperties.AutomationId="ProductWorkspaceReferenceRemoveButton"
                                             Click="ProductWorkspaceReferenceRemoveButton_Click"
-                                            Content="预演移除"
+                                            Content="移除并保存"
                                             IsEnabled="False" />
                                     </StackPanel>
                                     <TextBlock
@@ -342,7 +342,7 @@
                                         AutomationProperties.LiveSetting="Polite"
                                         FontSize="11"
                                         Foreground="{ThemeResource LongGridTextSecondaryBrush}"
-                                        Text="尚未执行预演；配置未改变。"
+                                        Text="尚未执行引用操作；配置未改变。"
                                         TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
