@@ -233,6 +233,47 @@ public sealed class ProductWorkspaceWindowCompositeTransactionTests
     }
 
     [Fact]
+    public void ConfigurationCaptureFailureReopensInputWithoutWindowCapture()
+    {
+        Fixture fixture = CreateFixture();
+        using Harness harness = Harness.Create(fixture);
+        harness.Configuration.CaptureResult = false;
+
+        ProductWorkspaceWindowCompositeResult result =
+            harness.Coordinator.Execute(fixture.Request);
+
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeStatus.CaptureFailed,
+            result.Status);
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeFailure.ConfigurationCaptureFailed,
+            result.Failure);
+        Assert.Equal(
+            ["input:close", "configuration:capture", "input:reopen"],
+            harness.Events);
+    }
+
+    [Fact]
+    public void WindowVerificationFailureUsesVerifiedRollback()
+    {
+        Fixture fixture = CreateFixture();
+        using Harness harness = Harness.Create(fixture);
+        harness.Windows.FailVerificationOnCall = 1;
+
+        ProductWorkspaceWindowCompositeResult result =
+            harness.Coordinator.Execute(fixture.Request);
+
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeStatus.RolledBack,
+            result.Status);
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeFailure.WindowVerificationFailed,
+            result.Failure);
+        Assert.False(harness.Windows.Applied);
+        Assert.Equal(fixture.Token.Before, harness.Configuration.Binding);
+    }
+
+    [Fact]
     public void InputCloseFailureStopsBeforeCapture()
     {
         Fixture fixture = CreateFixture();
@@ -358,6 +399,74 @@ public sealed class ProductWorkspaceWindowCompositeTransactionTests
             ProductWorkspaceWindowCompositeUndoStatus.Superseded,
             harness.Coordinator.Undo(token, true).Status);
         Assert.Equal(token, harness.Coordinator.CurrentUndoToken);
+    }
+
+    [Fact]
+    public void UndoInputCloseFailureLeavesAppliedStateAndTokenUntouched()
+    {
+        Fixture fixture = CreateFixture();
+        using Harness harness = Harness.Create(fixture);
+        ProductWorkspaceWindowCompositeUndoToken token =
+            harness.Coordinator.Execute(fixture.Request).UndoToken!;
+        harness.Input.CloseResult = false;
+
+        ProductWorkspaceWindowCompositeUndoResult result =
+            harness.Coordinator.Undo(token, true);
+
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeUndoStatus.InputGateFailed,
+            result.Status);
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeFailure.InputCloseFailed,
+            result.Failure);
+        Assert.Equal(token.Applied, harness.Configuration.Binding);
+        Assert.Equal(token, harness.Coordinator.CurrentUndoToken);
+    }
+
+    [Fact]
+    public void UndoWindowCaptureFailureReopensInputAndKeepsToken()
+    {
+        Fixture fixture = CreateFixture();
+        using Harness harness = Harness.Create(fixture);
+        ProductWorkspaceWindowCompositeUndoToken token =
+            harness.Coordinator.Execute(fixture.Request).UndoToken!;
+        harness.Windows.CaptureResult = false;
+
+        ProductWorkspaceWindowCompositeUndoResult result =
+            harness.Coordinator.Undo(token, true);
+
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeUndoStatus.CaptureFailed,
+            result.Status);
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeFailure.WindowCaptureFailed,
+            result.Failure);
+        Assert.False(result.InputClosed);
+        Assert.Equal(token, harness.Coordinator.CurrentUndoToken);
+    }
+
+    [Fact]
+    public void UndoInputReopenFailureHidesRestoredHostsAndConsumesToken()
+    {
+        Fixture fixture = CreateFixture();
+        using Harness harness = Harness.Create(fixture);
+        ProductWorkspaceWindowCompositeUndoToken token =
+            harness.Coordinator.Execute(fixture.Request).UndoToken!;
+        harness.Input.ReopenResult = false;
+
+        ProductWorkspaceWindowCompositeUndoResult result =
+            harness.Coordinator.Undo(token, true);
+
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeUndoStatus.RecoveryFailed,
+            result.Status);
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeFailure.InputReopenFailed,
+            result.Failure);
+        Assert.True(result.InputClosed);
+        Assert.True(result.HostsHidden);
+        Assert.Equal(fixture.Token.Undo, harness.Configuration.Binding);
+        Assert.Null(harness.Coordinator.CurrentUndoToken);
     }
 
     [Fact]
@@ -597,6 +706,8 @@ public sealed class ProductWorkspaceWindowCompositeTransactionTests
 
         internal bool ApplyResult { get; set; } = true;
 
+        internal bool CaptureResult { get; set; } = true;
+
         internal bool VerificationResult { get; set; } = true;
 
         internal bool RestoreResult { get; set; } = true;
@@ -610,7 +721,13 @@ public sealed class ProductWorkspaceWindowCompositeTransactionTests
         public ProductWorkspaceWindowCompositeCapture Capture()
         {
             events.Add("configuration:capture");
-            return new(true, new Snapshot("configuration", State, Binding, false));
+            return CaptureResult
+                ? new(true, new Snapshot(
+                    "configuration",
+                    State,
+                    Binding,
+                    false))
+                : ProductWorkspaceWindowCompositeCapture.Failed;
         }
 
         public bool Apply(

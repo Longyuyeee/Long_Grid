@@ -77,7 +77,7 @@
 | 自定义窗口效果 | 未启用 Region、合成、激活或第三方窗口控制 |
 | 小组件/Long助手插件 | LPWP 协议不变；运行时继续等待 MVP 后续隔离实现 |
 
-本地完整结果为 440/440 测试通过；覆盖率为行 91.03%（12284/13494）、分支 80.92%（3308/4088），通过仓库 90%/75% 门槛；Debug/Release `-warnaserror` 均为零警告零错误，格式、118-ID UI 源码合同、单实例合同和依赖漏洞门禁通过。DesktopHost 交互探针仍为 `Conditional Pass`；#19、#20、#23、#24 的 ValidateOnly 分别保持 `PendingManualEvidence`、`ResultsPending` 或 `PendingDedicatedEnvironmentEvidence`。没有创建真实产品容器、移动窗口或伪造外部证据；远端 CI 在 PR 发布后复核。
+本地完整结果为 445/445 测试通过；每份独立 Cobertura 报告为行 91.62%（6182/6747）、分支 81.36%（1663/2044），聚合显示行 91.63%（12364/13494）、分支 81.36%（3326/4088），通过仓库 90%/75% 门槛。首次 PR CI 的 440 项测试全部通过，但权威单份行覆盖率只有 89.91%，暴露本地多报告聚合掩盖门槛的问题；补齐配置捕获失败、窗口复读失败、撤销输入关闭/开启失败和撤销窗口捕获失败五条真实分支后，按单份报告重新验证，不降低门槛或排除代码。Debug/Release `-warnaserror` 均为零警告零错误，格式、118-ID UI 源码合同、单实例合同和依赖漏洞门禁通过。DesktopHost 交互探针仍为 `Conditional Pass`；#19、#20、#23、#24 的 ValidateOnly 分别保持 `PendingManualEvidence`、`ResultsPending` 或 `PendingDedicatedEnvironmentEvidence`。没有创建真实产品容器、移动窗口或伪造外部证据；修复后的远端 CI 在增量推送后复核。
 
 ## 7. 还剩多少阶段
 
