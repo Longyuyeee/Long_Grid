@@ -79,6 +79,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] 产品自有窗口注册表与只读 DesktopHost 桥：内部绑定容器、宿主实例/线程、宿主与窗口 generation、实例标识和最近 Bounds；有限拒绝销毁、句柄复用、宿主重启、重复容器/句柄；App 只可读取匿名计数且当前零接线，不移动窗口。布局恢复主线随后剩复合事务、RC 硬化 2 个工程阶段，外部 #19/#20/#23/#24 继续 Pending。
 - [x] 配置与产品窗口复合事务：令牌同时绑定拓扑、edit revision、配置前后/撤销指纹、计划、窗口注册表和 DesktopHost 代际；固定窗口→配置应用、最终交叉复读、逆序双向补偿、失败隐藏、并发串行化和一次性复合撤销/失败前滚。Core/App 无 HWND 且 App 零接线；布局恢复主线随后只剩 RC 硬化与交付 1 个工程阶段，外部 #19/#20/#23/#24 继续 Pending。
 - [x] RC 硬化切片 1——verified-window 批处理适配器：仅接受注册表 generation 完全匹配的完整唯一容器集，在注册表串行边界内逐窗复核进程、线程、实例标识和 Bounds 后才向 `Begin/Defer/EndDeferWindowPos` 提交；固定禁止激活、Z 序、Owner Z 序与 `WM_WINDOWPOSCHANGING`，并支持复合事务 capture/apply/verify/restore/verify-restored。App 零接线；下一切片为同步配置暂存适配器，外部 #19/#20/#23/#24 继续 Pending。
+- [x] RC 硬化切片 2——同步配置暂存适配器：复用正式 Store 的跨进程写租约、同目录暂存、flush、复读和原子替换，在租约内按当前主配置 SHA-256 执行 compare-and-exchange；仅接受 LoadedPrimary，拒绝外部指纹漂移、备份恢复态、SafeMode、异源/已释放快照，并只允许补偿自己最后发布的版本。App 零接线；下一切片为窗口+配置复合故障矩阵和 DesktopHost UI 线程封送，外部 #19/#20/#23/#24 继续 Pending。
 - [x] Issue #24 产品当前显示拓扑只读适配器：CCD/Monitor 数量、强身份、Bounds、target 可用性、rotation、WorkArea 全对账才权威；SHA-256 身份、8 次竞态重试、generation/latest-wins、取消/关闭排空和 App 双门禁接线完成。版本化保存时拓扑与真实窗口提交仍 Pending。
 - [x] Issue #24 I24-01/I24-02 专用环境会话入口、独立卷标记/双确认安全合同和 CI `PendingDedicatedEnvironmentEvidence` 预检（Ready to schedule；真实卷结果仍 Pending）。
 - [x] P0-07a 静态双屏拓扑、混合 DPI、隐私安全指纹与资源稳定性（Conditional Pass）。

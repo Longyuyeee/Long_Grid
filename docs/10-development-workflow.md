@@ -536,3 +536,5 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 同日阶段 C 补充：配置与产品窗口复合事务合同已经建立。适配层必须支持配置/窗口两侧 capture、apply、reread、restore、verify-restored，不得把普通异步保存排队结果当作原子成功；固定窗口先应用、配置后发布，失败按配置→窗口逆序补偿，无法恢复时关闭输入并隐藏受影响宿主。一次性撤销同时覆盖配置和精确容器窗口，失败时必须前滚回成功状态或进入隐藏恢复模式。Core/App 不得取得 HWND，App 当前继续零接线。布局恢复 MVP 主线只剩 RC 硬化与交付 1 个工程阶段；外部真实证据和 MVP 后任务栏/小组件/插件/窗口特效范围不变。
 
 同日 RC 硬化切片 1 补充：真实窗口适配器只能从产品自有窗口注册表取得句柄，要求请求容器集与注册表完整集合完全一致，并在持有注册表串行边界时重新验证句柄存在、进程、线程和实例标识。原生提交必须使用单个 deferred-window batch，固定携带 `SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING`；禁止 `SetForegroundWindow`、`ShowWindow`、Region 修改和第三方句柄。capture/verify 必须重新读取真实 Bounds，快照绑定注册表 generation 且释放后不可复用。适配器在 App 零接线状态完成自动化后，仍不得跳过准入 blocker、真实 DesktopHost 线程封送和实机矩阵直接开放。
+
+同日 RC 硬化切片 2 补充：配置适配器不得在一次性撤销令牌存续期间长期占用文件锁，也不得调用 latest-wins 队列并把“已接受”当成落盘成功。每次发布必须在正式 Store 的短跨进程写租约内重新读取 `LoadedPrimary`、比较 canonical SHA-256 指纹、写同目录临时文件、flush、复读并原子替换；指纹冲突、备份恢复态或 SafeMode 必须有限拒绝且不写入。补偿只允许当前磁盘仍等于适配器最后成功发布的指纹时执行，外部变化不得被回滚覆盖。同步接口只包装全部使用 `ConfigureAwait(false)` 的 Store 调用；App 当前不构造该适配器，完整复合故障矩阵和 DesktopHost UI 线程封送通过前不得开放真实入口。
