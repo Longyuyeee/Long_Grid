@@ -2,6 +2,77 @@ using LongGrid.Core.Configuration;
 
 namespace LongGrid.Infrastructure.Configuration;
 
+internal interface IProductWorkspaceCompositeBindingExchange
+{
+    bool Matches(ProductWorkspaceWindowCompositeBinding expected);
+
+    bool TryExchange(
+        ProductWorkspaceWindowCompositeBinding expected,
+        ProductWorkspaceWindowCompositeBinding replacement);
+}
+
+internal sealed class ProductWorkspaceCompositeBindingState
+    : IProductWorkspaceCompositeBindingExchange
+{
+    private readonly object sync = new();
+    private ProductWorkspaceWindowCompositeBinding current;
+
+    internal ProductWorkspaceCompositeBindingState(
+        ProductWorkspaceWindowCompositeBinding initial)
+    {
+        if (!ProductWorkspaceCompositeConfigurationAdapter.IsValidBinding(initial))
+        {
+            throw new ArgumentException(
+                "The initial composite binding is invalid.",
+                nameof(initial));
+        }
+
+        current = initial;
+    }
+
+    internal ProductWorkspaceWindowCompositeBinding Current
+    {
+        get
+        {
+            lock (sync)
+            {
+                return current;
+            }
+        }
+    }
+
+    public bool Matches(ProductWorkspaceWindowCompositeBinding expected)
+    {
+        lock (sync)
+        {
+            return current == expected;
+        }
+    }
+
+    public bool TryExchange(
+        ProductWorkspaceWindowCompositeBinding expected,
+        ProductWorkspaceWindowCompositeBinding replacement)
+    {
+        if (!ProductWorkspaceCompositeConfigurationAdapter.IsValidBinding(expected)
+            || !ProductWorkspaceCompositeConfigurationAdapter.IsValidBinding(
+                replacement))
+        {
+            return false;
+        }
+
+        lock (sync)
+        {
+            if (current != expected)
+            {
+                return false;
+            }
+
+            current = replacement;
+            return true;
+        }
+    }
+}
+
 internal sealed class ProductWorkspaceCompositeConfigurationAdapter
     : IProductWorkspaceCompositeConfigurationLayer
 {
@@ -27,14 +98,19 @@ internal sealed class ProductWorkspaceCompositeConfigurationAdapter
     private readonly object sync = new();
     private readonly Guid ownerId = Guid.NewGuid();
     private readonly ProductConfigurationStore store;
+    private readonly IProductWorkspaceCompositeBindingExchange bindingExchange;
     private ConfigurationSnapshot? latestCapture;
     private string? lastPublishedFingerprint;
+    private ProductWorkspaceWindowCompositeBinding? lastPublishedBinding;
 
     internal ProductWorkspaceCompositeConfigurationAdapter(
-        ProductConfigurationStore store)
+        ProductConfigurationStore store,
+        IProductWorkspaceCompositeBindingExchange bindingExchange)
     {
         ArgumentNullException.ThrowIfNull(store);
+        ArgumentNullException.ThrowIfNull(bindingExchange);
         this.store = store;
+        this.bindingExchange = bindingExchange;
     }
 
     public ProductWorkspaceWindowCompositeCapture Capture()
@@ -86,7 +162,19 @@ internal sealed class ProductWorkspaceCompositeConfigurationAdapter
                     out ProductConfigurationDocument? replacement,
                     out string? replacementFingerprint)
                 || latestCapture is null
-                || latestCapture.IsDisposed)
+                || latestCapture.IsDisposed
+                || expectedBinding.EditRevision <= 1)
+            {
+                return false;
+            }
+
+            ProductWorkspaceWindowCompositeBinding beforeBinding =
+                expectedBinding with
+                {
+                    EditRevision = expectedBinding.EditRevision - 1,
+                    ConfigurationFingerprint = latestCapture.Fingerprint,
+                };
+            if (!bindingExchange.Matches(beforeBinding))
             {
                 return false;
             }
@@ -100,7 +188,8 @@ internal sealed class ProductWorkspaceCompositeConfigurationAdapter
             }
 
             lastPublishedFingerprint = replacementFingerprint;
-            return true;
+            lastPublishedBinding = expectedBinding;
+            return bindingExchange.TryExchange(beforeBinding, expectedBinding);
         }
     }
 
@@ -113,8 +202,9 @@ internal sealed class ProductWorkspaceCompositeConfigurationAdapter
             return TryProject(
                     state,
                     expectedBinding,
-                    out _,
+                out _,
                     out string? fingerprint)
+                && bindingExchange.Matches(expectedBinding)
                 && MatchesPrimary(fingerprint!);
         }
     }
@@ -158,7 +248,7 @@ internal sealed class ProductWorkspaceCompositeConfigurationAdapter
                 StringComparison.Ordinal))
             {
                 lastPublishedFingerprint = configuration.Fingerprint;
-                return true;
+                return AdvanceBinding(expectedBinding);
             }
 
             if (lastPublishedFingerprint is null
@@ -180,7 +270,7 @@ internal sealed class ProductWorkspaceCompositeConfigurationAdapter
             }
 
             lastPublishedFingerprint = configuration.Fingerprint;
-            return true;
+            return AdvanceBinding(expectedBinding);
         }
     }
 
@@ -194,8 +284,30 @@ internal sealed class ProductWorkspaceCompositeConfigurationAdapter
                     snapshot,
                     expectedBinding,
                     out ConfigurationSnapshot? configuration)
+                && bindingExchange.Matches(expectedBinding)
                 && MatchesPrimary(configuration!.Fingerprint);
         }
+    }
+
+    private bool AdvanceBinding(
+        ProductWorkspaceWindowCompositeBinding expectedBinding)
+    {
+        if (bindingExchange.Matches(expectedBinding))
+        {
+            lastPublishedBinding = expectedBinding;
+            return true;
+        }
+
+        if (lastPublishedBinding is null
+            || !bindingExchange.TryExchange(
+                lastPublishedBinding,
+                expectedBinding))
+        {
+            return false;
+        }
+
+        lastPublishedBinding = expectedBinding;
+        return true;
     }
 
     private bool TryReadSnapshot(
@@ -317,7 +429,7 @@ internal sealed class ProductWorkspaceCompositeConfigurationAdapter
         return true;
     }
 
-    private static bool IsValidBinding(
+    internal static bool IsValidBinding(
         ProductWorkspaceWindowCompositeBinding? binding) =>
         binding is not null
         && binding.TopologyGeneration > 0

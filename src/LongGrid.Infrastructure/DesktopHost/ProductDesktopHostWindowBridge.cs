@@ -106,6 +106,12 @@ internal sealed record ProductDesktopHostVerifiedWindow(
     nint Handle,
     PixelRect Bounds);
 
+internal sealed record ProductDesktopHostPreparedWindowBatch(
+    Guid BridgeId,
+    long RegistryGeneration,
+    uint HostThreadId,
+    IReadOnlyList<ProductDesktopHostWindowClaim> Claims);
+
 public sealed class ProductDesktopHostWindowBridge
 {
     private sealed record Entry(
@@ -114,6 +120,7 @@ public sealed class ProductDesktopHostWindowBridge
         bool Verified);
 
     private readonly object sync = new();
+    private readonly Guid bridgeId = Guid.NewGuid();
     private readonly IProductDesktopHostWindowInspector inspector;
     private readonly Dictionary<string, Entry> entries =
         new(StringComparer.Ordinal);
@@ -325,6 +332,21 @@ public sealed class ProductDesktopHostWindowBridge
         ArgumentNullException.ThrowIfNull(containerIds);
         ArgumentNullException.ThrowIfNull(operation);
 
+        return TryPrepareExactVerifiedWindows(
+                containerIds,
+                expectedRegistryGeneration,
+                out ProductDesktopHostPreparedWindowBatch? prepared)
+            && TryUsePreparedVerifiedWindows(prepared!, operation);
+    }
+
+    internal bool TryPrepareExactVerifiedWindows(
+        IReadOnlyList<string> containerIds,
+        long expectedRegistryGeneration,
+        out ProductDesktopHostPreparedWindowBatch? prepared)
+    {
+        ArgumentNullException.ThrowIfNull(containerIds);
+        prepared = null;
+
         if (expectedRegistryGeneration <= 0
             || containerIds.Count == 0
             || containerIds.Any(string.IsNullOrWhiteSpace)
@@ -336,46 +358,112 @@ public sealed class ProductDesktopHostWindowBridge
 
         lock (sync)
         {
-            if (host is null
-                || snapshot.Generation != expectedRegistryGeneration
-                || !snapshot.OwnershipAttested
-                || entries.Count != containerIds.Count
-                || !entries.Keys.ToHashSet(StringComparer.Ordinal)
-                    .SetEquals(containerIds))
+            if (!MatchesExactRegistry(
+                containerIds,
+                expectedRegistryGeneration))
             {
                 return false;
             }
 
-            var verified = new List<ProductDesktopHostVerifiedWindow>(
-                containerIds.Count);
-            foreach (string containerId in containerIds
-                .OrderBy(value => value, StringComparer.Ordinal))
-            {
-                Entry entry = entries[containerId];
-                ProductDesktopHostWindowObservation observation =
-                    SafeInspect(entry.Claim.Handle);
-                if (ValidateObservation(entry.Claim, observation)
-                    != ProductDesktopHostWindowRegistrationStatus.Registered)
-                {
-                    return false;
-                }
-
-                verified.Add(new(
-                    containerId,
-                    entry.Claim.Handle,
-                    observation.Bounds));
-            }
-
-            try
-            {
-                return operation(verified.AsReadOnly());
-            }
-            catch (Exception exception) when (
-                exception is InvalidOperationException
-                or OverflowException)
+            ProductDesktopHostWindowClaim[] claims = containerIds
+                .Order(StringComparer.Ordinal)
+                .Select(containerId => entries[containerId].Claim)
+                .ToArray();
+            if (!TryBuildVerifiedWindows(claims, out _))
             {
                 return false;
             }
+
+            prepared = new(
+                bridgeId,
+                expectedRegistryGeneration,
+                host!.ThreadId,
+                Array.AsReadOnly(claims));
+            return true;
+        }
+    }
+
+    internal bool TryUsePreparedVerifiedWindows(
+        ProductDesktopHostPreparedWindowBatch prepared,
+        Func<IReadOnlyList<ProductDesktopHostVerifiedWindow>, bool> operation)
+    {
+        ArgumentNullException.ThrowIfNull(prepared);
+        ArgumentNullException.ThrowIfNull(operation);
+
+        lock (sync)
+        {
+            if (prepared.BridgeId != bridgeId
+                || prepared.Claims is null
+                || prepared.Claims.Count == 0
+                || prepared.HostThreadId == 0
+                || !MatchesExactRegistry(
+                    prepared.Claims.Select(claim => claim.ContainerId).ToArray(),
+                    prepared.RegistryGeneration)
+                || host!.ThreadId != prepared.HostThreadId
+                || prepared.Claims.Any(claim =>
+                    !entries.TryGetValue(claim.ContainerId, out Entry? entry)
+                    || entry.Claim != claim)
+                || !TryBuildVerifiedWindows(
+                    prepared.Claims,
+                    out IReadOnlyList<ProductDesktopHostVerifiedWindow>? verified))
+            {
+                return false;
+            }
+
+            return TryRun(operation, verified!);
+        }
+    }
+
+    private bool MatchesExactRegistry(
+        IReadOnlyCollection<string> containerIds,
+        long expectedRegistryGeneration) =>
+        host is not null
+        && snapshot.Generation == expectedRegistryGeneration
+        && snapshot.OwnershipAttested
+        && entries.Count == containerIds.Count
+        && entries.Keys.ToHashSet(StringComparer.Ordinal)
+            .SetEquals(containerIds);
+
+    private bool TryBuildVerifiedWindows(
+        IReadOnlyList<ProductDesktopHostWindowClaim> claims,
+        out IReadOnlyList<ProductDesktopHostVerifiedWindow>? verified)
+    {
+        var observations = new List<ProductDesktopHostVerifiedWindow>(
+            claims.Count);
+        foreach (ProductDesktopHostWindowClaim claim in claims)
+        {
+            ProductDesktopHostWindowObservation observation =
+                SafeInspect(claim.Handle);
+            if (ValidateObservation(claim, observation)
+                != ProductDesktopHostWindowRegistrationStatus.Registered)
+            {
+                verified = null;
+                return false;
+            }
+
+            observations.Add(new(
+                claim.ContainerId,
+                claim.Handle,
+                observation.Bounds));
+        }
+
+        verified = observations.AsReadOnly();
+        return true;
+    }
+
+    private static bool TryRun(
+        Func<IReadOnlyList<ProductDesktopHostVerifiedWindow>, bool> operation,
+        IReadOnlyList<ProductDesktopHostVerifiedWindow> windows)
+    {
+        try
+        {
+            return operation(windows);
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException
+            or OverflowException)
+        {
+            return false;
         }
     }
 

@@ -83,6 +83,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格配置与产品窗口复合事务审计](docs/65-configuration-window-composite-transaction-audit.md)
 - [Long方格 verified-window 批处理适配器审计](docs/66-verified-window-batch-adapter-audit.md)
 - [Long方格同步配置暂存适配器审计](docs/67-synchronous-configuration-staging-adapter-audit.md)
+- [Long方格 DesktopHost 线程封送与复合故障矩阵审计](docs/68-desktop-host-thread-dispatch-composite-fault-matrix-audit.md)
 - [正式产品配置存储适配器审计](docs/33-product-configuration-store-audit.md)
 - [配置 latest-wins 与 App 关闭排空审计](docs/34-configuration-shutdown-drain-audit.md)
 - [贡献指南](CONTRIBUTING.md)
@@ -96,7 +97,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口准入、产品自有窗口注册表/只读桥、配置+窗口复合事务、verified-window 原生批处理适配器和同步配置暂存适配器已经建立。窗口侧只处理完整 verified 注册集；配置侧在短跨进程租约内按 SHA-256 指纹 compare-and-exchange，拒绝覆盖外部变化、备份恢复态和 SafeMode。App 仍保持零接线且不会移动真实窗口。桌面管理 MVP 的布局恢复主线仍处于 RC 硬化与交付收口阶段。GitHub #19、#20、#23、#24 仍需真实人工、硬件或专用卷证据。下一切片进入两侧适配器复合故障矩阵与 DesktopHost UI 线程封送，之后完成输入/显示/关闭矩阵、干净会话 118-ID UIA、一键打包和发布候选审计；全部 blocker 清零前不接入真实执行入口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续；许可证选择延期到正式分发或接受外部贡献之前。
+按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口准入、产品自有窗口注册表/只读桥、配置+窗口复合事务、两个生产适配器、DesktopHost UI 线程安全封送和复合故障矩阵已经建立。窗口侧只处理完整 verified 注册集并在目标线程二次复核；配置侧在短跨进程租约内执行指纹 CAS，并与事务 binding 原子推进。App 仍保持零接线且不会移动真实窗口。桌面管理 MVP 的布局恢复主线进入最后的 RC 硬化与交付收口：下一切片完成输入/显示/关闭组合矩阵，之后处理干净会话 118-ID UIA、一键打包、安装和发布候选审计。GitHub #19、#20、#23、#24 仍需真实人工、硬件或专用卷证据；全部 blocker 清零前不接入真实执行入口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续；许可证选择延期到正式分发或接受外部贡献之前。
 
 ## 开发启动
 

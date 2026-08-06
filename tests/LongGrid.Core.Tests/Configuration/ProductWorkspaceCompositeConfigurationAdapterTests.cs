@@ -6,13 +6,45 @@ namespace LongGrid.Core.Tests.Configuration;
 public sealed class ProductWorkspaceCompositeConfigurationAdapterTests
 {
     [Fact]
+    public void ProductionBindingStateExchangesOnlyTheExactCurrentBinding()
+    {
+        ProductWorkspaceWindowCompositeBinding before = Binding(State("before"));
+        ProductWorkspaceWindowCompositeBinding after = Binding(
+            State("after"),
+            revision: 2);
+        var state = new ProductWorkspaceCompositeBindingState(before);
+
+        Assert.True(state.Matches(before));
+        Assert.False(state.TryExchange(after, before));
+        Assert.True(state.TryExchange(before, after));
+        Assert.Equal(after, state.Current);
+        Assert.False(state.TryExchange(before, after));
+    }
+
+    [Fact]
+    public void ProductionBindingStateRejectsInvalidBindings()
+    {
+        ProductWorkspaceWindowCompositeBinding valid = Binding(State("before"));
+
+        Assert.Throws<ArgumentException>(() =>
+            new ProductWorkspaceCompositeBindingState(
+                valid with { DesktopHostInstanceId = Guid.Empty }));
+        var state = new ProductWorkspaceCompositeBindingState(valid);
+        Assert.False(state.TryExchange(
+            valid,
+            valid with { ConfigurationFingerprint = "invalid" }));
+        Assert.Equal(valid, state.Current);
+    }
+
+    [Fact]
     public async Task CaptureRequiresValidatedPrimaryAndCreatesRestorableSnapshot()
     {
         using var directory = new TemporaryDirectory();
         var store = new ProductConfigurationStore(directory.Path);
         ProductWorkspaceState state = State("before");
         await store.SaveAsync(Document(state));
-        var adapter = new ProductWorkspaceCompositeConfigurationAdapter(store);
+        ProductWorkspaceCompositeConfigurationAdapter adapter =
+            CreateAdapter(store, state);
 
         ProductWorkspaceWindowCompositeCapture capture = adapter.Capture();
 
@@ -26,8 +58,9 @@ public sealed class ProductWorkspaceCompositeConfigurationAdapterTests
     public async Task CaptureRejectsMissingRecoveredAndSafeModeStorage()
     {
         using var missingDirectory = new TemporaryDirectory(create: false);
-        var missing = new ProductWorkspaceCompositeConfigurationAdapter(
-            new ProductConfigurationStore(missingDirectory.Path));
+        ProductWorkspaceCompositeConfigurationAdapter missing = CreateAdapter(
+            new ProductConfigurationStore(missingDirectory.Path),
+            State("missing"));
         Assert.False(missing.Capture().Succeeded);
 
         using var recoveredDirectory = new TemporaryDirectory();
@@ -35,13 +68,13 @@ public sealed class ProductWorkspaceCompositeConfigurationAdapterTests
         await recoveredStore.SaveAsync(Document(State("backup")));
         await recoveredStore.SaveAsync(Document(State("primary")));
         await File.WriteAllTextAsync(recoveredStore.PrimaryPath, "{ damaged");
-        var recovered = new ProductWorkspaceCompositeConfigurationAdapter(
-            recoveredStore);
+        ProductWorkspaceCompositeConfigurationAdapter recovered =
+            CreateAdapter(recoveredStore, State("primary"));
         Assert.False(recovered.Capture().Succeeded);
 
         File.Delete(recoveredStore.BackupPath);
-        var safeMode = new ProductWorkspaceCompositeConfigurationAdapter(
-            recoveredStore);
+        ProductWorkspaceCompositeConfigurationAdapter safeMode =
+            CreateAdapter(recoveredStore, State("primary"));
         Assert.False(safeMode.Capture().Succeeded);
     }
 
@@ -53,14 +86,15 @@ public sealed class ProductWorkspaceCompositeConfigurationAdapterTests
         ProductWorkspaceState before = State("before");
         ProductWorkspaceState after = State("after");
         await store.SaveAsync(Document(before));
-        var adapter = new ProductWorkspaceCompositeConfigurationAdapter(store);
+        ProductWorkspaceCompositeConfigurationAdapter adapter =
+            CreateAdapter(store, before);
         using IProductWorkspaceWindowCompositeSnapshot snapshot =
             adapter.Capture().Snapshot!;
 
-        bool applied = adapter.Apply(after, Binding(after));
+        bool applied = adapter.Apply(after, Binding(after, revision: 2));
 
         Assert.True(applied);
-        Assert.True(adapter.Verify(after, Binding(after)));
+        Assert.True(adapter.Verify(after, Binding(after, revision: 2)));
         Assert.Equal(
             "after",
             (await store.LoadAsync()).Document?.ProfileId);
@@ -74,11 +108,12 @@ public sealed class ProductWorkspaceCompositeConfigurationAdapterTests
         ProductWorkspaceState before = State("before");
         ProductWorkspaceState after = State("after");
         await store.SaveAsync(Document(before));
-        var adapter = new ProductWorkspaceCompositeConfigurationAdapter(store);
+        ProductWorkspaceCompositeConfigurationAdapter adapter =
+            CreateAdapter(store, before);
         using IProductWorkspaceWindowCompositeSnapshot snapshot =
             adapter.Capture().Snapshot!;
 
-        bool applied = adapter.Apply(after, Binding(before));
+        bool applied = adapter.Apply(after, Binding(before, revision: 2));
 
         Assert.False(applied);
         Assert.Equal(
@@ -93,12 +128,15 @@ public sealed class ProductWorkspaceCompositeConfigurationAdapterTests
         var store = new ProductConfigurationStore(directory.Path);
         ProductWorkspaceState before = State("before");
         await store.SaveAsync(Document(before));
-        var adapter = new ProductWorkspaceCompositeConfigurationAdapter(store);
+        ProductWorkspaceCompositeConfigurationAdapter adapter =
+            CreateAdapter(store, before);
         using IProductWorkspaceWindowCompositeSnapshot snapshot =
             adapter.Capture().Snapshot!;
         await store.SaveAsync(Document(State("external")));
 
-        bool applied = adapter.Apply(State("after"), Binding(State("after")));
+        bool applied = adapter.Apply(
+            State("after"),
+            Binding(State("after"), revision: 2));
 
         Assert.False(applied);
         Assert.Equal(
@@ -113,7 +151,8 @@ public sealed class ProductWorkspaceCompositeConfigurationAdapterTests
         var store = new ProductConfigurationStore(directory.Path);
         ProductWorkspaceState before = State("before");
         await store.SaveAsync(Document(before));
-        var adapter = new ProductWorkspaceCompositeConfigurationAdapter(store);
+        ProductWorkspaceCompositeConfigurationAdapter adapter =
+            CreateAdapter(store, before);
         ProductWorkspaceWindowCompositeCapture capture = adapter.Capture();
         capture.Snapshot!.Dispose();
         ProductWorkspaceState invalid = State("invalid") with
@@ -121,8 +160,12 @@ public sealed class ProductWorkspaceCompositeConfigurationAdapterTests
             Containers = null!,
         };
 
-        Assert.False(adapter.Apply(State("after"), Binding(State("after"))));
-        Assert.False(adapter.Apply(invalid, Binding(State("after"))));
+        Assert.False(adapter.Apply(
+            State("after"),
+            Binding(State("after"), revision: 2)));
+        Assert.False(adapter.Apply(
+            invalid,
+            Binding(State("after"), revision: 2)));
         Assert.Equal(
             "before",
             (await store.LoadAsync()).Document?.ProfileId);
@@ -136,10 +179,11 @@ public sealed class ProductWorkspaceCompositeConfigurationAdapterTests
         ProductWorkspaceState before = State("before");
         ProductWorkspaceState after = State("after");
         await store.SaveAsync(Document(before));
-        var adapter = new ProductWorkspaceCompositeConfigurationAdapter(store);
+        ProductWorkspaceCompositeConfigurationAdapter adapter =
+            CreateAdapter(store, before);
         using IProductWorkspaceWindowCompositeSnapshot snapshot =
             adapter.Capture().Snapshot!;
-        Assert.True(adapter.Apply(after, Binding(after)));
+        Assert.True(adapter.Apply(after, Binding(after, revision: 2)));
 
         bool restored = adapter.Restore(snapshot, Binding(before));
 
@@ -158,10 +202,11 @@ public sealed class ProductWorkspaceCompositeConfigurationAdapterTests
         ProductWorkspaceState before = State("before");
         ProductWorkspaceState after = State("after");
         await store.SaveAsync(Document(before));
-        var adapter = new ProductWorkspaceCompositeConfigurationAdapter(store);
+        ProductWorkspaceCompositeConfigurationAdapter adapter =
+            CreateAdapter(store, before);
         using IProductWorkspaceWindowCompositeSnapshot snapshot =
             adapter.Capture().Snapshot!;
-        Assert.True(adapter.Apply(after, Binding(after)));
+        Assert.True(adapter.Apply(after, Binding(after, revision: 2)));
         await store.SaveAsync(Document(State("external")));
 
         bool restored = adapter.Restore(snapshot, Binding(before));
@@ -179,8 +224,10 @@ public sealed class ProductWorkspaceCompositeConfigurationAdapterTests
         var store = new ProductConfigurationStore(directory.Path);
         ProductWorkspaceState before = State("before");
         await store.SaveAsync(Document(before));
-        var first = new ProductWorkspaceCompositeConfigurationAdapter(store);
-        var second = new ProductWorkspaceCompositeConfigurationAdapter(store);
+        ProductWorkspaceCompositeConfigurationAdapter first =
+            CreateAdapter(store, before);
+        ProductWorkspaceCompositeConfigurationAdapter second =
+            CreateAdapter(store, before);
         ProductWorkspaceWindowCompositeCapture firstCapture = first.Capture();
         ProductWorkspaceWindowCompositeCapture secondCapture = second.Capture();
 
@@ -202,12 +249,15 @@ public sealed class ProductWorkspaceCompositeConfigurationAdapterTests
             writeLeaseRetryDelay: TimeSpan.FromMilliseconds(5));
         ProductWorkspaceState before = State("before");
         await store.SaveAsync(Document(before));
-        var adapter = new ProductWorkspaceCompositeConfigurationAdapter(store);
+        ProductWorkspaceCompositeConfigurationAdapter adapter =
+            CreateAdapter(store, before);
         using IProductWorkspaceWindowCompositeSnapshot snapshot =
             adapter.Capture().Snapshot!;
         await using FileStream lease = AcquireLease(store.WriteLeasePath);
 
-        bool applied = adapter.Apply(State("after"), Binding(State("after")));
+        bool applied = adapter.Apply(
+            State("after"),
+            Binding(State("after"), revision: 2));
 
         Assert.False(applied);
         Assert.Equal(
@@ -297,11 +347,17 @@ public sealed class ProductWorkspaceCompositeConfigurationAdapterTests
         return result.Document!;
     }
 
-    private static ProductWorkspaceWindowCompositeBinding Binding(
+    private static ProductWorkspaceCompositeConfigurationAdapter CreateAdapter(
+        ProductConfigurationStore store,
         ProductWorkspaceState state) =>
+        new(store, new BindingExchange(Binding(state)));
+
+    private static ProductWorkspaceWindowCompositeBinding Binding(
+        ProductWorkspaceState state,
+        long revision = 1) =>
         new(
             TopologyGeneration: 1,
-            EditRevision: 1,
+            EditRevision: revision,
             WindowRegistryGeneration: 1,
             DesktopHostInstanceId: Guid.Parse(
                 "65e8144f-28c3-45f5-a691-0df949fa1b25"),
@@ -309,6 +365,38 @@ public sealed class ProductWorkspaceCompositeConfigurationAdapterTests
             ConfigurationFingerprint:
                 ProductWorkspaceConfigurationFingerprint.Compute(
                     Document(state)));
+
+    private sealed class BindingExchange(
+        ProductWorkspaceWindowCompositeBinding current)
+        : IProductWorkspaceCompositeBindingExchange
+    {
+        private readonly object sync = new();
+        private ProductWorkspaceWindowCompositeBinding current = current;
+
+        public bool Matches(ProductWorkspaceWindowCompositeBinding expected)
+        {
+            lock (sync)
+            {
+                return current == expected;
+            }
+        }
+
+        public bool TryExchange(
+            ProductWorkspaceWindowCompositeBinding expected,
+            ProductWorkspaceWindowCompositeBinding replacement)
+        {
+            lock (sync)
+            {
+                if (current != expected)
+                {
+                    return false;
+                }
+
+                current = replacement;
+                return true;
+            }
+        }
+    }
 
     private static FileStream AcquireLease(string path) =>
         new(

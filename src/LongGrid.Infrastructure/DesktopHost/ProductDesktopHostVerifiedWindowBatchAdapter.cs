@@ -50,15 +50,29 @@ internal sealed class ProductDesktopHostVerifiedWindowBatchAdapter
 
     private readonly ProductDesktopHostWindowBridge bridge;
     private readonly IProductDesktopHostWindowBatchMutator mutator;
+    private readonly IProductDesktopHostThreadDispatcher dispatcher;
+    private readonly TimeSpan queueTimeout;
 
     internal ProductDesktopHostVerifiedWindowBatchAdapter(
         ProductDesktopHostWindowBridge bridge,
-        IProductDesktopHostWindowBatchMutator mutator)
+        IProductDesktopHostWindowBatchMutator mutator,
+        IProductDesktopHostThreadDispatcher dispatcher,
+        TimeSpan? queueTimeout = null)
     {
         ArgumentNullException.ThrowIfNull(bridge);
         ArgumentNullException.ThrowIfNull(mutator);
+        ArgumentNullException.ThrowIfNull(dispatcher);
         this.bridge = bridge;
         this.mutator = mutator;
+        this.dispatcher = dispatcher;
+        this.queueTimeout = queueTimeout ?? TimeSpan.FromMilliseconds(500);
+        if (this.queueTimeout < TimeSpan.FromMilliseconds(1)
+            || this.queueTimeout > TimeSpan.FromSeconds(5))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(queueTimeout),
+                "The queue timeout must be between 1 millisecond and 5 seconds.");
+        }
     }
 
     public ProductWorkspaceWindowCompositeCapture Capture(
@@ -96,23 +110,37 @@ internal sealed class ProductDesktopHostVerifiedWindowBatchAdapter
             return false;
         }
 
-        return bridge.TryUseExactVerifiedWindows(
-            normalized.Select(placement => placement.ContainerId).ToArray(),
-            registryGeneration,
-            windows =>
-            {
-                var handles = windows.ToDictionary(
-                    window => window.ContainerId,
-                    window => window.Handle,
-                    StringComparer.Ordinal);
-                ProductDesktopHostWindowMutation[] mutations = normalized
-                    .Select(placement => new ProductDesktopHostWindowMutation(
-                        placement.ContainerId,
-                        handles[placement.ContainerId],
-                        placement.Bounds))
-                    .ToArray();
-                return mutator.Apply(mutations);
-            });
+        string[] containerIds = normalized
+            .Select(placement => placement.ContainerId)
+            .ToArray();
+        if (!bridge.TryPrepareExactVerifiedWindows(
+                containerIds,
+                registryGeneration,
+                out ProductDesktopHostPreparedWindowBatch? prepared)
+            || prepared!.HostThreadId != dispatcher.TargetThreadId)
+        {
+            return false;
+        }
+
+        ProductDesktopHostDispatchResult dispatched = dispatcher.Invoke(
+            () => bridge.TryUsePreparedVerifiedWindows(
+                prepared,
+                windows =>
+                {
+                    var handles = windows.ToDictionary(
+                        window => window.ContainerId,
+                        window => window.Handle,
+                        StringComparer.Ordinal);
+                    ProductDesktopHostWindowMutation[] mutations = normalized
+                        .Select(placement => new ProductDesktopHostWindowMutation(
+                            placement.ContainerId,
+                            handles[placement.ContainerId],
+                            placement.Bounds))
+                        .ToArray();
+                    return mutator.Apply(mutations);
+                }),
+            queueTimeout);
+        return dispatched.IsSuccess;
     }
 
     public bool Verify(

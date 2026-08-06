@@ -141,6 +141,40 @@ public sealed class ProductDesktopHostVerifiedWindowBatchAdapterTests
     }
 
     [Fact]
+    public void ApplyRejectsDispatcherForAnotherHostThread()
+    {
+        TestContext context = CreateContext();
+        var adapter = new ProductDesktopHostVerifiedWindowBatchAdapter(
+            context.Bridge,
+            context.Mutator,
+            new InlineDispatcher(999));
+
+        Assert.False(adapter.Apply(
+            Placements(),
+            context.Bridge.Snapshot.Generation));
+        Assert.Empty(context.Mutator.AppliedBatches);
+    }
+
+    [Fact]
+    public void ApplyRereadsPreparedBatchAfterDispatchQueueDelay()
+    {
+        TestContext context = CreateContext();
+        var dispatcher = new InlineDispatcher(Host.ThreadId)
+        {
+            BeforeInvoke = () => context.Bridge.Refresh(),
+        };
+        var adapter = new ProductDesktopHostVerifiedWindowBatchAdapter(
+            context.Bridge,
+            context.Mutator,
+            dispatcher);
+
+        Assert.False(adapter.Apply(
+            Placements(),
+            context.Bridge.Snapshot.Generation));
+        Assert.Empty(context.Mutator.AppliedBatches);
+    }
+
+    [Fact]
     public void RestoreReappliesCapturedBoundsAndCanBeVerified()
     {
         TestContext context = CreateContext();
@@ -316,7 +350,10 @@ public sealed class ProductDesktopHostVerifiedWindowBatchAdapterTests
             bridge,
             inspector,
             mutator,
-            new ProductDesktopHostVerifiedWindowBatchAdapter(bridge, mutator));
+            new ProductDesktopHostVerifiedWindowBatchAdapter(
+                bridge,
+                mutator,
+                new InlineDispatcher(Host.ThreadId)));
     }
 
     private static ProductDesktopHostWindowClaim Claim(
@@ -401,6 +438,24 @@ public sealed class ProductDesktopHostVerifiedWindowBatchAdapterTests
     {
         public void Dispose()
         {
+        }
+    }
+
+    private sealed class InlineDispatcher(uint targetThreadId)
+        : IProductDesktopHostThreadDispatcher
+    {
+        public uint TargetThreadId { get; } = targetThreadId;
+
+        public Action? BeforeInvoke { get; init; }
+
+        public ProductDesktopHostDispatchResult Invoke(
+            Func<bool> operation,
+            TimeSpan queueTimeout)
+        {
+            BeforeInvoke?.Invoke();
+            return new(
+                ProductDesktopHostDispatchStatus.Executed,
+                operation());
         }
     }
 
