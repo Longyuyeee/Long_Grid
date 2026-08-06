@@ -29,6 +29,8 @@ $containerEditPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceContainerEditPresentation.cs'
 $layoutRecoveryPreviewCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceLayoutRecoveryPreview.cs'
+$layoutRecoveryReviewCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceLayoutRecoveryReview.cs'
 $layoutRecoveryPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceLayoutRecoveryPresentation.cs'
 $displayTopologyReaderCodePath = Join-Path $projectRoot `
@@ -99,6 +101,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $layoutRecoveryPreviewCode = Get-Content `
         -LiteralPath $layoutRecoveryPreviewCodePath `
+        -Raw `
+        -Encoding UTF8
+    $layoutRecoveryReviewCode = Get-Content `
+        -LiteralPath $layoutRecoveryReviewCodePath `
         -Raw `
         -Encoding UTF8
     $layoutRecoveryPresentationCode = Get-Content `
@@ -196,6 +202,7 @@ function Test-SourceContract {
         'ProductWorkspaceLayoutRecoveryTitle',
         'ProductWorkspaceLayoutRecoveryDetail',
         'ProductWorkspaceLayoutRecoverySummary',
+        'ProductWorkspaceLayoutRecoveryConfirmButton',
         'ProductWorkspaceViewCard',
         'ProductWorkspaceViewTitle',
         'ProductWorkspaceViewDetail',
@@ -800,13 +807,14 @@ function Test-SourceContract {
         -not ($codeBehind -match 'ProductWorkspaceRead.*(State|CatalogEntry|PersistedTarget|CanonicalTarget)')
     ) 'MainWindow must render only the presentation contract, never workspace identity state.'
     Assert-Condition (
-        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 2) -and
+        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 3) -and
         $referenceCommitCode -match 'editRevision\s*=\s*checked\(editRevision\s*\+\s*1\)' -and
         $referenceCommitCode -match 'ProductWorkspaceReferenceGate\.Evaluate' -and
         $referenceCommitCode -match 'ProductWorkspaceConfigurationProjector\.Project' -and
         $referenceCommitCode -match 'CommitContainer' -and
-        $referenceCommitCode -match 'ProductWorkspaceReducer\.(CreateContainer|RenameContainer)'
-    ) 'Reference and container edits must share one coordinator with one submission per accepted path.'
+        $referenceCommitCode -match 'ProductWorkspaceReducer\.(CreateContainer|RenameContainer)' -and
+        $referenceCommitCode -match 'CommitLayoutRecovery'
+    ) 'Reference, container, and layout recovery edits must share one coordinator with one submission per accepted path.'
     Assert-Condition (
         $codeBehind -match 'configurationTransactionsEnabled' -and
         $codeBehind -match 'ImportConfigurationButton\.IsEnabled' -and
@@ -893,6 +901,25 @@ function Test-SourceContract {
             'ContainerId|DisplayKey|StableId|RequestedBounds|ProposedBounds')
     ) 'Product layout recovery preview must be finite, count-only, and non-mutating.'
     Assert-Condition (
+        $layoutRecoveryReviewCode -match 'SavedTopologyFingerprint' -and
+        $layoutRecoveryReviewCode -match 'CurrentTopologyFingerprint' -and
+        $layoutRecoveryReviewCode -match 'ConfigurationFingerprint' -and
+        $layoutRecoveryReviewCode -match 'TopologyGeneration' -and
+        $layoutRecoveryReviewCode -match 'EditRevision' -and
+        $layoutRecoveryReviewCode -match 'ConfirmationRequired' -and
+        $layoutRecoveryReviewCode -match 'ContainerLocked' -and
+        $layoutRecoveryReviewCode -match 'ProductWorkspaceConfigurationProjector\.Project'
+    ) 'Product layout recovery confirmation must bind finite topology, configuration, and revision evidence.'
+    Assert-Condition ($appCode -match 'CommitProductWorkspaceLayoutRecovery') `
+        'App must connect the product layout recovery confirmation delegate.'
+    Assert-Condition (
+        $codeBehind -match 'ProductWorkspaceLayoutRecoveryConfirmButton_Click' -and
+        $codeBehind -match 'ProductWorkspaceLayoutRecoveryCommitResult'
+    ) 'Layout recovery confirmation must use the finite product commit result.'
+    Assert-Condition (-not ($appCode -match `
+            'LayoutRecoveryTransactionCoordinator|ILayoutRecoveryWindowBatchAdapter')) `
+        'Product App must not connect the real-window recovery transaction adapter.'
+    Assert-Condition (
         $displayTopologyReaderCode -match 'HasStableTargetIdentity' -and
         $displayTopologyReaderCode -match 'MappedToActivePath' -and
         $displayTopologyReaderCode -match 'SourceBoundsMatch' -and
@@ -975,7 +1002,7 @@ function Test-SourceContract {
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
-        productLayoutRecovery = 'readonly-authoritative-topology-and-saved-metadata-gated-preview'
+        productLayoutRecovery = 'review-token-generation-revision-fingerprint-gated-config-only-commit'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'

@@ -62,10 +62,26 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerPositionPreset?,
         ProductWorkspaceContainerSizePreset?,
         ProductWorkspaceContainerCommitResult> _commitProductWorkspaceContainerAction;
+    private readonly Func<
+        ProductWorkspaceLayoutRecoveryReviewToken,
+        bool,
+        ProductWorkspaceLayoutRecoveryCommitResult>
+        _commitProductWorkspaceLayoutRecovery;
     private ProductWorkspaceReferenceReviewPresentation _referenceReview =
         ProductWorkspaceReferenceReviewPresentation.Unavailable;
     private ProductWorkspaceContainerEditPresentation _containerEditor =
         ProductWorkspaceContainerEditPresentation.Unavailable;
+    private ProductWorkspaceLayoutRecoveryPresentation _layoutRecovery =
+        ProductWorkspaceLayoutRecoveryPresentation.Create(
+            new(
+                new(
+                    ProductWorkspaceLayoutRecoveryPreviewStatus.UnavailableSession,
+                    0,
+                    0,
+                    0,
+                    0,
+                    DesktopWindowsChanged: false),
+                null));
 
     public MainWindow(
         Func<
@@ -104,7 +120,12 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerOpacityPreset?,
             ProductWorkspaceContainerPositionPreset?,
             ProductWorkspaceContainerSizePreset?,
-            ProductWorkspaceContainerCommitResult> commitProductWorkspaceContainerAction)
+            ProductWorkspaceContainerCommitResult> commitProductWorkspaceContainerAction,
+        Func<
+            ProductWorkspaceLayoutRecoveryReviewToken,
+            bool,
+            ProductWorkspaceLayoutRecoveryCommitResult>
+            commitProductWorkspaceLayoutRecovery)
     {
         ArgumentNullException.ThrowIfNull(recoverConfiguration);
         ArgumentNullException.ThrowIfNull(prepareConfigurationImport);
@@ -118,6 +139,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(refreshProductDesktopCatalog);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceReferenceAction);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceContainerAction);
+        ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecovery);
         _recoverConfiguration = recoverConfiguration;
         _prepareConfigurationImport = prepareConfigurationImport;
         _commitConfigurationImport = commitConfigurationImport;
@@ -132,6 +154,8 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceReferenceAction;
         _commitProductWorkspaceContainerAction =
             commitProductWorkspaceContainerAction;
+        _commitProductWorkspaceLayoutRecovery =
+            commitProductWorkspaceLayoutRecovery;
         InitializeComponent();
         RootLayout.Loaded += RootLayout_Loaded;
         RootLayout.SizeChanged += RootLayout_SizeChanged;
@@ -316,13 +340,81 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceLayoutRecoveryPresentation presentation)
     {
         ArgumentNullException.ThrowIfNull(presentation);
+        _layoutRecovery = presentation;
         ProductWorkspaceLayoutRecoveryTitle.Text = presentation.Title;
         ProductWorkspaceLayoutRecoveryDetail.Text = presentation.Detail;
         ProductWorkspaceLayoutRecoverySummary.Text = presentation.Summary;
         AutomationProperties.SetItemStatus(
             ProductWorkspaceLayoutRecoveryDetail,
             presentation.MachineStatus);
+        ProductWorkspaceLayoutRecoveryConfirmButton.IsEnabled =
+            presentation.CanConfirm;
+        ProductWorkspaceLayoutRecoveryConfirmButton.Visibility =
+            presentation.CanConfirm ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    private async void ProductWorkspaceLayoutRecoveryConfirmButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ProductWorkspaceLayoutRecoveryReviewToken? token = _layoutRecovery.Token;
+        if (!_layoutRecovery.CanConfirm || token is null)
+        {
+            return;
+        }
+
+        ProductWorkspaceLayoutRecoveryConfirmButton.IsEnabled = false;
+        try
+        {
+            ContentDialog confirmation = new()
+            {
+                XamlRoot = RootLayout.XamlRoot,
+                Title = "确认更新 Long方格布局配置？",
+                Content =
+                    $"{_layoutRecovery.Summary}。确认后只会更新 Long方格自身的显示器键、DIP 布局和保存时拓扑，" +
+                    "并进入现有安全保存队列；不会移动、隐藏或创建任何真实桌面窗口。",
+                PrimaryButtonText = "确认配置恢复",
+                CloseButtonText = "取消",
+                DefaultButton = ContentDialogButton.Close,
+            };
+            if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
+            {
+                return;
+            }
+
+            ProductWorkspaceLayoutRecoveryCommitResult result =
+                _commitProductWorkspaceLayoutRecovery(token, true);
+            if (!result.IsAccepted)
+            {
+                ProductWorkspaceLayoutRecoveryDetail.Text =
+                    DescribeLayoutRecoveryCommitFailure(result.ConfirmationStatus);
+                AutomationProperties.SetItemStatus(
+                    ProductWorkspaceLayoutRecoveryDetail,
+                    $"LayoutRecoveryCommitRejected:{result.ConfirmationStatus}:DesktopWindowsChanged=False");
+            }
+        }
+        finally
+        {
+            ProductWorkspaceLayoutRecoveryConfirmButton.IsEnabled =
+                _layoutRecovery.CanConfirm;
+        }
+    }
+
+    private static string DescribeLayoutRecoveryCommitFailure(
+        ProductWorkspaceLayoutRecoveryConfirmationStatus status) => status switch
+        {
+            ProductWorkspaceLayoutRecoveryConfirmationStatus
+                .TopologyGenerationChanged => "显示拓扑已经变化；旧预览已失效，请检查新结果。",
+            ProductWorkspaceLayoutRecoveryConfirmationStatus.EditRevisionChanged =>
+                "布局配置已经变化；旧预览已失效，请检查新结果。",
+            ProductWorkspaceLayoutRecoveryConfirmationStatus.TokenMismatch =>
+                "恢复证据与预览不一致；没有修改配置。",
+            ProductWorkspaceLayoutRecoveryConfirmationStatus.ContainerLocked =>
+                "至少一个需要调整的方格已锁定；没有修改配置。",
+            ProductWorkspaceLayoutRecoveryConfirmationStatus.PlanBlocked =>
+                "显示器无法唯一映射；没有执行部分恢复。",
+            _ => "恢复预览已不可用；没有修改配置，请重新检查当前状态。",
+        };
 
     internal void ApplyProductWorkspaceContainerEditor(
         ProductWorkspaceContainerEditPresentation presentation)
