@@ -31,6 +31,8 @@ $layoutRecoveryPreviewCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceLayoutRecoveryPreview.cs'
 $layoutRecoveryReviewCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceLayoutRecoveryReview.cs'
+$layoutRecoveryUndoCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceLayoutRecoveryUndo.cs'
 $layoutRecoveryPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceLayoutRecoveryPresentation.cs'
 $displayTopologyReaderCodePath = Join-Path $projectRoot `
@@ -105,6 +107,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $layoutRecoveryReviewCode = Get-Content `
         -LiteralPath $layoutRecoveryReviewCodePath `
+        -Raw `
+        -Encoding UTF8
+    $layoutRecoveryUndoCode = Get-Content `
+        -LiteralPath $layoutRecoveryUndoCodePath `
         -Raw `
         -Encoding UTF8
     $layoutRecoveryPresentationCode = Get-Content `
@@ -203,6 +209,7 @@ function Test-SourceContract {
         'ProductWorkspaceLayoutRecoveryDetail',
         'ProductWorkspaceLayoutRecoverySummary',
         'ProductWorkspaceLayoutRecoveryConfirmButton',
+        'ProductWorkspaceLayoutRecoveryUndoButton',
         'ProductWorkspaceViewCard',
         'ProductWorkspaceViewTitle',
         'ProductWorkspaceViewDetail',
@@ -807,14 +814,15 @@ function Test-SourceContract {
         -not ($codeBehind -match 'ProductWorkspaceRead.*(State|CatalogEntry|PersistedTarget|CanonicalTarget)')
     ) 'MainWindow must render only the presentation contract, never workspace identity state.'
     Assert-Condition (
-        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 3) -and
+        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 4) -and
         $referenceCommitCode -match 'editRevision\s*=\s*checked\(editRevision\s*\+\s*1\)' -and
         $referenceCommitCode -match 'ProductWorkspaceReferenceGate\.Evaluate' -and
         $referenceCommitCode -match 'ProductWorkspaceConfigurationProjector\.Project' -and
         $referenceCommitCode -match 'CommitContainer' -and
         $referenceCommitCode -match 'ProductWorkspaceReducer\.(CreateContainer|RenameContainer)' -and
-        $referenceCommitCode -match 'CommitLayoutRecovery'
-    ) 'Reference, container, and layout recovery edits must share one coordinator with one submission per accepted path.'
+        $referenceCommitCode -match 'CommitLayoutRecovery' -and
+        $referenceCommitCode -match 'CommitLayoutRecoveryUndo'
+    ) 'Reference, container, layout recovery, and one-time undo edits must share one coordinator with one submission per accepted path.'
     Assert-Condition (
         $codeBehind -match 'configurationTransactionsEnabled' -and
         $codeBehind -match 'ImportConfigurationButton\.IsEnabled' -and
@@ -916,6 +924,18 @@ function Test-SourceContract {
         $codeBehind -match 'ProductWorkspaceLayoutRecoveryConfirmButton_Click' -and
         $codeBehind -match 'ProductWorkspaceLayoutRecoveryCommitResult'
     ) 'Layout recovery confirmation must use the finite product commit result.'
+    Assert-Condition (
+        $layoutRecoveryUndoCode -match 'OperationId' -and
+        $layoutRecoveryUndoCode -match 'RecoveryEditRevision' -and
+        $layoutRecoveryUndoCode -match 'RecoveredConfigurationFingerprint' -and
+        $layoutRecoveryUndoCode -match 'RestoreConfigurationFingerprint' -and
+        $layoutRecoveryUndoCode -match 'CurrentConfigurationChanged' -and
+        $referenceCommitCode -match 'CurrentLayoutRecoveryUndoToken' -and
+        $referenceCommitCode -match 'pendingLayoutRecoveryUndo\s*=\s*null' -and
+        $appCode -match 'CommitProductWorkspaceLayoutRecoveryUndo' -and
+        $codeBehind -match 'ProductWorkspaceLayoutRecoveryUndoButton_Click' -and
+        $codeBehind -match 'DefaultButton\s*=\s*ContentDialogButton\.Close'
+    ) 'Layout recovery undo must be one-time, revision/fingerprint bound, explicitly confirmed, and shared-save coordinated.'
     Assert-Condition (-not ($appCode -match `
             'LayoutRecoveryTransactionCoordinator|ILayoutRecoveryWindowBatchAdapter')) `
         'Product App must not connect the real-window recovery transaction adapter.'
@@ -1002,7 +1022,7 @@ function Test-SourceContract {
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
-        productLayoutRecovery = 'review-token-generation-revision-fingerprint-gated-config-only-commit'
+        productLayoutRecovery = 'review-token-config-only-commit-one-time-revision-fingerprint-undo'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'

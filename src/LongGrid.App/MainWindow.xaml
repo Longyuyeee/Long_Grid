@@ -324,6 +324,14 @@
                                         Content="审查并确认配置恢复"
                                         IsEnabled="False"
                                         Visibility="Collapsed" />
+                                    <Button
+                                        x:Name="ProductWorkspaceLayoutRecoveryUndoButton"
+                                        AutomationProperties.AutomationId="ProductWorkspaceLayoutRecoveryUndoButton"
+                                        AutomationProperties.Name="撤销本次配置级布局恢复"
+                                        Click="ProductWorkspaceLayoutRecoveryUndoButton_Click"
+                                        Content="撤销本次配置恢复"
+                                        IsEnabled="False"
+                                        Visibility="Collapsed" />
                                 </StackPanel>
                             </Border>
 

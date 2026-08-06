@@ -31,6 +31,101 @@ public sealed class ProductWorkspaceLayoutRecoveryCommitCoordinatorTests
         Assert.Equal(1, workflow.SaveCalls);
         Assert.Equal(2, result.Document!.SchemaVersion);
         Assert.Equal(144u, result.Document.SavedDisplayTopology![0].EffectiveDpi);
+        Assert.NotNull(coordinator.CurrentLayoutRecoveryUndoToken);
+    }
+
+    [Fact]
+    public async Task AcceptedUndoRestoresPreRecoveryStateAndIsOneTime()
+    {
+        var workflow = new FakeWorkflow();
+        await using var saves = new ProductWorkspaceSaveController(
+            workflow,
+            new ImmediateScheduler(),
+            TimeSpan.FromMilliseconds(1));
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        (ProductWorkspaceState state, DisplayTopologyNode current) = Fixture();
+        ProductWorkspaceLayoutRecoveryCommitResult recovery = Recover(
+            coordinator, state, current);
+        ProductWorkspaceLayoutRecoveryUndoToken token =
+            coordinator.CurrentLayoutRecoveryUndoToken!;
+
+        ProductWorkspaceLayoutRecoveryUndoCommitResult undo =
+            coordinator.CommitLayoutRecoveryUndo(
+                recovery.State!, token, confirmed: true);
+        ProductWorkspaceLayoutRecoveryUndoCommitResult repeated =
+            coordinator.CommitLayoutRecoveryUndo(
+                undo.State!, token, confirmed: true);
+        await saves.CompleteAsync();
+
+        Assert.True(undo.IsAccepted);
+        Assert.Equal(2, undo.EditRevision);
+        Assert.Equal("display-a", undo.State!.Containers[0].Placement.DisplayKey);
+        Assert.Equal(32, undo.State.Containers[0].Placement.XDip);
+        Assert.Null(coordinator.CurrentLayoutRecoveryUndoToken);
+        Assert.Equal(
+            ProductWorkspaceLayoutRecoveryUndoStatus.Unavailable,
+            repeated.UndoStatus);
+        Assert.Equal(2, coordinator.CurrentEditRevision);
+    }
+
+    [Fact]
+    public async Task CancelDoesNotConsumeUndoAndExternalEditInvalidatesIt()
+    {
+        await using var saves = new ProductWorkspaceSaveController(
+            new FakeWorkflow(),
+            new ImmediateScheduler(),
+            TimeSpan.FromMilliseconds(1));
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        (ProductWorkspaceState state, DisplayTopologyNode current) = Fixture();
+        ProductWorkspaceLayoutRecoveryCommitResult recovery = Recover(
+            coordinator, state, current);
+        ProductWorkspaceLayoutRecoveryUndoToken token =
+            coordinator.CurrentLayoutRecoveryUndoToken!;
+
+        ProductWorkspaceLayoutRecoveryUndoCommitResult canceled =
+            coordinator.CommitLayoutRecoveryUndo(
+                recovery.State!, token, confirmed: false);
+
+        Assert.Equal(
+            ProductWorkspaceLayoutRecoveryUndoStatus.ConfirmationRequired,
+            canceled.UndoStatus);
+        Assert.Equal(1, coordinator.CurrentEditRevision);
+        Assert.Equal(token, coordinator.CurrentLayoutRecoveryUndoToken);
+
+        Assert.Equal(2, coordinator.AdvanceExternalRevision());
+        Assert.Null(coordinator.CurrentLayoutRecoveryUndoToken);
+        Assert.Equal(
+            ProductWorkspaceLayoutRecoveryUndoStatus.Unavailable,
+            coordinator.CommitLayoutRecoveryUndo(
+                recovery.State!, token, confirmed: true).UndoStatus);
+    }
+
+    [Fact]
+    public async Task RejectedUndoSaveDoesNotConsumeTokenOrAdvanceRevision()
+    {
+        var saves = new ProductWorkspaceSaveController(
+            new FakeWorkflow(),
+            new ImmediateScheduler(),
+            TimeSpan.FromMilliseconds(1));
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        (ProductWorkspaceState state, DisplayTopologyNode current) = Fixture();
+        ProductWorkspaceLayoutRecoveryCommitResult recovery = Recover(
+            coordinator, state, current);
+        ProductWorkspaceLayoutRecoveryUndoToken token =
+            coordinator.CurrentLayoutRecoveryUndoToken!;
+        await saves.CompleteAsync();
+
+        ProductWorkspaceLayoutRecoveryUndoCommitResult result =
+            coordinator.CommitLayoutRecoveryUndo(
+                recovery.State!, token, confirmed: true);
+
+        Assert.Equal(
+            ProductWorkspaceLayoutRecoveryUndoCommitStatus.SaveRejected,
+            result.Status);
+        Assert.Equal(ProductWorkspaceSaveSubmissionStatus.Completed, result.SubmissionStatus);
+        Assert.Equal(1, coordinator.CurrentEditRevision);
+        Assert.Equal(token, coordinator.CurrentLayoutRecoveryUndoToken);
+        await saves.DisposeAsync();
     }
 
     [Fact]
@@ -81,6 +176,23 @@ public sealed class ProductWorkspaceLayoutRecoveryCommitCoordinatorTests
         Assert.Throws<ArgumentNullException>(
             () => coordinator.CommitLayoutRecovery(
                 Fixture().State, null, false, 1, null!, true));
+        Assert.Throws<ArgumentNullException>(
+            () => coordinator.CommitLayoutRecoveryUndo(
+                null!,
+                new(Guid.NewGuid(), 1, "recovered", "restore", 1),
+                true));
+    }
+
+    private static ProductWorkspaceLayoutRecoveryCommitResult Recover(
+        ProductWorkspaceCommitCoordinator coordinator,
+        ProductWorkspaceState state,
+        DisplayTopologyNode current)
+    {
+        ProductWorkspaceLayoutRecoveryReviewToken token =
+            ProductWorkspaceLayoutRecoveryReview.Prepare(
+                state, [current], true, 5, coordinator.CurrentEditRevision).Token!;
+        return coordinator.CommitLayoutRecovery(
+            state, [current], true, 5, token, confirmed: true);
     }
 
     private static (ProductWorkspaceState State, DisplayTopologyNode Current) Fixture()

@@ -10,8 +10,13 @@ internal sealed record ProductWorkspaceLayoutRecoveryPresentation(
     bool CanConfirm,
     ProductWorkspaceLayoutRecoveryReviewToken? Token)
 {
+    public bool CanUndo { get; init; }
+
+    public ProductWorkspaceLayoutRecoveryUndoToken? UndoToken { get; init; }
+
     public static ProductWorkspaceLayoutRecoveryPresentation Create(
-        ProductWorkspaceLayoutRecoveryReviewResult review)
+        ProductWorkspaceLayoutRecoveryReviewResult review,
+        ProductWorkspaceLayoutRecoveryUndoToken? undoToken = null)
     {
         ArgumentNullException.ThrowIfNull(review);
         ProductWorkspaceLayoutRecoveryPreviewResult result = review.Preview;
@@ -59,7 +64,11 @@ internal sealed record ProductWorkspaceLayoutRecoveryPresentation(
                 "恢复计划未生成",
                 $"LayoutRecoveryPreviewInvalidState:{counts}", false, null),
         };
-        return presentation;
+        return presentation with
+        {
+            CanUndo = undoToken is not null,
+            UndoToken = undoToken,
+        };
     }
 
     private static string DescribeCounts(
