@@ -300,4 +300,6 @@ DesktopHost 使用状态机管理 `Hidden / DesktopPassive / DesktopEditing / Pe
 
 正式容器外观编辑只接受 `ProductWorkspaceContainerColorPreset` 与 `ProductWorkspaceContainerOpacityPreset` 两组有限枚举，由 Infrastructure 提交边界映射为 v1 `#RRGGBB` 和有限透明度值；UI 不得提交任意 Brush/XAML/颜色字符串或连续浮点数。该动作复用统一 workspace revision、Core reducer、v1 projection 和唯一保存控制器，锁定容器必须先显式解锁，且外观提交不得改变引用或桌面文件。详细边界见[正式容器受限外观提交审计](56-container-finite-appearance-commit-audit.md)。
 
+正式容器布局编辑当前只接受有限位置/尺寸枚举，由 Infrastructure 映射为小范围 DIP 并保留原 `DisplayKey`。App presentation 可回显坐标和尺寸，但不得获得显示器身份；该配置动作不调用 HWND 或 DesktopHost，也不承诺最小可见面积。显示器归属、DPI/工作区变化和可见性纠正必须在后续产品级拓扑解析中复用 `Automatic/ReviewRequired/Blocked` 恢复合同。详细边界见[正式容器受限布局预设提交审计](57-container-bounded-placement-commit-audit.md)。
+
 详细实现依据见[核心 Windows 能力实现审计](08-core-windows-implementation-audit.md)。

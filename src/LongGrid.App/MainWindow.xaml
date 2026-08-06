@@ -394,6 +394,38 @@
                                             Click="ProductWorkspaceContainerAppearanceButton_Click"
                                             Content="应用外观并保存"
                                             IsEnabled="False" />
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <ComboBox
+                                                x:Name="ProductWorkspaceContainerPositionSelector"
+                                                AutomationProperties.AutomationId="ProductWorkspaceContainerPositionSelector"
+                                                AutomationProperties.Name="选择正式方格位置预设"
+                                                DisplayMemberPath="DisplayName"
+                                                Header="位置预设（DIP）"
+                                                HorizontalAlignment="Stretch"
+                                                IsEnabled="False"
+                                                SelectionChanged="ProductWorkspaceContainerPlacementSelector_SelectionChanged" />
+                                            <ComboBox
+                                                x:Name="ProductWorkspaceContainerSizeSelector"
+                                                Grid.Column="1"
+                                                AutomationProperties.AutomationId="ProductWorkspaceContainerSizeSelector"
+                                                AutomationProperties.Name="选择正式方格尺寸预设"
+                                                DisplayMemberPath="DisplayName"
+                                                Header="尺寸预设（DIP）"
+                                                HorizontalAlignment="Stretch"
+                                                IsEnabled="False"
+                                                SelectionChanged="ProductWorkspaceContainerPlacementSelector_SelectionChanged" />
+                                        </Grid>
+                                        <Button
+                                            x:Name="ProductWorkspaceContainerPlacementButton"
+                                            AutomationProperties.AutomationId="ProductWorkspaceContainerPlacementButton"
+                                            AutomationProperties.Name="应用所选正式方格布局预设并保存"
+                                            Click="ProductWorkspaceContainerPlacementButton_Click"
+                                            Content="应用布局并保存"
+                                            IsEnabled="False" />
                                         <TextBlock
                                             x:Name="ProductWorkspaceContainerEditStatus"
                                             AutomationProperties.AutomationId="ProductWorkspaceContainerEditStatus"

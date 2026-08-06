@@ -346,7 +346,9 @@ public partial class App : Application
         string name,
         bool? stateValue,
         ProductWorkspaceContainerColorPreset? colorPreset,
-        ProductWorkspaceContainerOpacityPreset? opacityPreset)
+        ProductWorkspaceContainerOpacityPreset? opacityPreset,
+        ProductWorkspaceContainerPositionPreset? positionPreset,
+        ProductWorkspaceContainerSizePreset? sizePreset)
     {
         ProductWorkspaceState? state = productWorkspaceSession.State;
         bool creatingFirstConfiguration =
@@ -390,7 +392,9 @@ public partial class App : Application
                     newContainer,
                     stateValue,
                     colorPreset,
-                    opacityPreset));
+                    opacityPreset,
+                    positionPreset,
+                    sizePreset));
         if (!result.IsAccepted)
         {
             return result;

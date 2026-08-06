@@ -33,6 +33,7 @@ public enum ProductWorkspaceContainerCommitAction
     SetLocked,
     SetCollapsed,
     SetAppearancePreset,
+    SetPlacementPreset,
 }
 
 public enum ProductWorkspaceContainerColorPreset
@@ -50,6 +51,22 @@ public enum ProductWorkspaceContainerOpacityPreset
     Strong,
     Soft,
     Subtle,
+}
+
+public enum ProductWorkspaceContainerPositionPreset
+{
+    Start,
+    OffsetOne,
+    OffsetTwo,
+    OffsetThree,
+}
+
+public enum ProductWorkspaceContainerSizePreset
+{
+    Compact,
+    Standard,
+    Wide,
+    Large,
 }
 
 public enum ProductWorkspaceContainerCommitStatus
@@ -70,7 +87,9 @@ public sealed record ProductWorkspaceContainerCommitRequest(
     ProductContainerState? NewContainer = null,
     bool? StateValue = null,
     ProductWorkspaceContainerColorPreset? ColorPreset = null,
-    ProductWorkspaceContainerOpacityPreset? OpacityPreset = null);
+    ProductWorkspaceContainerOpacityPreset? OpacityPreset = null,
+    ProductWorkspaceContainerPositionPreset? PositionPreset = null,
+    ProductWorkspaceContainerSizePreset? SizePreset = null);
 
 public sealed record ProductWorkspaceContainerCommitResult(
     ProductWorkspaceContainerCommitStatus Status,
@@ -226,6 +245,8 @@ public sealed class ProductWorkspaceCommitCoordinator
                         && request.StateValue is null
                         && request.ColorPreset is null
                         && request.OpacityPreset is null
+                        && request.PositionPreset is null
+                        && request.SizePreset is null
                         && string.Equals(
                             request.Name,
                             request.NewContainer.Name,
@@ -238,6 +259,8 @@ public sealed class ProductWorkspaceCommitCoordinator
                         && request.StateValue is null
                         && request.ColorPreset is null
                         && request.OpacityPreset is null
+                        && request.PositionPreset is null
+                        && request.SizePreset is null
                         && target is not null =>
                     ProductWorkspaceReducer.RenameContainer(
                         state,
@@ -248,6 +271,8 @@ public sealed class ProductWorkspaceCommitCoordinator
                         && request.StateValue is not null
                         && request.ColorPreset is null
                         && request.OpacityPreset is null
+                        && request.PositionPreset is null
+                        && request.SizePreset is null
                         && target is not null =>
                     ProductWorkspaceReducer.SetContainerLocked(
                         state,
@@ -258,6 +283,8 @@ public sealed class ProductWorkspaceCommitCoordinator
                         && request.StateValue is not null
                         && request.ColorPreset is null
                         && request.OpacityPreset is null
+                        && request.PositionPreset is null
+                        && request.SizePreset is null
                         && target is not null =>
                     ProductWorkspaceReducer.UpdateAppearance(
                         state,
@@ -271,6 +298,8 @@ public sealed class ProductWorkspaceCommitCoordinator
                         && request.StateValue is null
                         && request.ColorPreset is not null
                         && request.OpacityPreset is not null
+                        && request.PositionPreset is null
+                        && request.SizePreset is null
                         && Enum.IsDefined(request.ColorPreset.Value)
                         && Enum.IsDefined(request.OpacityPreset.Value)
                         && target is not null =>
@@ -281,6 +310,26 @@ public sealed class ProductWorkspaceCommitCoordinator
                         {
                             Color = ResolveColor(request.ColorPreset.Value),
                             Opacity = ResolveOpacity(request.OpacityPreset.Value),
+                        }),
+                ProductWorkspaceContainerCommitAction.SetPlacementPreset
+                    when request.NewContainer is null
+                        && request.StateValue is null
+                        && request.ColorPreset is null
+                        && request.OpacityPreset is null
+                        && request.PositionPreset is not null
+                        && request.SizePreset is not null
+                        && Enum.IsDefined(request.PositionPreset.Value)
+                        && Enum.IsDefined(request.SizePreset.Value)
+                        && target is not null =>
+                    ProductWorkspaceReducer.UpdatePlacement(
+                        state,
+                        target.Id,
+                        target.Placement with
+                        {
+                            XDip = ResolvePosition(request.PositionPreset.Value).XDip,
+                            YDip = ResolvePosition(request.PositionPreset.Value).YDip,
+                            WidthDip = ResolveSize(request.SizePreset.Value).WidthDip,
+                            HeightDip = ResolveSize(request.SizePreset.Value).HeightDip,
                         }),
                 _ => null!,
             };
@@ -357,6 +406,26 @@ public sealed class ProductWorkspaceCommitCoordinator
             ProductWorkspaceContainerOpacityPreset.Strong => 0.88,
             ProductWorkspaceContainerOpacityPreset.Soft => 0.72,
             ProductWorkspaceContainerOpacityPreset.Subtle => 0.56,
+            _ => throw new ArgumentOutOfRangeException(nameof(preset)),
+        };
+
+    public static (double XDip, double YDip) ResolvePosition(
+        ProductWorkspaceContainerPositionPreset preset) => preset switch
+        {
+            ProductWorkspaceContainerPositionPreset.Start => (32, 48),
+            ProductWorkspaceContainerPositionPreset.OffsetOne => (56, 72),
+            ProductWorkspaceContainerPositionPreset.OffsetTwo => (80, 96),
+            ProductWorkspaceContainerPositionPreset.OffsetThree => (104, 120),
+            _ => throw new ArgumentOutOfRangeException(nameof(preset)),
+        };
+
+    public static (double WidthDip, double HeightDip) ResolveSize(
+        ProductWorkspaceContainerSizePreset preset) => preset switch
+        {
+            ProductWorkspaceContainerSizePreset.Compact => (280, 192),
+            ProductWorkspaceContainerSizePreset.Standard => (360, 240),
+            ProductWorkspaceContainerSizePreset.Wide => (480, 280),
+            ProductWorkspaceContainerSizePreset.Large => (560, 360),
             _ => throw new ArgumentOutOfRangeException(nameof(preset)),
         };
 

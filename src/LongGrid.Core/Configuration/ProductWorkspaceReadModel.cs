@@ -13,6 +13,10 @@ public sealed record ProductWorkspaceReadContainer(
     string Color,
     double Opacity,
     bool IsCollapsed,
+    double XDip,
+    double YDip,
+    double WidthDip,
+    double HeightDip,
     IReadOnlyList<ProductWorkspaceReadItem> Items,
     int ResolvedCount,
     int UnresolvedCount);
@@ -84,6 +88,10 @@ public static class ProductWorkspaceReadModel
                 container.Appearance.Color,
                 container.Appearance.Opacity,
                 container.Appearance.Collapsed,
+                container.Placement.XDip,
+                container.Placement.YDip,
+                container.Placement.WidthDip,
+                container.Placement.HeightDip,
                 items.ToArray(),
                 resolved,
                 unresolved));

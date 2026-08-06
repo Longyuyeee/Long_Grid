@@ -74,6 +74,10 @@ public sealed class ProductWorkspaceReadModelTests
         Assert.True(container.IsCollapsed);
         Assert.Equal("#334155", container.Color);
         Assert.Equal(0.72, container.Opacity);
+        Assert.Equal(32, container.XDip);
+        Assert.Equal(48, container.YDip);
+        Assert.Equal(420, container.WidthDip);
+        Assert.Equal(300, container.HeightDip);
     }
 
     [Fact]

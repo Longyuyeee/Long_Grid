@@ -72,6 +72,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] Issue #24 容器创建/重命名提交：首次空配置创建和已有容器序号重命名与引用编辑共享统一 coordinator/revision/投影/保存链，锁定、旧 revision、NoChange 与失败均零提交；104-ID 源码合同和真实 Store 文件零变化测试覆盖，锁定/折叠、外观、布局、删除/撤销仍 Pending。
 - [x] Issue #24 容器锁定/折叠提交：显式锁定/解锁与折叠/展开复用统一 coordinator/revision/投影/保存链；锁定阻止重命名和折叠，解锁始终显式可用，折叠不改变引用；106-ID 合同与真实 Store 文件零变化测试覆盖，外观数值、布局、删除/撤销仍 Pending。
 - [x] Issue #24 容器受限外观提交：5 个固定颜色与 4 个透明度档位通过有限枚举进入统一 coordinator/revision/投影/保存链；历史自定义合法值不被擅自归一化，锁定阻止外观编辑；109-ID 合同与真实 Store 文件零变化测试覆盖，自由输入继续关闭，布局、删除/撤销仍 Pending。
+- [x] Issue #24 容器受限布局预设提交：4 个位置与 4 个尺寸 DIP 预设进入统一 coordinator/revision/投影/保存链，保留 DisplayKey 且不调用 DesktopHost；历史自定义值不自动归一化，锁定阻止布局编辑；112-ID 合同与真实 Store 文件零变化测试覆盖，拓扑解析/恢复预览、真实窗口提交、删除/撤销仍 Pending。
 - [x] Issue #24 I24-01/I24-02 专用环境会话入口、独立卷标记/双确认安全合同和 CI `PendingDedicatedEnvironmentEvidence` 预检（Ready to schedule；真实卷结果仍 Pending）。
 - [x] P0-07a 静态双屏拓扑、混合 DPI、隐私安全指纹与资源稳定性（Conditional Pass）。
 - [x] P0-07b1 QueryDisplayConfig 活动路径、virtual-mode 索引、rotation 与 monitor 一一关联（Conditional Pass）。

@@ -354,6 +354,91 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
         Assert.Equal(0, workflow.SaveCalls);
     }
 
+    [Fact]
+    public async Task PlacementPresetUsesDipAndPreservesDisplayAndContent()
+    {
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        ProductWorkspaceState state = MissingReferenceState();
+        long revision = coordinator.AdvanceExternalRevision();
+
+        ProductWorkspaceContainerCommitResult changed = coordinator.CommitContainer(
+            state,
+            new(
+                ProductWorkspaceContainerCommitAction.SetPlacementPreset,
+                revision,
+                1,
+                string.Empty,
+                PositionPreset: ProductWorkspaceContainerPositionPreset.OffsetTwo,
+                SizePreset: ProductWorkspaceContainerSizePreset.Wide));
+        ProductWorkspaceContainerCommitResult noChange = coordinator.CommitContainer(
+            changed.State!,
+            new(
+                ProductWorkspaceContainerCommitAction.SetPlacementPreset,
+                changed.EditRevision,
+                1,
+                string.Empty,
+                PositionPreset: ProductWorkspaceContainerPositionPreset.OffsetTwo,
+                SizePreset: ProductWorkspaceContainerSizePreset.Wide));
+
+        Assert.True(changed.IsAccepted);
+        ProductContainerState container = changed.State!.Containers[0];
+        Assert.Equal("display-unassigned", container.Placement.DisplayKey);
+        Assert.Equal(80, container.Placement.XDip);
+        Assert.Equal(96, container.Placement.YDip);
+        Assert.Equal(480, container.Placement.WidthDip);
+        Assert.Equal(280, container.Placement.HeightDip);
+        Assert.Equal("#2563EB", container.Appearance.Color);
+        Assert.Single(container.Items);
+        Assert.Equal(ProductWorkspaceContainerCommitStatus.NoChange, noChange.Status);
+        Assert.Equal(changed.EditRevision, coordinator.CurrentEditRevision);
+    }
+
+    [Fact]
+    public async Task LockedOrUndefinedPlacementPresetNeverSubmits()
+    {
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        long revision = coordinator.AdvanceExternalRevision();
+        ProductContainerState locked = Container("container-1", "Work") with
+        {
+            IsLocked = true,
+        };
+
+        ProductWorkspaceContainerCommitResult lockedResult =
+            coordinator.CommitContainer(
+                State(locked),
+                new(
+                    ProductWorkspaceContainerCommitAction.SetPlacementPreset,
+                    revision,
+                    1,
+                    string.Empty,
+                    PositionPreset: ProductWorkspaceContainerPositionPreset.Start,
+                    SizePreset: ProductWorkspaceContainerSizePreset.Compact));
+        ProductWorkspaceContainerCommitResult undefinedResult =
+            coordinator.CommitContainer(
+                State(Container("container-1", "Work")),
+                new(
+                    ProductWorkspaceContainerCommitAction.SetPlacementPreset,
+                    revision,
+                    1,
+                    string.Empty,
+                    PositionPreset: ProductWorkspaceContainerPositionPreset.Start,
+                    SizePreset: (ProductWorkspaceContainerSizePreset)999));
+
+        Assert.Equal(
+            ProductWorkspaceContainerCommitStatus.ReducerRejected,
+            lockedResult.Status);
+        Assert.Equal(ProductWorkspaceEditError.ContainerLocked, lockedResult.EditError);
+        Assert.Equal(
+            ProductWorkspaceContainerCommitStatus.InvalidRequest,
+            undefinedResult.Status);
+        Assert.Equal(0, saves.Snapshot.CurrentRevision);
+        Assert.Equal(0, workflow.SaveCalls);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
@@ -446,16 +531,34 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
                         string.Empty,
                         ColorPreset: ProductWorkspaceContainerColorPreset.Amber,
                         OpacityPreset: ProductWorkspaceContainerOpacityPreset.Subtle));
+            ProductWorkspaceContainerCommitResult placement =
+                coordinator.CommitContainer(
+                    appearance.State!,
+                    new(
+                        ProductWorkspaceContainerCommitAction.SetPlacementPreset,
+                        appearance.EditRevision,
+                        1,
+                        string.Empty,
+                        PositionPreset: ProductWorkspaceContainerPositionPreset.OffsetThree,
+                        SizePreset: ProductWorkspaceContainerSizePreset.Large));
             _ = await saves.CompleteAsync();
             ProductConfigurationLoadResult reloaded = await store.LoadAsync();
 
             Assert.True(result.IsAccepted);
             Assert.True(collapsed.IsAccepted);
             Assert.True(appearance.IsAccepted);
+            Assert.True(placement.IsAccepted);
             Assert.Equal("After", reloaded.Document!.Containers[0].Name);
             Assert.True(reloaded.Document.Containers[0].Appearance.Collapsed);
             Assert.Equal("#D97706", reloaded.Document.Containers[0].Appearance.Color);
             Assert.Equal(0.56, reloaded.Document.Containers[0].Appearance.Opacity);
+            Assert.Equal(
+                "display-unassigned",
+                reloaded.Document.Containers[0].Placement.DisplayKey);
+            Assert.Equal(104, reloaded.Document.Containers[0].Placement.XDip);
+            Assert.Equal(120, reloaded.Document.Containers[0].Placement.YDip);
+            Assert.Equal(560, reloaded.Document.Containers[0].Placement.WidthDip);
+            Assert.Equal(360, reloaded.Document.Containers[0].Placement.HeightDip);
             Assert.True(File.Exists(referencedPath));
             Assert.Equal(
                 "keep-original-file",
