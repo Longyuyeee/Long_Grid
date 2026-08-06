@@ -64,7 +64,8 @@ public partial class App : Application
             RefreshProductDesktopCatalogAsync,
             CommitProductWorkspaceReferenceAction,
             CommitProductWorkspaceContainerAction,
-            CommitProductWorkspaceLayoutRecovery);
+            CommitProductWorkspaceLayoutRecovery,
+            CommitProductWorkspaceLayoutRecoveryUndo);
         productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
         productDesktopCatalog.SnapshotChanged += ProductDesktopCatalog_SnapshotChanged;
         productDisplayTopology.SnapshotChanged +=
@@ -285,8 +286,14 @@ public partial class App : Application
         {
             layoutReview = layoutReview with { Token = null };
         }
+        ProductWorkspaceLayoutRecoveryUndoToken? undoToken =
+            productWorkspaceSession.IsReadOnly
+                ? null
+                : workspaceCommits.CurrentLayoutRecoveryUndoToken;
         currentWindow.ApplyProductWorkspaceLayoutRecoveryPreview(
-            ProductWorkspaceLayoutRecoveryPresentation.Create(layoutReview));
+            ProductWorkspaceLayoutRecoveryPresentation.Create(
+                layoutReview,
+                undoToken));
         ProductWorkspaceReadResult readModel = productWorkspaceSession.State is null
             ? new(
                 ProductWorkspaceProjectionError.InvalidState,
@@ -525,6 +532,39 @@ public partial class App : Application
             state,
             topology.Displays,
             topology.IsAuthoritative);
+    }
+
+    private ProductWorkspaceLayoutRecoveryUndoCommitResult
+        CommitProductWorkspaceLayoutRecoveryUndo(
+            ProductWorkspaceLayoutRecoveryUndoToken token,
+            bool confirmed)
+    {
+        ProductWorkspaceState? state = productWorkspaceSession.State;
+        if (state is null || productWorkspaceSession.IsReadOnly)
+        {
+            return new(
+                ProductWorkspaceLayoutRecoveryUndoCommitStatus.InvalidState,
+                ProductWorkspaceLayoutRecoveryUndoStatus.InvalidState,
+                null,
+                workspaceCommits.CurrentEditRevision,
+                null,
+                null);
+        }
+
+        ProductWorkspaceLayoutRecoveryUndoCommitResult result =
+            workspaceCommits.CommitLayoutRecoveryUndo(state, token, confirmed);
+        if (result.IsAccepted)
+        {
+            ApplyAcceptedProductWorkspaceDocument(
+                result.Document!,
+                productDesktopCatalog.Snapshot);
+        }
+        else
+        {
+            ApplyProductWorkspaceSessionViews();
+        }
+
+        return result;
     }
 
     private static ProductContainerState CreateDefaultContainer(

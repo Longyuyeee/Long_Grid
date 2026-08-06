@@ -128,11 +128,34 @@ public sealed record ProductWorkspaceLayoutRecoveryCommitResult(
         && Document is not null;
 }
 
+public enum ProductWorkspaceLayoutRecoveryUndoCommitStatus
+{
+    Accepted,
+    GateRejected,
+    SaveRejected,
+    InvalidState,
+}
+
+public sealed record ProductWorkspaceLayoutRecoveryUndoCommitResult(
+    ProductWorkspaceLayoutRecoveryUndoCommitStatus Status,
+    ProductWorkspaceLayoutRecoveryUndoStatus UndoStatus,
+    ProductWorkspaceSaveSubmissionStatus? SubmissionStatus,
+    long EditRevision,
+    ProductWorkspaceState? State,
+    ProductConfigurationDocument? Document)
+{
+    public bool IsAccepted =>
+        Status == ProductWorkspaceLayoutRecoveryUndoCommitStatus.Accepted
+        && State is not null
+        && Document is not null;
+}
+
 public sealed class ProductWorkspaceCommitCoordinator
 {
     private readonly object gate = new();
     private readonly ProductWorkspaceSaveController saves;
     private long editRevision;
+    private PendingLayoutRecoveryUndo? pendingLayoutRecoveryUndo;
 
     public ProductWorkspaceCommitCoordinator(
         ProductWorkspaceSaveController saves)
@@ -152,11 +175,23 @@ public sealed class ProductWorkspaceCommitCoordinator
         }
     }
 
+    public ProductWorkspaceLayoutRecoveryUndoToken? CurrentLayoutRecoveryUndoToken
+    {
+        get
+        {
+            lock (gate)
+            {
+                return pendingLayoutRecoveryUndo?.Token;
+            }
+        }
+    }
+
     public long AdvanceExternalRevision()
     {
         lock (gate)
         {
             editRevision = checked(editRevision + 1);
+            pendingLayoutRecoveryUndo = null;
             return editRevision;
         }
     }
@@ -231,6 +266,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             }
 
             editRevision = nextEditRevision;
+            pendingLayoutRecoveryUndo = null;
             return new(
                 ProductWorkspaceReferenceCommitStatus.Accepted,
                 ProductWorkspaceReferenceGateError.None,
@@ -401,6 +437,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             }
 
             editRevision = nextEditRevision;
+            pendingLayoutRecoveryUndo = null;
             return new(
                 ProductWorkspaceContainerCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -458,6 +495,24 @@ public sealed class ProductWorkspaceCommitCoordinator
                     null);
             }
 
+            long nextEditRevision = checked(editRevision + 1);
+            ProductWorkspaceLayoutRecoveryUndoToken? undoToken =
+                ProductWorkspaceLayoutRecoveryUndo.Prepare(
+                    state,
+                    edit.State!,
+                    nextEditRevision,
+                    Guid.NewGuid());
+            if (undoToken is null)
+            {
+                return new(
+                    ProductWorkspaceLayoutRecoveryCommitStatus.InvalidState,
+                    ProductWorkspaceLayoutRecoveryConfirmationStatus.InvalidState,
+                    ProductWorkspaceSaveSubmissionStatus.InvalidState,
+                    editRevision,
+                    null,
+                    null);
+            }
+
             ProductWorkspaceSaveSubmissionResult submission = saves.Submit(edit);
             if (!submission.IsAccepted)
             {
@@ -470,7 +525,8 @@ public sealed class ProductWorkspaceCommitCoordinator
                     null);
             }
 
-            editRevision = checked(editRevision + 1);
+            editRevision = nextEditRevision;
+            pendingLayoutRecoveryUndo = new(undoToken, state);
             return new(
                 ProductWorkspaceLayoutRecoveryCommitStatus.Accepted,
                 confirmation.Status,
@@ -480,6 +536,87 @@ public sealed class ProductWorkspaceCommitCoordinator
                 projection.Document);
         }
     }
+
+    public ProductWorkspaceLayoutRecoveryUndoCommitResult
+        CommitLayoutRecoveryUndo(
+            ProductWorkspaceState state,
+            ProductWorkspaceLayoutRecoveryUndoToken token,
+            bool confirmed)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(token);
+
+        lock (gate)
+        {
+            if (pendingLayoutRecoveryUndo is null)
+            {
+                return UndoFailure(
+                    ProductWorkspaceLayoutRecoveryUndoCommitStatus.GateRejected,
+                    ProductWorkspaceLayoutRecoveryUndoStatus.Unavailable);
+            }
+
+            ProductWorkspaceLayoutRecoveryUndoResult undo =
+                ProductWorkspaceLayoutRecoveryUndo.Confirm(
+                    state,
+                    pendingLayoutRecoveryUndo.RestoreState,
+                    editRevision,
+                    token,
+                    pendingLayoutRecoveryUndo.Token,
+                    confirmed);
+            if (!undo.IsAccepted)
+            {
+                return UndoFailure(
+                    ProductWorkspaceLayoutRecoveryUndoCommitStatus.GateRejected,
+                    undo.Status);
+            }
+
+            ProductWorkspaceEditResult edit = undo.Edit!;
+            ProductWorkspaceProjectionResult projection =
+                ProductWorkspaceConfigurationProjector.Project(edit.State!);
+            if (!projection.IsSuccess)
+            {
+                return UndoFailure(
+                    ProductWorkspaceLayoutRecoveryUndoCommitStatus.InvalidState,
+                    ProductWorkspaceLayoutRecoveryUndoStatus.InvalidState,
+                    ProductWorkspaceSaveSubmissionStatus.InvalidState);
+            }
+
+            ProductWorkspaceSaveSubmissionResult submission = saves.Submit(edit);
+            if (!submission.IsAccepted)
+            {
+                return UndoFailure(
+                    ProductWorkspaceLayoutRecoveryUndoCommitStatus.SaveRejected,
+                    undo.Status,
+                    submission.Status);
+            }
+
+            editRevision = checked(editRevision + 1);
+            pendingLayoutRecoveryUndo = null;
+            return new(
+                ProductWorkspaceLayoutRecoveryUndoCommitStatus.Accepted,
+                undo.Status,
+                submission.Status,
+                editRevision,
+                edit.State,
+                projection.Document);
+        }
+    }
+
+    private ProductWorkspaceLayoutRecoveryUndoCommitResult UndoFailure(
+        ProductWorkspaceLayoutRecoveryUndoCommitStatus status,
+        ProductWorkspaceLayoutRecoveryUndoStatus undoStatus,
+        ProductWorkspaceSaveSubmissionStatus? submissionStatus = null) =>
+        new(
+            status,
+            undoStatus,
+            submissionStatus,
+            editRevision,
+            null,
+            null);
+
+    private sealed record PendingLayoutRecoveryUndo(
+        ProductWorkspaceLayoutRecoveryUndoToken Token,
+        ProductWorkspaceState RestoreState);
 
     public static string ResolveColor(ProductWorkspaceContainerColorPreset preset) =>
         preset switch

@@ -67,6 +67,11 @@ public sealed partial class MainWindow : Window
         bool,
         ProductWorkspaceLayoutRecoveryCommitResult>
         _commitProductWorkspaceLayoutRecovery;
+    private readonly Func<
+        ProductWorkspaceLayoutRecoveryUndoToken,
+        bool,
+        ProductWorkspaceLayoutRecoveryUndoCommitResult>
+        _commitProductWorkspaceLayoutRecoveryUndo;
     private ProductWorkspaceReferenceReviewPresentation _referenceReview =
         ProductWorkspaceReferenceReviewPresentation.Unavailable;
     private ProductWorkspaceContainerEditPresentation _containerEditor =
@@ -125,7 +130,12 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceLayoutRecoveryReviewToken,
             bool,
             ProductWorkspaceLayoutRecoveryCommitResult>
-            commitProductWorkspaceLayoutRecovery)
+            commitProductWorkspaceLayoutRecovery,
+        Func<
+            ProductWorkspaceLayoutRecoveryUndoToken,
+            bool,
+            ProductWorkspaceLayoutRecoveryUndoCommitResult>
+            commitProductWorkspaceLayoutRecoveryUndo)
     {
         ArgumentNullException.ThrowIfNull(recoverConfiguration);
         ArgumentNullException.ThrowIfNull(prepareConfigurationImport);
@@ -140,6 +150,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceReferenceAction);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceContainerAction);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecovery);
+        ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecoveryUndo);
         _recoverConfiguration = recoverConfiguration;
         _prepareConfigurationImport = prepareConfigurationImport;
         _commitConfigurationImport = commitConfigurationImport;
@@ -156,6 +167,8 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceContainerAction;
         _commitProductWorkspaceLayoutRecovery =
             commitProductWorkspaceLayoutRecovery;
+        _commitProductWorkspaceLayoutRecoveryUndo =
+            commitProductWorkspaceLayoutRecoveryUndo;
         InitializeComponent();
         RootLayout.Loaded += RootLayout_Loaded;
         RootLayout.SizeChanged += RootLayout_SizeChanged;
@@ -351,6 +364,9 @@ public sealed partial class MainWindow : Window
             presentation.CanConfirm;
         ProductWorkspaceLayoutRecoveryConfirmButton.Visibility =
             presentation.CanConfirm ? Visibility.Visible : Visibility.Collapsed;
+        ProductWorkspaceLayoutRecoveryUndoButton.IsEnabled = presentation.CanUndo;
+        ProductWorkspaceLayoutRecoveryUndoButton.Visibility =
+            presentation.CanUndo ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async void ProductWorkspaceLayoutRecoveryConfirmButton_Click(
@@ -414,6 +430,69 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceLayoutRecoveryConfirmationStatus.PlanBlocked =>
                 "显示器无法唯一映射；没有执行部分恢复。",
             _ => "恢复预览已不可用；没有修改配置，请重新检查当前状态。",
+        };
+
+    private async void ProductWorkspaceLayoutRecoveryUndoButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ProductWorkspaceLayoutRecoveryUndoToken? token =
+            _layoutRecovery.UndoToken;
+        if (!_layoutRecovery.CanUndo || token is null)
+        {
+            return;
+        }
+
+        ProductWorkspaceLayoutRecoveryUndoButton.IsEnabled = false;
+        try
+        {
+            ContentDialog confirmation = new()
+            {
+                XamlRoot = RootLayout.XamlRoot,
+                Title = "撤销本次 Long方格配置恢复？",
+                Content =
+                    "确认后只会恢复本次布局恢复前的 Long方格配置，并进入现有安全保存队列；" +
+                    "不会移动、隐藏或创建任何真实桌面窗口，也不会修改桌面文件。",
+                PrimaryButtonText = "确认撤销配置恢复",
+                CloseButtonText = "取消",
+                DefaultButton = ContentDialogButton.Close,
+            };
+            if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
+            {
+                return;
+            }
+
+            ProductWorkspaceLayoutRecoveryUndoCommitResult result =
+                _commitProductWorkspaceLayoutRecoveryUndo(token, true);
+            if (!result.IsAccepted)
+            {
+                ProductWorkspaceLayoutRecoveryDetail.Text =
+                    DescribeLayoutRecoveryUndoFailure(result.UndoStatus);
+                AutomationProperties.SetItemStatus(
+                    ProductWorkspaceLayoutRecoveryDetail,
+                    $"LayoutRecoveryUndoRejected:{result.UndoStatus}:DesktopWindowsChanged=False");
+            }
+        }
+        finally
+        {
+            ProductWorkspaceLayoutRecoveryUndoButton.IsEnabled =
+                _layoutRecovery.CanUndo;
+        }
+    }
+
+    private static string DescribeLayoutRecoveryUndoFailure(
+        ProductWorkspaceLayoutRecoveryUndoStatus status) => status switch
+        {
+            ProductWorkspaceLayoutRecoveryUndoStatus.EditRevisionChanged =>
+                "布局配置已经变化；本次恢复的撤销入口已失效。",
+            ProductWorkspaceLayoutRecoveryUndoStatus.TokenMismatch =>
+                "撤销证据与本次恢复不一致；没有修改配置。",
+            ProductWorkspaceLayoutRecoveryUndoStatus
+                .CurrentConfigurationChanged =>
+                "当前配置已不再是本次恢复后的状态；没有执行覆盖。",
+            ProductWorkspaceLayoutRecoveryUndoStatus.Unavailable =>
+                "本次恢复已撤销或已被后续编辑取代。",
+            _ => "撤销请求已不可用；没有修改配置。",
         };
 
     internal void ApplyProductWorkspaceContainerEditor(

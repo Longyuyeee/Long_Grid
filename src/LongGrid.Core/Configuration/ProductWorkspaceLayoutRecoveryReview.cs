@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using LongGrid.Core.DesktopHost;
 
 namespace LongGrid.Core.Configuration;
@@ -86,7 +85,8 @@ public static class ProductWorkspaceLayoutRecoveryReview
                     editRevision,
                     DisplayTopologyFingerprint.Compute(savedTopology!),
                     DisplayTopologyFingerprint.Compute(currentTopology),
-                    Fingerprint(projection.Document!),
+                    ProductWorkspaceConfigurationFingerprint.Compute(
+                        projection.Document!),
                     preview.ContainerCount,
                     preview.DisplayMappingCount,
                     preview.VisibilityCorrectionCount));
@@ -276,10 +276,6 @@ public static class ProductWorkspaceLayoutRecoveryReview
                 recoveredState,
                 Changed: true));
     }
-
-    private static string Fingerprint(ProductConfigurationDocument document) =>
-        Convert.ToHexString(SHA256.HashData(
-            ProductConfigurationJson.SerializeToUtf8Bytes(document)));
 
     private static int ToInt(double value) =>
         checked((int)Math.Round(value, MidpointRounding.AwayFromZero));
