@@ -95,6 +95,8 @@ P0-07b2b2b2b3 已验证固定四层顺序、全层快照、失败层开始的逆
 
 P0-07b2b2b2b4a 已验证短时可见 DesktopHost 的复杂/空/复杂 Region 输入门、跨进程穿透和每显示器 HWND 下的真实 UIA FragmentRoot/容器 Fragment 树。输入关闭时 Win32 命中穿透，Fragment 点分派不返回子项，树节点保留只读可发现性并标记 disabled。该结果进一步支持独立原生 DesktopHost，但 Narrator、真实输入、跨进程辅助技术和硬件动态矩阵仍未通过，ADR 继续保持 Proposed。
 
+2026-08-06 的产品准入复核新增多 blocker 合同：真实窗口提交必须把规范化 plan 指纹与配置指纹、共享 edit revision、权威 topology generation、配置撤销和显式批准绑定，并要求产品自有窗口注册、复合事务、回滚故障矩阵、输入/系统表面、动态显示及干净 UIA 同时通过。当前 App 零接线，ADR 继续保持 Proposed；不得用通用探针适配器绕过产品窗口所有权和配置/窗口双向补偿。
+
 P0-04/P0-05b1 已验证原生 ToolWindow 可在初次不激活的同时保留用户显式聚焦能力，并以同一状态机支撑键盘命令、UIA SelectionItem/Invoke Pattern 和事件。GDI 系统色只用于交互语义原型，不代表最终渲染选型。由于真实键鼠/Narrator、拖放、系统表面、DPI/高对比和 DirectComposition 最终视觉仍未通过，ADR 继续保持 Proposed。
 
 ## 参考

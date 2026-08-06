@@ -75,6 +75,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] Issue #24 容器受限布局预设提交：4 个位置与 4 个尺寸 DIP 预设进入统一 coordinator/revision/投影/保存链，保留 DisplayKey 且不调用 DesktopHost；历史自定义值不自动归一化，锁定阻止布局编辑；112-ID 合同与真实 Store 文件零变化测试覆盖，拓扑解析/恢复预览、真实窗口提交、删除/撤销仍 Pending。
 - [x] Issue #24 产品布局恢复配置级确认合同：正式 session、v2 保存时拓扑、权威当前拓扑三方门禁；ReviewRequired 时签发绑定双拓扑/配置指纹、topology generation 与 edit revision 的令牌，确认复核后只更新配置并进入统一保存控制器；117-ID 合同覆盖，真实窗口提交仍 Pending。
 - [x] Issue #24 布局恢复一次性配置撤销：成功恢复后保留同会话恢复前状态，令牌绑定操作 ID、恢复 revision、恢复前后配置指纹和容器计数；取消/保存拒绝不消费，其他成功编辑使其失效，撤销接受后单次清除；118-ID 合同覆盖，真实窗口与桌面文件操作仍为零。
+- [x] 真实窗口恢复准入与收口计数：绑定 plan/configuration/topology generation/edit revision/配置撤销的计划令牌，以及窗口所有权、复合事务、回滚故障和三类人工证据的多 blocker 评估已建立；App 零接线。布局恢复主线随后剩产品自有窗口注册/只读桥、复合事务、RC 硬化 3 个工程阶段，外部 #19/#20/#23/#24 继续 Pending。
 - [x] Issue #24 产品当前显示拓扑只读适配器：CCD/Monitor 数量、强身份、Bounds、target 可用性、rotation、WorkArea 全对账才权威；SHA-256 身份、8 次竞态重试、generation/latest-wins、取消/关闭排空和 App 双门禁接线完成。版本化保存时拓扑与真实窗口提交仍 Pending。
 - [x] Issue #24 I24-01/I24-02 专用环境会话入口、独立卷标记/双确认安全合同和 CI `PendingDedicatedEnvironmentEvidence` 预检（Ready to schedule；真实卷结果仍 Pending）。
 - [x] P0-07a 静态双屏拓扑、混合 DPI、隐私安全指纹与资源稳定性（Conditional Pass）。
