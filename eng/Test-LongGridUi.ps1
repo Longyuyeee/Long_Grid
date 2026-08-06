@@ -21,6 +21,10 @@ $referenceCommitCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceReferenceCommitCoordinator.cs'
 $referencePresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReferenceReviewPresentation.cs'
+$workspaceReadModelCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceReadModel.cs'
+$workspaceReadPresentationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\ProductWorkspaceReadPresentation.cs'
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
 $runtimeIdentifier = "win-$Architecture"
 
@@ -67,6 +71,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $referencePresentationCode = Get-Content `
         -LiteralPath $referencePresentationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceReadModelCode = Get-Content `
+        -LiteralPath $workspaceReadModelCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceReadPresentationCode = Get-Content `
+        -LiteralPath $workspaceReadPresentationCodePath `
         -Raw `
         -Encoding UTF8
     $requiredIds = @(
@@ -144,6 +156,11 @@ function Test-SourceContract {
         'ProductWorkspaceSessionTitle',
         'ProductWorkspaceSessionDetail',
         'ProductWorkspaceSessionSummary',
+        'ProductWorkspaceViewCard',
+        'ProductWorkspaceViewTitle',
+        'ProductWorkspaceViewDetail',
+        'ProductWorkspaceContainerList',
+        'ProductWorkspaceViewStatus',
         'ProductWorkspaceReferenceReviewCard',
         'ProductWorkspaceReferenceReviewTitle',
         'ProductWorkspaceReferenceReviewDetail',
@@ -309,6 +326,27 @@ function Test-SourceContract {
         'ProductWorkspaceSessionCard'
     Assert-Condition (-not ($productSessionCardNode.OuterXml -match 'Storyboard|Transition')) `
         'Product session status must keep a Reduced Motion-safe static baseline.'
+
+    $workspaceViewStatusNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceViewStatus'
+    Assert-Condition (
+        $workspaceViewStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite' -and
+        $workspaceViewStatusNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'WorkspaceViewUnavailable:Containers=0:Items=0'
+    ) 'Formal workspace view must start finite, unavailable, and empty.'
+    $workspaceViewListNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceContainerList'
+    Assert-Condition (
+        $workspaceViewListNode.GetAttribute('SelectionMode') -eq 'None' -and
+        $workspaceViewListNode.GetAttribute('IsItemClickEnabled') -eq 'False'
+    ) 'Formal workspace view must remain non-interactive in this slice.'
+    $workspaceViewCardNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceViewCard'
+    Assert-Condition (-not ($workspaceViewCardNode.OuterXml -match 'Storyboard|Transition')) `
+        'Formal workspace view must keep a Reduced Motion-safe static baseline.'
 
     $referenceReviewStatusNode = Get-XamlNodeByAutomationId `
         $document `
@@ -601,6 +639,34 @@ function Test-SourceContract {
         $appCode -match 'ApplyProductWorkspaceReferenceReview\(\)'
     ) 'An accepted reference edit must replace the in-memory baseline and rebuild the session/review.'
     Assert-Condition (
+        $appCode -match 'ProductWorkspaceReadModel\.Create' -and
+        $appCode -match 'ProductWorkspaceReadPresentation\.Create' -and
+        $appCode -match 'ApplyProductWorkspaceSessionViews\(\)' -and
+        $appCode -match 'ApplyProductWorkspaceReadModel'
+    ) 'Every rebuilt session must also refresh the validated formal read-only view.'
+    Assert-Condition (
+        $workspaceReadModelCode -match 'ProductWorkspaceConfigurationProjector\.Project' -and
+        $workspaceReadModelCode -match 'CatalogEntry!\.DisplayName' -and
+        $workspaceReadModelCode -match 'isResolved\s*\?[^\r\n]*CatalogEntry' -and
+        -not ($workspaceReadModelCode -match 'PersistedTarget') -and
+        -not ($workspaceReadModelCode -match '\.Id|ProfileId|CanonicalTarget|SourceId|ParsingName|VolumeId|FileId')
+    ) 'Core read model must validate first, expose resolved visible names, and omit persistence identity.'
+    Assert-Condition ($workspaceReadPresentationCode.Contains('WorkspaceViewReady:Containers=')) `
+        'Workspace presentation must expose a finite ready status.'
+    Assert-Condition (
+        $workspaceReadPresentationCode -match `
+            'string displayName\s*=\s*resolved\s*\?\s*item\.UserVisibleName!\s*:\s*\$"'
+    ) 'Workspace presentation must use a generated ordinal label for unresolved items.'
+    Assert-Condition ($workspaceReadPresentationCode.Contains('AccessibilityName')) `
+        'Workspace presentation must carry an explicit accessibility name.'
+    Assert-Condition (-not ($workspaceReadPresentationCode -match `
+            'PersistedTarget|CanonicalTarget|ProfileId|SourceId')) `
+        'Workspace presentation must omit persistence identity.'
+    Assert-Condition (
+        $codeBehind -match 'ProductWorkspaceContainerList\.ItemsSource\s*=\s*presentation\.Containers' -and
+        -not ($codeBehind -match 'ProductWorkspaceRead.*(State|CatalogEntry|PersistedTarget|CanonicalTarget)')
+    ) 'MainWindow must render only the presentation contract, never workspace identity state.'
+    Assert-Condition (
         ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 1) -and
         $referenceCommitCode -match 'editRevision\s*=\s*checked\(editRevision\s*\+\s*1\)' -and
         $referenceCommitCode -match 'ProductWorkspaceReferenceGate\.Evaluate' -and
@@ -702,6 +768,7 @@ function Test-SourceContract {
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
+        productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
         productSavePresentation = 'privacy-safe-static-reduced-motion'
         readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'

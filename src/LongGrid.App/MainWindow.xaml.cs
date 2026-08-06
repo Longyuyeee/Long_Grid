@@ -271,6 +271,20 @@ public sealed partial class MainWindow : Window
             automationStatus);
     }
 
+    internal void ApplyProductWorkspaceReadModel(
+        ProductWorkspaceReadPresentation presentation)
+    {
+        ArgumentNullException.ThrowIfNull(presentation);
+        ProductWorkspaceViewDetail.Text = presentation.Detail;
+        ProductWorkspaceContainerList.ItemsSource = presentation.Containers;
+        ProductWorkspaceViewStatus.Text = presentation.Containers.Count == 0
+            ? "只读视图没有可呈现的方格；桌面文件未改变。"
+            : "名称仅用于当前可见界面与辅助功能；诊断状态只记录有限计数。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceViewStatus,
+            presentation.MachineStatus);
+    }
+
     internal void ApplyProductWorkspaceReferenceReview(
         ProductWorkspaceReferenceReviewPresentation presentation)
     {

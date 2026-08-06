@@ -142,6 +142,8 @@ P0-02 已验证 Shell 会强烈合并高频变化：1,100 次沙箱操作每轮�
 
 正式引用提交层将上述 Gate 的成功结果交给 Infrastructure `ProductWorkspaceReferenceCommitCoordinator`：gate → v1 projection → 唯一 controller Submit → edit revision 推进的顺序不可绕过。外部配置加载也推进同一单调 revision。controller 接受后，App 用返回 Document 立即替换内存配置基线，并重新解析 session/review，因此防抖期间的 Catalog 刷新不会恢复旧磁盘状态。Waiting/Saving/Failed 期间导入/导出关闭；桌面文件 API 仍未接入。详见[引用编辑正式保存提交审计](52-reference-edit-save-submission-audit.md)。
 
+正式可视化不直接消费配置 Document 或 Catalog。`ProductWorkspaceReadModel` 先用 v1 projector 验证 session state，再输出不含持久化路径、内部 ID、布局显示身份和文件身份的只读快照；App 负责把该快照映射为本地化文本，MainWindow 只绑定 presentation。已解析名称属于用户可见内容并进入辅助功能名称，未解析引用保持序号匿名，UIA ItemStatus 只记录有限计数。详见[正式工作区只读视图审计](53-formal-workspace-readonly-view-audit.md)。
+
 ## 5. 布局恢复算法
 
 1. 收集当前显示器的稳定属性：设备标识、工作区、方向、DPI 和相对拓扑。

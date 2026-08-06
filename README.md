@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、93-ID UIA、响应式布局、匿名交互原型、产品状态/Catalog 转换、reducer、连续保存控制器和有限正式会话。用户桌面与公共桌面第一层通过 generation/latest-wins 只读适配器接入；只有双来源完整成功才作为权威 Catalog。未解析引用的明确重选/确认移除现在可通过 generation + edit revision 门禁进入 App-owned 保存控制器，并立即更新可重解析内存基线；Keep 仍零提交。所有桌面文件操作继续关闭。Shell 虚拟项仍留在 Spike，真实 UIA 复跑受当前 Windows 会话残留无窗口单实例污染而保持 Inconclusive；自动保留/容量阈值未批准。Issue #23 首发范围已批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
+> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、98-ID UIA、响应式布局、匿名交互原型、产品状态/Catalog 转换、reducer、连续保存控制器和有限正式会话。用户桌面与公共桌面第一层通过 generation/latest-wins 只读适配器接入；只有双来源完整成功才作为权威 Catalog。正式 session 现在可投影为脱敏的容器/引用只读视图：已解析名称用于可见界面和辅助功能，未解析引用保持匿名，机器状态只记录有限计数。明确重选/确认移除继续通过 generation + edit revision 门禁进入 App-owned 保存控制器；Keep 与所有桌面文件操作仍为零。真实 UIA 复跑受当前 Windows 会话残留无窗口单实例污染而保持 Inconclusive；自动保留/容量阈值未批准。Issue #23 首发范围已批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
 
 ## 产品原则
 
@@ -68,6 +68,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格只读物理桌面目录与刷新代次审计](docs/50-readonly-physical-desktop-catalog-audit.md)
 - [Long方格未解析引用审查与双版本门禁审计](docs/51-unresolved-reference-review-gate-audit.md)
 - [Long方格引用编辑正式保存提交审计](docs/52-reference-edit-save-submission-audit.md)
+- [Long方格正式工作区只读视图审计](docs/53-formal-workspace-readonly-view-audit.md)
 - [正式产品配置存储适配器审计](docs/33-product-configuration-store-audit.md)
 - [配置 latest-wins 与 App 关闭排空审计](docs/34-configuration-shutdown-drain-audit.md)
 - [贡献指南](CONTRIBUTING.md)
@@ -81,7 +82,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 首发范围已批准，仍需完成 5 人验证、#19 输入/Narrator/系统表面和 #20 动态显示矩阵；#24 已具备正式配置存储、有限产品会话、权威门禁只读 Catalog，以及第一条未解析引用正式编辑提交。下一步建立由正式 session 驱动的只读容器/引用视图，再逐项准入容器编辑；同时仍需在干净会话关闭 93-ID UIA Inconclusive。Shell 虚拟项、DesktopHost 产品接线、正式 v2、自动保留/容量策略和真实测试卷仍 Pending。许可证选择延期到正式分发或接受外部贡献之前。
+按纠偏后的 `Phase 0 Exit` 顺序推进：Issue #23 首发范围已批准，仍需完成 5 人验证、#19 输入/Narrator/系统表面和 #20 动态显示矩阵；#24 已具备正式配置存储、有限产品会话、权威门禁只读 Catalog、第一条未解析引用正式编辑提交，以及 session 驱动的正式容器/引用只读视图。下一步逐项准入容器创建/重命名、锁定/折叠、外观和布局编辑；同时仍需在干净会话关闭 98-ID UIA Inconclusive。Shell 虚拟项、DesktopHost 产品接线、正式 v2、自动保留/容量策略和真实测试卷仍 Pending。许可证选择延期到正式分发或接受外部贡献之前。
 
 ## 开发启动
 

@@ -62,9 +62,8 @@ public partial class App : Application
         productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
         productDesktopCatalog.SnapshotChanged += ProductDesktopCatalog_SnapshotChanged;
         window.ApplyProductWorkspaceSaveState(productWorkspaceSaves.Snapshot);
-        window.ApplyProductWorkspaceSessionState(productWorkspaceSession);
         window.ApplyProductDesktopCatalogState(productDesktopCatalog.Snapshot);
-        ApplyProductWorkspaceReferenceReview();
+        ApplyProductWorkspaceSessionViews();
         window.AppWindow.Closing += AppWindow_Closing;
         window.Activate();
         _ = LoadConfigurationStartupStateAsync();
@@ -185,8 +184,7 @@ public partial class App : Application
             loadResult,
             CreateWorkspaceCatalogSnapshot(productDesktopCatalog.Snapshot));
         window?.ApplyConfigurationStartupState(startupState);
-        window?.ApplyProductWorkspaceSessionState(productWorkspaceSession);
-        ApplyProductWorkspaceReferenceReview();
+        ApplyProductWorkspaceSessionViews();
         return startupState;
     }
 
@@ -227,7 +225,28 @@ public partial class App : Application
         productWorkspaceSession = ProductWorkspaceSessionLoader.Load(
             currentConfigurationLoadResult,
             CreateWorkspaceCatalogSnapshot(snapshot));
-        window?.ApplyProductWorkspaceSessionState(productWorkspaceSession);
+        ApplyProductWorkspaceSessionViews();
+    }
+
+    private void ApplyProductWorkspaceSessionViews()
+    {
+        MainWindow? currentWindow = window;
+        if (currentWindow is null)
+        {
+            return;
+        }
+
+        currentWindow.ApplyProductWorkspaceSessionState(productWorkspaceSession);
+        ProductWorkspaceReadResult readModel = productWorkspaceSession.State is null
+            ? new(
+                ProductWorkspaceProjectionError.InvalidState,
+                ProductConfigurationError.None,
+                null)
+            : ProductWorkspaceReadModel.Create(productWorkspaceSession.State);
+        currentWindow.ApplyProductWorkspaceReadModel(
+            readModel.IsSuccess
+                ? ProductWorkspaceReadPresentation.Create(readModel.Snapshot!)
+                : ProductWorkspaceReadPresentation.Unavailable);
         ApplyProductWorkspaceReferenceReview();
     }
 
@@ -310,8 +329,7 @@ public partial class App : Application
         productWorkspaceSession = ProductWorkspaceSessionLoader.Load(
             currentConfigurationLoadResult,
             CreateWorkspaceCatalogSnapshot(catalog));
-        window?.ApplyProductWorkspaceSessionState(productWorkspaceSession);
-        ApplyProductWorkspaceReferenceReview();
+        ApplyProductWorkspaceSessionViews();
         return result;
     }
 

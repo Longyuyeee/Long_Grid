@@ -34,7 +34,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 - `main` 已包含 Issue #23 匿名会话预检/启动入口和主持人手册；CI 只验证隐私合同与依赖存在，固定保持 `ResultsPending`，不生成或伪造 P1–P5 结果；
 - Issue #23 的 D23-01–D23-10 已由负责人批准：仅安全引用、本地无账户、Folder Portal/ARM64 后移、Windows 11 x64 技术预览、MSIX 目标渠道和缩略图安全回退；D23-11 许可证延期，不阻挡当前开发但继续阻挡正式分发/外部贡献；
 - Issue #24 已建立 I24-01/I24-02 专用环境会话入口和运行手册；CI 只验证独立卷、匿名标签、双确认与无写入合同，固定保持 `PendingDedicatedEnvironmentEvidence`，不执行或伪造真实卷结果；
-- Issue #24 已建立正式配置存储、工作区/Catalog 转换、reducer、连续保存、有限产品会话、用户/公共桌面第一层只读 Catalog，以及未解析引用匿名审查与首次正式提交：明确重选/确认移除经 generation+revision 门禁、v1 投影和唯一 controller Submit 后更新内存基线；Keep 与所有桌面文件操作仍为零。Shell 虚拟项、正式容器视图、干净会话真实 93-ID UIA、更多编辑、自动保留/容量策略和完整关闭矩阵仍未完成，真实卷证据继续 Pending；
+- Issue #24 已建立正式配置存储、工作区/Catalog 转换、reducer、连续保存、有限产品会话、用户/公共桌面第一层只读 Catalog、未解析引用匿名审查与首次正式提交，以及 session 驱动的正式容器/引用只读视图：明确重选/确认移除经 generation+revision 门禁、v1 投影和唯一 controller Submit 后更新内存基线；只读视图不携带保存路径或内部身份，未解析引用保持匿名。Keep 与所有桌面文件操作仍为零。Shell 虚拟项、容器 CRUD、干净会话真实 98-ID UIA、自动保留/容量策略和完整关闭矩阵仍未完成，真实卷证据继续 Pending；
 - 自动截图工具仍因错误归属未打包窗口而无法取得稳定句柄，因此视觉截图、高对比、Narrator、文本缩放和 DPI 人工矩阵继续保持 `Inconclusive/Pending`；
 - 详细范围、供应链、验证和停止规则见 [`17-ui-shell-readonly-slice-audit.md`](17-ui-shell-readonly-slice-audit.md)与[`18-ui-theme-automation-contract-audit.md`](18-ui-theme-automation-contract-audit.md)。
 
@@ -97,7 +97,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
 | 事务补偿 | Bounds/Region/DComp/UIA 快照、代次门禁、逆序回滚、紧急隐藏 | E1-E2 | 正式宿主集成和故障注入矩阵 |
-| 配置持久化 | 正式 v1、状态/Catalog 转换、reducer、连续保存、App 保存 UIA、有限产品会话、用户/公共桌面只读 Catalog、未解析引用 generation+revision 门禁与首次 controller submission、Infrastructure 原子存储/恢复/证据管理、完整单实例；Spike 另覆盖 Shell、强杀、迁移、只读/磁盘满/权限恢复 | E2-E3 / first explicit product edit submission | 仍缺正式容器视图与更多编辑、Shell 虚拟项、干净会话真实 93-ID UIA、获批保留策略、完整关闭竞态、真实卷、正式 v2 与跨进程公平性 |
+| 配置持久化 | 正式 v1、状态/Catalog 转换、reducer、连续保存、App 保存 UIA、有限产品会话、用户/公共桌面只读 Catalog、未解析引用 generation+revision 门禁与首次 controller submission、脱敏正式容器/引用只读视图、Infrastructure 原子存储/恢复/证据管理、完整单实例；Spike 另覆盖 Shell、强杀、迁移、只读/磁盘满/权限恢复 | E2-E3 / first explicit product edit submission and formal read surface | 仍缺容器 CRUD、Shell 虚拟项、干净会话真实 98-ID UIA、获批保留策略、完整关闭竞态、真实卷、正式 v2 与跨进程公平性 |
 | 交互切片 | 一个可见 List 容器和三个进程内演示项 | E2 / Conditional Pass | 文件语义、拖放、正式持久化和用户测试 |
 | 正式 App UI 壳层 | WinUI 导航、Design Token、内存态主题、AutomationId/访问键、760 DIP 响应式流、DPI 感知窗口、Core 只读状态、首次整理、匿名容器/项目、拖放语义、两步撤销和恢复差异三态/过期/取消的真实 UIA 冒烟 | E2 / Conditional Pass | 5 人测试、真实拖放与硬件恢复、负责人决策、经批准的真实只读数据适配器、Narrator/高对比/系统文本缩放/多 DPI 视觉矩阵 |
 
@@ -330,7 +330,7 @@ LPWP 协议可以继续做兼容性维护和 Golden Fixture，但 Widget Host �
 | W1（进行中） | 产品与体验决策（#23） | 核心低保真原型、匿名会话入口、主持人手册及 D23-01–D23-10 范围批准已完成；D23-11 延期 | 五人匿名结果完成；许可证只在分发/外部贡献前重开 |
 | W2（工具就绪） | 人工输入与系统表面（#19） | 匿名单场景入口和恢复手册已完成；待 P0-05b2 键鼠/触控/拖放/Narrator/Win+D/全屏/Alt+Tab/任务视图/Explorer 重启记录 | 每个场景有环境、原始证据、Pass/Fail/Inconclusive 和缺陷 |
 | W3（工具就绪） | 动态显示（#20） | I20/observer 映射和恢复合同已完成；待缩放、旋转、拔插、投影、睡眠、RDP、`WM_DPICHANGED` 受控矩阵 | 稳定器、布局事务、资源闭环和恢复结果全部可复读 |
-| W4（会话就绪） | 必要安全、隔离与持久化收口（#21、#22、#24） | 正式 v1、状态/Catalog 转换、未解析保留、reducer、连续保存、App UIA、有限会话、物理只读 Catalog generation/权威门禁、Infrastructure 存储及专用环境入口已建立；匿名 UI 零入队，未解析 UI/编辑组合门禁、Shell、干净会话 UIA、普通入队、完整关闭矩阵和真实卷仍 Pending | 不误移动，安全边界明确，生产合同可迁移；真实产品接线列入首片验收 |
+| W4（会话就绪） | 必要安全、隔离与持久化收口（#21、#22、#24） | 正式 v1、状态/Catalog 转换、未解析保留、reducer、连续保存、App UIA、有限会话、物理只读 Catalog generation/权威门禁、首次引用编辑提交、脱敏正式工作区只读视图、Infrastructure 存储及专用环境入口已建立；Shell、容器 CRUD、干净会话 UIA、完整关闭矩阵和真实卷仍 Pending | 不误移动，安全边界明确，产品读取与首项配置编辑可迁移；真实桌面文件接线继续独立验收 |
 
 W0 已关闭。W1 先限定产品和支持范围；W2 与 W3 可在不同受控环境并行采证；W4 不应与真实产品文件移动混做。配置持久化合同由 #24 跟踪，只在具备专用环境时补真实卷/断电边界；关闭排空、单实例和正式渲染接线在首个 App/DesktopHost 切片中验收。Phase 0 的必要证据关闭并更新 ADR 后，创建第一条只读垂直切片。
 

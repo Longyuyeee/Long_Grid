@@ -290,6 +290,120 @@
                             </Border>
 
                             <Border
+                                x:Name="ProductWorkspaceViewCard"
+                                AutomationProperties.AccessibilityView="Content"
+                                AutomationProperties.AutomationId="ProductWorkspaceViewCard"
+                                AutomationProperties.Name="正式工作区只读视图"
+                                Style="{StaticResource LongGridCardStyle}">
+                                <StackPanel Spacing="12">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock
+                                            x:Name="ProductWorkspaceViewTitle"
+                                            AutomationProperties.AutomationId="ProductWorkspaceViewTitle"
+                                            FontSize="20"
+                                            FontWeight="SemiBold"
+                                            Text="正式工作区" />
+                                        <TextBlock
+                                            x:Name="ProductWorkspaceViewDetail"
+                                            AutomationProperties.AutomationId="ProductWorkspaceViewDetail"
+                                            Style="{StaticResource LongGridSubtitleTextStyle}"
+                                            Text="等待正式产品会话；当前没有展示或修改任何桌面内容。"
+                                            TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <ListView
+                                        x:Name="ProductWorkspaceContainerList"
+                                        AutomationProperties.AutomationId="ProductWorkspaceContainerList"
+                                        AutomationProperties.Name="正式方格列表"
+                                        IsItemClickEnabled="False"
+                                        SelectionMode="None">
+                                        <ListView.ItemContainerStyle>
+                                            <Style TargetType="ListViewItem">
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                                <Setter Property="IsTabStop" Value="False" />
+                                            </Style>
+                                        </ListView.ItemContainerStyle>
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border
+                                                    Margin="0,0,0,8"
+                                                    Padding="14"
+                                                    AutomationProperties.Name="{Binding AccessibilityName}"
+                                                    AutomationProperties.ItemStatus="{Binding MachineStatus}"
+                                                    Background="{ThemeResource LongGridSurfaceMutedBrush}"
+                                                    CornerRadius="12">
+                                                    <StackPanel Spacing="8">
+                                                        <Grid ColumnSpacing="12">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <StackPanel Spacing="2">
+                                                                <TextBlock
+                                                                    FontSize="16"
+                                                                    FontWeight="SemiBold"
+                                                                    Text="{Binding DisplayName}"
+                                                                    TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock
+                                                                    Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                                                    Text="{Binding Detail}"
+                                                                    TextWrapping="Wrap" />
+                                                            </StackPanel>
+                                                            <Border
+                                                                Grid.Column="1"
+                                                                Padding="8,3"
+                                                                Background="{ThemeResource LongGridSurfaceBrush}"
+                                                                CornerRadius="8">
+                                                                <TextBlock
+                                                                    FontSize="11"
+                                                                    Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                                                    Text="{Binding Appearance}" />
+                                                            </Border>
+                                                        </Grid>
+                                                        <ItemsControl ItemsSource="{Binding Items}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Grid
+                                                                        MinHeight="34"
+                                                                        Padding="8,4"
+                                                                        AutomationProperties.Name="{Binding AccessibilityName}"
+                                                                        AutomationProperties.ItemStatus="{Binding MachineStatus}"
+                                                                        ColumnSpacing="10">
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="*" />
+                                                                            <ColumnDefinition Width="Auto" />
+                                                                        </Grid.ColumnDefinitions>
+                                                                        <TextBlock
+                                                                            VerticalAlignment="Center"
+                                                                            Text="{Binding DisplayName}"
+                                                                            TextTrimming="CharacterEllipsis" />
+                                                                        <TextBlock
+                                                                            Grid.Column="1"
+                                                                            VerticalAlignment="Center"
+                                                                            FontSize="11"
+                                                                            Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                                                            Text="{Binding Detail}" />
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                    <TextBlock
+                                        x:Name="ProductWorkspaceViewStatus"
+                                        AutomationProperties.AutomationId="ProductWorkspaceViewStatus"
+                                        AutomationProperties.ItemStatus="WorkspaceViewUnavailable:Containers=0:Items=0"
+                                        AutomationProperties.LiveSetting="Polite"
+                                        FontSize="11"
+                                        Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                        Text="只读视图未连接；桌面文件未改变。"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border
                                 x:Name="ProductWorkspaceReferenceReviewCard"
                                 AutomationProperties.AccessibilityView="Content"
                                 AutomationProperties.AutomationId="ProductWorkspaceReferenceReviewCard"
