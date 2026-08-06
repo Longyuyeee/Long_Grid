@@ -343,7 +343,8 @@ public partial class App : Application
         ProductWorkspaceContainerCommitAction action,
         long expectedEditRevision,
         int containerOrdinal,
-        string name)
+        string name,
+        bool? stateValue)
     {
         ProductWorkspaceState? state = productWorkspaceSession.State;
         bool creatingFirstConfiguration =
@@ -384,7 +385,8 @@ public partial class App : Application
                     expectedEditRevision,
                     containerOrdinal,
                     normalizedName,
-                    newContainer));
+                    newContainer,
+                    stateValue));
         if (!result.IsAccepted)
         {
             return result;

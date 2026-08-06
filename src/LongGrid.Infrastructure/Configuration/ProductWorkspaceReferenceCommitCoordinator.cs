@@ -30,6 +30,8 @@ public enum ProductWorkspaceContainerCommitAction
 {
     Create,
     Rename,
+    SetLocked,
+    SetCollapsed,
 }
 
 public enum ProductWorkspaceContainerCommitStatus
@@ -47,7 +49,8 @@ public sealed record ProductWorkspaceContainerCommitRequest(
     long ExpectedEditRevision,
     int ContainerOrdinal,
     string Name,
-    ProductContainerState? NewContainer = null);
+    ProductContainerState? NewContainer = null,
+    bool? StateValue = null);
 
 public sealed record ProductWorkspaceContainerCommitResult(
     ProductWorkspaceContainerCommitStatus Status,
@@ -191,11 +194,16 @@ public sealed class ProductWorkspaceCommitCoordinator
                     ProductWorkspaceContainerCommitStatus.StaleEditRevision);
             }
 
+            ProductContainerState? target = request.ContainerOrdinal > 0
+                && request.ContainerOrdinal <= state.Containers.Count
+                    ? state.Containers[request.ContainerOrdinal - 1]
+                    : null;
             ProductWorkspaceEditResult edit = request.Action switch
             {
                 ProductWorkspaceContainerCommitAction.Create
                     when request.NewContainer is not null
                         && request.ContainerOrdinal == 0
+                        && request.StateValue is null
                         && string.Equals(
                             request.Name,
                             request.NewContainer.Name,
@@ -205,12 +213,31 @@ public sealed class ProductWorkspaceCommitCoordinator
                         request.NewContainer),
                 ProductWorkspaceContainerCommitAction.Rename
                     when request.NewContainer is null
-                        && request.ContainerOrdinal > 0
-                        && request.ContainerOrdinal <= state.Containers.Count =>
+                        && request.StateValue is null
+                        && target is not null =>
                     ProductWorkspaceReducer.RenameContainer(
                         state,
-                        state.Containers[request.ContainerOrdinal - 1].Id,
+                        target.Id,
                         request.Name),
+                ProductWorkspaceContainerCommitAction.SetLocked
+                    when request.NewContainer is null
+                        && request.StateValue is not null
+                        && target is not null =>
+                    ProductWorkspaceReducer.SetContainerLocked(
+                        state,
+                        target.Id,
+                        request.StateValue.Value),
+                ProductWorkspaceContainerCommitAction.SetCollapsed
+                    when request.NewContainer is null
+                        && request.StateValue is not null
+                        && target is not null =>
+                    ProductWorkspaceReducer.UpdateAppearance(
+                        state,
+                        target.Id,
+                        target.Appearance with
+                        {
+                            Collapsed = request.StateValue.Value,
+                        }),
                 _ => null!,
             };
             if (edit is null)

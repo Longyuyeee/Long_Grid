@@ -144,6 +144,8 @@ P0-02 已验证 Shell 会强烈合并高频变化：1,100 次沙箱操作每轮�
 
 正式可视化不直接消费配置 Document 或 Catalog。`ProductWorkspaceReadModel` 先用 v1 projector 验证 session state，再输出不含持久化路径、内部 ID、布局显示身份和文件身份的只读快照；App 负责把该快照映射为本地化文本，MainWindow 只绑定 presentation。已解析名称属于用户可见内容并进入辅助功能名称，未解析引用保持序号匿名，UIA ItemStatus 只记录有限计数。详见[正式工作区只读视图审计](53-formal-workspace-readonly-view-audit.md)。
 
+容器锁定/折叠同样经统一提交协调器：显式解锁复用 reducer 的锁定例外，折叠复用受锁保护的 Appearance 更新，因此锁定容器必须先解锁才能折叠。presentation 只持有序号、锁定/折叠布尔值和 edit revision，不持有内部身份。详见[正式容器锁定与折叠提交审计](55-container-lock-collapse-commit-audit.md)。
+
 ## 5. 布局恢复算法
 
 1. 收集当前显示器的稳定属性：设备标识、工作区、方向、DPI 和相对拓扑。
