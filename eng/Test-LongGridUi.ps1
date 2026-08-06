@@ -51,6 +51,10 @@ $windowsDesktopHostWindowInspectorCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostWindowInspector.cs'
 $verifiedWindowBatchAdapterCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostVerifiedWindowBatchAdapter.cs'
+$configurationCompareExchangeCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\Configuration\ProductConfigurationStore.CompareExchange.cs'
+$compositeConfigurationAdapterCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceCompositeConfigurationAdapter.cs'
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
 $runtimeIdentifier = "win-$Architecture"
 
@@ -157,6 +161,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $verifiedWindowBatchAdapterCode = Get-Content `
         -LiteralPath $verifiedWindowBatchAdapterCodePath `
+        -Raw `
+        -Encoding UTF8
+    $configurationCompareExchangeCode = Get-Content `
+        -LiteralPath $configurationCompareExchangeCodePath `
+        -Raw `
+        -Encoding UTF8
+    $compositeConfigurationAdapterCode = Get-Content `
+        -LiteralPath $compositeConfigurationAdapterCodePath `
         -Raw `
         -Encoding UTF8
     $requiredIds = @(
@@ -1040,6 +1052,23 @@ function Test-SourceContract {
             'ProductDesktopHostVerifiedWindowBatchAdapter|WindowsProductDesktopHostWindowBatchMutator')
     ) 'Verified product windows must use one generation-bound, ownership-reread native batch without App wiring, activation, Z-order, or region changes.'
     Assert-Condition (
+        $configurationCompareExchangeCode -match `
+            'CompareExchangePrimaryAsync' -and
+        $configurationCompareExchangeCode -match 'AcquireWriteLeaseAsync' -and
+        $configurationCompareExchangeCode -match 'LoadedPrimary' -and
+        $configurationCompareExchangeCode -match `
+            'ProductWorkspaceConfigurationFingerprint\.Compute' -and
+        $configurationCompareExchangeCode -match 'File\.Replace' -and
+        $compositeConfigurationAdapterCode -match `
+            'IProductWorkspaceCompositeConfigurationLayer' -and
+        $compositeConfigurationAdapterCode -match 'ConfigurationSnapshot' -and
+        $compositeConfigurationAdapterCode -match 'lastPublishedFingerprint' -and
+        $compositeConfigurationAdapterCode -match 'CompareExchangePrimaryAsync' -and
+        $compositeConfigurationAdapterCode -match 'VerifyRestored' -and
+        -not ($appCode -match `
+            'ProductWorkspaceCompositeConfigurationAdapter|CompareExchangePrimaryAsync')
+    ) 'Composite configuration writes must use short-lease fingerprint compare-and-exchange, refuse damaged or foreign state, and remain App-blocked.'
+    Assert-Condition (
         $displayTopologyReaderCode -match 'HasStableTargetIdentity' -and
         $displayTopologyReaderCode -match 'MappedToActivePath' -and
         $displayTopologyReaderCode -match 'SourceBoundsMatch' -and
@@ -1122,7 +1151,7 @@ function Test-SourceContract {
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
-        productLayoutRecovery = 'verified-owned-window-batch-adapter-compensation-ready-app-blocked'
+        productLayoutRecovery = 'window-and-configuration-production-adapters-compensation-ready-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'
