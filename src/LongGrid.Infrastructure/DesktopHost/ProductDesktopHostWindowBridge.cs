@@ -101,6 +101,11 @@ internal sealed record ProductDesktopHostWindowEvidence(
         Array.AsReadOnly(Windows.Select(window => window.ContainerId).ToArray());
 }
 
+internal sealed record ProductDesktopHostVerifiedWindow(
+    string ContainerId,
+    nint Handle,
+    PixelRect Bounds);
+
 public sealed class ProductDesktopHostWindowBridge
 {
     private sealed record Entry(
@@ -309,6 +314,68 @@ public sealed class ProductDesktopHostWindowBridge
                 snapshot.Generation,
                 Array.AsReadOnly(windows),
                 snapshot.OwnershipAttested);
+        }
+    }
+
+    internal bool TryUseExactVerifiedWindows(
+        IReadOnlyList<string> containerIds,
+        long expectedRegistryGeneration,
+        Func<IReadOnlyList<ProductDesktopHostVerifiedWindow>, bool> operation)
+    {
+        ArgumentNullException.ThrowIfNull(containerIds);
+        ArgumentNullException.ThrowIfNull(operation);
+
+        if (expectedRegistryGeneration <= 0
+            || containerIds.Count == 0
+            || containerIds.Any(string.IsNullOrWhiteSpace)
+            || containerIds.Distinct(StringComparer.Ordinal).Count()
+                != containerIds.Count)
+        {
+            return false;
+        }
+
+        lock (sync)
+        {
+            if (host is null
+                || snapshot.Generation != expectedRegistryGeneration
+                || !snapshot.OwnershipAttested
+                || entries.Count != containerIds.Count
+                || !entries.Keys.ToHashSet(StringComparer.Ordinal)
+                    .SetEquals(containerIds))
+            {
+                return false;
+            }
+
+            var verified = new List<ProductDesktopHostVerifiedWindow>(
+                containerIds.Count);
+            foreach (string containerId in containerIds
+                .OrderBy(value => value, StringComparer.Ordinal))
+            {
+                Entry entry = entries[containerId];
+                ProductDesktopHostWindowObservation observation =
+                    SafeInspect(entry.Claim.Handle);
+                if (ValidateObservation(entry.Claim, observation)
+                    != ProductDesktopHostWindowRegistrationStatus.Registered)
+                {
+                    return false;
+                }
+
+                verified.Add(new(
+                    containerId,
+                    entry.Claim.Handle,
+                    observation.Bounds));
+            }
+
+            try
+            {
+                return operation(verified.AsReadOnly());
+            }
+            catch (Exception exception) when (
+                exception is InvalidOperationException
+                or OverflowException)
+            {
+                return false;
+            }
         }
     }
 

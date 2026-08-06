@@ -534,3 +534,5 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 2026-08-06 增量说明：产品自有窗口注册表与只读 DesktopHost 桥已经建立，内部证据绑定容器 ID、DesktopHost 实例/线程、宿主与窗口 generation、实例标识及最近复读 Bounds；App 只能消费匿名有限状态且当前保持零接线。后续真实窗口工作必须先从注册表取得完整 verified 容器集，再把注册表 generation 与配置/拓扑/计划/撤销令牌共同绑定到复合事务；不得把 HWND 传入 App 或绕过准入评估器。布局恢复 MVP 主线还剩配置+窗口复合事务和 RC 硬化/交付 2 个工程阶段；任务栏美化、小组件/插件运行时与广泛窗口特效继续留在 MVP 后续。
 
 同日阶段 C 补充：配置与产品窗口复合事务合同已经建立。适配层必须支持配置/窗口两侧 capture、apply、reread、restore、verify-restored，不得把普通异步保存排队结果当作原子成功；固定窗口先应用、配置后发布，失败按配置→窗口逆序补偿，无法恢复时关闭输入并隐藏受影响宿主。一次性撤销同时覆盖配置和精确容器窗口，失败时必须前滚回成功状态或进入隐藏恢复模式。Core/App 不得取得 HWND，App 当前继续零接线。布局恢复 MVP 主线只剩 RC 硬化与交付 1 个工程阶段；外部真实证据和 MVP 后任务栏/小组件/插件/窗口特效范围不变。
+
+同日 RC 硬化切片 1 补充：真实窗口适配器只能从产品自有窗口注册表取得句柄，要求请求容器集与注册表完整集合完全一致，并在持有注册表串行边界时重新验证句柄存在、进程、线程和实例标识。原生提交必须使用单个 deferred-window batch，固定携带 `SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING`；禁止 `SetForegroundWindow`、`ShowWindow`、Region 修改和第三方句柄。capture/verify 必须重新读取真实 Bounds，快照绑定注册表 generation 且释放后不可复用。适配器在 App 零接线状态完成自动化后，仍不得跳过准入 blocker、真实 DesktopHost 线程封送和实机矩阵直接开放。
