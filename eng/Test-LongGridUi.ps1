@@ -35,6 +35,8 @@ $layoutRecoveryUndoCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceLayoutRecoveryUndo.cs'
 $realWindowRecoveryAdmissionCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceRealWindowRecoveryAdmission.cs'
+$windowCompositeTransactionCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceWindowCompositeTransaction.cs'
 $layoutRecoveryPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceLayoutRecoveryPresentation.cs'
 $displayTopologyReaderCodePath = Join-Path $projectRoot `
@@ -121,6 +123,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $realWindowRecoveryAdmissionCode = Get-Content `
         -LiteralPath $realWindowRecoveryAdmissionCodePath `
+        -Raw `
+        -Encoding UTF8
+    $windowCompositeTransactionCode = Get-Content `
+        -LiteralPath $windowCompositeTransactionCodePath `
         -Raw `
         -Encoding UTF8
     $layoutRecoveryPresentationCode = Get-Content `
@@ -970,6 +976,23 @@ function Test-SourceContract {
             'ProductWorkspaceRealWindowRecoveryAdmission|ProductWorkspaceRealWindowRecoveryPlanToken')
     ) 'Real-window recovery must remain blocked until bound transaction, ownership, rollback, and manual evidence all pass.'
     Assert-Condition (
+        $windowCompositeTransactionCode -match 'TopologyGeneration' -and
+        $windowCompositeTransactionCode -match 'EditRevision' -and
+        $windowCompositeTransactionCode -match 'WindowRegistryGeneration' -and
+        $windowCompositeTransactionCode -match 'DesktopHostInstanceId' -and
+        $windowCompositeTransactionCode -match 'DesktopHostGeneration' -and
+        $windowCompositeTransactionCode -match 'ConfigurationFingerprint' -and
+        $windowCompositeTransactionCode -match 'PlanFingerprint' -and
+        $windowCompositeTransactionCode -match 'WindowOwnershipAttested' -and
+        $windowCompositeTransactionCode -match 'CurrentUndoToken' -and
+        $windowCompositeTransactionCode -match 'RolledForward' -and
+        $windowCompositeTransactionCode -match 'HideAffectedHosts' -and
+        -not ($windowCompositeTransactionCode -match `
+            '\bnint\b|HWND|SetWindowPos|DeferWindowPos|MoveWindow|SetForegroundWindow') -and
+        -not ($appCode -match `
+            'ProductWorkspaceWindowCompositeTransactionCoordinator|ProductWorkspaceWindowCompositeToken')
+    ) 'Configuration and verified product windows must share a generation-bound, compensating, one-time-undo transaction without App or HWND exposure.'
+    Assert-Condition (
         $desktopHostWindowBridgeCode -match 'ProductDesktopHostWindowStatus' -and
         $desktopHostWindowBridgeCode -match 'RegisteredWindowCount' -and
         $desktopHostWindowBridgeCode -match 'VerifiedWindowCount' -and
@@ -1075,7 +1098,7 @@ function Test-SourceContract {
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
-        productLayoutRecovery = 'config-confirm-undo-owned-window-registry-readonly-bridge-real-commit-blocked'
+        productLayoutRecovery = 'config-window-composite-transaction-verified-compensation-undo-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'
