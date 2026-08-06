@@ -140,7 +140,7 @@ P0-02 已验证 Shell 会强烈合并高频变化：1,100 次沙箱操作每轮�
 
 未解析引用审查层随后把会话中的非 Resolved 项投影为稳定匿名序号，并为每项签发包含 Catalog generation、edit revision、内部领域 ID 与预期解析状态的 token。Keep 不产生 edit；Replace 必须显式选择且当前 Catalog 身份唯一；Remove 必须明确确认。Gate 在每次预演时复核代际、修订、对象状态、锁定及候选，返回有限失败或 reducer 深快照。WinUI 在对话框打开前捕获 token/候选，目录刷新不能让旧选择静默指向新对象。当前只做 dry-run，App 不替换 session、不递增 revision、不调用普通 submit，也不触碰桌面文件，详见[未解析引用审查与双版本门禁审计](51-unresolved-reference-review-gate-audit.md)。
 
-正式引用提交层将上述 Gate 的成功结果交给 Infrastructure `ProductWorkspaceReferenceCommitCoordinator`：gate → v1 projection → 唯一 controller Submit → edit revision 推进的顺序不可绕过。外部配置加载也推进同一单调 revision。controller 接受后，App 用返回 Document 立即替换内存配置基线，并重新解析 session/review，因此防抖期间的 Catalog 刷新不会恢复旧磁盘状态。Waiting/Saving/Failed 期间导入/导出关闭；桌面文件 API 仍未接入。详见[引用编辑正式保存提交审计](52-reference-edit-save-submission-audit.md)。
+正式编辑提交层将 Gate/Reducer 的成功结果交给 Infrastructure `ProductWorkspaceCommitCoordinator`：校验 → v1 projection → 唯一 controller Submit → edit revision 推进的顺序不可绕过。引用编辑和容器编辑共享同一把锁与同一单调 revision，外部配置加载也推进该 revision。controller 接受后，App 用返回 Document 立即替换内存配置基线并重新解析 session/review，因此防抖期间的 Catalog 刷新不会恢复旧状态。Waiting/Saving/Failed 期间导入/导出关闭；桌面文件 API 仍未接入。详见[引用编辑正式保存提交审计](52-reference-edit-save-submission-audit.md)。
 
 正式可视化不直接消费配置 Document 或 Catalog。`ProductWorkspaceReadModel` 先用 v1 projector 验证 session state，再输出不含持久化路径、内部 ID、布局显示身份和文件身份的只读快照；App 负责把该快照映射为本地化文本，MainWindow 只绑定 presentation。已解析名称属于用户可见内容并进入辅助功能名称，未解析引用保持序号匿名，UIA ItemStatus 只记录有限计数。详见[正式工作区只读视图审计](53-formal-workspace-readonly-view-audit.md)。
 

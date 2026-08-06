@@ -26,6 +26,12 @@ internal sealed record ProductWorkspaceReadPresentation(
         "WorkspaceViewUnavailable:Containers=0:Items=0",
         Array.Empty<ProductWorkspaceReadContainerPresentation>());
 
+    public static ProductWorkspaceReadPresentation NoSavedConfiguration { get; } =
+        new(
+            "尚无正式配置；可以创建第一个方格，系统不会自动生成示例。",
+            "WorkspaceViewNoSavedConfiguration:Containers=0:Items=0",
+            Array.Empty<ProductWorkspaceReadContainerPresentation>());
+
     public static ProductWorkspaceReadPresentation Create(
         ProductWorkspaceReadSnapshot snapshot)
     {

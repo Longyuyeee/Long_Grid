@@ -4,14 +4,14 @@ using LongGrid.Infrastructure.Configuration;
 
 namespace LongGrid.Core.Tests.Configuration;
 
-public sealed class ProductWorkspaceReferenceCommitCoordinatorTests
+public sealed class ProductWorkspaceCommitCoordinatorTests
 {
     [Fact]
     public async Task ExternalStateAdvancesAMonotonicEditRevision()
     {
         var workflow = new FakeWorkflow();
         await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
-        var coordinator = new ProductWorkspaceReferenceCommitCoordinator(saves);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
 
         Assert.Equal(0, coordinator.CurrentEditRevision);
         Assert.Equal(1, coordinator.AdvanceExternalRevision());
@@ -24,7 +24,7 @@ public sealed class ProductWorkspaceReferenceCommitCoordinatorTests
     {
         var workflow = new FakeWorkflow();
         await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
-        var coordinator = new ProductWorkspaceReferenceCommitCoordinator(saves);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
         ProductWorkspaceState state = MissingState();
         ProductWorkspaceReferenceReviewToken token = Token(
             state,
@@ -48,7 +48,7 @@ public sealed class ProductWorkspaceReferenceCommitCoordinatorTests
     {
         var workflow = new FakeWorkflow();
         await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
-        var coordinator = new ProductWorkspaceReferenceCommitCoordinator(saves);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
         ProductWorkspaceState state = MissingState();
         ProductWorkspaceReferenceReviewToken token = Token(
             state,
@@ -83,7 +83,7 @@ public sealed class ProductWorkspaceReferenceCommitCoordinatorTests
     {
         var workflow = new FakeWorkflow();
         await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
-        var coordinator = new ProductWorkspaceReferenceCommitCoordinator(saves);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
         ProductWorkspaceState state = MissingState();
         DesktopCatalogEntry candidate = CatalogEntry("Replacement");
         ProductWorkspaceReferenceReviewToken token = Token(
@@ -116,7 +116,7 @@ public sealed class ProductWorkspaceReferenceCommitCoordinatorTests
     {
         var workflow = new FakeWorkflow();
         await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
-        var coordinator = new ProductWorkspaceReferenceCommitCoordinator(saves);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
         ProductWorkspaceState state = MissingState();
         ProductWorkspaceReferenceReviewToken token = Token(
             state,
@@ -144,7 +144,7 @@ public sealed class ProductWorkspaceReferenceCommitCoordinatorTests
     {
         var workflow = new FakeWorkflow();
         await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
-        var coordinator = new ProductWorkspaceReferenceCommitCoordinator(saves);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
         ProductWorkspaceState state = MissingState();
         ProductWorkspaceReferenceReviewToken token = Token(
             state,
@@ -170,7 +170,7 @@ public sealed class ProductWorkspaceReferenceCommitCoordinatorTests
     {
         var workflow = new FakeWorkflow();
         await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
-        var coordinator = new ProductWorkspaceReferenceCommitCoordinator(saves);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
         ProductWorkspaceState state = MissingState();
         ProductWorkspaceReferenceReviewToken token = Token(
             state,
@@ -224,7 +224,7 @@ public sealed class ProductWorkspaceReferenceCommitCoordinatorTests
                 workflow,
                 new ImmediateScheduler(),
                 TimeSpan.FromMilliseconds(1));
-            var coordinator = new ProductWorkspaceReferenceCommitCoordinator(saves);
+            var coordinator = new ProductWorkspaceCommitCoordinator(saves);
             ProductWorkspaceReferenceReviewToken token = Token(
                 missing,
                 1,

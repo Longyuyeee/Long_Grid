@@ -25,6 +25,8 @@ $workspaceReadModelCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReadModel.cs'
 $workspaceReadPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReadPresentation.cs'
+$containerEditPresentationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\ProductWorkspaceContainerEditPresentation.cs'
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
 $runtimeIdentifier = "win-$Architecture"
 
@@ -79,6 +81,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $workspaceReadPresentationCode = Get-Content `
         -LiteralPath $workspaceReadPresentationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $containerEditPresentationCode = Get-Content `
+        -LiteralPath $containerEditPresentationCodePath `
         -Raw `
         -Encoding UTF8
     $requiredIds = @(
@@ -159,6 +165,12 @@ function Test-SourceContract {
         'ProductWorkspaceViewCard',
         'ProductWorkspaceViewTitle',
         'ProductWorkspaceViewDetail',
+        'ProductWorkspaceContainerEditorPanel',
+        'ProductWorkspaceContainerEditSelector',
+        'ProductWorkspaceContainerNameEditor',
+        'ProductWorkspaceContainerCreateButton',
+        'ProductWorkspaceContainerRenameButton',
+        'ProductWorkspaceContainerEditStatus',
         'ProductWorkspaceContainerList',
         'ProductWorkspaceViewStatus',
         'ProductWorkspaceReferenceReviewCard',
@@ -347,6 +359,30 @@ function Test-SourceContract {
         'ProductWorkspaceViewCard'
     Assert-Condition (-not ($workspaceViewCardNode.OuterXml -match 'Storyboard|Transition')) `
         'Formal workspace view must keep a Reduced Motion-safe static baseline.'
+    $containerNameNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceContainerNameEditor'
+    Assert-Condition (
+        $containerNameNode.GetAttribute('MaxLength') -eq '256' -and
+        $containerNameNode.GetAttribute('TextChanged') -eq `
+            'ProductWorkspaceContainerNameEditor_TextChanged'
+    ) 'Formal container names must use the v1 bound and update explicit actions.'
+    foreach ($buttonId in @(
+            'ProductWorkspaceContainerCreateButton',
+            'ProductWorkspaceContainerRenameButton'
+        )) {
+        $buttonNode = Get-XamlNodeByAutomationId $document $buttonId
+        Assert-Condition ($buttonNode.GetAttribute('IsEnabled') -eq 'False') `
+            "Container edit action '$buttonId' must start disabled."
+    }
+    $containerEditStatusNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceContainerEditStatus'
+    Assert-Condition (
+        $containerEditStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite' -and
+        $containerEditStatusNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'WorkspaceContainerEditUnavailable:Changed=False:DesktopFilesChanged=False'
+    ) 'Container editing must start finite, unchanged, and explicit about desktop files.'
 
     $referenceReviewStatusNode = Get-XamlNodeByAutomationId `
         $document `
@@ -625,10 +661,10 @@ function Test-SourceContract {
         'The App must route reference edits through the audited commit coordinator.'
     Assert-Condition (
         $appCode -match 'ProductWorkspaceReferenceReview\.Create' -and
-        $appCode -match 'ProductWorkspaceReferenceCommitCoordinator' -and
-        $appCode -match 'referenceCommits\.Commit' -and
-        $appCode -match 'referenceCommits\.CurrentEditRevision' -and
-        $appCode -match 'referenceCommits\.AdvanceExternalRevision' -and
+        $appCode -match 'ProductWorkspaceCommitCoordinator' -and
+        $appCode -match 'workspaceCommits\.Commit' -and
+        $appCode -match 'workspaceCommits\.CurrentEditRevision' -and
+        $appCode -match 'workspaceCommits\.AdvanceExternalRevision' -and
         $appCode -match 'catalog\.Generation'
     ) 'The App must own the catalog-generation and edit-revision review boundary.'
     Assert-Condition (
@@ -667,11 +703,13 @@ function Test-SourceContract {
         -not ($codeBehind -match 'ProductWorkspaceRead.*(State|CatalogEntry|PersistedTarget|CanonicalTarget)')
     ) 'MainWindow must render only the presentation contract, never workspace identity state.'
     Assert-Condition (
-        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 1) -and
+        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 2) -and
         $referenceCommitCode -match 'editRevision\s*=\s*checked\(editRevision\s*\+\s*1\)' -and
         $referenceCommitCode -match 'ProductWorkspaceReferenceGate\.Evaluate' -and
-        $referenceCommitCode -match 'ProductWorkspaceConfigurationProjector\.Project'
-    ) 'Reference commits must pass one gate, one projection, one controller submission, and one revision advance.'
+        $referenceCommitCode -match 'ProductWorkspaceConfigurationProjector\.Project' -and
+        $referenceCommitCode -match 'CommitContainer' -and
+        $referenceCommitCode -match 'ProductWorkspaceReducer\.(CreateContainer|RenameContainer)'
+    ) 'Reference and container edits must share one coordinator with one submission per accepted path.'
     Assert-Condition (
         $codeBehind -match 'configurationTransactionsEnabled' -and
         $codeBehind -match 'ImportConfigurationButton\.IsEnabled' -and
@@ -697,8 +735,27 @@ function Test-SourceContract {
         $codeBehind -match 'ReferenceCommit:' -and
         $codeBehind -match 'DesktopFilesChanged=False' -and
         $codeBehind -match 'ConfigurationChanged=' -and
-        -not ($codeBehind -match 'PersistedTarget|CanonicalTarget|DisplayName')
+        -not ($codeBehind -match 'PersistedTarget|CanonicalTarget')
     ) 'Reference commit presentation must remain anonymous and explicit about configuration/file effects.'
+    Assert-Condition (
+        $appCode -match 'CommitProductWorkspaceContainerAction' -and
+        $appCode -match 'workspaceCommits\.CommitContainer' -and
+        $appCode -match 'ProductConfigurationDefaults\.CreateEmpty' -and
+        $appCode -match 'CreateDefaultContainer' -and
+        $appCode -match 'DisplayKey\s*=\s*"display-unassigned"'
+    ) 'App must support first-container creation through the shared audited coordinator.'
+    Assert-Condition (
+        $codeBehind -match 'WorkspaceContainerEdit:' -and
+        $codeBehind -match 'DesktopFilesChanged=False' -and
+        $codeBehind -match 'ProductWorkspaceContainerCommitStatus\.StaleEditRevision' -and
+        $codeBehind -match 'ProductWorkspaceEditError\.ContainerLocked'
+    ) 'Container edit UI must expose finite conflict, lock, and file-safety outcomes.'
+    Assert-Condition (
+        $containerEditPresentationCode -match 'EditRevision' -and
+        $containerEditPresentationCode -match 'Ordinal' -and
+        -not ($containerEditPresentationCode -match `
+            'ContainerId|PersistedTarget|CanonicalTarget|DisplayKey|ProfileId')
+    ) 'Container editor presentation must use revision plus ordinal without persistence identity.'
     Assert-Condition (
         $referencePresentationCode -match 'CatalogGeneration' -and
         $referencePresentationCode -match 'CatalogIndex' -and
@@ -769,6 +826,7 @@ function Test-SourceContract {
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
+        productContainerEdits = 'shared-revision-create-rename-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
         productSavePresentation = 'privacy-safe-static-reduced-motion'
         readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'

@@ -152,7 +152,10 @@ public static class ProductWorkspaceSessionLoader
                 source);
         }
 
-        if (catalogSnapshot.Availability == ProductWorkspaceCatalogAvailability.Unavailable)
+        bool hasReferences = document.Containers.Any(
+            container => container.Items.Count > 0);
+        if (catalogSnapshot.Availability == ProductWorkspaceCatalogAvailability.Unavailable
+            && hasReferences)
         {
             return new(
                 ProductWorkspaceSessionStatus.AwaitingCatalog,
@@ -167,7 +170,10 @@ public static class ProductWorkspaceSessionLoader
         ProductWorkspaceResolutionResult resolution =
             ProductWorkspaceConfigurationResolver.Resolve(
                 document,
-                catalogSnapshot.Entries);
+                catalogSnapshot.Availability ==
+                    ProductWorkspaceCatalogAvailability.Available
+                    ? catalogSnapshot.Entries
+                    : Array.Empty<DesktopCatalogEntry>());
         if (!resolution.IsSuccess)
         {
             ProductWorkspaceSessionFailure failure = resolution.Error switch

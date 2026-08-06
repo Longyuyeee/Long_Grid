@@ -7,6 +7,28 @@ namespace LongGrid.Core.Tests.Configuration;
 public sealed class ProductWorkspaceSessionLoaderTests
 {
     [Fact]
+    public void ReferenceFreePrimaryCanLoadBeforeCatalogIsAvailable()
+    {
+        ProductConfigurationDocument document = ProductConfigurationDefaults.CreateEmpty();
+        ProductConfigurationLoadResult load = new(
+            ProductConfigurationLoadStatus.LoadedPrimary,
+            document,
+            ProductConfigurationStorageFailure.None,
+            ProductConfigurationStorageFailure.None,
+            ProductConfigurationError.None,
+            ProductConfigurationError.None);
+
+        ProductWorkspaceSessionSnapshot result = ProductWorkspaceSessionLoader.Load(
+            load,
+            ProductWorkspaceCatalogSnapshot.Unavailable);
+
+        Assert.Equal(ProductWorkspaceSessionStatus.Ready, result.Status);
+        Assert.NotNull(result.State);
+        Assert.Empty(result.State.Containers);
+        Assert.False(result.IsReadOnly);
+    }
+
+    [Fact]
     public void MissingConfigurationDoesNotRequireCatalogOrCreateState()
     {
         ProductWorkspaceSessionSnapshot snapshot = ProductWorkspaceSessionLoader.Load(

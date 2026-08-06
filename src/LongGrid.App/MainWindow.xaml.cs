@@ -51,8 +51,16 @@ public sealed partial class MainWindow : Window
         bool,
         ProductWorkspaceReferenceCandidatePresentation?,
         ProductWorkspaceReferenceCommitResult> _commitProductWorkspaceReferenceAction;
+    private readonly Func<
+        ProductWorkspaceContainerCommitAction,
+        long,
+        int,
+        string,
+        ProductWorkspaceContainerCommitResult> _commitProductWorkspaceContainerAction;
     private ProductWorkspaceReferenceReviewPresentation _referenceReview =
         ProductWorkspaceReferenceReviewPresentation.Unavailable;
+    private ProductWorkspaceContainerEditPresentation _containerEditor =
+        ProductWorkspaceContainerEditPresentation.Unavailable;
 
     public MainWindow(
         Func<
@@ -80,7 +88,13 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceReferenceAction,
             bool,
             ProductWorkspaceReferenceCandidatePresentation?,
-            ProductWorkspaceReferenceCommitResult> commitProductWorkspaceReferenceAction)
+            ProductWorkspaceReferenceCommitResult> commitProductWorkspaceReferenceAction,
+        Func<
+            ProductWorkspaceContainerCommitAction,
+            long,
+            int,
+            string,
+            ProductWorkspaceContainerCommitResult> commitProductWorkspaceContainerAction)
     {
         ArgumentNullException.ThrowIfNull(recoverConfiguration);
         ArgumentNullException.ThrowIfNull(prepareConfigurationImport);
@@ -93,6 +107,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(retryProductWorkspaceSave);
         ArgumentNullException.ThrowIfNull(refreshProductDesktopCatalog);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceReferenceAction);
+        ArgumentNullException.ThrowIfNull(commitProductWorkspaceContainerAction);
         _recoverConfiguration = recoverConfiguration;
         _prepareConfigurationImport = prepareConfigurationImport;
         _commitConfigurationImport = commitConfigurationImport;
@@ -105,6 +120,8 @@ public sealed partial class MainWindow : Window
         _refreshProductDesktopCatalog = refreshProductDesktopCatalog;
         _commitProductWorkspaceReferenceAction =
             commitProductWorkspaceReferenceAction;
+        _commitProductWorkspaceContainerAction =
+            commitProductWorkspaceContainerAction;
         InitializeComponent();
         RootLayout.Loaded += RootLayout_Loaded;
         RootLayout.SizeChanged += RootLayout_SizeChanged;
@@ -283,6 +300,121 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetItemStatus(
             ProductWorkspaceViewStatus,
             presentation.MachineStatus);
+    }
+
+    internal void ApplyProductWorkspaceContainerEditor(
+        ProductWorkspaceContainerEditPresentation presentation)
+    {
+        ArgumentNullException.ThrowIfNull(presentation);
+        _containerEditor = presentation;
+        ProductWorkspaceContainerEditSelector.ItemsSource = presentation.Candidates;
+        ProductWorkspaceContainerEditSelector.SelectedIndex =
+            presentation.Candidates.Count > 0 ? 0 : -1;
+        ProductWorkspaceContainerEditStatus.Text = presentation.CanCreate
+            ? "仅更改 Long方格配置；不会移动、删除或重命名桌面文件。"
+            : "当前会话保持只读；容器配置未改变。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceContainerEditStatus,
+            $"WorkspaceContainerEditReady:Revision={presentation.EditRevision}:" +
+                $"Candidates={presentation.Candidates.Count}:" +
+                $"CanCreate={presentation.CanCreate}:CanRename={presentation.CanRename}:" +
+                "Changed=False:DesktopFilesChanged=False");
+        UpdateProductWorkspaceContainerEditButtons();
+    }
+
+    private void ProductWorkspaceContainerEditSelector_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e)
+    {
+        if (ProductWorkspaceContainerEditSelector.SelectedItem is
+            ProductWorkspaceContainerEditCandidatePresentation selected)
+        {
+            ProductWorkspaceContainerNameEditor.Text = selected.DisplayName;
+        }
+
+        UpdateProductWorkspaceContainerEditButtons();
+    }
+
+    private void ProductWorkspaceContainerNameEditor_TextChanged(
+        object sender,
+        TextChangedEventArgs e) =>
+        UpdateProductWorkspaceContainerEditButtons();
+
+    private void UpdateProductWorkspaceContainerEditButtons()
+    {
+        bool hasName = !string.IsNullOrWhiteSpace(
+            ProductWorkspaceContainerNameEditor.Text);
+        ProductWorkspaceContainerCreateButton.IsEnabled =
+            _containerEditor.CanCreate && hasName;
+        ProductWorkspaceContainerRenameButton.IsEnabled =
+            _containerEditor.CanRename
+            && hasName
+            && ProductWorkspaceContainerEditSelector.SelectedItem is
+                ProductWorkspaceContainerEditCandidatePresentation;
+    }
+
+    private void ProductWorkspaceContainerCreateButton_Click(
+        object sender,
+        RoutedEventArgs e) =>
+        RunProductWorkspaceContainerCommit(
+            ProductWorkspaceContainerCommitAction.Create,
+            containerOrdinal: 0);
+
+    private void ProductWorkspaceContainerRenameButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        int ordinal = ProductWorkspaceContainerEditSelector.SelectedItem is
+            ProductWorkspaceContainerEditCandidatePresentation selected
+                ? selected.Ordinal
+                : 0;
+        RunProductWorkspaceContainerCommit(
+            ProductWorkspaceContainerCommitAction.Rename,
+            ordinal);
+    }
+
+    private void RunProductWorkspaceContainerCommit(
+        ProductWorkspaceContainerCommitAction action,
+        int containerOrdinal)
+    {
+        string name = ProductWorkspaceContainerNameEditor.Text.Trim();
+        ProductWorkspaceContainerCommitResult result =
+            _commitProductWorkspaceContainerAction(
+                action,
+                _containerEditor.EditRevision,
+                containerOrdinal,
+                name);
+        bool changed = result.IsAccepted;
+        ProductWorkspaceContainerEditStatus.Text = result.Status switch
+        {
+            ProductWorkspaceContainerCommitStatus.Accepted =>
+                action == ProductWorkspaceContainerCommitAction.Create
+                    ? "正式方格已创建并进入安全保存队列；桌面文件未改变。"
+                    : "正式方格名称已更新并进入安全保存队列；桌面文件未改变。",
+            ProductWorkspaceContainerCommitStatus.NoChange =>
+                "名称没有变化，因此没有提交保存。",
+            ProductWorkspaceContainerCommitStatus.StaleEditRevision =>
+                "工作区已发生更新，请按当前列表重新操作。",
+            ProductWorkspaceContainerCommitStatus.ReducerRejected
+                when result.EditError == ProductWorkspaceEditError.ContainerLocked =>
+                "所选方格已锁定，未执行重命名。",
+            ProductWorkspaceContainerCommitStatus.ReducerRejected =>
+                "名称或容器状态未通过正式配置校验，未执行保存。",
+            ProductWorkspaceContainerCommitStatus.SaveRejected =>
+                "保存控制器当前无法接受编辑；配置与桌面文件均未改变。",
+            _ => "容器编辑请求无效；配置与桌面文件均未改变。",
+        };
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceContainerEditStatus,
+            $"WorkspaceContainerEdit:{result.Status}:Action={action}:" +
+                $"Revision={result.EditRevision}:Changed={changed}:" +
+                "DesktopFilesChanged=False");
+        if (changed)
+        {
+            ProductWorkspaceContainerNameEditor.Text = string.Empty;
+        }
+
+        UpdateProductWorkspaceContainerEditButtons();
     }
 
     internal void ApplyProductWorkspaceReferenceReview(

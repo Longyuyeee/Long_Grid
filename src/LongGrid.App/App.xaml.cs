@@ -20,7 +20,7 @@ public partial class App : Application
     private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(5);
     private readonly ProductConfigurationStore configurationStore;
     private readonly ProductWorkspaceSaveController productWorkspaceSaves;
-    private readonly ProductWorkspaceReferenceCommitCoordinator referenceCommits;
+    private readonly ProductWorkspaceCommitCoordinator workspaceCommits;
     private readonly ProductDesktopCatalogController productDesktopCatalog;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
@@ -40,7 +40,7 @@ public partial class App : Application
         var saveWorkflow = new ProductConfigurationSaveWorkflow(
             new ProductConfigurationSaveCoordinator(configurationStore));
         productWorkspaceSaves = new(saveWorkflow);
-        referenceCommits = new(productWorkspaceSaves);
+        workspaceCommits = new(productWorkspaceSaves);
         productDesktopCatalog = new(
             ProductDesktopCatalogReader.CreateForCurrentUser());
     }
@@ -58,7 +58,8 @@ public partial class App : Application
             item => configurationStore.RemoveEvidenceAsync(item, userConfirmed: true),
             () => productWorkspaceSaves.Retry(),
             RefreshProductDesktopCatalogAsync,
-            CommitProductWorkspaceReferenceAction);
+            CommitProductWorkspaceReferenceAction,
+            CommitProductWorkspaceContainerAction);
         productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
         productDesktopCatalog.SnapshotChanged += ProductDesktopCatalog_SnapshotChanged;
         window.ApplyProductWorkspaceSaveState(productWorkspaceSaves.Snapshot);
@@ -177,7 +178,7 @@ public partial class App : Application
         ProductConfigurationLoadResult loadResult)
     {
         currentConfigurationLoadResult = loadResult;
-        _ = referenceCommits.AdvanceExternalRevision();
+        _ = workspaceCommits.AdvanceExternalRevision();
         ProductConfigurationStartupState startupState =
             ProductConfigurationStartupState.FromLoadResult(loadResult);
         productWorkspaceSession = ProductWorkspaceSessionLoader.Load(
@@ -243,10 +244,25 @@ public partial class App : Application
                 ProductConfigurationError.None,
                 null)
             : ProductWorkspaceReadModel.Create(productWorkspaceSession.State);
-        currentWindow.ApplyProductWorkspaceReadModel(
+        ProductWorkspaceReadPresentation readPresentation = readModel.IsSuccess
+            ? ProductWorkspaceReadPresentation.Create(readModel.Snapshot!)
+            : productWorkspaceSession.Status ==
+                ProductWorkspaceSessionStatus.NoSavedConfiguration
+                ? ProductWorkspaceReadPresentation.NoSavedConfiguration
+                : ProductWorkspaceReadPresentation.Unavailable;
+        currentWindow.ApplyProductWorkspaceReadModel(readPresentation);
+        ProductWorkspaceContainerEditPresentation containerEditor =
             readModel.IsSuccess
-                ? ProductWorkspaceReadPresentation.Create(readModel.Snapshot!)
-                : ProductWorkspaceReadPresentation.Unavailable);
+                ? ProductWorkspaceContainerEditPresentation.Create(
+                    workspaceCommits.CurrentEditRevision,
+                    !productWorkspaceSession.IsReadOnly,
+                    readModel.Snapshot!.Containers)
+                : productWorkspaceSession.Status ==
+                    ProductWorkspaceSessionStatus.NoSavedConfiguration
+                    ? ProductWorkspaceContainerEditPresentation.CreateEmpty(
+                        workspaceCommits.CurrentEditRevision)
+                    : ProductWorkspaceContainerEditPresentation.Unavailable;
+        currentWindow.ApplyProductWorkspaceContainerEditor(containerEditor);
         ApplyProductWorkspaceReferenceReview();
     }
 
@@ -266,7 +282,7 @@ public partial class App : Application
             ProductWorkspaceReferenceReview.Create(
                 productWorkspaceSession.State,
                 catalog.Generation,
-                referenceCommits.CurrentEditRevision);
+                workspaceCommits.CurrentEditRevision);
         IReadOnlyList<ProductWorkspaceReferenceCandidatePresentation> candidates =
             catalog.Entries
                 .Select((entry, index) => new ProductWorkspaceReferenceCandidatePresentation(
@@ -297,7 +313,7 @@ public partial class App : Application
                 ProductWorkspaceReferenceCommitStatus.InvalidState,
                 ProductWorkspaceReferenceGateError.InvalidState,
                 null,
-                referenceCommits.CurrentEditRevision,
+                workspaceCommits.CurrentEditRevision,
                 null,
                 null);
         }
@@ -309,7 +325,7 @@ public partial class App : Application
                 ? catalog.Entries[replacement.CatalogIndex]
                 : null;
 
-        ProductWorkspaceReferenceCommitResult result = referenceCommits.Commit(
+        ProductWorkspaceReferenceCommitResult result = workspaceCommits.Commit(
             productWorkspaceSession.State,
             catalog.Generation,
             catalog.Entries,
@@ -319,9 +335,74 @@ public partial class App : Application
             return result;
         }
 
+        ApplyAcceptedProductWorkspaceDocument(result.Document!, catalog);
+        return result;
+    }
+
+    private ProductWorkspaceContainerCommitResult CommitProductWorkspaceContainerAction(
+        ProductWorkspaceContainerCommitAction action,
+        long expectedEditRevision,
+        int containerOrdinal,
+        string name)
+    {
+        ProductWorkspaceState? state = productWorkspaceSession.State;
+        bool creatingFirstConfiguration =
+            action == ProductWorkspaceContainerCommitAction.Create
+            && productWorkspaceSession.Status ==
+                ProductWorkspaceSessionStatus.NoSavedConfiguration
+            && currentConfigurationLoadResult?.Status ==
+                ProductConfigurationLoadStatus.Missing;
+        if (creatingFirstConfiguration)
+        {
+            state = ProductWorkspaceConfigurationResolver.Resolve(
+                ProductConfigurationDefaults.CreateEmpty(),
+                Array.Empty<DesktopCatalogEntry>()).State;
+        }
+
+        if (state is null
+            || (productWorkspaceSession.IsReadOnly && !creatingFirstConfiguration))
+        {
+            return new(
+                ProductWorkspaceContainerCommitStatus.InvalidRequest,
+                ProductWorkspaceEditError.InvalidState,
+                null,
+                workspaceCommits.CurrentEditRevision,
+                null,
+                null);
+        }
+
+        string normalizedName = name.Trim();
+        ProductContainerState? newContainer = action ==
+            ProductWorkspaceContainerCommitAction.Create
+            ? CreateDefaultContainer(normalizedName, state.Containers.Count)
+            : null;
+        ProductWorkspaceContainerCommitResult result =
+            workspaceCommits.CommitContainer(
+                state,
+                new(
+                    action,
+                    expectedEditRevision,
+                    containerOrdinal,
+                    normalizedName,
+                    newContainer));
+        if (!result.IsAccepted)
+        {
+            return result;
+        }
+
+        ApplyAcceptedProductWorkspaceDocument(
+            result.Document!,
+            productDesktopCatalog.Snapshot);
+        return result;
+    }
+
+    private void ApplyAcceptedProductWorkspaceDocument(
+        ProductConfigurationDocument document,
+        ProductDesktopCatalogSnapshot catalog)
+    {
         currentConfigurationLoadResult = new(
             ProductConfigurationLoadStatus.LoadedPrimary,
-            result.Document,
+            document,
             ProductConfigurationStorageFailure.None,
             ProductConfigurationStorageFailure.None,
             ProductConfigurationError.None,
@@ -330,7 +411,33 @@ public partial class App : Application
             currentConfigurationLoadResult,
             CreateWorkspaceCatalogSnapshot(catalog));
         ApplyProductWorkspaceSessionViews();
-        return result;
+    }
+
+    private static ProductContainerState CreateDefaultContainer(
+        string name,
+        int existingContainerCount)
+    {
+        int offset = existingContainerCount % 8;
+        return new()
+        {
+            Id = $"container-{Guid.NewGuid():N}",
+            Name = name,
+            Appearance = new()
+            {
+                Color = "#2563EB",
+                Opacity = 0.88,
+                Collapsed = false,
+            },
+            Placement = new()
+            {
+                DisplayKey = "display-unassigned",
+                XDip = 32 + (offset * 24),
+                YDip = 48 + (offset * 24),
+                WidthDip = 360,
+                HeightDip = 240,
+            },
+            Items = Array.Empty<ProductItemReferenceState>(),
+        };
     }
 
     private static string DescribeDesktopItemKind(DesktopItemKind kind) => kind switch
