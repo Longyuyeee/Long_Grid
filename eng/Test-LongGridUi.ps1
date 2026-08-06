@@ -49,6 +49,8 @@ $desktopHostWindowBridgeCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostWindowBridge.cs'
 $windowsDesktopHostWindowInspectorCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostWindowInspector.cs'
+$verifiedWindowBatchAdapterCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostVerifiedWindowBatchAdapter.cs'
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
 $runtimeIdentifier = "win-$Architecture"
 
@@ -151,6 +153,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $windowsDesktopHostWindowInspectorCode = Get-Content `
         -LiteralPath $windowsDesktopHostWindowInspectorCodePath `
+        -Raw `
+        -Encoding UTF8
+    $verifiedWindowBatchAdapterCode = Get-Content `
+        -LiteralPath $verifiedWindowBatchAdapterCodePath `
         -Raw `
         -Encoding UTF8
     $requiredIds = @(
@@ -1016,6 +1022,24 @@ function Test-SourceContract {
             'SetWindowPos|DeferWindowPos|SetWindowRgn|SetPropW|MoveWindow|ShowWindow|SetForegroundWindow')
     ) 'The DesktopHost bridge may inspect owned windows but must not move, activate, reshape, or mark them.'
     Assert-Condition (
+        $verifiedWindowBatchAdapterCode -match `
+            'IProductWorkspaceCompositeWindowLayer' -and
+        $verifiedWindowBatchAdapterCode -match 'TryUseExactVerifiedWindows' -and
+        $verifiedWindowBatchAdapterCode -match 'WindowSnapshot' -and
+        $verifiedWindowBatchAdapterCode -match 'RegistryGeneration' -and
+        $verifiedWindowBatchAdapterCode -match 'BeginDeferWindowPos' -and
+        $verifiedWindowBatchAdapterCode -match 'DeferWindowPos' -and
+        $verifiedWindowBatchAdapterCode -match 'EndDeferWindowPos' -and
+        $verifiedWindowBatchAdapterCode -match 'NoActivate' -and
+        $verifiedWindowBatchAdapterCode -match 'NoZOrder' -and
+        $verifiedWindowBatchAdapterCode -match 'NoOwnerZOrder' -and
+        $verifiedWindowBatchAdapterCode -match 'NoSendChanging' -and
+        -not ($verifiedWindowBatchAdapterCode -match `
+            'SetWindowPos|MoveWindow|ShowWindow|SetForegroundWindow|SetWindowRgn') -and
+        -not ($appCode -match `
+            'ProductDesktopHostVerifiedWindowBatchAdapter|WindowsProductDesktopHostWindowBatchMutator')
+    ) 'Verified product windows must use one generation-bound, ownership-reread native batch without App wiring, activation, Z-order, or region changes.'
+    Assert-Condition (
         $displayTopologyReaderCode -match 'HasStableTargetIdentity' -and
         $displayTopologyReaderCode -match 'MappedToActivePath' -and
         $displayTopologyReaderCode -match 'SourceBoundsMatch' -and
@@ -1098,7 +1122,7 @@ function Test-SourceContract {
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
-        productLayoutRecovery = 'config-window-composite-transaction-verified-compensation-undo-app-blocked'
+        productLayoutRecovery = 'verified-owned-window-batch-adapter-compensation-ready-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'
