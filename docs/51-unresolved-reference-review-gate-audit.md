@@ -6,6 +6,8 @@
 
 证据等级：E1-E3 / Core decision gate + WinUI dry-run integration
 
+> 后续状态：本报告记录 Dry-run 阶段；其成功结果已由[引用编辑正式保存提交审计](52-reference-edit-save-submission-audit.md)在下一切片接入 App-owned 保存控制器。
+
 结论：**匿名审查通过 / Catalog generation + edit revision 组合门禁通过 / 显式重选与移除确认通过 / 零普通提交 / 零配置与磁盘修改 / Issue #24 保持 OPEN**
 
 ## 1. 本轮解决的问题

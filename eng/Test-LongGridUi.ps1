@@ -17,6 +17,8 @@ $codeBehindPath = Join-Path $projectRoot 'src\LongGrid.App\MainWindow.xaml.cs'
 $appCodePath = Join-Path $projectRoot 'src\LongGrid.App\App.xaml.cs'
 $referenceReviewCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReferenceReview.cs'
+$referenceCommitCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceReferenceCommitCoordinator.cs'
 $referencePresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReferenceReviewPresentation.cs'
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
@@ -57,6 +59,10 @@ function Test-SourceContract {
     $appCode = Get-Content -LiteralPath $appCodePath -Raw -Encoding UTF8
     $referenceReviewCode = Get-Content `
         -LiteralPath $referenceReviewCodePath `
+        -Raw `
+        -Encoding UTF8
+    $referenceCommitCode = Get-Content `
+        -LiteralPath $referenceCommitCodePath `
         -Raw `
         -Encoding UTF8
     $referencePresentationCode = Get-Content `
@@ -578,13 +584,34 @@ function Test-SourceContract {
     Assert-Condition (-not ($codeBehind -match '\.(SaveAsync|EnqueueAsync)\(')) `
         'MainWindow must not directly call configuration save or queue APIs.'
     Assert-Condition (-not ($appCode -match 'productWorkspaceSaves\.Submit\(')) `
-        'Reference review previews must not submit an ordinary product edit.'
+        'The App must route reference edits through the audited commit coordinator.'
     Assert-Condition (
         $appCode -match 'ProductWorkspaceReferenceReview\.Create' -and
-        $appCode -match 'ProductWorkspaceReferenceGate\.Evaluate' -and
-        $appCode -match 'productWorkspaceEditRevision' -and
+        $appCode -match 'ProductWorkspaceReferenceCommitCoordinator' -and
+        $appCode -match 'referenceCommits\.Commit' -and
+        $appCode -match 'referenceCommits\.CurrentEditRevision' -and
+        $appCode -match 'referenceCommits\.AdvanceExternalRevision' -and
         $appCode -match 'catalog\.Generation'
     ) 'The App must own the catalog-generation and edit-revision review boundary.'
+    Assert-Condition (
+        $appCode -match 'currentConfigurationLoadResult\s*=\s*new\(' -and
+        $appCode -match 'ProductConfigurationLoadStatus\.LoadedPrimary' -and
+        $appCode -match 'result\.Document' -and
+        $appCode -match 'ProductWorkspaceSessionLoader\.Load\(' -and
+        $appCode -match 'ApplyProductWorkspaceReferenceReview\(\)'
+    ) 'An accepted reference edit must replace the in-memory baseline and rebuild the session/review.'
+    Assert-Condition (
+        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 1) -and
+        $referenceCommitCode -match 'editRevision\s*=\s*checked\(editRevision\s*\+\s*1\)' -and
+        $referenceCommitCode -match 'ProductWorkspaceReferenceGate\.Evaluate' -and
+        $referenceCommitCode -match 'ProductWorkspaceConfigurationProjector\.Project'
+    ) 'Reference commits must pass one gate, one projection, one controller submission, and one revision advance.'
+    Assert-Condition (
+        $codeBehind -match 'configurationTransactionsEnabled' -and
+        $codeBehind -match 'ImportConfigurationButton\.IsEnabled' -and
+        $codeBehind -match 'ExportConfigurationButton\.IsEnabled' -and
+        $codeBehind -match 'ProductWorkspaceSaveStatus\.Clean\s+or\s+ProductWorkspaceSaveStatus\.Saved'
+    ) 'Import and export must be disabled while a product edit is pending or failed.'
     foreach ($gateState in @(
             'StaleCatalogGeneration',
             'StaleEditRevision',
@@ -601,9 +628,11 @@ function Test-SourceContract {
     Assert-Condition (
         $codeBehind -match '\{item\.Ordinal\}' -and
         $codeBehind -match '\{candidate\.Ordinal\}' -and
-        $codeBehind -match 'Committed=False' -and
+        $codeBehind -match 'ReferenceCommit:' -and
+        $codeBehind -match 'DesktopFilesChanged=False' -and
+        $codeBehind -match 'ConfigurationChanged=' -and
         -not ($codeBehind -match 'PersistedTarget|CanonicalTarget|DisplayName')
-    ) 'Reference review presentation must remain anonymous and explicit about zero commit.'
+    ) 'Reference commit presentation must remain anonymous and explicit about configuration/file effects.'
     Assert-Condition (
         $referencePresentationCode -match 'CatalogGeneration' -and
         $referencePresentationCode -match 'CatalogIndex' -and
@@ -665,17 +694,17 @@ function Test-SourceContract {
         responsiveBreakpoints = 1
         compactWidth = 720
         dpiAwareInitialSize = 'pass'
-        coreRuntimeStatus = 'development-read-only'
+        coreRuntimeStatus = 'desktop-read-only-explicit-config-edit-enabled'
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
         configurationRepair = 'confirmed-recovery-bounded-import-export-evidence-inventory-export-and-single-removal'
-        configurationShutdownDrain = 'controller-owned-bounded-zero-write-retry'
+        configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
-        productWorkspaceSession = 'formal-load-awaiting-authoritative-catalog-zero-write'
-        productReferenceReview = 'anonymous-generation-revision-gated-dry-run-zero-submit'
+        productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
+        productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
         productSavePresentation = 'privacy-safe-static-reduced-motion'
-        readOnlyBoundary = 'no-automatic-product-writes-explicit-config-transactions-only'
+        readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'
     }
 }
 

@@ -20,10 +20,10 @@ public partial class App : Application
     private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(5);
     private readonly ProductConfigurationStore configurationStore;
     private readonly ProductWorkspaceSaveController productWorkspaceSaves;
+    private readonly ProductWorkspaceReferenceCommitCoordinator referenceCommits;
     private readonly ProductDesktopCatalogController productDesktopCatalog;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
-    private readonly long productWorkspaceEditRevision;
     private ProductConfigurationLoadResult? currentConfigurationLoadResult;
     private MainWindow? window;
     private bool closeAfterDrain;
@@ -40,9 +40,9 @@ public partial class App : Application
         var saveWorkflow = new ProductConfigurationSaveWorkflow(
             new ProductConfigurationSaveCoordinator(configurationStore));
         productWorkspaceSaves = new(saveWorkflow);
+        referenceCommits = new(productWorkspaceSaves);
         productDesktopCatalog = new(
             ProductDesktopCatalogReader.CreateForCurrentUser());
-        productWorkspaceEditRevision = 0;
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -58,7 +58,7 @@ public partial class App : Application
             item => configurationStore.RemoveEvidenceAsync(item, userConfirmed: true),
             () => productWorkspaceSaves.Retry(),
             RefreshProductDesktopCatalogAsync,
-            PreviewProductWorkspaceReferenceAction);
+            CommitProductWorkspaceReferenceAction);
         productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
         productDesktopCatalog.SnapshotChanged += ProductDesktopCatalog_SnapshotChanged;
         window.ApplyProductWorkspaceSaveState(productWorkspaceSaves.Snapshot);
@@ -178,6 +178,7 @@ public partial class App : Application
         ProductConfigurationLoadResult loadResult)
     {
         currentConfigurationLoadResult = loadResult;
+        _ = referenceCommits.AdvanceExternalRevision();
         ProductConfigurationStartupState startupState =
             ProductConfigurationStartupState.FromLoadResult(loadResult);
         productWorkspaceSession = ProductWorkspaceSessionLoader.Load(
@@ -246,7 +247,7 @@ public partial class App : Application
             ProductWorkspaceReferenceReview.Create(
                 productWorkspaceSession.State,
                 catalog.Generation,
-                productWorkspaceEditRevision);
+                referenceCommits.CurrentEditRevision);
         IReadOnlyList<ProductWorkspaceReferenceCandidatePresentation> candidates =
             catalog.Entries
                 .Select((entry, index) => new ProductWorkspaceReferenceCandidatePresentation(
@@ -263,7 +264,7 @@ public partial class App : Application
                 review.Error));
     }
 
-    private ProductWorkspaceReferenceGateResult PreviewProductWorkspaceReferenceAction(
+    private ProductWorkspaceReferenceCommitResult CommitProductWorkspaceReferenceAction(
         ProductWorkspaceReferenceReviewToken token,
         ProductWorkspaceReferenceAction action,
         bool confirmed,
@@ -274,9 +275,12 @@ public partial class App : Application
             || productWorkspaceSession.IsReadOnly)
         {
             return new(
+                ProductWorkspaceReferenceCommitStatus.InvalidState,
                 ProductWorkspaceReferenceGateError.InvalidState,
                 null,
-                WouldChange: false);
+                referenceCommits.CurrentEditRevision,
+                null,
+                null);
         }
 
         DesktopCatalogEntry? replacementEntry = replacement is not null
@@ -286,12 +290,29 @@ public partial class App : Application
                 ? catalog.Entries[replacement.CatalogIndex]
                 : null;
 
-        return ProductWorkspaceReferenceGate.Evaluate(
+        ProductWorkspaceReferenceCommitResult result = referenceCommits.Commit(
             productWorkspaceSession.State,
             catalog.Generation,
-            productWorkspaceEditRevision,
             catalog.Entries,
             new(token, action, confirmed, replacementEntry));
+        if (!result.IsAccepted)
+        {
+            return result;
+        }
+
+        currentConfigurationLoadResult = new(
+            ProductConfigurationLoadStatus.LoadedPrimary,
+            result.Document,
+            ProductConfigurationStorageFailure.None,
+            ProductConfigurationStorageFailure.None,
+            ProductConfigurationError.None,
+            ProductConfigurationError.None);
+        productWorkspaceSession = ProductWorkspaceSessionLoader.Load(
+            currentConfigurationLoadResult,
+            CreateWorkspaceCatalogSnapshot(catalog));
+        window?.ApplyProductWorkspaceSessionState(productWorkspaceSession);
+        ApplyProductWorkspaceReferenceReview();
+        return result;
     }
 
     private static string DescribeDesktopItemKind(DesktopItemKind kind) => kind switch

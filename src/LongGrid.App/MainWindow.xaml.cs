@@ -50,7 +50,7 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceReferenceAction,
         bool,
         ProductWorkspaceReferenceCandidatePresentation?,
-        ProductWorkspaceReferenceGateResult> _previewProductWorkspaceReferenceAction;
+        ProductWorkspaceReferenceCommitResult> _commitProductWorkspaceReferenceAction;
     private ProductWorkspaceReferenceReviewPresentation _referenceReview =
         ProductWorkspaceReferenceReviewPresentation.Unavailable;
 
@@ -80,7 +80,7 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceReferenceAction,
             bool,
             ProductWorkspaceReferenceCandidatePresentation?,
-            ProductWorkspaceReferenceGateResult> previewProductWorkspaceReferenceAction)
+            ProductWorkspaceReferenceCommitResult> commitProductWorkspaceReferenceAction)
     {
         ArgumentNullException.ThrowIfNull(recoverConfiguration);
         ArgumentNullException.ThrowIfNull(prepareConfigurationImport);
@@ -92,7 +92,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(removeConfigurationEvidence);
         ArgumentNullException.ThrowIfNull(retryProductWorkspaceSave);
         ArgumentNullException.ThrowIfNull(refreshProductDesktopCatalog);
-        ArgumentNullException.ThrowIfNull(previewProductWorkspaceReferenceAction);
+        ArgumentNullException.ThrowIfNull(commitProductWorkspaceReferenceAction);
         _recoverConfiguration = recoverConfiguration;
         _prepareConfigurationImport = prepareConfigurationImport;
         _commitConfigurationImport = commitConfigurationImport;
@@ -103,8 +103,8 @@ public sealed partial class MainWindow : Window
         _removeConfigurationEvidence = removeConfigurationEvidence;
         _retryProductWorkspaceSave = retryProductWorkspaceSave;
         _refreshProductDesktopCatalog = refreshProductDesktopCatalog;
-        _previewProductWorkspaceReferenceAction =
-            previewProductWorkspaceReferenceAction;
+        _commitProductWorkspaceReferenceAction =
+            commitProductWorkspaceReferenceAction;
         InitializeComponent();
         RootLayout.Loaded += RootLayout_Loaded;
         RootLayout.SizeChanged += RootLayout_SizeChanged;
@@ -297,9 +297,9 @@ public sealed partial class MainWindow : Window
                 : count == 0
                     ? "当前引用均已解析；配置未改变。"
                     : presentation.IsReadOnly
-                        ? "备份会话保持只读；接受备份前不可预演修改。"
-                        : "仅显示匿名序号。操作会先做代际与修订校验，本阶段不会提交。";
-        ProductWorkspaceReferenceReviewStatus.Text = "尚未执行预演；配置未改变。";
+                        ? "备份会话保持只读；接受备份前不可执行引用修改。"
+                        : "仅显示匿名序号。重选或移除会先校验，再进入安全保存队列。";
+        ProductWorkspaceReferenceReviewStatus.Text = "尚未执行引用操作；配置未改变。";
         AutomationProperties.SetItemStatus(
             ProductWorkspaceReferenceReviewStatus,
             presentation.Snapshot is null
@@ -332,7 +332,7 @@ public sealed partial class MainWindow : Window
     private void ProductWorkspaceReferenceKeepButton_Click(
         object sender,
         RoutedEventArgs e) =>
-        RunProductWorkspaceReferencePreview(
+        RunProductWorkspaceReferenceCommit(
             ProductWorkspaceReferenceAction.Keep,
             confirmed: false,
             replacement: null);
@@ -344,9 +344,10 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceReferenceReviewToken? token = GetSelectedReferenceToken();
         if (token is null)
         {
-            ApplyProductWorkspaceReferencePreviewStatus(
+            ApplyProductWorkspaceReferenceCommitStatus(
                 ProductWorkspaceReferenceGateError.ItemChanged,
-                wouldChange: false);
+                ProductWorkspaceReferenceCommitStatus.GateRejected,
+                editRevision: _referenceReview.Snapshot?.EditRevision ?? 0);
             return;
         }
 
@@ -362,9 +363,9 @@ public sealed partial class MainWindow : Window
         };
         var dialog = new ContentDialog
         {
-            Title = "预演重选引用",
+            Title = "重选引用并保存",
             Content = selector,
-            PrimaryButtonText = "校验预演",
+            PrimaryButtonText = "确认重选",
             CloseButtonText = "取消",
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = RootLayout.XamlRoot,
@@ -378,13 +379,14 @@ public sealed partial class MainWindow : Window
         if (selector.SelectedIndex < 0
             || selector.SelectedIndex >= candidates.Length)
         {
-            ApplyProductWorkspaceReferencePreviewStatus(
+            ApplyProductWorkspaceReferenceCommitStatus(
                 ProductWorkspaceReferenceGateError.ReplacementRequired,
-                wouldChange: false);
+                ProductWorkspaceReferenceCommitStatus.GateRejected,
+                editRevision: token.EditRevision);
             return;
         }
 
-        RunProductWorkspaceReferencePreview(
+        RunProductWorkspaceReferenceCommit(
             token,
             ProductWorkspaceReferenceAction.Replace,
             confirmed: true,
@@ -398,24 +400,25 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceReferenceReviewToken? token = GetSelectedReferenceToken();
         if (token is null)
         {
-            ApplyProductWorkspaceReferencePreviewStatus(
+            ApplyProductWorkspaceReferenceCommitStatus(
                 ProductWorkspaceReferenceGateError.ItemChanged,
-                wouldChange: false);
+                ProductWorkspaceReferenceCommitStatus.GateRejected,
+                editRevision: _referenceReview.Snapshot?.EditRevision ?? 0);
             return;
         }
 
         var dialog = new ContentDialog
         {
-            Title = "预演移除引用",
-            Content = "确认仅预演从 Long方格配置中移除此引用。不会删除桌面文件，也不会在本阶段提交配置。",
-            PrimaryButtonText = "确认预演",
+            Title = "移除引用并保存",
+            Content = "确认从 Long方格配置中移除此引用并进入安全保存队列。只移除配置引用，不会删除、移动或重命名桌面文件。",
+            PrimaryButtonText = "确认移除",
             CloseButtonText = "取消",
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = RootLayout.XamlRoot,
         };
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
         {
-            RunProductWorkspaceReferencePreview(
+            RunProductWorkspaceReferenceCommit(
                 token,
                 ProductWorkspaceReferenceAction.Remove,
                 confirmed: true,
@@ -423,7 +426,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void RunProductWorkspaceReferencePreview(
+    private void RunProductWorkspaceReferenceCommit(
         ProductWorkspaceReferenceAction action,
         bool confirmed,
         ProductWorkspaceReferenceCandidatePresentation? replacement)
@@ -431,28 +434,32 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceReferenceReviewToken? token = GetSelectedReferenceToken();
         if (token is null)
         {
-            ApplyProductWorkspaceReferencePreviewStatus(
+            ApplyProductWorkspaceReferenceCommitStatus(
                 ProductWorkspaceReferenceGateError.ItemChanged,
-                wouldChange: false);
+                ProductWorkspaceReferenceCommitStatus.GateRejected,
+                editRevision: _referenceReview.Snapshot?.EditRevision ?? 0);
             return;
         }
 
-        RunProductWorkspaceReferencePreview(token, action, confirmed, replacement);
+        RunProductWorkspaceReferenceCommit(token, action, confirmed, replacement);
     }
 
-    private void RunProductWorkspaceReferencePreview(
+    private void RunProductWorkspaceReferenceCommit(
         ProductWorkspaceReferenceReviewToken token,
         ProductWorkspaceReferenceAction action,
         bool confirmed,
         ProductWorkspaceReferenceCandidatePresentation? replacement)
     {
-        ProductWorkspaceReferenceGateResult result =
-            _previewProductWorkspaceReferenceAction(
+        ProductWorkspaceReferenceCommitResult result =
+            _commitProductWorkspaceReferenceAction(
                 token,
                 action,
                 confirmed,
                 replacement);
-        ApplyProductWorkspaceReferencePreviewStatus(result.Error, result.WouldChange);
+        ApplyProductWorkspaceReferenceCommitStatus(
+            result.GateError,
+            result.Status,
+            result.EditRevision);
     }
 
     private ProductWorkspaceReferenceReviewToken? GetSelectedReferenceToken()
@@ -464,35 +471,42 @@ public sealed partial class MainWindow : Window
                 : null;
     }
 
-    private void ApplyProductWorkspaceReferencePreviewStatus(
+    private void ApplyProductWorkspaceReferenceCommitStatus(
         ProductWorkspaceReferenceGateError error,
-        bool wouldChange)
+        ProductWorkspaceReferenceCommitStatus status,
+        long editRevision)
     {
-        ProductWorkspaceReferenceReviewStatus.Text = error switch
+        ProductWorkspaceReferenceReviewStatus.Text = status switch
         {
-            ProductWorkspaceReferenceGateError.None when wouldChange =>
-                "预演校验通过；若提交将改变配置，但本阶段未提交，配置未改变。",
-            ProductWorkspaceReferenceGateError.None =>
+            ProductWorkspaceReferenceCommitStatus.Accepted =>
+                "引用更改已进入安全保存队列；Long方格配置已更新，桌面文件未改变。",
+            ProductWorkspaceReferenceCommitStatus.Kept =>
                 "已选择保留引用；配置未改变。",
-            ProductWorkspaceReferenceGateError.StaleCatalogGeneration =>
+            ProductWorkspaceReferenceCommitStatus.SaveRejected =>
+                "保存控制器未接受更改；配置和桌面文件均未改变。",
+            ProductWorkspaceReferenceCommitStatus.InvalidState =>
+                "产品状态未通过提交校验；配置和桌面文件均未改变。",
+            _ when error == ProductWorkspaceReferenceGateError.StaleCatalogGeneration =>
                 "桌面目录已刷新，请重新选择；配置未改变。",
-            ProductWorkspaceReferenceGateError.StaleEditRevision =>
+            _ when error == ProductWorkspaceReferenceGateError.StaleEditRevision =>
                 "工作区已有更新，请重新审查；配置未改变。",
-            ProductWorkspaceReferenceGateError.ContainerLocked =>
-                "分组已锁定，预演被拒绝；配置未改变。",
-            ProductWorkspaceReferenceGateError.ConfirmationRequired =>
-                "需要明确确认，预演未执行；配置未改变。",
-            ProductWorkspaceReferenceGateError.ReplacementRequired =>
+            _ when error == ProductWorkspaceReferenceGateError.ContainerLocked =>
+                "分组已锁定，操作被拒绝；配置未改变。",
+            _ when error == ProductWorkspaceReferenceGateError.ConfirmationRequired =>
+                "需要明确确认，操作未执行；配置未改变。",
+            _ when error == ProductWorkspaceReferenceGateError.ReplacementRequired =>
                 "请选择一个匿名候选；配置未改变。",
-            ProductWorkspaceReferenceGateError.ReplacementNotFound =>
+            _ when error == ProductWorkspaceReferenceGateError.ReplacementNotFound =>
                 "候选已不存在，请刷新后重选；配置未改变。",
-            ProductWorkspaceReferenceGateError.ReplacementAmbiguous =>
-                "候选身份不唯一，预演被拒绝；配置未改变。",
+            _ when error == ProductWorkspaceReferenceGateError.ReplacementAmbiguous =>
+                "候选身份不唯一，操作被拒绝；配置未改变。",
             _ => "引用状态已变化或校验失败；配置未改变。",
         };
         AutomationProperties.SetItemStatus(
             ProductWorkspaceReferenceReviewStatus,
-            $"ReferenceReviewPreview:{error}:WouldChange={wouldChange}:Committed=False");
+            $"ReferenceCommit:{status}:Gate={error}:EditRevision={editRevision}:" +
+            $"ConfigurationChanged={status == ProductWorkspaceReferenceCommitStatus.Accepted}:" +
+            "DesktopFilesChanged=False");
     }
 
     private static string DescribeReferenceResolution(
@@ -616,6 +630,10 @@ public sealed partial class MainWindow : Window
             ? Visibility.Visible
             : Visibility.Collapsed;
         ProductSaveRetryButton.IsEnabled = retryVisible && snapshot.CanRetry;
+        bool configurationTransactionsEnabled = snapshot.Status is
+            ProductWorkspaceSaveStatus.Clean or ProductWorkspaceSaveStatus.Saved;
+        ImportConfigurationButton.IsEnabled = configurationTransactionsEnabled;
+        ExportConfigurationButton.IsEnabled = configurationTransactionsEnabled;
         AutomationProperties.SetItemStatus(
             ProductSaveStatusDetail,
             automationStatus);

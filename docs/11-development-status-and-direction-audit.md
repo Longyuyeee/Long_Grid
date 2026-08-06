@@ -34,7 +34,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 - `main` 已包含 Issue #23 匿名会话预检/启动入口和主持人手册；CI 只验证隐私合同与依赖存在，固定保持 `ResultsPending`，不生成或伪造 P1–P5 结果；
 - Issue #23 的 D23-01–D23-10 已由负责人批准：仅安全引用、本地无账户、Folder Portal/ARM64 后移、Windows 11 x64 技术预览、MSIX 目标渠道和缩略图安全回退；D23-11 许可证延期，不阻挡当前开发但继续阻挡正式分发/外部贡献；
 - Issue #24 已建立 I24-01/I24-02 专用环境会话入口和运行手册；CI 只验证独立卷、匿名标签、双确认与无写入合同，固定保持 `PendingDedicatedEnvironmentEvidence`，不执行或伪造真实卷结果；
-- Issue #24 已建立正式配置存储、工作区/Catalog 转换、reducer、连续保存、有限产品会话、用户/公共桌面第一层只读 Catalog，以及未解析引用匿名审查：默认保留、显式重选和移除确认均经 Catalog generation + edit revision + 状态/锁定/候选唯一性门禁，只生成 reducer 预演。文件操作与普通保存仍为零；Shell 虚拟项、干净会话真实 93-ID UIA、首次普通入队、自动保留/容量策略和完整关闭矩阵仍未完成，真实卷证据继续 Pending；
+- Issue #24 已建立正式配置存储、工作区/Catalog 转换、reducer、连续保存、有限产品会话、用户/公共桌面第一层只读 Catalog，以及未解析引用匿名审查与首次正式提交：明确重选/确认移除经 generation+revision 门禁、v1 投影和唯一 controller Submit 后更新内存基线；Keep 与所有桌面文件操作仍为零。Shell 虚拟项、正式容器视图、干净会话真实 93-ID UIA、更多编辑、自动保留/容量策略和完整关闭矩阵仍未完成，真实卷证据继续 Pending；
 - 自动截图工具仍因错误归属未打包窗口而无法取得稳定句柄，因此视觉截图、高对比、Narrator、文本缩放和 DPI 人工矩阵继续保持 `Inconclusive/Pending`；
 - 详细范围、供应链、验证和停止规则见 [`17-ui-shell-readonly-slice-audit.md`](17-ui-shell-readonly-slice-audit.md)与[`18-ui-theme-automation-contract-audit.md`](18-ui-theme-automation-contract-audit.md)。
 
@@ -97,7 +97,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
 | 事务补偿 | Bounds/Region/DComp/UIA 快照、代次门禁、逆序回滚、紧急隐藏 | E1-E2 | 正式宿主集成和故障注入矩阵 |
-| 配置持久化 | 正式 v1、状态/Catalog 转换、reducer、连续保存、App 保存 UIA、有限产品会话、用户/公共桌面只读 Catalog、未解析引用匿名预演及 generation+revision 门禁、Infrastructure 原子存储/恢复/证据管理、完整单实例；Spike 另覆盖 Shell、强杀、迁移、只读/磁盘满/权限恢复 | E2-E3 / gated dry-run + App session pass | 仍缺首次普通入队、Shell 虚拟项、干净会话真实 93-ID UIA、获批保留策略、完整关闭竞态、真实卷、正式 v2 与跨进程公平性 |
+| 配置持久化 | 正式 v1、状态/Catalog 转换、reducer、连续保存、App 保存 UIA、有限产品会话、用户/公共桌面只读 Catalog、未解析引用 generation+revision 门禁与首次 controller submission、Infrastructure 原子存储/恢复/证据管理、完整单实例；Spike 另覆盖 Shell、强杀、迁移、只读/磁盘满/权限恢复 | E2-E3 / first explicit product edit submission | 仍缺正式容器视图与更多编辑、Shell 虚拟项、干净会话真实 93-ID UIA、获批保留策略、完整关闭竞态、真实卷、正式 v2 与跨进程公平性 |
 | 交互切片 | 一个可见 List 容器和三个进程内演示项 | E2 / Conditional Pass | 文件语义、拖放、正式持久化和用户测试 |
 | 正式 App UI 壳层 | WinUI 导航、Design Token、内存态主题、AutomationId/访问键、760 DIP 响应式流、DPI 感知窗口、Core 只读状态、首次整理、匿名容器/项目、拖放语义、两步撤销和恢复差异三态/过期/取消的真实 UIA 冒烟 | E2 / Conditional Pass | 5 人测试、真实拖放与硬件恢复、负责人决策、经批准的真实只读数据适配器、Narrator/高对比/系统文本缩放/多 DPI 视觉矩阵 |
 
