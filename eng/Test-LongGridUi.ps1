@@ -43,6 +43,10 @@ $displayTopologyControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDisplayTopologyController.cs'
 $windowsDisplayTopologySourceCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsDisplayTopologySource.cs'
+$desktopHostWindowBridgeCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostWindowBridge.cs'
+$windowsDesktopHostWindowInspectorCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostWindowInspector.cs'
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
 $runtimeIdentifier = "win-$Architecture"
 
@@ -133,6 +137,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $windowsDisplayTopologySourceCode = Get-Content `
         -LiteralPath $windowsDisplayTopologySourceCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopHostWindowBridgeCode = Get-Content `
+        -LiteralPath $desktopHostWindowBridgeCodePath `
+        -Raw `
+        -Encoding UTF8
+    $windowsDesktopHostWindowInspectorCode = Get-Content `
+        -LiteralPath $windowsDesktopHostWindowInspectorCodePath `
         -Raw `
         -Encoding UTF8
     $requiredIds = @(
@@ -958,6 +970,29 @@ function Test-SourceContract {
             'ProductWorkspaceRealWindowRecoveryAdmission|ProductWorkspaceRealWindowRecoveryPlanToken')
     ) 'Real-window recovery must remain blocked until bound transaction, ownership, rollback, and manual evidence all pass.'
     Assert-Condition (
+        $desktopHostWindowBridgeCode -match 'ProductDesktopHostWindowStatus' -and
+        $desktopHostWindowBridgeCode -match 'RegisteredWindowCount' -and
+        $desktopHostWindowBridgeCode -match 'VerifiedWindowCount' -and
+        $desktopHostWindowBridgeCode -match 'RejectedOperationCount' -and
+        $desktopHostWindowBridgeCode -match 'InstanceMarker' -and
+        $desktopHostWindowBridgeCode -match 'LastObservedBounds' -and
+        $desktopHostWindowBridgeCode -match 'WindowGeneration' -and
+        $desktopHostWindowBridgeCode -match 'HostGeneration' -and
+        $desktopHostWindowBridgeCode -match 'DuplicateContainer' -and
+        $desktopHostWindowBridgeCode -match 'DuplicateHandle' -and
+        -not ($appCode -match 'ProductDesktopHostWindowBridge|ProductDesktopHostWindowClaim')
+    ) 'The product-owned window registry must bind finite ownership and generation evidence without App wiring.'
+    Assert-Condition (
+        $windowsDesktopHostWindowInspectorCode -match 'IsWindow' -and
+        $windowsDesktopHostWindowInspectorCode -match 'GetWindowThreadProcessId' -and
+        $windowsDesktopHostWindowInspectorCode -match 'GetWindowRect' -and
+        $windowsDesktopHostWindowInspectorCode -match 'GetPropW' -and
+        -not ($windowsDesktopHostWindowInspectorCode -match `
+            'SetWindowPos|DeferWindowPos|SetWindowRgn|SetPropW|MoveWindow|ShowWindow|SetForegroundWindow') -and
+        -not ($desktopHostWindowBridgeCode -match `
+            'SetWindowPos|DeferWindowPos|SetWindowRgn|SetPropW|MoveWindow|ShowWindow|SetForegroundWindow')
+    ) 'The DesktopHost bridge may inspect owned windows but must not move, activate, reshape, or mark them.'
+    Assert-Condition (
         $displayTopologyReaderCode -match 'HasStableTargetIdentity' -and
         $displayTopologyReaderCode -match 'MappedToActivePath' -and
         $displayTopologyReaderCode -match 'SourceBoundsMatch' -and
@@ -1040,7 +1075,7 @@ function Test-SourceContract {
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
-        productLayoutRecovery = 'config-confirm-undo-real-window-admission-explicitly-blocked'
+        productLayoutRecovery = 'config-confirm-undo-owned-window-registry-readonly-bridge-real-commit-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'

@@ -79,6 +79,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格布局恢复审查令牌与配置级确认审计](docs/61-layout-recovery-review-confirmation-audit.md)
 - [Long方格布局恢复一次性配置撤销审计](docs/62-layout-recovery-one-time-undo-audit.md)
 - [Long方格真实窗口恢复准入与收口阶段审计](docs/63-real-window-recovery-admission-and-closeout-audit.md)
+- [Long方格产品自有窗口注册表与只读 DesktopHost 桥审计](docs/64-product-owned-window-registry-readonly-bridge-audit.md)
 - [正式产品配置存储适配器审计](docs/33-product-configuration-store-audit.md)
 - [配置 latest-wins 与 App 关闭排空审计](docs/34-configuration-shutdown-drain-audit.md)
 - [贡献指南](CONTRIBUTING.md)
@@ -92,7 +93,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口提交准入合同已经建立但 App 保持零接线；桌面管理 MVP 的布局恢复主线在本阶段后还剩 3 个工程阶段——产品自有窗口注册/只读桥、配置+窗口复合事务、RC 硬化与交付收口。GitHub 仍有 #19、#20、#23、#24 四个外部证据门禁，需要真实人工、硬件或专用卷，不能由 CI 伪关闭。下一阶段只建立产品自有窗口注册和只读 DesktopHost 桥，不移动窗口；干净会话 118-ID UIA、Shell 虚拟项、真实窗口提交、自动保留/容量策略和真实测试卷仍 Pending。许可证选择延期到正式分发或接受外部贡献之前。
+按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口提交准入合同、产品自有窗口注册表和只读 DesktopHost 桥已经建立，但 App 仍保持零接线且没有移动窗口；桌面管理 MVP 的布局恢复主线还剩 2 个工程阶段——配置+窗口复合事务、RC 硬化与交付收口。GitHub 仍有 #19、#20、#23、#24 四个外部证据门禁，需要真实人工、硬件或专用卷，不能由 CI 伪关闭。下一阶段只把已验证产品窗口纳入配置+窗口复合事务和双向补偿；干净会话 118-ID UIA、Shell 虚拟项、真实窗口提交、自动保留/容量策略和真实测试卷仍 Pending。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续；许可证选择延期到正式分发或接受外部贡献之前。
 
 ## 开发启动
 
