@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopItems;
 using LongGrid.Infrastructure.Configuration;
+using LongGrid.Infrastructure.DesktopHost;
 using LongGrid.Infrastructure.DesktopItems;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -14,7 +15,7 @@ namespace LongGrid.App;
 [SuppressMessage(
     "Reliability",
     "CA1001:Types that own disposable fields should be disposable",
-    Justification = "WinUI owns the Application lifetime; the audited closing handler awaits both controllers before releasing the main instance.")]
+    Justification = "WinUI owns the Application lifetime; the audited closing handler awaits every controller before releasing the main instance.")]
 public partial class App : Application
 {
     private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(5);
@@ -22,6 +23,7 @@ public partial class App : Application
     private readonly ProductWorkspaceSaveController productWorkspaceSaves;
     private readonly ProductWorkspaceCommitCoordinator workspaceCommits;
     private readonly ProductDesktopCatalogController productDesktopCatalog;
+    private readonly ProductDisplayTopologyController productDisplayTopology;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
     private ProductConfigurationLoadResult? currentConfigurationLoadResult;
@@ -43,6 +45,8 @@ public partial class App : Application
         workspaceCommits = new(productWorkspaceSaves);
         productDesktopCatalog = new(
             ProductDesktopCatalogReader.CreateForCurrentUser());
+        productDisplayTopology = new(
+            ProductDisplayTopologyReader.CreateForCurrentSession());
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -62,6 +66,8 @@ public partial class App : Application
             CommitProductWorkspaceContainerAction);
         productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
         productDesktopCatalog.SnapshotChanged += ProductDesktopCatalog_SnapshotChanged;
+        productDisplayTopology.SnapshotChanged +=
+            ProductDisplayTopology_SnapshotChanged;
         window.ApplyProductWorkspaceSaveState(productWorkspaceSaves.Snapshot);
         window.ApplyProductDesktopCatalogState(productDesktopCatalog.Snapshot);
         ApplyProductWorkspaceSessionViews();
@@ -69,6 +75,7 @@ public partial class App : Application
         window.Activate();
         _ = LoadConfigurationStartupStateAsync();
         _ = RefreshProductDesktopCatalogAsync();
+        _ = RefreshProductDisplayTopologyAsync();
 
         if (activationPending)
         {
@@ -194,6 +201,11 @@ public partial class App : Application
         _ = await productDesktopCatalog.RefreshAsync();
     }
 
+    private async Task RefreshProductDisplayTopologyAsync()
+    {
+        _ = await productDisplayTopology.RefreshAsync();
+    }
+
     private void ProductDesktopCatalog_SnapshotChanged(
         object? sender,
         ProductDesktopCatalogSnapshot snapshot)
@@ -229,6 +241,26 @@ public partial class App : Application
         ApplyProductWorkspaceSessionViews();
     }
 
+    private void ProductDisplayTopology_SnapshotChanged(
+        object? sender,
+        ProductDisplayTopologySnapshot snapshot)
+    {
+        MainWindow? currentWindow = window;
+        if (currentWindow is null)
+        {
+            return;
+        }
+
+        if (currentWindow.DispatcherQueue.HasThreadAccess)
+        {
+            ApplyProductWorkspaceSessionViews();
+            return;
+        }
+
+        _ = currentWindow.DispatcherQueue.TryEnqueue(
+            ApplyProductWorkspaceSessionViews);
+    }
+
     private void ApplyProductWorkspaceSessionViews()
     {
         MainWindow? currentWindow = window;
@@ -238,12 +270,15 @@ public partial class App : Application
         }
 
         currentWindow.ApplyProductWorkspaceSessionState(productWorkspaceSession);
+        ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
         ProductWorkspaceLayoutRecoveryPreviewResult layoutPreview =
             ProductWorkspaceLayoutRecoveryPreview.Create(
                 productWorkspaceSession.State,
                 savedTopology: null,
-                currentTopology: null,
-                currentTopologyAuthoritative: false);
+                currentTopology: topology.IsAuthoritative
+                    ? topology.Displays
+                    : null,
+                currentTopologyAuthoritative: topology.IsAuthoritative);
         currentWindow.ApplyProductWorkspaceLayoutRecoveryPreview(
             ProductWorkspaceLayoutRecoveryPresentation.Create(layoutPreview));
         ProductWorkspaceReadResult readModel = productWorkspaceSession.State is null
@@ -652,6 +687,9 @@ public partial class App : Application
         }
 
         productDesktopCatalog.SnapshotChanged -= ProductDesktopCatalog_SnapshotChanged;
+        productDisplayTopology.SnapshotChanged -=
+            ProductDisplayTopology_SnapshotChanged;
+        await productDisplayTopology.DisposeAsync();
         await productDesktopCatalog.DisposeAsync();
         await productWorkspaceSaves.DisposeAsync();
 

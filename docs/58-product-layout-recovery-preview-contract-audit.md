@@ -11,7 +11,7 @@
 Core 已有经过探针验证的 `DisplayTopologyNode`、拓扑指纹、`LayoutRecoveryPlanner` 与 `Automatic/ReviewRequired/Blocked` 规则，但正式 App 不能直接使用，原因有两项：
 
 1. v1 配置只保存容器 `DisplayKey` 和 DIP placement，没有保存当时显示器 Bounds、WorkArea、有效 DPI、旋转与主屏标记；
-2. App 尚未拥有生产级、权威、只读的当前显示拓扑适配器，现有实现位于独立 probe，不能作为产品事实直接引用。
+2. 本文审计时 App 尚未拥有生产级、权威、只读的当前显示拓扑适配器；该缺口现已由[产品显示拓扑只读适配器审计](59-product-display-topology-adapter-audit.md)关闭，保存时拓扑缺口仍存在。
 
 若把当前拓扑同时冒充保存时拓扑，会掩盖 DPI、工作区和显示器变化并产生假 Automatic；若把空拓扑当权威结果，会把所有显示器误判缺失。因此本切片优先固化“不得推断”的产品合同。
 
@@ -39,7 +39,7 @@ Core 已有经过探针验证的 `DisplayTopologyNode`、拓扑指纹、`LayoutR
 - 状态通过 Polite LiveRegion 和有限 ItemStatus 复读，所有路径都声明 `DesktopWindowsChanged=False`；
 - 新增 4 个稳定 AutomationId，总数由 112 增至 116，保持主题 token 和 Reduced Motion 静态基线。
 
-未来接入权威当前拓扑后，v1 配置会自然进入 `SavedTopologyMissing`，而不是越过版本化元数据门槛。
+权威当前拓扑现已接入；完整强样本下 v1 配置自然进入 `SavedTopologyMissing`，降级样本仍保持 Awaiting，不越过版本化元数据门槛。
 
 ## 4. 测试证据
 
@@ -54,4 +54,4 @@ Core 已有经过探针验证的 `DisplayTopologyNode`、拓扑指纹、`LayoutR
 
 ## 5. 后续方向
 
-下一阶段应先把 probe 中已验证的只读显示枚举能力提炼为 Infrastructure 产品适配器，但必须保持：完整成功才权威、稳定身份优先、fallback 身份显式降级、生成代次/latest-wins、后台采样和关闭排空。随后为保存时拓扑设计版本化配置合同与迁移；在两侧元数据都成立前，不开放恢复确认或 DesktopHost 提交。
+Infrastructure 产品适配器已完成完整成功才权威、稳定身份优先、fallback 显式降级、generation/latest-wins、后台采样和关闭排空。下一阶段为保存时拓扑设计版本化配置合同与迁移；在两侧元数据都成立前，不开放恢复确认或 DesktopHost 提交。

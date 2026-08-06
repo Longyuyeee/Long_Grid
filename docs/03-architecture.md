@@ -302,6 +302,6 @@ DesktopHost 使用状态机管理 `Hidden / DesktopPassive / DesktopEditing / Pe
 
 正式容器布局编辑当前只接受有限位置/尺寸枚举，由 Infrastructure 映射为小范围 DIP 并保留原 `DisplayKey`。App presentation 可回显坐标和尺寸，但不得获得显示器身份；该配置动作不调用 HWND 或 DesktopHost，也不承诺最小可见面积。显示器归属、DPI/工作区变化和可见性纠正必须在后续产品级拓扑解析中复用 `Automatic/ReviewRequired/Blocked` 恢复合同。详细边界见[正式容器受限布局预设提交审计](57-container-bounded-placement-commit-audit.md)。
 
-产品布局恢复预览现在要求正式 workspace、保存时拓扑与权威当前拓扑同时存在，才允许调用 `LayoutRecoveryPlanner`。v1 缺少保存时 Bounds/WorkArea/DPI/Rotation 元数据，App 也尚无生产级当前拓扑适配器，因此当前 UI 必须停在 Awaiting，未来接入当前拓扑后则停在 SavedTopologyMissing。presentation 只获得有限状态与计数，固定不改变桌面窗口；详见[产品布局恢复只读预览合同审计](58-product-layout-recovery-preview-contract-audit.md)。
+产品布局恢复预览要求正式 workspace、保存时拓扑与权威当前拓扑同时存在，才允许调用 `LayoutRecoveryPlanner`。Infrastructure 当前拓扑适配器已使用 CCD/Monitor 强身份和几何对账、generation/latest-wins 与关闭排空接入 App；只有完整样本才权威，其他状态继续 Awaiting。v1 仍缺保存时 Bounds/WorkArea/DPI/Rotation 元数据，因此强当前样本成立后停在 SavedTopologyMissing。presentation 只获得有限状态与计数，固定不改变桌面窗口；详见[产品布局恢复只读预览合同审计](58-product-layout-recovery-preview-contract-audit.md)与[产品显示拓扑只读适配器审计](59-product-display-topology-adapter-audit.md)。
 
 详细实现依据见[核心 Windows 能力实现审计](08-core-windows-implementation-audit.md)。
