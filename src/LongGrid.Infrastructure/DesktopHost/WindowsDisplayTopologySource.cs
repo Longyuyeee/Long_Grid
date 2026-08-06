@@ -234,7 +234,7 @@ internal sealed class WindowsDisplayTopologySource : IProductDisplayTopologySour
         return new(Hash(identitySource), hasMonitorDevicePath);
     }
 
-    private static int GetSourceModeIndex(uint packedIndex, bool virtualMode)
+    internal static int GetSourceModeIndex(uint packedIndex, bool virtualMode)
     {
         uint index = virtualMode ? packedIndex >> 16 : packedIndex;
         if (index == InvalidModeIndex
@@ -247,7 +247,7 @@ internal sealed class WindowsDisplayTopologySource : IProductDisplayTopologySour
         return checked((int)index);
     }
 
-    private static PixelRect ReadSourceBounds(
+    internal static PixelRect ReadSourceBounds(
         ReadOnlySpan<DisplayConfigModeInfo> modes,
         int index,
         LocallyUniqueIdentifier adapterId,
@@ -308,7 +308,7 @@ internal sealed class WindowsDisplayTopologySource : IProductDisplayTopologySour
         }
     }
 
-    private static DisplayRotation ToCoreRotation(DisplayConfigRotation rotation) =>
+    internal static DisplayRotation ToCoreRotation(DisplayConfigRotation rotation) =>
         rotation switch
         {
             DisplayConfigRotation.Identity => DisplayRotation.Landscape,
@@ -318,7 +318,7 @@ internal sealed class WindowsDisplayTopologySource : IProductDisplayTopologySour
             _ => DisplayRotation.Unknown,
         };
 
-    private static PixelRect ToPixelRect(NativeRect rectangle) =>
+    internal static PixelRect ToPixelRect(NativeRect rectangle) =>
         new(
             rectangle.Left,
             rectangle.Top,

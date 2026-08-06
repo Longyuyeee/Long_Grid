@@ -121,6 +121,25 @@ public sealed class ProductWorkspaceLayoutRecoveryPreviewTests
         Assert.Equal(0, result.ContainerCount);
     }
 
+    [Fact]
+    public void InvalidAuthoritativeTopologyReturnsFiniteFailure()
+    {
+        DisplayTopologyNode invalid = Primary with { EffectiveDpi = 0 };
+
+        ProductWorkspaceLayoutRecoveryPreviewResult result =
+            ProductWorkspaceLayoutRecoveryPreview.Create(
+                State(),
+                [Primary],
+                [invalid],
+                currentTopologyAuthoritative: true);
+
+        Assert.Equal(
+            ProductWorkspaceLayoutRecoveryPreviewStatus.InvalidState,
+            result.Status);
+        Assert.Equal(1, result.ContainerCount);
+        Assert.False(result.DesktopWindowsChanged);
+    }
+
     private static ProductWorkspaceState State() =>
         new()
         {

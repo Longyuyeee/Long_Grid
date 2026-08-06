@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.ComponentModel;
 using LongGrid.Core.DesktopHost;
 using LongGrid.Infrastructure.DesktopHost;
 
@@ -167,6 +168,103 @@ public sealed class ProductDisplayTopologyTests
     }
 
     [Fact]
+    public async Task KnownNativeFailureReturnsFiniteFailedState()
+    {
+        var reader = new ProductDisplayTopologyReader(
+            new ThrowingSource(new Win32Exception(5)));
+
+        ProductDisplayTopologyReadResult result = await reader.ReadAsync();
+
+        Assert.Equal(ProductDisplayTopologyReadStatus.Failed, result.Status);
+        Assert.False(result.IsAuthoritative);
+        Assert.Empty(result.Displays);
+    }
+
+    [Theory]
+    [InlineData(1u, DisplayRotation.Landscape)]
+    [InlineData(2u, DisplayRotation.Portrait)]
+    [InlineData(3u, DisplayRotation.LandscapeFlipped)]
+    [InlineData(4u, DisplayRotation.PortraitFlipped)]
+    [InlineData(0u, DisplayRotation.Unknown)]
+    public void NativeRotationMappingIsFinite(
+        uint native,
+        DisplayRotation expected)
+    {
+        Assert.Equal(
+            expected,
+            WindowsDisplayTopologySource.ToCoreRotation(
+                (DisplayConfigRotation)native));
+    }
+
+    [Fact]
+    public void NativeSourceModeIndexMappingIsBounded()
+    {
+        Assert.Equal(
+            7,
+            WindowsDisplayTopologySource.GetSourceModeIndex(7, virtualMode: false));
+        Assert.Equal(
+            9,
+            WindowsDisplayTopologySource.GetSourceModeIndex(
+                9u << 16,
+                virtualMode: true));
+        Assert.Throws<InvalidOperationException>(() =>
+            WindowsDisplayTopologySource.GetSourceModeIndex(
+                uint.MaxValue,
+                virtualMode: false));
+        Assert.Throws<InvalidOperationException>(() =>
+            WindowsDisplayTopologySource.GetSourceModeIndex(
+                0xFFFF0000,
+                virtualMode: true));
+    }
+
+    [Fact]
+    public void NativeSourceBoundsMappingValidatesModeOwnership()
+    {
+        var adapter = new LocallyUniqueIdentifier(11, 22);
+        var mode = new DisplayConfigModeInfo
+        {
+            InfoType = DisplayConfigModeInfoType.Source,
+            Id = 7,
+            AdapterId = adapter,
+            SourceMode = new()
+            {
+                Width = 1920,
+                Height = 1080,
+                Position = new(-1920, 40),
+            },
+        };
+
+        PixelRect result = WindowsDisplayTopologySource.ReadSourceBounds(
+            [mode],
+            0,
+            adapter,
+            7);
+
+        Assert.Equal(new(-1920, 40, 1920, 1080), result);
+        Assert.Throws<InvalidOperationException>(() =>
+            WindowsDisplayTopologySource.ReadSourceBounds(
+                [mode],
+                1,
+                adapter,
+                7));
+        Assert.Throws<InvalidOperationException>(() =>
+            WindowsDisplayTopologySource.ReadSourceBounds(
+                [mode],
+                0,
+                adapter,
+                8));
+    }
+
+    [Fact]
+    public void NativeRectangleMappingPreservesVirtualScreenCoordinates()
+    {
+        PixelRect result = WindowsDisplayTopologySource.ToPixelRect(
+            new NativeRect(-1920, 40, 0, 1120));
+
+        Assert.Equal(new(-1920, 40, 1920, 1080), result);
+    }
+
+    [Fact]
     public async Task ControllerPublishesAuthoritativeGeneration()
     {
         var reader = new QueuedReader();
@@ -183,6 +281,52 @@ public sealed class ProductDisplayTopologyTests
         Assert.Equal(
             [ProductDisplayTopologyStatus.Refreshing, ProductDisplayTopologyStatus.Ready],
             observed);
+    }
+
+    [Theory]
+    [InlineData(
+        ProductDisplayTopologyReadStatus.Degraded,
+        ProductDisplayTopologyStatus.Degraded)]
+    [InlineData(
+        ProductDisplayTopologyReadStatus.Unavailable,
+        ProductDisplayTopologyStatus.Unavailable)]
+    [InlineData(
+        ProductDisplayTopologyReadStatus.UnsupportedPlatform,
+        ProductDisplayTopologyStatus.UnsupportedPlatform)]
+    [InlineData(
+        ProductDisplayTopologyReadStatus.Failed,
+        ProductDisplayTopologyStatus.Failed)]
+    public async Task ControllerMapsEveryFiniteReaderStatus(
+        ProductDisplayTopologyReadStatus readStatus,
+        ProductDisplayTopologyStatus expectedStatus)
+    {
+        var reader = new QueuedReader();
+        reader.Enqueue(Result(readStatus));
+        await using var controller = new ProductDisplayTopologyController(reader);
+
+        ProductDisplayTopologyRefreshResult result = await controller.RefreshAsync();
+
+        Assert.Equal(ProductDisplayTopologyRefreshStatus.Published, result.Status);
+        Assert.Equal(expectedStatus, result.Snapshot.Status);
+        Assert.False(result.Snapshot.IsAuthoritative);
+    }
+
+    [Fact]
+    public async Task CallerCancellationPublishesFiniteCancelledState()
+    {
+        var reader = new QueuedReader();
+        _ = reader.EnqueuePending();
+        await using var controller = new ProductDisplayTopologyController(reader);
+        using var cancellation = new CancellationTokenSource();
+
+        Task<ProductDisplayTopologyRefreshResult> refresh =
+            controller.RefreshAsync(cancellation.Token);
+        cancellation.Cancel();
+        ProductDisplayTopologyRefreshResult result = await refresh;
+
+        Assert.Equal(ProductDisplayTopologyRefreshStatus.Cancelled, result.Status);
+        Assert.Equal(ProductDisplayTopologyStatus.Cancelled, result.Snapshot.Status);
+        Assert.False(result.Snapshot.IsAuthoritative);
     }
 
     [Fact]
@@ -262,6 +406,14 @@ public sealed class ProductDisplayTopologyTests
         public ProductDisplayTopologySample Read(
             CancellationToken cancellationToken = default) =>
             throw new PlatformNotSupportedException();
+    }
+
+    private sealed class ThrowingSource(Exception exception)
+        : IProductDisplayTopologySource
+    {
+        public ProductDisplayTopologySample Read(
+            CancellationToken cancellationToken = default) =>
+            throw exception;
     }
 
     private sealed class QueuedReader : IProductDisplayTopologyReader
