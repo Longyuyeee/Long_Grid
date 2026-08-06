@@ -310,6 +310,52 @@
                                             Text="等待正式产品会话；当前没有展示或修改任何桌面内容。"
                                             TextWrapping="Wrap" />
                                     </StackPanel>
+                                    <StackPanel
+                                        x:Name="ProductWorkspaceContainerEditorPanel"
+                                        AutomationProperties.AutomationId="ProductWorkspaceContainerEditorPanel"
+                                        Spacing="8">
+                                        <ComboBox
+                                            x:Name="ProductWorkspaceContainerEditSelector"
+                                            AutomationProperties.AutomationId="ProductWorkspaceContainerEditSelector"
+                                            AutomationProperties.Name="选择要重命名的正式方格"
+                                            DisplayMemberPath="DisplayName"
+                                            Header="已有方格"
+                                            HorizontalAlignment="Stretch"
+                                            SelectionChanged="ProductWorkspaceContainerEditSelector_SelectionChanged" />
+                                        <TextBox
+                                            x:Name="ProductWorkspaceContainerNameEditor"
+                                            AutomationProperties.AutomationId="ProductWorkspaceContainerNameEditor"
+                                            AutomationProperties.Name="正式方格名称"
+                                            Header="方格名称"
+                                            MaxLength="256"
+                                            PlaceholderText="输入方格名称"
+                                            TextChanged="ProductWorkspaceContainerNameEditor_TextChanged" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button
+                                                x:Name="ProductWorkspaceContainerCreateButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceContainerCreateButton"
+                                                AutomationProperties.Name="创建并保存正式方格"
+                                                Click="ProductWorkspaceContainerCreateButton_Click"
+                                                Content="创建并保存"
+                                                IsEnabled="False" />
+                                            <Button
+                                                x:Name="ProductWorkspaceContainerRenameButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceContainerRenameButton"
+                                                AutomationProperties.Name="重命名并保存所选正式方格"
+                                                Click="ProductWorkspaceContainerRenameButton_Click"
+                                                Content="重命名并保存"
+                                                IsEnabled="False" />
+                                        </StackPanel>
+                                        <TextBlock
+                                            x:Name="ProductWorkspaceContainerEditStatus"
+                                            AutomationProperties.AutomationId="ProductWorkspaceContainerEditStatus"
+                                            AutomationProperties.ItemStatus="WorkspaceContainerEditUnavailable:Changed=False:DesktopFilesChanged=False"
+                                            AutomationProperties.LiveSetting="Polite"
+                                            FontSize="11"
+                                            Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                            Text="容器编辑尚不可用；桌面文件未改变。"
+                                            TextWrapping="Wrap" />
+                                    </StackPanel>
                                     <ListView
                                         x:Name="ProductWorkspaceContainerList"
                                         AutomationProperties.AutomationId="ProductWorkspaceContainerList"

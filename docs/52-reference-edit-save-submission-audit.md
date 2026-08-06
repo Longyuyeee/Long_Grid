@@ -19,7 +19,7 @@
 
 ## 2. 提交协调器
 
-Infrastructure 新增 `ProductWorkspaceReferenceCommitCoordinator`，固定执行顺序为：
+Infrastructure 的该协调器现已演进为统一 `ProductWorkspaceCommitCoordinator`，引用提交固定执行顺序为：
 
 1. 使用当前 Catalog generation、当前 edit revision、对象状态、锁定状态及候选唯一性执行 `ProductWorkspaceReferenceGate`；
 2. 对 gate 产生的 reducer 深快照再次执行正式 v1 projector；

@@ -26,13 +26,50 @@ public sealed record ProductWorkspaceReferenceCommitResult(
         && Document is not null;
 }
 
-public sealed class ProductWorkspaceReferenceCommitCoordinator
+public enum ProductWorkspaceContainerCommitAction
+{
+    Create,
+    Rename,
+}
+
+public enum ProductWorkspaceContainerCommitStatus
+{
+    Accepted,
+    NoChange,
+    StaleEditRevision,
+    ReducerRejected,
+    SaveRejected,
+    InvalidRequest,
+}
+
+public sealed record ProductWorkspaceContainerCommitRequest(
+    ProductWorkspaceContainerCommitAction Action,
+    long ExpectedEditRevision,
+    int ContainerOrdinal,
+    string Name,
+    ProductContainerState? NewContainer = null);
+
+public sealed record ProductWorkspaceContainerCommitResult(
+    ProductWorkspaceContainerCommitStatus Status,
+    ProductWorkspaceEditError EditError,
+    ProductWorkspaceSaveSubmissionStatus? SubmissionStatus,
+    long EditRevision,
+    ProductWorkspaceState? State,
+    ProductConfigurationDocument? Document)
+{
+    public bool IsAccepted =>
+        Status == ProductWorkspaceContainerCommitStatus.Accepted
+        && State is not null
+        && Document is not null;
+}
+
+public sealed class ProductWorkspaceCommitCoordinator
 {
     private readonly object gate = new();
     private readonly ProductWorkspaceSaveController saves;
     private long editRevision;
 
-    public ProductWorkspaceReferenceCommitCoordinator(
+    public ProductWorkspaceCommitCoordinator(
         ProductWorkspaceSaveController saves)
     {
         ArgumentNullException.ThrowIfNull(saves);
@@ -138,4 +175,108 @@ public sealed class ProductWorkspaceReferenceCommitCoordinator
                 projection.Document);
         }
     }
+
+    public ProductWorkspaceContainerCommitResult CommitContainer(
+        ProductWorkspaceState state,
+        ProductWorkspaceContainerCommitRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(request);
+
+        lock (gate)
+        {
+            if (request.ExpectedEditRevision != editRevision)
+            {
+                return ContainerFailure(
+                    ProductWorkspaceContainerCommitStatus.StaleEditRevision);
+            }
+
+            ProductWorkspaceEditResult edit = request.Action switch
+            {
+                ProductWorkspaceContainerCommitAction.Create
+                    when request.NewContainer is not null
+                        && request.ContainerOrdinal == 0
+                        && string.Equals(
+                            request.Name,
+                            request.NewContainer.Name,
+                            StringComparison.Ordinal) =>
+                    ProductWorkspaceReducer.CreateContainer(
+                        state,
+                        request.NewContainer),
+                ProductWorkspaceContainerCommitAction.Rename
+                    when request.NewContainer is null
+                        && request.ContainerOrdinal > 0
+                        && request.ContainerOrdinal <= state.Containers.Count =>
+                    ProductWorkspaceReducer.RenameContainer(
+                        state,
+                        state.Containers[request.ContainerOrdinal - 1].Id,
+                        request.Name),
+                _ => null!,
+            };
+            if (edit is null)
+            {
+                return ContainerFailure(
+                    ProductWorkspaceContainerCommitStatus.InvalidRequest);
+            }
+
+            if (!edit.IsSuccess)
+            {
+                return ContainerFailure(
+                    ProductWorkspaceContainerCommitStatus.ReducerRejected,
+                    edit.Error);
+            }
+
+            if (!edit.Changed)
+            {
+                return new(
+                    ProductWorkspaceContainerCommitStatus.NoChange,
+                    ProductWorkspaceEditError.None,
+                    ProductWorkspaceSaveSubmissionStatus.NoChange,
+                    editRevision,
+                    edit.State,
+                    null);
+            }
+
+            ProductWorkspaceProjectionResult projection =
+                ProductWorkspaceConfigurationProjector.Project(edit.State!);
+            if (!projection.IsSuccess)
+            {
+                return ContainerFailure(
+                    ProductWorkspaceContainerCommitStatus.ReducerRejected,
+                    ProductWorkspaceEditError.InvalidState,
+                    ProductWorkspaceSaveSubmissionStatus.InvalidState);
+            }
+
+            long nextEditRevision = checked(editRevision + 1);
+            ProductWorkspaceSaveSubmissionResult submission = saves.Submit(edit);
+            if (!submission.IsAccepted)
+            {
+                return ContainerFailure(
+                    ProductWorkspaceContainerCommitStatus.SaveRejected,
+                    submission.EditError,
+                    submission.Status);
+            }
+
+            editRevision = nextEditRevision;
+            return new(
+                ProductWorkspaceContainerCommitStatus.Accepted,
+                ProductWorkspaceEditError.None,
+                submission.Status,
+                editRevision,
+                edit.State,
+                projection.Document);
+        }
+    }
+
+    private ProductWorkspaceContainerCommitResult ContainerFailure(
+        ProductWorkspaceContainerCommitStatus status,
+        ProductWorkspaceEditError editError = ProductWorkspaceEditError.None,
+        ProductWorkspaceSaveSubmissionStatus? submissionStatus = null) =>
+        new(
+            status,
+            editError,
+            submissionStatus,
+            editRevision,
+            null,
+            null);
 }

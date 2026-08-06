@@ -69,6 +69,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] Issue #24 未解析引用审查与双版本门禁：稳定匿名审查列表、默认保留、显式候选重选、移除确认、Catalog generation + edit revision + 状态/锁定/候选唯一性复核、对话框期间旧 token 捕获及 8 个新 AutomationId；所有动作只返回 reducer 预演，普通 submit、配置修改和磁盘文件操作仍为零（干净会话 93-ID UIA 与首次单项真实入队仍 Pending）。
 - [x] Issue #24 首次引用编辑正式提交：Infrastructure commit coordinator 固定 gate/project/单次 Submit/revision 顺序，外部加载推进 revision，接受后 App 更新内存 Document 并重建 session/review，Waiting/Saving/Failed 禁用导入导出；真实临时 Store 重载验证配置引用移除且被引用文件原样保留（正式容器视图、干净会话 93-ID UIA、真实卷与更多编辑仍 Pending）。
 - [x] Issue #24 正式工作区只读视图：session 经 v1 校验投影为不含路径/内部 ID 的容器与引用快照，已解析名称用于可见/辅助功能内容，未解析引用保持匿名，UIA 机器状态仅含计数；98-ID 源码合同通过，容器 CRUD、桌面文件操作与干净会话真实 UIA 仍 Pending。
+- [x] Issue #24 容器创建/重命名提交：首次空配置创建和已有容器序号重命名与引用编辑共享统一 coordinator/revision/投影/保存链，锁定、旧 revision、NoChange 与失败均零提交；104-ID 源码合同和真实 Store 文件零变化测试覆盖，锁定/折叠、外观、布局、删除/撤销仍 Pending。
 - [x] Issue #24 I24-01/I24-02 专用环境会话入口、独立卷标记/双确认安全合同和 CI `PendingDedicatedEnvironmentEvidence` 预检（Ready to schedule；真实卷结果仍 Pending）。
 - [x] P0-07a 静态双屏拓扑、混合 DPI、隐私安全指纹与资源稳定性（Conditional Pass）。
 - [x] P0-07b1 QueryDisplayConfig 活动路径、virtual-mode 索引、rotation 与 monitor 一一关联（Conditional Pass）。
