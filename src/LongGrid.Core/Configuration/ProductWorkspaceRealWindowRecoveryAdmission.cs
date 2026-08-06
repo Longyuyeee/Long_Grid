@@ -303,7 +303,7 @@ public static class ProductWorkspaceRealWindowRecoveryAdmission
                     .Order(StringComparer.Ordinal),
                 StringComparer.Ordinal);
 
-    private static bool TryFingerprintPlan(
+    internal static bool TryFingerprintPlan(
         LayoutRecoveryPlan plan,
         out string fingerprint)
     {
