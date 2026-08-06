@@ -31,6 +31,12 @@ $layoutRecoveryPreviewCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceLayoutRecoveryPreview.cs'
 $layoutRecoveryPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceLayoutRecoveryPresentation.cs'
+$displayTopologyReaderCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDisplayTopologyReader.cs'
+$displayTopologyControllerCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDisplayTopologyController.cs'
+$windowsDisplayTopologySourceCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\WindowsDisplayTopologySource.cs'
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
 $runtimeIdentifier = "win-$Architecture"
 
@@ -97,6 +103,18 @@ function Test-SourceContract {
         -Encoding UTF8
     $layoutRecoveryPresentationCode = Get-Content `
         -LiteralPath $layoutRecoveryPresentationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $displayTopologyReaderCode = Get-Content `
+        -LiteralPath $displayTopologyReaderCodePath `
+        -Raw `
+        -Encoding UTF8
+    $displayTopologyControllerCode = Get-Content `
+        -LiteralPath $displayTopologyControllerCodePath `
+        -Raw `
+        -Encoding UTF8
+    $windowsDisplayTopologySourceCode = Get-Content `
+        -LiteralPath $windowsDisplayTopologySourceCodePath `
         -Raw `
         -Encoding UTF8
     $requiredIds = @(
@@ -869,10 +887,25 @@ function Test-SourceContract {
         $layoutRecoveryPreviewCode -match 'LayoutRecoveryPlanner\.Create' -and
         $layoutRecoveryPreviewCode -match 'DesktopWindowsChanged:\s*false' -and
         $layoutRecoveryPresentationCode -match 'DesktopWindowsChanged=False' -and
-        $appCode -match 'currentTopologyAuthoritative:\s*false' -and
+        $appCode -match 'currentTopologyAuthoritative:\s*topology\.IsAuthoritative' -and
+        $appCode -match 'currentTopology:\s*topology\.IsAuthoritative' -and
         -not ($layoutRecoveryPresentationCode -match `
             'ContainerId|DisplayKey|StableId|RequestedBounds|ProposedBounds')
     ) 'Product layout recovery preview must be finite, count-only, and non-mutating.'
+    Assert-Condition (
+        $displayTopologyReaderCode -match 'HasStableTargetIdentity' -and
+        $displayTopologyReaderCode -match 'MappedToActivePath' -and
+        $displayTopologyReaderCode -match 'SourceBoundsMatch' -and
+        $displayTopologyReaderCode -match 'TargetAvailable' -and
+        $displayTopologyReaderCode -match 'WorkAreaIsInsideBounds' -and
+        $windowsDisplayTopologySourceCode -match 'EnumDisplayMonitors' -and
+        $windowsDisplayTopologySourceCode -match 'QueryDisplayConfig' -and
+        $windowsDisplayTopologySourceCode -match 'MaxBufferAttempts\s*=\s*8' -and
+        $displayTopologyControllerCode -match 'refreshGeneration\s*!=\s*generation' -and
+        $displayTopologyControllerCode -match 'refreshesDrained' -and
+        $appCode -match 'ProductDisplayTopologyReader\.CreateForCurrentSession' -and
+        $appCode -match 'await productDisplayTopology\.DisposeAsync'
+    ) 'Product display topology must require complete strong native evidence, latest-wins publication, and shutdown drain.'
     Assert-Condition (
         $referencePresentationCode -match 'CatalogGeneration' -and
         $referencePresentationCode -match 'CatalogIndex' -and
@@ -943,6 +976,7 @@ function Test-SourceContract {
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'readonly-authoritative-topology-and-saved-metadata-gated-preview'
+        productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
