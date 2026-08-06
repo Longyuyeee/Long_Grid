@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using LongGrid.Core.DesktopHost;
 
 namespace LongGrid.Core.Configuration;
 
@@ -13,6 +14,52 @@ public sealed record ProductConfigurationDocument
 
     [JsonPropertyName("containers")]
     public required IReadOnlyList<ContainerConfiguration> Containers { get; init; }
+
+    [JsonPropertyName("savedDisplayTopology")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<SavedDisplayConfiguration>? SavedDisplayTopology { get; init; }
+
+    [JsonExtensionData]
+    public IDictionary<string, JsonElement>? ExtensionData { get; init; }
+}
+
+public sealed record SavedDisplayConfiguration
+{
+    [JsonPropertyName("stableId")]
+    public required string StableId { get; init; }
+
+    [JsonPropertyName("bounds")]
+    public required PixelRectConfiguration Bounds { get; init; }
+
+    [JsonPropertyName("workArea")]
+    public required PixelRectConfiguration WorkArea { get; init; }
+
+    [JsonPropertyName("effectiveDpi")]
+    public uint EffectiveDpi { get; init; }
+
+    [JsonPropertyName("rotation")]
+    public DisplayRotation Rotation { get; init; }
+
+    [JsonPropertyName("isPrimary")]
+    public bool IsPrimary { get; init; }
+
+    [JsonExtensionData]
+    public IDictionary<string, JsonElement>? ExtensionData { get; init; }
+}
+
+public sealed record PixelRectConfiguration
+{
+    [JsonPropertyName("left")]
+    public int Left { get; init; }
+
+    [JsonPropertyName("top")]
+    public int Top { get; init; }
+
+    [JsonPropertyName("width")]
+    public int Width { get; init; }
+
+    [JsonPropertyName("height")]
+    public int Height { get; init; }
 
     [JsonExtensionData]
     public IDictionary<string, JsonElement>? ExtensionData { get; init; }

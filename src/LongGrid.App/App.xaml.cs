@@ -274,7 +274,8 @@ public partial class App : Application
         ProductWorkspaceLayoutRecoveryPreviewResult layoutPreview =
             ProductWorkspaceLayoutRecoveryPreview.Create(
                 productWorkspaceSession.State,
-                savedTopology: null,
+                savedTopology: ProductSavedDisplayTopology.ToNodes(
+                    productWorkspaceSession.State?.SavedDisplayTopology),
                 currentTopology: topology.IsAuthoritative
                     ? topology.Displays
                     : null,
@@ -369,7 +370,7 @@ public partial class App : Application
                 : null;
 
         ProductWorkspaceReferenceCommitResult result = workspaceCommits.Commit(
-            productWorkspaceSession.State,
+            StampAuthoritativeDisplayTopology(productWorkspaceSession.State),
             catalog.Generation,
             catalog.Entries,
             new(token, action, confirmed, replacementEntry));
@@ -405,6 +406,11 @@ public partial class App : Application
             state = ProductWorkspaceConfigurationResolver.Resolve(
                 ProductConfigurationDefaults.CreateEmpty(),
                 Array.Empty<DesktopCatalogEntry>()).State;
+        }
+
+        if (state is not null)
+        {
+            state = StampAuthoritativeDisplayTopology(state);
         }
 
         if (state is null
@@ -464,6 +470,16 @@ public partial class App : Application
             currentConfigurationLoadResult,
             CreateWorkspaceCatalogSnapshot(catalog));
         ApplyProductWorkspaceSessionViews();
+    }
+
+    private ProductWorkspaceState StampAuthoritativeDisplayTopology(
+        ProductWorkspaceState state)
+    {
+        ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
+        return ProductSavedDisplayTopology.StampForSave(
+            state,
+            topology.Displays,
+            topology.IsAuthoritative);
     }
 
     private static ProductContainerState CreateDefaultContainer(

@@ -67,6 +67,8 @@ public static class ProductWorkspaceConfigurationResolver
         {
             ProfileId = snapshot.ProfileId,
             Containers = containers,
+            SavedDisplayTopology = snapshot.SavedDisplayTopology?
+                .ToArray(),
             ExtensionData = snapshot.ExtensionData,
         };
         return new(
@@ -75,7 +77,6 @@ public static class ProductWorkspaceConfigurationResolver
             state,
             summary.Build());
     }
-
     private static ProductContainerState ResolveContainer(
         ContainerConfiguration container,
         IReadOnlyDictionary<string, List<DesktopCatalogEntry>> index,

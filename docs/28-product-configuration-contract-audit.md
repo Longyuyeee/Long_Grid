@@ -1,10 +1,12 @@
 # Issue #24 正式产品配置合同审计
 
-审计日期：2026-08-04（正式 Infrastructure 存储增量复审）
+审计日期：2026-08-06（v2 保存时显示拓扑增量复审）
 
 基线：`main` / `c34820f` + 正式产品配置存储分支
 
-结论：**Core schema and first Infrastructure store ready / App lifecycle and real-volume evidence pending / 不得关闭 Issue #24**
+结论：**Core v2 schema、v1 相邻迁移和正式 Infrastructure store ready / real-volume evidence pending / 不得关闭 Issue #24**
+
+> 2026-08-06 更新：本文件第 1–8 节保留首个 v1 合同形成时的历史审计语境；当前写入版本已经升级为 v2。v2 的新增字段、迁移、门禁和证据以[v2 保存时显示拓扑合同与迁移审计](60-versioned-saved-display-topology-audit.md)为准。
 
 ## 1. 需求对齐
 

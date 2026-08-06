@@ -51,6 +51,8 @@ public static class ProductWorkspaceConfigurationProjector
             SchemaVersion = ProductConfigurationLimits.CurrentSchemaVersion,
             ProfileId = state.ProfileId,
             Containers = containers,
+            SavedDisplayTopology = state.SavedDisplayTopology?
+                .ToArray(),
             ExtensionData = state.ExtensionData,
         };
 

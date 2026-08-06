@@ -1,5 +1,6 @@
 using System.Text.Json;
 using LongGrid.Core.Configuration;
+using LongGrid.Core.DesktopHost;
 using LongGrid.Core.DesktopItems;
 
 namespace LongGrid.Core.Tests.Configuration;
@@ -69,6 +70,24 @@ public sealed class ProductWorkspaceConfigurationResolverTests
                 Extension("missingFuture", 8))) with
         {
             ExtensionData = Extension("rootFuture", 1),
+            SavedDisplayTopology =
+            [
+                new SavedDisplayConfiguration
+                {
+                    StableId = "display-a",
+                    Bounds = new()
+                    {
+                        Width = 1920,
+                        Height = 1080,
+                        ExtensionData = Extension("boundsFuture", 6),
+                    },
+                    WorkArea = new() { Width = 1920, Height = 1040 },
+                    EffectiveDpi = 96,
+                    Rotation = DisplayRotation.Landscape,
+                    IsPrimary = true,
+                    ExtensionData = Extension("displayFuture", 7),
+                },
+            ],
         };
         ContainerConfiguration container = source.Containers[0];
         source = source with
