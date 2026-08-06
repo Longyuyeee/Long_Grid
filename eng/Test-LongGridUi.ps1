@@ -33,6 +33,8 @@ $layoutRecoveryReviewCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceLayoutRecoveryReview.cs'
 $layoutRecoveryUndoCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceLayoutRecoveryUndo.cs'
+$realWindowRecoveryAdmissionCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceRealWindowRecoveryAdmission.cs'
 $layoutRecoveryPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceLayoutRecoveryPresentation.cs'
 $displayTopologyReaderCodePath = Join-Path $projectRoot `
@@ -111,6 +113,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $layoutRecoveryUndoCode = Get-Content `
         -LiteralPath $layoutRecoveryUndoCodePath `
+        -Raw `
+        -Encoding UTF8
+    $realWindowRecoveryAdmissionCode = Get-Content `
+        -LiteralPath $realWindowRecoveryAdmissionCodePath `
         -Raw `
         -Encoding UTF8
     $layoutRecoveryPresentationCode = Get-Content `
@@ -940,6 +946,18 @@ function Test-SourceContract {
             'LayoutRecoveryTransactionCoordinator|ILayoutRecoveryWindowBatchAdapter')) `
         'Product App must not connect the real-window recovery transaction adapter.'
     Assert-Condition (
+        $realWindowRecoveryAdmissionCode -match 'BoundPlanMissing' -and
+        $realWindowRecoveryAdmissionCode -match 'ConfigurationUndoMismatch' -and
+        $realWindowRecoveryAdmissionCode -match 'WindowOwnershipUnverified' -and
+        $realWindowRecoveryAdmissionCode -match 'CompositeTransactionUnavailable' -and
+        $realWindowRecoveryAdmissionCode -match 'RollbackFaultMatrixPending' -and
+        $realWindowRecoveryAdmissionCode -match 'InputSurfaceMatrixPending' -and
+        $realWindowRecoveryAdmissionCode -match 'DynamicDisplayMatrixPending' -and
+        $realWindowRecoveryAdmissionCode -match 'CleanUiAutomationPending' -and
+        -not ($appCode -match `
+            'ProductWorkspaceRealWindowRecoveryAdmission|ProductWorkspaceRealWindowRecoveryPlanToken')
+    ) 'Real-window recovery must remain blocked until bound transaction, ownership, rollback, and manual evidence all pass.'
+    Assert-Condition (
         $displayTopologyReaderCode -match 'HasStableTargetIdentity' -and
         $displayTopologyReaderCode -match 'MappedToActivePath' -and
         $displayTopologyReaderCode -match 'SourceBoundsMatch' -and
@@ -1022,7 +1040,7 @@ function Test-SourceContract {
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
-        productLayoutRecovery = 'review-token-config-only-commit-one-time-revision-fingerprint-undo'
+        productLayoutRecovery = 'config-confirm-undo-real-window-admission-explicitly-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'

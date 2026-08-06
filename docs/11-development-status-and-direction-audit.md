@@ -35,6 +35,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 - Issue #23 的 D23-01–D23-10 已由负责人批准：仅安全引用、本地无账户、Folder Portal/ARM64 后移、Windows 11 x64 技术预览、MSIX 目标渠道和缩略图安全回退；D23-11 许可证延期，不阻挡当前开发但继续阻挡正式分发/外部贡献；
 - Issue #24 已建立 I24-01/I24-02 专用环境会话入口和运行手册；CI 只验证独立卷、匿名标签、双确认与无写入合同，固定保持 `PendingDedicatedEnvironmentEvidence`，不执行或伪造真实卷结果；
 - Issue #24 已建立正式配置存储、有限产品会话、用户/公共桌面只读 Catalog、有限产品编辑、正式工作区视图、生产级当前显示拓扑、v2 保存时拓扑、配置级恢复确认和同会话一次性撤销：恢复令牌绑定双拓扑/配置指纹、topology generation 与 edit revision；撤销令牌绑定操作 ID、恢复 revision 与恢复前后配置指纹，其他成功编辑使其失效。两者都只进入统一保存控制器，所有桌面文件与真实窗口操作为零。Shell 虚拟项、真实窗口提交、干净会话真实 118-ID UIA、自动保留/容量策略和完整关闭矩阵仍未完成，真实卷证据继续 Pending；
+- 真实窗口提交新增默认阻断的纯 Core 准入合同：绑定计划必须同时匹配配置指纹、共享 edit revision、权威 topology generation 和配置撤销；产品自有窗口集合/所有权、复合事务、批处理适配器、回滚故障矩阵、输入/系统表面、动态显示及干净 UIA 缺一不可。App 不引用准入令牌或窗口事务。布局恢复工程主线在该合同后剩 3 阶段，Phase 0 仍有 #19/#20/#23/#24 四个外部证据门禁；
 - 自动截图工具仍因错误归属未打包窗口而无法取得稳定句柄，因此视觉截图、高对比、Narrator、文本缩放和 DPI 人工矩阵继续保持 `Inconclusive/Pending`；
 - 详细范围、供应链、验证和停止规则见 [`17-ui-shell-readonly-slice-audit.md`](17-ui-shell-readonly-slice-audit.md)与[`18-ui-theme-automation-contract-audit.md`](18-ui-theme-automation-contract-audit.md)。
 
@@ -93,7 +94,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | 稳定身份 | 文件对象身份、快捷方式双重身份、重命名跟踪 | E1-E2 | 跨卷、云占位符和长时间运行 |
 | Shell 变化 | 通知合并、恢复与最终全量对账 | E1-E2 | Explorer 重启和高频真实桌面压力 |
 | 图标/缩略图 | 异步加载、取消、句柄闭环；真实零 Capability AppContainer worker、协议 v6 的受控副本/最小路径 ACL 对照、八样本父进程基线与双 build 十六组合、脱敏 handler 与 HEVC/AV1 decoder 健康、共享内存像素、未代理读写阻断、正常 ACL 恢复、硬超时/父退出/Profile 清理；合成 500 项预算 | E2 / Conditional Pass | 正式渲染集成、HEIC/AVIF 成功环境、Office/PDF、云/网络、受控第三方 provider/ARM64 矩阵、干净 TIFF 环境、异常 ACL 修复、安全确认和最终预算批准 |
-| DesktopHost 规划 | 每显示器 HWND、显式 Region、被动显示、输入门 | E1-E2 | 系统表面和真实输入人工矩阵 |
+| DesktopHost 规划 | 每显示器 HWND、显式 Region、被动显示、输入门、真实窗口恢复多 blocker 准入合同 | E1-E2 | 产品自有窗口注册/只读桥、配置+窗口复合事务、系统表面和真实输入人工矩阵 |
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
 | 事务补偿 | Bounds/Region/DComp/UIA 快照、代次门禁、逆序回滚、紧急隐藏 | E1-E2 | 正式宿主集成和故障注入矩阵 |
