@@ -50,4 +50,4 @@ v1 配置和 `ProductWorkspaceState` 已保存 `DisplayKey`、`XDip/YDip/WidthDi
 
 ## 5. 后续方向
 
-下一切片应先建立正式 session placement 与权威显示拓扑之间的只读解析/预览：显示器缺失或歧义必须 Blocked，DPI/工作区变化或可见性纠正必须 ReviewRequired。只有该产品级预览接线稳定后，才能考虑 DesktopHost 的真实事务提交。容器删除、跨动作撤销和真实文件整理仍独立准入。
+正式 session placement 与显示拓扑之间的双门禁已进入[产品布局恢复只读预览合同审计](58-product-layout-recovery-preview-contract-audit.md)：当前缺少权威产品拓扑时保持 Awaiting，未来权威拓扑接入后 v1 缺少保存时元数据则保持 SavedTopologyMissing。两侧元数据成立前不开放恢复确认或 DesktopHost 提交。容器删除、跨动作撤销和真实文件整理仍独立准入。

@@ -290,6 +290,36 @@
                             </Border>
 
                             <Border
+                                x:Name="ProductWorkspaceLayoutRecoveryCard"
+                                AutomationProperties.AccessibilityView="Content"
+                                AutomationProperties.AutomationId="ProductWorkspaceLayoutRecoveryCard"
+                                AutomationProperties.Name="正式布局恢复只读预览"
+                                Style="{StaticResource LongGridCardStyle}">
+                                <StackPanel Spacing="4">
+                                    <TextBlock
+                                        x:Name="ProductWorkspaceLayoutRecoveryTitle"
+                                        AutomationProperties.AutomationId="ProductWorkspaceLayoutRecoveryTitle"
+                                        FontSize="16"
+                                        FontWeight="SemiBold"
+                                        Text="布局恢复预览尚不可用" />
+                                    <TextBlock
+                                        x:Name="ProductWorkspaceLayoutRecoveryDetail"
+                                        AutomationProperties.AutomationId="ProductWorkspaceLayoutRecoveryDetail"
+                                        AutomationProperties.ItemStatus="LayoutRecoveryPreviewUnavailableSession:Containers=0:Mappings=0:Unresolved=0:Corrected=0:DesktopWindowsChanged=False"
+                                        AutomationProperties.LiveSetting="Polite"
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="等待正式产品会话；没有读取或移动任何桌面窗口。"
+                                        TextWrapping="Wrap" />
+                                    <TextBlock
+                                        x:Name="ProductWorkspaceLayoutRecoverySummary"
+                                        AutomationProperties.AutomationId="ProductWorkspaceLayoutRecoverySummary"
+                                        FontSize="11"
+                                        Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                        Text="容器与显示拓扑尚不可用" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border
                                 x:Name="ProductWorkspaceViewCard"
                                 AutomationProperties.AccessibilityView="Content"
                                 AutomationProperties.AutomationId="ProductWorkspaceViewCard"

@@ -312,6 +312,18 @@ public sealed partial class MainWindow : Window
             presentation.MachineStatus);
     }
 
+    internal void ApplyProductWorkspaceLayoutRecoveryPreview(
+        ProductWorkspaceLayoutRecoveryPresentation presentation)
+    {
+        ArgumentNullException.ThrowIfNull(presentation);
+        ProductWorkspaceLayoutRecoveryTitle.Text = presentation.Title;
+        ProductWorkspaceLayoutRecoveryDetail.Text = presentation.Detail;
+        ProductWorkspaceLayoutRecoverySummary.Text = presentation.Summary;
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceLayoutRecoveryDetail,
+            presentation.MachineStatus);
+    }
+
     internal void ApplyProductWorkspaceContainerEditor(
         ProductWorkspaceContainerEditPresentation presentation)
     {
