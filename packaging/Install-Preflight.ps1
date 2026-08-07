@@ -1,9 +1,13 @@
 [CmdletBinding()]
 param(
-    [string]$PackageRoot = $PSScriptRoot
+    [string]$PackageRoot
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($PackageRoot)) {
+    $PackageRoot = $PSScriptRoot
+}
 
 function Test-IsChildPath {
     param(
