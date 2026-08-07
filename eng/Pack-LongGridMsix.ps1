@@ -154,6 +154,37 @@ function New-MsixLogo {
     }
 }
 
+function Get-LayoutFingerprint {
+    param(
+        [Parameter(Mandatory)]
+        [string]$LayoutRoot
+    )
+
+    $rootPath = [System.IO.Path]::GetFullPath($LayoutRoot).TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+    $lines = Get-ChildItem -LiteralPath $LayoutRoot -File -Recurse |
+        ForEach-Object {
+            $filePath = [System.IO.Path]::GetFullPath($_.FullName)
+            if (-not $filePath.StartsWith($rootPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Verified layout file escaped ${rootPath}: $filePath"
+            }
+
+            $relativePath = $filePath.Substring($rootPath.Length).Replace('\', '/')
+            $hash = (Get-FileHash -LiteralPath $filePath -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $relativePath"
+        } |
+        Sort-Object
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))
+    $algorithm = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return ($algorithm.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') }) -join ''
+    }
+    finally {
+        $algorithm.Dispose()
+    }
+}
+
 function Test-MsixLayout {
     param(
         [Parameter(Mandatory)]
@@ -289,6 +320,7 @@ try {
     $expandedRoot = Join-Path $stagingRoot 'expanded'
     $layoutRoot = Join-Path $expandedRoot 'LongGrid'
     $verificationRoot = Join-Path $stagingRoot 'verified'
+    $comparisonVerificationRoot = Join-Path $stagingRoot 'comparison-verified'
     [System.IO.Directory]::CreateDirectory($expandedRoot) | Out-Null
     Expand-Archive -LiteralPath $portableZipPath -DestinationPath $expandedRoot
 
@@ -327,14 +359,21 @@ try {
 
     $msixHash = (Get-FileHash -LiteralPath $msixPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $comparisonHash = (Get-FileHash -LiteralPath $comparisonPath -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($msixHash -ne $comparisonHash) {
-        throw 'Identical MSIX layouts produced different package hashes.'
-    }
+    $byteReproducible = $msixHash -eq $comparisonHash
 
     Invoke-CheckedCommand 'MakeAppx unpack verification' {
         & $makeAppxPath unpack /o /p $msixPath /d $verificationRoot
     }
+    Invoke-CheckedCommand 'MakeAppx comparison unpack verification' {
+        & $makeAppxPath unpack /o /p $comparisonPath /d $comparisonVerificationRoot
+    }
     Test-MsixLayout -LayoutRoot $verificationRoot -ExpectedVersion $PackageVersion
+    Test-MsixLayout -LayoutRoot $comparisonVerificationRoot -ExpectedVersion $PackageVersion
+    $layoutFingerprint = Get-LayoutFingerprint -LayoutRoot $verificationRoot
+    $comparisonLayoutFingerprint = Get-LayoutFingerprint -LayoutRoot $comparisonVerificationRoot
+    if ($layoutFingerprint -ne $comparisonLayoutFingerprint) {
+        throw 'Identical MSIX source layouts produced different unpacked content fingerprints.'
+    }
 
     "$msixHash  $([System.IO.Path]::GetFileName($msixPath))" |
         Set-Content -LiteralPath $msixHashPath -Encoding ascii
@@ -356,7 +395,9 @@ try {
         distributionApproved = $false
         licenseStatus = 'Deferred'
         desktopHostExecutionEnabled = $false
-        deterministicPackage = $true
+        deterministicLayout = $true
+        byteReproducible = $byteReproducible
+        layoutFingerprint = $layoutFingerprint
         sha256 = $msixHash
     }
     $buildManifest | ConvertTo-Json -Depth 5 |
@@ -373,7 +414,9 @@ try {
         sha256 = $msixHash
         sha256File = $msixHashPath
         buildManifest = $buildManifestPath
-        deterministicPackage = $true
+        deterministicLayout = $true
+        byteReproducible = $byteReproducible
+        layoutFingerprint = $layoutFingerprint
         signed = $false
         installable = $false
         distributionApproved = $false

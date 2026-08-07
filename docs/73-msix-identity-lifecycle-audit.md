@@ -2,7 +2,7 @@
 
 > 审计日期：2026-08-07
 >
-> 范围：MSIX 身份、Publisher、版本、品牌资产、能力、结构、确定性、签名隔离与安装生命周期
+> 范围：MSIX 身份、Publisher、版本、品牌资产、能力、结构、语义确定性、签名隔离与安装生命周期
 >
 > 结论：未签名 Developer Preview MSIX 的构建与结构验证链已建立；签名和真实安装生命周期仍为 Pending
 
@@ -35,12 +35,14 @@
 3. 在 `artifacts/.msix-<guid>` 下解压 payload，移除仅属于便携包的说明、前置检查和哈希清单；
 4. 从既有 RC1 母版高质量生成 44×44、150×150、50×50 PNG，不修改源品牌资产；
 5. 写入固定身份和四段版本的 `AppxManifest.xml`；
-6. 用官方 `MakeAppx pack` 对相同 layout 连续生成两份包并比较 SHA-256；
-7. 用 `MakeAppx unpack` 解包，要求主程序、三份图标、Manifest、BlockMap、Content Types 和 MSIX 说明存在；
+6. 用官方 `MakeAppx pack` 对相同 layout 连续生成两份包，再分别解包并比较完整路径/内容 SHA-256 指纹；
+7. 要求两份解包结果的主程序、三份图标、Manifest、BlockMap、Content Types 和 MSIX 说明存在；
 8. 复读身份、Publisher、版本、架构和能力全集，并拒绝意外出现 `AppxSignature.p7x`；
 9. 输出 `.msix`、外部 `.sha256` 和不进入包内的构建清单，最后只清理验证过位于 `artifacts/` 下的精确暂存目录。
 
 不把外部构建清单放入 MSIX，避免修改包后产生自引用哈希问题；MSIX 自身由 `AppxBlockMap.xml` 保护包内文件块。
+
+实测表明 `MakeAppx` 对相同 layout 生成的容器可能因 ZIP 元数据而具有不同的整体 SHA-256，但两份解包后的全部文件路径、内容和 BlockMap 可以完全一致。因此门禁声明 `deterministicLayout=true`，并如实记录 `byteReproducible`；不得把语义确定性夸大为字节级可重复。每个实际产物仍由自己的外部 SHA-256 唯一标识，签名后还必须重新计算。
 
 ## 3. 签名隔离
 

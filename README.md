@@ -131,7 +131,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -PackageVersion 0.1.0.0
 ```
 
-脚本复用或重建当前提交的便携 payload，生成准确尺寸的 L+方格 MSIX 图标，通过官方 `MakeAppx` 连续打包比对、解包并复核身份、最小能力和无签名状态。输出 `.msix`、`.sha256` 和外部构建清单；该包不能安装或发布。生命周期预检和剩余风险见[MSIX 身份与生命周期审计](docs/73-msix-identity-lifecycle-audit.md)。
+脚本复用或重建当前提交的便携 payload，生成准确尺寸的 L+方格 MSIX 图标，通过官方 `MakeAppx` 连续打包、双份解包内容指纹比对，并复核身份、最小能力和无签名状态。`MakeAppx` 容器元数据不保证字节级复现，构建清单会如实记录；输出 `.msix`、`.sha256` 和外部构建清单，该包不能安装或发布。生命周期预检和剩余风险见[MSIX 身份与生命周期审计](docs/73-msix-identity-lifecycle-audit.md)。
 
 Issue #19 人工输入与系统表面矩阵开始前，先验证安全会话链：
 
