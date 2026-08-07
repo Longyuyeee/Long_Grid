@@ -214,3 +214,5 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-08-06 RC 硬化切片 3 补充：窗口批处理必须封送到 claim 绑定的 DesktopHost 原生线程；调用方不得持注册表锁同步等待 UI 线程。调用线程只准备 generation/claim 证据，目标线程在原生 mutation 前重新锁定并复核完整注册集与所有权。queue timeout 只取消尚未开始的工作，已经 Running 的操作必须等待真实完成，禁止返回失败后迟到移动窗口。配置磁盘发布必须与 current binding 原子推进；磁盘、binding 和窗口任一复读不一致均不算提交成功。双生产适配器的成功/撤销、窗口失败、binding 发布失败和外部配置冲突矩阵已自动化，App 继续零接线。布局恢复主线后续只剩输入/显示/关闭组合矩阵与 RC 交付证据。
 
 2026-08-07 RC 硬化切片 4 补充：复合事务 current binding 必须订阅权威显示拓扑和产品窗口注册表生命周期；拓扑非权威或 generation 改变、注册表所有权/代次改变、shutdown 和 dispose 均永久终止旧 guard。普通配置版本交换不得改变 topology、registry 或 DesktopHost 身份。输入关闭后若 binding 漂移且无法重开，必须隐藏受影响宿主，即使尚未发生 mutation。显示变化、宿主断开、关闭中补偿和等待撤销期间变化已进入双生产适配器矩阵；App 继续零接线。后续只剩生产输入/隐藏适配器、有界 shutdown drain 与 RC 外部交付证据。
+
+2026-08-07 RC 硬化切片 5 补充：生产输入门已经绑定精确容器全集、registry generation、目标 DesktopHost UI 线程和 lifecycle guard；Close/Reopen/Hide 均在封送后重新验证窗口存在性、进程、线程和实例标识。部分关闭必须全量恢复，恢复不完整或重开失败必须隐藏宿主。shutdown 先永久失效 guard，再在 1 ms～5 s 有界期限内等待在途操作；超时或隐藏失败保留可重试状态，未完成时禁止释放。App 继续零接线。布局恢复内部工程链收口，剩余阶段转为干净会话 UIA、打包/安装、RC 审计及 #19/#20/#23/#24 外部证据。

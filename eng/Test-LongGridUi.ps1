@@ -53,12 +53,16 @@ $verifiedWindowBatchAdapterCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostVerifiedWindowBatchAdapter.cs'
 $desktopHostThreadDispatcherCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostThreadDispatcher.cs'
+$desktopHostInputControllerCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostInputController.cs'
 $configurationCompareExchangeCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\Configuration\ProductConfigurationStore.CompareExchange.cs'
 $compositeConfigurationAdapterCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceCompositeConfigurationAdapter.cs'
 $compositeLifecycleGuardCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceCompositeLifecycleGuard.cs'
+$compositeInputGateCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceCompositeDesktopHostInputGate.cs'
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
 $runtimeIdentifier = "win-$Architecture"
 
@@ -171,6 +175,10 @@ function Test-SourceContract {
         -LiteralPath $desktopHostThreadDispatcherCodePath `
         -Raw `
         -Encoding UTF8
+    $desktopHostInputControllerCode = Get-Content `
+        -LiteralPath $desktopHostInputControllerCodePath `
+        -Raw `
+        -Encoding UTF8
     $configurationCompareExchangeCode = Get-Content `
         -LiteralPath $configurationCompareExchangeCodePath `
         -Raw `
@@ -181,6 +189,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $compositeLifecycleGuardCode = Get-Content `
         -LiteralPath $compositeLifecycleGuardCodePath `
+        -Raw `
+        -Encoding UTF8
+    $compositeInputGateCode = Get-Content `
+        -LiteralPath $compositeInputGateCodePath `
         -Raw `
         -Encoding UTF8
     $requiredIds = @(
@@ -1078,6 +1090,23 @@ function Test-SourceContract {
             'SynchronizationContextProductDesktopHostThreadDispatcher|IProductDesktopHostThreadDispatcher')
     ) 'DesktopHost dispatch must cancel only work that has not started, await running native work, and remain App-blocked.'
     Assert-Condition (
+        $desktopHostInputControllerCode -match 'EnableWindow' -and
+        $desktopHostInputControllerCode -match 'IsWindowEnabled' -and
+        $desktopHostInputControllerCode -match 'ShowWindow' -and
+        $desktopHostInputControllerCode -match 'IsWindowVisible' -and
+        $desktopHostInputControllerCode -match 'HideUnchecked' -and
+        $compositeInputGateCode -match `
+            'IProductWorkspaceCompositeInputGate' -and
+        $compositeInputGateCode -match 'TryPrepareExactVerifiedWindows' -and
+        $compositeInputGateCode -match 'TryUsePreparedVerifiedWindows' -and
+        $compositeInputGateCode -match 'TargetThreadId' -and
+        $compositeInputGateCode -match 'lifecycle\.BeginShutdown' -and
+        $compositeInputGateCode -match 'DrainTimedOut' -and
+        $compositeInputGateCode -match 'idle\.Wait' -and
+        -not ($appCode -match `
+            'ProductWorkspaceCompositeDesktopHostInputGate|WindowsProductDesktopHostInputController')
+    ) 'Production DesktopHost input must revalidate the exact owned registry on its UI thread, fail safe by hiding hosts, and expose a retryable bounded shutdown drain without App wiring.'
+    Assert-Condition (
         $configurationCompareExchangeCode -match `
             'CompareExchangePrimaryAsync' -and
         $configurationCompareExchangeCode -match 'AcquireWriteLeaseAsync' -and
@@ -1194,7 +1223,7 @@ function Test-SourceContract {
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
-        productLayoutRecovery = 'lifecycle-invalidated-input-display-shutdown-matrix-app-blocked'
+        productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'
