@@ -100,7 +100,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口准入、产品自有窗口注册表/只读桥、配置+窗口复合事务、两个生产适配器、DesktopHost UI 线程安全封送、复合故障矩阵、生命周期失效 guard、真实 DesktopHost 输入适配器与有界 shutdown drain 已经建立。118-ID 源码合同、真实 UIA 和单实例矩阵也已纳入统一干净会话入口；当前外来无窗口进程使本机 live 证据保持 Pending，脚本不会越权终止它。App 仍保持零接线且不会移动、禁用或隐藏真实窗口。当前已建立可重复的一键 self-contained publish、确定性便携 ZIP、内外 SHA-256 与安装前置检查；它仅是未签名、不可公开分发的 Developer Preview，不是 MSIX 安装包。GitHub #19、#20、#23、#24 仍需真实人工、硬件或专用卷证据；全部 blocker 清零前不接入真实执行入口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续；许可证选择延期到正式分发或接受外部贡献之前。
+按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口准入、产品自有窗口注册表/只读桥、配置+窗口复合事务、两个生产适配器、DesktopHost UI 线程安全封送、复合故障矩阵、生命周期失效 guard、真实 DesktopHost 输入适配器与有界 shutdown drain 已经建立。118-ID 源码合同、真实 UIA 和单实例矩阵也已纳入统一干净会话入口；当前外来无窗口进程使本机 live 证据保持 Pending，脚本不会越权终止它。App 仍保持零接线且不会移动、禁用或隐藏真实窗口。当前已建立可重复的一键 self-contained 便携 ZIP，以及固定开发身份、最小能力和确定性结构验证的未签名 MSIX；两者都只是不可公开分发的 Developer Preview。签名、真实安装/升级/卸载/回滚、SBOM 和许可证仍是发布阻断项。GitHub #19、#20、#23、#24 继续需要真实人工、硬件或专用卷证据；全部 blocker 清零前不接入真实执行入口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 
@@ -122,6 +122,16 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 ```
 
 输出位于 `artifacts/LongGrid-<version>-win-x64.zip` 及同名 `.sha256`。压缩包内含逐文件 `SHA256SUMS.txt`、不可变构建清单和 `Install-Preflight.ps1`；必须解压完整目录并先运行前置检查。该产物自包含 .NET 与 Windows App SDK，但仍未签名、不是安装器、未批准公开分发。详细证据与剩余阻断见[便携发布链审计](docs/72-portable-publish-chain-audit.md)。
+
+从同一干净提交生成并验证未签名 MSIX Developer Preview：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File ./eng/Pack-LongGridMsix.ps1 `
+  -PackageVersion 0.1.0.0
+```
+
+脚本复用或重建当前提交的便携 payload，生成准确尺寸的 L+方格 MSIX 图标，通过官方 `MakeAppx` 连续打包比对、解包并复核身份、最小能力和无签名状态。输出 `.msix`、`.sha256` 和外部构建清单；该包不能安装或发布。生命周期预检和剩余风险见[MSIX 身份与生命周期审计](docs/73-msix-identity-lifecycle-audit.md)。
 
 Issue #19 人工输入与系统表面矩阵开始前，先验证安全会话链：
 
