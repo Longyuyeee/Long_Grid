@@ -100,7 +100,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口准入、产品自有窗口注册表/只读桥、配置+窗口复合事务、两个生产适配器、DesktopHost UI 线程安全封送、复合故障矩阵、生命周期失效 guard、真实 DesktopHost 输入适配器与有界 shutdown drain 已经建立。118-ID 源码合同、真实 UIA 和单实例矩阵也已纳入统一干净会话入口；当前外来无窗口进程使本机 live 证据保持 Pending，脚本不会越权终止它。App 仍保持零接线且不会移动、禁用或隐藏真实窗口。下一阶段审计并实现可重复的一键 publish/压缩包/哈希清单，再处理安装和发布候选审计。GitHub #19、#20、#23、#24 仍需真实人工、硬件或专用卷证据；全部 blocker 清零前不接入真实执行入口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续；许可证选择延期到正式分发或接受外部贡献之前。
+按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口准入、产品自有窗口注册表/只读桥、配置+窗口复合事务、两个生产适配器、DesktopHost UI 线程安全封送、复合故障矩阵、生命周期失效 guard、真实 DesktopHost 输入适配器与有界 shutdown drain 已经建立。118-ID 源码合同、真实 UIA 和单实例矩阵也已纳入统一干净会话入口；当前外来无窗口进程使本机 live 证据保持 Pending，脚本不会越权终止它。App 仍保持零接线且不会移动、禁用或隐藏真实窗口。当前已建立可重复的一键 self-contained publish、确定性便携 ZIP、内外 SHA-256 与安装前置检查；它仅是未签名、不可公开分发的 Developer Preview，不是 MSIX 安装包。GitHub #19、#20、#23、#24 仍需真实人工、硬件或专用卷证据；全部 blocker 清零前不接入真实执行入口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续；许可证选择延期到正式分发或接受外部贡献之前。
 
 ## 开发启动
 
@@ -112,6 +112,16 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 ```
 
 该入口默认执行锁定依赖恢复、必要构建和启动；不提权、不枚举真实桌面，也不执行文件操作。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[开发期只读 UI Shell 审计](docs/17-ui-shell-readonly-slice-audit.md)。
+
+从干净、已提交的工作树执行完整质量门禁并生成内部便携开发包：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File ./eng/Pack-LongGrid.ps1 `
+  -Version 0.1.0-dev
+```
+
+输出位于 `artifacts/LongGrid-<version>-win-x64.zip` 及同名 `.sha256`。压缩包内含逐文件 `SHA256SUMS.txt`、不可变构建清单和 `Install-Preflight.ps1`；必须解压完整目录并先运行前置检查。该产物自包含 .NET 与 Windows App SDK，但仍未签名、不是安装器、未批准公开分发。详细证据与剩余阻断见[便携发布链审计](docs/72-portable-publish-chain-audit.md)。
 
 Issue #19 人工输入与系统表面矩阵开始前，先验证安全会话链：
 

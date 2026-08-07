@@ -14,7 +14,7 @@
 - 没有正式 `LongGrid.DesktopHost` 产品工程；
 - P0-04/P0-05b1 只有 GDI 系统色的交互探针，用于验证 HWND、输入、焦点和 UI Automation，不代表最终视觉；
 - 已有经像素校正的 RC1 SVG/PNG 品牌资产，但最终商标、ICO/MSIX/商店资产和 Windows 外壳实机矩阵仍未完成；
-- 已有 `eng/Start-LongGrid.ps1` 开发启动入口及 CI 验证模式；一键打包脚本、MSIX 工程和正式安装入口仍不存在。
+- 已有 `eng/Start-LongGrid.ps1` 开发启动入口及 CI 验证模式，也已有 `eng/Pack-LongGrid.ps1` 生成并复核内部 self-contained 便携 ZIP；MSIX 工程、签名和正式安装入口仍不存在。
 
 因此开发期 UI Shell、任何探针窗口、命令行入口或 `dotnet run` 命令都不得宣传为 Long方格正式 MVP 或安装体验。
 
@@ -135,7 +135,7 @@ Long方格的正式 UI 必须同时满足：**现代化、扁平化、精致华�
 
 ## 9. 一键打包要求
 
-建立 MSIX 工程后，仓库根目录必须提供一个稳定入口，例如 `eng/Pack-LongGrid.ps1`：
+`eng/Pack-LongGrid.ps1` 已先建立内部便携 Developer Preview 链；建立 MSIX 工程后必须在同一稳定入口中扩展正式安装包模式：
 
 - 固定执行 restore、format、Release build、test、覆盖率、安全探针和包结构验证；
 - 生成开发 MSIX、符号、版本信息、SHA-256 和构建清单；

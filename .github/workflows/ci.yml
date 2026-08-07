@@ -156,6 +156,14 @@ jobs:
         shell: powershell
         run: powershell -NoProfile -ExecutionPolicy Bypass -File ./eng/Verify-VulnerablePackages.ps1
 
+      - name: Build and verify portable Developer Preview
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Pack-LongGrid.ps1
+          -Version 0.1.0-ci
+          -SkipQualityGates
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v6

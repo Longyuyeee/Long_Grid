@@ -218,3 +218,5 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-08-07 RC 硬化切片 5 补充：生产输入门已经绑定精确容器全集、registry generation、目标 DesktopHost UI 线程和 lifecycle guard；Close/Reopen/Hide 均在封送后重新验证窗口存在性、进程、线程和实例标识。部分关闭必须全量恢复，恢复不完整或重开失败必须隐藏宿主。shutdown 先永久失效 guard，再在 1 ms～5 s 有界期限内等待在途操作；超时或隐藏失败保留可重试状态，未完成时禁止释放。App 继续零接线。布局恢复内部工程链收口，剩余阶段转为干净会话 UIA、打包/安装、RC 审计及 #19/#20/#23/#24 外部证据。
 
 2026-08-07 RC 交付切片 1 补充：118-ID 源码合同、真实 UIA 交互和单实例重定向现由统一干净会话入口编排；启动前、两项矩阵之间和结束后均要求 LongGrid.App 零进程。脚本只能关闭自己启动的准确 PID，发现外来或无窗口实例必须有限拒绝。CI 只执行不启动 GUI 的合同预检并保持 live 证据 Pending。当前本机会话 PID 39208 无窗口且无管理权限，负向拒绝/不终止证据通过，真实 live Pass 仍待可管理干净会话。下一切片进入可重复 publish、压缩包和哈希清单。
+
+2026-08-07 RC 交付切片 2 补充：`eng/Pack-LongGrid.ps1` 现在从干净提交执行默认完整质量门禁、Windows 11 x64 self-contained publish、固定顺序/时间戳的确定性 ZIP、逐文件 `SHA256SUMS.txt`、外部 ZIP SHA-256 和包内安装前置检查；CI 会真实构建并复核便携包，但不上传为 Release。构建清单强制记录 unsigned、not installer、distribution not approved、license deferred 和 DesktopHost execution disabled，避免把内部 Developer Preview 误述成正式安装包。下一切片进入 MSIX 工程/身份/签名与安装、升级、卸载、回滚设计审计；在许可证和发布渠道批准前不得公开分发。

@@ -116,7 +116,7 @@ Windows 文件的内容写入权与原子替换权也不是同一权限边界：
 - 缩略图格式矩阵必须使用自有样本和精确 HRESULT 分类；handler 已注册、模块存在或 Media Foundation decoder 可枚举仍不等于 Shell 可提取，`WTS_E_FAILEDEXTRACTION` 只允许对固定受控 HEIC/AVIF 样本触发安全降级；
 - 依赖漏洞门禁通过，并上传 TRX 与 Cobertura 证据。
 
-许可证扫描、CodeQL、临时安装包和打包验证仍是发布流水线待办，不能因当前 PR CI 通过而视为已经完成。
+便携 Developer Preview 的 self-contained publish、确定性 ZIP、逐文件/外部 SHA-256 和包结构验证已经进入 CI；CI 不上传或发布该产物。许可证扫描、CodeQL、MSIX 安装/身份验证、SBOM 与签名仍是发布流水线待办，不能因当前 PR CI 通过而视为已经完成。
 
 每日/发布前：
 
