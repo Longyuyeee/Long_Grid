@@ -252,7 +252,6 @@ try {
             & dotnet restore $projectPath `
                 --runtime $runtimeIdentifier `
                 --locked-mode `
-                --no-dependencies `
                 -p:WindowsAppSDKSelfContained=true
         }
     }
