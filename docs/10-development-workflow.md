@@ -544,3 +544,5 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 2026-08-07 RC 硬化切片 4 补充：复合事务 PR 必须证明 display/controller 与 DesktopHost registry 的事件能同步终止旧 binding，且 shutdown/dispose 是不可逆状态；不得通过 edit revision 交换把旧 guard 迁移到新生命周期。组合矩阵必须覆盖变化发生在 capture、window apply、configuration publish 和 pending undo 前后的安全结果。任何输入已关闭但无法重开的路径都必须尝试隐藏宿主，并区分 `InputReopenFailed` 与 `EmergencyHideFailed`。自动化通过不代表真实输入或动态显示矩阵通过，App 接线仍需独立批准。
 
 2026-08-07 RC 硬化切片 5 补充：真实输入适配器 PR 必须证明容器集合等于产品窗口注册表完整集合、registry generation 与宿主线程匹配、UI 线程执行前完成第二次所有权复核。`EnableWindow` 结果必须用 `IsWindowEnabled` 复读；`ShowWindow` 仅允许专用控制器使用 `SW_HIDE` 并以 `IsWindowVisible` 复读，禁止 Show/Activate/第三方句柄能力。部分关闭须恢复全部窗口，恢复失败或重开失败须隐藏。shutdown drain 必须先关闭生命周期和新请求，在 1 ms～5 s 内等待在途操作；超时/隐藏失败可重试，未隐藏完成不得 dispose。自动化通过仍不授权 App 接线，真实入口必须等待外部矩阵与单独批准。
+
+2026-08-07 RC 交付切片 1 补充：任何真实 UIA/单实例证据必须从 LongGrid.App 零进程开始，在准确构建产物和准确 PID 上执行，并以零残留结束。检测到外来进程时必须报告 PID 并拒绝，不得默认 Stop-Process、提权或把激活转发后的无窗口失败记为 UIA 缺陷。118-ID 完整性由唯一 XAML 源码合同负责；live 模式只声明实际走过的安全状态路径，不通过破坏真实配置强制显示错误态控件。CI 的 `-ValidateOnly` 只证明链路和安全边界，必须输出 `PendingCleanInteractiveSession`，不能替代交互桌面 live Pass。

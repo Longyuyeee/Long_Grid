@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、118-ID UIA、响应式布局、正式工作区视图和有限产品会话。用户桌面与公共桌面第一层通过 generation/latest-wins 只读适配器接入；只有双来源完整成功才作为权威 Catalog。正式 session 可投影为脱敏容器/引用视图；有限容器、引用与布局恢复编辑共享同一 edit revision、v2 投影和 App-owned 保存控制器。配置级恢复确认绑定双拓扑/配置指纹和双 revision；成功恢复还产生同会话一次性撤销令牌，撤销复核恢复前后配置指纹并只走统一保存链。所有桌面文件与真实窗口操作仍为零。真实 UIA 复跑受当前 Windows 会话残留无窗口单实例污染而保持 Inconclusive；自动保留/容量阈值未批准。Issue #23 首发范围已批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
+> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、118-ID UIA、响应式布局、正式工作区视图和有限产品会话。用户桌面与公共桌面第一层通过 generation/latest-wins 只读适配器接入；只有双来源完整成功才作为权威 Catalog。正式 session 可投影为脱敏容器/引用视图；有限容器、引用与布局恢复编辑共享同一 edit revision、v2 投影和 App-owned 保存控制器。配置级恢复确认绑定双拓扑/配置指纹和双 revision；成功恢复还产生同会话一次性撤销令牌，撤销复核恢复前后配置指纹并只走统一保存链。所有桌面文件与真实窗口操作仍为零。118-ID 源码合同、真实 UIA、单实例和零残留现已纳入统一干净会话入口；当前 Windows 会话仍有无权限管理的无窗口 PID，因此 live 证据保持 Pending，脚本会拒绝且不会终止外来进程。Issue #23 首发范围已批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
 
 ## 产品原则
 
@@ -88,6 +88,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [正式产品配置存储适配器审计](docs/33-product-configuration-store-audit.md)
 - [配置 latest-wins 与 App 关闭排空审计](docs/34-configuration-shutdown-drain-audit.md)
 - [DesktopHost 输入与关闭排空审计](docs/70-desktop-host-input-shutdown-drain-audit.md)
+- [干净会话 UIA 链路审计](docs/71-clean-session-uia-chain-audit.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
 - [Long助手兼容协议交付包](docs/protocol/README.md)
@@ -99,7 +100,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口准入、产品自有窗口注册表/只读桥、配置+窗口复合事务、两个生产适配器、DesktopHost UI 线程安全封送、复合故障矩阵、生命周期失效 guard、真实 DesktopHost 输入关闭/重开/隐藏适配器与有界 shutdown drain 已经建立。排队期间会二次验权；输入关闭或重开失败会恢复或隐藏；shutdown 超时保持可重试且禁止提前释放。App 仍保持零接线且不会移动、禁用或隐藏真实窗口。桌面管理 MVP 的布局恢复内部工程链已经收口，下一阶段处理干净会话 118-ID UIA、一键打包、安装和发布候选审计。GitHub #19、#20、#23、#24 仍需真实人工、硬件或专用卷证据；全部 blocker 清零前不接入真实执行入口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续；许可证选择延期到正式分发或接受外部贡献之前。
+按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口准入、产品自有窗口注册表/只读桥、配置+窗口复合事务、两个生产适配器、DesktopHost UI 线程安全封送、复合故障矩阵、生命周期失效 guard、真实 DesktopHost 输入适配器与有界 shutdown drain 已经建立。118-ID 源码合同、真实 UIA 和单实例矩阵也已纳入统一干净会话入口；当前外来无窗口进程使本机 live 证据保持 Pending，脚本不会越权终止它。App 仍保持零接线且不会移动、禁用或隐藏真实窗口。下一阶段审计并实现可重复的一键 publish/压缩包/哈希清单，再处理安装和发布候选审计。GitHub #19、#20、#23、#24 仍需真实人工、硬件或专用卷证据；全部 blocker 清零前不接入真实执行入口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续；许可证选择延期到正式分发或接受外部贡献之前。
 
 ## 开发启动
 

@@ -90,6 +90,13 @@ jobs:
           -File ./eng/Test-LongGridUi.ps1
           -ContractOnly
 
+      - name: Validate clean-session UIA chain
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Test-LongGridCleanSession.ps1
+          -ValidateOnly
+
       - name: Validate single-instance activation contract
         shell: powershell
         run: >-
