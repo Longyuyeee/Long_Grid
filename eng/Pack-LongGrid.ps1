@@ -246,8 +246,15 @@ try {
         & (Join-Path $PSScriptRoot 'Verify-Coverage.ps1') -MinimumLineRate 0.90 -MinimumBranchRate 0.75
         & (Join-Path $PSScriptRoot 'Verify-VulnerablePackages.ps1')
     }
-    elseif (-not $NoRestore) {
-        Invoke-CheckedCommand 'Locked restore' { & dotnet restore $solutionPath --locked-mode }
+
+    if (-not $NoRestore) {
+        Invoke-CheckedCommand 'Self-contained publish restore' {
+            & dotnet restore $projectPath `
+                --runtime $runtimeIdentifier `
+                --locked-mode `
+                --no-dependencies `
+                -p:WindowsAppSDKSelfContained=true
+        }
     }
 
     [System.IO.Directory]::CreateDirectory($artifactRoot) | Out-Null

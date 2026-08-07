@@ -163,7 +163,6 @@ jobs:
           -File ./eng/Pack-LongGrid.ps1
           -Version 0.1.0-ci
           -SkipQualityGates
-          -NoRestore
 
       - name: Upload test results
         if: always()
