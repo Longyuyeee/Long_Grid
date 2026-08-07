@@ -87,6 +87,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格复合事务生命周期失效与恢复矩阵审计](docs/69-composite-lifecycle-invalidation-audit.md)
 - [正式产品配置存储适配器审计](docs/33-product-configuration-store-audit.md)
 - [配置 latest-wins 与 App 关闭排空审计](docs/34-configuration-shutdown-drain-audit.md)
+- [DesktopHost 输入与关闭排空审计](docs/70-desktop-host-input-shutdown-drain-audit.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
 - [Long助手兼容协议交付包](docs/protocol/README.md)
@@ -98,7 +99,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口准入、产品自有窗口注册表/只读桥、配置+窗口复合事务、两个生产适配器、DesktopHost UI 线程安全封送、复合故障矩阵和显示/宿主/关闭生命周期失效 guard 已经建立。拓扑刷新、注册表换代或 shutdown 会立即终止旧 binding；输入无法重开时必须隐藏宿主。App 仍保持零接线且不会移动真实窗口。桌面管理 MVP 的布局恢复主线进入最后交付收口：下一切片建立真实 DesktopHost 输入适配器与有界 shutdown drain，之后处理干净会话 118-ID UIA、一键打包、安装和发布候选审计。GitHub #19、#20、#23、#24 仍需真实人工、硬件或专用卷证据；全部 blocker 清零前不接入真实执行入口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续；许可证选择延期到正式分发或接受外部贡献之前。
+按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口准入、产品自有窗口注册表/只读桥、配置+窗口复合事务、两个生产适配器、DesktopHost UI 线程安全封送、复合故障矩阵、生命周期失效 guard、真实 DesktopHost 输入关闭/重开/隐藏适配器与有界 shutdown drain 已经建立。排队期间会二次验权；输入关闭或重开失败会恢复或隐藏；shutdown 超时保持可重试且禁止提前释放。App 仍保持零接线且不会移动、禁用或隐藏真实窗口。桌面管理 MVP 的布局恢复内部工程链已经收口，下一阶段处理干净会话 118-ID UIA、一键打包、安装和发布候选审计。GitHub #19、#20、#23、#24 仍需真实人工、硬件或专用卷证据；全部 blocker 清零前不接入真实执行入口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续；许可证选择延期到正式分发或接受外部贡献之前。
 
 ## 开发启动
 
