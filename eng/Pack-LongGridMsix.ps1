@@ -197,7 +197,6 @@ function Test-MsixLayout {
     foreach ($requiredFile in @(
         'AppxManifest.xml',
         'AppxBlockMap.xml',
-        '[Content_Types].xml',
         'LongGrid.App.exe',
         'Assets\Square44x44Logo.png',
         'Assets\Square150x150Logo.png',
@@ -229,6 +228,36 @@ function Test-MsixLayout {
     $capabilities = @($manifest.SelectNodes('/f:Package/f:Capabilities/*', $namespace))
     if ($capabilities.Count -ne 1 -or $capabilities[0].Name -ne 'runFullTrust') {
         throw 'MSIX must declare exactly the runFullTrust capability.'
+    }
+}
+
+function Test-MsixContainerEntries {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($Path)
+    try {
+        $entryNames = @($archive.Entries | ForEach-Object FullName)
+        foreach ($requiredEntry in @(
+            '[Content_Types].xml',
+            'AppxManifest.xml',
+            'AppxBlockMap.xml'
+        )) {
+            if ($entryNames -notcontains $requiredEntry) {
+                throw "MSIX container entry is missing: $requiredEntry"
+            }
+        }
+
+        if ($entryNames -contains 'AppxSignature.p7x') {
+            throw 'Unsigned Developer Preview unexpectedly contains AppxSignature.p7x.'
+        }
+    }
+    finally {
+        $archive.Dispose()
     }
 }
 
@@ -360,6 +389,8 @@ try {
     $msixHash = (Get-FileHash -LiteralPath $msixPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $comparisonHash = (Get-FileHash -LiteralPath $comparisonPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $byteReproducible = $msixHash -eq $comparisonHash
+    Test-MsixContainerEntries -Path $msixPath
+    Test-MsixContainerEntries -Path $comparisonPath
 
     Invoke-CheckedCommand 'MakeAppx unpack verification' {
         & $makeAppxPath unpack /o /p $msixPath /d $verificationRoot | Out-Null
