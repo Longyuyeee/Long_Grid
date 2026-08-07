@@ -135,13 +135,13 @@ Long方格的正式 UI 必须同时满足：**现代化、扁平化、精致华�
 
 ## 9. 一键打包要求
 
-`eng/Pack-LongGrid.ps1` 已建立内部便携 Developer Preview 链，`eng/Pack-LongGridMsix.ps1` 已建立未签名 MSIX 身份/结构链；进入正式安装包模式还必须：
+`eng/Pack-LongGrid.ps1` 已建立内部便携 Developer Preview 链，`eng/Pack-LongGridMsix.ps1` 已建立未签名 MSIX 身份/结构链，`eng/New-LongGridSbom.ps1` 已建立固定工具版本的 SPDX 2.2 生成/验证链；进入正式安装包模式还必须：
 
 - 固定执行 restore、format、Release build、test、覆盖率、安全探针和包结构验证；
 - 生成开发 MSIX、符号、版本信息、SHA-256 和构建清单；
 - 支持 x64，以及产品决策批准后的 ARM64；
 - 默认产物写入明确的 `artifacts/` 子目录并可重复清理；
-- 开发包允许未签名或使用本地开发证书，但必须明确标识；
+- 当前开发包保持未签名并明确标识；只有未来独立、可抛弃的安装测试环境在获得专门批准后才可使用测试证书；
 - 正式签名只在受保护 CI/Release 环境执行，脚本和日志不得包含证书或令牌；
 - 任一门禁失败时停止，不输出看似成功的安装包；
 - 支持从干净克隆复现，并在 CI 上传包结构验证结果。

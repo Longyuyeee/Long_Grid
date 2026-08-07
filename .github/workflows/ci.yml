@@ -26,6 +26,10 @@ jobs:
           cache-dependency-path: |
             **/*.csproj
             Directory.Packages.props
+            .config/dotnet-tools.json
+
+      - name: Restore pinned repository tools
+        run: dotnet tool restore
 
       - name: Restore
         run: dotnet restore LongGrid.sln --locked-mode
@@ -171,6 +175,13 @@ jobs:
           -File ./eng/Test-LongGridMsixLifecycle.ps1
           -ValidateOnly
 
+      - name: Validate protected release signing boundary
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Test-LongGridReleaseSigning.ps1
+          -ValidateOnly
+
       - name: Build and verify unsigned MSIX Developer Preview
         shell: powershell
         run: >-
@@ -180,6 +191,17 @@ jobs:
           -PortableVersion 0.1.0-ci
           -SkipQualityGates
           -NoRestore
+
+      - name: Generate and validate unsigned MSIX SBOM
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/New-LongGridSbom.ps1
+          -PackageVersion 0.1.0.0
+          -PortableVersion 0.1.0-ci
+          -SkipQualityGates
+          -NoRestore
+          -NoToolRestore
 
       - name: Upload test results
         if: always()

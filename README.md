@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 收尾阶段。桌面/Shell 数据链、DesktopHost/显示恢复、交互宿主和配置持久化探针均已进入 `main`，主干 CI 与保护规则生效。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、118-ID UIA、响应式布局、正式工作区视图和有限产品会话。用户桌面与公共桌面第一层通过 generation/latest-wins 只读适配器接入；只有双来源完整成功才作为权威 Catalog。正式 session 可投影为脱敏容器/引用视图；有限容器、引用与布局恢复编辑共享同一 edit revision、v2 投影和 App-owned 保存控制器。配置级恢复确认绑定双拓扑/配置指纹和双 revision；成功恢复还产生同会话一次性撤销令牌，撤销复核恢复前后配置指纹并只走统一保存链。所有桌面文件与真实窗口操作仍为零。118-ID 源码合同、真实 UIA、单实例和零残留现已纳入统一干净会话入口；当前 Windows 会话仍有无权限管理的无窗口 PID，因此 live 证据保持 Pending，脚本会拒绝且不会终止外来进程。Issue #23 首发范围已批准，许可证延期；5 人测试仍未完成，多数系统能力仍是 Conditional Pass。
+> 当前状态：处于 Phase 0/内部 RC 交付收尾阶段。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、118-ID UIA、响应式布局、正式工作区视图和有限产品会话；桌面文件与真实窗口执行仍保持零接线。便携 ZIP、unsigned MSIX 及其 SPDX 2.2 SBOM 已具备可复核的单命令链路，PR/main CI 不具备签名、密钥、OIDC write、安装或发布权限。当前 Windows 会话仍有无权限管理的外来无窗口进程，因此真实 UIA live 证据保持 Pending。许可证、正式 Publisher/证书、签名安装生命周期、#19/#20/#23/#24 外部矩阵仍未完成，所有产物均不可公开分发。
 
 ## 产品原则
 
@@ -89,6 +89,9 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [配置 latest-wins 与 App 关闭排空审计](docs/34-configuration-shutdown-drain-audit.md)
 - [DesktopHost 输入与关闭排空审计](docs/70-desktop-host-input-shutdown-drain-audit.md)
 - [干净会话 UIA 链路审计](docs/71-clean-session-uia-chain-audit.md)
+- [便携发布链审计](docs/72-portable-publish-chain-audit.md)
+- [MSIX 身份与生命周期审计](docs/73-msix-identity-lifecycle-audit.md)
+- [SBOM 与受保护签名边界审计](docs/74-sbom-protected-signing-boundary-audit.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
 - [Long助手兼容协议交付包](docs/protocol/README.md)
@@ -100,7 +103,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口准入、产品自有窗口注册表/只读桥、配置+窗口复合事务、两个生产适配器、DesktopHost UI 线程安全封送、复合故障矩阵、生命周期失效 guard、真实 DesktopHost 输入适配器与有界 shutdown drain 已经建立。118-ID 源码合同、真实 UIA 和单实例矩阵也已纳入统一干净会话入口；当前外来无窗口进程使本机 live 证据保持 Pending，脚本不会越权终止它。App 仍保持零接线且不会移动、禁用或隐藏真实窗口。当前已建立可重复的一键 self-contained 便携 ZIP，以及固定开发身份、最小能力和确定性结构验证的未签名 MSIX；两者都只是不可公开分发的 Developer Preview。签名、真实安装/升级/卸载/回滚、SBOM 和许可证仍是发布阻断项。GitHub #19、#20、#23、#24 继续需要真实人工、硬件或专用卷证据；全部 blocker 清零前不接入真实执行入口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口恢复内部工程链、118-ID 干净会话入口、便携 ZIP、unsigned MSIX、SPDX 2.2 SBOM 和签名权限隔离合同已经建立。App 仍保持零真实窗口/文件执行；当前外来无窗口进程使本机 live UIA 证据保持 Pending，脚本不会越权终止它。下一步需要正式 Publisher/证书/许可证/受保护 Release environment 才能建立签名 job 和可抛弃 Windows 安装生命周期矩阵；否则应优先收集 GitHub #19、#20、#23、#24 的真实人工、硬件或专用卷证据。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 
@@ -132,6 +135,16 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 ```
 
 脚本复用或重建当前提交的便携 payload，生成准确尺寸的 L+方格 MSIX 图标，通过官方 `MakeAppx` 连续打包、双份解包内容指纹比对，并复核身份、最小能力和无签名状态。`MakeAppx` 容器元数据不保证字节级复现，构建清单会如实记录；输出 `.msix`、`.sha256` 和外部构建清单，该包不能安装或发布。生命周期预检和剩余风险见[MSIX 身份与生命周期审计](docs/73-msix-identity-lifecycle-audit.md)。
+
+为当前提交的 unsigned MSIX 生成并验证 SPDX 2.2 SBOM：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File ./eng/New-LongGridSbom.ps1 `
+  -PackageVersion 0.1.0.0
+```
+
+脚本恢复仓库固定的 Microsoft SBOM Tool，对 MSIX 解包布局生成并官方验证清单，输出 `.spdx.json`、`.sha256` 和绑定源码/MSIX/SBOM 哈希的证据文件。它不签名、不安装、不上传 Release；详细边界见[SBOM 与受保护签名边界审计](docs/74-sbom-protected-signing-boundary-audit.md)。
 
 Issue #19 人工输入与系统表面矩阵开始前，先验证安全会话链：
 
