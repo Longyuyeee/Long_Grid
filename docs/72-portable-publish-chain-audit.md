@@ -27,6 +27,8 @@
 
 `-SkipQualityGates` 仅供已经执行完整质量门禁的 CI 阶段复用；默认开发入口不会跳过门禁。`-ValidateOnly` 只复核源码合同，不产生文件、不启动 GUI。
 
+普通 solution restore 继续严格复读仓库 lock 文件。self-contained publish 额外需要 SDK 的 `win-x64` runtime graph；该次 restore 使用 `artifacts/` 下的隔离、非持久 lock 路径，禁止改写平台无关 Core/Infrastructure 的仓库 lock 文件。CI 由前置 locked restore 固定 NuGet 依赖，再由隔离 restore 补齐 SDK runtime pack。
+
 脚本只在仓库 `artifacts/` 下创建 GUID 暂存目录，并在 `finally` 中验证它仍是该目录的子路径后清理；不会删除用户指定路径。最终 ZIP 和 sidecar 位于固定的 `artifacts/LongGrid-<version>-win-x64.*`，该目录已被 Git 忽略。
 
 ## 3. 构建清单的否定性合同

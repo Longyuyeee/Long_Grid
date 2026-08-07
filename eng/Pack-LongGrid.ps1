@@ -20,6 +20,7 @@ $runtimeIdentifier = "win-$Architecture"
 $packageBaseName = "LongGrid-$Version-$runtimeIdentifier"
 $zipPath = Join-Path $artifactRoot "$packageBaseName.zip"
 $zipHashPath = "$zipPath.sha256"
+$publishRestoreLockPath = Join-Path $artifactRoot '.publish-restore.packages.lock.json'
 $fixedArchiveTime = [System.DateTimeOffset]::new(2000, 1, 1, 0, 0, 0, [System.TimeSpan]::Zero)
 
 function Invoke-CheckedCommand {
@@ -251,7 +252,10 @@ try {
         Invoke-CheckedCommand 'Self-contained publish restore' {
             & dotnet restore $projectPath `
                 --runtime $runtimeIdentifier `
-                --locked-mode `
+                --force-evaluate `
+                -p:RestorePackagesWithLockFile=false `
+                -p:RestoreLockedMode=false `
+                "-p:NuGetLockFilePath=$publishRestoreLockPath" `
                 -p:WindowsAppSDKSelfContained=true
         }
     }
