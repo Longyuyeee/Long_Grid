@@ -357,6 +357,7 @@ test(shell): cover coalesced change notifications
 - `eng/Start-LongGrid.ps1` 负责依赖检查、必要构建和启动，不默认提权或修改真实桌面文件；
 - `eng/Pack-LongGrid.ps1` 负责 restore、format、Release build、test、覆盖率、安全探针、包结构和哈希；
 - `eng/Pack-LongGridMsix.ps1` 只生成并验证固定开发身份的 unsigned MSIX；`eng/New-LongGridSbom.ps1` 使用仓库固定工具对其解包布局生成并官方复核 SPDX 2.2；
+- `eng/Build-LongGridReleaseCandidate.ps1` 是内部 RC 交付集合的唯一推荐入口；只有 ZIP/MSIX/SBOM 同提交、哈希、版本和否定性状态全部一致才生成聚合成功标记；
 - `eng/Test-LongGridReleaseSigning.ps1 -ValidateOnly` 必须在 PR/main 保持签名、密钥、OIDC write、安装和分发不可达；
 - 正式签名秘密只存在于受保护发布环境，不进入脚本、仓库或日志；
 - UI PR 必须检查浅色、深色、高对比、文本缩放、减少动画、键盘、Narrator、DPI 和低性能降级；
@@ -427,6 +428,7 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 - 每个 PR 扫描已知漏洞；
 - Release 生成 SBOM；
 - PR/main 对 unsigned MSIX 真实生成并验证 SBOM，但不上传为 Release；SBOM 工具由仓库 tool manifest 固定并作为供应链依赖审计；
+- PR/main 必须从全新 checkout 真实执行聚合 RC 入口；调用 `-SkipQualityGates` 时只能复用同一 job 已完成的等价或更强门禁，并在 evidence 中记录 `prevalidated-by-caller`；
 - 构建和打包应可重复；
 - 签名证书只存在于受保护发布环境；
 - 第三方 GPL 代码复用必须先完成许可证评估。
