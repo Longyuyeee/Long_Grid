@@ -540,3 +540,5 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 同日 RC 硬化切片 2 补充：配置适配器不得在一次性撤销令牌存续期间长期占用文件锁，也不得调用 latest-wins 队列并把“已接受”当成落盘成功。每次发布必须在正式 Store 的短跨进程写租约内重新读取 `LoadedPrimary`、比较 canonical SHA-256 指纹、写同目录临时文件、flush、复读并原子替换；指纹冲突、备份恢复态或 SafeMode 必须有限拒绝且不写入。补偿只允许当前磁盘仍等于适配器最后成功发布的指纹时执行，外部变化不得被回滚覆盖。同步接口只包装全部使用 `ConfigureAwait(false)` 的 Store 调用；App 当前不构造该适配器，完整复合故障矩阵和 DesktopHost UI 线程封送通过前不得开放真实入口。
 
 同日 RC 硬化切片 3 补充：任何真实窗口适配器 PR 必须证明目标 DesktopHost 线程一致、封送前后 registry generation/完整注册集/所有权二次复核、调用方等待期间不持注册表锁，以及 queue timeout 后不会迟到 mutation。超时只能原子取消 Pending 工作；Running 工作必须取得真实完成结果。配置事务 PR 同时必须验证磁盘 CAS 与 current binding 比较交换，双适配器必须在同一故障矩阵中覆盖成功、撤销、窗口失败、binding 发布失败、外部竞争保护和紧急隐藏。通过自动化仍不授权 App 接线，真实入口需要输入/显示/关闭矩阵与 Phase 0 外部证据另行批准。
+
+2026-08-07 RC 硬化切片 4 补充：复合事务 PR 必须证明 display/controller 与 DesktopHost registry 的事件能同步终止旧 binding，且 shutdown/dispose 是不可逆状态；不得通过 edit revision 交换把旧 guard 迁移到新生命周期。组合矩阵必须覆盖变化发生在 capture、window apply、configuration publish 和 pending undo 前后的安全结果。任何输入已关闭但无法重开的路径都必须尝试隐藏宿主，并区分 `InputReopenFailed` 与 `EmergencyHideFailed`。自动化通过不代表真实输入或动态显示矩阵通过，App 接线仍需独立批准。

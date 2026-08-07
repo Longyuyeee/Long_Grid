@@ -57,6 +57,8 @@ $configurationCompareExchangeCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\Configuration\ProductConfigurationStore.CompareExchange.cs'
 $compositeConfigurationAdapterCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceCompositeConfigurationAdapter.cs'
+$compositeLifecycleGuardCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceCompositeLifecycleGuard.cs'
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
 $runtimeIdentifier = "win-$Architecture"
 
@@ -175,6 +177,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $compositeConfigurationAdapterCode = Get-Content `
         -LiteralPath $compositeConfigurationAdapterCodePath `
+        -Raw `
+        -Encoding UTF8
+    $compositeLifecycleGuardCode = Get-Content `
+        -LiteralPath $compositeLifecycleGuardCodePath `
         -Raw `
         -Encoding UTF8
     $requiredIds = @(
@@ -1093,6 +1099,19 @@ function Test-SourceContract {
             'ProductWorkspaceCompositeConfigurationAdapter|CompareExchangePrimaryAsync')
     ) 'Composite configuration writes must use short-lease fingerprint compare-and-exchange, refuse damaged or foreign state, and remain App-blocked.'
     Assert-Condition (
+        $compositeLifecycleGuardCode -match `
+            'IProductWorkspaceCompositeBindingExchange' -and
+        $compositeLifecycleGuardCode -match 'TopologyChanged' -and
+        $compositeLifecycleGuardCode -match 'DesktopHostChanged' -and
+        $compositeLifecycleGuardCode -match 'ShuttingDown' -and
+        $compositeLifecycleGuardCode -match 'SnapshotChanged \+=' -and
+        $compositeLifecycleGuardCode -match 'BeginShutdown' -and
+        $compositeLifecycleGuardCode -match 'HasSameLifecycleIdentity' -and
+        $windowCompositeTransactionCode -match `
+            'FinishWithoutMutation[\s\S]*HideAffectedHosts' -and
+        -not ($appCode -match 'ProductWorkspaceCompositeLifecycleGuard')
+    ) 'Composite lifecycle evidence must invalidate stale topology, DesktopHost, shutdown, and undo bindings while hiding hosts when closed input cannot reopen; App wiring remains blocked.'
+    Assert-Condition (
         $displayTopologyReaderCode -match 'HasStableTargetIdentity' -and
         $displayTopologyReaderCode -match 'MappedToActivePath' -and
         $displayTopologyReaderCode -match 'SourceBoundsMatch' -and
@@ -1175,7 +1194,7 @@ function Test-SourceContract {
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
-        productLayoutRecovery = 'thread-dispatched-dual-adapter-fault-matrix-app-blocked'
+        productLayoutRecovery = 'lifecycle-invalidated-input-display-shutdown-matrix-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'
