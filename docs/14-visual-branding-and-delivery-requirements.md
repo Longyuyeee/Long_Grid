@@ -135,7 +135,7 @@ Long方格的正式 UI 必须同时满足：**现代化、扁平化、精致华�
 
 ## 9. 一键打包要求
 
-`eng/Pack-LongGrid.ps1` 已建立内部便携 Developer Preview 链，`eng/Pack-LongGridMsix.ps1` 已建立未签名 MSIX 身份/结构链，`eng/New-LongGridSbom.ps1` 已建立固定工具版本的 SPDX 2.2 生成/验证链；进入正式安装包模式还必须：
+`eng/Build-LongGridReleaseCandidate.ps1` 已把内部便携 Developer Preview、未签名 MSIX 身份/结构和固定工具版本的 SPDX 2.2 生成/验证链聚合为一个推荐入口；进入正式安装包模式还必须：
 
 - 固定执行 restore、format、Release build、test、覆盖率、安全探针和包结构验证；
 - 生成开发 MSIX、符号、版本信息、SHA-256 和构建清单；

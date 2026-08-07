@@ -92,6 +92,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [便携发布链审计](docs/72-portable-publish-chain-audit.md)
 - [MSIX 身份与生命周期审计](docs/73-msix-identity-lifecycle-audit.md)
 - [SBOM 与受保护签名边界审计](docs/74-sbom-protected-signing-boundary-audit.md)
+- [内部 RC 交付集合与干净检出审计](docs/75-internal-rc-delivery-set-audit.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
 - [Long助手兼容协议交付包](docs/protocol/README.md)
@@ -103,7 +104,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口恢复内部工程链、118-ID 干净会话入口、便携 ZIP、unsigned MSIX、SPDX 2.2 SBOM 和签名权限隔离合同已经建立。App 仍保持零真实窗口/文件执行；当前外来无窗口进程使本机 live UIA 证据保持 Pending，脚本不会越权终止它。下一步需要正式 Publisher/证书/许可证/受保护 Release environment 才能建立签名 job 和可抛弃 Windows 安装生命周期矩阵；否则应优先收集 GitHub #19、#20、#23、#24 的真实人工、硬件或专用卷证据。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口恢复内部工程链、118-ID 干净会话入口，以及聚合便携 ZIP、unsigned MSIX、SPDX 2.2 和签名隔离状态的一键内部 RC 入口已经建立。App 仍保持零真实窗口/文件执行；当前外来无窗口进程使本机 live UIA 证据保持 Pending，脚本不会越权终止它。没有正式 Publisher/证书/许可证/受保护 Release environment 时，交付机械链停止扩张，优先收集 GitHub #19、#20、#23、#24 的真实人工、硬件或专用卷证据。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 
@@ -115,6 +116,17 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 ```
 
 该入口默认执行锁定依赖恢复、必要构建和启动；不提权、不枚举真实桌面，也不执行文件操作。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[开发期只读 UI Shell 审计](docs/17-ui-shell-readonly-slice-audit.md)。
+
+从干净、已提交的工作树一键生成并交叉验证完整内部 RC 交付集合：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File ./eng/Build-LongGridReleaseCandidate.ps1 `
+  -PortableVersion 0.1.0-rcdev `
+  -PackageVersion 0.1.0.0
+```
+
+该入口依次执行现有打包质量门禁、便携 ZIP、unsigned MSIX、SPDX 2.2 和聚合证据复核。只有所有产物来自同一提交、哈希/sidecar/版本/SBOM subject 一致且签名与安装仍明确阻断，才生成 `internal-rc-evidence.json`。它仍不可安装或公开分发；详细边界见[内部 RC 交付集合与干净检出审计](docs/75-internal-rc-delivery-set-audit.md)。下列三个底层命令保留用于单项诊断。
 
 从干净、已提交的工作树执行完整质量门禁并生成内部便携开发包：
 

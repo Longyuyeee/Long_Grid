@@ -17,10 +17,11 @@
 - 一键便携 ZIP 已能从干净提交生成 self-contained payload、确定性压缩内容、逐文件哈希和外部 SHA-256；
 - 一键 unsigned MSIX 已固定 Developer Preview 身份、Windows 11 x64、`runFullTrust` 最小能力、精确品牌资产、BlockMap 和双份解包语义指纹；它仍不可安装、不可分发；
 - 本增量固定 Microsoft SBOM Tool 4.1.5，对最终 MSIX 解包布局真实生成并验证 SPDX 2.2，以证据清单绑定源码提交、MSIX SHA-256、SBOM SHA-256 和工具版本；
+- 内部 RC 交付集合现由单一聚合入口生成；只有 ZIP/MSIX/SBOM 同提交、三个实际哈希/sidecar、SBOM subject hash、生命周期 Pending 和签名 Blocked 全部一致才写出最终成功标记，PR/main 使用全新 checkout 实际执行；
 - 签名合同现在机器可读：PR/main 只读且不得访问 secrets、OIDC write、`SignTool`、自签名或 AppX 安装动作；正式签名必须等待 Publisher、合规证书、受保护 Release environment、许可证和可抛弃 Windows 生命周期矩阵；
 - 当前产品仍不能宣称 RC 完成。#19 输入/系统表面、#20 动态显示、#23 五人可用性、#24 真实卷、签名安装/升级/卸载/回滚和许可证仍是外部阻断项。
 
-本增量的边界、命令和后续准入见 [`74-sbom-protected-signing-boundary-audit.md`](74-sbom-protected-signing-boundary-audit.md)。
+本增量的边界、命令和后续准入见 [`74-sbom-protected-signing-boundary-audit.md`](74-sbom-protected-signing-boundary-audit.md)与[`75-internal-rc-delivery-set-audit.md`](75-internal-rc-delivery-set-audit.md)。
 
 ## 1. 执行摘要
 

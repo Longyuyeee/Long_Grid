@@ -160,43 +160,11 @@ jobs:
         shell: powershell
         run: powershell -NoProfile -ExecutionPolicy Bypass -File ./eng/Verify-VulnerablePackages.ps1
 
-      - name: Build and verify portable Developer Preview
+      - name: Build and audit internal unsigned RC delivery set
         shell: powershell
         run: >-
           powershell -NoProfile -ExecutionPolicy Bypass
-          -File ./eng/Pack-LongGrid.ps1
-          -Version 0.1.0-ci
-          -SkipQualityGates
-
-      - name: Validate MSIX lifecycle chain
-        shell: powershell
-        run: >-
-          powershell -NoProfile -ExecutionPolicy Bypass
-          -File ./eng/Test-LongGridMsixLifecycle.ps1
-          -ValidateOnly
-
-      - name: Validate protected release signing boundary
-        shell: powershell
-        run: >-
-          powershell -NoProfile -ExecutionPolicy Bypass
-          -File ./eng/Test-LongGridReleaseSigning.ps1
-          -ValidateOnly
-
-      - name: Build and verify unsigned MSIX Developer Preview
-        shell: powershell
-        run: >-
-          powershell -NoProfile -ExecutionPolicy Bypass
-          -File ./eng/Pack-LongGridMsix.ps1
-          -PackageVersion 0.1.0.0
-          -PortableVersion 0.1.0-ci
-          -SkipQualityGates
-          -NoRestore
-
-      - name: Generate and validate unsigned MSIX SBOM
-        shell: powershell
-        run: >-
-          powershell -NoProfile -ExecutionPolicy Bypass
-          -File ./eng/New-LongGridSbom.ps1
+          -File ./eng/Build-LongGridReleaseCandidate.ps1
           -PackageVersion 0.1.0.0
           -PortableVersion 0.1.0-ci
           -SkipQualityGates
