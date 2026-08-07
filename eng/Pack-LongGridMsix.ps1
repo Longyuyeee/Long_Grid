@@ -212,7 +212,7 @@ function Test-MsixLayout {
         throw 'Unsigned Developer Preview unexpectedly contains AppxSignature.p7x.'
     }
 
-    [xml]$manifest = Get-Content -LiteralPath (Join-Path $LayoutRoot 'AppxManifest.xml') -Raw
+    [xml]$manifest = Get-Content -LiteralPath (Join-Path $LayoutRoot 'AppxManifest.xml') -Raw -Encoding UTF8
     $namespace = [System.Xml.XmlNamespaceManager]::new($manifest.NameTable)
     $namespace.AddNamespace('f', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10')
     $namespace.AddNamespace('rescap', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities')
