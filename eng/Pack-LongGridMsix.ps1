@@ -350,11 +350,11 @@ try {
     Copy-Item -LiteralPath $msixReadmePath -Destination $layoutRoot
 
     Invoke-CheckedCommand 'MakeAppx pack' {
-        & $makeAppxPath pack /o /d $layoutRoot /p $msixPath
+        & $makeAppxPath pack /o /d $layoutRoot /p $msixPath | Out-Null
     }
     $comparisonPath = Join-Path $stagingRoot "$packageBaseName.comparison.msix"
     Invoke-CheckedCommand 'MakeAppx deterministic comparison pack' {
-        & $makeAppxPath pack /o /d $layoutRoot /p $comparisonPath
+        & $makeAppxPath pack /o /d $layoutRoot /p $comparisonPath | Out-Null
     }
 
     $msixHash = (Get-FileHash -LiteralPath $msixPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -362,10 +362,10 @@ try {
     $byteReproducible = $msixHash -eq $comparisonHash
 
     Invoke-CheckedCommand 'MakeAppx unpack verification' {
-        & $makeAppxPath unpack /o /p $msixPath /d $verificationRoot
+        & $makeAppxPath unpack /o /p $msixPath /d $verificationRoot | Out-Null
     }
     Invoke-CheckedCommand 'MakeAppx comparison unpack verification' {
-        & $makeAppxPath unpack /o /p $comparisonPath /d $comparisonVerificationRoot
+        & $makeAppxPath unpack /o /p $comparisonPath /d $comparisonVerificationRoot | Out-Null
     }
     Test-MsixLayout -LayoutRoot $verificationRoot -ExpectedVersion $PackageVersion
     Test-MsixLayout -LayoutRoot $comparisonVerificationRoot -ExpectedVersion $PackageVersion
