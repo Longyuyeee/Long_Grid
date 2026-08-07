@@ -735,12 +735,26 @@ public sealed class ProductWorkspaceWindowCompositeTransactionCoordinator
         ProductWorkspaceWindowCompositeFailure failure)
     {
         bool reopened = TryCall(input.Reopen);
+        if (reopened)
+        {
+            return Result(
+                status,
+                failure,
+                request,
+                inputClosed: false,
+                hostsHidden: false,
+                undoToken: null);
+        }
+
+        bool hidden = TryCall(input.HideAffectedHosts);
         return Result(
-            reopened ? status : ProductWorkspaceWindowCompositeStatus.RollbackFailed,
-            reopened ? failure : ProductWorkspaceWindowCompositeFailure.InputReopenFailed,
+            ProductWorkspaceWindowCompositeStatus.RollbackFailed,
+            hidden
+                ? ProductWorkspaceWindowCompositeFailure.InputReopenFailed
+                : ProductWorkspaceWindowCompositeFailure.EmergencyHideFailed,
             request,
-            inputClosed: !reopened,
-            hostsHidden: false,
+            inputClosed: true,
+            hostsHidden: hidden,
             undoToken: null);
     }
 

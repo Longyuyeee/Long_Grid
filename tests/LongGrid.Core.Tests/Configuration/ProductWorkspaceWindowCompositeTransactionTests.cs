@@ -314,6 +314,30 @@ public sealed class ProductWorkspaceWindowCompositeTransactionTests
     }
 
     [Fact]
+    public void BindingChangeAfterCaptureHidesHostsWhenInputCannotReopen()
+    {
+        Fixture fixture = CreateFixture();
+        using Harness harness = Harness.Create(fixture);
+        harness.Windows.AfterCapture = () =>
+            harness.Configuration.Binding = fixture.Token.After;
+        harness.Input.ReopenResult = false;
+
+        ProductWorkspaceWindowCompositeResult result =
+            harness.Coordinator.Execute(fixture.Request);
+
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeStatus.RollbackFailed,
+            result.Status);
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeFailure.InputReopenFailed,
+            result.Failure);
+        Assert.True(result.InputClosed);
+        Assert.True(result.HostsHidden);
+        Assert.DoesNotContain("windows:apply", harness.Events);
+        Assert.Equal("input:hide", harness.Events[^1]);
+    }
+
+    [Fact]
     public void InputReopenFailureRestoresBothSidesAndHidesHosts()
     {
         Fixture fixture = CreateFixture();
@@ -797,11 +821,14 @@ public sealed class ProductWorkspaceWindowCompositeTransactionTests
 
         internal Action? AfterVerify { get; set; }
 
+        internal Action? AfterCapture { get; set; }
+
         public ProductWorkspaceWindowCompositeCapture Capture(
             IReadOnlyList<string> containerIds,
             long registryGeneration)
         {
             events.Add("windows:capture");
+            AfterCapture?.Invoke();
             return CaptureResult
                 ? new(true, new Snapshot("windows", null, null, Applied))
                 : ProductWorkspaceWindowCompositeCapture.Failed;

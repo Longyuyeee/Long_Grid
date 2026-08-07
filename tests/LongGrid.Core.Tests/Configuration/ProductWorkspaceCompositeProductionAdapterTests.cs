@@ -93,6 +93,102 @@ public sealed class ProductWorkspaceCompositeProductionAdapterTests
         Assert.Equal(harness.BeforeBounds, harness.Inspector.Bounds);
     }
 
+    [Fact]
+    public async Task TopologyChangeDuringWindowApplyRestoresWindowsAndHidesHosts()
+    {
+        using Harness harness = await Harness.CreateAsync();
+        harness.Mutator.AfterNextSuccess = () =>
+            harness.Topology.RefreshAsync().GetAwaiter().GetResult();
+
+        ProductWorkspaceWindowCompositeResult result =
+            harness.Coordinator.Execute(harness.Request);
+
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeStatus.RollbackFailed,
+            result.Status);
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeFailure.BindingChanged,
+            result.Failure);
+        Assert.True(result.HostsHidden);
+        Assert.True(harness.Input.IsClosed);
+        Assert.Equal(
+            ProductWorkspaceCompositeLifecycleStatus.TopologyChanged,
+            harness.Binding.Status);
+        Assert.Equal("before", (await harness.Store.LoadAsync()).Document?.ProfileId);
+        Assert.Equal(harness.BeforeBounds, harness.Inspector.Bounds);
+    }
+
+    [Fact]
+    public async Task DesktopHostDisconnectDuringApplyCannotTouchStaleRegistry()
+    {
+        using Harness harness = await Harness.CreateAsync();
+        harness.Mutator.AfterNextSuccess = () =>
+            harness.Bridge.Disconnect(Harness.Host.InstanceId);
+
+        ProductWorkspaceWindowCompositeResult result =
+            harness.Coordinator.Execute(harness.Request);
+
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeStatus.RollbackFailed,
+            result.Status);
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeFailure.WindowRestoreFailed,
+            result.Failure);
+        Assert.True(result.HostsHidden);
+        Assert.True(harness.Input.IsClosed);
+        Assert.Equal(
+            ProductWorkspaceCompositeLifecycleStatus.DesktopHostChanged,
+            harness.Binding.Status);
+        Assert.Equal("before", (await harness.Store.LoadAsync()).Document?.ProfileId);
+        Assert.Equal(harness.AfterBounds, harness.Inspector.Bounds);
+    }
+
+    [Fact]
+    public async Task ShutdownDuringApplyRestoresWindowsButKeepsInputClosed()
+    {
+        using Harness harness = await Harness.CreateAsync();
+        harness.Mutator.AfterNextSuccess = harness.Binding.BeginShutdown;
+
+        ProductWorkspaceWindowCompositeResult result =
+            harness.Coordinator.Execute(harness.Request);
+
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeStatus.RollbackFailed,
+            result.Status);
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeFailure.BindingChanged,
+            result.Failure);
+        Assert.True(result.HostsHidden);
+        Assert.True(harness.Input.IsClosed);
+        Assert.Equal(
+            ProductWorkspaceCompositeLifecycleStatus.ShuttingDown,
+            harness.Binding.Status);
+        Assert.Equal("before", (await harness.Store.LoadAsync()).Document?.ProfileId);
+        Assert.Equal(harness.BeforeBounds, harness.Inspector.Bounds);
+    }
+
+    [Fact]
+    public async Task TopologyChangeSupersedesPendingUndoWithoutMutation()
+    {
+        using Harness harness = await Harness.CreateAsync();
+        ProductWorkspaceWindowCompositeResult applied =
+            harness.Coordinator.Execute(harness.Request);
+        Assert.True(applied.IsApplied);
+
+        await harness.Topology.RefreshAsync();
+        ProductWorkspaceWindowCompositeUndoResult result =
+            harness.Coordinator.Undo(applied.UndoToken!, userConfirmed: true);
+
+        Assert.Equal(ProductWorkspaceWindowCompositeUndoStatus.Superseded, result.Status);
+        Assert.Equal(
+            ProductWorkspaceWindowCompositeFailure.BindingChanged,
+            result.Failure);
+        Assert.False(result.InputClosed);
+        Assert.False(result.HostsHidden);
+        Assert.Equal("after", (await harness.Store.LoadAsync()).Document?.ProfileId);
+        Assert.Equal(harness.AfterBounds, harness.Inspector.Bounds);
+    }
+
     private static ProductWorkspaceState State(string profileId) =>
         new()
         {
@@ -135,7 +231,8 @@ public sealed class ProductWorkspaceCompositeProductionAdapterTests
         private Harness(
             TemporaryDirectory directory,
             ProductConfigurationStore store,
-            ProductWorkspaceCompositeBindingState binding,
+            ProductDisplayTopologyController topology,
+            ProductWorkspaceCompositeLifecycleGuard binding,
             ProductDesktopHostWindowBridge bridge,
             FakeInspector inspector,
             FakeMutator mutator,
@@ -148,6 +245,7 @@ public sealed class ProductWorkspaceCompositeProductionAdapterTests
         {
             this.directory = directory;
             Store = store;
+            Topology = topology;
             Binding = binding;
             Bridge = bridge;
             Inspector = inspector;
@@ -171,7 +269,7 @@ public sealed class ProductWorkspaceCompositeProductionAdapterTests
                 input);
         }
 
-        private static readonly ProductDesktopHostIdentity Host = new(
+        internal static readonly ProductDesktopHostIdentity Host = new(
             Guid.Parse("ec9a9080-f56d-41c6-b625-1ad4b5440b10"),
             13,
             120,
@@ -179,7 +277,9 @@ public sealed class ProductWorkspaceCompositeProductionAdapterTests
 
         internal ProductConfigurationStore Store { get; }
 
-        internal ProductWorkspaceCompositeBindingState Binding { get; }
+        internal ProductDisplayTopologyController Topology { get; }
+
+        internal ProductWorkspaceCompositeLifecycleGuard Binding { get; }
 
         internal ProductDesktopHostWindowBridge Bridge { get; }
 
@@ -211,6 +311,11 @@ public sealed class ProductWorkspaceCompositeProductionAdapterTests
             ProductWorkspaceState after = State("after");
             await store.SaveAsync(Document(before));
 
+            var topology = new ProductDisplayTopologyController(new FixedReader());
+            ProductDisplayTopologyRefreshResult topologyRefresh =
+                await topology.RefreshAsync();
+            Assert.True(topologyRefresh.Snapshot.IsAuthoritative);
+
             PixelRect beforeBounds = new(32, 48, 360, 240);
             PixelRect afterBounds = new(40, 48, 360, 240);
             var inspector = new FakeInspector(beforeBounds);
@@ -241,7 +346,7 @@ public sealed class ProductWorkspaceCompositeProductionAdapterTests
                     plan,
                     ["container-1"],
                     windowOwnershipAttested: true,
-                    topologyGeneration: 5,
+                    topologyGeneration: topologyRefresh.Generation,
                     beforeEditRevision: 7,
                     windowRegistryGeneration: registryGeneration,
                     desktopHostInstanceId: Host.InstanceId,
@@ -249,7 +354,10 @@ public sealed class ProductWorkspaceCompositeProductionAdapterTests
                     reviewApproved: true,
                     operationId: Guid.Parse(
                         "96b11fa1-e13c-4445-ae7f-697b827e6273"))!;
-            var binding = new ProductWorkspaceCompositeBindingState(token.Before);
+            var binding = new ProductWorkspaceCompositeLifecycleGuard(
+                token.Before,
+                topology,
+                bridge);
             IProductWorkspaceCompositeBindingExchange exchange =
                 failFirstBindingExchange
                     ? new FailFirstBindingExchange(binding)
@@ -266,6 +374,7 @@ public sealed class ProductWorkspaceCompositeProductionAdapterTests
             return new(
                 directory,
                 store,
+                topology,
                 binding,
                 bridge,
                 inspector,
@@ -281,7 +390,9 @@ public sealed class ProductWorkspaceCompositeProductionAdapterTests
         public void Dispose()
         {
             Coordinator.Dispose();
+            Binding.Dispose();
             Bridge.Disconnect(Host.InstanceId);
+            Topology.DisposeAsync().AsTask().GetAwaiter().GetResult();
             directory.Dispose();
         }
     }
@@ -352,7 +463,7 @@ public sealed class ProductWorkspaceCompositeProductionAdapterTests
     }
 
     private sealed class FailFirstBindingExchange(
-        ProductWorkspaceCompositeBindingState inner)
+        IProductWorkspaceCompositeBindingExchange inner)
         : IProductWorkspaceCompositeBindingExchange
     {
         private bool first = true;
@@ -372,6 +483,24 @@ public sealed class ProductWorkspaceCompositeProductionAdapterTests
 
             return inner.TryExchange(expected, replacement);
         }
+    }
+
+    private sealed class FixedReader : IProductDisplayTopologyReader
+    {
+        public Task<ProductDisplayTopologyReadResult> ReadAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ProductDisplayTopologyReadResult(
+                ProductDisplayTopologyReadStatus.Ready,
+                [new(
+                    "display-current",
+                    new PixelRect(0, 0, 1920, 1080),
+                    new PixelRect(0, 0, 1920, 1040),
+                    96,
+                    DisplayRotation.Landscape,
+                    IsPrimary: true)],
+                ActivePathCount: 1,
+                StableIdentityCount: 1,
+                BufferAttempts: 1));
     }
 
     private sealed class TemporaryDirectory : IDisposable
