@@ -477,6 +477,35 @@
                                             Content="应用布局并保存"
                                             IsEnabled="False" />
                                         <TextBlock
+                                            FontSize="13"
+                                            FontWeight="SemiBold"
+                                            Text="把桌面项目加入所选方格" />
+                                        <ComboBox
+                                            x:Name="ProductWorkspaceResolvedReferenceSelector"
+                                            AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceSelector"
+                                            AutomationProperties.Name="选择要加入所选正式方格的桌面项目"
+                                            DisplayMemberPath="DisplayName"
+                                            Header="未分组的桌面项目"
+                                            HorizontalAlignment="Stretch"
+                                            IsEnabled="False"
+                                            SelectionChanged="ProductWorkspaceResolvedReferenceSelector_SelectionChanged" />
+                                        <Button
+                                            x:Name="ProductWorkspaceResolvedReferenceAddButton"
+                                            AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceAddButton"
+                                            AutomationProperties.Name="把所选桌面项目作为引用加入正式方格并保存"
+                                            Click="ProductWorkspaceResolvedReferenceAddButton_Click"
+                                            Content="加入引用并保存"
+                                            IsEnabled="False" />
+                                        <TextBlock
+                                            x:Name="ProductWorkspaceResolvedReferenceAddStatus"
+                                            AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceAddStatus"
+                                            AutomationProperties.ItemStatus="ResolvedReferenceAddUnavailable:Changed=False:DesktopFilesChanged=False"
+                                            AutomationProperties.LiveSetting="Polite"
+                                            FontSize="11"
+                                            Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                            Text="等待可编辑方格与权威桌面目录；桌面文件未改变。"
+                                            TextWrapping="Wrap" />
+                                        <TextBlock
                                             x:Name="ProductWorkspaceContainerEditStatus"
                                             AutomationProperties.AutomationId="ProductWorkspaceContainerEditStatus"
                                             AutomationProperties.ItemStatus="WorkspaceContainerEditUnavailable:Changed=False:DesktopFilesChanged=False"
