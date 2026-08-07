@@ -263,12 +263,14 @@ try {
     }
 
     if (-not $portableIsCurrent) {
-        $packArguments = @('-Version', $PortableVersion)
+        $packArguments = @{
+            Version = $PortableVersion
+        }
         if ($SkipQualityGates) {
-            $packArguments += '-SkipQualityGates'
+            $packArguments.SkipQualityGates = $true
         }
         if ($NoRestore) {
-            $packArguments += '-NoRestore'
+            $packArguments.NoRestore = $true
         }
         & (Join-Path $PSScriptRoot 'Pack-LongGrid.ps1') @packArguments
         if ($LASTEXITCODE -ne 0) {
