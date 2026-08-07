@@ -124,11 +124,12 @@
                             Spacing="20">
                             <InfoBar
                                 x:Name="ConfigurationRecoveryBanner"
+                                AutomationProperties.ItemStatus="StartupReadOnly:Catalog=FirstLevelMetadata;DesktopFileWrites=Disabled;DesktopHost=Disconnected"
                                 IsClosable="False"
                                 IsOpen="True"
                                 Severity="Informational"
-                                Title="安全只读原型"
-                                Message="当前界面不扫描真实桌面、不移动文件，也不连接 DesktopHost。">
+                                Title="正在检查本地配置"
+                                Message="配置与桌面目录采用只读启动；不会移动、重命名、删除或写入桌面文件，也不连接 DesktopHost 执行窗口操作。">
                                 <InfoBar.ActionButton>
                                     <Button
                                         x:Name="ConfigurationRecoveryActionButton"
@@ -143,10 +144,13 @@
                                 <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="DESKTOP WORKSPACE" />
                                 <TextBlock Style="{StaticResource LongGridTitleTextStyle}" Text="把桌面还给专注本身" />
                                 <TextBlock
+                                    x:Name="RuntimeScopeDisclosureText"
                                     MaxWidth="720"
                                     HorizontalAlignment="Left"
+                                    AutomationProperties.ItemStatus="Catalog=RealDesktopFirstLevelMetadata;Practice=AnonymousMemory;FileContent=NotRead;DesktopFileWrites=Disabled;DesktopHost=Disconnected"
+                                    AutomationProperties.Name="当前数据与执行边界"
                                     Style="{StaticResource LongGridSubtitleTextStyle}"
-                                    Text="这是 Long方格正式视觉语言的第一个开发切片：安静的表面、清晰的层级和明确的安全状态。下方内容均为匿名示例数据。" />
+                                    Text="概览中的目录与正式工作区会只读枚举本机用户桌面和公共桌面第一层元数据；首次整理、拖放与恢复练习仍使用匿名内存数据。Long方格不会读取文件内容，也不会移动、重命名、删除或写入桌面文件，DesktopHost 执行保持关闭。" />
                             </StackPanel>
 
                             <Grid x:Name="OverviewMetricsGrid" ColumnSpacing="14">
@@ -738,7 +742,7 @@
                                     MaxWidth="760"
                                     HorizontalAlignment="Left"
                                     Style="{StaticResource LongGridSubtitleTextStyle}"
-                                    Text="这是 Issue #23 的可操作低保真原型。它只比较整理语义并生成内存态预览，不扫描桌面、不保存选择，也不执行任何文件操作。" />
+                                    Text="这是 Issue #23 的可操作低保真原型。此练习区只比较整理语义并生成匿名内存态预览，不使用真实桌面目录结果、不保存选择，也不执行任何文件操作。" />
                             </StackPanel>
 
                             <InfoBar

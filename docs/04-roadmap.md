@@ -29,10 +29,10 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 进度：
 
 - [x] 基础 .NET 8 解决方案、Core、测试和 PR CI。
-- [x] 开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1 与统一启动链（Conditional Pass；仅匿名示例数据，不接真实桌面/DesktopHost/文件操作，不代表正式 MVP 开工）。
+- [x] 开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1 与统一启动链（Conditional Pass；后续已接入用户/Public 桌面第一层只读元数据，练习区仍为匿名内存数据，DesktopHost 与桌面文件写入保持关闭，不代表正式 MVP 已完成）。
 - [x] 正式 App 的 12 个 AutomationId、导航访问键、内存态系统/浅色/深色主题、CI 结构合同与真实窗口 UIA 冒烟（Conditional Pass；Narrator、高对比、缩放、DPI 和视觉矩阵仍未关闭）。
 - [x] 正式 App 的 760 DIP 响应式断点、纵向紧凑流、DPI 感知默认窗口、工作区 90% 上限及 720 px 宽/紧凑/宽真实 UIA 往返（Conditional Pass；系统文本缩放与多 DPI 视觉矩阵仍未关闭）。
-- [x] 开发期 App 对 Core 不可变运行状态快照的单向接线，区分 Core 合同、桌面目录、文件操作和 DesktopHost 状态，并通过 UIA 暴露机器可判定值（Conditional Pass；不枚举真实桌面、不启动宿主、不执行或开放文件操作）。
+- [x] 开发期 App 对 Core 不可变运行状态快照的单向接线，区分 Core 合同、桌面目录、文件操作和 DesktopHost 状态，并通过 UIA 暴露机器可判定值（Conditional Pass；后续已只读枚举用户/Public 桌面第一层元数据，不读取文件内容、不启动宿主、不执行或开放桌面文件写操作）。
 - [x] Issue #23 核心低保真链路：一键建议/空白、安全引用/移动阻断、匿名容器与三个项目、拖放动作语义、两步撤销、布局恢复三态/过期/取消，并完成真实 UIA 自动化（Partial；5 人无提示测试、负责人产品决策、真实拖放与硬件恢复仍 Pending）。
 - [x] Issue #23 匿名五人测试会话入口、主持人手册和 CI `ResultsPending` 隐私合同（Ready to schedule；P1–P5 真实结果尚未产生）。
 - [x] Issue #23 D23-01–D23-10 首发范围已由负责人批准：仅安全引用、本地无账户、Windows 11 x64 技术预览、MSIX 目标渠道、类型图标安全回退；D23-11 许可证延期，不阻挡当前开发但继续阻挡正式分发/外部贡献。
@@ -64,7 +64,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] Issue #24 产品工作区 reducer 与连续保存纯状态：不可变创建/重命名/外观/放置/锁定/引用操作、锁定保护、未解析引用显式删除确认、重新选择保留领域 ID/未知字段、正式 v1 双重校验，以及 revision 驱动的最新防抖、保存/失败/重试和陈旧结果隔离；计时控制器、工作流映射、关闭竞态、保存 UIA 与普通 UI 入队仍 Pending。
 - [x] Issue #24 产品工作区连续保存控制器：接受时 v1 深快照、默认 400 ms/最大 10 秒可替换防抖、新编辑取消旧等待但不撤销已接受保存、正式错误与重试不一致有限映射、关闭强制刷新、最新失败阻止关闭、超时恢复接收和安全异步释放；App 所有权、保存 presenter/UIA、Reduced Motion 与普通 UI 入队仍 Pending。
 - [x] Issue #24 App 控制器所有权与保存状态 UIA：后台快照 UI 线程封送、Clean/Waiting/Saving/Retrying/Saved/Failed 隐私安全映射、5 个新 AutomationId、重试有限委托、静态 Reduced Motion、controller 关闭/失败阻断/安全释放；匿名 UI 和普通 SaveAsync/EnqueueAsync 继续为零（干净会话真实 UIA 复跑、正式产品会话加载与首次普通入队仍 Pending）。
-- [x] Issue #24 正式产品会话加载：配置加载/恢复/导入复读统一进入 App 会话，Unavailable Catalog 与权威空 Catalog 明确分离，Loading/NoSaved/AwaitingCatalog/Ready/BackupReadOnly/SafeMode/Failed 有限状态、匿名解析计数及 4 个新 AutomationId；当前 Catalog 仍断开且普通提交为零（只读 Catalog 适配器、未解析引用 UI、干净会话 80-ID UIA 与首次普通入队仍 Pending）。
+- [x] Issue #24 正式产品会话加载：配置加载/恢复/导入复读统一进入 App 会话，Unavailable Catalog 与权威空 Catalog 明确分离，Loading/NoSaved/AwaitingCatalog/Ready/BackupReadOnly/SafeMode/Failed 有限状态、匿名解析计数及 4 个新 AutomationId；该切片当时 Catalog 仍断开且普通提交为零（只读 Catalog 适配器、未解析引用 UI 和首次普通入队已由后续切片完成）。
 - [x] Issue #24 只读物理 Desktop Catalog：用户/公共桌面第一层 reader、双来源完整性权威门禁、generation/latest-wins/取消/关闭排空 controller、App 自动首刷与显式刷新、ConnectedReadOnly runtime、5 个新 AutomationId；Partial 结果不参与 Missing 判断，Shell 虚拟项和普通提交仍关闭（未解析引用 UI、generation+revision 编辑门禁及干净会话 85-ID UIA 仍 Pending）。
 - [x] Issue #24 未解析引用审查与双版本门禁：稳定匿名审查列表、默认保留、显式候选重选、移除确认、Catalog generation + edit revision + 状态/锁定/候选唯一性复核、对话框期间旧 token 捕获及 8 个新 AutomationId；所有动作只返回 reducer 预演，普通 submit、配置修改和磁盘文件操作仍为零（干净会话 93-ID UIA 与首次单项真实入队仍 Pending）。
 - [x] Issue #24 首次引用编辑正式提交：Infrastructure commit coordinator 固定 gate/project/单次 Submit/revision 顺序，外部加载推进 revision，接受后 App 更新内存 Document 并重建 session/review，Waiting/Saving/Failed 禁用导入导出；真实临时 Store 重载验证配置引用移除且被引用文件原样保留（正式容器视图、干净会话 93-ID UIA、真实卷与更多编辑仍 Pending）。

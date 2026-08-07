@@ -355,6 +355,24 @@ function Test-SourceContract {
     Assert-Condition (
         $configurationRecoveryNode.GetAttribute('IsClosable') -eq 'False'
     ) 'Configuration recovery warnings must not be dismissible without resolution.'
+    $runtimeScopeNode = $document.SelectSingleNode(
+        "//*[@*[local-name()='Name' and .='RuntimeScopeDisclosureText']]"
+    )
+    Assert-Condition ($null -ne $runtimeScopeNode) `
+        'The overview must keep a persistent runtime data-scope disclosure.'
+    $runtimeScopeStatus = $runtimeScopeNode.GetAttribute(
+        'AutomationProperties.ItemStatus'
+    )
+    Assert-Condition (
+        $runtimeScopeStatus -eq `
+            'Catalog=RealDesktopFirstLevelMetadata;Practice=AnonymousMemory;' +
+            'FileContent=NotRead;DesktopFileWrites=Disabled;DesktopHost=Disconnected'
+    ) 'The runtime disclosure must expose the complete audited data and execution boundary.'
+    Assert-Condition (
+        $configurationRecoveryNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'StartupReadOnly:Catalog=FirstLevelMetadata;' +
+            'DesktopFileWrites=Disabled;DesktopHost=Disconnected'
+    ) 'The startup banner must expose the audited real read-only catalog boundary.'
     $configurationActionNode = Get-XamlNodeByAutomationId `
         $document `
         'ConfigurationRecoveryActionButton'

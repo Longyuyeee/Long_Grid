@@ -10,7 +10,7 @@
 
 当前仓库已经建立开发期只读 UI Shell，但仍没有可发布产品 UI：
 
-- 已有 `LongGrid.App`、WinUI/XAML 导航骨架和 Design Token，但只显示匿名示例数据，不枚举真实桌面、不连接 DesktopHost，也不是可发布设置中心；
+- 已有 `LongGrid.App`、WinUI/XAML 导航骨架和 Design Token；正式工作区会只读枚举用户/Public 桌面第一层元数据，练习区仍为匿名内存数据，DesktopHost 和桌面文件写入保持关闭，也不是可发布设置中心；
 - 没有正式 `LongGrid.DesktopHost` 产品工程；
 - P0-04/P0-05b1 只有 GDI 系统色的交互探针，用于验证 HWND、输入、焦点和 UI Automation，不代表最终视觉；
 - 已有经像素校正的 RC1 SVG/PNG 品牌资产，并能在 MSIX 暂存区生成 44/150/50 px 精确图标；最终商标、ICO/商店素材和 Windows 外壳实机矩阵仍未完成；
