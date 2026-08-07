@@ -66,7 +66,15 @@ function Get-RelativePackagePath {
         [string]$Path
     )
 
-    return [System.IO.Path]::GetRelativePath($Root, $Path).Replace('\', '/')
+    $rootPath = [System.IO.Path]::GetFullPath($Root).TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+    $filePath = [System.IO.Path]::GetFullPath($Path)
+    if (-not $filePath.StartsWith($rootPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Package file must remain under ${rootPath}: $filePath"
+    }
+
+    return $filePath.Substring($rootPath.Length).Replace('\', '/')
 }
 
 function New-DeterministicZip {
