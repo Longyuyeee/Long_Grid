@@ -215,6 +215,7 @@ function Test-MsixLayout {
     [xml]$manifest = Get-Content -LiteralPath (Join-Path $LayoutRoot 'AppxManifest.xml') -Raw -Encoding UTF8
     $namespace = [System.Xml.XmlNamespaceManager]::new($manifest.NameTable)
     $namespace.AddNamespace('f', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10')
+    $namespace.AddNamespace('uap', 'http://schemas.microsoft.com/appx/manifest/uap/windows10')
     $namespace.AddNamespace('rescap', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities')
     $identity = $manifest.SelectSingleNode('/f:Package/f:Identity', $namespace)
     if ($null -eq $identity -or
@@ -225,9 +226,48 @@ function Test-MsixLayout {
         throw 'MSIX identity does not match the Developer Preview contract.'
     }
 
+    $deviceFamily = $manifest.SelectSingleNode('/f:Package/f:Dependencies/f:TargetDeviceFamily', $namespace)
+    if ($null -eq $deviceFamily -or
+        $deviceFamily.Name -ne 'Windows.Desktop' -or
+        $deviceFamily.MinVersion -ne '10.0.22000.0') {
+        throw 'MSIX target device family does not match the Windows 11 contract.'
+    }
+
+    $application = $manifest.SelectSingleNode('/f:Package/f:Applications/f:Application', $namespace)
+    if ($null -eq $application -or
+        $application.Id -ne 'LongGrid.App' -or
+        $application.Executable -ne 'LongGrid.App.exe' -or
+        $application.EntryPoint -ne 'Windows.FullTrustApplication') {
+        throw 'MSIX application entry point does not match the desktop contract.'
+    }
+
+    $visualElements = $manifest.SelectSingleNode('/f:Package/f:Applications/f:Application/uap:VisualElements', $namespace)
+    if ($null -eq $visualElements -or
+        $visualElements.Square44x44Logo -ne 'Assets\Square44x44Logo.png' -or
+        $visualElements.Square150x150Logo -ne 'Assets\Square150x150Logo.png') {
+        throw 'MSIX visual asset paths do not match the brand contract.'
+    }
+
     $capabilities = @($manifest.SelectNodes('/f:Package/f:Capabilities/*', $namespace))
     if ($capabilities.Count -ne 1 -or $capabilities[0].Name -ne 'runFullTrust') {
         throw 'MSIX must declare exactly the runFullTrust capability.'
+    }
+
+    Add-Type -AssemblyName System.Drawing
+    foreach ($logoContract in @(
+        [pscustomobject]@{ Path = 'Assets\Square44x44Logo.png'; Size = 44 },
+        [pscustomobject]@{ Path = 'Assets\Square150x150Logo.png'; Size = 150 },
+        [pscustomobject]@{ Path = 'Assets\StoreLogo.png'; Size = 50 }
+    )) {
+        $image = [System.Drawing.Image]::FromFile((Join-Path $LayoutRoot $logoContract.Path))
+        try {
+            if ($image.Width -ne $logoContract.Size -or $image.Height -ne $logoContract.Size) {
+                throw "MSIX logo has an invalid size: $($logoContract.Path)"
+            }
+        }
+        finally {
+            $image.Dispose()
+        }
     }
 }
 
