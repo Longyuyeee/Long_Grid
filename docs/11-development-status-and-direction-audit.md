@@ -2,7 +2,7 @@
 
 审计日期：2026-08-07（RC 交付增量复审）
 
-审计基线：`main` / `2982857`（PR #124 已合入）+ SBOM/签名隔离增量分支
+审计基线：`main` / `9e49caa`（PR #127 已合入）+ 真实只读分组增量分支
 
 审计范围：代码、测试、技术探针、架构/产品/交互文档、GitHub PR 与 CI
 
@@ -13,7 +13,8 @@
 本节覆盖下方 2026-08-05 历史快照中的提交号、测试数量和“尚无安装包/产品接线”等过期描述；历史内容保留用于复读当时的决策演进，不应作为当前发布声明。
 
 - `main` 已合入真实产品配置/工作区/恢复事务、生产 DesktopHost 适配器及关闭排空链，但 `LongGrid.App` 继续不接线真实窗口执行和真实桌面文件修改；
-- 干净会话入口统一编排 118-ID UIA 与单实例验证；当前本机会话存在无权限管理的外来无窗口进程，因此 live 证据保持 Pending，脚本按合同拒绝终止；
+- 干净会话入口统一编排 121-ID UIA 与单实例验证；当前本机会话存在无权限管理的外来无窗口进程，因此 live 证据保持 Pending，脚本按合同拒绝终止；
+- 只读 MVP 已补上首次主动分组：用户可从权威 Catalog 的未分组项目中按可见名称选择，并把配置引用加入已选正式方格；双版本门禁、锁定保护和全工作区去重生效，桌面文件保持零修改；
 - 一键便携 ZIP 已能从干净提交生成 self-contained payload、确定性压缩内容、逐文件哈希和外部 SHA-256；
 - 一键 unsigned MSIX 已固定 Developer Preview 身份、Windows 11 x64、`runFullTrust` 最小能力、精确品牌资产、BlockMap 和双份解包语义指纹；它仍不可安装、不可分发；
 - 本增量固定 Microsoft SBOM Tool 4.1.5，对最终 MSIX 解包布局真实生成并验证 SPDX 2.2，以证据清单绑定源码提交、MSIX SHA-256、SBOM SHA-256 和工具版本；
@@ -49,7 +50,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 - `main` 已包含 Issue #23 匿名会话预检/启动入口和主持人手册；CI 只验证隐私合同与依赖存在，固定保持 `ResultsPending`，不生成或伪造 P1–P5 结果；
 - Issue #23 的 D23-01–D23-10 已由负责人批准：仅安全引用、本地无账户、Folder Portal/ARM64 后移、Windows 11 x64 技术预览、MSIX 目标渠道和缩略图安全回退；D23-11 许可证延期，不阻挡当前开发但继续阻挡正式分发/外部贡献；
 - Issue #24 已建立 I24-01/I24-02 专用环境会话入口和运行手册；CI 只验证独立卷、匿名标签、双确认与无写入合同，固定保持 `PendingDedicatedEnvironmentEvidence`，不执行或伪造真实卷结果；
-- Issue #24 已建立正式配置存储、有限产品会话、用户/公共桌面只读 Catalog、有限产品编辑、正式工作区视图、生产级当前显示拓扑、v2 保存时拓扑、配置级恢复确认和同会话一次性撤销：恢复令牌绑定双拓扑/配置指纹、topology generation 与 edit revision；撤销令牌绑定操作 ID、恢复 revision 与恢复前后配置指纹，其他成功编辑使其失效。两者都只进入统一保存控制器，所有桌面文件与真实窗口操作为零。Shell 虚拟项、真实窗口提交、干净会话真实 118-ID UIA、自动保留/容量策略和完整关闭矩阵仍未完成，真实卷证据继续 Pending；
+- Issue #24 已建立正式配置存储、有限产品会话、用户/公共桌面只读 Catalog、主动添加已解析引用、有限产品编辑、正式工作区视图、生产级当前显示拓扑、v2 保存时拓扑、配置级恢复确认和同会话一次性撤销：恢复令牌绑定双拓扑/配置指纹、topology generation 与 edit revision；撤销令牌绑定操作 ID、恢复 revision 与恢复前后配置指纹，其他成功编辑使其失效。两者都只进入统一保存控制器，所有桌面文件与真实窗口操作为零。Shell 虚拟项、真实窗口提交、干净会话真实 121-ID UIA、自动保留/容量策略和完整关闭矩阵仍未完成，真实卷证据继续 Pending；
 - 真实窗口提交新增默认阻断的纯 Core 准入合同：绑定计划必须同时匹配配置指纹、共享 edit revision、权威 topology generation 和配置撤销；产品自有窗口集合/所有权、复合事务、批处理适配器、回滚故障矩阵、输入/系统表面、动态显示及干净 UIA 缺一不可。App 不引用准入令牌或窗口事务。布局恢复工程主线在该合同后剩 3 阶段，Phase 0 仍有 #19/#20/#23/#24 四个外部证据门禁；
 - 自动截图工具仍因错误归属未打包窗口而无法取得稳定句柄，因此视觉截图、高对比、Narrator、文本缩放和 DPI 人工矩阵继续保持 `Inconclusive/Pending`；
 - 详细范围、供应链、验证和停止规则见 [`17-ui-shell-readonly-slice-audit.md`](17-ui-shell-readonly-slice-audit.md)与[`18-ui-theme-automation-contract-audit.md`](18-ui-theme-automation-contract-audit.md)。
@@ -113,7 +114,7 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 | DComp/UIA | Root 提交、Fragment 树、Selection/Invoke Pattern 和事件 | E2 / Conditional Pass | Narrator、高对比、缩放和最终渲染栈 |
 | 显示恢复 | 拓扑指纹、CCD 映射、稳定采样、恢复计划 | E1-E2 | 真实旋转、拔插、投影、睡眠和 RDP |
 | 事务补偿 | Bounds/Region/DComp/UIA 快照、代次门禁、逆序回滚、紧急隐藏 | E1-E2 | 正式宿主集成和故障注入矩阵 |
-| 配置持久化 | 正式 v2、v1 迁移、状态/Catalog 转换、reducer、连续保存、App 保存 UIA、有限产品会话、用户/公共桌面只读 Catalog、引用/容器编辑、保存时/当前拓扑双门禁、配置级恢复确认与一次性撤销、Infrastructure 原子存储/恢复/证据管理、完整单实例 | E2-E3 / formal config-only recovery and undo | 仍缺真实窗口提交、删除、Shell 虚拟项、干净会话真实 118-ID UIA、获批保留策略、完整关闭竞态、真实卷与跨进程公平性 |
+| 配置持久化 | 正式 v2、v1 迁移、状态/Catalog 转换、reducer、连续保存、App 保存 UIA、有限产品会话、用户/公共桌面只读 Catalog、主动添加引用、引用/容器编辑、保存时/当前拓扑双门禁、配置级恢复确认与一次性撤销、Infrastructure 原子存储/恢复/证据管理、完整单实例 | E2-E3 / formal config-only recovery and undo | 仍缺真实窗口提交、删除、Shell 虚拟项、干净会话真实 121-ID UIA、获批保留策略、完整关闭竞态、真实卷与跨进程公平性 |
 | 交互切片 | 一个可见 List 容器和三个进程内演示项 | E2 / Conditional Pass | 文件语义、拖放、正式持久化和用户测试 |
 | 正式 App UI 壳层 | WinUI 导航、Design Token、内存态主题、AutomationId/访问键、760 DIP 响应式流、DPI 感知窗口、Core 只读状态、首次整理、匿名容器/项目、拖放语义、两步撤销和恢复差异三态/过期/取消的真实 UIA 冒烟 | E2 / Conditional Pass | 5 人测试、真实拖放与硬件恢复、负责人决策、经批准的真实只读数据适配器、Narrator/高对比/系统文本缩放/多 DPI 视觉矩阵 |
 

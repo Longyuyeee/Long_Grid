@@ -106,6 +106,37 @@ public sealed record ProductWorkspaceContainerCommitResult(
         && Document is not null;
 }
 
+public enum ProductWorkspaceResolvedReferenceCommitStatus
+{
+    Accepted,
+    StaleEditRevision,
+    StaleCatalogGeneration,
+    AlreadyReferenced,
+    ReducerRejected,
+    SaveRejected,
+    InvalidRequest,
+}
+
+public sealed record ProductWorkspaceResolvedReferenceCommitRequest(
+    long ExpectedEditRevision,
+    long ExpectedCatalogGeneration,
+    int ContainerOrdinal,
+    int CatalogIndex);
+
+public sealed record ProductWorkspaceResolvedReferenceCommitResult(
+    ProductWorkspaceResolvedReferenceCommitStatus Status,
+    ProductWorkspaceEditError EditError,
+    ProductWorkspaceSaveSubmissionStatus? SubmissionStatus,
+    long EditRevision,
+    ProductWorkspaceState? State,
+    ProductConfigurationDocument? Document)
+{
+    public bool IsAccepted =>
+        Status == ProductWorkspaceResolvedReferenceCommitStatus.Accepted
+        && State is not null
+        && Document is not null;
+}
+
 public enum ProductWorkspaceLayoutRecoveryCommitStatus
 {
     Accepted,
@@ -448,6 +479,102 @@ public sealed class ProductWorkspaceCommitCoordinator
         }
     }
 
+    public ProductWorkspaceResolvedReferenceCommitResult CommitResolvedReference(
+        ProductWorkspaceState state,
+        long currentCatalogGeneration,
+        IReadOnlyList<DesktopCatalogEntry> catalog,
+        ProductWorkspaceResolvedReferenceCommitRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(catalog);
+        ArgumentNullException.ThrowIfNull(request);
+
+        lock (gate)
+        {
+            if (request.ExpectedEditRevision != editRevision)
+            {
+                return ResolvedReferenceFailure(
+                    ProductWorkspaceResolvedReferenceCommitStatus.StaleEditRevision);
+            }
+
+            if (currentCatalogGeneration <= 0
+                || request.ExpectedCatalogGeneration != currentCatalogGeneration)
+            {
+                return ResolvedReferenceFailure(
+                    ProductWorkspaceResolvedReferenceCommitStatus
+                        .StaleCatalogGeneration);
+            }
+
+            if (request.ContainerOrdinal <= 0
+                || request.ContainerOrdinal > state.Containers.Count
+                || request.CatalogIndex < 0
+                || request.CatalogIndex >= catalog.Count)
+            {
+                return ResolvedReferenceFailure(
+                    ProductWorkspaceResolvedReferenceCommitStatus.InvalidRequest);
+            }
+
+            ProductContainerState container =
+                state.Containers[request.ContainerOrdinal - 1];
+            DesktopCatalogEntry catalogEntry = catalog[request.CatalogIndex];
+            if (state.Containers
+                .SelectMany(candidate => candidate.Items)
+                .Any(item => string.Equals(
+                    item.PersistedTarget,
+                    catalogEntry.Identity.CanonicalTarget,
+                    StringComparison.OrdinalIgnoreCase)))
+            {
+                return ResolvedReferenceFailure(
+                    ProductWorkspaceResolvedReferenceCommitStatus.AlreadyReferenced);
+            }
+
+            ProductItemReferenceState item =
+                ProductItemReferenceState.CreateResolved(
+                    $"item-{Guid.NewGuid():N}",
+                    catalogEntry);
+            ProductWorkspaceEditResult edit =
+                ProductWorkspaceReducer.AddResolvedReference(
+                    state,
+                    container.Id,
+                    item);
+            if (!edit.IsSuccess)
+            {
+                return ResolvedReferenceFailure(
+                    ProductWorkspaceResolvedReferenceCommitStatus.ReducerRejected,
+                    edit.Error);
+            }
+
+            ProductWorkspaceProjectionResult projection =
+                ProductWorkspaceConfigurationProjector.Project(edit.State!);
+            if (!projection.IsSuccess)
+            {
+                return ResolvedReferenceFailure(
+                    ProductWorkspaceResolvedReferenceCommitStatus.ReducerRejected,
+                    ProductWorkspaceEditError.InvalidState,
+                    ProductWorkspaceSaveSubmissionStatus.InvalidState);
+            }
+
+            ProductWorkspaceSaveSubmissionResult submission = saves.Submit(edit);
+            if (!submission.IsAccepted)
+            {
+                return ResolvedReferenceFailure(
+                    ProductWorkspaceResolvedReferenceCommitStatus.SaveRejected,
+                    submission.EditError,
+                    submission.Status);
+            }
+
+            editRevision = checked(editRevision + 1);
+            pendingLayoutRecoveryUndo = null;
+            return new(
+                ProductWorkspaceResolvedReferenceCommitStatus.Accepted,
+                ProductWorkspaceEditError.None,
+                submission.Status,
+                editRevision,
+                edit.State,
+                projection.Document);
+        }
+    }
+
     public ProductWorkspaceLayoutRecoveryCommitResult CommitLayoutRecovery(
         ProductWorkspaceState state,
         IReadOnlyList<DisplayTopologyNode>? currentTopology,
@@ -670,4 +797,18 @@ public sealed class ProductWorkspaceCommitCoordinator
             editRevision,
             null,
             null);
+
+    private ProductWorkspaceResolvedReferenceCommitResult
+        ResolvedReferenceFailure(
+            ProductWorkspaceResolvedReferenceCommitStatus status,
+            ProductWorkspaceEditError editError = ProductWorkspaceEditError.None,
+            ProductWorkspaceSaveSubmissionStatus? submissionStatus = null) =>
+        new(
+            status,
+            editError,
+            submissionStatus,
+            editRevision,
+            null,
+            null);
+
 }

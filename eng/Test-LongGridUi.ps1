@@ -21,6 +21,8 @@ $referenceCommitCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceReferenceCommitCoordinator.cs'
 $referencePresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReferenceReviewPresentation.cs'
+$resolvedReferenceAddPresentationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\ProductWorkspaceResolvedReferenceAddPresentation.cs'
 $workspaceReadModelCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReadModel.cs'
 $workspaceReadPresentationCodePath = Join-Path $projectRoot `
@@ -109,6 +111,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $referencePresentationCode = Get-Content `
         -LiteralPath $referencePresentationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $resolvedReferenceAddPresentationCode = Get-Content `
+        -LiteralPath $resolvedReferenceAddPresentationCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceReadModelCode = Get-Content `
@@ -292,6 +298,9 @@ function Test-SourceContract {
         'ProductWorkspaceContainerPositionSelector',
         'ProductWorkspaceContainerSizeSelector',
         'ProductWorkspaceContainerPlacementButton',
+        'ProductWorkspaceResolvedReferenceSelector',
+        'ProductWorkspaceResolvedReferenceAddButton',
+        'ProductWorkspaceResolvedReferenceAddStatus',
         'ProductWorkspaceContainerEditStatus',
         'ProductWorkspaceContainerList',
         'ProductWorkspaceViewStatus',
@@ -578,6 +587,30 @@ function Test-SourceContract {
         $containerEditStatusNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
             'WorkspaceContainerEditUnavailable:Changed=False:DesktopFilesChanged=False'
     ) 'Container editing must start finite, unchanged, and explicit about desktop files.'
+    $resolvedReferenceSelectorNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceResolvedReferenceSelector'
+    Assert-Condition (
+        $resolvedReferenceSelectorNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $resolvedReferenceSelectorNode.GetAttribute('SelectionChanged') -eq `
+            'ProductWorkspaceResolvedReferenceSelector_SelectionChanged'
+    ) 'Resolved-reference selection must start disabled and use the audited handler.'
+    $resolvedReferenceAddButtonNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceResolvedReferenceAddButton'
+    Assert-Condition (
+        $resolvedReferenceAddButtonNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $resolvedReferenceAddButtonNode.GetAttribute('Click') -eq `
+            'ProductWorkspaceResolvedReferenceAddButton_Click'
+    ) 'Resolved-reference addition must require an explicit valid selection.'
+    $resolvedReferenceAddStatusNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceResolvedReferenceAddStatus'
+    Assert-Condition (
+        $resolvedReferenceAddStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite' -and
+        $resolvedReferenceAddStatusNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'ResolvedReferenceAddUnavailable:Changed=False:DesktopFilesChanged=False'
+    ) 'Resolved-reference addition must start finite and non-mutating.'
 
     $referenceReviewStatusNode = Get-XamlNodeByAutomationId `
         $document `
@@ -898,15 +931,31 @@ function Test-SourceContract {
         -not ($codeBehind -match 'ProductWorkspaceRead.*(State|CatalogEntry|PersistedTarget|CanonicalTarget)')
     ) 'MainWindow must render only the presentation contract, never workspace identity state.'
     Assert-Condition (
-        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 4) -and
+        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 5) -and
         $referenceCommitCode -match 'editRevision\s*=\s*checked\(editRevision\s*\+\s*1\)' -and
         $referenceCommitCode -match 'ProductWorkspaceReferenceGate\.Evaluate' -and
         $referenceCommitCode -match 'ProductWorkspaceConfigurationProjector\.Project' -and
         $referenceCommitCode -match 'CommitContainer' -and
+        $referenceCommitCode -match 'CommitResolvedReference' -and
+        $referenceCommitCode -match 'ExpectedCatalogGeneration' -and
+        $referenceCommitCode -match 'AlreadyReferenced' -and
+        $referenceCommitCode -match 'ProductWorkspaceReducer\.AddResolvedReference' -and
         $referenceCommitCode -match 'ProductWorkspaceReducer\.(CreateContainer|RenameContainer)' -and
         $referenceCommitCode -match 'CommitLayoutRecovery' -and
         $referenceCommitCode -match 'CommitLayoutRecoveryUndo'
-    ) 'Reference, container, layout recovery, and one-time undo edits must share one coordinator with one submission per accepted path.'
+    ) 'Reference review, resolved-reference addition, container, layout recovery, and undo edits must share one coordinator with one submission per accepted path.'
+    Assert-Condition (
+        $resolvedReferenceAddPresentationCode -match 'DisplayName' -and
+        $resolvedReferenceAddPresentationCode -match 'assignedTargets' -and
+        $resolvedReferenceAddPresentationCode -match 'CatalogGeneration' -and
+        -not ($resolvedReferenceAddPresentationCode -match 'PersistedTarget|ProfileId|SourceId|ParsingName|VolumeId|FileId')
+    ) 'Resolved-reference presentation may expose the visible name but must omit persistence identity.'
+    Assert-Condition (
+        $appCode -match 'CommitProductWorkspaceResolvedReference' -and
+        $appCode -match 'workspaceCommits\.CommitResolvedReference' -and
+        $appCode -match 'candidate\.CatalogGeneration\s*!=\s*catalog\.Generation' -and
+        $appCode -match 'ApplyProductWorkspaceResolvedReferenceAdd'
+    ) 'The App must bind visible selection to the current catalog generation and shared coordinator.'
     Assert-Condition (
         $codeBehind -match 'configurationTransactionsEnabled' -and
         $codeBehind -match 'ImportConfigurationButton\.IsEnabled' -and
@@ -1244,6 +1293,7 @@ function Test-SourceContract {
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
+        productResolvedReferenceAdd = 'visible-name-generation-revision-gated-config-only'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
         productSavePresentation = 'privacy-safe-static-reduced-motion'

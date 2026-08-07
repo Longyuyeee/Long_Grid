@@ -63,6 +63,7 @@ public partial class App : Application
             () => productWorkspaceSaves.Retry(),
             RefreshProductDesktopCatalogAsync,
             CommitProductWorkspaceReferenceAction,
+            CommitProductWorkspaceResolvedReference,
             CommitProductWorkspaceContainerAction,
             CommitProductWorkspaceLayoutRecovery,
             CommitProductWorkspaceLayoutRecoveryUndo);
@@ -319,6 +320,15 @@ public partial class App : Application
                         workspaceCommits.CurrentEditRevision)
                     : ProductWorkspaceContainerEditPresentation.Unavailable;
         currentWindow.ApplyProductWorkspaceContainerEditor(containerEditor);
+        ProductWorkspaceResolvedReferenceAddPresentation referenceAdder =
+            readModel.IsSuccess
+                ? ProductWorkspaceResolvedReferenceAddPresentation.Create(
+                    workspaceCommits.CurrentEditRevision,
+                    !productWorkspaceSession.IsReadOnly,
+                    productWorkspaceSession.State!,
+                    productDesktopCatalog.Snapshot)
+                : ProductWorkspaceResolvedReferenceAddPresentation.Unavailable;
+        currentWindow.ApplyProductWorkspaceResolvedReferenceAdd(referenceAdder);
         ApplyProductWorkspaceReferenceReview();
     }
 
@@ -392,6 +402,47 @@ public partial class App : Application
         }
 
         ApplyAcceptedProductWorkspaceDocument(result.Document!, catalog);
+        return result;
+    }
+
+    private ProductWorkspaceResolvedReferenceCommitResult
+        CommitProductWorkspaceResolvedReference(
+            long expectedEditRevision,
+            int containerOrdinal,
+            ProductWorkspaceResolvedReferenceCandidatePresentation candidate)
+    {
+        ProductDesktopCatalogSnapshot catalog = productDesktopCatalog.Snapshot;
+        if (!catalog.IsAuthoritative
+            || productWorkspaceSession.State is null
+            || productWorkspaceSession.IsReadOnly
+            || candidate.CatalogGeneration != catalog.Generation
+            || candidate.CatalogIndex < 0
+            || candidate.CatalogIndex >= catalog.Entries.Count)
+        {
+            return new(
+                ProductWorkspaceResolvedReferenceCommitStatus.InvalidRequest,
+                ProductWorkspaceEditError.InvalidState,
+                null,
+                workspaceCommits.CurrentEditRevision,
+                null,
+                null);
+        }
+
+        ProductWorkspaceResolvedReferenceCommitResult result =
+            workspaceCommits.CommitResolvedReference(
+                StampAuthoritativeDisplayTopology(productWorkspaceSession.State),
+                catalog.Generation,
+                catalog.Entries,
+                new(
+                    expectedEditRevision,
+                    candidate.CatalogGeneration,
+                    containerOrdinal,
+                    candidate.CatalogIndex));
+        if (result.IsAccepted)
+        {
+            ApplyAcceptedProductWorkspaceDocument(result.Document!, catalog);
+        }
+
         return result;
     }
 

@@ -52,6 +52,12 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceReferenceCandidatePresentation?,
         ProductWorkspaceReferenceCommitResult> _commitProductWorkspaceReferenceAction;
     private readonly Func<
+        long,
+        int,
+        ProductWorkspaceResolvedReferenceCandidatePresentation,
+        ProductWorkspaceResolvedReferenceCommitResult>
+        _commitProductWorkspaceResolvedReference;
+    private readonly Func<
         ProductWorkspaceContainerCommitAction,
         long,
         int,
@@ -76,6 +82,8 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceReferenceReviewPresentation.Unavailable;
     private ProductWorkspaceContainerEditPresentation _containerEditor =
         ProductWorkspaceContainerEditPresentation.Unavailable;
+    private ProductWorkspaceResolvedReferenceAddPresentation _resolvedReferenceAdd =
+        ProductWorkspaceResolvedReferenceAddPresentation.Unavailable;
     private ProductWorkspaceLayoutRecoveryPresentation _layoutRecovery =
         ProductWorkspaceLayoutRecoveryPresentation.Create(
             new(
@@ -116,6 +124,12 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceReferenceCandidatePresentation?,
             ProductWorkspaceReferenceCommitResult> commitProductWorkspaceReferenceAction,
         Func<
+            long,
+            int,
+            ProductWorkspaceResolvedReferenceCandidatePresentation,
+            ProductWorkspaceResolvedReferenceCommitResult>
+            commitProductWorkspaceResolvedReference,
+        Func<
             ProductWorkspaceContainerCommitAction,
             long,
             int,
@@ -148,6 +162,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(retryProductWorkspaceSave);
         ArgumentNullException.ThrowIfNull(refreshProductDesktopCatalog);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceReferenceAction);
+        ArgumentNullException.ThrowIfNull(commitProductWorkspaceResolvedReference);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceContainerAction);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecovery);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecoveryUndo);
@@ -163,6 +178,8 @@ public sealed partial class MainWindow : Window
         _refreshProductDesktopCatalog = refreshProductDesktopCatalog;
         _commitProductWorkspaceReferenceAction =
             commitProductWorkspaceReferenceAction;
+        _commitProductWorkspaceResolvedReference =
+            commitProductWorkspaceResolvedReference;
         _commitProductWorkspaceContainerAction =
             commitProductWorkspaceContainerAction;
         _commitProductWorkspaceLayoutRecovery =
@@ -692,6 +709,7 @@ public sealed partial class MainWindow : Window
             selected?.IsCollapsed == true
                 ? "展开并保存"
                 : "折叠并保存";
+        UpdateProductWorkspaceResolvedReferenceAddButton();
     }
 
     private void ProductWorkspaceContainerCreateButton_Click(
@@ -857,6 +875,107 @@ public sealed partial class MainWindow : Window
         }
 
         UpdateProductWorkspaceContainerEditButtons();
+    }
+
+    internal void ApplyProductWorkspaceResolvedReferenceAdd(
+        ProductWorkspaceResolvedReferenceAddPresentation presentation)
+    {
+        ArgumentNullException.ThrowIfNull(presentation);
+        int previousCatalogIndex =
+            ProductWorkspaceResolvedReferenceSelector.SelectedItem is
+                ProductWorkspaceResolvedReferenceCandidatePresentation previous
+                    ? previous.CatalogIndex
+                    : -1;
+        _resolvedReferenceAdd = presentation;
+        ProductWorkspaceResolvedReferenceSelector.ItemsSource =
+            presentation.Candidates;
+        ProductWorkspaceResolvedReferenceSelector.SelectedIndex =
+            presentation.Candidates
+                .Select((candidate, index) => (candidate, index))
+                .Where(pair => pair.candidate.CatalogIndex == previousCatalogIndex)
+                .Select(pair => pair.index)
+                .DefaultIfEmpty(presentation.Candidates.Count > 0 ? 0 : -1)
+                .First();
+        ProductWorkspaceResolvedReferenceAddStatus.Text = presentation.CanAdd
+            ? "选择真实桌面项目后，只向 Long方格配置添加引用；不会移动、重命名或删除桌面文件。"
+            : presentation.Candidates.Count == 0
+                ? "当前没有可加入的未分组桌面项目；桌面文件未改变。"
+                : "当前会话或方格不可编辑；桌面文件未改变。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceResolvedReferenceAddStatus,
+            $"ResolvedReferenceAddReady:Generation={presentation.CatalogGeneration}:" +
+                $"Revision={presentation.EditRevision}:" +
+                $"Candidates={presentation.Candidates.Count}:" +
+                $"CanAdd={presentation.CanAdd}:Changed=False:" +
+                "DesktopFilesChanged=False");
+        UpdateProductWorkspaceResolvedReferenceAddButton();
+    }
+
+    private void ProductWorkspaceResolvedReferenceSelector_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e) =>
+        UpdateProductWorkspaceResolvedReferenceAddButton();
+
+    private void UpdateProductWorkspaceResolvedReferenceAddButton()
+    {
+        ProductWorkspaceContainerEditCandidatePresentation? container =
+            ProductWorkspaceContainerEditSelector.SelectedItem as
+                ProductWorkspaceContainerEditCandidatePresentation;
+        bool enabled = _resolvedReferenceAdd.CanAdd
+            && container is not null
+            && !container.IsLocked
+            && ProductWorkspaceResolvedReferenceSelector.SelectedItem is
+                ProductWorkspaceResolvedReferenceCandidatePresentation;
+        ProductWorkspaceResolvedReferenceSelector.IsEnabled =
+            _resolvedReferenceAdd.CanAdd
+            && container is not null
+            && !container.IsLocked;
+        ProductWorkspaceResolvedReferenceAddButton.IsEnabled = enabled;
+    }
+
+    private void ProductWorkspaceResolvedReferenceAddButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (ProductWorkspaceContainerEditSelector.SelectedItem is not
+                ProductWorkspaceContainerEditCandidatePresentation container
+            || ProductWorkspaceResolvedReferenceSelector.SelectedItem is not
+                ProductWorkspaceResolvedReferenceCandidatePresentation candidate)
+        {
+            return;
+        }
+
+        ProductWorkspaceResolvedReferenceCommitResult result =
+            _commitProductWorkspaceResolvedReference(
+                _resolvedReferenceAdd.EditRevision,
+                container.Ordinal,
+                candidate);
+        bool changed = result.IsAccepted;
+        ProductWorkspaceResolvedReferenceAddStatus.Text = result.Status switch
+        {
+            ProductWorkspaceResolvedReferenceCommitStatus.Accepted =>
+                "桌面项目引用已加入所选方格并进入安全保存队列；桌面文件未移动、重命名或删除。",
+            ProductWorkspaceResolvedReferenceCommitStatus.StaleEditRevision =>
+                "工作区已经更新，请按当前方格和项目列表重新选择。",
+            ProductWorkspaceResolvedReferenceCommitStatus.StaleCatalogGeneration =>
+                "桌面目录已经刷新，请按最新项目列表重新选择。",
+            ProductWorkspaceResolvedReferenceCommitStatus.AlreadyReferenced =>
+                "该桌面项目已经属于一个正式方格，没有重复保存。",
+            ProductWorkspaceResolvedReferenceCommitStatus.ReducerRejected
+                when result.EditError == ProductWorkspaceEditError.ContainerLocked =>
+                "所选方格已经锁定，请先解锁；桌面文件未改变。",
+            ProductWorkspaceResolvedReferenceCommitStatus.ReducerRejected =>
+                "引用未通过正式配置校验，没有执行保存。",
+            ProductWorkspaceResolvedReferenceCommitStatus.SaveRejected =>
+                "保存控制器当前无法接受编辑；配置与桌面文件均未改变。",
+            _ => "引用添加请求已失效；配置与桌面文件均未改变。",
+        };
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceResolvedReferenceAddStatus,
+            $"ResolvedReferenceAdd:{result.Status}:" +
+                $"Revision={result.EditRevision}:Changed={changed}:" +
+                "DesktopFilesChanged=False");
+        UpdateProductWorkspaceResolvedReferenceAddButton();
     }
 
     internal void ApplyProductWorkspaceReferenceReview(
