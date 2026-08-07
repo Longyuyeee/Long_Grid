@@ -27,7 +27,7 @@
 
 Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了可复现的 .NET 工程基线、纯 Core 决策逻辑、真实 Win32/Shell/DirectComposition/UI Automation 探针以及自动化测试。桌面发现、稳定身份、Shell 变化对账、图像提取、DesktopHost 窗口模型、显示拓扑、布局恢复、事务补偿、首个可交互宿主切片、配置持久化、文件操作安全和缩略图进程隔离均有代码与报告证据。PR #18、#25–#61、#63–#92 已合入 `main`；配置探针通过了 20 类场景、1,000 次重复写入、四检查点共 1,000 次真实进程强杀及 ACL 生效期间 10 次强杀；文件操作和缩略图隔离探针均保持 Conditional Pass，视觉品牌需求、图标 RC1 和只读 UI Shell 也已进入主线。
 
-但这些成果大多仍是 **Conditional Pass 的风险探针**，不是可发布产品能力。仓库现已建立开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1、一键启动链，以及正式 `LongGrid.Infrastructure` 配置存储和 App 关闭排空接线；UI 切片仍只显示匿名示例数据，不枚举真实桌面、不连接 DesktopHost、不执行桌面文件操作，也没有普通产品状态保存入队入口或安装流程。当前配置生命周期新增用户显式确认的受限导入/导出、匿名证据清单、原始证据导出、观察容量和单项清理，因此证据等级仍是 E2/E3 开发集成，而不是 E4 产品切片。未批准阈值前不存在后台自动删除。`LongGrid.DesktopHost`、安装包和端到端产品流程仍不存在。真实键鼠/触控/拖放、Narrator、Win+D、全屏、Explorer 重启、动态显示硬件矩阵、文件移动撤销、真实卷故障、真实 Provider 性能矩阵和可用性测试尚未关闭。
+但这些成果大多仍是 **Conditional Pass 的风险探针**，不是可发布产品能力。仓库现已建立开发期只读 `LongGrid.App` UI Shell、Design Token、品牌 RC1、一键启动链，以及正式 `LongGrid.Infrastructure` 配置存储和 App 关闭排空接线；App 会只读枚举用户桌面与公共桌面的第一层元数据，并用于正式工作区引用解析，但不读取文件内容、不连接 DesktopHost、不执行桌面文件写入/移动。首次整理、拖放和恢复练习区仍为匿名内存数据。当前配置生命周期包含用户显式确认的正式状态保存、受限导入/导出、匿名证据清单、原始证据导出、观察容量和单项清理，因此证据等级仍是 E2/E3 开发集成，而不是 E4 可发布产品切片。未批准阈值前不存在后台自动删除。正式 `LongGrid.DesktopHost` 产品工程、签名安装包和端到端可发布流程仍不存在。真实键鼠/触控/拖放、Narrator、Win+D、全屏、Explorer 重启、动态显示硬件矩阵、文件移动撤销、真实卷故障、真实 Provider 性能矩阵和可用性测试尚未关闭。
 
 ### 2026-08-05 增量结论
 
@@ -38,10 +38,10 @@ Long Grid 已经越过“空仓库”和“只写方案”的阶段，形成了�
 - Issue #20 已具备 I20-01–I20-08 到只读 observer 的固定映射、匿名操作员、受控环境/恢复计划确认和 CI `PendingManualEvidence` 合同；真实硬件、RDP、睡眠和人工视觉/输入结论仍未执行；
 - `LongGrid.App` 使用 .NET 8、Windows App SDK 2.3.1 Stable、WinUI 3 和 x64 开发目标；ADR-0001 继续保持 `Proposed`；
 - 新 UI Shell 是为解除“只有正式 App 存在后才能验证启动、主题和关闭”的循环门槛而建立的受控开发切片，不代表跳过 Issue #19–#24；
-- `eng/Start-LongGrid.ps1` 默认只执行依赖恢复、构建和开发启动，不提权、不扫描桌面；CI 使用 `-ValidateOnly` 验证启动链而不打开窗口；
+- `eng/Start-LongGrid.ps1` 默认只执行依赖恢复、构建和开发启动，不提权；App 启动后只读枚举用户/Public 桌面第一层元数据，CI 使用 `-ValidateOnly` 验证启动链且不打开窗口、不触发枚举；
 - 本机 Release 构建和窗口启动/存活/正常关闭通过；进程句柄 UIA 冒烟已验证导航发现、键盘焦点、选择、内存态深浅主题往返和安全页可见性；
 - 已合入主线的 UI 切片包含 760 DIP 断点、紧凑纵向流与按 XAML RasterizationScale/当前工作区计算的默认窗口；真实 UIA 完成宽→720 px 紧凑→宽往返和三张状态卡几何复读；
-- 当前切片把三张状态卡从 XAML 常量改为 `LongGrid.Core.Runtime.RuntimeStatusSnapshot` 单向驱动；快照只表达开发期只读、桌面目录未连接、文件操作被安全策略关闭和 DesktopHost 未连接，不含用户数据或执行能力；
+- 当前切片把三张状态卡从 XAML 常量改为 `LongGrid.Core.Runtime.RuntimeStatusSnapshot` 单向驱动；Catalog 刷新成功时会如实表达 `ConnectedReadOnly`，同时持续表达文件操作被安全策略关闭和 DesktopHost 未连接；快照不含路径、用户数据或执行能力；
 - 当前首次整理原型提供一键建议/从空白开始、安全引用/真实移动和预览后果；真实移动只能进入阻断预览，所有状态仅驻留内存并通过 UIA 复读；
 - 已合入主线的原型包含单个匿名容器创建、40 字符名称边界、可见预览、立即撤销和 `Ctrl+Z` 合同；它不建立 Core 实体、不持久化，也不触碰桌面文件；
 - 已合入主线的原型还包含三个匿名引用、添加引用/改变归属/移动阻断三种动作徽标语义和最近动作优先的两步撤销；结构门禁明确禁止把该练习伪装成真实 Explorer Drop Target；

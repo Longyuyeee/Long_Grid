@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0/内部 RC 交付收尾阶段。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、118-ID UIA、响应式布局、正式工作区视图和有限产品会话；桌面文件与真实窗口执行仍保持零接线。便携 ZIP、unsigned MSIX 及其 SPDX 2.2 SBOM 已具备可复核的单命令链路，PR/main CI 不具备签名、密钥、OIDC write、安装或发布权限。当前 Windows 会话仍有无权限管理的外来无窗口进程，因此真实 UIA live 证据保持 Pending。许可证、正式 Publisher/证书、签名安装生命周期、#19/#20/#23/#24 外部矩阵仍未完成，所有产物均不可公开分发。
+> 当前状态：处于 Phase 0/内部 RC 交付收尾阶段。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、118-ID UIA、响应式布局、正式工作区视图和有限产品会话；用户桌面与公共桌面的第一层元数据已经只读接线，文件内容读取、桌面文件写入/移动和 DesktopHost 窗口执行仍保持零接线。便携 ZIP、unsigned MSIX 及其 SPDX 2.2 SBOM 已具备可复核的单命令链路，PR/main CI 不具备签名、密钥、OIDC write、安装或发布权限。当前 Windows 会话仍有无权限管理的外来无窗口进程，因此真实 UIA live 证据保持 Pending。许可证、正式 Publisher/证书、签名安装生命周期、#19/#20/#23/#24 外部矩阵仍未完成，所有产物均不可公开分发。
 
 ## 产品原则
 
@@ -93,6 +93,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [MSIX 身份与生命周期审计](docs/73-msix-identity-lifecycle-audit.md)
 - [SBOM 与受保护签名边界审计](docs/74-sbom-protected-signing-boundary-audit.md)
 - [内部 RC 交付集合与干净检出审计](docs/75-internal-rc-delivery-set-audit.md)
+- [真实只读运行边界披露审计](docs/76-truthful-readonly-runtime-disclosure-audit.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
 - [Long助手兼容协议交付包](docs/protocol/README.md)
@@ -104,7 +105,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口恢复内部工程链、118-ID 干净会话入口，以及聚合便携 ZIP、unsigned MSIX、SPDX 2.2 和签名隔离状态的一键内部 RC 入口已经建立。App 仍保持零真实窗口/文件执行；当前外来无窗口进程使本机 live UIA 证据保持 Pending，脚本不会越权终止它。没有正式 Publisher/证书/许可证/受保护 Release environment 时，交付机械链停止扩张，优先收集 GitHub #19、#20、#23、#24 的真实人工、硬件或专用卷证据。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口恢复内部工程链、118-ID 干净会话入口，以及聚合便携 ZIP、unsigned MSIX、SPDX 2.2 和签名隔离状态的一键内部 RC 入口已经建立。App 只读枚举真实桌面第一层元数据，同时保持零文件内容读取、零桌面文件写入/移动和零 DesktopHost 窗口执行；当前外来无窗口进程使本机 live UIA 证据保持 Pending，脚本不会越权终止它。没有正式 Publisher/证书/许可证/受保护 Release environment 时，交付机械链停止扩张，优先收集 GitHub #19、#20、#23、#24 的真实人工、硬件或专用卷证据。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 
@@ -115,7 +116,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -File ./eng/Start-LongGrid.ps1
 ```
 
-该入口默认执行锁定依赖恢复、必要构建和启动；不提权、不枚举真实桌面，也不执行文件操作。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[开发期只读 UI Shell 审计](docs/17-ui-shell-readonly-slice-audit.md)。
+该入口默认执行锁定依赖恢复、必要构建和启动；不提权，App 启动后只读枚举用户桌面与公共桌面第一层元数据，不读取文件内容，也不执行桌面文件写入/移动或 DesktopHost 窗口操作。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[真实只读运行边界披露审计](docs/76-truthful-readonly-runtime-disclosure-audit.md)。
 
 从干净、已提交的工作树一键生成并交叉验证完整内部 RC 交付集合：
 
