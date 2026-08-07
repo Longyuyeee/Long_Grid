@@ -103,4 +103,3 @@ if ($verifiedFiles -eq 0) {
     installer = [bool]$manifest.installer
     launchCommand = $executablePath
 } | ConvertTo-Json -Depth 4
-

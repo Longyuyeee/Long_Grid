@@ -19,4 +19,3 @@ install a service or driver, alter Explorer, or enable the guarded DesktopHost
 execution path. License selection, code signing, MSIX installation, upgrade,
 uninstall, multi-user behavior, SmartScreen reputation, and public distribution
 remain release blockers and require separate approval and evidence.
-

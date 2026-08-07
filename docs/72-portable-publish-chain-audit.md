@@ -1,7 +1,9 @@
 # Long方格便携发布链审计
 
-> 审计日期：2026-08-07  
-> 范围：一键质量门禁、self-contained publish、确定性 ZIP、哈希清单、安装前置检查与发布边界  
+> 审计日期：2026-08-07
+>
+> 范围：一键质量门禁、self-contained publish、确定性 ZIP、哈希清单、安装前置检查与发布边界
+>
 > 结论：内部 Developer Preview 便携交付链已建立；MSIX、签名、许可证、SBOM 和正式分发仍未就绪
 
 ## 1. 原始缺口与决策

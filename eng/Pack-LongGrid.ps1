@@ -255,7 +255,7 @@ try {
         '--self-contained', 'true',
         '--output', $publishRoot,
         '-p:WindowsAppSDKSelfContained=true',
-        '-p:Version=' + $Version,
+        ("-p:Version=$Version"),
         '--no-restore'
     )
     Invoke-CheckedCommand 'Self-contained publish' { & dotnet @publishArguments }
