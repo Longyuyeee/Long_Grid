@@ -63,6 +63,7 @@ Assert-Condition ($existing.Count -eq 0) `
 
 Push-Location $projectRoot
 $primary = $null
+$secondary = $null
 try {
     if (-not $NoBuild) {
         & dotnet build $projectPath `
@@ -162,12 +163,22 @@ public static class LongGridSingleInstanceNative
     Write-Output 'Long Grid live single-instance validation passed: redirect, exit, restore.'
 }
 finally {
+    if ($null -ne $secondary -and -not $secondary.HasExited) {
+        Stop-Process -Id $secondary.Id -Force
+        $secondary.WaitForExit()
+    }
+
     if ($null -ne $primary -and -not $primary.HasExited) {
         $null = $primary.CloseMainWindow()
         if (-not $primary.WaitForExit(5000)) {
             Stop-Process -Id $primary.Id -Force
+            $primary.WaitForExit()
         }
     }
 
     Pop-Location
 }
+
+$remaining = @(Get-Process -Name 'LongGrid.App' -ErrorAction SilentlyContinue)
+Assert-Condition ($remaining.Count -eq 0) `
+    "Single-instance validation left LongGrid.App process PID(s): $($remaining.Id -join ', ')."

@@ -1395,6 +1395,12 @@ function Test-LiveUi {
     Assert-Condition (Test-Path -LiteralPath $appPath) `
         "LongGrid.App executable was not found: $appPath"
 
+    $existingProcesses = @(
+        Get-Process -Name 'LongGrid.App' -ErrorAction SilentlyContinue
+    )
+    Assert-Condition ($existingProcesses.Count -eq 0) `
+        "Clean-session UIA requires zero existing LongGrid.App processes; found PID(s): $($existingProcesses.Id -join ', '). The test will not terminate processes it did not start."
+
     Add-Type -AssemblyName UIAutomationClient
     Add-Type -AssemblyName UIAutomationTypes
     Add-Type -TypeDefinition @'
@@ -1415,6 +1421,7 @@ public static class LongGridWindowNative
 '@
 
     $process = Start-Process -FilePath $appPath -PassThru
+    $liveResult = $null
     try {
         $deadline = [DateTime]::UtcNow.AddSeconds(15)
         do {
@@ -1726,7 +1733,7 @@ public static class LongGridWindowNative
         Assert-Condition (-not $safetyPanel.Current.IsOffscreen) `
             'SafetyPanel stayed offscreen after selecting its navigation item.'
 
-        return [ordered]@{
+        $liveResult = [ordered]@{
             windowTitle = $root.Current.Name
             processId = $process.Id
             navigationAutomationId = $navigation.Current.AutomationId
@@ -1744,6 +1751,7 @@ public static class LongGridWindowNative
             productSavePresentation = $productSaveStatus.Current.ItemStatus
             themeRoundTrip = 'system-dark-system'
             safetyNavigation = 'pass'
+            cleanSessionStart = 'zero-existing-processes'
         }
     }
     finally {
@@ -1755,6 +1763,14 @@ public static class LongGridWindowNative
             }
         }
     }
+
+    $remainingProcesses = @(
+        Get-Process -Name 'LongGrid.App' -ErrorAction SilentlyContinue
+    )
+    Assert-Condition ($remainingProcesses.Count -eq 0) `
+        "Clean-session UIA left LongGrid.App process PID(s): $($remainingProcesses.Id -join ', ')."
+    $liveResult.cleanSessionEnd = 'zero-remaining-processes'
+    return $liveResult
 }
 
 Push-Location $projectRoot
