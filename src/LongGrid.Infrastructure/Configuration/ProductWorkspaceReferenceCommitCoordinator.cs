@@ -35,6 +35,7 @@ public enum ProductWorkspaceContainerCommitAction
     SetCollapsed,
     SetAppearancePreset,
     SetPlacementPreset,
+    Remove,
 }
 
 public enum ProductWorkspaceContainerColorPreset
@@ -90,7 +91,8 @@ public sealed record ProductWorkspaceContainerCommitRequest(
     ProductWorkspaceContainerColorPreset? ColorPreset = null,
     ProductWorkspaceContainerOpacityPreset? OpacityPreset = null,
     ProductWorkspaceContainerPositionPreset? PositionPreset = null,
-    ProductWorkspaceContainerSizePreset? SizePreset = null);
+    ProductWorkspaceContainerSizePreset? SizePreset = null,
+    bool Confirmed = false);
 
 public sealed record ProductWorkspaceContainerCommitResult(
     ProductWorkspaceContainerCommitStatus Status,
@@ -98,10 +100,33 @@ public sealed record ProductWorkspaceContainerCommitResult(
     ProductWorkspaceSaveSubmissionStatus? SubmissionStatus,
     long EditRevision,
     ProductWorkspaceState? State,
-    ProductConfigurationDocument? Document)
+    ProductConfigurationDocument? Document,
+    ProductWorkspaceContainerRemovalUndoToken? RemovalUndoToken = null)
 {
     public bool IsAccepted =>
         Status == ProductWorkspaceContainerCommitStatus.Accepted
+        && State is not null
+        && Document is not null;
+}
+
+public enum ProductWorkspaceContainerRemovalUndoCommitStatus
+{
+    Accepted,
+    GateRejected,
+    SaveRejected,
+    InvalidState,
+}
+
+public sealed record ProductWorkspaceContainerRemovalUndoCommitResult(
+    ProductWorkspaceContainerRemovalUndoCommitStatus Status,
+    ProductWorkspaceContainerRemovalUndoStatus UndoStatus,
+    ProductWorkspaceSaveSubmissionStatus? SubmissionStatus,
+    long EditRevision,
+    ProductWorkspaceState? State,
+    ProductConfigurationDocument? Document)
+{
+    public bool IsAccepted =>
+        Status == ProductWorkspaceContainerRemovalUndoCommitStatus.Accepted
         && State is not null
         && Document is not null;
 }
@@ -294,6 +319,7 @@ public sealed class ProductWorkspaceCommitCoordinator
     private PendingLayoutRecoveryUndo? pendingLayoutRecoveryUndo;
     private PendingReferenceRemovalUndo? pendingReferenceRemovalUndo;
     private PendingReferenceReassignmentUndo? pendingReferenceReassignmentUndo;
+    private PendingContainerRemovalUndo? pendingContainerRemovalUndo;
 
     public ProductWorkspaceCommitCoordinator(
         ProductWorkspaceSaveController saves)
@@ -348,6 +374,18 @@ public sealed class ProductWorkspaceCommitCoordinator
         }
     }
 
+    public ProductWorkspaceContainerRemovalUndoToken?
+        CurrentContainerRemovalUndoToken
+    {
+        get
+        {
+            lock (gate)
+            {
+                return pendingContainerRemovalUndo?.Token;
+            }
+        }
+    }
+
     public long AdvanceExternalRevision()
     {
         lock (gate)
@@ -356,6 +394,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = null;
             pendingReferenceReassignmentUndo = null;
+            pendingContainerRemovalUndo = null;
             return editRevision;
         }
     }
@@ -433,6 +472,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = null;
             pendingReferenceReassignmentUndo = null;
+            pendingContainerRemovalUndo = null;
             return new(
                 ProductWorkspaceReferenceCommitStatus.Accepted,
                 ProductWorkspaceReferenceGateError.None,
@@ -472,6 +512,7 @@ public sealed class ProductWorkspaceCommitCoordinator
                         && request.OpacityPreset is null
                         && request.PositionPreset is null
                         && request.SizePreset is null
+                        && !request.Confirmed
                         && string.Equals(
                             request.Name,
                             request.NewContainer.Name,
@@ -486,6 +527,7 @@ public sealed class ProductWorkspaceCommitCoordinator
                         && request.OpacityPreset is null
                         && request.PositionPreset is null
                         && request.SizePreset is null
+                        && !request.Confirmed
                         && target is not null =>
                     ProductWorkspaceReducer.RenameContainer(
                         state,
@@ -498,6 +540,7 @@ public sealed class ProductWorkspaceCommitCoordinator
                         && request.OpacityPreset is null
                         && request.PositionPreset is null
                         && request.SizePreset is null
+                        && !request.Confirmed
                         && target is not null =>
                     ProductWorkspaceReducer.SetContainerLocked(
                         state,
@@ -510,6 +553,7 @@ public sealed class ProductWorkspaceCommitCoordinator
                         && request.OpacityPreset is null
                         && request.PositionPreset is null
                         && request.SizePreset is null
+                        && !request.Confirmed
                         && target is not null =>
                     ProductWorkspaceReducer.UpdateAppearance(
                         state,
@@ -527,6 +571,7 @@ public sealed class ProductWorkspaceCommitCoordinator
                         && request.SizePreset is null
                         && Enum.IsDefined(request.ColorPreset.Value)
                         && Enum.IsDefined(request.OpacityPreset.Value)
+                        && !request.Confirmed
                         && target is not null =>
                     ProductWorkspaceReducer.UpdateAppearance(
                         state,
@@ -545,6 +590,7 @@ public sealed class ProductWorkspaceCommitCoordinator
                         && request.SizePreset is not null
                         && Enum.IsDefined(request.PositionPreset.Value)
                         && Enum.IsDefined(request.SizePreset.Value)
+                        && !request.Confirmed
                         && target is not null =>
                     ProductWorkspaceReducer.UpdatePlacement(
                         state,
@@ -556,6 +602,20 @@ public sealed class ProductWorkspaceCommitCoordinator
                             WidthDip = ResolveSize(request.SizePreset.Value).WidthDip,
                             HeightDip = ResolveSize(request.SizePreset.Value).HeightDip,
                         }),
+                ProductWorkspaceContainerCommitAction.Remove
+                    when request.NewContainer is null
+                        && request.StateValue is null
+                        && request.ColorPreset is null
+                        && request.OpacityPreset is null
+                        && request.PositionPreset is null
+                        && request.SizePreset is null
+                        && request.Confirmed
+                        && string.IsNullOrEmpty(request.Name)
+                        && target is not null =>
+                    ProductWorkspaceReducer.RemoveContainer(
+                        state,
+                        target.Id,
+                        confirmUnresolvedReferences: true),
                 _ => null!,
             };
             if (edit is null)
@@ -593,6 +653,22 @@ public sealed class ProductWorkspaceCommitCoordinator
             }
 
             long nextEditRevision = checked(editRevision + 1);
+            ProductWorkspaceContainerRemovalUndoToken? removalUndoToken =
+                request.Action == ProductWorkspaceContainerCommitAction.Remove
+                    ? ProductWorkspaceContainerRemovalUndo.Prepare(
+                        state,
+                        edit.State!,
+                        nextEditRevision,
+                        Guid.NewGuid())
+                    : null;
+            if (request.Action == ProductWorkspaceContainerCommitAction.Remove
+                && removalUndoToken is null)
+            {
+                return ContainerFailure(
+                    ProductWorkspaceContainerCommitStatus.ReducerRejected,
+                    ProductWorkspaceEditError.InvalidState);
+            }
+
             ProductWorkspaceSaveSubmissionResult submission = saves.Submit(edit);
             if (!submission.IsAccepted)
             {
@@ -606,12 +682,85 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = null;
             pendingReferenceReassignmentUndo = null;
+            pendingContainerRemovalUndo = removalUndoToken is null
+                ? null
+                : new(removalUndoToken, state);
             return new(
                 ProductWorkspaceContainerCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
                 submission.Status,
                 editRevision,
                 edit.State,
+                projection.Document,
+                removalUndoToken);
+        }
+    }
+
+    public ProductWorkspaceContainerRemovalUndoCommitResult
+        CommitContainerRemovalUndo(
+            ProductWorkspaceState state,
+            ProductWorkspaceContainerRemovalUndoToken token,
+            bool confirmed)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(token);
+
+        lock (gate)
+        {
+            PendingContainerRemovalUndo? pending = pendingContainerRemovalUndo;
+            if (pending is null)
+            {
+                return ContainerRemovalUndoFailure(
+                    ProductWorkspaceContainerRemovalUndoCommitStatus.GateRejected,
+                    ProductWorkspaceContainerRemovalUndoStatus.Unavailable);
+            }
+
+            ProductWorkspaceContainerRemovalUndoResult undo =
+                ProductWorkspaceContainerRemovalUndo.Confirm(
+                    state,
+                    pending.RestoreState,
+                    editRevision,
+                    token,
+                    pending.Token,
+                    confirmed);
+            if (!undo.IsAccepted)
+            {
+                return ContainerRemovalUndoFailure(
+                    ProductWorkspaceContainerRemovalUndoCommitStatus.GateRejected,
+                    undo.Status);
+            }
+
+            ProductWorkspaceProjectionResult projection =
+                ProductWorkspaceConfigurationProjector.Project(undo.Edit!.State!);
+            if (!projection.IsSuccess)
+            {
+                return ContainerRemovalUndoFailure(
+                    ProductWorkspaceContainerRemovalUndoCommitStatus.InvalidState,
+                    ProductWorkspaceContainerRemovalUndoStatus.InvalidState,
+                    ProductWorkspaceSaveSubmissionStatus.InvalidState);
+            }
+
+            long nextEditRevision = checked(editRevision + 1);
+            ProductWorkspaceSaveSubmissionResult submission = saves.Submit(undo.Edit);
+            if (!submission.IsAccepted)
+            {
+                return ContainerRemovalUndoFailure(
+                    ProductWorkspaceContainerRemovalUndoCommitStatus.SaveRejected,
+                    ProductWorkspaceContainerRemovalUndoStatus.Accepted,
+                    submission.Status);
+            }
+
+            editRevision = nextEditRevision;
+            pendingLayoutRecoveryUndo = null;
+            pendingReferenceRemovalUndo = null;
+            pendingReferenceReassignmentUndo = null;
+            pendingContainerRemovalUndo = null;
+            return new(
+                ProductWorkspaceContainerRemovalUndoCommitStatus.Accepted,
+                ProductWorkspaceContainerRemovalUndoStatus.Accepted,
+                submission.Status,
+                editRevision,
+                undo.Edit.State,
                 projection.Document);
         }
     }
@@ -704,6 +853,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = null;
             pendingReferenceReassignmentUndo = null;
+            pendingContainerRemovalUndo = null;
             return new(
                 ProductWorkspaceResolvedReferenceCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -795,6 +945,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = new(undoToken, state);
             pendingReferenceReassignmentUndo = null;
+            pendingContainerRemovalUndo = null;
             return new(
                 ProductWorkspaceResolvedReferenceRemovalCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -863,6 +1014,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingReferenceRemovalUndo = null;
             pendingLayoutRecoveryUndo = null;
             pendingReferenceReassignmentUndo = null;
+            pendingContainerRemovalUndo = null;
             return new(
                 ProductWorkspaceReferenceRemovalUndoCommitStatus.Accepted,
                 undo.Status,
@@ -963,6 +1115,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = null;
             pendingReferenceReassignmentUndo = new(undoToken, state);
+            pendingContainerRemovalUndo = null;
             return new(
                 ProductWorkspaceResolvedReferenceReassignmentCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -1031,6 +1184,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingReferenceReassignmentUndo = null;
             pendingReferenceRemovalUndo = null;
             pendingLayoutRecoveryUndo = null;
+            pendingContainerRemovalUndo = null;
             return new(
                 ProductWorkspaceReferenceReassignmentUndoCommitStatus.Accepted,
                 undo.Status,
@@ -1122,6 +1276,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingLayoutRecoveryUndo = new(undoToken, state);
             pendingReferenceRemovalUndo = null;
             pendingReferenceReassignmentUndo = null;
+            pendingContainerRemovalUndo = null;
             return new(
                 ProductWorkspaceLayoutRecoveryCommitStatus.Accepted,
                 confirmation.Status,
@@ -1189,6 +1344,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = null;
             pendingReferenceReassignmentUndo = null;
+            pendingContainerRemovalUndo = null;
             return new(
                 ProductWorkspaceLayoutRecoveryUndoCommitStatus.Accepted,
                 undo.Status,
@@ -1221,6 +1377,10 @@ public sealed class ProductWorkspaceCommitCoordinator
 
     private sealed record PendingReferenceReassignmentUndo(
         ProductWorkspaceReferenceReassignmentUndoToken Token,
+        ProductWorkspaceState RestoreState);
+
+    private sealed record PendingContainerRemovalUndo(
+        ProductWorkspaceContainerRemovalUndoToken Token,
         ProductWorkspaceState RestoreState);
 
     public static string ResolveColor(ProductWorkspaceContainerColorPreset preset) =>
@@ -1271,6 +1431,19 @@ public sealed class ProductWorkspaceCommitCoordinator
         new(
             status,
             editError,
+            submissionStatus,
+            editRevision,
+            null,
+            null);
+
+    private ProductWorkspaceContainerRemovalUndoCommitResult
+        ContainerRemovalUndoFailure(
+            ProductWorkspaceContainerRemovalUndoCommitStatus status,
+            ProductWorkspaceContainerRemovalUndoStatus undoStatus,
+            ProductWorkspaceSaveSubmissionStatus? submissionStatus = null) =>
+        new(
+            status,
+            undoStatus,
             submissionStatus,
             editRevision,
             null,

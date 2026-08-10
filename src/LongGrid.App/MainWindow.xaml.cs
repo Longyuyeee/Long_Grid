@@ -88,7 +88,13 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerOpacityPreset?,
         ProductWorkspaceContainerPositionPreset?,
         ProductWorkspaceContainerSizePreset?,
+        bool,
         ProductWorkspaceContainerCommitResult> _commitProductWorkspaceContainerAction;
+    private readonly Func<
+        ProductWorkspaceContainerRemovalUndoToken,
+        bool,
+        ProductWorkspaceContainerRemovalUndoCommitResult>
+        _commitProductWorkspaceContainerRemovalUndo;
     private readonly Func<
         ProductWorkspaceLayoutRecoveryReviewToken,
         bool,
@@ -187,7 +193,13 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerOpacityPreset?,
             ProductWorkspaceContainerPositionPreset?,
             ProductWorkspaceContainerSizePreset?,
+            bool,
             ProductWorkspaceContainerCommitResult> commitProductWorkspaceContainerAction,
+        Func<
+            ProductWorkspaceContainerRemovalUndoToken,
+            bool,
+            ProductWorkspaceContainerRemovalUndoCommitResult>
+            commitProductWorkspaceContainerRemovalUndo,
         Func<
             ProductWorkspaceLayoutRecoveryReviewToken,
             bool,
@@ -219,6 +231,8 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceReferenceReassignmentUndo);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceContainerAction);
+        ArgumentNullException.ThrowIfNull(
+            commitProductWorkspaceContainerRemovalUndo);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecovery);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecoveryUndo);
         _recoverConfiguration = recoverConfiguration;
@@ -245,6 +259,8 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceReferenceReassignmentUndo;
         _commitProductWorkspaceContainerAction =
             commitProductWorkspaceContainerAction;
+        _commitProductWorkspaceContainerRemovalUndo =
+            commitProductWorkspaceContainerRemovalUndo;
         _commitProductWorkspaceLayoutRecovery =
             commitProductWorkspaceLayoutRecovery;
         _commitProductWorkspaceLayoutRecoveryUndo =
@@ -608,6 +624,8 @@ public sealed partial class MainWindow : Window
                 $"CanUpdateState={presentation.CanUpdateState}:" +
                 $"CanUpdateAppearance={presentation.CanUpdateAppearance}:" +
                 $"CanUpdatePlacement={presentation.CanUpdatePlacement}:" +
+                $"CanRemove={presentation.CanRemove}:" +
+                $"CanUndoRemoval={presentation.RemovalUndoToken is not null}:" +
                 "Changed=False:DesktopFilesChanged=False");
         UpdateProductWorkspaceContainerEditButtons();
     }
@@ -765,6 +783,11 @@ public sealed partial class MainWindow : Window
                 || Math.Abs(positionChoice.YDip - selected.YDip) >= 0.000001
                 || Math.Abs(sizeChoice.WidthDip - selected.WidthDip) >= 0.000001
                 || Math.Abs(sizeChoice.HeightDip - selected.HeightDip) >= 0.000001);
+        ProductWorkspaceContainerRemoveButton.IsEnabled =
+            _containerEditor.CanRemove
+            && selected is { IsLocked: false };
+        ProductWorkspaceContainerRemovalUndoButton.IsEnabled =
+            _containerEditor.RemovalUndoToken is not null;
         ProductWorkspaceContainerLockButton.Content = selected?.IsLocked == true
             ? "解锁并保存"
             : "锁定并保存";
@@ -869,6 +892,86 @@ public sealed partial class MainWindow : Window
             sizePreset: size.Preset);
     }
 
+    private async void ProductWorkspaceContainerRemoveButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (ProductWorkspaceContainerEditSelector.SelectedItem is not
+            ProductWorkspaceContainerEditCandidatePresentation selected)
+        {
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            Title = "删除方格配置",
+            Content = $"确认删除“{selected.DisplayName}”及其中 {selected.ItemCount} 个配置引用。真实桌面文件不会被删除、移动或重命名。",
+            PrimaryButtonText = "确认删除方格",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = RootLayout.XamlRoot,
+        };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            RunProductWorkspaceContainerCommit(
+                ProductWorkspaceContainerCommitAction.Remove,
+                selected.Ordinal,
+                confirmed: true);
+        }
+    }
+
+    private async void ProductWorkspaceContainerRemovalUndoButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ProductWorkspaceContainerRemovalUndoToken? token =
+            _containerEditor.RemovalUndoToken;
+        if (token is null)
+        {
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            Title = "撤销删除方格",
+            Content = "确认恢复最近删除的方格配置及其引用。该操作仍不会修改任何真实桌面文件。",
+            PrimaryButtonText = "确认撤销",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = RootLayout.XamlRoot,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        ProductWorkspaceContainerRemovalUndoCommitResult result =
+            _commitProductWorkspaceContainerRemovalUndo(token, true);
+        ProductWorkspaceContainerEditStatus.Text = result.IsAccepted
+            ? "最近删除的方格配置及其引用已恢复并进入安全保存队列；桌面文件未改变。"
+            : DescribeContainerRemovalUndoFailure(result.UndoStatus);
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceContainerEditStatus,
+            $"WorkspaceContainerRemovalUndo:{result.Status}:" +
+                $"Undo={result.UndoStatus}:Revision={result.EditRevision}:" +
+                $"Changed={result.IsAccepted}:DesktopFilesChanged=False");
+        UpdateProductWorkspaceContainerEditButtons();
+    }
+
+    private static string DescribeContainerRemovalUndoFailure(
+        ProductWorkspaceContainerRemovalUndoStatus status) => status switch
+        {
+            ProductWorkspaceContainerRemovalUndoStatus.EditRevisionChanged =>
+                "工作区已发生其他编辑，本次方格删除撤销已失效。",
+            ProductWorkspaceContainerRemovalUndoStatus.TokenMismatch =>
+                "撤销证据与最近一次方格删除不一致；配置未改变。",
+            ProductWorkspaceContainerRemovalUndoStatus.CurrentConfigurationChanged =>
+                "当前配置已不再是删除后的状态；未执行覆盖。",
+            ProductWorkspaceContainerRemovalUndoStatus.Unavailable =>
+                "最近一次方格删除已撤销或已被后续编辑取代。",
+            _ => "方格删除撤销当前不可用；配置与桌面文件均未改变。",
+        };
+
     private void RunProductWorkspaceContainerCommit(
         ProductWorkspaceContainerCommitAction action,
         int containerOrdinal,
@@ -876,9 +979,12 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerColorPreset? colorPreset = null,
         ProductWorkspaceContainerOpacityPreset? opacityPreset = null,
         ProductWorkspaceContainerPositionPreset? positionPreset = null,
-        ProductWorkspaceContainerSizePreset? sizePreset = null)
+        ProductWorkspaceContainerSizePreset? sizePreset = null,
+        bool confirmed = false)
     {
-        string name = ProductWorkspaceContainerNameEditor.Text.Trim();
+        string name = action == ProductWorkspaceContainerCommitAction.Remove
+            ? string.Empty
+            : ProductWorkspaceContainerNameEditor.Text.Trim();
         ProductWorkspaceContainerCommitResult result =
             _commitProductWorkspaceContainerAction(
                 action,
@@ -889,7 +995,8 @@ public sealed partial class MainWindow : Window
                 colorPreset,
                 opacityPreset,
                 positionPreset,
-                sizePreset);
+                sizePreset,
+                confirmed);
         bool changed = result.IsAccepted;
         ProductWorkspaceContainerEditStatus.Text = result.Status switch
         {
@@ -904,7 +1011,9 @@ public sealed partial class MainWindow : Window
                                 ? "正式方格折叠状态已更新并进入安全保存队列；桌面文件未改变。"
                                 : action == ProductWorkspaceContainerCommitAction.SetAppearancePreset
                                     ? "正式方格外观预设已更新并进入安全保存队列；桌面文件未改变。"
-                                    : "正式方格布局预设已更新并进入安全保存队列；尚未移动真实窗口或桌面文件。",
+                                    : action == ProductWorkspaceContainerCommitAction.SetPlacementPreset
+                                        ? "正式方格布局预设已更新并进入安全保存队列；尚未移动真实窗口或桌面文件。"
+                                        : "正式方格配置及其中引用已删除并进入安全保存队列；真实桌面文件未改变，可撤销一次。",
             ProductWorkspaceContainerCommitStatus.NoChange =>
                 action == ProductWorkspaceContainerCommitAction.Rename
                     ? "名称没有变化，因此没有提交保存。"
@@ -919,7 +1028,9 @@ public sealed partial class MainWindow : Window
                         ? "所选方格已锁定，请先解锁再更改外观。"
                         : action == ProductWorkspaceContainerCommitAction.SetPlacementPreset
                             ? "所选方格已锁定，请先解锁再更改布局。"
-                            : "所选方格已锁定，未执行重命名。",
+                            : action == ProductWorkspaceContainerCommitAction.Remove
+                                ? "所选方格已锁定，请先解锁再删除。"
+                                : "所选方格已锁定，未执行重命名。",
             ProductWorkspaceContainerCommitStatus.ReducerRejected =>
                 "名称或容器状态未通过正式配置校验，未执行保存。",
             ProductWorkspaceContainerCommitStatus.SaveRejected =>

@@ -476,6 +476,22 @@
                                             Click="ProductWorkspaceContainerPlacementButton_Click"
                                             Content="应用布局并保存"
                                             IsEnabled="False" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button
+                                                x:Name="ProductWorkspaceContainerRemoveButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceContainerRemoveButton"
+                                                AutomationProperties.Name="删除所选正式方格配置但保留桌面文件"
+                                                Click="ProductWorkspaceContainerRemoveButton_Click"
+                                                Content="删除方格配置"
+                                                IsEnabled="False" />
+                                            <Button
+                                                x:Name="ProductWorkspaceContainerRemovalUndoButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceContainerRemovalUndoButton"
+                                                AutomationProperties.Name="撤销最近一次正式方格删除"
+                                                Click="ProductWorkspaceContainerRemovalUndoButton_Click"
+                                                Content="撤销删除方格"
+                                                IsEnabled="False" />
+                                        </StackPanel>
                                         <TextBlock
                                             FontSize="13"
                                             FontWeight="SemiBold"

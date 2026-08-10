@@ -573,6 +573,164 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
         }
     }
 
+    [Fact]
+    public async Task ConfirmedRemovalSubmitsOnceAndCanBeUndoneOnceWithoutChangingFile()
+    {
+        string sandbox = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid.ContainerRemoval.Tests",
+            Guid.NewGuid().ToString("N"));
+        string desktopFile = Path.Combine(sandbox, "keep.txt");
+        Directory.CreateDirectory(sandbox);
+        await File.WriteAllTextAsync(desktopFile, "keep-original");
+        try
+        {
+            var workflow = new FakeWorkflow();
+            await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+            var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+            ProductItemReferenceState item =
+                ProductItemReferenceState.CreateResolved(
+                    "item-1",
+                    new(
+                        new DesktopItemIdentity("filesystem", desktopFile),
+                        "user-desktop",
+                        "keep.txt",
+                        DesktopItemKind.File));
+            ProductContainerState container = Container("container-1", "Work") with
+            {
+                Items = [item],
+            };
+            ProductWorkspaceState state = State(container);
+            long revision = coordinator.AdvanceExternalRevision();
+
+            ProductWorkspaceContainerCommitResult removal =
+                coordinator.CommitContainer(
+                    state,
+                    new(
+                        ProductWorkspaceContainerCommitAction.Remove,
+                        revision,
+                        1,
+                        string.Empty,
+                        Confirmed: true));
+            ProductWorkspaceContainerRemovalUndoToken token =
+                Assert.IsType<ProductWorkspaceContainerRemovalUndoToken>(
+                    coordinator.CurrentContainerRemovalUndoToken);
+            ProductWorkspaceContainerRemovalUndoCommitResult undo =
+                coordinator.CommitContainerRemovalUndo(
+                    removal.State!, token, confirmed: true);
+            ProductWorkspaceContainerRemovalUndoCommitResult secondUndo =
+                coordinator.CommitContainerRemovalUndo(
+                    undo.State!, token, confirmed: true);
+
+            Assert.True(removal.IsAccepted);
+            Assert.Empty(removal.State!.Containers);
+            Assert.Equal(token, removal.RemovalUndoToken);
+            Assert.True(undo.IsAccepted);
+            Assert.Single(undo.State!.Containers);
+            Assert.Equal(
+                ProductWorkspaceContainerRemovalUndoStatus.Unavailable,
+                secondUndo.UndoStatus);
+            Assert.Equal(2, saves.Snapshot.CurrentRevision);
+            Assert.True(File.Exists(desktopFile));
+            Assert.Equal("keep-original", await File.ReadAllTextAsync(desktopFile));
+        }
+        finally
+        {
+            if (Directory.Exists(sandbox))
+            {
+                Directory.Delete(sandbox, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RemovalRejectsMissingConfirmationLockedAndStaleRequests()
+    {
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        ProductContainerState unlocked = Container("container-1", "Work");
+        ProductContainerState locked = unlocked with { IsLocked = true };
+        long revision = coordinator.AdvanceExternalRevision();
+
+        ProductWorkspaceContainerCommitResult unconfirmed =
+            coordinator.CommitContainer(
+                State(unlocked),
+                new(
+                    ProductWorkspaceContainerCommitAction.Remove,
+                    revision,
+                    1,
+                    string.Empty));
+        ProductWorkspaceContainerCommitResult lockedResult =
+            coordinator.CommitContainer(
+                State(locked),
+                new(
+                    ProductWorkspaceContainerCommitAction.Remove,
+                    revision,
+                    1,
+                    string.Empty,
+                    Confirmed: true));
+        ProductWorkspaceContainerCommitResult stale =
+            coordinator.CommitContainer(
+                State(unlocked),
+                new(
+                    ProductWorkspaceContainerCommitAction.Remove,
+                    revision - 1,
+                    1,
+                    string.Empty,
+                    Confirmed: true));
+
+        Assert.Equal(
+            ProductWorkspaceContainerCommitStatus.InvalidRequest,
+            unconfirmed.Status);
+        Assert.Equal(ProductWorkspaceEditError.ContainerLocked, lockedResult.EditError);
+        Assert.Equal(
+            ProductWorkspaceContainerCommitStatus.StaleEditRevision,
+            stale.Status);
+        Assert.Equal(0, saves.Snapshot.CurrentRevision);
+        Assert.Equal(0, workflow.SaveCalls);
+    }
+
+    [Fact]
+    public async Task LaterSuccessfulEditInvalidatesContainerRemovalUndo()
+    {
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        ProductWorkspaceState state = State(Container("container-1", "Work"));
+        long revision = coordinator.AdvanceExternalRevision();
+        ProductWorkspaceContainerCommitResult removal =
+            coordinator.CommitContainer(
+                state,
+                new(
+                    ProductWorkspaceContainerCommitAction.Remove,
+                    revision,
+                    1,
+                    string.Empty,
+                    Confirmed: true));
+        ProductWorkspaceContainerRemovalUndoToken token =
+            removal.RemovalUndoToken!;
+
+        ProductWorkspaceContainerCommitResult create =
+            coordinator.CommitContainer(
+                removal.State!,
+                new(
+                    ProductWorkspaceContainerCommitAction.Create,
+                    removal.EditRevision,
+                    0,
+                    "New",
+                    Container("container-2", "New")));
+        ProductWorkspaceContainerRemovalUndoCommitResult staleUndo =
+            coordinator.CommitContainerRemovalUndo(create.State!, token, true);
+
+        Assert.True(create.IsAccepted);
+        Assert.Null(coordinator.CurrentContainerRemovalUndoToken);
+        Assert.Equal(
+            ProductWorkspaceContainerRemovalUndoStatus.Unavailable,
+            staleUndo.UndoStatus);
+        Assert.Equal(2, saves.Snapshot.CurrentRevision);
+    }
+
     private static ProductWorkspaceSaveController CreateSaves(
         IProductConfigurationSaveWorkflow workflow) =>
         new(

@@ -33,6 +33,8 @@ $workspaceReadPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReadPresentation.cs'
 $containerEditPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceContainerEditPresentation.cs'
+$containerRemovalUndoCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceContainerRemovalUndo.cs'
 $layoutRecoveryPreviewCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceLayoutRecoveryPreview.cs'
 $layoutRecoveryReviewCodePath = Join-Path $projectRoot `
@@ -139,6 +141,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $containerEditPresentationCode = Get-Content `
         -LiteralPath $containerEditPresentationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $containerRemovalUndoCode = Get-Content `
+        -LiteralPath $containerRemovalUndoCodePath `
         -Raw `
         -Encoding UTF8
     $layoutRecoveryPreviewCode = Get-Content `
@@ -310,6 +316,8 @@ function Test-SourceContract {
         'ProductWorkspaceContainerPositionSelector',
         'ProductWorkspaceContainerSizeSelector',
         'ProductWorkspaceContainerPlacementButton',
+        'ProductWorkspaceContainerRemoveButton',
+        'ProductWorkspaceContainerRemovalUndoButton',
         'ProductWorkspaceResolvedReferenceSelector',
         'ProductWorkspaceResolvedReferenceAddButton',
         'ProductWorkspaceResolvedReferenceAddStatus',
@@ -554,7 +562,9 @@ function Test-SourceContract {
             'ProductWorkspaceContainerLockButton',
             'ProductWorkspaceContainerCollapseButton',
             'ProductWorkspaceContainerAppearanceButton',
-            'ProductWorkspaceContainerPlacementButton'
+            'ProductWorkspaceContainerPlacementButton',
+            'ProductWorkspaceContainerRemoveButton',
+            'ProductWorkspaceContainerRemovalUndoButton'
         )) {
         $buttonNode = Get-XamlNodeByAutomationId $document $buttonId
         Assert-Condition ($buttonNode.GetAttribute('IsEnabled') -eq 'False') `
@@ -569,6 +579,10 @@ function Test-SourceContract {
             'ProductWorkspaceContainerAppearanceButton_Click'
         ProductWorkspaceContainerPlacementButton = `
             'ProductWorkspaceContainerPlacementButton_Click'
+        ProductWorkspaceContainerRemoveButton = `
+            'ProductWorkspaceContainerRemoveButton_Click'
+        ProductWorkspaceContainerRemovalUndoButton = `
+            'ProductWorkspaceContainerRemovalUndoButton_Click'
     }
     foreach ($selectorId in @(
             'ProductWorkspaceContainerColorSelector',
@@ -993,7 +1007,7 @@ function Test-SourceContract {
         -not ($codeBehind -match 'ProductWorkspaceRead.*(State|CatalogEntry|PersistedTarget|CanonicalTarget)')
     ) 'MainWindow must render only the presentation contract, never workspace identity state.'
     Assert-Condition (
-        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 9) -and
+        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 10) -and
         $referenceCommitCode -match 'editRevision\s*=\s*checked\(editRevision\s*\+\s*1\)' -and
         $referenceCommitCode -match 'ProductWorkspaceReferenceGate\.Evaluate' -and
         $referenceCommitCode -match 'ProductWorkspaceConfigurationProjector\.Project' -and
@@ -1009,9 +1023,19 @@ function Test-SourceContract {
         $referenceCommitCode -match 'CommitReferenceReassignmentUndo' -and
         $referenceCommitCode -match 'ProductWorkspaceReducer\.ReassignResolvedReference' -and
         $referenceCommitCode -match 'ProductWorkspaceReducer\.(CreateContainer|RenameContainer)' -and
+        $referenceCommitCode -match 'ProductWorkspaceReducer\.RemoveContainer' -and
+        $referenceCommitCode -match 'CommitContainerRemovalUndo' -and
         $referenceCommitCode -match 'CommitLayoutRecovery' -and
         $referenceCommitCode -match 'CommitLayoutRecoveryUndo'
     ) 'Reference review, resolved-reference addition, container, layout recovery, and undo edits must share one coordinator with one submission per accepted path.'
+    Assert-Condition (
+        $containerRemovalUndoCode -match 'RemovalEditRevision' -and
+        $containerRemovalUndoCode -match 'OperationId' -and
+        $containerRemovalUndoCode -match 'RemovedConfigurationFingerprint' -and
+        $containerRemovalUndoCode -match 'RestoreConfigurationFingerprint' -and
+        $containerRemovalUndoCode -match 'ConfirmationRequired' -and
+        $containerRemovalUndoCode -match 'CurrentConfigurationChanged'
+    ) 'Container-removal undo must bind revision, operation, fingerprints, and confirmation.'
     Assert-Condition (
         $resolvedReferenceAddPresentationCode -match 'DisplayName' -and
         $resolvedReferenceAddPresentationCode -match 'assignedTargets' -and
@@ -1067,13 +1091,15 @@ function Test-SourceContract {
         $appCode -match 'workspaceCommits\.CommitContainer' -and
         $appCode -match 'ProductConfigurationDefaults\.CreateEmpty' -and
         $appCode -match 'CreateDefaultContainer' -and
+        $appCode -match 'CommitProductWorkspaceContainerRemovalUndo' -and
         $appCode -match 'DisplayKey\s*=\s*"display-unassigned"'
     ) 'App must support first-container creation through the shared audited coordinator.'
     foreach ($stateAction in @(
             'SetLocked',
             'SetCollapsed',
             'SetAppearancePreset',
-            'SetPlacementPreset'
+            'SetPlacementPreset',
+            'Remove'
         )) {
         Assert-Condition ($referenceCommitCode.Contains($stateAction)) `
             "Shared coordinator must expose finite container action '$stateAction'."
@@ -1375,7 +1401,7 @@ function Test-SourceContract {
         productResolvedReferenceAdd = 'visible-name-generation-revision-gated-config-only'
         productResolvedReferenceRemoval = 'visible-name-revision-gated-config-only-single-undo'
         productResolvedReferenceReassignment = 'atomic-source-target-revision-gated-config-only-single-undo'
-        productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'
+        productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
         productSavePresentation = 'privacy-safe-static-reduced-motion'
         readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'
