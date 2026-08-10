@@ -356,6 +356,13 @@ public partial class App : Application
                 : ProductWorkspaceResolvedReferenceReassignmentPresentation.Unavailable;
         currentWindow.ApplyProductWorkspaceResolvedReferenceReassignment(
             referenceReassignment);
+        currentWindow.ApplyProductWorkspaceLatestUndo(
+            ProductWorkspaceLatestUndoPresentation.Create(
+                workspaceCommits.CurrentLayoutRecoveryUndoToken,
+                workspaceCommits.CurrentContainerRemovalUndoToken,
+                workspaceCommits.CurrentReferenceBatchAdditionUndoToken,
+                workspaceCommits.CurrentReferenceRemovalUndoToken,
+                workspaceCommits.CurrentReferenceReassignmentUndoToken));
         ApplyProductWorkspaceReferenceReview();
     }
 

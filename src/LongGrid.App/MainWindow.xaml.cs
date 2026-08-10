@@ -135,6 +135,8 @@ public sealed partial class MainWindow : Window
                     0,
                     DesktopWindowsChanged: false),
                 null));
+    private ProductWorkspaceLatestUndoPresentation _latestUndo =
+        ProductWorkspaceLatestUndoPresentation.Unavailable;
 
     public MainWindow(
         Func<
@@ -459,6 +461,140 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetItemStatus(
             ProductWorkspaceViewStatus,
             presentation.MachineStatus);
+    }
+
+    internal void ApplyProductWorkspaceLatestUndo(
+        ProductWorkspaceLatestUndoPresentation presentation)
+    {
+        ArgumentNullException.ThrowIfNull(presentation);
+        _latestUndo = presentation;
+        ProductWorkspaceLatestUndoButton.Content = presentation.ButtonText;
+        ProductWorkspaceLatestUndoButton.IsEnabled = presentation.CanUndo;
+        ProductWorkspaceLatestUndoButton.Visibility = presentation.CanUndo
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        AutomationProperties.SetName(
+            ProductWorkspaceLatestUndoButton,
+            presentation.AccessibilityName);
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceLatestUndoButton,
+            presentation.MachineStatus);
+    }
+
+    private void ProductWorkspaceLatestUndoButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (!_latestUndo.CanUndo)
+        {
+            return;
+        }
+
+        switch (_latestUndo.Selection.Kind)
+        {
+            case ProductWorkspaceLatestUndoKind.LayoutRecovery
+                when _latestUndo.LayoutRecoveryToken is { } token:
+                UndoLatestLayoutRecovery(token);
+                break;
+            case ProductWorkspaceLatestUndoKind.ContainerRemoval
+                when _latestUndo.ContainerRemovalToken is { } token:
+                UndoLatestContainerRemoval(token);
+                break;
+            case ProductWorkspaceLatestUndoKind.ReferenceBatchAddition
+                when _latestUndo.ReferenceBatchAdditionToken is { } token:
+                UndoLatestReferenceBatchAddition(token);
+                break;
+            case ProductWorkspaceLatestUndoKind.ReferenceRemoval
+                when _latestUndo.ReferenceRemovalToken is { } token:
+                UndoLatestReferenceRemoval(token);
+                break;
+            case ProductWorkspaceLatestUndoKind.ReferenceReassignment
+                when _latestUndo.ReferenceReassignmentToken is { } token:
+                UndoLatestReferenceReassignment(token);
+                break;
+        }
+    }
+
+    private void UndoLatestLayoutRecovery(
+        ProductWorkspaceLayoutRecoveryUndoToken token)
+    {
+        ProductWorkspaceLayoutRecoveryUndoCommitResult result =
+            _commitProductWorkspaceLayoutRecoveryUndo(token, true);
+        ProductWorkspaceLayoutRecoveryDetail.Text = result.IsAccepted
+            ? "最近一次布局配置恢复已撤销并保存；桌面窗口与文件均未改变。"
+            : DescribeLayoutRecoveryUndoFailure(result.UndoStatus);
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceLayoutRecoveryDetail,
+            $"LatestWorkspaceEditUndo:{result.Status}:Kind=LayoutRecovery:" +
+                $"Revision={result.EditRevision}:Changed={result.IsAccepted}:" +
+                "DesktopFilesChanged=False:DesktopWindowsChanged=False");
+    }
+
+    private void UndoLatestContainerRemoval(
+        ProductWorkspaceContainerRemovalUndoToken token)
+    {
+        ProductWorkspaceContainerRemovalUndoCommitResult result =
+            _commitProductWorkspaceContainerRemovalUndo(token, true);
+        ProductWorkspaceContainerEditStatus.Text = result.IsAccepted
+            ? "最近删除的方格配置及其引用已即时恢复并保存；桌面文件未改变。"
+            : DescribeContainerRemovalUndoFailure(result.UndoStatus);
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceContainerEditStatus,
+            $"LatestWorkspaceEditUndo:{result.Status}:Kind=ContainerRemoval:" +
+                $"Revision={result.EditRevision}:Changed={result.IsAccepted}:" +
+                "DesktopFilesChanged=False:DesktopWindowsChanged=False");
+        UpdateProductWorkspaceContainerEditButtons();
+    }
+
+    private void UndoLatestReferenceBatchAddition(
+        ProductWorkspaceReferenceBatchAdditionUndoToken token)
+    {
+        ProductWorkspaceReferenceBatchAdditionUndoCommitResult result =
+            _commitProductWorkspaceReferenceBatchAdditionUndo(token, true);
+        ProductWorkspaceResolvedReferenceAddStatus.Text = result.IsAccepted
+            ? "最近一次批量加入已即时整体撤销并保存；桌面文件未改变。"
+            : "批量加入撤销令牌已失效或保存不可用；配置与桌面文件均未改变。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceResolvedReferenceAddStatus,
+            $"LatestWorkspaceEditUndo:{result.Status}:Kind=ReferenceBatchAddition:" +
+                $"Gate={result.UndoStatus}:Revision={result.EditRevision}:" +
+                $"Changed={result.IsAccepted}:DesktopFilesChanged=False:" +
+                "DesktopWindowsChanged=False");
+        UpdateProductWorkspaceResolvedReferenceAddButton();
+    }
+
+    private void UndoLatestReferenceRemoval(
+        ProductWorkspaceReferenceRemovalUndoToken token)
+    {
+        ProductWorkspaceReferenceRemovalUndoCommitResult result =
+            _commitProductWorkspaceReferenceRemovalUndo(token, true);
+        ProductWorkspaceResolvedReferenceRemovalStatus.Text = result.IsAccepted
+            ? "最近一次批量引用移除已即时整体撤销并保存；桌面文件未改变。"
+            : "引用移除撤销令牌已失效或保存不可用；配置与桌面文件均未改变。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceResolvedReferenceRemovalStatus,
+            $"LatestWorkspaceEditUndo:{result.Status}:Kind=ReferenceRemoval:" +
+                $"Gate={result.UndoStatus}:Revision={result.EditRevision}:" +
+                $"Changed={result.IsAccepted}:DesktopFilesChanged=False:" +
+                "DesktopWindowsChanged=False");
+        UpdateProductWorkspaceResolvedReferenceRemovalButtons();
+    }
+
+    private void UndoLatestReferenceReassignment(
+        ProductWorkspaceReferenceReassignmentUndoToken token)
+    {
+        ProductWorkspaceReferenceReassignmentUndoCommitResult result =
+            _commitProductWorkspaceReferenceReassignmentUndo(token, true);
+        ProductWorkspaceResolvedReferenceRemovalStatus.Text = result.IsAccepted
+            ? "最近一次批量引用改归属已即时整体撤销并保存；桌面文件未改变。"
+            : "引用改归属撤销令牌已失效或保存不可用；配置与桌面文件均未改变。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceResolvedReferenceRemovalStatus,
+            $"LatestWorkspaceEditUndo:{result.Status}:Kind=ReferenceReassignment:" +
+                $"Gate={result.UndoStatus}:Revision={result.EditRevision}:" +
+                $"Changed={result.IsAccepted}:DesktopFilesChanged=False:" +
+                "DesktopWindowsChanged=False");
+        UpdateProductWorkspaceResolvedReferenceRemovalButtons();
     }
 
     internal void ApplyProductWorkspaceLayoutRecoveryPreview(
