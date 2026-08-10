@@ -58,6 +58,16 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceResolvedReferenceCommitResult>
         _commitProductWorkspaceResolvedReference;
     private readonly Func<
+        long,
+        ProductWorkspaceResolvedReferenceRemovalCandidatePresentation,
+        ProductWorkspaceResolvedReferenceRemovalCommitResult>
+        _commitProductWorkspaceResolvedReferenceRemoval;
+    private readonly Func<
+        ProductWorkspaceReferenceRemovalUndoToken,
+        bool,
+        ProductWorkspaceReferenceRemovalUndoCommitResult>
+        _commitProductWorkspaceReferenceRemovalUndo;
+    private readonly Func<
         ProductWorkspaceContainerCommitAction,
         long,
         int,
@@ -84,6 +94,9 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerEditPresentation.Unavailable;
     private ProductWorkspaceResolvedReferenceAddPresentation _resolvedReferenceAdd =
         ProductWorkspaceResolvedReferenceAddPresentation.Unavailable;
+    private ProductWorkspaceResolvedReferenceRemovalPresentation
+        _resolvedReferenceRemoval =
+            ProductWorkspaceResolvedReferenceRemovalPresentation.Unavailable;
     private ProductWorkspaceLayoutRecoveryPresentation _layoutRecovery =
         ProductWorkspaceLayoutRecoveryPresentation.Create(
             new(
@@ -130,6 +143,16 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceResolvedReferenceCommitResult>
             commitProductWorkspaceResolvedReference,
         Func<
+            long,
+            ProductWorkspaceResolvedReferenceRemovalCandidatePresentation,
+            ProductWorkspaceResolvedReferenceRemovalCommitResult>
+            commitProductWorkspaceResolvedReferenceRemoval,
+        Func<
+            ProductWorkspaceReferenceRemovalUndoToken,
+            bool,
+            ProductWorkspaceReferenceRemovalUndoCommitResult>
+            commitProductWorkspaceReferenceRemovalUndo,
+        Func<
             ProductWorkspaceContainerCommitAction,
             long,
             int,
@@ -163,6 +186,9 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(refreshProductDesktopCatalog);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceReferenceAction);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceResolvedReference);
+        ArgumentNullException.ThrowIfNull(
+            commitProductWorkspaceResolvedReferenceRemoval);
+        ArgumentNullException.ThrowIfNull(commitProductWorkspaceReferenceRemovalUndo);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceContainerAction);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecovery);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecoveryUndo);
@@ -180,6 +206,10 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceReferenceAction;
         _commitProductWorkspaceResolvedReference =
             commitProductWorkspaceResolvedReference;
+        _commitProductWorkspaceResolvedReferenceRemoval =
+            commitProductWorkspaceResolvedReferenceRemoval;
+        _commitProductWorkspaceReferenceRemovalUndo =
+            commitProductWorkspaceReferenceRemovalUndo;
         _commitProductWorkspaceContainerAction =
             commitProductWorkspaceContainerAction;
         _commitProductWorkspaceLayoutRecovery =
@@ -976,6 +1006,124 @@ public sealed partial class MainWindow : Window
                 $"Revision={result.EditRevision}:Changed={changed}:" +
                 "DesktopFilesChanged=False");
         UpdateProductWorkspaceResolvedReferenceAddButton();
+    }
+
+    internal void ApplyProductWorkspaceResolvedReferenceRemoval(
+        ProductWorkspaceResolvedReferenceRemovalPresentation presentation)
+    {
+        ArgumentNullException.ThrowIfNull(presentation);
+        (int ContainerOrdinal, int ItemOrdinal) previous =
+            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItem is
+                ProductWorkspaceResolvedReferenceRemovalCandidatePresentation item
+                    ? (item.ContainerOrdinal, item.ItemOrdinal)
+                    : (-1, -1);
+        _resolvedReferenceRemoval = presentation;
+        ProductWorkspaceResolvedReferenceRemovalSelector.ItemsSource =
+            presentation.Candidates;
+        ProductWorkspaceResolvedReferenceRemovalSelector.SelectedIndex =
+            presentation.Candidates
+                .Select((candidate, index) => (candidate, index))
+                .Where(pair =>
+                    pair.candidate.ContainerOrdinal == previous.ContainerOrdinal
+                    && pair.candidate.ItemOrdinal == previous.ItemOrdinal)
+                .Select(pair => pair.index)
+                .DefaultIfEmpty(presentation.Candidates.Count > 0 ? 0 : -1)
+                .First();
+        ProductWorkspaceResolvedReferenceRemovalStatus.Text =
+            presentation.CanRemove
+                ? "移除只会更新 Long方格配置，不会移动、重命名或删除桌面文件。"
+                : presentation.Candidates.Count == 0
+                    ? "当前没有可移除的已解析引用；桌面文件未改变。"
+                    : "当前会话不可编辑；桌面文件未改变。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceResolvedReferenceRemovalStatus,
+            $"ResolvedReferenceRemovalReady:Revision={presentation.EditRevision}:" +
+                $"Candidates={presentation.Candidates.Count}:" +
+                $"CanRemove={presentation.CanRemove}:" +
+                $"CanUndo={presentation.UndoToken is not null}:Changed=False:" +
+                "DesktopFilesChanged=False");
+        UpdateProductWorkspaceResolvedReferenceRemovalButtons();
+    }
+
+    private void ProductWorkspaceResolvedReferenceRemovalSelector_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e) =>
+        UpdateProductWorkspaceResolvedReferenceRemovalButtons();
+
+    private void UpdateProductWorkspaceResolvedReferenceRemovalButtons()
+    {
+        ProductWorkspaceResolvedReferenceRemovalSelector.IsEnabled =
+            _resolvedReferenceRemoval.CanRemove;
+        ProductWorkspaceResolvedReferenceRemovalButton.IsEnabled =
+            _resolvedReferenceRemoval.CanRemove
+            && ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItem is
+                ProductWorkspaceResolvedReferenceRemovalCandidatePresentation;
+        ProductWorkspaceResolvedReferenceRemovalUndoButton.IsEnabled =
+            _resolvedReferenceRemoval.UndoToken is not null;
+    }
+
+    private void ProductWorkspaceResolvedReferenceRemovalButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItem is not
+            ProductWorkspaceResolvedReferenceRemovalCandidatePresentation candidate)
+        {
+            return;
+        }
+
+        ProductWorkspaceResolvedReferenceRemovalCommitResult result =
+            _commitProductWorkspaceResolvedReferenceRemoval(
+                _resolvedReferenceRemoval.EditRevision,
+                candidate);
+        ProductWorkspaceResolvedReferenceRemovalStatus.Text = result.Status switch
+        {
+            ProductWorkspaceResolvedReferenceRemovalCommitStatus.Accepted =>
+                "引用已从方格配置移除并进入安全保存队列；桌面文件未改变，可撤销一次。",
+            ProductWorkspaceResolvedReferenceRemovalCommitStatus.StaleEditRevision =>
+                "工作区已经更新，请按最新引用列表重新选择。",
+            ProductWorkspaceResolvedReferenceRemovalCommitStatus.ReducerRejected
+                when result.EditError == ProductWorkspaceEditError.ContainerLocked =>
+                "所选方格已经锁定，未移除引用；桌面文件未改变。",
+            ProductWorkspaceResolvedReferenceRemovalCommitStatus.SaveRejected =>
+                "保存控制器当前无法接受编辑；配置与桌面文件均未改变。",
+            _ => "引用移除请求已失效；配置与桌面文件均未改变。",
+        };
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceResolvedReferenceRemovalStatus,
+            $"ResolvedReferenceRemoval:{result.Status}:" +
+                $"Revision={result.EditRevision}:Changed={result.IsAccepted}:" +
+                "DesktopFilesChanged=False");
+        UpdateProductWorkspaceResolvedReferenceRemovalButtons();
+    }
+
+    private void ProductWorkspaceResolvedReferenceRemovalUndoButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ProductWorkspaceReferenceRemovalUndoToken? token =
+            _resolvedReferenceRemoval.UndoToken;
+        if (token is null)
+        {
+            return;
+        }
+
+        ProductWorkspaceReferenceRemovalUndoCommitResult result =
+            _commitProductWorkspaceReferenceRemovalUndo(token, true);
+        ProductWorkspaceResolvedReferenceRemovalStatus.Text = result.Status switch
+        {
+            ProductWorkspaceReferenceRemovalUndoCommitStatus.Accepted =>
+                "上一次引用移除已撤销并进入安全保存队列；桌面文件未改变。",
+            ProductWorkspaceReferenceRemovalUndoCommitStatus.SaveRejected =>
+                "撤销尚未保存；配置与桌面文件均未改变。",
+            _ => "撤销凭据已经失效，请按当前配置继续操作。",
+        };
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceResolvedReferenceRemovalStatus,
+            $"ResolvedReferenceRemovalUndo:{result.Status}:" +
+                $"Gate={result.UndoStatus}:Revision={result.EditRevision}:" +
+                $"Changed={result.IsAccepted}:DesktopFilesChanged=False");
+        UpdateProductWorkspaceResolvedReferenceRemovalButtons();
     }
 
     internal void ApplyProductWorkspaceReferenceReview(
