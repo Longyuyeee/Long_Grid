@@ -349,6 +349,7 @@ test(shell): cover coalesced change notifications
 7. 录像、硬件清单和系统配置若包含可识别信息，放入访问受控的实验记录，不进入仓库或默认诊断包。
 8. Issue #19 使用 `eng/Start-Issue19ManualMatrixSession.ps1` 一次启动一个 I19 场景；`-ValidateOnly` 永远保持 `PendingManualEvidence`，不得自动填写人工结论。
 9. Issue #20 使用 `eng/Start-Issue20DisplayMatrixSession.ps1` 映射固定 I20 场景并强制恢复计划确认；observer 的 `Observed Pass` 只构成部分证据，最终结论保持 `PendingManualEvidence` 直至人工复核。
+10. 正式 App 的批量选择使用 `eng/Start-LongGridBatchAccessibilitySession.ps1` 一次启动一个 BSA 场景；真实执行必须确认专用测试账户和恢复计划，启动器拒绝既有 App 进程且不终止外来进程，`-ValidateOnly` 只复核 134-ID、关键控件、播报和紧凑布局合同。
 
 ### 12.5 UI、启动与打包门禁
 
@@ -362,6 +363,7 @@ test(shell): cover coalesced change notifications
 - 正式签名秘密只存在于受保护发布环境，不进入脚本、仓库或日志；
 - UI PR 必须检查浅色、深色、高对比、文本缩放、减少动画、键盘、Narrator、DPI 和低性能降级；
 - UI PR 必须执行 `eng/Test-LongGridUi.ps1 -ContractOnly`；具备可交互 Windows 会话时还要执行完整脚本，并把结构合同与实机结果分别记账；
+- 涉及正式批量选择的 UI PR 必须执行 `eng/Start-LongGridBatchAccessibilitySession.ps1 -ValidateOnly`；若改变焦点、播报、主题或响应式布局，应在专用账户重跑受影响的 BSA 场景，未执行时继续记为 Pending；
 - 管理窗口 UI PR 必须同时验证默认 DPI 感知尺寸、已审计窄窗口断点、无横向滚动和宽/紧凑状态可逆；窗口 API 的物理像素不得直接冒充 XAML 有效像素；
 - AutomationId、访问键和 UIA 冒烟只证明机器可发现与基础交互，不得替代 Narrator 朗读、高对比、文本缩放和视觉检查；
 - 动效必须可中断、可降级，不得阻塞输入、隐藏、恢复、回滚或退出；
@@ -521,7 +523,7 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 
 1. 按 Issue #23 使用匿名会话入口和主持人手册执行 5 人无提示测试；CI 预检必须保持 `ResultsPending`，不得替代真实参与者结果，也不得记为真实 Explorer 拖放或硬件恢复；
 2. 由负责人确定许可证、支持矩阵、安装渠道、性能预算和首版整理模式；
-3. 按 Issue #19 完成键鼠/触控/拖放/Narrator/系统表面人工矩阵；
+3. 按 Issue #19 完成键鼠/触控/拖放/Narrator/系统表面人工矩阵，并用正式 App 的 BSA-01–BSA-05 补齐批量选择人工结论；
 4. 按 Issue #20 完成动态显示硬件矩阵，只按负责人批准的范围收口 #21–#22；配置剩余边界由 #24 跟踪；
 5. 持续产出测试结果、覆盖率和依赖漏洞报告，但不得以新增相邻探针替代体验与人工证据；
 6. 根据双轨证据完成 ADR-0001 Go/No-Go；
