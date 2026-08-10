@@ -148,10 +148,10 @@ Assert-Condition ($LASTEXITCODE -eq 0) `
 $uiResult = $uiJson | ConvertFrom-Json
 Assert-Condition (
     $uiResult.outcome -eq 'Pass' -and
-    $uiResult.contract.requiredAutomationIds -eq 134 -and
+    $uiResult.contract.requiredAutomationIds -eq 135 -and
     $uiResult.contract.productBatchSelectionControls -eq
         'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
-) 'The batch accessibility matrix requires the complete 134-ID UI contract.'
+) 'The batch accessibility matrix requires the complete 135-ID UI contract.'
 
 $commit = 'unavailable'
 if (Get-Command git -ErrorAction SilentlyContinue) {
@@ -182,7 +182,7 @@ $sessionContract = [ordered]@{
     }
     operatorIdentifierPolicy = 'AnonymousLabelsOnly'
     commit = $commit
-    requiredAutomationIds = 134
+    requiredAutomationIds = 135
     focusedAutomationIds = $requiredAutomationIds.Count
     resultStatus = 'PendingManualEvidence'
     requiresManualJudgment = $true

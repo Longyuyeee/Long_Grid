@@ -289,6 +289,16 @@
                                             FontSize="11"
                                             Foreground="{ThemeResource LongGridTextSecondaryBrush}"
                                             Text="引用解析计数尚不可用" />
+                                        <Button
+                                            x:Name="ProductWorkspaceLatestUndoButton"
+                                            AutomationProperties.AutomationId="ProductWorkspaceLatestUndoButton"
+                                            AutomationProperties.ItemStatus="LatestWorkspaceEditUndo:Kind=Unavailable:CanUndo=False:DesktopFilesChanged=False:DesktopWindowsChanged=False"
+                                            AutomationProperties.Name="没有可撤销的 Long方格配置编辑"
+                                            Click="ProductWorkspaceLatestUndoButton_Click"
+                                            Content="没有可撤销的配置编辑"
+                                            HorizontalAlignment="Left"
+                                            IsEnabled="False"
+                                            Visibility="Collapsed" />
                                     </StackPanel>
                                 </Grid>
                             </Border>

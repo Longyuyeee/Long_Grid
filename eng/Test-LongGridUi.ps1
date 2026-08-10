@@ -35,6 +35,10 @@ $containerEditPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceContainerEditPresentation.cs'
 $containerRemovalUndoCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceContainerRemovalUndo.cs'
+$latestUndoSelectorCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceLatestUndoSelector.cs'
+$latestUndoPresentationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\ProductWorkspaceLatestUndoPresentation.cs'
 $referenceBatchAdditionUndoCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReferenceBatchAdditionUndo.cs'
 $layoutRecoveryPreviewCodePath = Join-Path $projectRoot `
@@ -147,6 +151,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $containerRemovalUndoCode = Get-Content `
         -LiteralPath $containerRemovalUndoCodePath `
+        -Raw `
+        -Encoding UTF8
+    $latestUndoSelectorCode = Get-Content `
+        -LiteralPath $latestUndoSelectorCodePath `
+        -Raw `
+        -Encoding UTF8
+    $latestUndoPresentationCode = Get-Content `
+        -LiteralPath $latestUndoPresentationCodePath `
         -Raw `
         -Encoding UTF8
     $referenceBatchAdditionUndoCode = Get-Content `
@@ -300,6 +312,7 @@ function Test-SourceContract {
         'ProductWorkspaceSessionTitle',
         'ProductWorkspaceSessionDetail',
         'ProductWorkspaceSessionSummary',
+        'ProductWorkspaceLatestUndoButton',
         'ProductWorkspaceLayoutRecoveryCard',
         'ProductWorkspaceLayoutRecoveryTitle',
         'ProductWorkspaceLayoutRecoveryDetail',
@@ -524,6 +537,30 @@ function Test-SourceContract {
         'ProductWorkspaceSessionCard'
     Assert-Condition (-not ($productSessionCardNode.OuterXml -match 'Storyboard|Transition')) `
         'Product session status must keep a Reduced Motion-safe static baseline.'
+    $latestUndoButtonNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceLatestUndoButton'
+    Assert-Condition (
+        $latestUndoButtonNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $latestUndoButtonNode.GetAttribute('Visibility') -eq 'Collapsed' -and
+        $latestUndoButtonNode.GetAttribute('Click') -eq `
+            'ProductWorkspaceLatestUndoButton_Click' -and
+        $latestUndoButtonNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'LatestWorkspaceEditUndo:Kind=Unavailable:CanUndo=False:DesktopFilesChanged=False:DesktopWindowsChanged=False'
+    ) 'Latest workspace edit undo must start hidden, disabled, finite, and non-mutating.'
+    Assert-Condition (
+        $latestUndoSelectorCode.Contains('available.Length != 1') -and
+        $latestUndoSelectorCode.Contains('ProductWorkspaceLatestUndoKind.Conflict') -and
+        $latestUndoPresentationCode.Contains('ProductWorkspaceLatestUndoSelector.Select') -and
+        $latestUndoPresentationCode.Contains('DesktopFilesChanged=False') -and
+        $codeBehind.Contains('private void ProductWorkspaceLatestUndoButton_Click(') -and
+        $codeBehind.Contains('_commitProductWorkspaceLayoutRecoveryUndo(token, true)') -and
+        $codeBehind.Contains('_commitProductWorkspaceContainerRemovalUndo(token, true)') -and
+        $codeBehind.Contains('_commitProductWorkspaceReferenceBatchAdditionUndo(token, true)') -and
+        $codeBehind.Contains('_commitProductWorkspaceReferenceRemovalUndo(token, true)') -and
+        $codeBehind.Contains('_commitProductWorkspaceReferenceReassignmentUndo(token, true)') -and
+        $appCode.Contains('ApplyProductWorkspaceLatestUndo(')
+    ) 'Latest workspace edit undo must fail closed and reuse every audited token/commit path.'
 
     $layoutRecoveryDetailNode = Get-XamlNodeByAutomationId `
         $document `
@@ -1519,6 +1556,7 @@ function Test-SourceContract {
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
+        productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
