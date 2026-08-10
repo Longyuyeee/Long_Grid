@@ -256,9 +256,28 @@ public static class ProductWorkspaceReducer
         ProductWorkspaceState state,
         string sourceContainerId,
         string itemId,
+        string targetContainerId) =>
+        ReassignResolvedReferences(
+            state,
+            sourceContainerId,
+            [itemId],
+            targetContainerId);
+
+    public static ProductWorkspaceEditResult ReassignResolvedReferences(
+        ProductWorkspaceState state,
+        string sourceContainerId,
+        IReadOnlyList<string> itemIds,
         string targetContainerId)
     {
         ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(itemIds);
+        if (itemIds.Count == 0
+            || itemIds.Any(string.IsNullOrWhiteSpace)
+            || itemIds.Distinct(StringComparer.Ordinal).Count() != itemIds.Count)
+        {
+            return Failure(ProductWorkspaceEditError.InvalidState);
+        }
+
         ProductWorkspaceEditResult? preparation =
             Prepare(state, out ProductWorkspaceState? snapshot);
         if (preparation is not null)
@@ -281,14 +300,17 @@ public static class ProductWorkspaceReducer
             return Failure(ProductWorkspaceEditError.ContainerLocked);
         }
 
-        int itemIndex = FindItem(source, itemId);
-        if (itemIndex < 0)
+        var selectedIds = itemIds.ToHashSet(StringComparer.Ordinal);
+        ProductItemReferenceState[] selected = source.Items
+            .Where(item => selectedIds.Contains(item.Id))
+            .ToArray();
+        if (selected.Length != selectedIds.Count)
         {
             return Failure(ProductWorkspaceEditError.ItemNotFound);
         }
 
-        ProductItemReferenceState item = source.Items[itemIndex];
-        if (item.Resolution != ProductItemReferenceResolution.Resolved)
+        if (selected.Any(item => item.Resolution !=
+            ProductItemReferenceResolution.Resolved))
         {
             return Failure(ProductWorkspaceEditError.InvalidState);
         }
@@ -302,12 +324,12 @@ public static class ProductWorkspaceReducer
         containers[sourceIndex] = source with
         {
             Items = source.Items
-                .Where((_, index) => index != itemIndex)
+                .Where(item => !selectedIds.Contains(item.Id))
                 .ToArray(),
         };
         containers[targetIndex] = target with
         {
-            Items = [.. target.Items, Clone(item)],
+            Items = [.. target.Items, .. selected.Select(Clone)],
         };
         return Validate(working with { Containers = containers }, changed: true);
     }

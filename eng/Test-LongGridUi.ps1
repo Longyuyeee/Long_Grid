@@ -1078,8 +1078,9 @@ function Test-SourceContract {
         $codeBehind -match 'ResolvedReferenceBatchRemoval' -and
         $codeBehind -match 'Atomic=True' -and
         $referenceCommitCode -match 'CommitResolvedReferenceReassignment' -and
+        $referenceCommitCode -match 'MaximumResolvedReferenceReassignmentBatchSize\s*=\s*256' -and
         $referenceCommitCode -match 'CommitReferenceReassignmentUndo' -and
-        $referenceCommitCode -match 'ProductWorkspaceReducer\.ReassignResolvedReference' -and
+        $referenceCommitCode -match 'ProductWorkspaceReducer\.ReassignResolvedReferences' -and
         $referenceCommitCode -match 'ProductWorkspaceReducer\.(CreateContainer|RenameContainer)' -and
         $referenceCommitCode -match 'ProductWorkspaceReducer\.RemoveContainer' -and
         $referenceCommitCode -match 'CommitContainerRemovalUndo' -and
@@ -1092,10 +1093,27 @@ function Test-SourceContract {
         ([regex]::Matches($codeBehind, 'SelectedItems\.Clear\(\)').Count -ge 4) -and
         $codeBehind -match 'Take\(\s*ProductWorkspaceCommitCoordinator\.MaximumResolvedReferenceBatchSize\s*\)' -and
         $codeBehind -match 'MaximumResolvedReferenceRemovalBatchSize' -and
+        $codeBehind -match 'MaximumResolvedReferenceReassignmentBatchSize' -and
         $codeBehind -match 'ResolvedReferenceBatchAddSelection:Count=0' -and
         $codeBehind -match 'ResolvedReferenceBatchRemovalSelection:Count=0' -and
         $codeBehind -match 'DesktopFilesChanged=False'
     ) 'Batch selection controls must remain bounded, container-scoped, clearable, status-visible, and config-only.'
+    $batchReassignmentChecks = @(
+        $codeBehind.Contains(
+            'async void ProductWorkspaceResolvedReferenceReassignmentButton_Click')
+        $codeBehind.Contains(
+            'sources.Select(source => source.ContainerOrdinal)')
+        $codeBehind.Contains('PrimaryButtonText =')
+        $codeBehind.Contains('await confirmation.ShowAsync()')
+        ([regex]::Matches(
+                $codeBehind,
+                'DefaultButton\s*=\s*ContentDialogButton\.Close').Count -ge 2)
+        $codeBehind.Contains('ResolvedReferenceReassignment:{result.Status}')
+        $codeBehind.Contains('Count={sources.Length}')
+        $codeBehind.Contains('Atomic=True')
+    )
+    Assert-Condition (-not ($batchReassignmentChecks -contains $false)) `
+        'Batch reassignment must stay same-source, bounded, confirmation-gated, atomic, and default-cancel.'
     Assert-Condition (
         $document.OuterXml -match 'x:Name="ProductWorkspaceResolvedReferenceSelectionActionGrid"' -and
         $document.OuterXml -match 'x:Name="ProductWorkspaceResolvedReferenceRemovalSelectionActionGrid"' -and
@@ -1504,7 +1522,7 @@ function Test-SourceContract {
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
-        productResolvedReferenceReassignment = 'atomic-source-target-revision-gated-config-only-single-undo'
+        productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-single-undo'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
         productSavePresentation = 'privacy-safe-static-reduced-motion'

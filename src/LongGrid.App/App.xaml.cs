@@ -583,11 +583,18 @@ public partial class App : Application
     private ProductWorkspaceResolvedReferenceReassignmentCommitResult
         CommitProductWorkspaceResolvedReferenceReassignment(
             long expectedEditRevision,
-            ProductWorkspaceResolvedReferenceRemovalCandidatePresentation source,
+            IReadOnlyList<
+                ProductWorkspaceResolvedReferenceRemovalCandidatePresentation> sources,
             ProductWorkspaceReferenceReassignmentTargetPresentation target)
     {
         if (productWorkspaceSession.State is null
-            || productWorkspaceSession.IsReadOnly)
+            || productWorkspaceSession.IsReadOnly
+            || sources.Count == 0
+            || sources.Count > ProductWorkspaceCommitCoordinator
+                .MaximumResolvedReferenceReassignmentBatchSize
+            || sources.Select(source => source.ContainerOrdinal)
+                .Distinct()
+                .Count() != 1)
         {
             return new(
                 ProductWorkspaceResolvedReferenceReassignmentCommitStatus
@@ -605,8 +612,8 @@ public partial class App : Application
                 StampAuthoritativeDisplayTopology(productWorkspaceSession.State),
                 new(
                     expectedEditRevision,
-                    source.ContainerOrdinal,
-                    source.ItemOrdinal,
+                    sources[0].ContainerOrdinal,
+                    sources.Select(source => source.ItemOrdinal).ToArray(),
                     target.ContainerOrdinal));
         if (result.IsAccepted)
         {
