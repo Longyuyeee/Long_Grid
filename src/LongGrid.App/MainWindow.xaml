@@ -508,6 +508,22 @@
                                             SelectionChanged="ProductWorkspaceResolvedReferenceSelector_SelectionChanged" />
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <Button
+                                                x:Name="ProductWorkspaceResolvedReferenceSelectFirstBatchButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceSelectFirstBatchButton"
+                                                AutomationProperties.Name="选择未分组列表中的前256个项目"
+                                                Click="ProductWorkspaceResolvedReferenceSelectFirstBatchButton_Click"
+                                                Content="选择前 256 项"
+                                                IsEnabled="False" />
+                                            <Button
+                                                x:Name="ProductWorkspaceResolvedReferenceClearSelectionButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceClearSelectionButton"
+                                                AutomationProperties.Name="清除批量加入项目选择"
+                                                Click="ProductWorkspaceResolvedReferenceClearSelectionButton_Click"
+                                                Content="清除选择"
+                                                IsEnabled="False" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button
                                                 x:Name="ProductWorkspaceResolvedReferenceAddButton"
                                                 AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceAddButton"
                                                 AutomationProperties.Name="把所选桌面项目作为引用批量加入正式方格并保存"
@@ -545,6 +561,22 @@
                                             MaxHeight="180"
                                             SelectionMode="Multiple"
                                             SelectionChanged="ProductWorkspaceResolvedReferenceRemovalSelector_SelectionChanged" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button
+                                                x:Name="ProductWorkspaceResolvedReferenceSelectContainerBatchButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceSelectContainerBatchButton"
+                                                AutomationProperties.Name="选择当前引用所在方格中的前256个项目"
+                                                Click="ProductWorkspaceResolvedReferenceSelectContainerBatchButton_Click"
+                                                Content="选择此方格前 256 项"
+                                                IsEnabled="False" />
+                                            <Button
+                                                x:Name="ProductWorkspaceResolvedReferenceRemovalClearSelectionButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceRemovalClearSelectionButton"
+                                                AutomationProperties.Name="清除引用管理项目选择"
+                                                Click="ProductWorkspaceResolvedReferenceRemovalClearSelectionButton_Click"
+                                                Content="清除选择"
+                                                IsEnabled="False" />
+                                        </StackPanel>
                                         <ComboBox
                                             x:Name="ProductWorkspaceResolvedReferenceReassignmentTargetSelector"
                                             AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceReassignmentTargetSelector"
