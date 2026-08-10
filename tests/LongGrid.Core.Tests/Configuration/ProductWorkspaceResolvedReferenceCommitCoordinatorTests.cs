@@ -364,6 +364,146 @@ public sealed class ProductWorkspaceResolvedReferenceCommitCoordinatorTests
         Assert.Equal(0, workflow.SaveCalls);
     }
 
+    [Fact]
+    public async Task BatchAdditionSubmitsOnceAndCanBeUndoneOnceWithoutChangingFiles()
+    {
+        string sandbox = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid.ReferenceBatch.Tests",
+            Guid.NewGuid().ToString("N"));
+        string firstPath = Path.Combine(sandbox, "first.txt");
+        string secondPath = Path.Combine(sandbox, "second.txt");
+        Directory.CreateDirectory(sandbox);
+        await File.WriteAllTextAsync(firstPath, "first-original");
+        await File.WriteAllTextAsync(secondPath, "second-original");
+        try
+        {
+            var workflow = new FakeWorkflow();
+            await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+            var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+            long revision = coordinator.AdvanceExternalRevision();
+            ProductWorkspaceState before = State(Container("container-1", "Work"));
+
+            ProductWorkspaceResolvedReferenceBatchCommitResult added =
+                coordinator.CommitResolvedReferenceBatch(
+                    before,
+                    9,
+                    [Entry(firstPath), Entry(secondPath)],
+                    new(revision, 9, 1, [0, 1]));
+            Assert.True(
+                added.IsAccepted,
+                $"Batch failed: {added.Status}/{added.EditError}/{added.SubmissionStatus}");
+            ProductWorkspaceReferenceBatchAdditionUndoCommitResult undone =
+                coordinator.CommitReferenceBatchAdditionUndo(
+                    added.State!,
+                    added.UndoToken!,
+                    confirmed: true);
+            Assert.True(
+                undone.IsAccepted,
+                $"Undo failed: {undone.Status}/{undone.UndoStatus}/{undone.SubmissionStatus}");
+            ProductWorkspaceReferenceBatchAdditionUndoCommitResult repeated =
+                coordinator.CommitReferenceBatchAdditionUndo(
+                    undone.State!,
+                    added.UndoToken!,
+                    confirmed: true);
+            _ = await saves.CompleteAsync();
+
+            Assert.True(added.IsAccepted);
+            Assert.Equal(2, added.State!.Containers[0].Items.Count);
+            Assert.Equal(2, added.EditRevision);
+            Assert.True(undone.IsAccepted);
+            Assert.Empty(undone.State!.Containers[0].Items);
+            Assert.Equal(3, undone.EditRevision);
+            Assert.Equal(
+                ProductWorkspaceReferenceBatchAdditionUndoStatus.Unavailable,
+                repeated.UndoStatus);
+            Assert.InRange(workflow.SaveCalls, 1, 2);
+            Assert.Equal("first-original", await File.ReadAllTextAsync(firstPath));
+            Assert.Equal("second-original", await File.ReadAllTextAsync(secondPath));
+        }
+        finally
+        {
+            Directory.Delete(sandbox, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task InvalidBatchRequestsAreRejectedWithoutPartialSave()
+    {
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        long revision = coordinator.AdvanceExternalRevision();
+        DesktopCatalogEntry entry = Entry(Path.Combine(Path.GetTempPath(), "one.txt"));
+        ProductWorkspaceState state = State(Container("container-1", "Work"));
+
+        ProductWorkspaceResolvedReferenceBatchCommitResult empty =
+            coordinator.CommitResolvedReferenceBatch(
+                state,
+                9,
+                [entry],
+                new(revision, 9, 1, []));
+        ProductWorkspaceResolvedReferenceBatchCommitResult duplicate =
+            coordinator.CommitResolvedReferenceBatch(
+                state,
+                9,
+                [entry],
+                new(revision, 9, 1, [0, 0]));
+        ProductWorkspaceResolvedReferenceBatchCommitResult stale =
+            coordinator.CommitResolvedReferenceBatch(
+                state,
+                9,
+                [entry],
+                new(revision, 8, 1, [0]));
+        ProductWorkspaceResolvedReferenceBatchCommitResult tooLarge =
+            coordinator.CommitResolvedReferenceBatch(
+                state,
+                9,
+                [entry],
+                new(revision, 9, 1, Enumerable.Range(0, 257).ToArray()));
+        ProductWorkspaceResolvedReferenceBatchCommitResult locked =
+            coordinator.CommitResolvedReferenceBatch(
+                State(Container("container-1", "Locked") with { IsLocked = true }),
+                9,
+                [entry],
+                new(revision, 9, 1, [0]));
+
+        Assert.Equal(ProductWorkspaceResolvedReferenceBatchCommitStatus.InvalidRequest, empty.Status);
+        Assert.Equal(ProductWorkspaceResolvedReferenceBatchCommitStatus.InvalidRequest, duplicate.Status);
+        Assert.Equal(ProductWorkspaceResolvedReferenceBatchCommitStatus.StaleCatalogGeneration, stale.Status);
+        Assert.Equal(ProductWorkspaceResolvedReferenceBatchCommitStatus.InvalidRequest, tooLarge.Status);
+        Assert.Equal(ProductWorkspaceEditError.ContainerLocked, locked.EditError);
+        Assert.Equal(revision, coordinator.CurrentEditRevision);
+        Assert.Equal(0, workflow.SaveCalls);
+    }
+
+    [Fact]
+    public async Task LaterSuccessfulEditInvalidatesBatchAdditionUndo()
+    {
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        long revision = coordinator.AdvanceExternalRevision();
+        ProductWorkspaceState state = State(Container("container-1", "Work"));
+        ProductWorkspaceResolvedReferenceBatchCommitResult added =
+            coordinator.CommitResolvedReferenceBatch(
+                state,
+                9,
+                [Entry(Path.Combine(Path.GetTempPath(), "one.txt"))],
+                new(revision, 9, 1, [0]));
+
+        ProductWorkspaceContainerCommitResult renamed = coordinator.CommitContainer(
+            added.State!,
+            new(
+                ProductWorkspaceContainerCommitAction.Rename,
+                added.EditRevision,
+                1,
+                "Renamed"));
+
+        Assert.True(renamed.IsAccepted);
+        Assert.Null(coordinator.CurrentReferenceBatchAdditionUndoToken);
+    }
+
     private static ProductWorkspaceSaveController CreateSaves(
         IProductConfigurationSaveWorkflow workflow) =>
         new(

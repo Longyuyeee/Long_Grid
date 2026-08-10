@@ -23,20 +23,23 @@ internal sealed record ProductWorkspaceResolvedReferenceAddPresentation(
     long EditRevision,
     long CatalogGeneration,
     bool CanAdd,
-    IReadOnlyList<ProductWorkspaceResolvedReferenceCandidatePresentation> Candidates)
+    IReadOnlyList<ProductWorkspaceResolvedReferenceCandidatePresentation> Candidates,
+    ProductWorkspaceReferenceBatchAdditionUndoToken? BatchUndoToken)
 {
     public static ProductWorkspaceResolvedReferenceAddPresentation Unavailable { get; } =
         new(
             0,
             0,
             CanAdd: false,
-            Array.Empty<ProductWorkspaceResolvedReferenceCandidatePresentation>());
+            Array.Empty<ProductWorkspaceResolvedReferenceCandidatePresentation>(),
+            null);
 
     public static ProductWorkspaceResolvedReferenceAddPresentation Create(
         long editRevision,
         bool canEdit,
         ProductWorkspaceState state,
-        ProductDesktopCatalogSnapshot catalog)
+        ProductDesktopCatalogSnapshot catalog,
+        ProductWorkspaceReferenceBatchAdditionUndoToken? batchUndoToken)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(catalog);
@@ -75,7 +78,8 @@ internal sealed record ProductWorkspaceResolvedReferenceAddPresentation(
             editRevision,
             catalog.Generation,
             CanAdd: canEdit && hasUnlockedContainer && candidates.Length > 0,
-            candidates);
+            candidates,
+            canEdit ? batchUndoToken : null);
     }
 
     private static string DescribeKind(DesktopItemKind kind) => kind switch

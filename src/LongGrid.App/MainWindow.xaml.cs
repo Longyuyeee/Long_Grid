@@ -54,9 +54,14 @@ public sealed partial class MainWindow : Window
     private readonly Func<
         long,
         int,
-        ProductWorkspaceResolvedReferenceCandidatePresentation,
-        ProductWorkspaceResolvedReferenceCommitResult>
-        _commitProductWorkspaceResolvedReference;
+        IReadOnlyList<ProductWorkspaceResolvedReferenceCandidatePresentation>,
+        ProductWorkspaceResolvedReferenceBatchCommitResult>
+        _commitProductWorkspaceResolvedReferenceBatch;
+    private readonly Func<
+        ProductWorkspaceReferenceBatchAdditionUndoToken,
+        bool,
+        ProductWorkspaceReferenceBatchAdditionUndoCommitResult>
+        _commitProductWorkspaceReferenceBatchAdditionUndo;
     private readonly Func<
         long,
         ProductWorkspaceResolvedReferenceRemovalCandidatePresentation,
@@ -159,9 +164,14 @@ public sealed partial class MainWindow : Window
         Func<
             long,
             int,
-            ProductWorkspaceResolvedReferenceCandidatePresentation,
-            ProductWorkspaceResolvedReferenceCommitResult>
-            commitProductWorkspaceResolvedReference,
+            IReadOnlyList<ProductWorkspaceResolvedReferenceCandidatePresentation>,
+            ProductWorkspaceResolvedReferenceBatchCommitResult>
+            commitProductWorkspaceResolvedReferenceBatch,
+        Func<
+            ProductWorkspaceReferenceBatchAdditionUndoToken,
+            bool,
+            ProductWorkspaceReferenceBatchAdditionUndoCommitResult>
+            commitProductWorkspaceReferenceBatchAdditionUndo,
         Func<
             long,
             ProductWorkspaceResolvedReferenceRemovalCandidatePresentation,
@@ -222,7 +232,9 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(retryProductWorkspaceSave);
         ArgumentNullException.ThrowIfNull(refreshProductDesktopCatalog);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceReferenceAction);
-        ArgumentNullException.ThrowIfNull(commitProductWorkspaceResolvedReference);
+        ArgumentNullException.ThrowIfNull(commitProductWorkspaceResolvedReferenceBatch);
+        ArgumentNullException.ThrowIfNull(
+            commitProductWorkspaceReferenceBatchAdditionUndo);
         ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceResolvedReferenceRemoval);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceReferenceRemovalUndo);
@@ -247,8 +259,10 @@ public sealed partial class MainWindow : Window
         _refreshProductDesktopCatalog = refreshProductDesktopCatalog;
         _commitProductWorkspaceReferenceAction =
             commitProductWorkspaceReferenceAction;
-        _commitProductWorkspaceResolvedReference =
-            commitProductWorkspaceResolvedReference;
+        _commitProductWorkspaceResolvedReferenceBatch =
+            commitProductWorkspaceResolvedReferenceBatch;
+        _commitProductWorkspaceReferenceBatchAdditionUndo =
+            commitProductWorkspaceReferenceBatchAdditionUndo;
         _commitProductWorkspaceResolvedReferenceRemoval =
             commitProductWorkspaceResolvedReferenceRemoval;
         _commitProductWorkspaceReferenceRemovalUndo =
@@ -1055,23 +1069,22 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceResolvedReferenceAddPresentation presentation)
     {
         ArgumentNullException.ThrowIfNull(presentation);
-        int previousCatalogIndex =
-            ProductWorkspaceResolvedReferenceSelector.SelectedItem is
-                ProductWorkspaceResolvedReferenceCandidatePresentation previous
-                    ? previous.CatalogIndex
-                    : -1;
+        int[] previousCatalogIndexes = ProductWorkspaceResolvedReferenceSelector
+            .SelectedItems
+            .OfType<ProductWorkspaceResolvedReferenceCandidatePresentation>()
+            .Select(candidate => candidate.CatalogIndex)
+            .ToArray();
         _resolvedReferenceAdd = presentation;
         ProductWorkspaceResolvedReferenceSelector.ItemsSource =
             presentation.Candidates;
-        ProductWorkspaceResolvedReferenceSelector.SelectedIndex =
-            presentation.Candidates
-                .Select((candidate, index) => (candidate, index))
-                .Where(pair => pair.candidate.CatalogIndex == previousCatalogIndex)
-                .Select(pair => pair.index)
-                .DefaultIfEmpty(presentation.Candidates.Count > 0 ? 0 : -1)
-                .First();
+        foreach (ProductWorkspaceResolvedReferenceCandidatePresentation candidate
+            in presentation.Candidates.Where(candidate =>
+                previousCatalogIndexes.Contains(candidate.CatalogIndex)))
+        {
+            ProductWorkspaceResolvedReferenceSelector.SelectedItems.Add(candidate);
+        }
         ProductWorkspaceResolvedReferenceAddStatus.Text = presentation.CanAdd
-            ? "选择真实桌面项目后，只向 Long方格配置添加引用；不会移动、重命名或删除桌面文件。"
+            ? "可按 Ctrl 或 Shift 多选；整批只向 Long方格配置添加引用，不会移动、重命名或删除桌面文件。"
             : presentation.Candidates.Count == 0
                 ? "当前没有可加入的未分组桌面项目；桌面文件未改变。"
                 : "当前会话或方格不可编辑；桌面文件未改变。";
@@ -1082,6 +1095,8 @@ public sealed partial class MainWindow : Window
                 $"Candidates={presentation.Candidates.Count}:" +
                 $"CanAdd={presentation.CanAdd}:Changed=False:" +
                 "DesktopFilesChanged=False");
+        ProductWorkspaceReferenceBatchAdditionUndoButton.IsEnabled =
+            presentation.BatchUndoToken is not null;
         UpdateProductWorkspaceResolvedReferenceAddButton();
     }
 
@@ -1098,56 +1113,113 @@ public sealed partial class MainWindow : Window
         bool enabled = _resolvedReferenceAdd.CanAdd
             && container is not null
             && !container.IsLocked
-            && ProductWorkspaceResolvedReferenceSelector.SelectedItem is
-                ProductWorkspaceResolvedReferenceCandidatePresentation;
+            && ProductWorkspaceResolvedReferenceSelector.SelectedItems.Count is > 0
+                and <= ProductWorkspaceCommitCoordinator.MaximumResolvedReferenceBatchSize;
         ProductWorkspaceResolvedReferenceSelector.IsEnabled =
             _resolvedReferenceAdd.CanAdd
             && container is not null
             && !container.IsLocked;
         ProductWorkspaceResolvedReferenceAddButton.IsEnabled = enabled;
+        int count = ProductWorkspaceResolvedReferenceSelector.SelectedItems.Count;
+        ProductWorkspaceResolvedReferenceAddButton.Content = count > 0
+            ? $"批量加入 {count} 项并保存"
+            : "选择项目后批量加入";
     }
 
-    private void ProductWorkspaceResolvedReferenceAddButton_Click(
+    private async void ProductWorkspaceResolvedReferenceAddButton_Click(
         object sender,
         RoutedEventArgs e)
     {
+        ProductWorkspaceResolvedReferenceCandidatePresentation[] candidates =
+            ProductWorkspaceResolvedReferenceSelector.SelectedItems
+                .OfType<ProductWorkspaceResolvedReferenceCandidatePresentation>()
+                .ToArray();
         if (ProductWorkspaceContainerEditSelector.SelectedItem is not
                 ProductWorkspaceContainerEditCandidatePresentation container
-            || ProductWorkspaceResolvedReferenceSelector.SelectedItem is not
-                ProductWorkspaceResolvedReferenceCandidatePresentation candidate)
+            || candidates.Length == 0)
         {
             return;
         }
 
-        ProductWorkspaceResolvedReferenceCommitResult result =
-            _commitProductWorkspaceResolvedReference(
+        ContentDialog confirmation = new()
+        {
+            XamlRoot = RootLayout.XamlRoot,
+            Title = $"批量加入 {candidates.Length} 个桌面项目？",
+            Content = "操作将作为一次配置编辑提交，可整批撤销。不会移动、删除或重命名桌面文件。",
+            PrimaryButtonText = "批量加入",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        ProductWorkspaceResolvedReferenceBatchCommitResult result =
+            _commitProductWorkspaceResolvedReferenceBatch(
                 _resolvedReferenceAdd.EditRevision,
                 container.Ordinal,
-                candidate);
+                candidates);
         bool changed = result.IsAccepted;
         ProductWorkspaceResolvedReferenceAddStatus.Text = result.Status switch
         {
-            ProductWorkspaceResolvedReferenceCommitStatus.Accepted =>
-                "桌面项目引用已加入所选方格并进入安全保存队列；桌面文件未移动、重命名或删除。",
-            ProductWorkspaceResolvedReferenceCommitStatus.StaleEditRevision =>
+            ProductWorkspaceResolvedReferenceBatchCommitStatus.Accepted =>
+                $"已将 {candidates.Length} 个引用作为一个原子批次加入并保存；可整批撤销，桌面文件未改变。",
+            ProductWorkspaceResolvedReferenceBatchCommitStatus.StaleEditRevision =>
                 "工作区已经更新，请按当前方格和项目列表重新选择。",
-            ProductWorkspaceResolvedReferenceCommitStatus.StaleCatalogGeneration =>
+            ProductWorkspaceResolvedReferenceBatchCommitStatus.StaleCatalogGeneration =>
                 "桌面目录已经刷新，请按最新项目列表重新选择。",
-            ProductWorkspaceResolvedReferenceCommitStatus.AlreadyReferenced =>
-                "该桌面项目已经属于一个正式方格，没有重复保存。",
-            ProductWorkspaceResolvedReferenceCommitStatus.ReducerRejected
+            ProductWorkspaceResolvedReferenceBatchCommitStatus.AlreadyReferenced =>
+                "批次中存在重复或已分组项目，整批未保存。",
+            ProductWorkspaceResolvedReferenceBatchCommitStatus.ReducerRejected
                 when result.EditError == ProductWorkspaceEditError.ContainerLocked =>
                 "所选方格已经锁定，请先解锁；桌面文件未改变。",
-            ProductWorkspaceResolvedReferenceCommitStatus.ReducerRejected =>
-                "引用未通过正式配置校验，没有执行保存。",
-            ProductWorkspaceResolvedReferenceCommitStatus.SaveRejected =>
+            ProductWorkspaceResolvedReferenceBatchCommitStatus.ReducerRejected =>
+                "批量引用未通过正式配置校验，整批未保存。",
+            ProductWorkspaceResolvedReferenceBatchCommitStatus.SaveRejected =>
                 "保存控制器当前无法接受编辑；配置与桌面文件均未改变。",
-            _ => "引用添加请求已失效；配置与桌面文件均未改变。",
+            _ => "批量加入请求无效或超过 256 项；配置与桌面文件均未改变。",
         };
         AutomationProperties.SetItemStatus(
             ProductWorkspaceResolvedReferenceAddStatus,
-            $"ResolvedReferenceAdd:{result.Status}:" +
-                $"Revision={result.EditRevision}:Changed={changed}:" +
+            $"ResolvedReferenceBatchAdd:{result.Status}:Count={candidates.Length}:" +
+                $"Revision={result.EditRevision}:Atomic=True:Changed={changed}:" +
+                "DesktopFilesChanged=False");
+        UpdateProductWorkspaceResolvedReferenceAddButton();
+    }
+
+    private async void ProductWorkspaceReferenceBatchAdditionUndoButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (_resolvedReferenceAdd.BatchUndoToken is not { } token)
+        {
+            return;
+        }
+
+        ContentDialog confirmation = new()
+        {
+            XamlRoot = RootLayout.XamlRoot,
+            Title = "撤销最近一次批量加入？",
+            Content = "只恢复 Long方格配置引用，不会移动、删除或重命名桌面文件。",
+            PrimaryButtonText = "撤销批量加入",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        ProductWorkspaceReferenceBatchAdditionUndoCommitResult result =
+            _commitProductWorkspaceReferenceBatchAdditionUndo(token, true);
+        ProductWorkspaceResolvedReferenceAddStatus.Text = result.IsAccepted
+            ? "最近一次批量加入已整体撤销并保存；桌面文件未改变。"
+            : "批量撤销令牌已失效或保存不可用；配置与桌面文件均未改变。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceResolvedReferenceAddStatus,
+            $"ResolvedReferenceBatchAddUndo:{result.Status}:Undo={result.UndoStatus}:" +
+                $"Revision={result.EditRevision}:Changed={result.IsAccepted}:" +
                 "DesktopFilesChanged=False");
         UpdateProductWorkspaceResolvedReferenceAddButton();
     }

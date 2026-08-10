@@ -135,6 +135,31 @@ public sealed class ProductWorkspaceReducerTests
     }
 
     [Fact]
+    public void BatchAdditionIsDetachedAndAtomic()
+    {
+        ProductWorkspaceState state = CreateState();
+        ProductItemReferenceState first = CreateItem("item-2", "Second");
+        ProductItemReferenceState second = CreateItem("item-3", "Third");
+
+        ProductWorkspaceEditResult accepted =
+            ProductWorkspaceReducer.AddResolvedReferences(
+                state,
+                "container-1",
+                [first, second]);
+        ProductWorkspaceEditResult rejected =
+            ProductWorkspaceReducer.AddResolvedReferences(
+                state,
+                "container-1",
+                [first, CreateMissingState().Containers[0].Items[0]]);
+
+        Assert.True(accepted.IsSuccess);
+        Assert.Equal(3, accepted.State!.Containers[0].Items.Count);
+        Assert.Single(state.Containers[0].Items);
+        Assert.Equal(ProductWorkspaceEditError.InvalidState, rejected.Error);
+        Assert.Null(rejected.State);
+    }
+
+    [Fact]
     public void MissingReferenceIsPreservedUnlessRemovalIsConfirmed()
     {
         ProductWorkspaceState state = CreateMissingState();

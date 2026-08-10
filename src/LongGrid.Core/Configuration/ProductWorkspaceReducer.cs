@@ -141,6 +141,28 @@ public static class ProductWorkspaceReducer
             });
     }
 
+    public static ProductWorkspaceEditResult AddResolvedReferences(
+        ProductWorkspaceState state,
+        string containerId,
+        IReadOnlyList<ProductItemReferenceState> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        if (items.Count == 0
+            || items.Any(item => item is null
+                || item.Resolution != ProductItemReferenceResolution.Resolved))
+        {
+            return Failure(ProductWorkspaceEditError.InvalidState);
+        }
+
+        return EditContainer(
+            state,
+            containerId,
+            container => container with
+            {
+                Items = [.. container.Items, .. items.Select(Clone)],
+            });
+    }
+
     public static ProductWorkspaceEditResult ReplaceReference(
         ProductWorkspaceState state,
         string containerId,

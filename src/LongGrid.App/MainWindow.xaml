@@ -496,22 +496,32 @@
                                             FontSize="13"
                                             FontWeight="SemiBold"
                                             Text="把桌面项目加入所选方格" />
-                                        <ComboBox
+                                        <ListView
                                             x:Name="ProductWorkspaceResolvedReferenceSelector"
                                             AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceSelector"
-                                            AutomationProperties.Name="选择要加入所选正式方格的桌面项目"
+                                            AutomationProperties.Name="多选要加入所选正式方格的桌面项目"
                                             DisplayMemberPath="DisplayName"
-                                            Header="未分组的桌面项目"
+                                            MaxHeight="180"
                                             HorizontalAlignment="Stretch"
                                             IsEnabled="False"
+                                            SelectionMode="Multiple"
                                             SelectionChanged="ProductWorkspaceResolvedReferenceSelector_SelectionChanged" />
-                                        <Button
-                                            x:Name="ProductWorkspaceResolvedReferenceAddButton"
-                                            AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceAddButton"
-                                            AutomationProperties.Name="把所选桌面项目作为引用加入正式方格并保存"
-                                            Click="ProductWorkspaceResolvedReferenceAddButton_Click"
-                                            Content="加入引用并保存"
-                                            IsEnabled="False" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button
+                                                x:Name="ProductWorkspaceResolvedReferenceAddButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceAddButton"
+                                                AutomationProperties.Name="把所选桌面项目作为引用批量加入正式方格并保存"
+                                                Click="ProductWorkspaceResolvedReferenceAddButton_Click"
+                                                Content="选择项目后批量加入"
+                                                IsEnabled="False" />
+                                            <Button
+                                                x:Name="ProductWorkspaceReferenceBatchAdditionUndoButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceReferenceBatchAdditionUndoButton"
+                                                AutomationProperties.Name="撤销最近一次批量加入引用"
+                                                Click="ProductWorkspaceReferenceBatchAdditionUndoButton_Click"
+                                                Content="撤销批量加入"
+                                                IsEnabled="False" />
+                                        </StackPanel>
                                         <TextBlock
                                             x:Name="ProductWorkspaceResolvedReferenceAddStatus"
                                             AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceAddStatus"
