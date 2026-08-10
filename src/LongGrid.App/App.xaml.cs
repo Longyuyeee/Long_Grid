@@ -69,6 +69,7 @@ public partial class App : Application
             CommitProductWorkspaceResolvedReferenceReassignment,
             CommitProductWorkspaceReferenceReassignmentUndo,
             CommitProductWorkspaceContainerAction,
+            CommitProductWorkspaceContainerRemovalUndo,
             CommitProductWorkspaceLayoutRecovery,
             CommitProductWorkspaceLayoutRecoveryUndo);
         productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
@@ -317,7 +318,8 @@ public partial class App : Application
                 ? ProductWorkspaceContainerEditPresentation.Create(
                     workspaceCommits.CurrentEditRevision,
                     !productWorkspaceSession.IsReadOnly,
-                    readModel.Snapshot!.Containers)
+                    readModel.Snapshot!.Containers,
+                    workspaceCommits.CurrentContainerRemovalUndoToken)
                 : productWorkspaceSession.Status ==
                     ProductWorkspaceSessionStatus.NoSavedConfiguration
                     ? ProductWorkspaceContainerEditPresentation.CreateEmpty(
@@ -615,7 +617,8 @@ public partial class App : Application
         ProductWorkspaceContainerColorPreset? colorPreset,
         ProductWorkspaceContainerOpacityPreset? opacityPreset,
         ProductWorkspaceContainerPositionPreset? positionPreset,
-        ProductWorkspaceContainerSizePreset? sizePreset)
+        ProductWorkspaceContainerSizePreset? sizePreset,
+        bool confirmed)
     {
         ProductWorkspaceState? state = productWorkspaceSession.State;
         bool creatingFirstConfiguration =
@@ -666,7 +669,8 @@ public partial class App : Application
                     colorPreset,
                     opacityPreset,
                     positionPreset,
-                    sizePreset));
+                    sizePreset,
+                    confirmed));
         if (!result.IsAccepted)
         {
             return result;
@@ -675,6 +679,42 @@ public partial class App : Application
         ApplyAcceptedProductWorkspaceDocument(
             result.Document!,
             productDesktopCatalog.Snapshot);
+        return result;
+    }
+
+    private ProductWorkspaceContainerRemovalUndoCommitResult
+        CommitProductWorkspaceContainerRemovalUndo(
+            ProductWorkspaceContainerRemovalUndoToken token,
+            bool confirmed)
+    {
+        ProductWorkspaceState? state = productWorkspaceSession.State;
+        if (state is null || productWorkspaceSession.IsReadOnly)
+        {
+            return new(
+                ProductWorkspaceContainerRemovalUndoCommitStatus.InvalidState,
+                ProductWorkspaceContainerRemovalUndoStatus.InvalidState,
+                null,
+                workspaceCommits.CurrentEditRevision,
+                null,
+                null);
+        }
+
+        ProductWorkspaceContainerRemovalUndoCommitResult result =
+            workspaceCommits.CommitContainerRemovalUndo(
+                StampAuthoritativeDisplayTopology(state),
+                token,
+                confirmed);
+        if (result.IsAccepted)
+        {
+            ApplyAcceptedProductWorkspaceDocument(
+                result.Document!,
+                productDesktopCatalog.Snapshot);
+        }
+        else
+        {
+            ApplyProductWorkspaceSessionViews();
+        }
+
         return result;
     }
 

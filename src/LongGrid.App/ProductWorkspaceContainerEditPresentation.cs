@@ -8,6 +8,7 @@ internal sealed record ProductWorkspaceContainerEditCandidatePresentation(
     string DisplayName,
     bool IsLocked,
     bool IsCollapsed,
+    int ItemCount,
     string Color,
     double Opacity,
     double XDip,
@@ -47,6 +48,8 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
     bool CanUpdateState,
     bool CanUpdateAppearance,
     bool CanUpdatePlacement,
+    bool CanRemove,
+    ProductWorkspaceContainerRemovalUndoToken? RemovalUndoToken,
     IReadOnlyList<ProductWorkspaceContainerEditCandidatePresentation> Candidates)
 {
     public static IReadOnlyList<ProductWorkspaceContainerColorChoicePresentation>
@@ -138,12 +141,15 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
             CanUpdateState: false,
             CanUpdateAppearance: false,
             CanUpdatePlacement: false,
+            CanRemove: false,
+            RemovalUndoToken: null,
             Array.Empty<ProductWorkspaceContainerEditCandidatePresentation>());
 
     public static ProductWorkspaceContainerEditPresentation Create(
         long editRevision,
         bool canEdit,
-        IEnumerable<ProductWorkspaceReadContainer> containers)
+        IEnumerable<ProductWorkspaceReadContainer> containers,
+        ProductWorkspaceContainerRemovalUndoToken? removalUndoToken)
     {
         ArgumentNullException.ThrowIfNull(containers);
         ProductWorkspaceContainerEditCandidatePresentation[] candidates = containers
@@ -152,6 +158,7 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
                 container.UserVisibleName,
                 container.IsLocked,
                 container.IsCollapsed,
+                container.Items.Count,
                 container.Color,
                 container.Opacity,
                 container.XDip,
@@ -166,6 +173,8 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
             CanUpdateState: canEdit && candidates.Length > 0,
             CanUpdateAppearance: canEdit && candidates.Length > 0,
             CanUpdatePlacement: canEdit && candidates.Length > 0,
+            CanRemove: canEdit && candidates.Any(candidate => !candidate.IsLocked),
+            RemovalUndoToken: canEdit ? removalUndoToken : null,
             candidates);
     }
 
@@ -178,5 +187,7 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
             CanUpdateState: false,
             CanUpdateAppearance: false,
             CanUpdatePlacement: false,
+            CanRemove: false,
+            RemovalUndoToken: null,
             Array.Empty<ProductWorkspaceContainerEditCandidatePresentation>());
 }
