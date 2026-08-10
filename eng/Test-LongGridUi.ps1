@@ -1097,6 +1097,30 @@ function Test-SourceContract {
         $codeBehind -match 'DesktopFilesChanged=False'
     ) 'Batch selection controls must remain bounded, container-scoped, clearable, status-visible, and config-only.'
     Assert-Condition (
+        $document.OuterXml -match 'x:Name="ProductWorkspaceResolvedReferenceSelectionActionGrid"' -and
+        $document.OuterXml -match 'x:Name="ProductWorkspaceResolvedReferenceRemovalSelectionActionGrid"' -and
+        $codeBehind -match 'ApplyTwoActionResponsiveLayout' -and
+        $codeBehind -match 'ProductWorkspaceResolvedReferenceSelectionActionGrid' -and
+        $codeBehind -match 'ProductWorkspaceResolvedReferenceRemovalSelectionActionGrid' -and
+        $codeBehind -match 'grid\.RowSpacing\s*=\s*compact\s*\?\s*8\s*:\s*0' -and
+        $codeBehind -match 'row:\s*compact\s*\?\s*1\s*:\s*0'
+    ) 'Batch selection action grids must reflow vertically in compact mode.'
+    Assert-Condition (
+        $codeBehind -match '_suppressBatchSelectionAnnouncements' -and
+        ([regex]::Matches(
+                $codeBehind,
+                'if\s*\(!_suppressBatchSelectionAnnouncements\)').Count -eq 2) -and
+        $codeBehind -match 'PublishResolvedReferenceAddSelectionStatus' -and
+        $codeBehind -match 'PublishResolvedReferenceRemovalSelectionStatus' -and
+        $codeBehind -match 'FrameworkElementAutomationPeer\.(FromElement|CreatePeerForElement)' -and
+        $codeBehind -match 'AutomationEvents\.LiveRegionChanged' -and
+        ([regex]::Matches(
+                $codeBehind,
+                'RaiseLiveRegionChanged\(ProductWorkspaceResolvedReference(Add|Removal)Status\)').Count -eq 2) -and
+        $codeBehind -match 'ResolvedReferenceBatchAddSelection:Count=0' -and
+        $codeBehind -match 'ResolvedReferenceBatchRemovalSelection:Count=0'
+    ) 'Batch selection changes must publish one explicit live-region event and clear stale empty-selection state.'
+    Assert-Condition (
         $containerRemovalUndoCode -match 'RemovalEditRevision' -and
         $containerRemovalUndoCode -match 'OperationId' -and
         $containerRemovalUndoCode -match 'RemovedConfigurationFingerprint' -and
@@ -1479,7 +1503,7 @@ function Test-SourceContract {
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
-        productBatchSelectionControls = 'focusable-select-first-container-scope-clear-count-live-status'
+        productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
         productResolvedReferenceReassignment = 'atomic-source-target-revision-gated-config-only-single-undo'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'

@@ -7,6 +7,7 @@ using LongGrid.Infrastructure.DesktopItems;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
@@ -20,6 +21,7 @@ public sealed partial class MainWindow : Window
     private const double DefaultHeight = 760;
     private const double MaximumWorkAreaFraction = 0.9;
     private bool _initialSizeApplied;
+    private bool _suppressBatchSelectionAnnouncements;
     private string _organizationStartChoice = "suggested";
     private bool _practiceItemsAdded;
     private ProductConfigurationStartupMode _configurationStartupMode;
@@ -1075,13 +1077,21 @@ public sealed partial class MainWindow : Window
             .Select(candidate => candidate.CatalogIndex)
             .ToArray();
         _resolvedReferenceAdd = presentation;
-        ProductWorkspaceResolvedReferenceSelector.ItemsSource =
-            presentation.Candidates;
-        foreach (ProductWorkspaceResolvedReferenceCandidatePresentation candidate
-            in presentation.Candidates.Where(candidate =>
-                previousCatalogIndexes.Contains(candidate.CatalogIndex)))
+        _suppressBatchSelectionAnnouncements = true;
+        try
         {
-            ProductWorkspaceResolvedReferenceSelector.SelectedItems.Add(candidate);
+            ProductWorkspaceResolvedReferenceSelector.ItemsSource =
+                presentation.Candidates;
+            foreach (ProductWorkspaceResolvedReferenceCandidatePresentation candidate
+                in presentation.Candidates.Where(candidate =>
+                    previousCatalogIndexes.Contains(candidate.CatalogIndex)))
+            {
+                ProductWorkspaceResolvedReferenceSelector.SelectedItems.Add(candidate);
+            }
+        }
+        finally
+        {
+            _suppressBatchSelectionAnnouncements = false;
         }
         ProductWorkspaceResolvedReferenceAddStatus.Text = presentation.CanAdd
             ? "可按 Ctrl 或 Shift 多选；整批只向 Long方格配置添加引用，不会移动、重命名或删除桌面文件。"
@@ -1102,8 +1112,14 @@ public sealed partial class MainWindow : Window
 
     private void ProductWorkspaceResolvedReferenceSelector_SelectionChanged(
         object sender,
-        SelectionChangedEventArgs e) =>
+        SelectionChangedEventArgs e)
+    {
         UpdateProductWorkspaceResolvedReferenceAddButton();
+        if (!_suppressBatchSelectionAnnouncements)
+        {
+            PublishResolvedReferenceAddSelectionStatus();
+        }
+    }
 
     private void ProductWorkspaceResolvedReferenceSelectFirstBatchButton_Click(
         object sender,
@@ -1114,26 +1130,42 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        ProductWorkspaceResolvedReferenceSelector.SelectedItems.Clear();
-        foreach (ProductWorkspaceResolvedReferenceCandidatePresentation candidate
-            in _resolvedReferenceAdd.Candidates.Take(
-                ProductWorkspaceCommitCoordinator.MaximumResolvedReferenceBatchSize))
+        _suppressBatchSelectionAnnouncements = true;
+        try
         {
-            ProductWorkspaceResolvedReferenceSelector.SelectedItems.Add(candidate);
+            ProductWorkspaceResolvedReferenceSelector.SelectedItems.Clear();
+            foreach (ProductWorkspaceResolvedReferenceCandidatePresentation candidate
+                in _resolvedReferenceAdd.Candidates.Take(
+                    ProductWorkspaceCommitCoordinator.MaximumResolvedReferenceBatchSize))
+            {
+                ProductWorkspaceResolvedReferenceSelector.SelectedItems.Add(candidate);
+            }
         }
+        finally
+        {
+            _suppressBatchSelectionAnnouncements = false;
+        }
+
+        UpdateProductWorkspaceResolvedReferenceAddButton();
+        PublishResolvedReferenceAddSelectionStatus();
     }
 
     private void ProductWorkspaceResolvedReferenceClearSelectionButton_Click(
         object sender,
         RoutedEventArgs e)
     {
-        ProductWorkspaceResolvedReferenceSelector.SelectedItems.Clear();
-        ProductWorkspaceResolvedReferenceAddStatus.Text =
-            "已清除批量加入选择；配置与桌面文件均未改变。";
-        AutomationProperties.SetItemStatus(
-            ProductWorkspaceResolvedReferenceAddStatus,
-            "ResolvedReferenceBatchAddSelection:Count=0:Changed=False:" +
-                "DesktopFilesChanged=False");
+        _suppressBatchSelectionAnnouncements = true;
+        try
+        {
+            ProductWorkspaceResolvedReferenceSelector.SelectedItems.Clear();
+        }
+        finally
+        {
+            _suppressBatchSelectionAnnouncements = false;
+        }
+
+        UpdateProductWorkspaceResolvedReferenceAddButton();
+        PublishResolvedReferenceAddSelectionStatus();
     }
 
     private void UpdateProductWorkspaceResolvedReferenceAddButton()
@@ -1159,7 +1191,21 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceResolvedReferenceAddButton.Content = count > 0
             ? $"批量加入 {count} 项并保存"
             : "选择项目后批量加入";
-        if (count > 0)
+    }
+
+    private void PublishResolvedReferenceAddSelectionStatus()
+    {
+        int count = ProductWorkspaceResolvedReferenceSelector.SelectedItems.Count;
+        if (count == 0)
+        {
+            ProductWorkspaceResolvedReferenceAddStatus.Text =
+                "未选择批量加入项目；配置与桌面文件均未改变。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceResolvedReferenceAddStatus,
+                "ResolvedReferenceBatchAddSelection:Count=0:Changed=False:" +
+                    "DesktopFilesChanged=False");
+        }
+        else
         {
             ProductWorkspaceResolvedReferenceAddStatus.Text =
                 $"已选择 {count} 个未分组项目；确认后整批只修改配置引用。";
@@ -1169,6 +1215,8 @@ public sealed partial class MainWindow : Window
                     $"WithinLimit={count <= ProductWorkspaceCommitCoordinator.MaximumResolvedReferenceBatchSize}:" +
                     "Changed=False:DesktopFilesChanged=False");
         }
+
+        RaiseLiveRegionChanged(ProductWorkspaceResolvedReferenceAddStatus);
     }
 
     private async void ProductWorkspaceResolvedReferenceAddButton_Click(
@@ -1279,13 +1327,21 @@ public sealed partial class MainWindow : Window
                 .Select(item => (item.ContainerOrdinal, item.ItemOrdinal))
                 .ToArray();
         _resolvedReferenceRemoval = presentation;
-        ProductWorkspaceResolvedReferenceRemovalSelector.ItemsSource =
-            presentation.Candidates;
-        foreach (ProductWorkspaceResolvedReferenceRemovalCandidatePresentation candidate
-            in presentation.Candidates.Where(candidate => previous.Contains(
-                (candidate.ContainerOrdinal, candidate.ItemOrdinal))))
+        _suppressBatchSelectionAnnouncements = true;
+        try
         {
-            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems.Add(candidate);
+            ProductWorkspaceResolvedReferenceRemovalSelector.ItemsSource =
+                presentation.Candidates;
+            foreach (ProductWorkspaceResolvedReferenceRemovalCandidatePresentation candidate
+                in presentation.Candidates.Where(candidate => previous.Contains(
+                    (candidate.ContainerOrdinal, candidate.ItemOrdinal))))
+            {
+                ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems.Add(candidate);
+            }
+        }
+        finally
+        {
+            _suppressBatchSelectionAnnouncements = false;
         }
         ProductWorkspaceResolvedReferenceRemovalStatus.Text =
             presentation.CanRemove
@@ -1305,8 +1361,14 @@ public sealed partial class MainWindow : Window
 
     private void ProductWorkspaceResolvedReferenceRemovalSelector_SelectionChanged(
         object sender,
-        SelectionChangedEventArgs e) =>
+        SelectionChangedEventArgs e)
+    {
         UpdateProductWorkspaceResolvedReferenceRemovalButtons();
+        if (!_suppressBatchSelectionAnnouncements)
+        {
+            PublishResolvedReferenceRemovalSelectionStatus();
+        }
+    }
 
     private void ProductWorkspaceResolvedReferenceSelectContainerBatchButton_Click(
         object sender,
@@ -1325,28 +1387,44 @@ public sealed partial class MainWindow : Window
         }
 
         int containerOrdinal = selected[0].ContainerOrdinal;
-        ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems.Clear();
-        foreach (ProductWorkspaceResolvedReferenceRemovalCandidatePresentation candidate
-            in _resolvedReferenceRemoval.Candidates
-                .Where(candidate => candidate.ContainerOrdinal == containerOrdinal)
-                .Take(ProductWorkspaceCommitCoordinator
-                    .MaximumResolvedReferenceRemovalBatchSize))
+        _suppressBatchSelectionAnnouncements = true;
+        try
         {
-            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems.Add(candidate);
+            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems.Clear();
+            foreach (ProductWorkspaceResolvedReferenceRemovalCandidatePresentation candidate
+                in _resolvedReferenceRemoval.Candidates
+                    .Where(candidate => candidate.ContainerOrdinal == containerOrdinal)
+                    .Take(ProductWorkspaceCommitCoordinator
+                        .MaximumResolvedReferenceRemovalBatchSize))
+            {
+                ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems.Add(candidate);
+            }
         }
+        finally
+        {
+            _suppressBatchSelectionAnnouncements = false;
+        }
+
+        UpdateProductWorkspaceResolvedReferenceRemovalButtons();
+        PublishResolvedReferenceRemovalSelectionStatus();
     }
 
     private void ProductWorkspaceResolvedReferenceRemovalClearSelectionButton_Click(
         object sender,
         RoutedEventArgs e)
     {
-        ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems.Clear();
-        ProductWorkspaceResolvedReferenceRemovalStatus.Text =
-            "已清除引用管理选择；配置与桌面文件均未改变。";
-        AutomationProperties.SetItemStatus(
-            ProductWorkspaceResolvedReferenceRemovalStatus,
-            "ResolvedReferenceBatchRemovalSelection:Count=0:Changed=False:" +
-                "DesktopFilesChanged=False");
+        _suppressBatchSelectionAnnouncements = true;
+        try
+        {
+            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems.Clear();
+        }
+        finally
+        {
+            _suppressBatchSelectionAnnouncements = false;
+        }
+
+        UpdateProductWorkspaceResolvedReferenceRemovalButtons();
+        PublishResolvedReferenceRemovalSelectionStatus();
     }
 
     internal void ApplyProductWorkspaceResolvedReferenceReassignment(
@@ -1427,7 +1505,31 @@ public sealed partial class MainWindow : Window
                 : sources.Length > 0
                     ? $"批量移除 {sources.Length} 项并保存"
                     : "选择项目后批量移除";
-        if (sources.Length > 0 && !sameContainer)
+        ProductWorkspaceResolvedReferenceRemovalUndoButton.IsEnabled =
+            _resolvedReferenceRemoval.UndoToken is not null
+            || _resolvedReferenceReassignment.UndoToken is not null;
+    }
+
+    private void PublishResolvedReferenceRemovalSelectionStatus()
+    {
+        ProductWorkspaceResolvedReferenceRemovalCandidatePresentation[] sources =
+            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems
+                .OfType<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>()
+                .ToArray();
+        bool sameContainer = sources.Length > 0
+            && sources.Select(candidate => candidate.ContainerOrdinal)
+                .Distinct()
+                .Count() == 1;
+        if (sources.Length == 0)
+        {
+            ProductWorkspaceResolvedReferenceRemovalStatus.Text =
+                "未选择要管理的引用；配置与桌面文件均未改变。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceResolvedReferenceRemovalStatus,
+                "ResolvedReferenceBatchRemovalSelection:Count=0:Changed=False:" +
+                    "DesktopFilesChanged=False");
+        }
+        else if (!sameContainer)
         {
             ProductWorkspaceResolvedReferenceRemovalStatus.Text =
                 "批量移除只接受同一方格内的项目；跨方格选择未提交，桌面文件未改变。";
@@ -1456,9 +1558,7 @@ public sealed partial class MainWindow : Window
                     "SameContainer=True:WithinLimit=True:Changed=False:" +
                     "DesktopFilesChanged=False");
         }
-        ProductWorkspaceResolvedReferenceRemovalUndoButton.IsEnabled =
-            _resolvedReferenceRemoval.UndoToken is not null
-            || _resolvedReferenceReassignment.UndoToken is not null;
+        RaiseLiveRegionChanged(ProductWorkspaceResolvedReferenceRemovalStatus);
     }
 
     private async void ProductWorkspaceResolvedReferenceRemovalButton_Click(
@@ -2166,6 +2266,17 @@ public sealed partial class MainWindow : Window
             ? Orientation.Vertical
             : Orientation.Horizontal;
 
+        ApplyTwoActionResponsiveLayout(
+            ProductWorkspaceResolvedReferenceSelectionActionGrid,
+            ProductWorkspaceResolvedReferenceSelectFirstBatchButton,
+            ProductWorkspaceResolvedReferenceClearSelectionButton,
+            compact);
+        ApplyTwoActionResponsiveLayout(
+            ProductWorkspaceResolvedReferenceRemovalSelectionActionGrid,
+            ProductWorkspaceResolvedReferenceSelectContainerBatchButton,
+            ProductWorkspaceResolvedReferenceRemovalClearSelectionButton,
+            compact);
+
         StartChoiceGrid.ColumnSpacing = compact ? 0 : 12;
         StartChoiceGrid.RowSpacing = compact ? 8 : 0;
         SetGridPosition(
@@ -2261,6 +2372,29 @@ public sealed partial class MainWindow : Window
         Grid.SetRow(element, row);
         Grid.SetColumn(element, column);
         Grid.SetColumnSpan(element, columnSpan);
+    }
+
+    private static void ApplyTwoActionResponsiveLayout(
+        Grid grid,
+        FrameworkElement primary,
+        FrameworkElement secondary,
+        bool compact)
+    {
+        grid.ColumnSpacing = compact ? 0 : 8;
+        grid.RowSpacing = compact ? 8 : 0;
+        SetGridPosition(primary, row: 0, column: 0, columnSpan: compact ? 2 : 1);
+        SetGridPosition(
+            secondary,
+            row: compact ? 1 : 0,
+            column: compact ? 0 : 1,
+            columnSpan: compact ? 2 : 1);
+    }
+
+    private static void RaiseLiveRegionChanged(FrameworkElement element)
+    {
+        AutomationPeer? peer = FrameworkElementAutomationPeer.FromElement(element)
+            ?? FrameworkElementAutomationPeer.CreatePeerForElement(element);
+        peer?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
     }
 
     private void ShellNavigation_SelectionChanged(
