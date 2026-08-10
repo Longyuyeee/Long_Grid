@@ -325,10 +325,14 @@ function Test-SourceContract {
         'ProductWorkspaceContainerRemoveButton',
         'ProductWorkspaceContainerRemovalUndoButton',
         'ProductWorkspaceResolvedReferenceSelector',
+        'ProductWorkspaceResolvedReferenceSelectFirstBatchButton',
+        'ProductWorkspaceResolvedReferenceClearSelectionButton',
         'ProductWorkspaceResolvedReferenceAddButton',
         'ProductWorkspaceReferenceBatchAdditionUndoButton',
         'ProductWorkspaceResolvedReferenceAddStatus',
         'ProductWorkspaceResolvedReferenceRemovalSelector',
+        'ProductWorkspaceResolvedReferenceSelectContainerBatchButton',
+        'ProductWorkspaceResolvedReferenceRemovalClearSelectionButton',
         'ProductWorkspaceResolvedReferenceReassignmentTargetSelector',
         'ProductWorkspaceResolvedReferenceRemovalButton',
         'ProductWorkspaceResolvedReferenceReassignmentButton',
@@ -635,6 +639,20 @@ function Test-SourceContract {
         $resolvedReferenceSelectorNode.GetAttribute('SelectionChanged') -eq `
             'ProductWorkspaceResolvedReferenceSelector_SelectionChanged'
     ) 'Resolved-reference selection must start disabled and use the audited handler.'
+    foreach ($entry in @{
+            ProductWorkspaceResolvedReferenceSelectFirstBatchButton =
+                'ProductWorkspaceResolvedReferenceSelectFirstBatchButton_Click'
+            ProductWorkspaceResolvedReferenceClearSelectionButton =
+                'ProductWorkspaceResolvedReferenceClearSelectionButton_Click'
+        }.GetEnumerator()) {
+        $node = Get-XamlNodeByAutomationId $document $entry.Key
+        Assert-Condition (
+            $node.GetAttribute('IsEnabled') -eq 'False' -and
+            $node.GetAttribute('Click') -eq $entry.Value -and
+            -not [string]::IsNullOrWhiteSpace(
+                $node.GetAttribute('AutomationProperties.Name'))
+        ) "Batch-add selection control '$($entry.Key)' must be named, keyboard-focusable, disabled by default, and use its audited handler."
+    }
     $resolvedReferenceAddButtonNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceResolvedReferenceAddButton'
@@ -668,6 +686,20 @@ function Test-SourceContract {
         $resolvedReferenceRemovalSelectorNode.GetAttribute('SelectionChanged') -eq `
             'ProductWorkspaceResolvedReferenceRemovalSelector_SelectionChanged'
     ) 'Resolved-reference removal selection must start disabled and use the audited handler.'
+    foreach ($entry in @{
+            ProductWorkspaceResolvedReferenceSelectContainerBatchButton =
+                'ProductWorkspaceResolvedReferenceSelectContainerBatchButton_Click'
+            ProductWorkspaceResolvedReferenceRemovalClearSelectionButton =
+                'ProductWorkspaceResolvedReferenceRemovalClearSelectionButton_Click'
+        }.GetEnumerator()) {
+        $node = Get-XamlNodeByAutomationId $document $entry.Key
+        Assert-Condition (
+            $node.GetAttribute('IsEnabled') -eq 'False' -and
+            $node.GetAttribute('Click') -eq $entry.Value -and
+            -not [string]::IsNullOrWhiteSpace(
+                $node.GetAttribute('AutomationProperties.Name'))
+        ) "Batch-removal selection control '$($entry.Key)' must be named, keyboard-focusable, disabled by default, and use its audited handler."
+    }
     foreach ($entry in @{
             ProductWorkspaceResolvedReferenceRemovalButton =
                 'ProductWorkspaceResolvedReferenceRemovalButton_Click'
@@ -1055,6 +1087,16 @@ function Test-SourceContract {
         $referenceCommitCode -match 'CommitLayoutRecoveryUndo'
     ) 'Reference review, resolved-reference addition, container, layout recovery, and undo edits must share one coordinator with one submission per accepted path.'
     Assert-Condition (
+        $codeBehind -match 'ProductWorkspaceResolvedReferenceSelectFirstBatchButton_Click' -and
+        $codeBehind -match 'ProductWorkspaceResolvedReferenceSelectContainerBatchButton_Click' -and
+        ([regex]::Matches($codeBehind, 'SelectedItems\.Clear\(\)').Count -ge 4) -and
+        $codeBehind -match 'Take\(\s*ProductWorkspaceCommitCoordinator\.MaximumResolvedReferenceBatchSize\s*\)' -and
+        $codeBehind -match 'MaximumResolvedReferenceRemovalBatchSize' -and
+        $codeBehind -match 'ResolvedReferenceBatchAddSelection:Count=0' -and
+        $codeBehind -match 'ResolvedReferenceBatchRemovalSelection:Count=0' -and
+        $codeBehind -match 'DesktopFilesChanged=False'
+    ) 'Batch selection controls must remain bounded, container-scoped, clearable, status-visible, and config-only.'
+    Assert-Condition (
         $containerRemovalUndoCode -match 'RemovalEditRevision' -and
         $containerRemovalUndoCode -match 'OperationId' -and
         $containerRemovalUndoCode -match 'RemovedConfigurationFingerprint' -and
@@ -1437,6 +1479,7 @@ function Test-SourceContract {
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
+        productBatchSelectionControls = 'focusable-select-first-container-scope-clear-count-live-status'
         productResolvedReferenceReassignment = 'atomic-source-target-revision-gated-config-only-single-undo'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'

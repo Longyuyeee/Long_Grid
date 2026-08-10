@@ -1105,6 +1105,37 @@ public sealed partial class MainWindow : Window
         SelectionChangedEventArgs e) =>
         UpdateProductWorkspaceResolvedReferenceAddButton();
 
+    private void ProductWorkspaceResolvedReferenceSelectFirstBatchButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (!ProductWorkspaceResolvedReferenceSelector.IsEnabled)
+        {
+            return;
+        }
+
+        ProductWorkspaceResolvedReferenceSelector.SelectedItems.Clear();
+        foreach (ProductWorkspaceResolvedReferenceCandidatePresentation candidate
+            in _resolvedReferenceAdd.Candidates.Take(
+                ProductWorkspaceCommitCoordinator.MaximumResolvedReferenceBatchSize))
+        {
+            ProductWorkspaceResolvedReferenceSelector.SelectedItems.Add(candidate);
+        }
+    }
+
+    private void ProductWorkspaceResolvedReferenceClearSelectionButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ProductWorkspaceResolvedReferenceSelector.SelectedItems.Clear();
+        ProductWorkspaceResolvedReferenceAddStatus.Text =
+            "已清除批量加入选择；配置与桌面文件均未改变。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceResolvedReferenceAddStatus,
+            "ResolvedReferenceBatchAddSelection:Count=0:Changed=False:" +
+                "DesktopFilesChanged=False");
+    }
+
     private void UpdateProductWorkspaceResolvedReferenceAddButton()
     {
         ProductWorkspaceContainerEditCandidatePresentation? container =
@@ -1121,9 +1152,23 @@ public sealed partial class MainWindow : Window
             && !container.IsLocked;
         ProductWorkspaceResolvedReferenceAddButton.IsEnabled = enabled;
         int count = ProductWorkspaceResolvedReferenceSelector.SelectedItems.Count;
+        ProductWorkspaceResolvedReferenceSelectFirstBatchButton.IsEnabled =
+            ProductWorkspaceResolvedReferenceSelector.IsEnabled
+            && _resolvedReferenceAdd.Candidates.Count > 0;
+        ProductWorkspaceResolvedReferenceClearSelectionButton.IsEnabled = count > 0;
         ProductWorkspaceResolvedReferenceAddButton.Content = count > 0
             ? $"批量加入 {count} 项并保存"
             : "选择项目后批量加入";
+        if (count > 0)
+        {
+            ProductWorkspaceResolvedReferenceAddStatus.Text =
+                $"已选择 {count} 个未分组项目；确认后整批只修改配置引用。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceResolvedReferenceAddStatus,
+                $"ResolvedReferenceBatchAddSelection:Count={count}:" +
+                    $"WithinLimit={count <= ProductWorkspaceCommitCoordinator.MaximumResolvedReferenceBatchSize}:" +
+                    "Changed=False:DesktopFilesChanged=False");
+        }
     }
 
     private async void ProductWorkspaceResolvedReferenceAddButton_Click(
@@ -1263,6 +1308,47 @@ public sealed partial class MainWindow : Window
         SelectionChangedEventArgs e) =>
         UpdateProductWorkspaceResolvedReferenceRemovalButtons();
 
+    private void ProductWorkspaceResolvedReferenceSelectContainerBatchButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ProductWorkspaceResolvedReferenceRemovalCandidatePresentation[] selected =
+            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems
+                .OfType<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>()
+                .ToArray();
+        if (selected.Length == 0
+            || selected.Select(candidate => candidate.ContainerOrdinal)
+                .Distinct()
+                .Count() != 1)
+        {
+            return;
+        }
+
+        int containerOrdinal = selected[0].ContainerOrdinal;
+        ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems.Clear();
+        foreach (ProductWorkspaceResolvedReferenceRemovalCandidatePresentation candidate
+            in _resolvedReferenceRemoval.Candidates
+                .Where(candidate => candidate.ContainerOrdinal == containerOrdinal)
+                .Take(ProductWorkspaceCommitCoordinator
+                    .MaximumResolvedReferenceRemovalBatchSize))
+        {
+            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems.Add(candidate);
+        }
+    }
+
+    private void ProductWorkspaceResolvedReferenceRemovalClearSelectionButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems.Clear();
+        ProductWorkspaceResolvedReferenceRemovalStatus.Text =
+            "已清除引用管理选择；配置与桌面文件均未改变。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceResolvedReferenceRemovalStatus,
+            "ResolvedReferenceBatchRemovalSelection:Count=0:Changed=False:" +
+                "DesktopFilesChanged=False");
+    }
+
     internal void ApplyProductWorkspaceResolvedReferenceReassignment(
         ProductWorkspaceResolvedReferenceReassignmentPresentation presentation)
     {
@@ -1324,6 +1410,10 @@ public sealed partial class MainWindow : Window
             && sources.Length <=
                 ProductWorkspaceCommitCoordinator
                     .MaximumResolvedReferenceRemovalBatchSize;
+        ProductWorkspaceResolvedReferenceSelectContainerBatchButton.IsEnabled =
+            _resolvedReferenceRemoval.CanRemove && sameContainer;
+        ProductWorkspaceResolvedReferenceRemovalClearSelectionButton.IsEnabled =
+            sources.Length > 0;
         ProductWorkspaceResolvedReferenceReassignmentTargetSelector.IsEnabled =
             _resolvedReferenceReassignment.CanReassign && source is not null;
         ProductWorkspaceResolvedReferenceReassignmentButton.IsEnabled =
