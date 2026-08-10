@@ -247,6 +247,123 @@ public sealed class ProductWorkspaceResolvedReferenceCommitCoordinatorTests
     }
 
     [Fact]
+    public async Task BatchRemovalIsAtomicAndCanBeUndoneOnceWithoutChangingFiles()
+    {
+        string sandbox = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid.ResolvedReferenceBatchRemoval.Tests",
+            Guid.NewGuid().ToString("N"));
+        string firstPath = Path.Combine(sandbox, "first.txt");
+        string secondPath = Path.Combine(sandbox, "second.txt");
+        string thirdPath = Path.Combine(sandbox, "third.txt");
+        Directory.CreateDirectory(sandbox);
+        await File.WriteAllTextAsync(firstPath, "first-original");
+        await File.WriteAllTextAsync(secondPath, "second-original");
+        await File.WriteAllTextAsync(thirdPath, "third-original");
+        try
+        {
+            var workflow = new FakeWorkflow();
+            await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+            var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+            long revision = coordinator.AdvanceExternalRevision();
+            ProductWorkspaceState before = State(Container("container-1", "Work") with
+            {
+                Items =
+                [
+                    ProductItemReferenceState.CreateResolved("item-1", Entry(firstPath)),
+                    ProductItemReferenceState.CreateResolved("item-2", Entry(secondPath)),
+                    ProductItemReferenceState.CreateResolved("item-3", Entry(thirdPath)),
+                ],
+            });
+
+            ProductWorkspaceResolvedReferenceBatchRemovalCommitResult removal =
+                coordinator.CommitResolvedReferenceBatchRemoval(
+                    before,
+                    new(revision, 1, [1, 3]));
+            ProductWorkspaceReferenceRemovalUndoCommitResult undo =
+                coordinator.CommitReferenceRemovalUndo(
+                    removal.State!,
+                    removal.UndoToken!,
+                    confirmed: true);
+            ProductWorkspaceReferenceRemovalUndoCommitResult repeated =
+                coordinator.CommitReferenceRemovalUndo(
+                    undo.State!,
+                    removal.UndoToken!,
+                    confirmed: true);
+            _ = await saves.CompleteAsync();
+
+            Assert.True(removal.IsAccepted);
+            Assert.Equal("item-2", Assert.Single(removal.State!.Containers[0].Items).Id);
+            Assert.Equal(2, removal.EditRevision);
+            Assert.True(undo.IsAccepted);
+            Assert.Equal(3, undo.State!.Containers[0].Items.Count);
+            Assert.Equal(
+                ProductWorkspaceReferenceRemovalUndoStatus.Unavailable,
+                repeated.UndoStatus);
+            Assert.InRange(workflow.SaveCalls, 1, 2);
+            Assert.Equal("first-original", await File.ReadAllTextAsync(firstPath));
+            Assert.Equal("second-original", await File.ReadAllTextAsync(secondPath));
+            Assert.Equal("third-original", await File.ReadAllTextAsync(thirdPath));
+        }
+        finally
+        {
+            Directory.Delete(sandbox, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task InvalidBatchRemovalNeverSubmitsPartialState()
+    {
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        long revision = coordinator.AdvanceExternalRevision();
+        DesktopCatalogEntry entry = Entry(Path.Combine(Path.GetTempPath(), "one.txt"));
+        ProductWorkspaceState state = State(Container("container-1", "Work") with
+        {
+            Items = [ProductItemReferenceState.CreateResolved("item-1", entry)],
+        });
+
+        ProductWorkspaceResolvedReferenceBatchRemovalCommitResult stale =
+            coordinator.CommitResolvedReferenceBatchRemoval(
+                state,
+                new(revision - 1, 1, [1]));
+        ProductWorkspaceResolvedReferenceBatchRemovalCommitResult duplicate =
+            coordinator.CommitResolvedReferenceBatchRemoval(
+                state,
+                new(revision, 1, [1, 1]));
+        ProductWorkspaceResolvedReferenceBatchRemovalCommitResult missing =
+            coordinator.CommitResolvedReferenceBatchRemoval(
+                state,
+                new(revision, 1, [1, 2]));
+        ProductWorkspaceResolvedReferenceBatchRemovalCommitResult tooLarge =
+            coordinator.CommitResolvedReferenceBatchRemoval(
+                state,
+                new(revision, 1, Enumerable.Range(1, 257).ToArray()));
+        ProductWorkspaceResolvedReferenceBatchRemovalCommitResult locked =
+            coordinator.CommitResolvedReferenceBatchRemoval(
+                State(state.Containers[0] with { IsLocked = true }),
+                new(revision, 1, [1]));
+
+        Assert.Equal(
+            ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus
+                .StaleEditRevision,
+            stale.Status);
+        Assert.Equal(
+            ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus.InvalidRequest,
+            duplicate.Status);
+        Assert.Equal(
+            ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus.InvalidRequest,
+            missing.Status);
+        Assert.Equal(
+            ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus.InvalidRequest,
+            tooLarge.Status);
+        Assert.Equal(ProductWorkspaceEditError.ContainerLocked, locked.EditError);
+        Assert.Equal(revision, coordinator.CurrentEditRevision);
+        Assert.Equal(0, workflow.SaveCalls);
+    }
+
+    [Fact]
     public async Task ReassignmentMovesOnceAndCanBeUndoneWithoutChangingFile()
     {
         string sandbox = Path.Combine(

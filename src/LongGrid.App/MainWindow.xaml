@@ -535,14 +535,15 @@
                                             FontSize="13"
                                             FontWeight="SemiBold"
                                             Text="管理已加入的引用" />
-                                        <ComboBox
+                                        <ListView
                                             x:Name="ProductWorkspaceResolvedReferenceRemovalSelector"
                                             AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceRemovalSelector"
-                                            AutomationProperties.Name="选择要移除或改归属的正式方格引用"
+                                            AutomationProperties.Name="多选同一方格内要移除的引用，或单选要改归属的引用"
                                             DisplayMemberPath="DisplayName"
-                                            Header="已加入的桌面项目引用"
                                             HorizontalAlignment="Stretch"
                                             IsEnabled="False"
+                                            MaxHeight="180"
+                                            SelectionMode="Multiple"
                                             SelectionChanged="ProductWorkspaceResolvedReferenceRemovalSelector_SelectionChanged" />
                                         <ComboBox
                                             x:Name="ProductWorkspaceResolvedReferenceReassignmentTargetSelector"
@@ -562,9 +563,9 @@
                                             <Button
                                                 x:Name="ProductWorkspaceResolvedReferenceRemovalButton"
                                                 AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceRemovalButton"
-                                                AutomationProperties.Name="从正式方格移除所选引用并保存"
+                                                AutomationProperties.Name="从同一正式方格批量移除所选引用并保存"
                                                 Click="ProductWorkspaceResolvedReferenceRemovalButton_Click"
-                                                Content="移除引用并保存"
+                                                Content="选择项目后批量移除"
                                                 IsEnabled="False" />
                                             <Button
                                                 x:Name="ProductWorkspaceResolvedReferenceReassignmentButton"

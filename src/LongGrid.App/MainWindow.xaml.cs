@@ -64,9 +64,9 @@ public sealed partial class MainWindow : Window
         _commitProductWorkspaceReferenceBatchAdditionUndo;
     private readonly Func<
         long,
-        ProductWorkspaceResolvedReferenceRemovalCandidatePresentation,
-        ProductWorkspaceResolvedReferenceRemovalCommitResult>
-        _commitProductWorkspaceResolvedReferenceRemoval;
+        IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>,
+        ProductWorkspaceResolvedReferenceBatchRemovalCommitResult>
+        _commitProductWorkspaceResolvedReferenceBatchRemoval;
     private readonly Func<
         ProductWorkspaceReferenceRemovalUndoToken,
         bool,
@@ -174,9 +174,9 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceReferenceBatchAdditionUndo,
         Func<
             long,
-            ProductWorkspaceResolvedReferenceRemovalCandidatePresentation,
-            ProductWorkspaceResolvedReferenceRemovalCommitResult>
-            commitProductWorkspaceResolvedReferenceRemoval,
+            IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>,
+            ProductWorkspaceResolvedReferenceBatchRemovalCommitResult>
+            commitProductWorkspaceResolvedReferenceBatchRemoval,
         Func<
             ProductWorkspaceReferenceRemovalUndoToken,
             bool,
@@ -236,7 +236,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceReferenceBatchAdditionUndo);
         ArgumentNullException.ThrowIfNull(
-            commitProductWorkspaceResolvedReferenceRemoval);
+            commitProductWorkspaceResolvedReferenceBatchRemoval);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceReferenceRemovalUndo);
         ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceResolvedReferenceReassignment);
@@ -263,8 +263,8 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceResolvedReferenceBatch;
         _commitProductWorkspaceReferenceBatchAdditionUndo =
             commitProductWorkspaceReferenceBatchAdditionUndo;
-        _commitProductWorkspaceResolvedReferenceRemoval =
-            commitProductWorkspaceResolvedReferenceRemoval;
+        _commitProductWorkspaceResolvedReferenceBatchRemoval =
+            commitProductWorkspaceResolvedReferenceBatchRemoval;
         _commitProductWorkspaceReferenceRemovalUndo =
             commitProductWorkspaceReferenceRemovalUndo;
         _commitProductWorkspaceResolvedReferenceReassignment =
@@ -1228,26 +1228,23 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceResolvedReferenceRemovalPresentation presentation)
     {
         ArgumentNullException.ThrowIfNull(presentation);
-        (int ContainerOrdinal, int ItemOrdinal) previous =
-            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItem is
-                ProductWorkspaceResolvedReferenceRemovalCandidatePresentation item
-                    ? (item.ContainerOrdinal, item.ItemOrdinal)
-                    : (-1, -1);
+        (int ContainerOrdinal, int ItemOrdinal)[] previous =
+            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems
+                .OfType<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>()
+                .Select(item => (item.ContainerOrdinal, item.ItemOrdinal))
+                .ToArray();
         _resolvedReferenceRemoval = presentation;
         ProductWorkspaceResolvedReferenceRemovalSelector.ItemsSource =
             presentation.Candidates;
-        ProductWorkspaceResolvedReferenceRemovalSelector.SelectedIndex =
-            presentation.Candidates
-                .Select((candidate, index) => (candidate, index))
-                .Where(pair =>
-                    pair.candidate.ContainerOrdinal == previous.ContainerOrdinal
-                    && pair.candidate.ItemOrdinal == previous.ItemOrdinal)
-                .Select(pair => pair.index)
-                .DefaultIfEmpty(presentation.Candidates.Count > 0 ? 0 : -1)
-                .First();
+        foreach (ProductWorkspaceResolvedReferenceRemovalCandidatePresentation candidate
+            in presentation.Candidates.Where(candidate => previous.Contains(
+                (candidate.ContainerOrdinal, candidate.ItemOrdinal))))
+        {
+            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems.Add(candidate);
+        }
         ProductWorkspaceResolvedReferenceRemovalStatus.Text =
             presentation.CanRemove
-                ? "移除只会更新 Long方格配置，不会移动、重命名或删除桌面文件。"
+                ? "可按 Ctrl 或 Shift 多选同一方格内 1–256 项并整批移除；只更新 Long方格配置。"
                 : presentation.Candidates.Count == 0
                     ? "当前没有可移除的已解析引用；桌面文件未改变。"
                     : "当前会话不可编辑；桌面文件未改变。";
@@ -1306,9 +1303,16 @@ public sealed partial class MainWindow : Window
 
     private void UpdateProductWorkspaceResolvedReferenceRemovalButtons()
     {
+        ProductWorkspaceResolvedReferenceRemovalCandidatePresentation[] sources =
+            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems
+                .OfType<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>()
+                .ToArray();
         ProductWorkspaceResolvedReferenceRemovalCandidatePresentation? source =
-            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItem as
-                ProductWorkspaceResolvedReferenceRemovalCandidatePresentation;
+            sources.Length == 1 ? sources[0] : null;
+        bool sameContainer = sources.Length > 0
+            && sources.Select(candidate => candidate.ContainerOrdinal)
+                .Distinct()
+                .Count() == 1;
         ProductWorkspaceReferenceReassignmentTargetPresentation? target =
             ProductWorkspaceResolvedReferenceReassignmentTargetSelector.SelectedItem as
                 ProductWorkspaceReferenceReassignmentTargetPresentation;
@@ -1316,7 +1320,10 @@ public sealed partial class MainWindow : Window
             _resolvedReferenceRemoval.CanRemove;
         ProductWorkspaceResolvedReferenceRemovalButton.IsEnabled =
             _resolvedReferenceRemoval.CanRemove
-            && source is not null;
+            && sameContainer
+            && sources.Length <=
+                ProductWorkspaceCommitCoordinator
+                    .MaximumResolvedReferenceRemovalBatchSize;
         ProductWorkspaceResolvedReferenceReassignmentTargetSelector.IsEnabled =
             _resolvedReferenceReassignment.CanReassign && source is not null;
         ProductWorkspaceResolvedReferenceReassignmentButton.IsEnabled =
@@ -1324,42 +1331,98 @@ public sealed partial class MainWindow : Window
             && source is not null
             && target is not null
             && source.ContainerOrdinal != target.ContainerOrdinal;
+        ProductWorkspaceResolvedReferenceRemovalButton.Content = !sameContainer
+            && sources.Length > 0
+                ? "跨方格不可批量移除"
+                : sources.Length > 0
+                    ? $"批量移除 {sources.Length} 项并保存"
+                    : "选择项目后批量移除";
+        if (sources.Length > 0 && !sameContainer)
+        {
+            ProductWorkspaceResolvedReferenceRemovalStatus.Text =
+                "批量移除只接受同一方格内的项目；跨方格选择未提交，桌面文件未改变。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceResolvedReferenceRemovalStatus,
+                $"ResolvedReferenceBatchRemovalSelection:Count={sources.Length}:" +
+                    "SameContainer=False:Changed=False:DesktopFilesChanged=False");
+        }
+        else if (sources.Length >
+            ProductWorkspaceCommitCoordinator.MaximumResolvedReferenceRemovalBatchSize)
+        {
+            ProductWorkspaceResolvedReferenceRemovalStatus.Text =
+                "单批最多移除 256 个引用；当前选择未提交，桌面文件未改变。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceResolvedReferenceRemovalStatus,
+                $"ResolvedReferenceBatchRemovalSelection:Count={sources.Length}:" +
+                    "WithinLimit=False:Changed=False:DesktopFilesChanged=False");
+        }
+        else if (sources.Length > 0)
+        {
+            ProductWorkspaceResolvedReferenceRemovalStatus.Text =
+                $"已选择同一方格内 {sources.Length} 个引用；确认后整批只修改配置。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceResolvedReferenceRemovalStatus,
+                $"ResolvedReferenceBatchRemovalSelection:Count={sources.Length}:" +
+                    "SameContainer=True:WithinLimit=True:Changed=False:" +
+                    "DesktopFilesChanged=False");
+        }
         ProductWorkspaceResolvedReferenceRemovalUndoButton.IsEnabled =
             _resolvedReferenceRemoval.UndoToken is not null
             || _resolvedReferenceReassignment.UndoToken is not null;
     }
 
-    private void ProductWorkspaceResolvedReferenceRemovalButton_Click(
+    private async void ProductWorkspaceResolvedReferenceRemovalButton_Click(
         object sender,
         RoutedEventArgs e)
     {
-        if (ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItem is not
-            ProductWorkspaceResolvedReferenceRemovalCandidatePresentation candidate)
+        ProductWorkspaceResolvedReferenceRemovalCandidatePresentation[] candidates =
+            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems
+                .OfType<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>()
+                .ToArray();
+        if (candidates.Length == 0
+            || candidates.Select(candidate => candidate.ContainerOrdinal)
+                .Distinct()
+                .Count() != 1)
         {
             return;
         }
 
-        ProductWorkspaceResolvedReferenceRemovalCommitResult result =
-            _commitProductWorkspaceResolvedReferenceRemoval(
+        ContentDialog confirmation = new()
+        {
+            XamlRoot = RootLayout.XamlRoot,
+            Title = $"从方格配置移除 {candidates.Length} 个引用？",
+            Content = "整批将作为一次配置编辑提交并可整体撤销。不会移动、删除或重命名桌面文件。",
+            PrimaryButtonText = "批量移除",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        ProductWorkspaceResolvedReferenceBatchRemovalCommitResult result =
+            _commitProductWorkspaceResolvedReferenceBatchRemoval(
                 _resolvedReferenceRemoval.EditRevision,
-                candidate);
+                candidates);
         ProductWorkspaceResolvedReferenceRemovalStatus.Text = result.Status switch
         {
-            ProductWorkspaceResolvedReferenceRemovalCommitStatus.Accepted =>
-                "引用已从方格配置移除并进入安全保存队列；桌面文件未改变，可撤销一次。",
-            ProductWorkspaceResolvedReferenceRemovalCommitStatus.StaleEditRevision =>
+            ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus.Accepted =>
+                $"已从同一方格原子移除 {candidates.Length} 个引用；桌面文件未改变，可整批撤销一次。",
+            ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus.StaleEditRevision =>
                 "工作区已经更新，请按最新引用列表重新选择。",
-            ProductWorkspaceResolvedReferenceRemovalCommitStatus.ReducerRejected
+            ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus.ReducerRejected
                 when result.EditError == ProductWorkspaceEditError.ContainerLocked =>
-                "所选方格已经锁定，未移除引用；桌面文件未改变。",
-            ProductWorkspaceResolvedReferenceRemovalCommitStatus.SaveRejected =>
+                "所选方格已经锁定，整批未移除；桌面文件未改变。",
+            ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus.SaveRejected =>
                 "保存控制器当前无法接受编辑；配置与桌面文件均未改变。",
-            _ => "引用移除请求已失效；配置与桌面文件均未改变。",
+            _ => "请选择同一方格内 1–256 个已解析引用；整批未保存。",
         };
         AutomationProperties.SetItemStatus(
             ProductWorkspaceResolvedReferenceRemovalStatus,
-            $"ResolvedReferenceRemoval:{result.Status}:" +
-                $"Revision={result.EditRevision}:Changed={result.IsAccepted}:" +
+            $"ResolvedReferenceBatchRemoval:{result.Status}:" +
+                $"Count={candidates.Length}:Revision={result.EditRevision}:" +
+                $"Atomic=True:Changed={result.IsAccepted}:" +
                 "DesktopFilesChanged=False");
         UpdateProductWorkspaceResolvedReferenceRemovalButtons();
     }
