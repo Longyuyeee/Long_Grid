@@ -63,7 +63,8 @@ public partial class App : Application
             () => productWorkspaceSaves.Retry(),
             RefreshProductDesktopCatalogAsync,
             CommitProductWorkspaceReferenceAction,
-            CommitProductWorkspaceResolvedReference,
+            CommitProductWorkspaceResolvedReferenceBatch,
+            CommitProductWorkspaceReferenceBatchAdditionUndo,
             CommitProductWorkspaceResolvedReferenceRemoval,
             CommitProductWorkspaceReferenceRemovalUndo,
             CommitProductWorkspaceResolvedReferenceReassignment,
@@ -332,7 +333,8 @@ public partial class App : Application
                     workspaceCommits.CurrentEditRevision,
                     !productWorkspaceSession.IsReadOnly,
                     productWorkspaceSession.State!,
-                    productDesktopCatalog.Snapshot)
+                    productDesktopCatalog.Snapshot,
+                    workspaceCommits.CurrentReferenceBatchAdditionUndoToken)
                 : ProductWorkspaceResolvedReferenceAddPresentation.Unavailable;
         currentWindow.ApplyProductWorkspaceResolvedReferenceAdd(referenceAdder);
         ProductWorkspaceResolvedReferenceRemovalPresentation referenceRemover =
@@ -430,42 +432,77 @@ public partial class App : Application
         return result;
     }
 
-    private ProductWorkspaceResolvedReferenceCommitResult
-        CommitProductWorkspaceResolvedReference(
+    private ProductWorkspaceResolvedReferenceBatchCommitResult
+        CommitProductWorkspaceResolvedReferenceBatch(
             long expectedEditRevision,
             int containerOrdinal,
-            ProductWorkspaceResolvedReferenceCandidatePresentation candidate)
+            IReadOnlyList<ProductWorkspaceResolvedReferenceCandidatePresentation> candidates)
     {
         ProductDesktopCatalogSnapshot catalog = productDesktopCatalog.Snapshot;
         if (!catalog.IsAuthoritative
             || productWorkspaceSession.State is null
             || productWorkspaceSession.IsReadOnly
-            || candidate.CatalogGeneration != catalog.Generation
-            || candidate.CatalogIndex < 0
-            || candidate.CatalogIndex >= catalog.Entries.Count)
+            || candidates.Count == 0
+            || candidates.Any(candidate =>
+                candidate.CatalogGeneration != catalog.Generation
+                || candidate.CatalogIndex < 0
+                || candidate.CatalogIndex >= catalog.Entries.Count))
         {
             return new(
-                ProductWorkspaceResolvedReferenceCommitStatus.InvalidRequest,
+                ProductWorkspaceResolvedReferenceBatchCommitStatus.InvalidRequest,
                 ProductWorkspaceEditError.InvalidState,
+                null,
+                workspaceCommits.CurrentEditRevision,
+                null,
+                null,
+                null);
+        }
+
+        ProductWorkspaceResolvedReferenceBatchCommitResult result =
+            workspaceCommits.CommitResolvedReferenceBatch(
+                StampAuthoritativeDisplayTopology(productWorkspaceSession.State),
+                catalog.Generation,
+                catalog.Entries,
+                new(
+                    expectedEditRevision,
+                    catalog.Generation,
+                    containerOrdinal,
+                    candidates.Select(candidate => candidate.CatalogIndex).ToArray()));
+        if (result.IsAccepted)
+        {
+            ApplyAcceptedProductWorkspaceDocument(result.Document!, catalog);
+        }
+
+        return result;
+    }
+
+    private ProductWorkspaceReferenceBatchAdditionUndoCommitResult
+        CommitProductWorkspaceReferenceBatchAdditionUndo(
+            ProductWorkspaceReferenceBatchAdditionUndoToken token,
+            bool confirmed)
+    {
+        if (productWorkspaceSession.State is null
+            || productWorkspaceSession.IsReadOnly)
+        {
+            return new(
+                ProductWorkspaceReferenceBatchAdditionUndoCommitStatus.InvalidState,
+                ProductWorkspaceReferenceBatchAdditionUndoStatus.InvalidState,
                 null,
                 workspaceCommits.CurrentEditRevision,
                 null,
                 null);
         }
 
-        ProductWorkspaceResolvedReferenceCommitResult result =
-            workspaceCommits.CommitResolvedReference(
+        ProductWorkspaceReferenceBatchAdditionUndoCommitResult result =
+            workspaceCommits.CommitReferenceBatchAdditionUndo(
                 StampAuthoritativeDisplayTopology(productWorkspaceSession.State),
-                catalog.Generation,
-                catalog.Entries,
-                new(
-                    expectedEditRevision,
-                    candidate.CatalogGeneration,
-                    containerOrdinal,
-                    candidate.CatalogIndex));
+                token,
+                confirmed);
         if (result.IsAccepted)
         {
-            ApplyAcceptedProductWorkspaceDocument(result.Document!, catalog);
+            ApplyAcceptedProductWorkspaceDocument(
+                result.Document!,
+                productDesktopCatalog.Snapshot);
         }
 
         return result;

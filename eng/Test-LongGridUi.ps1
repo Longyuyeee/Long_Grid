@@ -35,6 +35,8 @@ $containerEditPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceContainerEditPresentation.cs'
 $containerRemovalUndoCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceContainerRemovalUndo.cs'
+$referenceBatchAdditionUndoCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceReferenceBatchAdditionUndo.cs'
 $layoutRecoveryPreviewCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceLayoutRecoveryPreview.cs'
 $layoutRecoveryReviewCodePath = Join-Path $projectRoot `
@@ -145,6 +147,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $containerRemovalUndoCode = Get-Content `
         -LiteralPath $containerRemovalUndoCodePath `
+        -Raw `
+        -Encoding UTF8
+    $referenceBatchAdditionUndoCode = Get-Content `
+        -LiteralPath $referenceBatchAdditionUndoCodePath `
         -Raw `
         -Encoding UTF8
     $layoutRecoveryPreviewCode = Get-Content `
@@ -320,6 +326,7 @@ function Test-SourceContract {
         'ProductWorkspaceContainerRemovalUndoButton',
         'ProductWorkspaceResolvedReferenceSelector',
         'ProductWorkspaceResolvedReferenceAddButton',
+        'ProductWorkspaceReferenceBatchAdditionUndoButton',
         'ProductWorkspaceResolvedReferenceAddStatus',
         'ProductWorkspaceResolvedReferenceRemovalSelector',
         'ProductWorkspaceResolvedReferenceReassignmentTargetSelector',
@@ -624,6 +631,7 @@ function Test-SourceContract {
         'ProductWorkspaceResolvedReferenceSelector'
     Assert-Condition (
         $resolvedReferenceSelectorNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $resolvedReferenceSelectorNode.GetAttribute('SelectionMode') -eq 'Multiple' -and
         $resolvedReferenceSelectorNode.GetAttribute('SelectionChanged') -eq `
             'ProductWorkspaceResolvedReferenceSelector_SelectionChanged'
     ) 'Resolved-reference selection must start disabled and use the audited handler.'
@@ -635,6 +643,14 @@ function Test-SourceContract {
         $resolvedReferenceAddButtonNode.GetAttribute('Click') -eq `
             'ProductWorkspaceResolvedReferenceAddButton_Click'
     ) 'Resolved-reference addition must require an explicit valid selection.'
+    $resolvedReferenceBatchUndoButtonNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceReferenceBatchAdditionUndoButton'
+    Assert-Condition (
+        $resolvedReferenceBatchUndoButtonNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $resolvedReferenceBatchUndoButtonNode.GetAttribute('Click') -eq `
+            'ProductWorkspaceReferenceBatchAdditionUndoButton_Click'
+    ) 'Batch-reference addition undo must start disabled and require an explicit click.'
     $resolvedReferenceAddStatusNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceResolvedReferenceAddStatus'
@@ -1007,7 +1023,7 @@ function Test-SourceContract {
         -not ($codeBehind -match 'ProductWorkspaceRead.*(State|CatalogEntry|PersistedTarget|CanonicalTarget)')
     ) 'MainWindow must render only the presentation contract, never workspace identity state.'
     Assert-Condition (
-        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 10) -and
+        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 12) -and
         $referenceCommitCode -match 'editRevision\s*=\s*checked\(editRevision\s*\+\s*1\)' -and
         $referenceCommitCode -match 'ProductWorkspaceReferenceGate\.Evaluate' -and
         $referenceCommitCode -match 'ProductWorkspaceConfigurationProjector\.Project' -and
@@ -1016,6 +1032,10 @@ function Test-SourceContract {
         $referenceCommitCode -match 'ExpectedCatalogGeneration' -and
         $referenceCommitCode -match 'AlreadyReferenced' -and
         $referenceCommitCode -match 'ProductWorkspaceReducer\.AddResolvedReference' -and
+        $referenceCommitCode -match 'CommitResolvedReferenceBatch' -and
+        $referenceCommitCode -match 'MaximumResolvedReferenceBatchSize\s*=\s*256' -and
+        $referenceCommitCode -match 'ProductWorkspaceReducer\.AddResolvedReferences' -and
+        $referenceCommitCode -match 'CommitReferenceBatchAdditionUndo' -and
         $referenceCommitCode -match 'CommitResolvedReferenceRemoval' -and
         $referenceCommitCode -match 'CommitReferenceRemovalUndo' -and
         $referenceCommitCode -match 'ProductWorkspaceReducer\.RemoveReference' -and
@@ -1036,6 +1056,17 @@ function Test-SourceContract {
         $containerRemovalUndoCode -match 'ConfirmationRequired' -and
         $containerRemovalUndoCode -match 'CurrentConfigurationChanged'
     ) 'Container-removal undo must bind revision, operation, fingerprints, and confirmation.'
+    Assert-Condition (
+        $referenceBatchAdditionUndoCode -match 'AdditionEditRevision' -and
+        $referenceBatchAdditionUndoCode -match 'OperationId' -and
+        $referenceBatchAdditionUndoCode -match 'AddedConfigurationFingerprint' -and
+        $referenceBatchAdditionUndoCode -match 'RestoreConfigurationFingerprint' -and
+        $referenceBatchAdditionUndoCode -match 'ConfirmationRequired' -and
+        $referenceBatchAdditionUndoCode -match 'CurrentConfigurationChanged' -and
+        $codeBehind -match 'SelectedItems' -and
+        $codeBehind -match 'Atomic=True' -and
+        $codeBehind -match 'DesktopFilesChanged=False'
+    ) 'Batch-reference addition must be bounded, atomic, one-time undoable, and config-only.'
     Assert-Condition (
         $resolvedReferenceAddPresentationCode -match 'DisplayName' -and
         $resolvedReferenceAddPresentationCode -match 'assignedTargets' -and
@@ -1398,7 +1429,7 @@ function Test-SourceContract {
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
-        productResolvedReferenceAdd = 'visible-name-generation-revision-gated-config-only'
+        productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'visible-name-revision-gated-config-only-single-undo'
         productResolvedReferenceReassignment = 'atomic-source-target-revision-gated-config-only-single-undo'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-config-only'

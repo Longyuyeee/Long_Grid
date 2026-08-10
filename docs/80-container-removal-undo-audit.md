@@ -38,6 +38,6 @@ presentation 只包含可见名称、ordinal、锁定/折叠、引用计数及�
 
 合入前仍必须通过启动链、单实例、漏洞、三项安全探针、内部 unsigned RC 以及 PR/main 双 CI。真实 live UIA、Narrator、键鼠/触控、批量选择、Explorer 数据对象、文件移动和硬件矩阵继续 Pending。
 
-## 6. 下一步
+## 6. 后续进展
 
-正式方格配置 CRUD 与单项引用关系链已经闭环。下一产品切片应优先审计并实现批量选择的有限配置语义，或在现有多 blocker 准入合同下评估可见 DesktopHost 产品接线。真实托管文件移动、任务栏美化、小组件和 LPWP 插件运行时继续按独立阶段推进，不从本切片获得隐含授权。
+有限批量选择的首个配置切片已在 [81-batch-reference-addition-undo-audit.md](81-batch-reference-addition-undo-audit.md) 落地：多选未分组项目原子加入一个方格并可整批撤销一次，真实文件操作仍为零。
