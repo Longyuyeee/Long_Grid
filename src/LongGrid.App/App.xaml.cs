@@ -66,6 +66,8 @@ public partial class App : Application
             CommitProductWorkspaceResolvedReference,
             CommitProductWorkspaceResolvedReferenceRemoval,
             CommitProductWorkspaceReferenceRemovalUndo,
+            CommitProductWorkspaceResolvedReferenceReassignment,
+            CommitProductWorkspaceReferenceReassignmentUndo,
             CommitProductWorkspaceContainerAction,
             CommitProductWorkspaceLayoutRecovery,
             CommitProductWorkspaceLayoutRecoveryUndo);
@@ -340,6 +342,16 @@ public partial class App : Application
                     workspaceCommits.CurrentReferenceRemovalUndoToken)
                 : ProductWorkspaceResolvedReferenceRemovalPresentation.Unavailable;
         currentWindow.ApplyProductWorkspaceResolvedReferenceRemoval(referenceRemover);
+        ProductWorkspaceResolvedReferenceReassignmentPresentation referenceReassignment =
+            readModel.IsSuccess
+                ? ProductWorkspaceResolvedReferenceReassignmentPresentation.Create(
+                    workspaceCommits.CurrentEditRevision,
+                    !productWorkspaceSession.IsReadOnly,
+                    readModel.Snapshot!,
+                    workspaceCommits.CurrentReferenceReassignmentUndoToken)
+                : ProductWorkspaceResolvedReferenceReassignmentPresentation.Unavailable;
+        currentWindow.ApplyProductWorkspaceResolvedReferenceReassignment(
+            referenceReassignment);
         ApplyProductWorkspaceReferenceReview();
     }
 
@@ -511,6 +523,76 @@ public partial class App : Application
 
         ProductWorkspaceReferenceRemovalUndoCommitResult result =
             workspaceCommits.CommitReferenceRemovalUndo(
+                StampAuthoritativeDisplayTopology(productWorkspaceSession.State),
+                token,
+                confirmed);
+        if (result.IsAccepted)
+        {
+            ApplyAcceptedProductWorkspaceDocument(
+                result.Document!,
+                productDesktopCatalog.Snapshot);
+        }
+
+        return result;
+    }
+
+    private ProductWorkspaceResolvedReferenceReassignmentCommitResult
+        CommitProductWorkspaceResolvedReferenceReassignment(
+            long expectedEditRevision,
+            ProductWorkspaceResolvedReferenceRemovalCandidatePresentation source,
+            ProductWorkspaceReferenceReassignmentTargetPresentation target)
+    {
+        if (productWorkspaceSession.State is null
+            || productWorkspaceSession.IsReadOnly)
+        {
+            return new(
+                ProductWorkspaceResolvedReferenceReassignmentCommitStatus
+                    .InvalidRequest,
+                ProductWorkspaceEditError.InvalidState,
+                null,
+                workspaceCommits.CurrentEditRevision,
+                null,
+                null,
+                null);
+        }
+
+        ProductWorkspaceResolvedReferenceReassignmentCommitResult result =
+            workspaceCommits.CommitResolvedReferenceReassignment(
+                StampAuthoritativeDisplayTopology(productWorkspaceSession.State),
+                new(
+                    expectedEditRevision,
+                    source.ContainerOrdinal,
+                    source.ItemOrdinal,
+                    target.ContainerOrdinal));
+        if (result.IsAccepted)
+        {
+            ApplyAcceptedProductWorkspaceDocument(
+                result.Document!,
+                productDesktopCatalog.Snapshot);
+        }
+
+        return result;
+    }
+
+    private ProductWorkspaceReferenceReassignmentUndoCommitResult
+        CommitProductWorkspaceReferenceReassignmentUndo(
+            ProductWorkspaceReferenceReassignmentUndoToken token,
+            bool confirmed)
+    {
+        if (productWorkspaceSession.State is null
+            || productWorkspaceSession.IsReadOnly)
+        {
+            return new(
+                ProductWorkspaceReferenceReassignmentUndoCommitStatus.InvalidState,
+                ProductWorkspaceReferenceReassignmentUndoStatus.Unavailable,
+                null,
+                workspaceCommits.CurrentEditRevision,
+                null,
+                null);
+        }
+
+        ProductWorkspaceReferenceReassignmentUndoCommitResult result =
+            workspaceCommits.CommitReferenceReassignmentUndo(
                 StampAuthoritativeDisplayTopology(productWorkspaceSession.State),
                 token,
                 confirmed);

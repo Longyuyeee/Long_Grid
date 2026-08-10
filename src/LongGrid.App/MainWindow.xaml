@@ -512,14 +512,24 @@
                                         <ComboBox
                                             x:Name="ProductWorkspaceResolvedReferenceRemovalSelector"
                                             AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceRemovalSelector"
-                                            AutomationProperties.Name="选择要从正式方格移除的引用"
+                                            AutomationProperties.Name="选择要移除或改归属的正式方格引用"
                                             DisplayMemberPath="DisplayName"
                                             Header="已加入的桌面项目引用"
                                             HorizontalAlignment="Stretch"
                                             IsEnabled="False"
                                             SelectionChanged="ProductWorkspaceResolvedReferenceRemovalSelector_SelectionChanged" />
+                                        <ComboBox
+                                            x:Name="ProductWorkspaceResolvedReferenceReassignmentTargetSelector"
+                                            AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceReassignmentTargetSelector"
+                                            AutomationProperties.Name="选择引用改归属的目标正式方格"
+                                            DisplayMemberPath="DisplayName"
+                                            Header="改归属到方格"
+                                            HorizontalAlignment="Stretch"
+                                            IsEnabled="False"
+                                            SelectionChanged="ProductWorkspaceResolvedReferenceReassignmentTargetSelector_SelectionChanged" />
                                         <Grid ColumnSpacing="8">
                                             <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
@@ -531,12 +541,20 @@
                                                 Content="移除引用并保存"
                                                 IsEnabled="False" />
                                             <Button
-                                                x:Name="ProductWorkspaceResolvedReferenceRemovalUndoButton"
+                                                x:Name="ProductWorkspaceResolvedReferenceReassignmentButton"
                                                 Grid.Column="1"
+                                                AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceReassignmentButton"
+                                                AutomationProperties.Name="把所选引用改归属到目标正式方格并保存"
+                                                Click="ProductWorkspaceResolvedReferenceReassignmentButton_Click"
+                                                Content="改归属并保存"
+                                                IsEnabled="False" />
+                                            <Button
+                                                x:Name="ProductWorkspaceResolvedReferenceRemovalUndoButton"
+                                                Grid.Column="2"
                                                 AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceRemovalUndoButton"
-                                                AutomationProperties.Name="撤销上一次引用移除并保存"
+                                                AutomationProperties.Name="撤销上一次引用移除或改归属并保存"
                                                 Click="ProductWorkspaceResolvedReferenceRemovalUndoButton_Click"
-                                                Content="撤销上次移除"
+                                                Content="撤销上次变更"
                                                 IsEnabled="False" />
                                         </Grid>
                                         <TextBlock

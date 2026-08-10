@@ -189,6 +189,59 @@ public sealed record ProductWorkspaceReferenceRemovalUndoCommitResult(
         && Document is not null;
 }
 
+public enum ProductWorkspaceResolvedReferenceReassignmentCommitStatus
+{
+    Accepted,
+    StaleEditRevision,
+    ReducerRejected,
+    SaveRejected,
+    InvalidRequest,
+}
+
+public sealed record ProductWorkspaceResolvedReferenceReassignmentCommitRequest(
+    long ExpectedEditRevision,
+    int SourceContainerOrdinal,
+    int ItemOrdinal,
+    int TargetContainerOrdinal);
+
+public sealed record ProductWorkspaceResolvedReferenceReassignmentCommitResult(
+    ProductWorkspaceResolvedReferenceReassignmentCommitStatus Status,
+    ProductWorkspaceEditError EditError,
+    ProductWorkspaceSaveSubmissionStatus? SubmissionStatus,
+    long EditRevision,
+    ProductWorkspaceState? State,
+    ProductConfigurationDocument? Document,
+    ProductWorkspaceReferenceReassignmentUndoToken? UndoToken)
+{
+    public bool IsAccepted =>
+        Status == ProductWorkspaceResolvedReferenceReassignmentCommitStatus.Accepted
+        && State is not null
+        && Document is not null
+        && UndoToken is not null;
+}
+
+public enum ProductWorkspaceReferenceReassignmentUndoCommitStatus
+{
+    Accepted,
+    GateRejected,
+    SaveRejected,
+    InvalidState,
+}
+
+public sealed record ProductWorkspaceReferenceReassignmentUndoCommitResult(
+    ProductWorkspaceReferenceReassignmentUndoCommitStatus Status,
+    ProductWorkspaceReferenceReassignmentUndoStatus UndoStatus,
+    ProductWorkspaceSaveSubmissionStatus? SubmissionStatus,
+    long EditRevision,
+    ProductWorkspaceState? State,
+    ProductConfigurationDocument? Document)
+{
+    public bool IsAccepted =>
+        Status == ProductWorkspaceReferenceReassignmentUndoCommitStatus.Accepted
+        && State is not null
+        && Document is not null;
+}
+
 public enum ProductWorkspaceLayoutRecoveryCommitStatus
 {
     Accepted,
@@ -240,6 +293,7 @@ public sealed class ProductWorkspaceCommitCoordinator
     private long editRevision;
     private PendingLayoutRecoveryUndo? pendingLayoutRecoveryUndo;
     private PendingReferenceRemovalUndo? pendingReferenceRemovalUndo;
+    private PendingReferenceReassignmentUndo? pendingReferenceReassignmentUndo;
 
     public ProductWorkspaceCommitCoordinator(
         ProductWorkspaceSaveController saves)
@@ -282,6 +336,18 @@ public sealed class ProductWorkspaceCommitCoordinator
         }
     }
 
+    public ProductWorkspaceReferenceReassignmentUndoToken?
+        CurrentReferenceReassignmentUndoToken
+    {
+        get
+        {
+            lock (gate)
+            {
+                return pendingReferenceReassignmentUndo?.Token;
+            }
+        }
+    }
+
     public long AdvanceExternalRevision()
     {
         lock (gate)
@@ -289,6 +355,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             editRevision = checked(editRevision + 1);
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = null;
+            pendingReferenceReassignmentUndo = null;
             return editRevision;
         }
     }
@@ -365,6 +432,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             editRevision = nextEditRevision;
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = null;
+            pendingReferenceReassignmentUndo = null;
             return new(
                 ProductWorkspaceReferenceCommitStatus.Accepted,
                 ProductWorkspaceReferenceGateError.None,
@@ -537,6 +605,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             editRevision = nextEditRevision;
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = null;
+            pendingReferenceReassignmentUndo = null;
             return new(
                 ProductWorkspaceContainerCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -634,6 +703,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             editRevision = checked(editRevision + 1);
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = null;
+            pendingReferenceReassignmentUndo = null;
             return new(
                 ProductWorkspaceResolvedReferenceCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -724,6 +794,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             editRevision = nextEditRevision;
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = new(undoToken, state);
+            pendingReferenceReassignmentUndo = null;
             return new(
                 ProductWorkspaceResolvedReferenceRemovalCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -791,8 +862,177 @@ public sealed class ProductWorkspaceCommitCoordinator
             editRevision = checked(editRevision + 1);
             pendingReferenceRemovalUndo = null;
             pendingLayoutRecoveryUndo = null;
+            pendingReferenceReassignmentUndo = null;
             return new(
                 ProductWorkspaceReferenceRemovalUndoCommitStatus.Accepted,
+                undo.Status,
+                submission.Status,
+                editRevision,
+                edit.State,
+                projection.Document);
+        }
+    }
+
+    public ProductWorkspaceResolvedReferenceReassignmentCommitResult
+        CommitResolvedReferenceReassignment(
+            ProductWorkspaceState state,
+            ProductWorkspaceResolvedReferenceReassignmentCommitRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(request);
+
+        lock (gate)
+        {
+            if (request.ExpectedEditRevision != editRevision)
+            {
+                return ResolvedReferenceReassignmentFailure(
+                    ProductWorkspaceResolvedReferenceReassignmentCommitStatus
+                        .StaleEditRevision);
+            }
+
+            if (request.SourceContainerOrdinal <= 0
+                || request.SourceContainerOrdinal > state.Containers.Count
+                || request.TargetContainerOrdinal <= 0
+                || request.TargetContainerOrdinal > state.Containers.Count
+                || request.SourceContainerOrdinal == request.TargetContainerOrdinal)
+            {
+                return ResolvedReferenceReassignmentFailure(
+                    ProductWorkspaceResolvedReferenceReassignmentCommitStatus
+                        .InvalidRequest);
+            }
+
+            ProductContainerState source =
+                state.Containers[request.SourceContainerOrdinal - 1];
+            ProductContainerState target =
+                state.Containers[request.TargetContainerOrdinal - 1];
+            if (request.ItemOrdinal <= 0
+                || request.ItemOrdinal > source.Items.Count
+                || source.Items[request.ItemOrdinal - 1].Resolution !=
+                    ProductItemReferenceResolution.Resolved)
+            {
+                return ResolvedReferenceReassignmentFailure(
+                    ProductWorkspaceResolvedReferenceReassignmentCommitStatus
+                        .InvalidRequest);
+            }
+
+            ProductWorkspaceEditResult edit =
+                ProductWorkspaceReducer.ReassignResolvedReference(
+                    state,
+                    source.Id,
+                    source.Items[request.ItemOrdinal - 1].Id,
+                    target.Id);
+            if (!edit.IsSuccess || !edit.Changed)
+            {
+                return ResolvedReferenceReassignmentFailure(
+                    ProductWorkspaceResolvedReferenceReassignmentCommitStatus
+                        .ReducerRejected,
+                    edit.Error);
+            }
+
+            ProductWorkspaceProjectionResult projection =
+                ProductWorkspaceConfigurationProjector.Project(edit.State!);
+            long nextEditRevision = checked(editRevision + 1);
+            ProductWorkspaceReferenceReassignmentUndoToken? undoToken =
+                projection.IsSuccess
+                    ? ProductWorkspaceReferenceReassignmentUndo.Prepare(
+                        state,
+                        edit.State!,
+                        nextEditRevision,
+                        Guid.NewGuid())
+                    : null;
+            if (!projection.IsSuccess || undoToken is null)
+            {
+                return ResolvedReferenceReassignmentFailure(
+                    ProductWorkspaceResolvedReferenceReassignmentCommitStatus
+                        .ReducerRejected,
+                    ProductWorkspaceEditError.InvalidState,
+                    ProductWorkspaceSaveSubmissionStatus.InvalidState);
+            }
+
+            ProductWorkspaceSaveSubmissionResult submission = saves.Submit(edit);
+            if (!submission.IsAccepted)
+            {
+                return ResolvedReferenceReassignmentFailure(
+                    ProductWorkspaceResolvedReferenceReassignmentCommitStatus
+                        .SaveRejected,
+                    submission.EditError,
+                    submission.Status);
+            }
+
+            editRevision = nextEditRevision;
+            pendingLayoutRecoveryUndo = null;
+            pendingReferenceRemovalUndo = null;
+            pendingReferenceReassignmentUndo = new(undoToken, state);
+            return new(
+                ProductWorkspaceResolvedReferenceReassignmentCommitStatus.Accepted,
+                ProductWorkspaceEditError.None,
+                submission.Status,
+                editRevision,
+                edit.State,
+                projection.Document,
+                undoToken);
+        }
+    }
+
+    public ProductWorkspaceReferenceReassignmentUndoCommitResult
+        CommitReferenceReassignmentUndo(
+            ProductWorkspaceState state,
+            ProductWorkspaceReferenceReassignmentUndoToken token,
+            bool confirmed)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(token);
+
+        lock (gate)
+        {
+            if (pendingReferenceReassignmentUndo is null)
+            {
+                return ReferenceReassignmentUndoFailure(
+                    ProductWorkspaceReferenceReassignmentUndoCommitStatus.GateRejected,
+                    ProductWorkspaceReferenceReassignmentUndoStatus.Unavailable);
+            }
+
+            ProductWorkspaceReferenceReassignmentUndoResult undo =
+                ProductWorkspaceReferenceReassignmentUndo.Confirm(
+                    state,
+                    pendingReferenceReassignmentUndo.RestoreState,
+                    editRevision,
+                    token,
+                    pendingReferenceReassignmentUndo.Token,
+                    confirmed);
+            if (!undo.IsAccepted)
+            {
+                return ReferenceReassignmentUndoFailure(
+                    ProductWorkspaceReferenceReassignmentUndoCommitStatus.GateRejected,
+                    undo.Status);
+            }
+
+            ProductWorkspaceEditResult edit = undo.Edit!;
+            ProductWorkspaceProjectionResult projection =
+                ProductWorkspaceConfigurationProjector.Project(edit.State!);
+            if (!projection.IsSuccess)
+            {
+                return ReferenceReassignmentUndoFailure(
+                    ProductWorkspaceReferenceReassignmentUndoCommitStatus.InvalidState,
+                    ProductWorkspaceReferenceReassignmentUndoStatus.InvalidState,
+                    ProductWorkspaceSaveSubmissionStatus.InvalidState);
+            }
+
+            ProductWorkspaceSaveSubmissionResult submission = saves.Submit(edit);
+            if (!submission.IsAccepted)
+            {
+                return ReferenceReassignmentUndoFailure(
+                    ProductWorkspaceReferenceReassignmentUndoCommitStatus.SaveRejected,
+                    undo.Status,
+                    submission.Status);
+            }
+
+            editRevision = checked(editRevision + 1);
+            pendingReferenceReassignmentUndo = null;
+            pendingReferenceRemovalUndo = null;
+            pendingLayoutRecoveryUndo = null;
+            return new(
+                ProductWorkspaceReferenceReassignmentUndoCommitStatus.Accepted,
                 undo.Status,
                 submission.Status,
                 editRevision,
@@ -881,6 +1121,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             editRevision = nextEditRevision;
             pendingLayoutRecoveryUndo = new(undoToken, state);
             pendingReferenceRemovalUndo = null;
+            pendingReferenceReassignmentUndo = null;
             return new(
                 ProductWorkspaceLayoutRecoveryCommitStatus.Accepted,
                 confirmation.Status,
@@ -947,6 +1188,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             editRevision = checked(editRevision + 1);
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = null;
+            pendingReferenceReassignmentUndo = null;
             return new(
                 ProductWorkspaceLayoutRecoveryUndoCommitStatus.Accepted,
                 undo.Status,
@@ -975,6 +1217,10 @@ public sealed class ProductWorkspaceCommitCoordinator
 
     private sealed record PendingReferenceRemovalUndo(
         ProductWorkspaceReferenceRemovalUndoToken Token,
+        ProductWorkspaceState RestoreState);
+
+    private sealed record PendingReferenceReassignmentUndo(
+        ProductWorkspaceReferenceReassignmentUndoToken Token,
         ProductWorkspaceState RestoreState);
 
     public static string ResolveColor(ProductWorkspaceContainerColorPreset preset) =>
@@ -1061,6 +1307,33 @@ public sealed class ProductWorkspaceCommitCoordinator
         ReferenceRemovalUndoFailure(
             ProductWorkspaceReferenceRemovalUndoCommitStatus status,
             ProductWorkspaceReferenceRemovalUndoStatus undoStatus,
+            ProductWorkspaceSaveSubmissionStatus? submissionStatus = null) =>
+        new(
+            status,
+            undoStatus,
+            submissionStatus,
+            editRevision,
+            null,
+            null);
+
+    private ProductWorkspaceResolvedReferenceReassignmentCommitResult
+        ResolvedReferenceReassignmentFailure(
+            ProductWorkspaceResolvedReferenceReassignmentCommitStatus status,
+            ProductWorkspaceEditError editError = ProductWorkspaceEditError.None,
+            ProductWorkspaceSaveSubmissionStatus? submissionStatus = null) =>
+        new(
+            status,
+            editError,
+            submissionStatus,
+            editRevision,
+            null,
+            null,
+            null);
+
+    private ProductWorkspaceReferenceReassignmentUndoCommitResult
+        ReferenceReassignmentUndoFailure(
+            ProductWorkspaceReferenceReassignmentUndoCommitStatus status,
+            ProductWorkspaceReferenceReassignmentUndoStatus undoStatus,
             ProductWorkspaceSaveSubmissionStatus? submissionStatus = null) =>
         new(
             status,

@@ -222,6 +222,72 @@ public sealed class ProductWorkspaceReducerTests
     }
 
     [Fact]
+    public void ResolvedReferenceReassignmentIsAtomicAndPreservesIdentity()
+    {
+        ProductWorkspaceState original = CreateState();
+        ProductContainerState target = original.Containers[0] with
+        {
+            Id = "container-2",
+            Name = "Archive",
+            Items = Array.Empty<ProductItemReferenceState>(),
+        };
+        ProductWorkspaceState state = original with
+        {
+            Containers = [original.Containers[0], target],
+        };
+
+        ProductWorkspaceEditResult result =
+            ProductWorkspaceReducer.ReassignResolvedReference(
+                state,
+                "container-1",
+                "item-1",
+                "container-2");
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Changed);
+        Assert.Empty(result.State!.Containers[0].Items);
+        ProductItemReferenceState moved =
+            Assert.Single(result.State.Containers[1].Items);
+        Assert.Equal("item-1", moved.Id);
+        Assert.Single(state.Containers[0].Items);
+        Assert.Empty(state.Containers[1].Items);
+    }
+
+    [Fact]
+    public void ReassignmentRejectsLockedTargetsAndTreatsSameContainerAsNoChange()
+    {
+        ProductWorkspaceState original = CreateState();
+        ProductContainerState lockedTarget = original.Containers[0] with
+        {
+            Id = "container-2",
+            Name = "Locked",
+            IsLocked = true,
+            Items = Array.Empty<ProductItemReferenceState>(),
+        };
+        ProductWorkspaceState state = original with
+        {
+            Containers = [original.Containers[0], lockedTarget],
+        };
+
+        ProductWorkspaceEditResult locked =
+            ProductWorkspaceReducer.ReassignResolvedReference(
+                state,
+                "container-1",
+                "item-1",
+                "container-2");
+        ProductWorkspaceEditResult same =
+            ProductWorkspaceReducer.ReassignResolvedReference(
+                state,
+                "container-1",
+                "item-1",
+                "container-1");
+
+        Assert.Equal(ProductWorkspaceEditError.ContainerLocked, locked.Error);
+        Assert.True(same.IsSuccess);
+        Assert.False(same.Changed);
+    }
+
+    [Fact]
     public void InvalidInputStateFailsBeforeApplyingAnEdit()
     {
         ProductWorkspaceState state = CreateState() with { Containers = null! };

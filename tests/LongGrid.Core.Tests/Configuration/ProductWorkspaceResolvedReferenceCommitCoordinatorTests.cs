@@ -246,6 +246,124 @@ public sealed class ProductWorkspaceResolvedReferenceCommitCoordinatorTests
         Assert.Equal(0, workflow.SaveCalls);
     }
 
+    [Fact]
+    public async Task ReassignmentMovesOnceAndCanBeUndoneWithoutChangingFile()
+    {
+        string sandbox = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid.ResolvedReferenceReassignment.Tests",
+            Guid.NewGuid().ToString("N"));
+        string desktopFile = Path.Combine(sandbox, "keep.txt");
+        Directory.CreateDirectory(sandbox);
+        await File.WriteAllTextAsync(desktopFile, "keep-original");
+        try
+        {
+            var workflow = new FakeWorkflow();
+            await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+            var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+            long revision = coordinator.AdvanceExternalRevision();
+            DesktopCatalogEntry entry = Entry(desktopFile);
+            ProductContainerState source = Container("container-1", "Source") with
+            {
+                Items =
+                [
+                    ProductItemReferenceState.CreateResolved("item-1", entry),
+                ],
+            };
+            ProductWorkspaceState before =
+                State(source, Container("container-2", "Target"));
+
+            ProductWorkspaceResolvedReferenceReassignmentCommitResult reassignment =
+                coordinator.CommitResolvedReferenceReassignment(
+                    before,
+                    new(revision, 1, 1, 2));
+            Assert.Equal(
+                reassignment.UndoToken,
+                coordinator.CurrentReferenceReassignmentUndoToken);
+            ProductWorkspaceReferenceReassignmentUndoCommitResult undo =
+                coordinator.CommitReferenceReassignmentUndo(
+                    reassignment.State!,
+                    reassignment.UndoToken!,
+                    confirmed: true);
+            ProductWorkspaceReferenceReassignmentUndoCommitResult secondUndo =
+                coordinator.CommitReferenceReassignmentUndo(
+                    undo.State!,
+                    reassignment.UndoToken!,
+                    confirmed: true);
+            _ = await saves.CompleteAsync();
+
+            Assert.True(reassignment.IsAccepted);
+            Assert.Empty(reassignment.State!.Containers[0].Items);
+            Assert.Equal(
+                "item-1",
+                Assert.Single(reassignment.State.Containers[1].Items).Id);
+            Assert.True(undo.IsAccepted);
+            Assert.Equal("item-1", Assert.Single(undo.State!.Containers[0].Items).Id);
+            Assert.Empty(undo.State.Containers[1].Items);
+            Assert.Equal(
+                ProductWorkspaceReferenceReassignmentUndoStatus.Unavailable,
+                secondUndo.UndoStatus);
+            Assert.InRange(workflow.SaveCalls, 1, 2);
+            Assert.Equal("keep-original", await File.ReadAllTextAsync(desktopFile));
+        }
+        finally
+        {
+            Directory.Delete(sandbox, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ReassignmentRejectsStaleSameAndLockedContainers()
+    {
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        long revision = coordinator.AdvanceExternalRevision();
+        DesktopCatalogEntry entry = Entry(Path.Combine(Path.GetTempPath(), "one.txt"));
+        ProductContainerState source = Container("container-1", "Source") with
+        {
+            Items =
+            [
+                ProductItemReferenceState.CreateResolved("item-1", entry),
+            ],
+        };
+        ProductContainerState locked = Container("container-2", "Locked") with
+        {
+            IsLocked = true,
+        };
+        ProductWorkspaceState state = State(source, locked);
+
+        ProductWorkspaceResolvedReferenceReassignmentCommitResult stale =
+            coordinator.CommitResolvedReferenceReassignment(
+                state,
+                new(revision - 1, 1, 1, 2));
+        ProductWorkspaceResolvedReferenceReassignmentCommitResult same =
+            coordinator.CommitResolvedReferenceReassignment(
+                state,
+                new(revision, 1, 1, 1));
+        ProductWorkspaceResolvedReferenceReassignmentCommitResult lockedResult =
+            coordinator.CommitResolvedReferenceReassignment(
+                state,
+                new(revision, 1, 1, 2));
+        ProductWorkspaceResolvedReferenceReassignmentCommitResult lockedSource =
+            coordinator.CommitResolvedReferenceReassignment(
+                State(
+                    source with { IsLocked = true },
+                    Container("container-2", "Target")),
+                new(revision, 1, 1, 2));
+
+        Assert.Equal(
+            ProductWorkspaceResolvedReferenceReassignmentCommitStatus
+                .StaleEditRevision,
+            stale.Status);
+        Assert.Equal(
+            ProductWorkspaceResolvedReferenceReassignmentCommitStatus.InvalidRequest,
+            same.Status);
+        Assert.Equal(ProductWorkspaceEditError.ContainerLocked, lockedResult.EditError);
+        Assert.Equal(ProductWorkspaceEditError.ContainerLocked, lockedSource.EditError);
+        Assert.Equal(0, workflow.SaveCalls);
+    }
+
     private static ProductWorkspaceSaveController CreateSaves(
         IProductConfigurationSaveWorkflow workflow) =>
         new(
