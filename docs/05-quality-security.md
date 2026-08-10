@@ -102,6 +102,7 @@ Windows 文件的内容写入权与原子替换权也不是同一权限边界：
 
 - 键盘-only、触控、鼠标、多种输入法。
 - Narrator、文本缩放、高对比度、减少动画。
+- UIA 属性、AutomationId、源码合同和 CI `-ValidateOnly` 不得替代真实人工听读与视觉判断；正式批量选择按 BSA-01–BSA-05 分别记录首次结果、桌面文件零变化和恢复确认，缺少证据时保持 `PendingManualEvidence` 或 `Inconclusive`。
 - 全局快捷键冲突、游戏全屏、演示模式。
 
 ## 7. CI 质量门禁

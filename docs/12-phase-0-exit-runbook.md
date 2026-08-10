@@ -60,6 +60,20 @@ dotnet test LongGrid.sln --configuration Release --no-build
 
 任一误移动、焦点锁死、系统表面遮挡或 Narrator 不可操作均为 `Fail`，不得以重试成功覆盖首次失败；应建立缺陷并保留复现率。
 
+### 3.1 正式工作区批量选择专项矩阵
+
+I19 原型矩阵不能代替正式 `LongGrid.App` 的产品交互。执行前调用 `eng/Start-LongGridBatchAccessibilitySession.ps1 -ValidateOnly`，随后按照[批量选择无障碍人工矩阵运行手册](manual-testing/batch-selection-accessibility-runbook.md)逐项启动；真实会话必须确认专用测试账户和恢复计划。预检只复核 134-ID、8 个关键控件、单次 live-region 播报和紧凑断点合同，输出固定保持 `PendingManualEvidence`。
+
+| ID | 场景 | 最低人工结论 | 状态 |
+|---|---|---|---|
+| BSA-01 | 纯键盘 | 焦点顺序、标准多选、有限批量入口、清除选择和无焦点陷阱 | Pending |
+| BSA-02 | Narrator | Name/角色/状态可理解，每次动作只播报一次最终数量，清除播报 0 | Pending |
+| BSA-03 | 高对比度 | 焦点、选择、禁用和按下状态可区分且语义不变 | Pending |
+| BSA-04 | 200% 文本缩放 | 无关键裁切、遮挡或不可达控件，无强制水平滚动 | Pending |
+| BSA-05 | 紧凑宽度 | 两组按钮纵向重排，可见/Tab/听读顺序一致，宽窄往返可逆 | Pending |
+
+五项均须记录首次结果、`DesktopFilesChanged=False` 和恢复确认；缺少听读、视觉或恢复证据时记为 `Inconclusive`。
+
 ## 4. Issue #20：动态显示与会话
 
 先按[P0-07b2b2b2b4b1 报告](spikes/P0-07b2b2b2b4b1-controlled-dynamic-matrix-harness.md)启动对应 `--matrix-scenario`。每次变化后等待稳定采样，再恢复原布局并复读窗口、Region、Composition、UIA 和资源状态。
