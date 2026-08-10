@@ -172,6 +172,66 @@ public static class ProductWorkspaceReducer
             remove: true,
             confirmUnresolvedReference);
 
+    public static ProductWorkspaceEditResult ReassignResolvedReference(
+        ProductWorkspaceState state,
+        string sourceContainerId,
+        string itemId,
+        string targetContainerId)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ProductWorkspaceEditResult? preparation =
+            Prepare(state, out ProductWorkspaceState? snapshot);
+        if (preparation is not null)
+        {
+            return preparation;
+        }
+
+        ProductWorkspaceState working = snapshot!;
+        int sourceIndex = FindContainer(working, sourceContainerId);
+        int targetIndex = FindContainer(working, targetContainerId);
+        if (sourceIndex < 0 || targetIndex < 0)
+        {
+            return Failure(ProductWorkspaceEditError.ContainerNotFound);
+        }
+
+        ProductContainerState source = working.Containers[sourceIndex];
+        ProductContainerState target = working.Containers[targetIndex];
+        if (source.IsLocked || target.IsLocked)
+        {
+            return Failure(ProductWorkspaceEditError.ContainerLocked);
+        }
+
+        int itemIndex = FindItem(source, itemId);
+        if (itemIndex < 0)
+        {
+            return Failure(ProductWorkspaceEditError.ItemNotFound);
+        }
+
+        ProductItemReferenceState item = source.Items[itemIndex];
+        if (item.Resolution != ProductItemReferenceResolution.Resolved)
+        {
+            return Failure(ProductWorkspaceEditError.InvalidState);
+        }
+
+        if (sourceIndex == targetIndex)
+        {
+            return Validate(working, changed: false);
+        }
+
+        ProductContainerState[] containers = working.Containers.ToArray();
+        containers[sourceIndex] = source with
+        {
+            Items = source.Items
+                .Where((_, index) => index != itemIndex)
+                .ToArray(),
+        };
+        containers[targetIndex] = target with
+        {
+            Items = [.. target.Items, Clone(item)],
+        };
+        return Validate(working with { Containers = containers }, changed: true);
+    }
+
     private static ProductWorkspaceEditResult EditContainer(
         ProductWorkspaceState state,
         string containerId,

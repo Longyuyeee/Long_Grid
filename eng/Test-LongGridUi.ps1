@@ -25,6 +25,8 @@ $resolvedReferenceAddPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceResolvedReferenceAddPresentation.cs'
 $resolvedReferenceRemovalPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceResolvedReferenceRemovalPresentation.cs'
+$resolvedReferenceReassignmentPresentationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\ProductWorkspaceResolvedReferenceReassignmentPresentation.cs'
 $workspaceReadModelCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReadModel.cs'
 $workspaceReadPresentationCodePath = Join-Path $projectRoot `
@@ -121,6 +123,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $resolvedReferenceRemovalPresentationCode = Get-Content `
         -LiteralPath $resolvedReferenceRemovalPresentationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $resolvedReferenceReassignmentPresentationCode = Get-Content `
+        -LiteralPath $resolvedReferenceReassignmentPresentationCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceReadModelCode = Get-Content `
@@ -308,7 +314,9 @@ function Test-SourceContract {
         'ProductWorkspaceResolvedReferenceAddButton',
         'ProductWorkspaceResolvedReferenceAddStatus',
         'ProductWorkspaceResolvedReferenceRemovalSelector',
+        'ProductWorkspaceResolvedReferenceReassignmentTargetSelector',
         'ProductWorkspaceResolvedReferenceRemovalButton',
+        'ProductWorkspaceResolvedReferenceReassignmentButton',
         'ProductWorkspaceResolvedReferenceRemovalUndoButton',
         'ProductWorkspaceResolvedReferenceRemovalStatus',
         'ProductWorkspaceContainerEditStatus',
@@ -649,6 +657,22 @@ function Test-SourceContract {
         $resolvedReferenceRemovalStatusNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
             'ResolvedReferenceRemovalUnavailable:Changed=False:DesktopFilesChanged=False'
     ) 'Resolved-reference removal must start finite and non-mutating.'
+    $reassignmentTargetNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceResolvedReferenceReassignmentTargetSelector'
+    Assert-Condition (
+        $reassignmentTargetNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $reassignmentTargetNode.GetAttribute('SelectionChanged') -eq `
+            'ProductWorkspaceResolvedReferenceReassignmentTargetSelector_SelectionChanged'
+    ) 'Resolved-reference reassignment target must start disabled and use the audited handler.'
+    $reassignmentButtonNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceResolvedReferenceReassignmentButton'
+    Assert-Condition (
+        $reassignmentButtonNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $reassignmentButtonNode.GetAttribute('Click') -eq `
+            'ProductWorkspaceResolvedReferenceReassignmentButton_Click'
+    ) 'Resolved-reference reassignment must require explicit source and target selections.'
 
     $referenceReviewStatusNode = Get-XamlNodeByAutomationId `
         $document `
@@ -969,7 +993,7 @@ function Test-SourceContract {
         -not ($codeBehind -match 'ProductWorkspaceRead.*(State|CatalogEntry|PersistedTarget|CanonicalTarget)')
     ) 'MainWindow must render only the presentation contract, never workspace identity state.'
     Assert-Condition (
-        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 7) -and
+        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 9) -and
         $referenceCommitCode -match 'editRevision\s*=\s*checked\(editRevision\s*\+\s*1\)' -and
         $referenceCommitCode -match 'ProductWorkspaceReferenceGate\.Evaluate' -and
         $referenceCommitCode -match 'ProductWorkspaceConfigurationProjector\.Project' -and
@@ -981,6 +1005,9 @@ function Test-SourceContract {
         $referenceCommitCode -match 'CommitResolvedReferenceRemoval' -and
         $referenceCommitCode -match 'CommitReferenceRemovalUndo' -and
         $referenceCommitCode -match 'ProductWorkspaceReducer\.RemoveReference' -and
+        $referenceCommitCode -match 'CommitResolvedReferenceReassignment' -and
+        $referenceCommitCode -match 'CommitReferenceReassignmentUndo' -and
+        $referenceCommitCode -match 'ProductWorkspaceReducer\.ReassignResolvedReference' -and
         $referenceCommitCode -match 'ProductWorkspaceReducer\.(CreateContainer|RenameContainer)' -and
         $referenceCommitCode -match 'CommitLayoutRecovery' -and
         $referenceCommitCode -match 'CommitLayoutRecoveryUndo'
@@ -997,6 +1024,11 @@ function Test-SourceContract {
         $resolvedReferenceRemovalPresentationCode -match 'ItemOrdinal' -and
         -not ($resolvedReferenceRemovalPresentationCode -match 'PersistedTarget|ProfileId|SourceId|ParsingName|VolumeId|FileId|ContainerId|ItemId')
     ) 'Resolved-reference removal presentation may expose visible names and ordinals but must omit persistence identity.'
+    Assert-Condition (
+        $resolvedReferenceReassignmentPresentationCode -match 'UserVisibleName' -and
+        $resolvedReferenceReassignmentPresentationCode -match 'ContainerOrdinal' -and
+        -not ($resolvedReferenceReassignmentPresentationCode -match 'PersistedTarget|ProfileId|SourceId|ParsingName|VolumeId|FileId|ContainerId|ItemId')
+    ) 'Resolved-reference reassignment presentation may expose target names and ordinals but must omit persistence identity.'
     Assert-Condition (
         $appCode -match 'CommitProductWorkspaceResolvedReference' -and
         $appCode -match 'workspaceCommits\.CommitResolvedReference' -and
@@ -1342,6 +1374,7 @@ function Test-SourceContract {
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productResolvedReferenceAdd = 'visible-name-generation-revision-gated-config-only'
         productResolvedReferenceRemoval = 'visible-name-revision-gated-config-only-single-undo'
+        productResolvedReferenceReassignment = 'atomic-source-target-revision-gated-config-only-single-undo'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
         productSavePresentation = 'privacy-safe-static-reduced-motion'
