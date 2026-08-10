@@ -64,6 +64,8 @@ public partial class App : Application
             RefreshProductDesktopCatalogAsync,
             CommitProductWorkspaceReferenceAction,
             CommitProductWorkspaceResolvedReference,
+            CommitProductWorkspaceResolvedReferenceRemoval,
+            CommitProductWorkspaceReferenceRemovalUndo,
             CommitProductWorkspaceContainerAction,
             CommitProductWorkspaceLayoutRecovery,
             CommitProductWorkspaceLayoutRecoveryUndo);
@@ -329,6 +331,15 @@ public partial class App : Application
                     productDesktopCatalog.Snapshot)
                 : ProductWorkspaceResolvedReferenceAddPresentation.Unavailable;
         currentWindow.ApplyProductWorkspaceResolvedReferenceAdd(referenceAdder);
+        ProductWorkspaceResolvedReferenceRemovalPresentation referenceRemover =
+            readModel.IsSuccess
+                ? ProductWorkspaceResolvedReferenceRemovalPresentation.Create(
+                    workspaceCommits.CurrentEditRevision,
+                    !productWorkspaceSession.IsReadOnly,
+                    readModel.Snapshot!,
+                    workspaceCommits.CurrentReferenceRemovalUndoToken)
+                : ProductWorkspaceResolvedReferenceRemovalPresentation.Unavailable;
+        currentWindow.ApplyProductWorkspaceResolvedReferenceRemoval(referenceRemover);
         ApplyProductWorkspaceReferenceReview();
     }
 
@@ -441,6 +452,73 @@ public partial class App : Application
         if (result.IsAccepted)
         {
             ApplyAcceptedProductWorkspaceDocument(result.Document!, catalog);
+        }
+
+        return result;
+    }
+
+    private ProductWorkspaceResolvedReferenceRemovalCommitResult
+        CommitProductWorkspaceResolvedReferenceRemoval(
+            long expectedEditRevision,
+            ProductWorkspaceResolvedReferenceRemovalCandidatePresentation candidate)
+    {
+        if (productWorkspaceSession.State is null
+            || productWorkspaceSession.IsReadOnly)
+        {
+            return new(
+                ProductWorkspaceResolvedReferenceRemovalCommitStatus.InvalidRequest,
+                ProductWorkspaceEditError.InvalidState,
+                null,
+                workspaceCommits.CurrentEditRevision,
+                null,
+                null,
+                null);
+        }
+
+        ProductWorkspaceResolvedReferenceRemovalCommitResult result =
+            workspaceCommits.CommitResolvedReferenceRemoval(
+                StampAuthoritativeDisplayTopology(productWorkspaceSession.State),
+                new(
+                    expectedEditRevision,
+                    candidate.ContainerOrdinal,
+                    candidate.ItemOrdinal));
+        if (result.IsAccepted)
+        {
+            ApplyAcceptedProductWorkspaceDocument(
+                result.Document!,
+                productDesktopCatalog.Snapshot);
+        }
+
+        return result;
+    }
+
+    private ProductWorkspaceReferenceRemovalUndoCommitResult
+        CommitProductWorkspaceReferenceRemovalUndo(
+            ProductWorkspaceReferenceRemovalUndoToken token,
+            bool confirmed)
+    {
+        if (productWorkspaceSession.State is null
+            || productWorkspaceSession.IsReadOnly)
+        {
+            return new(
+                ProductWorkspaceReferenceRemovalUndoCommitStatus.InvalidState,
+                ProductWorkspaceReferenceRemovalUndoStatus.Unavailable,
+                null,
+                workspaceCommits.CurrentEditRevision,
+                null,
+                null);
+        }
+
+        ProductWorkspaceReferenceRemovalUndoCommitResult result =
+            workspaceCommits.CommitReferenceRemovalUndo(
+                StampAuthoritativeDisplayTopology(productWorkspaceSession.State),
+                token,
+                confirmed);
+        if (result.IsAccepted)
+        {
+            ApplyAcceptedProductWorkspaceDocument(
+                result.Document!,
+                productDesktopCatalog.Snapshot);
         }
 
         return result;

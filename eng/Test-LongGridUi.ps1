@@ -23,6 +23,8 @@ $referencePresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReferenceReviewPresentation.cs'
 $resolvedReferenceAddPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceResolvedReferenceAddPresentation.cs'
+$resolvedReferenceRemovalPresentationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\ProductWorkspaceResolvedReferenceRemovalPresentation.cs'
 $workspaceReadModelCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReadModel.cs'
 $workspaceReadPresentationCodePath = Join-Path $projectRoot `
@@ -115,6 +117,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $resolvedReferenceAddPresentationCode = Get-Content `
         -LiteralPath $resolvedReferenceAddPresentationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $resolvedReferenceRemovalPresentationCode = Get-Content `
+        -LiteralPath $resolvedReferenceRemovalPresentationCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceReadModelCode = Get-Content `
@@ -301,6 +307,10 @@ function Test-SourceContract {
         'ProductWorkspaceResolvedReferenceSelector',
         'ProductWorkspaceResolvedReferenceAddButton',
         'ProductWorkspaceResolvedReferenceAddStatus',
+        'ProductWorkspaceResolvedReferenceRemovalSelector',
+        'ProductWorkspaceResolvedReferenceRemovalButton',
+        'ProductWorkspaceResolvedReferenceRemovalUndoButton',
+        'ProductWorkspaceResolvedReferenceRemovalStatus',
         'ProductWorkspaceContainerEditStatus',
         'ProductWorkspaceContainerList',
         'ProductWorkspaceViewStatus',
@@ -611,6 +621,34 @@ function Test-SourceContract {
         $resolvedReferenceAddStatusNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
             'ResolvedReferenceAddUnavailable:Changed=False:DesktopFilesChanged=False'
     ) 'Resolved-reference addition must start finite and non-mutating.'
+    $resolvedReferenceRemovalSelectorNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceResolvedReferenceRemovalSelector'
+    Assert-Condition (
+        $resolvedReferenceRemovalSelectorNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $resolvedReferenceRemovalSelectorNode.GetAttribute('SelectionChanged') -eq `
+            'ProductWorkspaceResolvedReferenceRemovalSelector_SelectionChanged'
+    ) 'Resolved-reference removal selection must start disabled and use the audited handler.'
+    foreach ($entry in @{
+            ProductWorkspaceResolvedReferenceRemovalButton =
+                'ProductWorkspaceResolvedReferenceRemovalButton_Click'
+            ProductWorkspaceResolvedReferenceRemovalUndoButton =
+                'ProductWorkspaceResolvedReferenceRemovalUndoButton_Click'
+        }.GetEnumerator()) {
+        $node = Get-XamlNodeByAutomationId $document $entry.Key
+        Assert-Condition (
+            $node.GetAttribute('IsEnabled') -eq 'False' -and
+            $node.GetAttribute('Click') -eq $entry.Value
+        ) "Resolved-reference removal action '$($entry.Key)' must start disabled and use its audited handler."
+    }
+    $resolvedReferenceRemovalStatusNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceResolvedReferenceRemovalStatus'
+    Assert-Condition (
+        $resolvedReferenceRemovalStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite' -and
+        $resolvedReferenceRemovalStatusNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'ResolvedReferenceRemovalUnavailable:Changed=False:DesktopFilesChanged=False'
+    ) 'Resolved-reference removal must start finite and non-mutating.'
 
     $referenceReviewStatusNode = Get-XamlNodeByAutomationId `
         $document `
@@ -931,7 +969,7 @@ function Test-SourceContract {
         -not ($codeBehind -match 'ProductWorkspaceRead.*(State|CatalogEntry|PersistedTarget|CanonicalTarget)')
     ) 'MainWindow must render only the presentation contract, never workspace identity state.'
     Assert-Condition (
-        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 5) -and
+        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 7) -and
         $referenceCommitCode -match 'editRevision\s*=\s*checked\(editRevision\s*\+\s*1\)' -and
         $referenceCommitCode -match 'ProductWorkspaceReferenceGate\.Evaluate' -and
         $referenceCommitCode -match 'ProductWorkspaceConfigurationProjector\.Project' -and
@@ -940,6 +978,9 @@ function Test-SourceContract {
         $referenceCommitCode -match 'ExpectedCatalogGeneration' -and
         $referenceCommitCode -match 'AlreadyReferenced' -and
         $referenceCommitCode -match 'ProductWorkspaceReducer\.AddResolvedReference' -and
+        $referenceCommitCode -match 'CommitResolvedReferenceRemoval' -and
+        $referenceCommitCode -match 'CommitReferenceRemovalUndo' -and
+        $referenceCommitCode -match 'ProductWorkspaceReducer\.RemoveReference' -and
         $referenceCommitCode -match 'ProductWorkspaceReducer\.(CreateContainer|RenameContainer)' -and
         $referenceCommitCode -match 'CommitLayoutRecovery' -and
         $referenceCommitCode -match 'CommitLayoutRecoveryUndo'
@@ -950,6 +991,12 @@ function Test-SourceContract {
         $resolvedReferenceAddPresentationCode -match 'CatalogGeneration' -and
         -not ($resolvedReferenceAddPresentationCode -match 'PersistedTarget|ProfileId|SourceId|ParsingName|VolumeId|FileId')
     ) 'Resolved-reference presentation may expose the visible name but must omit persistence identity.'
+    Assert-Condition (
+        $resolvedReferenceRemovalPresentationCode -match 'UserVisibleName' -and
+        $resolvedReferenceRemovalPresentationCode -match 'ContainerOrdinal' -and
+        $resolvedReferenceRemovalPresentationCode -match 'ItemOrdinal' -and
+        -not ($resolvedReferenceRemovalPresentationCode -match 'PersistedTarget|ProfileId|SourceId|ParsingName|VolumeId|FileId|ContainerId|ItemId')
+    ) 'Resolved-reference removal presentation may expose visible names and ordinals but must omit persistence identity.'
     Assert-Condition (
         $appCode -match 'CommitProductWorkspaceResolvedReference' -and
         $appCode -match 'workspaceCommits\.CommitResolvedReference' -and
@@ -1294,6 +1341,7 @@ function Test-SourceContract {
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productResolvedReferenceAdd = 'visible-name-generation-revision-gated-config-only'
+        productResolvedReferenceRemoval = 'visible-name-revision-gated-config-only-single-undo'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
         productSavePresentation = 'privacy-safe-static-reduced-motion'

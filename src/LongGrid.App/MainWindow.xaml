@@ -506,6 +506,49 @@
                                             Text="等待可编辑方格与权威桌面目录；桌面文件未改变。"
                                             TextWrapping="Wrap" />
                                         <TextBlock
+                                            FontSize="13"
+                                            FontWeight="SemiBold"
+                                            Text="管理已加入的引用" />
+                                        <ComboBox
+                                            x:Name="ProductWorkspaceResolvedReferenceRemovalSelector"
+                                            AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceRemovalSelector"
+                                            AutomationProperties.Name="选择要从正式方格移除的引用"
+                                            DisplayMemberPath="DisplayName"
+                                            Header="已加入的桌面项目引用"
+                                            HorizontalAlignment="Stretch"
+                                            IsEnabled="False"
+                                            SelectionChanged="ProductWorkspaceResolvedReferenceRemovalSelector_SelectionChanged" />
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Button
+                                                x:Name="ProductWorkspaceResolvedReferenceRemovalButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceRemovalButton"
+                                                AutomationProperties.Name="从正式方格移除所选引用并保存"
+                                                Click="ProductWorkspaceResolvedReferenceRemovalButton_Click"
+                                                Content="移除引用并保存"
+                                                IsEnabled="False" />
+                                            <Button
+                                                x:Name="ProductWorkspaceResolvedReferenceRemovalUndoButton"
+                                                Grid.Column="1"
+                                                AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceRemovalUndoButton"
+                                                AutomationProperties.Name="撤销上一次引用移除并保存"
+                                                Click="ProductWorkspaceResolvedReferenceRemovalUndoButton_Click"
+                                                Content="撤销上次移除"
+                                                IsEnabled="False" />
+                                        </Grid>
+                                        <TextBlock
+                                            x:Name="ProductWorkspaceResolvedReferenceRemovalStatus"
+                                            AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceRemovalStatus"
+                                            AutomationProperties.ItemStatus="ResolvedReferenceRemovalUnavailable:Changed=False:DesktopFilesChanged=False"
+                                            AutomationProperties.LiveSetting="Polite"
+                                            FontSize="11"
+                                            Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                            Text="等待可编辑的已加入引用；桌面文件未改变。"
+                                            TextWrapping="Wrap" />
+                                        <TextBlock
                                             x:Name="ProductWorkspaceContainerEditStatus"
                                             AutomationProperties.AutomationId="ProductWorkspaceContainerEditStatus"
                                             AutomationProperties.ItemStatus="WorkspaceContainerEditUnavailable:Changed=False:DesktopFilesChanged=False"

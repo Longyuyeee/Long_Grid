@@ -153,6 +153,99 @@ public sealed class ProductWorkspaceResolvedReferenceCommitCoordinatorTests
         Assert.Equal(0, workflow.SaveCalls);
     }
 
+    [Fact]
+    public async Task ResolvedReferenceRemovalCanBeUndoneOnceWithoutChangingFile()
+    {
+        string sandbox = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid.ResolvedReferenceRemoval.Tests",
+            Guid.NewGuid().ToString("N"));
+        string desktopFile = Path.Combine(sandbox, "keep.txt");
+        Directory.CreateDirectory(sandbox);
+        await File.WriteAllTextAsync(desktopFile, "keep-original");
+        try
+        {
+            var workflow = new FakeWorkflow();
+            await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+            var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+            long revision = coordinator.AdvanceExternalRevision();
+            DesktopCatalogEntry entry = Entry(desktopFile);
+            ProductContainerState container = Container("container-1", "Work") with
+            {
+                Items =
+                [
+                    ProductItemReferenceState.CreateResolved("item-1", entry),
+                ],
+            };
+            ProductWorkspaceState before = State(container);
+
+            ProductWorkspaceResolvedReferenceRemovalCommitResult removal =
+                coordinator.CommitResolvedReferenceRemoval(
+                    before,
+                    new(revision, ContainerOrdinal: 1, ItemOrdinal: 1));
+            Assert.Equal(
+                removal.UndoToken,
+                coordinator.CurrentReferenceRemovalUndoToken);
+            ProductWorkspaceReferenceRemovalUndoCommitResult undo =
+                coordinator.CommitReferenceRemovalUndo(
+                    removal.State!,
+                    removal.UndoToken!,
+                    confirmed: true);
+            ProductWorkspaceReferenceRemovalUndoCommitResult secondUndo =
+                coordinator.CommitReferenceRemovalUndo(
+                    undo.State!,
+                    removal.UndoToken!,
+                    confirmed: true);
+            _ = await saves.CompleteAsync();
+
+            Assert.True(removal.IsAccepted);
+            Assert.Empty(removal.State!.Containers[0].Items);
+            Assert.True(undo.IsAccepted);
+            Assert.Single(undo.State!.Containers[0].Items);
+            Assert.Equal(
+                ProductWorkspaceReferenceRemovalUndoStatus.Unavailable,
+                secondUndo.UndoStatus);
+            Assert.InRange(workflow.SaveCalls, 1, 2);
+            Assert.True(File.Exists(desktopFile));
+            Assert.Equal("keep-original", await File.ReadAllTextAsync(desktopFile));
+        }
+        finally
+        {
+            Directory.Delete(sandbox, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RemovalRejectsStaleAndLockedTargets()
+    {
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        long revision = coordinator.AdvanceExternalRevision();
+        DesktopCatalogEntry entry = Entry(Path.Combine(Path.GetTempPath(), "one.txt"));
+        ProductContainerState resolved = Container("container-1", "Work") with
+        {
+            Items =
+            [
+                ProductItemReferenceState.CreateResolved("item-1", entry),
+            ],
+        };
+        ProductContainerState locked = resolved with { IsLocked = true };
+        ProductWorkspaceResolvedReferenceRemovalCommitResult stale =
+            coordinator.CommitResolvedReferenceRemoval(
+                State(resolved),
+                new(revision - 1, 1, 1));
+        ProductWorkspaceResolvedReferenceRemovalCommitResult lockedResult =
+            coordinator.CommitResolvedReferenceRemoval(
+                State(locked),
+                new(revision, 1, 1));
+        Assert.Equal(
+            ProductWorkspaceResolvedReferenceRemovalCommitStatus.StaleEditRevision,
+            stale.Status);
+        Assert.Equal(ProductWorkspaceEditError.ContainerLocked, lockedResult.EditError);
+        Assert.Equal(0, workflow.SaveCalls);
+    }
+
     private static ProductWorkspaceSaveController CreateSaves(
         IProductConfigurationSaveWorkflow workflow) =>
         new(
