@@ -311,8 +311,22 @@ public enum ProductWorkspaceResolvedReferenceReassignmentCommitStatus
 public sealed record ProductWorkspaceResolvedReferenceReassignmentCommitRequest(
     long ExpectedEditRevision,
     int SourceContainerOrdinal,
-    int ItemOrdinal,
-    int TargetContainerOrdinal);
+    IReadOnlyList<int> ItemOrdinals,
+    int TargetContainerOrdinal)
+{
+    public ProductWorkspaceResolvedReferenceReassignmentCommitRequest(
+        long expectedEditRevision,
+        int sourceContainerOrdinal,
+        int itemOrdinal,
+        int targetContainerOrdinal)
+        : this(
+            expectedEditRevision,
+            sourceContainerOrdinal,
+            [itemOrdinal],
+            targetContainerOrdinal)
+    {
+    }
+}
 
 public sealed record ProductWorkspaceResolvedReferenceReassignmentCommitResult(
     ProductWorkspaceResolvedReferenceReassignmentCommitStatus Status,
@@ -400,6 +414,7 @@ public sealed class ProductWorkspaceCommitCoordinator
 {
     public const int MaximumResolvedReferenceBatchSize = 256;
     public const int MaximumResolvedReferenceRemovalBatchSize = 256;
+    public const int MaximumResolvedReferenceReassignmentBatchSize = 256;
 
     private readonly object gate = new();
     private readonly ProductWorkspaceSaveController saves;
@@ -1432,6 +1447,7 @@ public sealed class ProductWorkspaceCommitCoordinator
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.ItemOrdinals);
 
         lock (gate)
         {
@@ -1442,11 +1458,16 @@ public sealed class ProductWorkspaceCommitCoordinator
                         .StaleEditRevision);
             }
 
+            int[] ordinals = request.ItemOrdinals.ToArray();
             if (request.SourceContainerOrdinal <= 0
                 || request.SourceContainerOrdinal > state.Containers.Count
                 || request.TargetContainerOrdinal <= 0
                 || request.TargetContainerOrdinal > state.Containers.Count
-                || request.SourceContainerOrdinal == request.TargetContainerOrdinal)
+                || request.SourceContainerOrdinal == request.TargetContainerOrdinal
+                || ordinals.Length == 0
+                || ordinals.Length >
+                    MaximumResolvedReferenceReassignmentBatchSize
+                || ordinals.Distinct().Count() != ordinals.Length)
             {
                 return ResolvedReferenceReassignmentFailure(
                     ProductWorkspaceResolvedReferenceReassignmentCommitStatus
@@ -1457,10 +1478,11 @@ public sealed class ProductWorkspaceCommitCoordinator
                 state.Containers[request.SourceContainerOrdinal - 1];
             ProductContainerState target =
                 state.Containers[request.TargetContainerOrdinal - 1];
-            if (request.ItemOrdinal <= 0
-                || request.ItemOrdinal > source.Items.Count
-                || source.Items[request.ItemOrdinal - 1].Resolution !=
-                    ProductItemReferenceResolution.Resolved)
+            if (ordinals.Any(ordinal =>
+                    ordinal <= 0
+                    || ordinal > source.Items.Count
+                    || source.Items[ordinal - 1].Resolution !=
+                        ProductItemReferenceResolution.Resolved))
             {
                 return ResolvedReferenceReassignmentFailure(
                     ProductWorkspaceResolvedReferenceReassignmentCommitStatus
@@ -1468,10 +1490,12 @@ public sealed class ProductWorkspaceCommitCoordinator
             }
 
             ProductWorkspaceEditResult edit =
-                ProductWorkspaceReducer.ReassignResolvedReference(
+                ProductWorkspaceReducer.ReassignResolvedReferences(
                     state,
                     source.Id,
-                    source.Items[request.ItemOrdinal - 1].Id,
+                    ordinals
+                        .Select(ordinal => source.Items[ordinal - 1].Id)
+                        .ToArray(),
                     target.Id);
             if (!edit.IsSuccess || !edit.Changed)
             {

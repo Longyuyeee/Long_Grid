@@ -76,7 +76,7 @@ public sealed partial class MainWindow : Window
         _commitProductWorkspaceReferenceRemovalUndo;
     private readonly Func<
         long,
-        ProductWorkspaceResolvedReferenceRemovalCandidatePresentation,
+        IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>,
         ProductWorkspaceReferenceReassignmentTargetPresentation,
         ProductWorkspaceResolvedReferenceReassignmentCommitResult>
         _commitProductWorkspaceResolvedReferenceReassignment;
@@ -186,7 +186,7 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceReferenceRemovalUndo,
         Func<
             long,
-            ProductWorkspaceResolvedReferenceRemovalCandidatePresentation,
+            IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>,
             ProductWorkspaceReferenceReassignmentTargetPresentation,
             ProductWorkspaceResolvedReferenceReassignmentCommitResult>
             commitProductWorkspaceResolvedReferenceReassignment,
@@ -1471,8 +1471,6 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems
                 .OfType<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>()
                 .ToArray();
-        ProductWorkspaceResolvedReferenceRemovalCandidatePresentation? source =
-            sources.Length == 1 ? sources[0] : null;
         bool sameContainer = sources.Length > 0
             && sources.Select(candidate => candidate.ContainerOrdinal)
                 .Distinct()
@@ -1493,18 +1491,29 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceResolvedReferenceRemovalClearSelectionButton.IsEnabled =
             sources.Length > 0;
         ProductWorkspaceResolvedReferenceReassignmentTargetSelector.IsEnabled =
-            _resolvedReferenceReassignment.CanReassign && source is not null;
+            _resolvedReferenceReassignment.CanReassign
+            && sameContainer
+            && sources.Length <= ProductWorkspaceCommitCoordinator
+                .MaximumResolvedReferenceReassignmentBatchSize;
         ProductWorkspaceResolvedReferenceReassignmentButton.IsEnabled =
             _resolvedReferenceReassignment.CanReassign
-            && source is not null
+            && sameContainer
+            && sources.Length <= ProductWorkspaceCommitCoordinator
+                .MaximumResolvedReferenceReassignmentBatchSize
             && target is not null
-            && source.ContainerOrdinal != target.ContainerOrdinal;
+            && sources[0].ContainerOrdinal != target.ContainerOrdinal;
         ProductWorkspaceResolvedReferenceRemovalButton.Content = !sameContainer
             && sources.Length > 0
                 ? "跨方格不可批量移除"
                 : sources.Length > 0
                     ? $"批量移除 {sources.Length} 项并保存"
                     : "选择项目后批量移除";
+        ProductWorkspaceResolvedReferenceReassignmentButton.Content = !sameContainer
+            && sources.Length > 0
+                ? "跨方格不可批量改归属"
+                : sources.Length > 0
+                    ? $"批量改归属 {sources.Length} 项并保存"
+                    : "选择项目后批量改归属";
         ProductWorkspaceResolvedReferenceRemovalUndoButton.IsEnabled =
             _resolvedReferenceRemoval.UndoToken is not null
             || _resolvedReferenceReassignment.UndoToken is not null;
@@ -1532,7 +1541,7 @@ public sealed partial class MainWindow : Window
         else if (!sameContainer)
         {
             ProductWorkspaceResolvedReferenceRemovalStatus.Text =
-                "批量移除只接受同一方格内的项目；跨方格选择未提交，桌面文件未改变。";
+                "批量管理只接受同一方格内的项目；跨方格选择未提交，桌面文件未改变。";
             AutomationProperties.SetItemStatus(
                 ProductWorkspaceResolvedReferenceRemovalStatus,
                 $"ResolvedReferenceBatchRemovalSelection:Count={sources.Length}:" +
@@ -1542,7 +1551,7 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceCommitCoordinator.MaximumResolvedReferenceRemovalBatchSize)
         {
             ProductWorkspaceResolvedReferenceRemovalStatus.Text =
-                "单批最多移除 256 个引用；当前选择未提交，桌面文件未改变。";
+                "单批最多管理 256 个引用；当前选择未提交，桌面文件未改变。";
             AutomationProperties.SetItemStatus(
                 ProductWorkspaceResolvedReferenceRemovalStatus,
                 $"ResolvedReferenceBatchRemovalSelection:Count={sources.Length}:" +
@@ -1551,7 +1560,7 @@ public sealed partial class MainWindow : Window
         else if (sources.Length > 0)
         {
             ProductWorkspaceResolvedReferenceRemovalStatus.Text =
-                $"已选择同一方格内 {sources.Length} 个引用；确认后整批只修改配置。";
+                $"已选择同一方格内 {sources.Length} 个引用；可批量移除或改归属，整批只修改配置。";
             AutomationProperties.SetItemStatus(
                 ProductWorkspaceResolvedReferenceRemovalStatus,
                 $"ResolvedReferenceBatchRemovalSelection:Count={sources.Length}:" +
@@ -1633,7 +1642,7 @@ public sealed partial class MainWindow : Window
                 reassignmentUndo.Status switch
                 {
                     ProductWorkspaceReferenceReassignmentUndoCommitStatus.Accepted =>
-                        "上一次引用改归属已撤销并进入安全保存队列；桌面文件未改变。",
+                        "上一次批量引用改归属已整体撤销并进入安全保存队列；桌面文件未改变。",
                     ProductWorkspaceReferenceReassignmentUndoCommitStatus.SaveRejected =>
                         "撤销尚未保存；配置与桌面文件均未改变。",
                     _ => "撤销凭据已经失效，请按当前配置继续操作。",
@@ -1674,14 +1683,36 @@ public sealed partial class MainWindow : Window
         UpdateProductWorkspaceResolvedReferenceRemovalButtons();
     }
 
-    private void ProductWorkspaceResolvedReferenceReassignmentButton_Click(
+    private async void ProductWorkspaceResolvedReferenceReassignmentButton_Click(
         object sender,
         RoutedEventArgs e)
     {
-        if (ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItem is not
-                ProductWorkspaceResolvedReferenceRemovalCandidatePresentation source
+        ProductWorkspaceResolvedReferenceRemovalCandidatePresentation[] sources =
+            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems
+                .OfType<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>()
+                .ToArray();
+        if (sources.Length == 0
+            || sources.Length > ProductWorkspaceCommitCoordinator
+                .MaximumResolvedReferenceReassignmentBatchSize
+            || sources.Select(source => source.ContainerOrdinal)
+                .Distinct()
+                .Count() != 1
             || ProductWorkspaceResolvedReferenceReassignmentTargetSelector.SelectedItem
                 is not ProductWorkspaceReferenceReassignmentTargetPresentation target)
+        {
+            return;
+        }
+
+        ContentDialog confirmation = new()
+        {
+            XamlRoot = RootLayout.XamlRoot,
+            Title = $"把 {sources.Length} 个引用改归属到“{target.DisplayName}”？",
+            Content = "整批将作为一次配置编辑提交并可整体撤销。不会移动、删除或重命名桌面文件。",
+            PrimaryButtonText = "批量改归属",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
         {
             return;
         }
@@ -1689,12 +1720,12 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceResolvedReferenceReassignmentCommitResult result =
             _commitProductWorkspaceResolvedReferenceReassignment(
                 _resolvedReferenceReassignment.EditRevision,
-                source,
+                sources,
                 target);
         ProductWorkspaceResolvedReferenceRemovalStatus.Text = result.Status switch
         {
             ProductWorkspaceResolvedReferenceReassignmentCommitStatus.Accepted =>
-                "引用已原子改归属并进入安全保存队列；桌面文件未改变，可撤销一次。",
+                $"已将同一源方格内 {sources.Length} 个引用原子改归属；桌面文件未改变，可整批撤销一次。",
             ProductWorkspaceResolvedReferenceReassignmentCommitStatus
                 .StaleEditRevision =>
                 "工作区已经更新，请按最新引用和目标方格列表重新选择。",
@@ -1703,12 +1734,13 @@ public sealed partial class MainWindow : Window
                 "源方格或目标方格已经锁定，未改变归属。",
             ProductWorkspaceResolvedReferenceReassignmentCommitStatus.SaveRejected =>
                 "保存控制器当前无法接受编辑；配置与桌面文件均未改变。",
-            _ => "引用改归属请求无效；配置与桌面文件均未改变。",
+            _ => "请选择同一源方格内 1–256 个已解析引用；整批未保存。",
         };
         AutomationProperties.SetItemStatus(
             ProductWorkspaceResolvedReferenceRemovalStatus,
             $"ResolvedReferenceReassignment:{result.Status}:" +
-                $"Revision={result.EditRevision}:Changed={result.IsAccepted}:" +
+                $"Count={sources.Length}:Revision={result.EditRevision}:" +
+                $"Atomic=True:Changed={result.IsAccepted}:" +
                 "DesktopFilesChanged=False");
         UpdateProductWorkspaceResolvedReferenceRemovalButtons();
     }

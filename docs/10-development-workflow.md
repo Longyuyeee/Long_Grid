@@ -364,6 +364,7 @@ test(shell): cover coalesced change notifications
 - UI PR 必须检查浅色、深色、高对比、文本缩放、减少动画、键盘、Narrator、DPI 和低性能降级；
 - UI PR 必须执行 `eng/Test-LongGridUi.ps1 -ContractOnly`；具备可交互 Windows 会话时还要执行完整脚本，并把结构合同与实机结果分别记账；
 - 涉及正式批量选择的 UI PR 必须执行 `eng/Start-LongGridBatchAccessibilitySession.ps1 -ValidateOnly`；若改变焦点、播报、主题或响应式布局，应在专用账户重跑受影响的 BSA 场景，未执行时继续记为 Pending；
+- 涉及批量配置编辑的 PR 必须证明 1..256 上限、同源/同容器边界、无重复、先完整验证后一次提交、默认取消确认、一次 revision、整批一次撤销和 `DesktopFilesChanged=False`；不得通过循环单项提交产生部分成功；
 - 管理窗口 UI PR 必须同时验证默认 DPI 感知尺寸、已审计窄窗口断点、无横向滚动和宽/紧凑状态可逆；窗口 API 的物理像素不得直接冒充 XAML 有效像素；
 - AutomationId、访问键和 UIA 冒烟只证明机器可发现与基础交互，不得替代 Narrator 朗读、高对比、文本缩放和视觉检查；
 - 动效必须可中断、可降级，不得阻塞输入、隐藏、恢复、回滚或退出；
@@ -517,7 +518,7 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 
 ## 21. 仓库落地顺序
 
-当前已完成基础解决方案、Core、测试、PR CI、桌面/Shell 数据链、DesktopHost/显示恢复系列探针、正式配置存储、latest-wins 关闭排空、完整单实例激活、恢复/导入/导出/证据事务、文件安全与缩略图 worker 探针；开发期 App 已具备正式工作区视图、有限产品编辑、布局恢复双拓扑门禁只读预览和生产级只读当前显示拓扑适配器。所有产品编辑必须通过统一 `ProductWorkspaceCommitCoordinator` 的共享 edit revision、v1 投影、唯一保存控制器和内存基线重建；锁定容器不得被外观、布局或内容编辑绕过，只有显式解锁例外。当前拓扑只有在 CCD/Monitor 数量、强身份、Bounds、target、rotation 和 WorkArea 完整成功时才权威；布局恢复预览必须同时取得版本化保存时拓扑与权威当前拓扑，缺少任一侧都不得生成 Automatic。桌面文件操作不得与配置编辑混合准入。未获批的保留期限或容量阈值不得转化为后台删除。主干保护要求 `build-test`，CI 强制覆盖率、配置/恢复状态、单实例源码合同、文件安全、缩略图 worker 与依赖漏洞门禁；剩余门禁由 `Phase 0 Exit` milestone 与 Issue #19–#24 跟踪，实机与负责人步骤见[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)。多数能力仍为 Conditional Pass。当前事实与详细差距见[开发状态与后续方向审计](11-development-status-and-direction-audit.md)。
+当前已完成基础解决方案、Core、测试、PR CI、桌面/Shell 数据链、DesktopHost/显示恢复系列探针、正式配置存储、latest-wins 关闭排空、完整单实例激活、恢复/导入/导出/证据事务、文件安全与缩略图 worker 探针；开发期 App 已具备正式工作区视图、有限产品编辑、布局恢复双拓扑门禁只读预览和生产级只读当前显示拓扑适配器。正式引用配置支持 1..256 原子批量加入、同方格批量移除和同源方格批量改归属，三者均只提交一次配置并可按独立状态指纹令牌整体撤销一次。所有产品编辑必须通过统一 `ProductWorkspaceCommitCoordinator` 的共享 edit revision、v1 投影、唯一保存控制器和内存基线重建；锁定容器不得被外观、布局或内容编辑绕过，只有显式解锁例外。当前拓扑只有在 CCD/Monitor 数量、强身份、Bounds、target、rotation 和 WorkArea 完整成功时才权威；布局恢复预览必须同时取得版本化保存时拓扑与权威当前拓扑，缺少任一侧都不得生成 Automatic。桌面文件操作不得与配置编辑混合准入。未获批的保留期限或容量阈值不得转化为后台删除。主干保护要求 `build-test`，CI 强制覆盖率、配置/恢复状态、单实例源码合同、文件安全、缩略图 worker 与依赖漏洞门禁；剩余门禁由 `Phase 0 Exit` milestone 与 Issue #19–#24 跟踪，实机与负责人步骤见[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)。多数能力仍为 Conditional Pass。当前事实与详细差距见[开发状态与后续方向审计](11-development-status-and-direction-audit.md)。
 
 后续按以下顺序继续：
 

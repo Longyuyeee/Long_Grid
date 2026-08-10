@@ -316,6 +316,62 @@ public sealed class ProductWorkspaceReducerTests
     }
 
     [Fact]
+    public void BatchReassignmentPreservesSourceOrderAndRejectsPartialInput()
+    {
+        ProductWorkspaceState original = CreateState();
+        ProductContainerState source = original.Containers[0] with
+        {
+            Items =
+            [
+                CreateItem("item-1", "First"),
+                CreateItem("item-2", "Second"),
+                CreateItem("item-3", "Third"),
+            ],
+        };
+        ProductContainerState target = source with
+        {
+            Id = "container-2",
+            Name = "Archive",
+            Items = Array.Empty<ProductItemReferenceState>(),
+        };
+        ProductWorkspaceState state = original with
+        {
+            Containers = [source, target],
+        };
+
+        ProductWorkspaceEditResult accepted =
+            ProductWorkspaceReducer.ReassignResolvedReferences(
+                state,
+                "container-1",
+                ["item-3", "item-1"],
+                "container-2");
+        ProductWorkspaceEditResult missing =
+            ProductWorkspaceReducer.ReassignResolvedReferences(
+                state,
+                "container-1",
+                ["item-1", "missing-item"],
+                "container-2");
+        ProductWorkspaceEditResult duplicate =
+            ProductWorkspaceReducer.ReassignResolvedReferences(
+                state,
+                "container-1",
+                ["item-1", "item-1"],
+                "container-2");
+
+        Assert.True(accepted.IsSuccess);
+        Assert.Equal("item-2", Assert.Single(accepted.State!.Containers[0].Items).Id);
+        Assert.Equal(
+            ["item-1", "item-3"],
+            accepted.State.Containers[1].Items.Select(item => item.Id));
+        Assert.Equal(3, state.Containers[0].Items.Count);
+        Assert.Empty(state.Containers[1].Items);
+        Assert.Equal(ProductWorkspaceEditError.ItemNotFound, missing.Error);
+        Assert.Null(missing.State);
+        Assert.Equal(ProductWorkspaceEditError.InvalidState, duplicate.Error);
+        Assert.Null(duplicate.State);
+    }
+
+    [Fact]
     public void ReassignmentRejectsLockedTargetsAndTreatsSameContainerAsNoChange()
     {
         ProductWorkspaceState original = CreateState();

@@ -236,3 +236,5 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-08-07 RC 交付切片 4 补充：仓库以本地 .NET tool manifest 固定 Microsoft SBOM Tool 4.1.5；`eng/New-LongGridSbom.ps1` 对当前提交的 unsigned MSIX 解包布局生成 SPDX 2.2，执行官方 validation，并用外部证据清单绑定 MSIX/SBOM SHA-256、源码提交和工具版本。`packaging/release/signing-contract.json` 与 `eng/Test-LongGridReleaseSigning.ps1 -ValidateOnly` 强制 PR/main 仅 `contents: read`、禁止 secrets/OIDC write/SignTool/自签名/安装动作，并把正式签名阻断在 Publisher、合规证书、受保护 environment、许可证和 signed lifecycle matrix 之前。下一切片只能在这些外部输入获批后建立真实 Release 签名与可抛弃 Windows 生命周期矩阵；否则继续收集 #19/#20/#23/#24 外部证据。
 
 2026-08-07 RC 交付切片 5 补充：`eng/Build-LongGridReleaseCandidate.ps1` 成为内部交付集合的单一推荐入口，顺序编排 lifecycle/signing 否定性预检、便携 ZIP、unsigned MSIX 和 SPDX 2.2，并重新验证同一源码提交、版本、三个实际 SHA-256/sidecar、MSIX semantic layout 与 SBOM subject hash；任何失败都会先失效旧聚合成功标记。PR/main 的全新 Windows checkout 在完整工程门禁后真实执行该入口，但只上传测试/覆盖率，不上传 unsigned 交付物。没有正式发布输入时，交付机械链停止扩张，后续优先收集 #19/#20/#23/#24 外部证据。
+
+2026-08-11 正式工作区交互切片补充：已解析引用改归属从单项扩展为同一源方格 1..256 项。操作沿用标准多选、有限选择/清除入口和目标方格选择器；仅在同源、目标不同、源/目标未锁定时，经默认取消确认后一次提交完整配置、一次递增 revision，并复用状态指纹令牌整体撤销一次。空、重复、缺失、未解析、越界或 257 项请求不产生部分状态。该切片不移动桌面文件、不执行 DesktopHost，也不改变 BSA 与 #19/#20/#23/#24 外部证据优先级。
