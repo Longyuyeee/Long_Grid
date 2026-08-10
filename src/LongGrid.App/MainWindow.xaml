@@ -506,7 +506,17 @@
                                             IsEnabled="False"
                                             SelectionMode="Multiple"
                                             SelectionChanged="ProductWorkspaceResolvedReferenceSelector_SelectionChanged" />
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Grid
+                                            x:Name="ProductWorkspaceResolvedReferenceSelectionActionGrid"
+                                            ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
                                             <Button
                                                 x:Name="ProductWorkspaceResolvedReferenceSelectFirstBatchButton"
                                                 AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceSelectFirstBatchButton"
@@ -520,8 +530,9 @@
                                                 AutomationProperties.Name="清除批量加入项目选择"
                                                 Click="ProductWorkspaceResolvedReferenceClearSelectionButton_Click"
                                                 Content="清除选择"
+                                                Grid.Column="1"
                                                 IsEnabled="False" />
-                                        </StackPanel>
+                                        </Grid>
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <Button
                                                 x:Name="ProductWorkspaceResolvedReferenceAddButton"
@@ -561,7 +572,17 @@
                                             MaxHeight="180"
                                             SelectionMode="Multiple"
                                             SelectionChanged="ProductWorkspaceResolvedReferenceRemovalSelector_SelectionChanged" />
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Grid
+                                            x:Name="ProductWorkspaceResolvedReferenceRemovalSelectionActionGrid"
+                                            ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
                                             <Button
                                                 x:Name="ProductWorkspaceResolvedReferenceSelectContainerBatchButton"
                                                 AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceSelectContainerBatchButton"
@@ -575,8 +596,9 @@
                                                 AutomationProperties.Name="清除引用管理项目选择"
                                                 Click="ProductWorkspaceResolvedReferenceRemovalClearSelectionButton_Click"
                                                 Content="清除选择"
+                                                Grid.Column="1"
                                                 IsEnabled="False" />
-                                        </StackPanel>
+                                        </Grid>
                                         <ComboBox
                                             x:Name="ProductWorkspaceResolvedReferenceReassignmentTargetSelector"
                                             AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceReassignmentTargetSelector"

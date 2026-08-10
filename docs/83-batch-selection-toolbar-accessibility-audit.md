@@ -38,4 +38,4 @@ DesktopHost 交互切片为 `Conditional Pass` 且确认 `DesktopFilesReadOrChan
 
 ## 6. 后续方向
 
-配置级批量选择、提交和撤销链已经形成可发现、有限、可键盘访问的闭环。下一阶段优先执行批量操作可用性与 Narrator/高对比度人工矩阵，或在获得独立准入后接入可见 DesktopHost；任务栏美化、小组件/插件运行时、跨方格批量改归属和真实桌面文件整理仍属于后续独立范围。
+配置级批量选择、提交和撤销链已经形成可发现、有限、可键盘访问的闭环。空选择复位、单次 live-region 播报和紧凑布局由后续[批量选择状态播报与紧凑布局审计](84-batch-selection-live-region-responsive-audit.md)收口；再下一阶段优先执行 Narrator/高对比度人工矩阵，或在获得独立准入后接入可见 DesktopHost。任务栏美化、小组件/插件运行时、跨方格批量改归属和真实桌面文件整理仍属于后续独立范围。
