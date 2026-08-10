@@ -247,6 +247,36 @@ public sealed record ProductWorkspaceResolvedReferenceRemovalCommitResult(
         && UndoToken is not null;
 }
 
+public enum ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus
+{
+    Accepted,
+    StaleEditRevision,
+    ReducerRejected,
+    SaveRejected,
+    InvalidRequest,
+}
+
+public sealed record ProductWorkspaceResolvedReferenceBatchRemovalCommitRequest(
+    long ExpectedEditRevision,
+    int ContainerOrdinal,
+    IReadOnlyList<int> ItemOrdinals);
+
+public sealed record ProductWorkspaceResolvedReferenceBatchRemovalCommitResult(
+    ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus Status,
+    ProductWorkspaceEditError EditError,
+    ProductWorkspaceSaveSubmissionStatus? SubmissionStatus,
+    long EditRevision,
+    ProductWorkspaceState? State,
+    ProductConfigurationDocument? Document,
+    ProductWorkspaceReferenceRemovalUndoToken? UndoToken)
+{
+    public bool IsAccepted =>
+        Status == ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus.Accepted
+        && State is not null
+        && Document is not null
+        && UndoToken is not null;
+}
+
 public enum ProductWorkspaceReferenceRemovalUndoCommitStatus
 {
     Accepted,
@@ -369,6 +399,7 @@ public sealed record ProductWorkspaceLayoutRecoveryUndoCommitResult(
 public sealed class ProductWorkspaceCommitCoordinator
 {
     public const int MaximumResolvedReferenceBatchSize = 256;
+    public const int MaximumResolvedReferenceRemovalBatchSize = 256;
 
     private readonly object gate = new();
     private readonly ProductWorkspaceSaveController saves;
@@ -1126,6 +1157,111 @@ public sealed class ProductWorkspaceCommitCoordinator
         }
     }
 
+    public ProductWorkspaceResolvedReferenceBatchRemovalCommitResult
+        CommitResolvedReferenceBatchRemoval(
+            ProductWorkspaceState state,
+            ProductWorkspaceResolvedReferenceBatchRemovalCommitRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.ItemOrdinals);
+
+        lock (gate)
+        {
+            if (request.ExpectedEditRevision != editRevision)
+            {
+                return ResolvedReferenceBatchRemovalFailure(
+                    ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus
+                        .StaleEditRevision);
+            }
+
+            int[] ordinals = request.ItemOrdinals.ToArray();
+            if (request.ContainerOrdinal <= 0
+                || request.ContainerOrdinal > state.Containers.Count
+                || ordinals.Length == 0
+                || ordinals.Length > MaximumResolvedReferenceRemovalBatchSize
+                || ordinals.Distinct().Count() != ordinals.Length)
+            {
+                return ResolvedReferenceBatchRemovalFailure(
+                    ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus
+                        .InvalidRequest);
+            }
+
+            ProductContainerState container =
+                state.Containers[request.ContainerOrdinal - 1];
+            if (ordinals.Any(ordinal =>
+                    ordinal <= 0
+                    || ordinal > container.Items.Count
+                    || container.Items[ordinal - 1].Resolution !=
+                        ProductItemReferenceResolution.Resolved))
+            {
+                return ResolvedReferenceBatchRemovalFailure(
+                    ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus
+                        .InvalidRequest);
+            }
+
+            string[] itemIds = ordinals
+                .Select(ordinal => container.Items[ordinal - 1].Id)
+                .ToArray();
+            ProductWorkspaceEditResult edit =
+                ProductWorkspaceReducer.RemoveResolvedReferences(
+                    state,
+                    container.Id,
+                    itemIds);
+            if (!edit.IsSuccess)
+            {
+                return ResolvedReferenceBatchRemovalFailure(
+                    ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus
+                        .ReducerRejected,
+                    edit.Error);
+            }
+
+            ProductWorkspaceProjectionResult projection =
+                ProductWorkspaceConfigurationProjector.Project(edit.State!);
+            long nextEditRevision = checked(editRevision + 1);
+            ProductWorkspaceReferenceRemovalUndoToken? undoToken = projection.IsSuccess
+                ? ProductWorkspaceReferenceRemovalUndo.Prepare(
+                    state,
+                    edit.State!,
+                    nextEditRevision,
+                    Guid.NewGuid())
+                : null;
+            if (!projection.IsSuccess || undoToken is null)
+            {
+                return ResolvedReferenceBatchRemovalFailure(
+                    ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus
+                        .ReducerRejected,
+                    ProductWorkspaceEditError.InvalidState,
+                    ProductWorkspaceSaveSubmissionStatus.InvalidState);
+            }
+
+            ProductWorkspaceSaveSubmissionResult submission = saves.Submit(edit);
+            if (!submission.IsAccepted)
+            {
+                return ResolvedReferenceBatchRemovalFailure(
+                    ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus
+                        .SaveRejected,
+                    submission.EditError,
+                    submission.Status);
+            }
+
+            editRevision = nextEditRevision;
+            pendingLayoutRecoveryUndo = null;
+            pendingReferenceRemovalUndo = new(undoToken, state);
+            pendingReferenceReassignmentUndo = null;
+            pendingContainerRemovalUndo = null;
+            pendingReferenceBatchAdditionUndo = null;
+            return new(
+                ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus.Accepted,
+                ProductWorkspaceEditError.None,
+                submission.Status,
+                editRevision,
+                edit.State,
+                projection.Document,
+                undoToken);
+        }
+    }
+
     public ProductWorkspaceResolvedReferenceRemovalCommitResult
         CommitResolvedReferenceRemoval(
             ProductWorkspaceState state,
@@ -1737,6 +1873,20 @@ public sealed class ProductWorkspaceCommitCoordinator
     private ProductWorkspaceResolvedReferenceRemovalCommitResult
         ResolvedReferenceRemovalFailure(
             ProductWorkspaceResolvedReferenceRemovalCommitStatus status,
+            ProductWorkspaceEditError editError = ProductWorkspaceEditError.None,
+            ProductWorkspaceSaveSubmissionStatus? submissionStatus = null) =>
+        new(
+            status,
+            editError,
+            submissionStatus,
+            editRevision,
+            null,
+            null,
+            null);
+
+    private ProductWorkspaceResolvedReferenceBatchRemovalCommitResult
+        ResolvedReferenceBatchRemovalFailure(
+            ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus status,
             ProductWorkspaceEditError editError = ProductWorkspaceEditError.None,
             ProductWorkspaceSaveSubmissionStatus? submissionStatus = null) =>
         new(

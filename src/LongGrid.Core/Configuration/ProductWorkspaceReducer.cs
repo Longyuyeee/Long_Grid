@@ -194,6 +194,64 @@ public static class ProductWorkspaceReducer
             remove: true,
             confirmUnresolvedReference);
 
+    public static ProductWorkspaceEditResult RemoveResolvedReferences(
+        ProductWorkspaceState state,
+        string containerId,
+        IReadOnlyList<string> itemIds)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(itemIds);
+        if (itemIds.Count == 0
+            || itemIds.Any(string.IsNullOrWhiteSpace)
+            || itemIds.Distinct(StringComparer.Ordinal).Count() != itemIds.Count)
+        {
+            return Failure(ProductWorkspaceEditError.InvalidState);
+        }
+
+        ProductWorkspaceEditResult? preparation =
+            Prepare(state, out ProductWorkspaceState? snapshot);
+        if (preparation is not null)
+        {
+            return preparation;
+        }
+
+        int containerIndex = FindContainer(snapshot!, containerId);
+        if (containerIndex < 0)
+        {
+            return Failure(ProductWorkspaceEditError.ContainerNotFound);
+        }
+
+        ProductContainerState container = snapshot!.Containers[containerIndex];
+        if (container.IsLocked)
+        {
+            return Failure(ProductWorkspaceEditError.ContainerLocked);
+        }
+
+        var selectedIds = itemIds.ToHashSet(StringComparer.Ordinal);
+        ProductItemReferenceState[] selected = container.Items
+            .Where(item => selectedIds.Contains(item.Id))
+            .ToArray();
+        if (selected.Length != selectedIds.Count)
+        {
+            return Failure(ProductWorkspaceEditError.ItemNotFound);
+        }
+
+        if (selected.Any(item => item.Resolution !=
+            ProductItemReferenceResolution.Resolved))
+        {
+            return Failure(ProductWorkspaceEditError.InvalidState);
+        }
+
+        ProductContainerState[] containers = snapshot.Containers.ToArray();
+        containers[containerIndex] = container with
+        {
+            Items = container.Items
+                .Where(item => !selectedIds.Contains(item.Id))
+                .ToArray(),
+        };
+        return Validate(snapshot with { Containers = containers }, changed: true);
+    }
+
     public static ProductWorkspaceEditResult ReassignResolvedReference(
         ProductWorkspaceState state,
         string sourceContainerId,

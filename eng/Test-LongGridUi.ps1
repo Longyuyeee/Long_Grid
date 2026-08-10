@@ -664,6 +664,7 @@ function Test-SourceContract {
         'ProductWorkspaceResolvedReferenceRemovalSelector'
     Assert-Condition (
         $resolvedReferenceRemovalSelectorNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $resolvedReferenceRemovalSelectorNode.GetAttribute('SelectionMode') -eq 'Multiple' -and
         $resolvedReferenceRemovalSelectorNode.GetAttribute('SelectionChanged') -eq `
             'ProductWorkspaceResolvedReferenceRemovalSelector_SelectionChanged'
     ) 'Resolved-reference removal selection must start disabled and use the audited handler.'
@@ -1023,7 +1024,7 @@ function Test-SourceContract {
         -not ($codeBehind -match 'ProductWorkspaceRead.*(State|CatalogEntry|PersistedTarget|CanonicalTarget)')
     ) 'MainWindow must render only the presentation contract, never workspace identity state.'
     Assert-Condition (
-        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 12) -and
+        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 13) -and
         $referenceCommitCode -match 'editRevision\s*=\s*checked\(editRevision\s*\+\s*1\)' -and
         $referenceCommitCode -match 'ProductWorkspaceReferenceGate\.Evaluate' -and
         $referenceCommitCode -match 'ProductWorkspaceConfigurationProjector\.Project' -and
@@ -1039,6 +1040,11 @@ function Test-SourceContract {
         $referenceCommitCode -match 'CommitResolvedReferenceRemoval' -and
         $referenceCommitCode -match 'CommitReferenceRemovalUndo' -and
         $referenceCommitCode -match 'ProductWorkspaceReducer\.RemoveReference' -and
+        $referenceCommitCode -match 'CommitResolvedReferenceBatchRemoval' -and
+        $referenceCommitCode -match 'MaximumResolvedReferenceRemovalBatchSize\s*=\s*256' -and
+        $referenceCommitCode -match 'ProductWorkspaceReducer\.RemoveResolvedReferences' -and
+        $codeBehind -match 'ResolvedReferenceBatchRemoval' -and
+        $codeBehind -match 'Atomic=True' -and
         $referenceCommitCode -match 'CommitResolvedReferenceReassignment' -and
         $referenceCommitCode -match 'CommitReferenceReassignmentUndo' -and
         $referenceCommitCode -match 'ProductWorkspaceReducer\.ReassignResolvedReference' -and
@@ -1430,7 +1436,7 @@ function Test-SourceContract {
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
-        productResolvedReferenceRemoval = 'visible-name-revision-gated-config-only-single-undo'
+        productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productResolvedReferenceReassignment = 'atomic-source-target-revision-gated-config-only-single-undo'
         productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'

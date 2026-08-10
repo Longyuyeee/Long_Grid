@@ -65,7 +65,7 @@ public partial class App : Application
             CommitProductWorkspaceReferenceAction,
             CommitProductWorkspaceResolvedReferenceBatch,
             CommitProductWorkspaceReferenceBatchAdditionUndo,
-            CommitProductWorkspaceResolvedReferenceRemoval,
+            CommitProductWorkspaceResolvedReferenceBatchRemoval,
             CommitProductWorkspaceReferenceRemovalUndo,
             CommitProductWorkspaceResolvedReferenceReassignment,
             CommitProductWorkspaceReferenceReassignmentUndo,
@@ -508,16 +508,21 @@ public partial class App : Application
         return result;
     }
 
-    private ProductWorkspaceResolvedReferenceRemovalCommitResult
-        CommitProductWorkspaceResolvedReferenceRemoval(
+    private ProductWorkspaceResolvedReferenceBatchRemovalCommitResult
+        CommitProductWorkspaceResolvedReferenceBatchRemoval(
             long expectedEditRevision,
-            ProductWorkspaceResolvedReferenceRemovalCandidatePresentation candidate)
+            IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>
+                candidates)
     {
         if (productWorkspaceSession.State is null
-            || productWorkspaceSession.IsReadOnly)
+            || productWorkspaceSession.IsReadOnly
+            || candidates.Count == 0
+            || candidates.Select(candidate => candidate.ContainerOrdinal)
+                .Distinct()
+                .Count() != 1)
         {
             return new(
-                ProductWorkspaceResolvedReferenceRemovalCommitStatus.InvalidRequest,
+                ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus.InvalidRequest,
                 ProductWorkspaceEditError.InvalidState,
                 null,
                 workspaceCommits.CurrentEditRevision,
@@ -526,13 +531,13 @@ public partial class App : Application
                 null);
         }
 
-        ProductWorkspaceResolvedReferenceRemovalCommitResult result =
-            workspaceCommits.CommitResolvedReferenceRemoval(
+        ProductWorkspaceResolvedReferenceBatchRemovalCommitResult result =
+            workspaceCommits.CommitResolvedReferenceBatchRemoval(
                 StampAuthoritativeDisplayTopology(productWorkspaceSession.State),
                 new(
                     expectedEditRevision,
-                    candidate.ContainerOrdinal,
-                    candidate.ItemOrdinal));
+                    candidates[0].ContainerOrdinal,
+                    candidates.Select(candidate => candidate.ItemOrdinal).ToArray()));
         if (result.IsAccepted)
         {
             ApplyAcceptedProductWorkspaceDocument(

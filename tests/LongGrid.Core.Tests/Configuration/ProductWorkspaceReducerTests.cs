@@ -160,6 +160,43 @@ public sealed class ProductWorkspaceReducerTests
     }
 
     [Fact]
+    public void BatchRemovalIsDetachedAndRejectsPartialInvalidInput()
+    {
+        ProductWorkspaceState state = CreateState() with
+        {
+            Containers =
+            [
+                CreateState().Containers[0] with
+                {
+                    Items =
+                    [
+                        CreateItem("item-1", "First"),
+                        CreateItem("item-2", "Second"),
+                        CreateItem("item-3", "Third"),
+                    ],
+                },
+            ],
+        };
+
+        ProductWorkspaceEditResult accepted =
+            ProductWorkspaceReducer.RemoveResolvedReferences(
+                state,
+                "container-1",
+                ["item-1", "item-3"]);
+        ProductWorkspaceEditResult rejected =
+            ProductWorkspaceReducer.RemoveResolvedReferences(
+                state,
+                "container-1",
+                ["item-1", "missing-item"]);
+
+        Assert.True(accepted.IsSuccess);
+        Assert.Equal("item-2", Assert.Single(accepted.State!.Containers[0].Items).Id);
+        Assert.Equal(3, state.Containers[0].Items.Count);
+        Assert.Equal(ProductWorkspaceEditError.ItemNotFound, rejected.Error);
+        Assert.Null(rejected.State);
+    }
+
+    [Fact]
     public void MissingReferenceIsPreservedUnlessRemovalIsConfirmed()
     {
         ProductWorkspaceState state = CreateMissingState();
