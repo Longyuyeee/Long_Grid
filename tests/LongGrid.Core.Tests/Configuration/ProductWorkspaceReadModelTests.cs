@@ -27,6 +27,11 @@ public sealed class ProductWorkspaceReadModelTests
         Assert.Equal(2, snapshot.ItemCount);
         Assert.Equal(1, snapshot.ResolvedCount);
         Assert.Equal(1, snapshot.UnresolvedCount);
+        Assert.Equal(0, snapshot.EmptyContainerCount);
+        Assert.Equal(1, snapshot.NeedsReviewContainerCount);
+        Assert.Equal(
+            ProductWorkspaceContainerHealth.NeedsReview,
+            snapshot.Containers[0].Health);
         Assert.Equal("Visible first", snapshot.Containers[0].Items[0].UserVisibleName);
         Assert.Null(snapshot.Containers[0].Items[1].UserVisibleName);
         Assert.Equal([1, 2], snapshot.Containers[0].Items.Select(item => item.Ordinal));
@@ -78,6 +83,7 @@ public sealed class ProductWorkspaceReadModelTests
         Assert.Equal(48, container.YDip);
         Assert.Equal(420, container.WidthDip);
         Assert.Equal(300, container.HeightDip);
+        Assert.Equal(ProductWorkspaceContainerHealth.Empty, container.Health);
     }
 
     [Fact]
@@ -110,6 +116,24 @@ public sealed class ProductWorkspaceReadModelTests
         Assert.True(result.IsSuccess);
         Assert.Empty(result.Snapshot!.Containers);
         Assert.Equal(0, result.Snapshot.ItemCount);
+        Assert.Equal(0, result.Snapshot.EmptyContainerCount);
+        Assert.Equal(0, result.Snapshot.NeedsReviewContainerCount);
+    }
+
+    [Fact]
+    public void FullyResolvedContainerHasReadyHealth()
+    {
+        string target = CreateTarget("ready");
+        ProductWorkspaceState state = ProductWorkspaceConfigurationResolver.Resolve(
+            CreateDocument([CreateItem("ready-item", target)]),
+            [CreateCatalogEntry(target, "Ready item")]).State!;
+
+        ProductWorkspaceReadSnapshot snapshot =
+            ProductWorkspaceReadModel.Create(state).Snapshot!;
+
+        Assert.Equal(ProductWorkspaceContainerHealth.Ready, snapshot.Containers[0].Health);
+        Assert.Equal(0, snapshot.EmptyContainerCount);
+        Assert.Equal(0, snapshot.NeedsReviewContainerCount);
     }
 
     private static ProductConfigurationDocument CreateDocument(

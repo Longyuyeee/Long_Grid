@@ -239,3 +239,5 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-08-07 RC 交付切片 5 补充：`eng/Build-LongGridReleaseCandidate.ps1` 成为内部交付集合的单一推荐入口，顺序编排 lifecycle/signing 否定性预检、便携 ZIP、unsigned MSIX 和 SPDX 2.2，并重新验证同一源码提交、版本、三个实际 SHA-256/sidecar、MSIX semantic layout 与 SBOM subject hash；任何失败都会先失效旧聚合成功标记。PR/main 的全新 Windows checkout 在完整工程门禁后真实执行该入口，但只上传测试/覆盖率，不上传 unsigned 交付物。没有正式发布输入时，交付机械链停止扩张，后续优先收集 #19/#20/#23/#24 外部证据。
 
 2026-08-11 正式工作区交互切片补充：已解析引用改归属从单项扩展为同一源方格 1..256 项。操作沿用标准多选、有限选择/清除入口和目标方格选择器；仅在同源、目标不同、源/目标未锁定时，经默认取消确认后一次提交完整配置、一次递增 revision，并复用状态指纹令牌整体撤销一次。空、重复、缺失、未解析、越界或 257 项请求不产生部分状态。该切片不移动桌面文件、不执行 DesktopHost，也不改变 BSA 与 #19/#20/#23/#24 外部证据优先级。
+
+2026-08-11 正式方格状态切片补充：正式工作区从已验证 session 派生 `Empty / Ready / NeedsReview`，以“空方格 / 引用正常 / 有引用待审查”文字徽标、Narrator 名称和有限 UIA 状态统一呈现。`NeedsReview` 只表示存在未解析引用，不得在缺少运行时证据时冒充网络离线、权限拒绝或文件系统错误。该只读投影不改变配置 schema、保存、撤销、桌面文件或 DesktopHost；Loading/Offline/Error/Recovery 等真实运行状态仍等待权威 Folder Portal/DesktopHost 状态源。

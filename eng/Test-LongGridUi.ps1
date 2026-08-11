@@ -1080,6 +1080,14 @@ function Test-SourceContract {
     Assert-Condition ($workspaceReadPresentationCode.Contains('WorkspaceViewReady:Containers=')) `
         'Workspace presentation must expose a finite ready status.'
     Assert-Condition (
+        $workspaceReadModelCode -match 'ProductWorkspaceContainerHealth' -and
+        $workspaceReadModelCode -match 'unresolved\s*>\s*0' -and
+        $workspaceReadModelCode -match 'items\.Count\s*==\s*0' -and
+        $workspaceReadPresentationCode -match 'EmptyContainers=' -and
+        $workspaceReadPresentationCode -match 'NeedsReviewContainers=' -and
+        $document.OuterXml.Contains('Text="{Binding Health}"')
+    ) 'Formal containers must expose finite empty, ready, and review health states.'
+    Assert-Condition (
         $workspaceReadPresentationCode -match `
             'string displayName\s*=\s*resolved\s*\?\s*item\.UserVisibleName!\s*:\s*\$"'
     ) 'Workspace presentation must use a generated ordinal label for unresolved items.'
@@ -1555,7 +1563,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-readonly-visible-names-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-readonly-finite-container-health-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'

@@ -11,6 +11,7 @@ internal sealed record ProductWorkspaceReadItemPresentation(
 internal sealed record ProductWorkspaceReadContainerPresentation(
     string DisplayName,
     string AccessibilityName,
+    string Health,
     string Detail,
     string Appearance,
     string MachineStatus,
@@ -37,31 +38,46 @@ internal sealed record ProductWorkspaceReadPresentation(
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ProductWorkspaceReadContainerPresentation[] containers = snapshot.Containers
-            .Select(container => new ProductWorkspaceReadContainerPresentation(
+            .Select(container =>
+            {
+                string health = container.Health switch
+                {
+                    ProductWorkspaceContainerHealth.Empty => "空方格",
+                    ProductWorkspaceContainerHealth.Ready => "引用正常",
+                    ProductWorkspaceContainerHealth.NeedsReview => "有引用待审查",
+                    _ => "状态不可用",
+                };
+                return new ProductWorkspaceReadContainerPresentation(
                 container.UserVisibleName,
-                $"方格 {container.Ordinal}，{container.UserVisibleName}",
+                $"方格 {container.Ordinal}，{container.UserVisibleName}，引用状态：{health}",
+                health,
                 $"{(container.IsLocked ? "已锁定" : "未锁定")} · " +
                     $"{container.Items.Count} 个引用 · " +
-                    $"{container.UnresolvedCount} 个待处理",
+                    $"{container.UnresolvedCount} 个待审查",
                 $"{(container.IsCollapsed ? "已折叠" : "已展开")} · " +
                     $"不透明度 {container.Opacity:P0} · " +
                     $"{container.WidthDip:0} × {container.HeightDip:0} DIP",
                 $"WorkspaceContainer:{container.Ordinal}:Items={container.Items.Count}:" +
                     $"Resolved={container.ResolvedCount}:Unresolved={container.UnresolvedCount}:" +
-                    $"Locked={container.IsLocked}:Collapsed={container.IsCollapsed}",
+                    $"Health={container.Health}:Locked={container.IsLocked}:" +
+                    $"Collapsed={container.IsCollapsed}",
                 container.IsCollapsed
                     ? Array.Empty<ProductWorkspaceReadItemPresentation>()
-                    : container.Items.Select(CreateItem).ToArray()))
+                    : container.Items.Select(CreateItem).ToArray());
+            })
             .ToArray();
 
         return new(
             snapshot.Containers.Count == 0
                 ? "当前正式配置没有方格；这里只读呈现，不会自动创建示例。"
                 : $"{snapshot.Containers.Count} 个方格 · {snapshot.ItemCount} 个引用 · " +
-                    $"{snapshot.UnresolvedCount} 个待处理",
+                    $"{snapshot.EmptyContainerCount} 个空方格 · " +
+                    $"{snapshot.NeedsReviewContainerCount} 个方格待审查",
             $"WorkspaceViewReady:Containers={snapshot.Containers.Count}:" +
                 $"Items={snapshot.ItemCount}:Resolved={snapshot.ResolvedCount}:" +
-                $"Unresolved={snapshot.UnresolvedCount}",
+                $"Unresolved={snapshot.UnresolvedCount}:" +
+                $"EmptyContainers={snapshot.EmptyContainerCount}:" +
+                $"NeedsReviewContainers={snapshot.NeedsReviewContainerCount}",
             containers);
     }
 
