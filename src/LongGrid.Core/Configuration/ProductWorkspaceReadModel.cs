@@ -13,6 +13,39 @@ public enum ProductWorkspaceContainerHealth
     NeedsReview,
 }
 
+public enum ProductWorkspaceContainerHealthFilter
+{
+    Invalid,
+    All,
+    NeedsReview,
+    Empty,
+    Ready,
+}
+
+public static class ProductWorkspaceContainerHealthFilterPolicy
+{
+    public static bool IsSupported(ProductWorkspaceContainerHealthFilter filter) =>
+        filter is ProductWorkspaceContainerHealthFilter.All
+            or ProductWorkspaceContainerHealthFilter.NeedsReview
+            or ProductWorkspaceContainerHealthFilter.Empty
+            or ProductWorkspaceContainerHealthFilter.Ready;
+
+    public static bool Includes(
+        ProductWorkspaceContainerHealthFilter filter,
+        ProductWorkspaceContainerHealth health) =>
+        filter switch
+        {
+            ProductWorkspaceContainerHealthFilter.All => true,
+            ProductWorkspaceContainerHealthFilter.NeedsReview =>
+                health == ProductWorkspaceContainerHealth.NeedsReview,
+            ProductWorkspaceContainerHealthFilter.Empty =>
+                health == ProductWorkspaceContainerHealth.Empty,
+            ProductWorkspaceContainerHealthFilter.Ready =>
+                health == ProductWorkspaceContainerHealth.Ready,
+            _ => false,
+        };
+}
+
 public sealed record ProductWorkspaceReadContainer(
     int Ordinal,
     string UserVisibleName,

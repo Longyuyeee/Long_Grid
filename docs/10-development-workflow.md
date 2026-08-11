@@ -349,7 +349,7 @@ test(shell): cover coalesced change notifications
 7. 录像、硬件清单和系统配置若包含可识别信息，放入访问受控的实验记录，不进入仓库或默认诊断包。
 8. Issue #19 使用 `eng/Start-Issue19ManualMatrixSession.ps1` 一次启动一个 I19 场景；`-ValidateOnly` 永远保持 `PendingManualEvidence`，不得自动填写人工结论。
 9. Issue #20 使用 `eng/Start-Issue20DisplayMatrixSession.ps1` 映射固定 I20 场景并强制恢复计划确认；observer 的 `Observed Pass` 只构成部分证据，最终结论保持 `PendingManualEvidence` 直至人工复核。
-10. 正式 App 的批量选择使用 `eng/Start-LongGridBatchAccessibilitySession.ps1` 一次启动一个 BSA 场景；真实执行必须确认专用测试账户和恢复计划，启动器拒绝既有 App 进程且不终止外来进程，`-ValidateOnly` 只复核 135-ID、关键控件、播报和紧凑布局合同。
+10. 正式 App 的批量选择使用 `eng/Start-LongGridBatchAccessibilitySession.ps1` 一次启动一个 BSA 场景；真实执行必须确认专用测试账户和恢复计划，启动器拒绝既有 App 进程且不终止外来进程，`-ValidateOnly` 只复核 136-ID、关键控件、播报和紧凑布局合同。
 
 ### 12.5 UI、启动与打包门禁
 
@@ -558,3 +558,5 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 2026-08-11 正式工作区交互补充：最近一次布局恢复、方格删除、批量引用加入、批量引用移除或批量引用改归属可投影到一个统一即时撤销入口。统一入口不得建立新的宽泛撤销栈，只能消费协调器现有的 operation ID、edit revision 与配置前后指纹令牌；多个令牌同时出现、operation ID 为空或 revision 非正数时必须默认关闭。点击本身即构成明确撤销意图，不增加确认弹窗；提交仍只能进入唯一保存控制器，且不得触碰桌面文件或真实窗口。上下文入口暂时保留，BSA 人工场景和 135-ID 干净会话证据必须重新执行后才能升级结论。
 
 2026-08-11 正式方格健康状态补充：容器空/正常/待审查状态必须由正式只读模型有限派生，并同时进入可见文字、无障碍名称和机器状态；颜色不能成为唯一表达。没有权威网络、权限或运行时错误证据时，禁止把未解析引用命名为 Offline/Error。状态投影不得触发保存、桌面文件操作、后台探测或 DesktopHost 执行；新增真实 Loading/Offline/Error/Recovery 前必须先定义状态源、超时、恢复与隐私合同。
+
+2026-08-11 正式方格健康筛选补充：展示筛选只能消费隐私最小化 presentation 和有限健康枚举，必须提供全部/待审查/空/正常四种标准键盘选项、一次 live-region 最终播报和未知模式零结果。它不得刷新 Catalog、读取 workspace identity、触发保存或桌面/DesktopHost 操作。权威 UI 合同更新为 136-ID；人工 Narrator、高对比、200% 文本缩放和紧凑布局仍为 Pending。

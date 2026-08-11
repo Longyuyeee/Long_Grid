@@ -352,6 +352,7 @@ function Test-SourceContract {
         'ProductWorkspaceResolvedReferenceRemovalUndoButton',
         'ProductWorkspaceResolvedReferenceRemovalStatus',
         'ProductWorkspaceContainerEditStatus',
+        'ProductWorkspaceHealthFilterSelector',
         'ProductWorkspaceContainerList',
         'ProductWorkspaceViewStatus',
         'ProductWorkspaceReferenceReviewCard',
@@ -1087,6 +1088,26 @@ function Test-SourceContract {
         $workspaceReadPresentationCode -match 'NeedsReviewContainers=' -and
         $document.OuterXml.Contains('Text="{Binding Health}"')
     ) 'Formal containers must expose finite empty, ready, and review health states.'
+    $workspaceHealthFilterNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceHealthFilterSelector'
+    Assert-Condition (
+        $workspaceHealthFilterNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $workspaceHealthFilterNode.GetAttribute('SelectedIndex') -eq '0' -and
+        $workspaceHealthFilterNode.GetAttribute('SelectionChanged') -eq `
+            'ProductWorkspaceHealthFilterSelector_SelectionChanged' -and
+        $workspaceHealthFilterNode.ChildNodes.Count -eq 4
+    ) 'Workspace health filter must start disabled, select All, and expose four finite choices.'
+    Assert-Condition (
+        $workspaceReadModelCode -match 'ProductWorkspaceContainerHealthFilterPolicy' -and
+        $workspaceReadModelCode -match 'ProductWorkspaceContainerHealthFilter\.All' -and
+        $workspaceReadModelCode -match 'ProductWorkspaceContainerHealthFilter\.NeedsReview' -and
+        $workspaceReadModelCode -match 'ProductWorkspaceContainerHealthFilter\.Empty' -and
+        $workspaceReadModelCode -match 'ProductWorkspaceContainerHealthFilter\.Ready' -and
+        $workspaceReadModelCode -match '_\s*=>\s*false' -and
+        $workspaceReadPresentationCode -match 'WorkspaceViewFilterUnavailable' -and
+        $workspaceReadPresentationCode -match 'DesktopFilesChanged=False'
+    ) 'Workspace health filter must use finite presentation-only modes and fail closed.'
     Assert-Condition (
         $workspaceReadPresentationCode -match `
             'string displayName\s*=\s*resolved\s*\?\s*item\.UserVisibleName!\s*:\s*\$"'
@@ -1097,9 +1118,11 @@ function Test-SourceContract {
             'PersistedTarget|CanonicalTarget|ProfileId|SourceId')) `
         'Workspace presentation must omit persistence identity.'
     Assert-Condition (
-        $codeBehind -match 'ProductWorkspaceContainerList\.ItemsSource\s*=\s*presentation\.Containers' -and
+        $codeBehind -match 'ProductWorkspaceContainerList\.ItemsSource\s*=\s*filtered\.Containers' -and
+        $codeBehind -match 'ProductWorkspaceViewStatus\.Text\s*=\s*filtered\.Detail' -and
+        $codeBehind -match 'ProductWorkspaceHealthFilterSelector_SelectionChanged' -and
         -not ($codeBehind -match 'ProductWorkspaceRead.*(State|CatalogEntry|PersistedTarget|CanonicalTarget)')
-    ) 'MainWindow must render only the presentation contract, never workspace identity state.'
+    ) 'MainWindow must filter only the presentation contract, never workspace identity state.'
     Assert-Condition (
         ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 13) -and
         $referenceCommitCode -match 'editRevision\s*=\s*checked\(editRevision\s*\+\s*1\)' -and
@@ -1563,7 +1586,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-readonly-finite-container-health-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-readonly-finite-container-health-filter-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'

@@ -136,6 +136,40 @@ public sealed class ProductWorkspaceReadModelTests
         Assert.Equal(0, snapshot.NeedsReviewContainerCount);
     }
 
+    [Fact]
+    public void HealthFilterPolicyIncludesOnlyTheRequestedFiniteState()
+    {
+        ProductWorkspaceContainerHealth[] health =
+        [
+            ProductWorkspaceContainerHealth.Empty,
+            ProductWorkspaceContainerHealth.Ready,
+            ProductWorkspaceContainerHealth.NeedsReview,
+        ];
+
+        Assert.Equal(
+            3,
+            health.Count(value => ProductWorkspaceContainerHealthFilterPolicy.Includes(
+                ProductWorkspaceContainerHealthFilter.All,
+                value)));
+        Assert.Single(health, value =>
+            ProductWorkspaceContainerHealthFilterPolicy.Includes(
+                ProductWorkspaceContainerHealthFilter.Empty,
+                value));
+        Assert.Single(health, value =>
+            ProductWorkspaceContainerHealthFilterPolicy.Includes(
+                ProductWorkspaceContainerHealthFilter.Ready,
+                value));
+        Assert.Single(health, value =>
+            ProductWorkspaceContainerHealthFilterPolicy.Includes(
+                ProductWorkspaceContainerHealthFilter.NeedsReview,
+                value));
+        Assert.False(ProductWorkspaceContainerHealthFilterPolicy.IsSupported(
+            ProductWorkspaceContainerHealthFilter.Invalid));
+        Assert.False(ProductWorkspaceContainerHealthFilterPolicy.Includes(
+            (ProductWorkspaceContainerHealthFilter)99,
+            ProductWorkspaceContainerHealth.Ready));
+    }
+
     private static ProductConfigurationDocument CreateDocument(
         IReadOnlyList<DesktopItemReferenceConfiguration> items) =>
         new()
