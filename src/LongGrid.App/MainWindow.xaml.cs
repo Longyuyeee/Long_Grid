@@ -459,6 +459,7 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceViewDetail.Text = presentation.Detail;
         ProductWorkspaceHealthFilterSelector.IsEnabled = presentation.CanFilter;
         ProductWorkspaceSearchBox.IsEnabled = presentation.CanFilter;
+        ProductWorkspaceSortSelector.IsEnabled = presentation.CanFilter;
         if (!presentation.CanFilter)
         {
             ProductWorkspaceSearchBox.Text = string.Empty;
@@ -497,6 +498,18 @@ public sealed partial class MainWindow : Window
         ApplyProductWorkspaceFilters();
     }
 
+    private void ProductWorkspaceSortSelector_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e)
+    {
+        if (ProductWorkspaceContainerList is null || ProductWorkspaceViewStatus is null)
+        {
+            return;
+        }
+
+        ApplyProductWorkspaceFilters();
+    }
+
     private void ApplyProductWorkspaceFilters()
     {
         ProductWorkspaceContainerHealthFilter filter =
@@ -509,7 +522,17 @@ public sealed partial class MainWindow : Window
                 _ => ProductWorkspaceContainerHealthFilter.Invalid,
             };
         ProductWorkspaceReadFilterPresentation filtered =
-            _workspaceRead.ApplyFilter(filter, ProductWorkspaceSearchBox.Text);
+            _workspaceRead.ApplyFilter(
+                filter,
+                ProductWorkspaceSearchBox.Text,
+                ProductWorkspaceSortSelector.SelectedIndex switch
+                {
+                    0 => ProductWorkspaceContainerSort.ConfigurationOrder,
+                    1 => ProductWorkspaceContainerSort.NameAscending,
+                    2 => ProductWorkspaceContainerSort.NameDescending,
+                    3 => ProductWorkspaceContainerSort.NeedsReviewFirst,
+                    _ => ProductWorkspaceContainerSort.Invalid,
+                });
         ProductWorkspaceContainerList.ItemsSource = filtered.Containers;
         ProductWorkspaceViewStatus.Text = filtered.Detail;
         AutomationProperties.SetItemStatus(

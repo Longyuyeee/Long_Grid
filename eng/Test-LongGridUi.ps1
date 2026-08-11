@@ -39,6 +39,8 @@ $workspaceContainerQuickLockPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceContainerQuickLockPolicy.cs'
 $workspaceVisibleSearchPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceVisibleSearchPolicy.cs'
+$workspaceContainerSortPolicyCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceContainerSortPolicy.cs'
 $workspaceReadPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReadPresentation.cs'
 $containerEditPresentationCodePath = Join-Path $projectRoot `
@@ -169,6 +171,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $workspaceVisibleSearchPolicyCode = Get-Content `
         -LiteralPath $workspaceVisibleSearchPolicyCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceContainerSortPolicyCode = Get-Content `
+        -LiteralPath $workspaceContainerSortPolicyCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceReadPresentationCode = Get-Content `
@@ -384,6 +390,7 @@ function Test-SourceContract {
         'ProductWorkspaceContainerEditStatus',
         'ProductWorkspaceSearchBox',
         'ProductWorkspaceHealthFilterSelector',
+        'ProductWorkspaceSortSelector',
         'ProductWorkspaceOpenReviewButton',
         'ProductWorkspaceContainerList',
         'ProductWorkspaceViewStatus',
@@ -1154,7 +1161,7 @@ function Test-SourceContract {
         $workspaceReadPresentationCode -match 'container\.Items\.Select\(item\s*=>\s*item\.DisplayName\)' -and
         $workspaceReadPresentationCode -match 'Search=Invalid' -and
         $workspaceReadPresentationCode -match 'Search=\{search\.Status\}' -and
-        $codeBehind -match 'ApplyFilter\(filter,\s*ProductWorkspaceSearchBox\.Text\)' -and
+        $codeBehind -match 'ApplyFilter\(\s*filter,\s*ProductWorkspaceSearchBox\.Text,' -and
         $codeBehind -match 'ProductWorkspaceSearchBox\.IsEnabled\s*=\s*presentation\.CanFilter' -and
         $codeBehind -match 'ProductWorkspaceSearchBox\.Text\s*=\s*string\.Empty'
     ) 'Workspace search must intersect presentation-only visible names, reject unsafe input, and avoid query telemetry.'
@@ -1164,6 +1171,39 @@ function Test-SourceContract {
         -not ($workspaceReadPresentationCode -match `
             'Search=\{query\}|SearchQuery|Query=\{')
     ) 'Workspace search must not ingest hidden identity/detail fields or echo user queries.'
+    $workspaceSortNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceSortSelector'
+    Assert-Condition (
+        $workspaceSortNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $workspaceSortNode.GetAttribute('SelectedIndex') -eq '0' -and
+        $workspaceSortNode.GetAttribute('SelectionChanged') -eq `
+            'ProductWorkspaceSortSelector_SelectionChanged' -and
+        $workspaceSortNode.GetAttribute('HorizontalAlignment') -eq 'Stretch' -and
+        $workspaceSortNode.ChildNodes.Count -eq 4
+    ) 'Workspace sort must start disabled, preserve configuration order, and expose four finite choices.'
+    Assert-Condition (
+        $workspaceContainerSortPolicyCode -match 'ConfigurationOrder' -and
+        $workspaceContainerSortPolicyCode -match 'NameAscending' -and
+        $workspaceContainerSortPolicyCode -match 'NameDescending' -and
+        $workspaceContainerSortPolicyCode -match 'NeedsReviewFirst' -and
+        $workspaceContainerSortPolicyCode -match 'StringComparer\.OrdinalIgnoreCase' -and
+        $workspaceContainerSortPolicyCode -match 'ThenBy\(entry\s*=>\s*entry\.Index\)' -and
+        $workspaceContainerSortPolicyCode -match 'Array\.Empty<int>\(\)' -and
+        $workspaceReadPresentationCode -match 'ProductWorkspaceContainerSortPolicy\.Resolve' -and
+        $workspaceReadPresentationCode -match 'container\.DisplayName' -and
+        $workspaceReadPresentationCode -match 'container\.HealthKind' -and
+        $workspaceReadPresentationCode -match 'WorkspaceViewSortUnavailable' -and
+        $workspaceReadPresentationCode -match 'Sort=\{sort\}' -and
+        $codeBehind -match 'ProductWorkspaceSortSelector\.IsEnabled\s*=\s*presentation\.CanFilter' -and
+        $codeBehind -match 'ProductWorkspaceSortSelector\.SelectedIndex\s+switch'
+    ) 'Workspace sort must be stable, finite, presentation-only, and fail closed.'
+    Assert-Condition (
+        -not ($workspaceReadPresentationCode -match `
+            'ContainerSortInput\([^\)]*(Detail|Appearance|MachineStatus|PersistedTarget|CanonicalTarget)') -and
+        -not ($workspaceContainerSortPolicyCode -match `
+            'DateTime|LastUsed|Click|Telemetry|Catalog|PersistedTarget|CanonicalTarget')
+    ) 'Workspace sort must not infer recency or ingest hidden identity, telemetry, or detail fields.'
     $workspaceOpenReviewNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceOpenReviewButton'
@@ -1783,7 +1823,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-review-shortcut-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
