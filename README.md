@@ -76,6 +76,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格 CI VSTest 挂起诊断与有界失败审计](docs/92-ci-vstest-hang-diagnostics-audit.md)
 - [Long方格 DesktopHost 调度器测试确定性审计](docs/93-desktop-host-dispatcher-test-determinism-audit.md)
 - [Long方格正式方格卡片快速折叠审计](docs/94-formal-container-quick-collapse-audit.md)
+- [Long方格正式方格卡片单向快速锁定审计](docs/95-formal-container-quick-lock-audit.md)
 - [Long方格正式容器创建与重命名提交审计](docs/54-container-create-rename-commit-audit.md)
 - [Long方格正式容器锁定与折叠提交审计](docs/55-container-lock-collapse-commit-audit.md)
 - [Long方格正式容器受限外观提交审计](docs/56-container-finite-appearance-commit-audit.md)
@@ -204,6 +205,8 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 > Stage 91 增量：正式方格卡片可通过标准重复按钮按唯一序号直达既有管理选择器；重复实例不分配 AutomationId，当前权威 UI 合同保持 137-ID。
 >
 > Stage 94 增量：正式方格卡片在双快照唯一匹配、未锁定且折叠状态一致时可就地折叠/展开；重复实例不分配 AutomationId，当前权威 UI 合同保持 137-ID。
+>
+> Stage 95 增量：正式方格卡片在双快照唯一匹配且两侧未锁定时可单向快速锁定；卡片不提供快速解锁，重复实例不分配 AutomationId，当前权威 UI 合同保持 137-ID。
 
 Issue #20 动态显示与会话矩阵开始前，先验证只读 observer 会话链：
 

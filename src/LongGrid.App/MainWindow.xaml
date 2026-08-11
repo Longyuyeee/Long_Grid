@@ -797,6 +797,12 @@
                                                                 Content="{Binding QuickCollapseButtonText}"
                                                                 IsEnabled="{Binding CanQuickToggleCollapsed}"
                                                                 Tag="{Binding Ordinal}" />
+                                                            <Button
+                                                                AutomationProperties.Name="{Binding QuickLockAccessibilityName}"
+                                                                Click="ProductWorkspaceContainerQuickLockButton_Click"
+                                                                Content="{Binding QuickLockButtonText}"
+                                                                IsEnabled="{Binding CanQuickLock}"
+                                                                Tag="{Binding Ordinal}" />
                                                         </StackPanel>
                                                     </StackPanel>
                                                 </Border>
