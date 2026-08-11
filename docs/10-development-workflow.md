@@ -349,7 +349,7 @@ test(shell): cover coalesced change notifications
 7. 录像、硬件清单和系统配置若包含可识别信息，放入访问受控的实验记录，不进入仓库或默认诊断包。
 8. Issue #19 使用 `eng/Start-Issue19ManualMatrixSession.ps1` 一次启动一个 I19 场景；`-ValidateOnly` 永远保持 `PendingManualEvidence`，不得自动填写人工结论。
 9. Issue #20 使用 `eng/Start-Issue20DisplayMatrixSession.ps1` 映射固定 I20 场景并强制恢复计划确认；observer 的 `Observed Pass` 只构成部分证据，最终结论保持 `PendingManualEvidence` 直至人工复核。
-10. 正式 App 的批量选择使用 `eng/Start-LongGridBatchAccessibilitySession.ps1` 一次启动一个 BSA 场景；真实执行必须确认专用测试账户和恢复计划，启动器拒绝既有 App 进程且不终止外来进程，`-ValidateOnly` 只复核 138-ID、关键控件、播报和紧凑布局合同。
+10. 正式 App 的批量选择使用 `eng/Start-LongGridBatchAccessibilitySession.ps1` 一次启动一个 BSA 场景；真实执行必须确认专用测试账户和恢复计划，启动器拒绝既有 App 进程且不终止外来进程，`-ValidateOnly` 只复核 139-ID、关键控件、播报和紧凑布局合同。
 
 ### 12.5 UI、启动与打包门禁
 
@@ -566,6 +566,8 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 2026-08-11 正式方格卡片直达管理入口补充：presentation 模板中的重复导航按钮必须使用数据绑定的可访问名称且不得复用同一 AutomationId。导航只可在当前工作区序号与当前管理候选序号各唯一匹配时选择并聚焦现有管理选择器；不允许按列表位置猜测、不允许陈旧状态降级成功，也不得把导航点击解释为编辑提交。权威 UI 合同保持 137-ID；人工键盘、Narrator、缩放和紧凑布局仍为 Pending。
 
 2026-08-11 正式工作区可见搜索补充：搜索实现必须先落纯核心策略测试，再接入 presentation 和唯一 UI 搜索框；字段白名单固定为可见方格名、有限健康标签和当前可见引用名。搜索与健康筛选取交集，64 字符上限和控制字符失败关闭，状态合同不得记录查询。权威 UI 合同更新为 138-ID；Catalog、保存、文件和 DesktopHost 边界不得扩大，人工可用性证据继续 Pending。
+
+2026-08-11 正式工作区有限排序补充：先以纯 Core 策略锁定配置顺序、名称升降序和待审查优先的稳定语义，再接入 presentation-only ComboBox。搜索与健康筛选先于排序；未知模式和畸形输入零结果。不得用点击、焦点或查询推断最近使用，也不得读取 Catalog、配置身份或路径。权威 UI 合同更新为 139-ID，人工可用性证据继续 Pending。
 
 2026-08-11 CI VSTest 挂起诊断补充：全量测试必须启用单测试无活动 2 分钟的 `--blame-hang`，并固定 `--blame-hang-dump-type none`；挂起只能更早失败并产出 `Sequence*.xml`，不得生成或上传内存 dump，也不得放宽测试、覆盖率或后续安全门禁。workflow 源码合同在测试前验证参数唯一性与证据路径。
 

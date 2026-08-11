@@ -707,6 +707,20 @@
                                             IsEnabled="False"
                                             Visibility="Collapsed" />
                                     </Grid>
+                                    <ComboBox
+                                        x:Name="ProductWorkspaceSortSelector"
+                                        AutomationProperties.AutomationId="ProductWorkspaceSortSelector"
+                                        AutomationProperties.Name="排列正式方格"
+                                        Header="方格排序"
+                                        HorizontalAlignment="Stretch"
+                                        IsEnabled="False"
+                                        SelectedIndex="0"
+                                        SelectionChanged="ProductWorkspaceSortSelector_SelectionChanged">
+                                        <ComboBoxItem Content="配置顺序" />
+                                        <ComboBoxItem Content="名称升序" />
+                                        <ComboBoxItem Content="名称降序" />
+                                        <ComboBoxItem Content="待审查优先" />
+                                    </ComboBox>
                                     <ListView
                                         x:Name="ProductWorkspaceContainerList"
                                         AutomationProperties.AutomationId="ProductWorkspaceContainerList"

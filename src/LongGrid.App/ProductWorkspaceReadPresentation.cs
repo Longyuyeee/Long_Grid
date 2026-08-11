@@ -124,7 +124,8 @@ internal sealed record ProductWorkspaceReadPresentation(
 
     public ProductWorkspaceReadFilterPresentation ApplyFilter(
         ProductWorkspaceContainerHealthFilter filter,
-        string query)
+        string query,
+        ProductWorkspaceContainerSort sort)
     {
         ArgumentNullException.ThrowIfNull(query);
         if (!CanFilter)
@@ -166,7 +167,7 @@ internal sealed record ProductWorkspaceReadPresentation(
         }
 
         HashSet<int> matchingIndexes = search.MatchingIndexes.ToHashSet();
-        ProductWorkspaceReadContainerPresentation[] visible = Containers
+        ProductWorkspaceReadContainerPresentation[] filtered = Containers
             .Select((container, index) => (Container: container, Index: index))
             .Where(entry => matchingIndexes.Contains(entry.Index)
                 && ProductWorkspaceContainerHealthFilterPolicy.Includes(
@@ -174,13 +175,39 @@ internal sealed record ProductWorkspaceReadPresentation(
                     entry.Container.HealthKind))
             .Select(entry => entry.Container)
             .ToArray();
+        ProductWorkspaceContainerSortResult sorting =
+            ProductWorkspaceContainerSortPolicy.Resolve(
+                sort,
+                filtered.Select(container => new ProductWorkspaceContainerSortInput(
+                    container.DisplayName,
+                    container.HealthKind)).ToArray());
+        if (!sorting.IsSupported)
+        {
+            return new(
+                "方格排序状态不可用；没有展示部分结果，桌面文件未改变。",
+                "WorkspaceViewSortUnavailable:VisibleContainers=0:" +
+                    "Sort=Invalid:DesktopFilesChanged=False",
+                Array.Empty<ProductWorkspaceReadContainerPresentation>());
+        }
+
+        ProductWorkspaceReadContainerPresentation[] visible = sorting.OrderedIndexes
+            .Select(index => filtered[index])
+            .ToArray();
         string searchDetail = search.Status == ProductWorkspaceVisibleSearchStatus.Empty
             ? string.Empty
             : " · 搜索已应用";
+        string sortLabel = sort switch
+        {
+            ProductWorkspaceContainerSort.ConfigurationOrder => "配置顺序",
+            ProductWorkspaceContainerSort.NameAscending => "名称升序",
+            ProductWorkspaceContainerSort.NameDescending => "名称降序",
+            ProductWorkspaceContainerSort.NeedsReviewFirst => "待审查优先",
+            _ => "排序不可用",
+        };
         return new(
-            $"筛选：{label}{searchDetail} · " +
+            $"筛选：{label}{searchDetail} · 排序：{sortLabel} · " +
                 $"显示 {visible.Length}/{Containers.Count} 个方格；桌面文件未改变。",
-            $"{MachineStatus}:Filter={filter}:Search={search.Status}:" +
+            $"{MachineStatus}:Filter={filter}:Search={search.Status}:Sort={sort}:" +
                 $"VisibleContainers={visible.Length}:" +
                 "DesktopFilesChanged=False",
             visible);

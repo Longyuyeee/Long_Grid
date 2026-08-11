@@ -327,3 +327,9 @@ DesktopHost 使用状态机管理 `Hidden / DesktopPassive / DesktopEditing / Pe
 `ProductWorkspaceVisibleSearchPolicy` 位于 Core，只接受 presentation 已允许展示的方格名、有限健康标签和当前可见引用名，并返回匹配索引及 `Empty / Applied / Invalid` 有限状态。App presentation 再把索引与健康筛选取交集；UI 不直接读取配置、Catalog 或持久化身份。
 
 该策略不建立索引、不持久化查询、不启动后台线程，也不把查询写入机器状态。折叠方格的 presentation 不携带隐藏引用，因此搜索天然遵循“所见即所搜”。任何控制字符、超过 64 字符或畸形输入均失败关闭为零结果。
+
+## Stage 98：正式工作区有限排序边界
+
+`ProductWorkspaceContainerSortPolicy` 位于 Core，只接受 presentation 方格的可见名称与有限健康枚举。App 先完成搜索和健康筛选，再把候选交给策略并按返回索引投影；排序不改变方格 `Ordinal`，后续卡片动作继续使用唯一序号对齐。
+
+配置顺序保持输入次序；名称升降序使用 `OrdinalIgnoreCase` 并以原索引稳定打破并列；待审查优先只做稳定分组。未知模式或畸形输入失败关闭。策略不接受最近使用、遥测、Catalog、配置身份、详情或路径，也不持久化排序选择。
