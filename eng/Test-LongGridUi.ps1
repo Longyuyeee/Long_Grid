@@ -33,6 +33,8 @@ $workspaceReviewShortcutPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReviewShortcutPolicy.cs'
 $workspaceContainerNavigationPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceContainerNavigationPolicy.cs'
+$workspaceContainerQuickCollapsePolicyCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceContainerQuickCollapsePolicy.cs'
 $workspaceReadPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReadPresentation.cs'
 $containerEditPresentationCodePath = Join-Path $projectRoot `
@@ -151,6 +153,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $workspaceContainerNavigationPolicyCode = Get-Content `
         -LiteralPath $workspaceContainerNavigationPolicyCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceContainerQuickCollapsePolicyCode = Get-Content `
+        -LiteralPath $workspaceContainerQuickCollapsePolicyCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceReadPresentationCode = Get-Content `
@@ -1164,6 +1170,32 @@ function Test-SourceContract {
         $codeBehind -match 'Changed=False:DesktopFilesChanged=False'
     ) 'Workspace card navigation must require unique read/editor ordinals, fail closed, and only select and focus the existing editor.'
     Assert-Condition (
+        $document.OuterXml.Contains(
+            'Click="ProductWorkspaceContainerQuickCollapseButton_Click"') -and
+        $document.OuterXml.Contains(
+            'AutomationProperties.Name="{Binding QuickCollapseAccessibilityName}"') -and
+        $document.OuterXml.Contains('Content="{Binding QuickCollapseButtonText}"') -and
+        $document.OuterXml.Contains('IsEnabled="{Binding CanQuickToggleCollapsed}"') -and
+        -not ($document.OuterXml.Contains(
+            'AutomationProperties.AutomationId="ProductWorkspaceContainerQuickCollapseButton"'))
+    ) 'Repeated quick-collapse buttons must be explicit, state-bound, named, and avoid duplicate AutomationIds.'
+    Assert-Condition (
+        $workspaceContainerQuickCollapsePolicyCode -match 'requestedOrdinal\s*<=\s*0' -and
+        $workspaceContainerQuickCollapsePolicyCode -match 'workspace\s+is\s+not\s+null' -and
+        $workspaceContainerQuickCollapsePolicyCode -match 'candidate\s+is\s+not\s+null' -and
+        $workspaceContainerQuickCollapsePolicyCode -match 'workspace\.IsLocked' -and
+        $workspaceContainerQuickCollapsePolicyCode -match `
+            'workspace\.IsCollapsed\s*!=\s*candidate\.IsCollapsed' -and
+        $codeBehind -match 'ProductWorkspaceContainerQuickCollapsePolicy' -and
+        $codeBehind -match `
+            'ProductWorkspaceContainerEditSelector\.SelectedIndex\s*=\s*decision\.CandidateIndex' -and
+        $codeBehind -match 'ProductWorkspaceContainerCommitAction\.SetCollapsed' -and
+        $codeBehind -match 'WorkspaceContainerQuickCollapse' -and
+        $codeBehind -match 'DesktopFilesChanged=False' -and
+        $workspaceReadPresentationCode -match 'CanQuickToggleCollapsed\s*=>\s*!IsLocked' -and
+        $workspaceReadPresentationCode -match 'QuickCollapseButtonText'
+    ) 'Quick collapse must require aligned unlocked snapshots and reuse the configuration-only collapse commit.'
+    Assert-Condition (
         $workspaceReadPresentationCode -match `
             'string displayName\s*=\s*resolved\s*\?\s*item\.UserVisibleName!\s*:\s*\$"'
     ) 'Workspace presentation must use a generated ordinal label for unresolved items.'
@@ -1641,7 +1673,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-direct-navigation-finite-health-filter-review-shortcut-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-direct-navigation-quick-collapse-finite-health-filter-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
