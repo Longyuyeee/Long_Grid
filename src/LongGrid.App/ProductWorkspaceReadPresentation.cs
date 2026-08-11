@@ -11,26 +11,35 @@ internal sealed record ProductWorkspaceReadItemPresentation(
 internal sealed record ProductWorkspaceReadContainerPresentation(
     string DisplayName,
     string AccessibilityName,
+    ProductWorkspaceContainerHealth HealthKind,
     string Health,
     string Detail,
     string Appearance,
     string MachineStatus,
     IReadOnlyList<ProductWorkspaceReadItemPresentation> Items);
 
+internal sealed record ProductWorkspaceReadFilterPresentation(
+    string Detail,
+    string MachineStatus,
+    IReadOnlyList<ProductWorkspaceReadContainerPresentation> Containers);
+
 internal sealed record ProductWorkspaceReadPresentation(
     string Detail,
     string MachineStatus,
+    bool CanFilter,
     IReadOnlyList<ProductWorkspaceReadContainerPresentation> Containers)
 {
     public static ProductWorkspaceReadPresentation Unavailable { get; } = new(
         "等待正式产品会话；当前没有展示或修改任何桌面内容。",
         "WorkspaceViewUnavailable:Containers=0:Items=0",
+        false,
         Array.Empty<ProductWorkspaceReadContainerPresentation>());
 
     public static ProductWorkspaceReadPresentation NoSavedConfiguration { get; } =
         new(
             "尚无正式配置；可以创建第一个方格，系统不会自动生成示例。",
             "WorkspaceViewNoSavedConfiguration:Containers=0:Items=0",
+            false,
             Array.Empty<ProductWorkspaceReadContainerPresentation>());
 
     public static ProductWorkspaceReadPresentation Create(
@@ -50,6 +59,7 @@ internal sealed record ProductWorkspaceReadPresentation(
                 return new ProductWorkspaceReadContainerPresentation(
                 container.UserVisibleName,
                 $"方格 {container.Ordinal}，{container.UserVisibleName}，引用状态：{health}",
+                container.Health,
                 health,
                 $"{(container.IsLocked ? "已锁定" : "未锁定")} · " +
                     $"{container.Items.Count} 个引用 · " +
@@ -78,7 +88,44 @@ internal sealed record ProductWorkspaceReadPresentation(
                 $"Unresolved={snapshot.UnresolvedCount}:" +
                 $"EmptyContainers={snapshot.EmptyContainerCount}:" +
                 $"NeedsReviewContainers={snapshot.NeedsReviewContainerCount}",
+            true,
             containers);
+    }
+
+    public ProductWorkspaceReadFilterPresentation ApplyFilter(
+        ProductWorkspaceContainerHealthFilter filter)
+    {
+        if (!CanFilter)
+        {
+            return new(Detail, MachineStatus, Containers);
+        }
+
+        string label = filter switch
+        {
+            ProductWorkspaceContainerHealthFilter.All => "全部方格",
+            ProductWorkspaceContainerHealthFilter.NeedsReview => "待审查方格",
+            ProductWorkspaceContainerHealthFilter.Empty => "空方格",
+            ProductWorkspaceContainerHealthFilter.Ready => "引用正常方格",
+            _ => "筛选不可用",
+        };
+        if (!ProductWorkspaceContainerHealthFilterPolicy.IsSupported(filter))
+        {
+            return new(
+                "方格筛选状态不可用；没有展示部分结果，桌面文件未改变。",
+                "WorkspaceViewFilterUnavailable:VisibleContainers=0:DesktopFilesChanged=False",
+                Array.Empty<ProductWorkspaceReadContainerPresentation>());
+        }
+
+        ProductWorkspaceReadContainerPresentation[] visible = Containers
+            .Where(container => ProductWorkspaceContainerHealthFilterPolicy.Includes(
+                filter,
+                container.HealthKind))
+            .ToArray();
+        return new(
+            $"筛选：{label} · 显示 {visible.Length}/{Containers.Count} 个方格；桌面文件未改变。",
+            $"{MachineStatus}:Filter={filter}:VisibleContainers={visible.Length}:" +
+                "DesktopFilesChanged=False",
+            visible);
     }
 
     private static ProductWorkspaceReadItemPresentation CreateItem(

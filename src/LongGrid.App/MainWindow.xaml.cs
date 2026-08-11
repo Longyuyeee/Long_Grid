@@ -116,6 +116,8 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceReferenceReviewPresentation.Unavailable;
     private ProductWorkspaceContainerEditPresentation _containerEditor =
         ProductWorkspaceContainerEditPresentation.Unavailable;
+    private ProductWorkspaceReadPresentation _workspaceRead =
+        ProductWorkspaceReadPresentation.Unavailable;
     private ProductWorkspaceResolvedReferenceAddPresentation _resolvedReferenceAdd =
         ProductWorkspaceResolvedReferenceAddPresentation.Unavailable;
     private ProductWorkspaceResolvedReferenceRemovalPresentation
@@ -453,14 +455,42 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceReadPresentation presentation)
     {
         ArgumentNullException.ThrowIfNull(presentation);
+        _workspaceRead = presentation;
         ProductWorkspaceViewDetail.Text = presentation.Detail;
-        ProductWorkspaceContainerList.ItemsSource = presentation.Containers;
-        ProductWorkspaceViewStatus.Text = presentation.Containers.Count == 0
-            ? "只读视图没有可呈现的方格；桌面文件未改变。"
-            : "名称仅用于当前可见界面与辅助功能；诊断状态只记录有限计数。";
+        ProductWorkspaceHealthFilterSelector.IsEnabled = presentation.CanFilter;
+        ApplyProductWorkspaceHealthFilter();
+    }
+
+    private void ProductWorkspaceHealthFilterSelector_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e)
+    {
+        if (ProductWorkspaceContainerList is null || ProductWorkspaceViewStatus is null)
+        {
+            return;
+        }
+
+        ApplyProductWorkspaceHealthFilter();
+    }
+
+    private void ApplyProductWorkspaceHealthFilter()
+    {
+        ProductWorkspaceContainerHealthFilter filter =
+            ProductWorkspaceHealthFilterSelector.SelectedIndex switch
+            {
+                0 => ProductWorkspaceContainerHealthFilter.All,
+                1 => ProductWorkspaceContainerHealthFilter.NeedsReview,
+                2 => ProductWorkspaceContainerHealthFilter.Empty,
+                3 => ProductWorkspaceContainerHealthFilter.Ready,
+                _ => ProductWorkspaceContainerHealthFilter.Invalid,
+            };
+        ProductWorkspaceReadFilterPresentation filtered =
+            _workspaceRead.ApplyFilter(filter);
+        ProductWorkspaceContainerList.ItemsSource = filtered.Containers;
+        ProductWorkspaceViewStatus.Text = filtered.Detail;
         AutomationProperties.SetItemStatus(
             ProductWorkspaceViewStatus,
-            presentation.MachineStatus);
+            filtered.MachineStatus);
     }
 
     internal void ApplyProductWorkspaceLatestUndo(
