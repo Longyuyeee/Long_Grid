@@ -45,6 +45,8 @@ $workspaceViewResetPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceViewResetPolicy.cs'
 $workspaceEmptyCreateShortcutPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceEmptyCreateShortcutPolicy.cs'
+$workspaceContainerNameIntentPolicyCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceContainerNameIntentPolicy.cs'
 $workspaceReadPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReadPresentation.cs'
 $containerEditPresentationCodePath = Join-Path $projectRoot `
@@ -187,6 +189,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $workspaceEmptyCreateShortcutPolicyCode = Get-Content `
         -LiteralPath $workspaceEmptyCreateShortcutPolicyCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceContainerNameIntentPolicyCode = Get-Content `
+        -LiteralPath $workspaceContainerNameIntentPolicyCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceReadPresentationCode = Get-Content `
@@ -373,6 +379,7 @@ function Test-SourceContract {
         'ProductWorkspaceContainerEditorPanel',
         'ProductWorkspaceContainerEditSelector',
         'ProductWorkspaceContainerNameEditor',
+        'ProductWorkspaceContainerNameGuidance',
         'ProductWorkspaceContainerCreateButton',
         'ProductWorkspaceContainerRenameButton',
         'ProductWorkspaceContainerLockButton',
@@ -658,6 +665,34 @@ function Test-SourceContract {
         $containerNameNode.GetAttribute('TextChanged') -eq `
             'ProductWorkspaceContainerNameEditor_TextChanged'
     ) 'Formal container names must use the v1 bound and update explicit actions.'
+    $containerNameGuidanceNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceContainerNameGuidance'
+    Assert-Condition (
+        $containerNameGuidanceNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'WorkspaceContainerNameIntentUnavailable:CanCreate=False:CanRename=False:Changed=False:DesktopFilesChanged=False' -and
+        [string]::IsNullOrEmpty(
+            $containerNameGuidanceNode.GetAttribute('AutomationProperties.LiveSetting'))
+    ) 'Formal container name guidance must start finite and must not announce on every keystroke.'
+    Assert-Condition (
+        $workspaceContainerNameIntentPolicyCode -match `
+            'ProductConfigurationLimits\.MaximumNameLength' -and
+        $workspaceContainerNameIntentPolicyCode -match 'name\.Trim\(\)' -and
+        $workspaceContainerNameIntentPolicyCode -match 'selectedIsLocked' -and
+        $workspaceContainerNameIntentPolicyCode -match `
+            'StringComparison\.Ordinal' -and
+        $workspaceContainerNameIntentPolicyCode -match `
+            'ProductWorkspaceContainerNameIntentStatus\.RenameNoChange' -and
+        $codeBehind -match 'ProductWorkspaceContainerNameIntentPolicy\.Evaluate' -and
+        $codeBehind -match 'ProductWorkspaceContainerCreateButton\.IsEnabled\s*=\s*nameIntent\.CanCreate' -and
+        $codeBehind -match 'ProductWorkspaceContainerRenameButton\.IsEnabled\s*=\s*nameIntent\.CanRename' -and
+        $codeBehind -match 'AutomationProperties\.SetHelpText\(\s*ProductWorkspaceContainerNameEditor' -and
+        $codeBehind -match 'WorkspaceContainerNameIntent'
+    ) 'Formal container name actions must use bounded pre-submit intent guidance and disable locked or unchanged renames.'
+    Assert-Condition (
+        -not ($workspaceContainerNameIntentPolicyCode -match `
+            'Catalog|PersistedTarget|CanonicalTarget|DesktopHost|File\.|Directory\.|Save|Telemetry')
+    ) 'Formal container name intent must remain a pure UI admission policy without persistence, catalog, telemetry, or desktop authority.'
     foreach ($buttonId in @(
             'ProductWorkspaceContainerCreateButton',
             'ProductWorkspaceContainerRenameButton',
@@ -1910,7 +1945,7 @@ function Test-SourceContract {
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
         productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-single-undo'
-        productContainerEdits = 'shared-revision-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-config-only'
+        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
         productSavePresentation = 'privacy-safe-static-reduced-motion'
         readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'
