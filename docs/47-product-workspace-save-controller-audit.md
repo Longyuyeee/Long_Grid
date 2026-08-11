@@ -85,3 +85,7 @@
 5. 动效必须尊重 Reduced Motion，保存成功提示不得闪烁或因陈旧通知回跳。
 
 Issue #24 继续保持 OPEN；本切片不是可见 MVP，也不关闭真实卷、自动证据保留/容量策略、真实 WinUI/显示矩阵或正式 v2 稳定身份字段。
+
+## 8. 2026-08-12 修订提交准入补充
+
+main CI 暴露了“旧完成不覆盖新状态”之外的入队竞态：旧修订可能在让出执行权后晚于新修订调用工作流，使旧文档成为最后入队内容。Stage 102 增加普通保存的 `Saving + Save activity + CurrentRevision + ActiveSaveRevision` 四条件准入，并以窄提交门固定工作流调用顺序；重试保持独立入口。受控调度测试强制新修订先恢复、旧修订后恢复，证明旧文档不会进入工作流。详见[连续保存修订准入与 CI 确定性审计](102-save-revision-admission-determinism-audit.md)。

@@ -49,6 +49,47 @@ public sealed class ProductWorkspaceSaveStateMachineTests
     }
 
     [Fact]
+    public void OnlyCurrentActiveSaveRevisionCanReachWorkflow()
+    {
+        ProductWorkspaceSaveSnapshot firstSave = StartSave();
+        ProductWorkspaceSaveTransition newerEdit =
+            ProductWorkspaceSaveStateMachine.AcceptEdit(firstSave);
+        ProductWorkspaceSaveTransition latestSave =
+            ProductWorkspaceSaveStateMachine.DebounceElapsed(
+                newerEdit.Snapshot,
+                2);
+
+        Assert.False(
+            ProductWorkspaceSaveStateMachine.CanSubmitSave(
+                newerEdit.Snapshot,
+                1));
+        Assert.False(
+            ProductWorkspaceSaveStateMachine.CanSubmitSave(
+                latestSave.Snapshot,
+                1));
+        Assert.True(
+            ProductWorkspaceSaveStateMachine.CanSubmitSave(
+                latestSave.Snapshot,
+                2));
+    }
+
+    [Fact]
+    public void RetryActivityCannotUseOrdinarySaveAdmission()
+    {
+        ProductWorkspaceSaveTransition failed =
+            ProductWorkspaceSaveStateMachine.SaveCompleted(
+                StartSave(),
+                1,
+                ProductWorkspaceSaveFailure.IoFailure);
+        ProductWorkspaceSaveSnapshot retrying =
+            ProductWorkspaceSaveStateMachine.RetryRequested(
+                failed.Snapshot).Snapshot;
+
+        Assert.False(
+            ProductWorkspaceSaveStateMachine.CanSubmitSave(retrying, 1));
+    }
+
+    [Fact]
     public void SuccessfulLatestSaveBecomesSaved()
     {
         ProductWorkspaceSaveSnapshot saving = StartSave();

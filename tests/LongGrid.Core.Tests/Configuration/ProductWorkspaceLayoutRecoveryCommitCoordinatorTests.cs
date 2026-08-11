@@ -234,6 +234,9 @@ public sealed class ProductWorkspaceLayoutRecoveryCommitCoordinatorTests
     {
         public Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken) =>
             Task.CompletedTask;
+
+        public Task YieldAsync(CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 
     private sealed class FakeWorkflow : IProductConfigurationSaveWorkflow
