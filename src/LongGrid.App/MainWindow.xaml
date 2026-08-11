@@ -785,6 +785,12 @@
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
                                                         </ItemsControl>
+                                                        <Button
+                                                            HorizontalAlignment="Left"
+                                                            AutomationProperties.Name="{Binding NavigationAccessibilityName}"
+                                                            Click="ProductWorkspaceContainerNavigateButton_Click"
+                                                            Content="查看并管理此方格"
+                                                            Tag="{Binding Ordinal}" />
                                                     </StackPanel>
                                                 </Border>
                                             </DataTemplate>
