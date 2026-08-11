@@ -115,6 +115,12 @@ jobs:
           -File ./eng/Test-LongGridSingleInstance.ps1
           -ContractOnly
 
+      - name: Validate VSTest hang diagnostic contract
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Test-LongGridCiHangDiagnostics.ps1
+
       - name: Test
         run: >-
           dotnet test LongGrid.sln
@@ -122,6 +128,9 @@ jobs:
           --no-build
           --logger "trx;LogFileName=tests.trx"
           --collect "XPlat Code Coverage"
+          --blame-hang
+          --blame-hang-timeout 2m
+          --blame-hang-dump-type none
           --results-directory TestResults
 
       - name: Coverage gate
@@ -186,4 +195,5 @@ jobs:
           path: |
             TestResults/**/*.trx
             TestResults/**/coverage.cobertura.xml
+            TestResults/**/Sequence*.xml
           if-no-files-found: warn
