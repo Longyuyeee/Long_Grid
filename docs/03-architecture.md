@@ -333,3 +333,9 @@ DesktopHost 使用状态机管理 `Hidden / DesktopPassive / DesktopEditing / Pe
 `ProductWorkspaceContainerSortPolicy` 位于 Core，只接受 presentation 方格的可见名称与有限健康枚举。App 先完成搜索和健康筛选，再把候选交给策略并按返回索引投影；排序不改变方格 `Ordinal`，后续卡片动作继续使用唯一序号对齐。
 
 配置顺序保持输入次序；名称升降序使用 `OrdinalIgnoreCase` 并以原索引稳定打破并列；待审查优先只做稳定分组。未知模式或畸形输入失败关闭。策略不接受最近使用、遥测、Catalog、配置身份、详情或路径，也不持久化排序选择。
+
+## Stage 99：正式工作区零结果恢复边界
+
+`ProductWorkspaceViewResetPolicy` 只根据会话可筛选性、总数/可见数和搜索/筛选/排序是否偏离默认值，决定是否展示恢复主动作。它不接收查询内容、presentation 项、配置身份或桌面事实。
+
+App 使用抑制标志把清空搜索、恢复全部筛选、恢复配置顺序合并为一次 UI 事务，随后一次性投影最终列表和 live-region 状态并将焦点移回搜索框。该过程只改窗口控件，不进入保存、Catalog 或 DesktopHost。

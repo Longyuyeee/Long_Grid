@@ -41,6 +41,8 @@ $workspaceVisibleSearchPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceVisibleSearchPolicy.cs'
 $workspaceContainerSortPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceContainerSortPolicy.cs'
+$workspaceViewResetPolicyCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceViewResetPolicy.cs'
 $workspaceReadPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReadPresentation.cs'
 $containerEditPresentationCodePath = Join-Path $projectRoot `
@@ -175,6 +177,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $workspaceContainerSortPolicyCode = Get-Content `
         -LiteralPath $workspaceContainerSortPolicyCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceViewResetPolicyCode = Get-Content `
+        -LiteralPath $workspaceViewResetPolicyCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceReadPresentationCode = Get-Content `
@@ -391,6 +397,7 @@ function Test-SourceContract {
         'ProductWorkspaceSearchBox',
         'ProductWorkspaceHealthFilterSelector',
         'ProductWorkspaceSortSelector',
+        'ProductWorkspaceResetViewButton',
         'ProductWorkspaceOpenReviewButton',
         'ProductWorkspaceContainerList',
         'ProductWorkspaceViewStatus',
@@ -1204,6 +1211,40 @@ function Test-SourceContract {
         -not ($workspaceContainerSortPolicyCode -match `
             'DateTime|LastUsed|Click|Telemetry|Catalog|PersistedTarget|CanonicalTarget')
     ) 'Workspace sort must not infer recency or ingest hidden identity, telemetry, or detail fields.'
+    $workspaceResetViewNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceResetViewButton'
+    Assert-Condition (
+        $workspaceResetViewNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $workspaceResetViewNode.GetAttribute('Click') -eq `
+            'ProductWorkspaceResetViewButton_Click' -and
+        $workspaceResetViewNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'WorkspaceViewResetUnavailable:DesktopFilesChanged=False' -and
+        $workspaceResetViewNode.ParentNode.ParentNode.GetAttribute('Visibility') -eq `
+            'Collapsed'
+    ) 'Workspace zero-result recovery must start collapsed, disabled, finite, and explicit-click only.'
+    Assert-Condition (
+        $workspaceViewResetPolicyCode -match 'totalContainerCount\s*>\s*0' -and
+        $workspaceViewResetPolicyCode -match 'visibleContainerCount\s*==\s*0' -and
+        $workspaceViewResetPolicyCode -match 'hasNonDefaultCriteria' -and
+        $workspaceViewResetPolicyCode -match 'ProductWorkspaceViewResetStatus\.Invalid' -and
+        $codeBehind -match 'ProductWorkspaceViewResetPolicy\.Evaluate' -and
+        $codeBehind -match 'ProductWorkspaceSearchBox\.Text\.Length\s*>\s*0' -and
+        $codeBehind -match '_suppressProductWorkspaceViewChanges\s*=\s*true' -and
+        $codeBehind -match '_suppressProductWorkspaceViewChanges\s*=\s*false' -and
+        $codeBehind -match 'ProductWorkspaceSearchBox\.Text\s*=\s*string\.Empty' -and
+        $codeBehind -match 'ProductWorkspaceHealthFilterSelector\.SelectedIndex\s*=\s*0' -and
+        $codeBehind -match 'ProductWorkspaceSortSelector\.SelectedIndex\s*=\s*0' -and
+        $codeBehind -match 'ProductWorkspaceSearchBox\.Focus\(FocusState\.Programmatic\)' -and
+        $codeBehind -match 'WorkspaceViewResetApplied' -and
+        $codeBehind -match 'Changed=False:DesktopFilesChanged=False'
+    ) 'Workspace zero-result recovery must require a recoverable non-default view and reset controls once without changing configuration or desktop files.'
+    Assert-Condition (
+        -not ($workspaceViewResetPolicyCode -match `
+            'Catalog|PersistedTarget|CanonicalTarget|DesktopHost|File\.|Directory\.|Save|Telemetry') -and
+        -not ($codeBehind -match `
+            'ProductWorkspaceResetViewButton_Click[\s\S]{0,1600}(Submit|Commit|Save|DesktopHost)')
+    ) 'Workspace zero-result recovery must remain presentation-only and avoid persistence or desktop execution paths.'
     $workspaceOpenReviewNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceOpenReviewButton'
@@ -1356,7 +1397,8 @@ function Test-SourceContract {
         'Workspace presentation must omit persistence identity.'
     Assert-Condition (
         $codeBehind -match 'ProductWorkspaceContainerList\.ItemsSource\s*=\s*filtered\.Containers' -and
-        $codeBehind -match 'ProductWorkspaceViewStatus\.Text\s*=\s*filtered\.Detail' -and
+        $codeBehind -match `
+            'ProductWorkspaceViewStatus\.Text\s*=\s*detailOverride\s*\?\?\s*filtered\.Detail' -and
         $codeBehind -match 'ProductWorkspaceHealthFilterSelector_SelectionChanged' -and
         -not ($codeBehind -match 'ProductWorkspaceRead.*(State|CatalogEntry|PersistedTarget|CanonicalTarget)')
     ) 'MainWindow must filter only the presentation contract, never workspace identity state.'
@@ -1823,7 +1865,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-review-shortcut-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-zero-results-recovery-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'

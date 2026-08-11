@@ -22,6 +22,8 @@ public sealed partial class MainWindow : Window
     private const double MaximumWorkAreaFraction = 0.9;
     private bool _initialSizeApplied;
     private bool _suppressBatchSelectionAnnouncements;
+    private bool _suppressProductWorkspaceViewChanges;
+    private bool _canResetProductWorkspaceView;
     private string _organizationStartChoice = "suggested";
     private bool _practiceItemsAdded;
     private ProductConfigurationStartupMode _configurationStartupMode;
@@ -478,7 +480,9 @@ public sealed partial class MainWindow : Window
         object sender,
         SelectionChangedEventArgs e)
     {
-        if (ProductWorkspaceContainerList is null || ProductWorkspaceViewStatus is null)
+        if (_suppressProductWorkspaceViewChanges
+            || ProductWorkspaceContainerList is null
+            || ProductWorkspaceViewStatus is null)
         {
             return;
         }
@@ -490,7 +494,9 @@ public sealed partial class MainWindow : Window
         object sender,
         TextChangedEventArgs e)
     {
-        if (ProductWorkspaceContainerList is null || ProductWorkspaceViewStatus is null)
+        if (_suppressProductWorkspaceViewChanges
+            || ProductWorkspaceContainerList is null
+            || ProductWorkspaceViewStatus is null)
         {
             return;
         }
@@ -502,7 +508,9 @@ public sealed partial class MainWindow : Window
         object sender,
         SelectionChangedEventArgs e)
     {
-        if (ProductWorkspaceContainerList is null || ProductWorkspaceViewStatus is null)
+        if (_suppressProductWorkspaceViewChanges
+            || ProductWorkspaceContainerList is null
+            || ProductWorkspaceViewStatus is null)
         {
             return;
         }
@@ -510,7 +518,9 @@ public sealed partial class MainWindow : Window
         ApplyProductWorkspaceFilters();
     }
 
-    private void ApplyProductWorkspaceFilters()
+    private void ApplyProductWorkspaceFilters(
+        string? detailOverride = null,
+        string? machineStatusOverride = null)
     {
         ProductWorkspaceContainerHealthFilter filter =
             ProductWorkspaceHealthFilterSelector.SelectedIndex switch
@@ -521,23 +531,76 @@ public sealed partial class MainWindow : Window
                 3 => ProductWorkspaceContainerHealthFilter.Ready,
                 _ => ProductWorkspaceContainerHealthFilter.Invalid,
             };
-        ProductWorkspaceReadFilterPresentation filtered =
-            _workspaceRead.ApplyFilter(
+        ProductWorkspaceContainerSort sort =
+            ProductWorkspaceSortSelector.SelectedIndex switch
+            {
+                0 => ProductWorkspaceContainerSort.ConfigurationOrder,
+                1 => ProductWorkspaceContainerSort.NameAscending,
+                2 => ProductWorkspaceContainerSort.NameDescending,
+                3 => ProductWorkspaceContainerSort.NeedsReviewFirst,
+                _ => ProductWorkspaceContainerSort.Invalid,
+            };
+        ProductWorkspaceReadFilterPresentation filtered = _workspaceRead.ApplyFilter(
+            filter,
+            ProductWorkspaceSearchBox.Text,
+            sort);
+        ProductWorkspaceViewResetDecision reset =
+            ProductWorkspaceViewResetPolicy.Evaluate(
+                _workspaceRead.CanFilter,
+                _workspaceRead.Containers.Count,
+                filtered.Containers.Count,
                 filter,
-                ProductWorkspaceSearchBox.Text,
-                ProductWorkspaceSortSelector.SelectedIndex switch
-                {
-                    0 => ProductWorkspaceContainerSort.ConfigurationOrder,
-                    1 => ProductWorkspaceContainerSort.NameAscending,
-                    2 => ProductWorkspaceContainerSort.NameDescending,
-                    3 => ProductWorkspaceContainerSort.NeedsReviewFirst,
-                    _ => ProductWorkspaceContainerSort.Invalid,
-                });
+                ProductWorkspaceSearchBox.Text.Length > 0,
+                sort);
+        _canResetProductWorkspaceView = reset.CanReset;
+        ProductWorkspaceNoResultsCard.Visibility = reset.CanReset
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        ProductWorkspaceResetViewButton.IsEnabled = reset.CanReset;
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceResetViewButton,
+            $"WorkspaceViewReset{reset.Status}:DesktopFilesChanged=False");
         ProductWorkspaceContainerList.ItemsSource = filtered.Containers;
-        ProductWorkspaceViewStatus.Text = filtered.Detail;
+        ProductWorkspaceViewStatus.Text = detailOverride ?? filtered.Detail;
         AutomationProperties.SetItemStatus(
             ProductWorkspaceViewStatus,
-            filtered.MachineStatus);
+            machineStatusOverride ?? filtered.MachineStatus);
+    }
+
+    private void ProductWorkspaceResetViewButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (!_canResetProductWorkspaceView)
+        {
+            ProductWorkspaceViewStatus.Text =
+                "工作区视图重置入口已变化；没有修改配置或桌面文件。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceViewStatus,
+                "WorkspaceViewResetRejected:Focused=False:" +
+                    "Changed=False:DesktopFilesChanged=False");
+            return;
+        }
+
+        _suppressProductWorkspaceViewChanges = true;
+        try
+        {
+            ProductWorkspaceSearchBox.Text = string.Empty;
+            ProductWorkspaceHealthFilterSelector.SelectedIndex = 0;
+            ProductWorkspaceSortSelector.SelectedIndex = 0;
+        }
+        finally
+        {
+            _suppressProductWorkspaceViewChanges = false;
+        }
+
+        bool focused = ProductWorkspaceSearchBox.Focus(FocusState.Programmatic);
+        ApplyProductWorkspaceFilters(
+            focused
+                ? "工作区视图已重置，并将焦点移到搜索框；配置与桌面文件均未改变。"
+                : "工作区视图已重置；搜索框当前无法获得焦点，配置与桌面文件均未改变。",
+            $"WorkspaceViewResetApplied:Focused={focused}:" +
+                "Changed=False:DesktopFilesChanged=False");
     }
 
     private void ProductWorkspaceOpenReviewButton_Click(
