@@ -643,6 +643,52 @@ public sealed partial class MainWindow : Window
                 $"Changed={result.IsAccepted}:DesktopFilesChanged=False");
     }
 
+    private void ProductWorkspaceContainerQuickLockButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        int requestedOrdinal = sender is Button { Tag: int ordinal }
+            ? ordinal
+            : 0;
+        ProductWorkspaceContainerQuickLockDecision decision =
+            ProductWorkspaceContainerQuickLockPolicy.Resolve(
+                requestedOrdinal,
+                _workspaceRead.Containers.Select(container =>
+                    new ProductWorkspaceContainerQuickLockState(
+                        container.Ordinal,
+                        container.IsLocked)).ToArray(),
+                _containerEditor.Candidates.Select(candidate =>
+                    new ProductWorkspaceContainerQuickLockState(
+                        candidate.Ordinal,
+                        candidate.IsLocked)).ToArray());
+        if (!decision.IsAllowed)
+        {
+            ProductWorkspaceViewStatus.Text =
+                "方格锁定状态已变化或当前已受锁保护；配置与桌面文件均未改变。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceViewStatus,
+                "WorkspaceContainerQuickLockRejected:Ordinal=0:" +
+                    "Changed=False:DesktopFilesChanged=False");
+            return;
+        }
+
+        ProductWorkspaceContainerEditSelector.SelectedIndex =
+            decision.CandidateIndex;
+        ProductWorkspaceContainerCommitResult result =
+            RunProductWorkspaceContainerCommit(
+                ProductWorkspaceContainerCommitAction.SetLocked,
+                requestedOrdinal,
+                stateValue: true);
+        ProductWorkspaceViewStatus.Text = result.IsAccepted
+            ? $"方格 {requestedOrdinal} 已锁定并进入安全保存队列；解锁仍需在管理区显式执行，桌面文件未改变。"
+            : "方格快速锁定请求未被接受；请按当前工作区状态重试，桌面文件未改变。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceViewStatus,
+            $"WorkspaceContainerQuickLock:{result.Status}:" +
+                $"Ordinal={requestedOrdinal}:Locked=True:" +
+                $"Changed={result.IsAccepted}:DesktopFilesChanged=False");
+    }
+
     internal void ApplyProductWorkspaceLatestUndo(
         ProductWorkspaceLatestUndoPresentation presentation)
     {

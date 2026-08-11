@@ -31,6 +31,14 @@ internal sealed record ProductWorkspaceReadContainerPresentation(
     public string QuickCollapseAccessibilityName => IsLocked
         ? $"方格 {Ordinal}，{DisplayName} 已锁定，不能快速更改折叠状态"
         : $"{QuickCollapseButtonText} {Ordinal}，{DisplayName}";
+
+    public bool CanQuickLock => !IsLocked;
+
+    public string QuickLockButtonText => IsLocked ? "方格已锁定" : "锁定方格";
+
+    public string QuickLockAccessibilityName => IsLocked
+        ? $"方格 {Ordinal}，{DisplayName} 已锁定；请在管理区显式解锁"
+        : $"锁定方格 {Ordinal}，{DisplayName}";
 }
 
 internal sealed record ProductWorkspaceReadFilterPresentation(
