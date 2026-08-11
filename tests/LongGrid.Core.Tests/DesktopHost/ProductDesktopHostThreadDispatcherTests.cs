@@ -6,6 +6,8 @@ namespace LongGrid.Core.Tests.DesktopHost;
 
 public sealed class ProductDesktopHostThreadDispatcherTests
 {
+    private static readonly TimeSpan TestWaitTimeout = TimeSpan.FromSeconds(5);
+
     [Fact]
     public void InvokeRunsInlineOnTargetThread()
     {
@@ -44,9 +46,10 @@ public sealed class ProductDesktopHostThreadDispatcherTests
                     return true;
                 },
                 TimeSpan.FromSeconds(1)));
-        await context.WaitForPostAsync();
+        await context.WaitForPostAsync().WaitAsync(TestWaitTimeout);
         context.RunOne();
-        ProductDesktopHostDispatchResult result = await pending;
+        ProductDesktopHostDispatchResult result =
+            await pending.WaitAsync(TestWaitTimeout);
 
         Assert.True(result.IsSuccess);
         Assert.Equal((uint)42, observedThread);
@@ -60,14 +63,15 @@ public sealed class ProductDesktopHostThreadDispatcherTests
         int calls = 0;
 
         ProductDesktopHostDispatchResult result = await Task.Run(() =>
-            dispatcher.Invoke(
-                () =>
-                {
-                    calls++;
-                    return true;
-                },
-                TimeSpan.FromMilliseconds(20)));
-        await context.WaitForPostAsync();
+                dispatcher.Invoke(
+                    () =>
+                    {
+                        calls++;
+                        return true;
+                    },
+                    TimeSpan.FromMilliseconds(20)))
+            .WaitAsync(TestWaitTimeout);
+        await context.WaitForPostAsync().WaitAsync(TestWaitTimeout);
         context.RunOne();
 
         Assert.Equal(
@@ -82,6 +86,7 @@ public sealed class ProductDesktopHostThreadDispatcherTests
     {
         var context = new QueuedSynchronizationContext();
         var dispatcher = Dispatcher(context);
+        TimeSpan queueTimeout = TimeSpan.FromSeconds(1);
         var entered = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(
@@ -95,16 +100,32 @@ public sealed class ProductDesktopHostThreadDispatcherTests
                     release.Task.GetAwaiter().GetResult();
                     return true;
                 },
-                TimeSpan.FromMilliseconds(20)));
-        await context.WaitForPostAsync();
-        Task target = Task.Run(context.RunOne);
-        await entered.Task;
-        await Task.Delay(TimeSpan.FromMilliseconds(40));
-        Assert.False(pending.IsCompleted);
-        release.SetResult();
+                queueTimeout));
+        Task? target = null;
+        try
+        {
+            await context.WaitForPostAsync().WaitAsync(TestWaitTimeout);
+            target = Task.Factory.StartNew(
+                context.RunOne,
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
+            await entered.Task.WaitAsync(TestWaitTimeout);
+            await Task.Delay(queueTimeout + TimeSpan.FromMilliseconds(100));
+            Assert.False(pending.IsCompleted);
+            release.TrySetResult();
 
-        Assert.True((await pending).IsSuccess);
-        await target;
+            Assert.True((await pending.WaitAsync(TestWaitTimeout)).IsSuccess);
+            await target.WaitAsync(TestWaitTimeout);
+        }
+        finally
+        {
+            release.TrySetResult();
+            if (target is not null)
+            {
+                await target.WaitAsync(TestWaitTimeout);
+            }
+        }
     }
 
     [Fact]
