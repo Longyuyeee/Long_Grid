@@ -667,19 +667,37 @@
                                             Text="容器编辑尚不可用；桌面文件未改变。"
                                             TextWrapping="Wrap" />
                                     </StackPanel>
-                                    <ComboBox
-                                        x:Name="ProductWorkspaceHealthFilterSelector"
-                                        AutomationProperties.AutomationId="ProductWorkspaceHealthFilterSelector"
-                                        AutomationProperties.Name="按健康状态筛选正式方格"
-                                        Header="方格筛选"
-                                        IsEnabled="False"
-                                        SelectedIndex="0"
-                                        SelectionChanged="ProductWorkspaceHealthFilterSelector_SelectionChanged">
-                                        <ComboBoxItem Content="全部方格" />
-                                        <ComboBoxItem Content="待审查方格" />
-                                        <ComboBoxItem Content="空方格" />
-                                        <ComboBoxItem Content="引用正常方格" />
-                                    </ComboBox>
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <ComboBox
+                                            x:Name="ProductWorkspaceHealthFilterSelector"
+                                            AutomationProperties.AutomationId="ProductWorkspaceHealthFilterSelector"
+                                            AutomationProperties.Name="按健康状态筛选正式方格"
+                                            Header="方格筛选"
+                                            HorizontalAlignment="Stretch"
+                                            IsEnabled="False"
+                                            SelectedIndex="0"
+                                            SelectionChanged="ProductWorkspaceHealthFilterSelector_SelectionChanged">
+                                            <ComboBoxItem Content="全部方格" />
+                                            <ComboBoxItem Content="待审查方格" />
+                                            <ComboBoxItem Content="空方格" />
+                                            <ComboBoxItem Content="引用正常方格" />
+                                        </ComboBox>
+                                        <Button
+                                            x:Name="ProductWorkspaceOpenReviewButton"
+                                            Grid.Column="1"
+                                            VerticalAlignment="Bottom"
+                                            AutomationProperties.AutomationId="ProductWorkspaceOpenReviewButton"
+                                            AutomationProperties.ItemStatus="WorkspaceReviewShortcutUnavailable:Items=0:DesktopFilesChanged=False"
+                                            AutomationProperties.Name="查看匿名待审查引用"
+                                            Click="ProductWorkspaceOpenReviewButton_Click"
+                                            Content="查看待审查引用"
+                                            IsEnabled="False"
+                                            Visibility="Collapsed" />
+                                    </Grid>
                                     <ListView
                                         x:Name="ProductWorkspaceContainerList"
                                         AutomationProperties.AutomationId="ProductWorkspaceContainerList"

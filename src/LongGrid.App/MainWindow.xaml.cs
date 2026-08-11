@@ -458,6 +458,12 @@ public sealed partial class MainWindow : Window
         _workspaceRead = presentation;
         ProductWorkspaceViewDetail.Text = presentation.Detail;
         ProductWorkspaceHealthFilterSelector.IsEnabled = presentation.CanFilter;
+        ProductWorkspaceOpenReviewButton.IsEnabled = false;
+        ProductWorkspaceOpenReviewButton.Visibility = Visibility.Collapsed;
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceOpenReviewButton,
+            "WorkspaceReviewShortcutPendingAlignment:Items=0:" +
+                "DesktopFilesChanged=False");
         ApplyProductWorkspaceHealthFilter();
     }
 
@@ -491,6 +497,67 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetItemStatus(
             ProductWorkspaceViewStatus,
             filtered.MachineStatus);
+    }
+
+    private void ProductWorkspaceOpenReviewButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        int reviewItemCount = _referenceReview.Snapshot?.Items.Count ?? 0;
+        bool canOpen = ProductWorkspaceReviewShortcutPolicy.CanOpen(
+            _workspaceRead.UnresolvedReferenceCount,
+            reviewItemCount,
+            _referenceReview.Snapshot is not null
+                && _referenceReview.Error == ProductWorkspaceReferenceReviewError.None);
+        if (!canOpen)
+        {
+            ProductWorkspaceViewStatus.Text =
+                "待审查入口已变化；没有移动焦点或修改桌面文件。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceViewStatus,
+                "WorkspaceReviewShortcutRejected:Focused=False:" +
+                    "DesktopFilesChanged=False");
+            UpdateProductWorkspaceOpenReviewButton();
+            return;
+        }
+
+        ProductWorkspaceHealthFilterSelector.SelectedIndex = 1;
+        bool focused = ProductWorkspaceReferenceReviewSelector.Focus(
+            FocusState.Programmatic);
+        ProductWorkspaceViewStatus.Text = focused
+            ? $"已显示待审查方格，并将焦点移到 {reviewItemCount} 个匿名待审查引用。"
+            : "已显示待审查方格；审查选择器当前无法获得焦点。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceViewStatus,
+            $"WorkspaceReviewShortcutOpened:Items={reviewItemCount}:" +
+                $"Focused={focused}:DesktopFilesChanged=False");
+    }
+
+    private void UpdateProductWorkspaceOpenReviewButton()
+    {
+        int reviewItemCount = _referenceReview.Snapshot?.Items.Count ?? 0;
+        bool canOpen = ProductWorkspaceReviewShortcutPolicy.CanOpen(
+            _workspaceRead.UnresolvedReferenceCount,
+            reviewItemCount,
+            _referenceReview.Snapshot is not null
+                && _referenceReview.Error == ProductWorkspaceReferenceReviewError.None);
+        ProductWorkspaceOpenReviewButton.IsEnabled = canOpen;
+        ProductWorkspaceOpenReviewButton.Visibility = canOpen
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        ProductWorkspaceOpenReviewButton.Content = canOpen
+            ? $"查看待审查引用 ({reviewItemCount})"
+            : "查看待审查引用";
+        AutomationProperties.SetName(
+            ProductWorkspaceOpenReviewButton,
+            canOpen
+                ? $"查看 {reviewItemCount} 个匿名待审查引用"
+                : "查看匿名待审查引用");
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceOpenReviewButton,
+            $"WorkspaceReviewShortcut:{(canOpen ? "Available" : "Unavailable")}:" +
+                $"Items={reviewItemCount}:Aligned={canOpen}:" +
+                "DesktopFilesChanged=False");
     }
 
     internal void ApplyProductWorkspaceLatestUndo(
@@ -1948,6 +2015,7 @@ public sealed partial class MainWindow : Window
                     $"Revision={presentation.Snapshot.EditRevision}:Items={count}:" +
                     $"ReadOnly={presentation.IsReadOnly}:Changed=False");
         UpdateProductWorkspaceReferenceButtons();
+        UpdateProductWorkspaceOpenReviewButton();
     }
 
     private void ProductWorkspaceReferenceReviewSelector_SelectionChanged(
