@@ -68,6 +68,17 @@ public sealed record ProductWorkspaceSaveTransition(
 
 public static class ProductWorkspaceSaveStateMachine
 {
+    public static bool CanSubmitSave(
+        ProductWorkspaceSaveSnapshot snapshot,
+        long revision)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        return snapshot.Status == ProductWorkspaceSaveStatus.Saving
+            && snapshot.Activity == ProductWorkspaceSaveActivity.Save
+            && snapshot.CurrentRevision == revision
+            && snapshot.ActiveSaveRevision == revision;
+    }
+
     public static ProductWorkspaceSaveTransition AcceptEdit(
         ProductWorkspaceSaveSnapshot snapshot)
     {

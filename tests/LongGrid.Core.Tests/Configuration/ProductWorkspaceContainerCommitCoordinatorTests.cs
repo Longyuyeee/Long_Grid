@@ -801,6 +801,9 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
             TimeSpan delay,
             CancellationToken cancellationToken) =>
             Task.CompletedTask;
+
+        public Task YieldAsync(CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 
     private sealed class FakeWorkflow : IProductConfigurationSaveWorkflow

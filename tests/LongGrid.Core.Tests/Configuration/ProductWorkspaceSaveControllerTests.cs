@@ -164,6 +164,39 @@ public sealed class ProductWorkspaceSaveControllerTests
         Assert.Equal(2, controller.Snapshot.SavedRevision);
     }
 
+    [Fact]
+    public async Task StaleRevisionResumingAfterLatestSaveNeverReachesWorkflow()
+    {
+        var scheduler = new ManualScheduler(manualSaveYields: true);
+        var workflow = new FakeWorkflow();
+        var controller = new ProductWorkspaceSaveController(workflow, scheduler);
+        ProductWorkspaceEditResult first = CreateEdit("First");
+        ProductWorkspaceEditResult second =
+            ProductWorkspaceReducer.RenameContainer(
+                first.State!,
+                "container-1",
+                "Second");
+
+        controller.Submit(first);
+        await scheduler.WaitForCountAsync(1);
+        scheduler.Release(0);
+        await scheduler.WaitForSaveYieldCountAsync(1);
+
+        controller.Submit(second);
+        await scheduler.WaitForCountAsync(2);
+        scheduler.Release(1);
+        await scheduler.WaitForSaveYieldCountAsync(2);
+
+        scheduler.ReleaseSaveYield(1);
+        await WaitForStatusAsync(controller, ProductWorkspaceSaveStatus.Saved);
+        scheduler.ReleaseSaveYield(0);
+        await controller.CompleteAsync();
+
+        ProductConfigurationDocument saved = Assert.Single(workflow.SavedDocuments);
+        Assert.Equal("Second", saved.Containers[0].Name);
+        Assert.Equal(2, controller.Snapshot.SavedRevision);
+    }
+
     [Theory]
     [InlineData(
         ProductConfigurationSaveError.InvalidConfiguration,
@@ -532,10 +565,12 @@ public sealed class ProductWorkspaceSaveControllerTests
         Assert.Equal(failure, controller.Snapshot.Failure);
     }
 
-    private sealed class ManualScheduler : IProductWorkspaceSaveScheduler
+    private sealed class ManualScheduler(bool manualSaveYields = false)
+        : IProductWorkspaceSaveScheduler
     {
         private readonly object gate = new();
         private readonly List<DelayRequest> requests = [];
+        private readonly List<DelayRequest> saveYields = [];
 
         public int Count
         {
@@ -561,6 +596,24 @@ public sealed class ProductWorkspaceSaveControllerTests
             return request.WaitAsync();
         }
 
+        public async Task YieldAsync(CancellationToken cancellationToken)
+        {
+            if (!manualSaveYields)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Yield();
+                return;
+            }
+
+            var request = new DelayRequest(TimeSpan.Zero, cancellationToken);
+            lock (gate)
+            {
+                saveYields.Add(request);
+            }
+
+            await request.WaitAsync();
+        }
+
         public void Release(int index)
         {
             lock (gate)
@@ -577,6 +630,14 @@ public sealed class ProductWorkspaceSaveControllerTests
             }
         }
 
+        public void ReleaseSaveYield(int index)
+        {
+            lock (gate)
+            {
+                saveYields[index].Release();
+            }
+        }
+
         public async Task WaitForCountAsync(int count)
         {
             for (int attempt = 0; attempt < 200; attempt++)
@@ -590,6 +651,29 @@ public sealed class ProductWorkspaceSaveControllerTests
             }
 
             Assert.True(Count >= count, $"Expected {count} scheduled delays.");
+        }
+
+        public async Task WaitForSaveYieldCountAsync(int count)
+        {
+            for (int attempt = 0; attempt < 200; attempt++)
+            {
+                lock (gate)
+                {
+                    if (saveYields.Count >= count)
+                    {
+                        return;
+                    }
+                }
+
+                await Task.Delay(5);
+            }
+
+            lock (gate)
+            {
+                Assert.True(
+                    saveYields.Count >= count,
+                    $"Expected {count} scheduled save yields.");
+            }
         }
 
         private sealed class DelayRequest(

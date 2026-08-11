@@ -5,6 +5,8 @@ namespace LongGrid.Infrastructure.Configuration;
 public interface IProductWorkspaceSaveScheduler
 {
     Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken);
+
+    Task YieldAsync(CancellationToken cancellationToken);
 }
 
 public enum ProductWorkspaceSaveSubmissionStatus
@@ -58,6 +60,7 @@ public sealed class ProductWorkspaceSaveController : IAsyncDisposable
 
     private readonly object gate = new();
     private readonly SemaphoreSlim completionGate = new(1, 1);
+    private readonly SemaphoreSlim saveSubmissionGate = new(1, 1);
     private readonly IProductConfigurationSaveWorkflow workflow;
     private readonly IProductWorkspaceSaveScheduler scheduler;
     private readonly TimeSpan debounceDelay;
@@ -328,6 +331,7 @@ public sealed class ProductWorkspaceSaveController : IAsyncDisposable
         }
 
         completionGate.Dispose();
+        saveSubmissionGate.Dispose();
     }
 
     private async Task RunDebouncedSaveAsync(
@@ -370,29 +374,72 @@ public sealed class ProductWorkspaceSaveController : IAsyncDisposable
         long revision,
         ProductConfigurationDocument document)
     {
-        await Task.Yield();
-        ProductConfigurationSaveAttemptResult result;
+        await scheduler.YieldAsync(CancellationToken.None).ConfigureAwait(false);
+        Task<ProductConfigurationSaveAttemptResult>? saveOperation = null;
+        ProductConfigurationSaveAttemptResult? result = null;
+        await saveSubmissionGate.WaitAsync(CancellationToken.None)
+            .ConfigureAwait(false);
         try
         {
-            result = await workflow.SaveAsync(document, CancellationToken.None)
-                .ConfigureAwait(false);
+            lock (gate)
+            {
+                if (!ProductWorkspaceSaveStateMachine.CanSubmitSave(
+                        snapshot,
+                        revision))
+                {
+                    return;
+                }
+            }
+
+            try
+            {
+                saveOperation = workflow.SaveAsync(
+                    document,
+                    CancellationToken.None);
+            }
+            catch (ProductConfigurationSaveException exception)
+            {
+                result = new(
+                    ProductConfigurationSaveAttemptStatus.Failed,
+                    exception.Error,
+                    CanRetry: false);
+            }
+            catch (IOException)
+            {
+                result = new(
+                    ProductConfigurationSaveAttemptStatus.Failed,
+                    ProductConfigurationSaveError.IoFailure,
+                    CanRetry: false);
+            }
         }
-        catch (ProductConfigurationSaveException exception)
+        finally
         {
-            result = new(
-                ProductConfigurationSaveAttemptStatus.Failed,
-                exception.Error,
-                CanRetry: false);
-        }
-        catch (IOException)
-        {
-            result = new(
-                ProductConfigurationSaveAttemptStatus.Failed,
-                ProductConfigurationSaveError.IoFailure,
-                CanRetry: false);
+            saveSubmissionGate.Release();
         }
 
-        CompleteRevision(revision, MapFailure(result));
+        if (saveOperation is not null)
+        {
+            try
+            {
+                result = await saveOperation.ConfigureAwait(false);
+            }
+            catch (ProductConfigurationSaveException exception)
+            {
+                result = new(
+                    ProductConfigurationSaveAttemptStatus.Failed,
+                    exception.Error,
+                    CanRetry: false);
+            }
+            catch (IOException)
+            {
+                result = new(
+                    ProductConfigurationSaveAttemptStatus.Failed,
+                    ProductConfigurationSaveError.IoFailure,
+                    CanRetry: false);
+            }
+        }
+
+        CompleteRevision(revision, MapFailure(result!));
     }
 
     private async Task RunRetryAsync(long revision)
@@ -566,5 +613,11 @@ public sealed class ProductWorkspaceSaveController : IAsyncDisposable
             TimeSpan delay,
             CancellationToken cancellationToken) =>
             Task.Delay(delay, cancellationToken);
+
+        public async Task YieldAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await Task.Yield();
+        }
     }
 }
