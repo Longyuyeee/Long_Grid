@@ -667,6 +667,15 @@
                                             Text="容器编辑尚不可用；桌面文件未改变。"
                                             TextWrapping="Wrap" />
                                     </StackPanel>
+                                    <TextBox
+                                        x:Name="ProductWorkspaceSearchBox"
+                                        AutomationProperties.AutomationId="ProductWorkspaceSearchBox"
+                                        AutomationProperties.Name="搜索正式方格和当前可见引用"
+                                        Header="搜索"
+                                        IsEnabled="False"
+                                        MaxLength="64"
+                                        PlaceholderText="方格或当前可见引用名称"
+                                        TextChanged="ProductWorkspaceSearchBox_TextChanged" />
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />

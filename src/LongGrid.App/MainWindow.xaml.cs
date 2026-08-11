@@ -458,13 +458,19 @@ public sealed partial class MainWindow : Window
         _workspaceRead = presentation;
         ProductWorkspaceViewDetail.Text = presentation.Detail;
         ProductWorkspaceHealthFilterSelector.IsEnabled = presentation.CanFilter;
+        ProductWorkspaceSearchBox.IsEnabled = presentation.CanFilter;
+        if (!presentation.CanFilter)
+        {
+            ProductWorkspaceSearchBox.Text = string.Empty;
+        }
+
         ProductWorkspaceOpenReviewButton.IsEnabled = false;
         ProductWorkspaceOpenReviewButton.Visibility = Visibility.Collapsed;
         AutomationProperties.SetItemStatus(
             ProductWorkspaceOpenReviewButton,
             "WorkspaceReviewShortcutPendingAlignment:Items=0:" +
                 "DesktopFilesChanged=False");
-        ApplyProductWorkspaceHealthFilter();
+        ApplyProductWorkspaceFilters();
     }
 
     private void ProductWorkspaceHealthFilterSelector_SelectionChanged(
@@ -476,10 +482,22 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        ApplyProductWorkspaceHealthFilter();
+        ApplyProductWorkspaceFilters();
     }
 
-    private void ApplyProductWorkspaceHealthFilter()
+    private void ProductWorkspaceSearchBox_TextChanged(
+        object sender,
+        TextChangedEventArgs e)
+    {
+        if (ProductWorkspaceContainerList is null || ProductWorkspaceViewStatus is null)
+        {
+            return;
+        }
+
+        ApplyProductWorkspaceFilters();
+    }
+
+    private void ApplyProductWorkspaceFilters()
     {
         ProductWorkspaceContainerHealthFilter filter =
             ProductWorkspaceHealthFilterSelector.SelectedIndex switch
@@ -491,7 +509,7 @@ public sealed partial class MainWindow : Window
                 _ => ProductWorkspaceContainerHealthFilter.Invalid,
             };
         ProductWorkspaceReadFilterPresentation filtered =
-            _workspaceRead.ApplyFilter(filter);
+            _workspaceRead.ApplyFilter(filter, ProductWorkspaceSearchBox.Text);
         ProductWorkspaceContainerList.ItemsSource = filtered.Containers;
         ProductWorkspaceViewStatus.Text = filtered.Detail;
         AutomationProperties.SetItemStatus(
@@ -521,6 +539,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        ProductWorkspaceSearchBox.Text = string.Empty;
         ProductWorkspaceHealthFilterSelector.SelectedIndex = 1;
         bool focused = ProductWorkspaceReferenceReviewSelector.Focus(
             FocusState.Programmatic);

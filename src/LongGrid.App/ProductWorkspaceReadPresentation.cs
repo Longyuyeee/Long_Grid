@@ -123,8 +123,10 @@ internal sealed record ProductWorkspaceReadPresentation(
     }
 
     public ProductWorkspaceReadFilterPresentation ApplyFilter(
-        ProductWorkspaceContainerHealthFilter filter)
+        ProductWorkspaceContainerHealthFilter filter,
+        string query)
     {
+        ArgumentNullException.ThrowIfNull(query);
         if (!CanFilter)
         {
             return new(Detail, MachineStatus, Containers);
@@ -146,14 +148,40 @@ internal sealed record ProductWorkspaceReadPresentation(
                 Array.Empty<ProductWorkspaceReadContainerPresentation>());
         }
 
+        ProductWorkspaceVisibleSearchResult search =
+            ProductWorkspaceVisibleSearchPolicy.Resolve(
+                query,
+                Containers.Select(container =>
+                    new ProductWorkspaceVisibleSearchInput(
+                        container.DisplayName,
+                        container.Health,
+                        container.Items.Select(item => item.DisplayName).ToArray())).ToArray());
+        if (!search.IsSupported)
+        {
+            return new(
+                "搜索内容不可用；没有展示部分结果，桌面文件未改变。",
+                "WorkspaceViewSearchUnavailable:VisibleContainers=0:" +
+                    "Search=Invalid:DesktopFilesChanged=False",
+                Array.Empty<ProductWorkspaceReadContainerPresentation>());
+        }
+
+        HashSet<int> matchingIndexes = search.MatchingIndexes.ToHashSet();
         ProductWorkspaceReadContainerPresentation[] visible = Containers
-            .Where(container => ProductWorkspaceContainerHealthFilterPolicy.Includes(
-                filter,
-                container.HealthKind))
+            .Select((container, index) => (Container: container, Index: index))
+            .Where(entry => matchingIndexes.Contains(entry.Index)
+                && ProductWorkspaceContainerHealthFilterPolicy.Includes(
+                    filter,
+                    entry.Container.HealthKind))
+            .Select(entry => entry.Container)
             .ToArray();
+        string searchDetail = search.Status == ProductWorkspaceVisibleSearchStatus.Empty
+            ? string.Empty
+            : " · 搜索已应用";
         return new(
-            $"筛选：{label} · 显示 {visible.Length}/{Containers.Count} 个方格；桌面文件未改变。",
-            $"{MachineStatus}:Filter={filter}:VisibleContainers={visible.Length}:" +
+            $"筛选：{label}{searchDetail} · " +
+                $"显示 {visible.Length}/{Containers.Count} 个方格；桌面文件未改变。",
+            $"{MachineStatus}:Filter={filter}:Search={search.Status}:" +
+                $"VisibleContainers={visible.Length}:" +
                 "DesktopFilesChanged=False",
             visible);
     }

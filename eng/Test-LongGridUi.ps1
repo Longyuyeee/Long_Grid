@@ -37,6 +37,8 @@ $workspaceContainerQuickCollapsePolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceContainerQuickCollapsePolicy.cs'
 $workspaceContainerQuickLockPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceContainerQuickLockPolicy.cs'
+$workspaceVisibleSearchPolicyCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceVisibleSearchPolicy.cs'
 $workspaceReadPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReadPresentation.cs'
 $containerEditPresentationCodePath = Join-Path $projectRoot `
@@ -163,6 +165,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $workspaceContainerQuickLockPolicyCode = Get-Content `
         -LiteralPath $workspaceContainerQuickLockPolicyCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceVisibleSearchPolicyCode = Get-Content `
+        -LiteralPath $workspaceVisibleSearchPolicyCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceReadPresentationCode = Get-Content `
@@ -376,6 +382,7 @@ function Test-SourceContract {
         'ProductWorkspaceResolvedReferenceRemovalUndoButton',
         'ProductWorkspaceResolvedReferenceRemovalStatus',
         'ProductWorkspaceContainerEditStatus',
+        'ProductWorkspaceSearchBox',
         'ProductWorkspaceHealthFilterSelector',
         'ProductWorkspaceOpenReviewButton',
         'ProductWorkspaceContainerList',
@@ -1123,6 +1130,40 @@ function Test-SourceContract {
             'ProductWorkspaceHealthFilterSelector_SelectionChanged' -and
         $workspaceHealthFilterNode.ChildNodes.Count -eq 4
     ) 'Workspace health filter must start disabled, select All, and expose four finite choices.'
+    $workspaceSearchNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceSearchBox'
+    Assert-Condition (
+        $workspaceSearchNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $workspaceSearchNode.GetAttribute('MaxLength') -eq '64' -and
+        $workspaceSearchNode.GetAttribute('TextChanged') -eq `
+            'ProductWorkspaceSearchBox_TextChanged' -and
+        -not [string]::IsNullOrWhiteSpace(
+            $workspaceSearchNode.GetAttribute('AutomationProperties.Name'))
+    ) 'Workspace visible search must start disabled and expose a bounded accessible text field.'
+    Assert-Condition (
+        $workspaceVisibleSearchPolicyCode -match 'MaximumQueryLength\s*=\s*64' -and
+        $workspaceVisibleSearchPolicyCode -match 'query\.Any\(char\.IsControl\)' -and
+        $workspaceVisibleSearchPolicyCode -match 'StringComparison\.OrdinalIgnoreCase' -and
+        $workspaceVisibleSearchPolicyCode -match 'ContainerDisplayName' -and
+        $workspaceVisibleSearchPolicyCode -match 'HealthLabel' -and
+        $workspaceVisibleSearchPolicyCode -match 'VisibleItemDisplayNames' -and
+        $workspaceReadPresentationCode -match 'ProductWorkspaceVisibleSearchPolicy\.Resolve' -and
+        $workspaceReadPresentationCode -match 'container\.DisplayName' -and
+        $workspaceReadPresentationCode -match 'container\.Health' -and
+        $workspaceReadPresentationCode -match 'container\.Items\.Select\(item\s*=>\s*item\.DisplayName\)' -and
+        $workspaceReadPresentationCode -match 'Search=Invalid' -and
+        $workspaceReadPresentationCode -match 'Search=\{search\.Status\}' -and
+        $codeBehind -match 'ApplyFilter\(filter,\s*ProductWorkspaceSearchBox\.Text\)' -and
+        $codeBehind -match 'ProductWorkspaceSearchBox\.IsEnabled\s*=\s*presentation\.CanFilter' -and
+        $codeBehind -match 'ProductWorkspaceSearchBox\.Text\s*=\s*string\.Empty'
+    ) 'Workspace search must intersect presentation-only visible names, reject unsafe input, and avoid query telemetry.'
+    Assert-Condition (
+        -not ($workspaceReadPresentationCode -match `
+            'VisibleSearchInput\([^\)]*(Detail|Appearance|MachineStatus|PersistedTarget|CanonicalTarget)') -and
+        -not ($workspaceReadPresentationCode -match `
+            'Search=\{query\}|SearchQuery|Query=\{')
+    ) 'Workspace search must not ingest hidden identity/detail fields or echo user queries.'
     $workspaceOpenReviewNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceOpenReviewButton'
@@ -1742,7 +1783,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-review-shortcut-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
