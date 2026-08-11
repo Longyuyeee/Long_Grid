@@ -349,7 +349,7 @@ test(shell): cover coalesced change notifications
 7. 录像、硬件清单和系统配置若包含可识别信息，放入访问受控的实验记录，不进入仓库或默认诊断包。
 8. Issue #19 使用 `eng/Start-Issue19ManualMatrixSession.ps1` 一次启动一个 I19 场景；`-ValidateOnly` 永远保持 `PendingManualEvidence`，不得自动填写人工结论。
 9. Issue #20 使用 `eng/Start-Issue20DisplayMatrixSession.ps1` 映射固定 I20 场景并强制恢复计划确认；observer 的 `Observed Pass` 只构成部分证据，最终结论保持 `PendingManualEvidence` 直至人工复核。
-10. 正式 App 的批量选择使用 `eng/Start-LongGridBatchAccessibilitySession.ps1` 一次启动一个 BSA 场景；真实执行必须确认专用测试账户和恢复计划，启动器拒绝既有 App 进程且不终止外来进程，`-ValidateOnly` 只复核 141-ID、关键控件、播报和紧凑布局合同。
+10. 正式 App 的批量选择使用 `eng/Start-LongGridBatchAccessibilitySession.ps1` 一次启动一个 BSA 场景；真实执行必须确认专用测试账户和恢复计划，启动器拒绝既有 App 进程且不终止外来进程，`-ValidateOnly` 只复核 142-ID、关键控件、播报和紧凑布局合同。
 
 ### 12.5 UI、启动与打包门禁
 
@@ -572,6 +572,8 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 2026-08-11 正式工作区零结果恢复补充：先以纯策略验证原始有内容、当前零结果和非默认条件，再显示一个显式恢复主动作。三个视图控件必须在事件抑制范围内批量回到默认值，随后只应用一次最终 presentation 和播报，并把焦点移到稳定控件。恢复不得调用保存、Catalog、文件或 DesktopHost。权威 UI 合同更新为 140-ID，人工证据继续 Pending。
 
 2026-08-11 正式空工作区首个方格入口补充：入口状态必须同时重新解析明确空的读模型、零读容器、编辑器可创建和零编辑候选；读模型或编辑器任一刷新后都要重新对齐。点击只允许以 `FocusState.Programmatic` 聚焦既有名称编辑器，禁止写入名称、调用创建提交或保存。权威 UI 合同更新为 141-ID，真实键盘、Narrator、缩放与焦点证据继续 Pending。
+
+2026-08-12 正式方格名称即时引导补充：名称按钮准入必须复用 `ProductConfigurationLimits.MaximumNameLength`，对输入 trim 后判空，并结合当前编辑权限、选中名称与锁定状态给出有限决策。提示可以作为 TextBox HelpText，但不得在每次 TextChanged 时触发 live region；提交与保存仍由既有显式按钮完成。权威 UI 合同更新为 142-ID。
 
 2026-08-11 CI VSTest 挂起诊断补充：全量测试必须启用单测试无活动 2 分钟的 `--blame-hang`，并固定 `--blame-hang-dump-type none`；挂起只能更早失败并产出 `Sequence*.xml`，不得生成或上传内存 dump，也不得放宽测试、覆盖率或后续安全门禁。workflow 源码合同在测试前验证参数唯一性与证据路径。
 

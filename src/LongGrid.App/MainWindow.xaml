@@ -390,6 +390,14 @@
                                             MaxLength="256"
                                             PlaceholderText="输入方格名称"
                                             TextChanged="ProductWorkspaceContainerNameEditor_TextChanged" />
+                                        <TextBlock
+                                            x:Name="ProductWorkspaceContainerNameGuidance"
+                                            AutomationProperties.AutomationId="ProductWorkspaceContainerNameGuidance"
+                                            AutomationProperties.ItemStatus="WorkspaceContainerNameIntentUnavailable:CanCreate=False:CanRename=False:Changed=False:DesktopFilesChanged=False"
+                                            FontSize="11"
+                                            Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                            Text="等待可编辑的正式工作区。"
+                                            TextWrapping="Wrap" />
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <Button
                                                 x:Name="ProductWorkspaceContainerCreateButton"

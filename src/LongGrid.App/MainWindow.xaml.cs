@@ -1268,18 +1268,44 @@ public sealed partial class MainWindow : Window
 
     private void UpdateProductWorkspaceContainerEditButtons()
     {
-        bool hasName = !string.IsNullOrWhiteSpace(
-            ProductWorkspaceContainerNameEditor.Text);
-        ProductWorkspaceContainerCreateButton.IsEnabled =
-            _containerEditor.CanCreate && hasName;
-        ProductWorkspaceContainerRenameButton.IsEnabled =
-            _containerEditor.CanRename
-            && hasName
-            && ProductWorkspaceContainerEditSelector.SelectedItem is
-                ProductWorkspaceContainerEditCandidatePresentation;
         ProductWorkspaceContainerEditCandidatePresentation? selected =
             ProductWorkspaceContainerEditSelector.SelectedItem as
                 ProductWorkspaceContainerEditCandidatePresentation;
+        ProductWorkspaceContainerNameIntentDecision nameIntent =
+            ProductWorkspaceContainerNameIntentPolicy.Evaluate(
+                ProductWorkspaceContainerNameEditor.Text,
+                _containerEditor.CanCreate,
+                _containerEditor.CanRename,
+                selected?.DisplayName,
+                selected?.IsLocked ?? false);
+        ProductWorkspaceContainerCreateButton.IsEnabled = nameIntent.CanCreate;
+        ProductWorkspaceContainerRenameButton.IsEnabled = nameIntent.CanRename;
+        ProductWorkspaceContainerNameGuidance.Text = nameIntent.Status switch
+        {
+            ProductWorkspaceContainerNameIntentStatus.Invalid =>
+                "名称不可用；请输入 1–256 个字符。",
+            ProductWorkspaceContainerNameIntentStatus.Unavailable =>
+                "当前工作区保持只读，名称编辑不可用。",
+            ProductWorkspaceContainerNameIntentStatus.Empty =>
+                "输入 1–256 个字符后可以创建或重命名方格。",
+            ProductWorkspaceContainerNameIntentStatus.CreateReady =>
+                "名称可用；可以创建并保存新的正式方格。",
+            ProductWorkspaceContainerNameIntentStatus.RenameLocked =>
+                "所选方格已锁定，不能重命名；仍可用此名称创建新方格。",
+            ProductWorkspaceContainerNameIntentStatus.RenameNoChange =>
+                "名称与所选方格一致，无需重命名；仍可创建新方格。",
+            ProductWorkspaceContainerNameIntentStatus.RenameReady =>
+                "名称可用；可以创建新方格或重命名所选方格。",
+            _ => "当前所选方格不能重命名；仍可创建新的正式方格。",
+        };
+        AutomationProperties.SetHelpText(
+            ProductWorkspaceContainerNameEditor,
+            ProductWorkspaceContainerNameGuidance.Text);
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceContainerNameGuidance,
+            $"WorkspaceContainerNameIntent{nameIntent.Status}:" +
+                $"CanCreate={nameIntent.CanCreate}:CanRename={nameIntent.CanRename}:" +
+                "Changed=False:DesktopFilesChanged=False");
         ProductWorkspaceContainerLockButton.IsEnabled =
             _containerEditor.CanUpdateState && selected is not null;
         ProductWorkspaceContainerCollapseButton.IsEnabled =

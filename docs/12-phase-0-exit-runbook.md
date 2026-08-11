@@ -62,7 +62,7 @@ dotnet test LongGrid.sln --configuration Release --no-build
 
 ### 3.1 正式工作区批量选择专项矩阵
 
-I19 原型矩阵不能代替正式 `LongGrid.App` 的产品交互。执行前调用 `eng/Start-LongGridBatchAccessibilitySession.ps1 -ValidateOnly`，随后按照[批量选择无障碍人工矩阵运行手册](manual-testing/batch-selection-accessibility-runbook.md)逐项启动；真实会话必须确认专用测试账户和恢复计划。预检只复核 141-ID、8 个关键控件、单次 live-region 播报和紧凑断点合同，输出固定保持 `PendingManualEvidence`。
+I19 原型矩阵不能代替正式 `LongGrid.App` 的产品交互。执行前调用 `eng/Start-LongGridBatchAccessibilitySession.ps1 -ValidateOnly`，随后按照[批量选择无障碍人工矩阵运行手册](manual-testing/batch-selection-accessibility-runbook.md)逐项启动；真实会话必须确认专用测试账户和恢复计划。预检只复核 142-ID、8 个关键控件、单次 live-region 播报和紧凑断点合同，输出固定保持 `PendingManualEvidence`。
 
 | ID | 场景 | 最低人工结论 | 状态 |
 |---|---|---|---|
