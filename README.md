@@ -74,6 +74,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格正式待审查引用快捷入口审计](docs/90-formal-review-shortcut-audit.md)
 - [Long方格正式方格卡片直达管理入口审计](docs/91-formal-container-direct-navigation-audit.md)
 - [Long方格 CI VSTest 挂起诊断与有界失败审计](docs/92-ci-vstest-hang-diagnostics-audit.md)
+- [Long方格 DesktopHost 调度器测试确定性审计](docs/93-desktop-host-dispatcher-test-determinism-audit.md)
 - [Long方格正式容器创建与重命名提交审计](docs/54-container-create-rename-commit-audit.md)
 - [Long方格正式容器锁定与折叠提交审计](docs/55-container-lock-collapse-commit-audit.md)
 - [Long方格正式容器受限外观提交审计](docs/56-container-finite-appearance-commit-audit.md)

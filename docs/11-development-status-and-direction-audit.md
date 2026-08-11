@@ -402,3 +402,9 @@ W0 已关闭。W1 先限定产品和支持范围；W2 与 W3 可在不同受控�
 Stage 91 同一测试树在本地与 PR CI 通过，但合并后 `main` CI 及其批准重跑均在 VSTest 开始后长期无结果，两个 runner 最终都由 20 分钟 job 上限取消，没有失败测试或 TRX。为避免继续盲目重跑，CI 增加单测试无活动 2 分钟的 blame-hang、禁止内存 dump，并把 Sequence XML 纳入现有 always-upload 证据。
 
 该变化只让挂起更早失败并提供测试序列，不把失败转换为通过，不修改 566 项测试、覆盖率门槛、产品代码或发布权限。只有 PR 和后续 `main` CI 均通过，Stage 91 才恢复完整交付绿灯；若仍失败，必须依据 Sequence 锁定具体测试后另行修复。
+
+## 14. 2026-08-11 DesktopHost 调度器测试确定性修复
+
+合并 `fed75df0` 的 main CI 首次使用 Stage 92 诊断后，在约 2 分钟内有界失败并上传 Sequence：560 项完成，唯一未完成的是 `StartedOperationIsAwaitedInsteadOfReportedAsTimeout`。根因是测试以 20ms 窗口让两个线程池任务竞速；繁忙 runner 可先取消未开始 work item，随后测试却无限等待只有该 work item 才会设置的信号。
+
+修复仅把目标回调移到专用长运行线程、把排队窗口调整为 1 秒，并为同类测试的信号、结果和清理增加统一 5 秒上限。操作进入后仍跨越排队窗口，继续验证生产调度器等待已开始操作的原合同；生产代码和产品权限零改动。最终状态以 PR 与新 main runner 的完整 CI 结果为准。
