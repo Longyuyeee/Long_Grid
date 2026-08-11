@@ -64,12 +64,12 @@ try {
             -Architecture $Architecture `
             -ContractOnly
         Assert-Condition ($LASTEXITCODE -eq 0) `
-            'The 137-ID UI source contract validation failed.'
+            'The 138-ID UI source contract validation failed.'
         $uiResult = $uiJson | ConvertFrom-Json
         Assert-Condition (
-            $uiResult.contract.requiredAutomationIds -eq 137 -and
+            $uiResult.contract.requiredAutomationIds -eq 138 -and
             $uiResult.outcome -eq 'Pass'
-        ) 'The clean-session chain requires the complete 137-ID UI source contract.'
+        ) 'The clean-session chain requires the complete 138-ID UI source contract.'
 
         $singleContract = & powershell -NoProfile -ExecutionPolicy Bypass `
             -File $singleInstanceScript `
@@ -87,7 +87,7 @@ try {
             schemaVersion = 1
             purpose = 'LongGridCleanSessionUiaAndSingleInstance'
             mode = 'validate-only'
-            requiredAutomationIds = 137
+            requiredAutomationIds = 138
             startsProcess = $false
             terminatesForeignProcess = $false
             liveEvidence = 'PendingCleanInteractiveSession'
@@ -125,11 +125,11 @@ try {
         'The live clean-session UIA validation failed.'
     $uiResult = $uiJson | ConvertFrom-Json
     Assert-Condition (
-        $uiResult.contract.requiredAutomationIds -eq 137 -and
+        $uiResult.contract.requiredAutomationIds -eq 138 -and
         $uiResult.live.cleanSessionStart -eq 'zero-existing-processes' -and
         $uiResult.live.cleanSessionEnd -eq 'zero-remaining-processes' -and
         $uiResult.outcome -eq 'Pass'
-    ) 'The live UIA result did not preserve the 137-ID and clean-session contract.'
+    ) 'The live UIA result did not preserve the 138-ID and clean-session contract.'
 
     Assert-CleanSession 'Between UIA and single-instance validation'
     $singleLive = & powershell -NoProfile -ExecutionPolicy Bypass `
@@ -149,7 +149,7 @@ try {
         schemaVersion = 1
         purpose = 'LongGridCleanSessionUiaAndSingleInstance'
         mode = 'live'
-        requiredAutomationIds = 137
+        requiredAutomationIds = 138
         uiOutcome = $uiResult.outcome
         responsiveLayout = $uiResult.live.responsiveLayout
         singleInstance = 'redirect-exit-restore'
