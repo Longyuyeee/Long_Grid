@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0/内部 RC 交付收尾阶段。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、137-ID UIA、响应式布局、正式工作区视图和有限产品会话；用户桌面与公共桌面的第一层元数据已经只读接线。正式方格现会以文字徽标区分“空方格 / 引用正常 / 有引用待审查”，可用标准键盘 ComboBox 按全部、待审查、空或正常状态筛选，在匿名审查快照精确对齐时通过显式按钮聚焦既有审查选择器，并可从每个可见方格卡片按唯一序号直达现有管理选择器；结果通过现有 live region 播报。它不会把缺失或类型变化引用误报成未经验证的“离线”。用户可在 1..256 边界内原子批量添加未分组引用、移除同一方格内引用，或把同一源方格内引用批量改归属到另一正式方格，并通过可键盘访问的有限操作栏管理批量选择。布局恢复、批量加入、批量移除、批量改归属或方格删除中最近一次仍有效的配置编辑会出现在统一即时撤销入口；所有路径继续复用同一强校验令牌与保存控制器。文件内容读取、桌面文件写入/移动和 DesktopHost 窗口执行仍保持零接线。便携 ZIP、unsigned MSIX 及其 SPDX 2.2 SBOM 已具备可复核的单命令链路，PR/main CI 不具备签名、密钥、OIDC write、安装或发布权限。许可证、正式 Publisher/证书、签名安装生命周期、#19/#20/#23/#24 外部矩阵仍未完成，所有产物均不可公开分发。
+> 当前状态：处于 Phase 0/内部 RC 交付收尾阶段。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、137-ID UIA、响应式布局、正式工作区视图和有限产品会话；用户桌面与公共桌面的第一层元数据已经只读接线。正式方格现会以文字徽标区分“空方格 / 引用正常 / 有引用待审查”，可用标准键盘 ComboBox 按全部、待审查、空或正常状态筛选，在匿名审查快照精确对齐时通过显式按钮聚焦既有审查选择器，并可从每个可见方格卡片按唯一序号直达现有管理选择器或快速折叠/展开；结果通过现有 live region 播报。它不会把缺失或类型变化引用误报成未经验证的“离线”。用户可在 1..256 边界内原子批量添加未分组引用、移除同一方格内引用，或把同一源方格内引用批量改归属到另一正式方格，并通过可键盘访问的有限操作栏管理批量选择。布局恢复、批量加入、批量移除、批量改归属或方格删除中最近一次仍有效的配置编辑会出现在统一即时撤销入口；所有路径继续复用同一强校验令牌与保存控制器。文件内容读取、桌面文件写入/移动和 DesktopHost 窗口执行仍保持零接线。便携 ZIP、unsigned MSIX 及其 SPDX 2.2 SBOM 已具备可复核的单命令链路，PR/main CI 不具备签名、密钥、OIDC write、安装或发布权限。许可证、正式 Publisher/证书、签名安装生命周期、#19/#20/#23/#24 外部矩阵仍未完成，所有产物均不可公开分发。
 
 ## 产品原则
 
@@ -75,6 +75,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格正式方格卡片直达管理入口审计](docs/91-formal-container-direct-navigation-audit.md)
 - [Long方格 CI VSTest 挂起诊断与有界失败审计](docs/92-ci-vstest-hang-diagnostics-audit.md)
 - [Long方格 DesktopHost 调度器测试确定性审计](docs/93-desktop-host-dispatcher-test-determinism-audit.md)
+- [Long方格正式方格卡片快速折叠审计](docs/94-formal-container-quick-collapse-audit.md)
 - [Long方格正式容器创建与重命名提交审计](docs/54-container-create-rename-commit-audit.md)
 - [Long方格正式容器锁定与折叠提交审计](docs/55-container-lock-collapse-commit-audit.md)
 - [Long方格正式容器受限外观提交审计](docs/56-container-finite-appearance-commit-audit.md)
@@ -201,6 +202,8 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 > Stage 90 增量：正式待审查引用快捷入口新增 1 个 AutomationId，当前权威 UI 合同为 137-ID；Stage 89 文档中的 136-ID 保留为历史状态。
 >
 > Stage 91 增量：正式方格卡片可通过标准重复按钮按唯一序号直达既有管理选择器；重复实例不分配 AutomationId，当前权威 UI 合同保持 137-ID。
+>
+> Stage 94 增量：正式方格卡片在双快照唯一匹配、未锁定且折叠状态一致时可就地折叠/展开；重复实例不分配 AutomationId，当前权威 UI 合同保持 137-ID。
 
 Issue #20 动态显示与会话矩阵开始前，先验证只读 observer 会话链：
 

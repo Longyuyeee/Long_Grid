@@ -12,6 +12,8 @@ internal sealed record ProductWorkspaceReadContainerPresentation(
     int Ordinal,
     string DisplayName,
     string AccessibilityName,
+    bool IsLocked,
+    bool IsCollapsed,
     ProductWorkspaceContainerHealth HealthKind,
     string Health,
     string Detail,
@@ -21,6 +23,14 @@ internal sealed record ProductWorkspaceReadContainerPresentation(
 {
     public string NavigationAccessibilityName =>
         $"查看并管理方格 {Ordinal}，{DisplayName}";
+
+    public bool CanQuickToggleCollapsed => !IsLocked;
+
+    public string QuickCollapseButtonText => IsCollapsed ? "展开方格" : "折叠方格";
+
+    public string QuickCollapseAccessibilityName => IsLocked
+        ? $"方格 {Ordinal}，{DisplayName} 已锁定，不能快速更改折叠状态"
+        : $"{QuickCollapseButtonText} {Ordinal}，{DisplayName}";
 }
 
 internal sealed record ProductWorkspaceReadFilterPresentation(
@@ -65,24 +75,26 @@ internal sealed record ProductWorkspaceReadPresentation(
                     _ => "状态不可用",
                 };
                 return new ProductWorkspaceReadContainerPresentation(
-                container.Ordinal,
-                container.UserVisibleName,
-                $"方格 {container.Ordinal}，{container.UserVisibleName}，引用状态：{health}",
-                container.Health,
-                health,
-                $"{(container.IsLocked ? "已锁定" : "未锁定")} · " +
-                    $"{container.Items.Count} 个引用 · " +
-                    $"{container.UnresolvedCount} 个待审查",
-                $"{(container.IsCollapsed ? "已折叠" : "已展开")} · " +
-                    $"不透明度 {container.Opacity:P0} · " +
-                    $"{container.WidthDip:0} × {container.HeightDip:0} DIP",
-                $"WorkspaceContainer:{container.Ordinal}:Items={container.Items.Count}:" +
-                    $"Resolved={container.ResolvedCount}:Unresolved={container.UnresolvedCount}:" +
-                    $"Health={container.Health}:Locked={container.IsLocked}:" +
-                    $"Collapsed={container.IsCollapsed}",
-                container.IsCollapsed
-                    ? Array.Empty<ProductWorkspaceReadItemPresentation>()
-                    : container.Items.Select(CreateItem).ToArray());
+                    container.Ordinal,
+                    container.UserVisibleName,
+                    $"方格 {container.Ordinal}，{container.UserVisibleName}，引用状态：{health}",
+                    container.IsLocked,
+                    container.IsCollapsed,
+                    container.Health,
+                    health,
+                    $"{(container.IsLocked ? "已锁定" : "未锁定")} · " +
+                        $"{container.Items.Count} 个引用 · " +
+                        $"{container.UnresolvedCount} 个待审查",
+                    $"{(container.IsCollapsed ? "已折叠" : "已展开")} · " +
+                        $"不透明度 {container.Opacity:P0} · " +
+                        $"{container.WidthDip:0} × {container.HeightDip:0} DIP",
+                    $"WorkspaceContainer:{container.Ordinal}:Items={container.Items.Count}:" +
+                        $"Resolved={container.ResolvedCount}:Unresolved={container.UnresolvedCount}:" +
+                        $"Health={container.Health}:Locked={container.IsLocked}:" +
+                        $"Collapsed={container.IsCollapsed}",
+                    container.IsCollapsed
+                        ? Array.Empty<ProductWorkspaceReadItemPresentation>()
+                        : container.Items.Select(CreateItem).ToArray());
             })
             .ToArray();
 

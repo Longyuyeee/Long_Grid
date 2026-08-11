@@ -595,6 +595,54 @@ public sealed partial class MainWindow : Window
                 $"Focused={focused}:Changed=False:DesktopFilesChanged=False");
     }
 
+    private void ProductWorkspaceContainerQuickCollapseButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        int requestedOrdinal = sender is Button { Tag: int ordinal }
+            ? ordinal
+            : 0;
+        ProductWorkspaceContainerQuickCollapseDecision decision =
+            ProductWorkspaceContainerQuickCollapsePolicy.Resolve(
+                requestedOrdinal,
+                _workspaceRead.Containers.Select(container =>
+                    new ProductWorkspaceContainerQuickCollapseState(
+                        container.Ordinal,
+                        container.IsLocked,
+                        container.IsCollapsed)).ToArray(),
+                _containerEditor.Candidates.Select(candidate =>
+                    new ProductWorkspaceContainerQuickCollapseState(
+                        candidate.Ordinal,
+                        candidate.IsLocked,
+                        candidate.IsCollapsed)).ToArray());
+        if (!decision.IsAllowed)
+        {
+            ProductWorkspaceViewStatus.Text =
+                "方格折叠状态已变化或当前受锁保护；配置与桌面文件均未改变。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceViewStatus,
+                "WorkspaceContainerQuickCollapseRejected:Ordinal=0:" +
+                    "Changed=False:DesktopFilesChanged=False");
+            return;
+        }
+
+        ProductWorkspaceContainerEditSelector.SelectedIndex =
+            decision.CandidateIndex;
+        ProductWorkspaceContainerCommitResult result =
+            RunProductWorkspaceContainerCommit(
+                ProductWorkspaceContainerCommitAction.SetCollapsed,
+                requestedOrdinal,
+                decision.NextCollapsed);
+        ProductWorkspaceViewStatus.Text = result.IsAccepted
+            ? $"方格 {requestedOrdinal} 已{(decision.NextCollapsed ? "折叠" : "展开")}并进入安全保存队列；桌面文件未改变。"
+            : "方格快速折叠请求未被接受；请按当前工作区状态重试，桌面文件未改变。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceViewStatus,
+            $"WorkspaceContainerQuickCollapse:{result.Status}:" +
+                $"Ordinal={requestedOrdinal}:Collapsed={decision.NextCollapsed}:" +
+                $"Changed={result.IsAccepted}:DesktopFilesChanged=False");
+    }
+
     internal void ApplyProductWorkspaceLatestUndo(
         ProductWorkspaceLatestUndoPresentation presentation)
     {
@@ -1256,7 +1304,7 @@ public sealed partial class MainWindow : Window
             _ => "方格删除撤销当前不可用；配置与桌面文件均未改变。",
         };
 
-    private void RunProductWorkspaceContainerCommit(
+    private ProductWorkspaceContainerCommitResult RunProductWorkspaceContainerCommit(
         ProductWorkspaceContainerCommitAction action,
         int containerOrdinal,
         bool? stateValue = null,
@@ -1333,6 +1381,7 @@ public sealed partial class MainWindow : Window
         }
 
         UpdateProductWorkspaceContainerEditButtons();
+        return result;
     }
 
     internal void ApplyProductWorkspaceResolvedReferenceAdd(
