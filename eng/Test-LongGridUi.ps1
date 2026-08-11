@@ -31,6 +31,8 @@ $workspaceReadModelCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReadModel.cs'
 $workspaceReviewShortcutPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReviewShortcutPolicy.cs'
+$workspaceContainerNavigationPolicyCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceContainerNavigationPolicy.cs'
 $workspaceReadPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReadPresentation.cs'
 $containerEditPresentationCodePath = Join-Path $projectRoot `
@@ -145,6 +147,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $workspaceReviewShortcutPolicyCode = Get-Content `
         -LiteralPath $workspaceReviewShortcutPolicyCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceContainerNavigationPolicyCode = Get-Content `
+        -LiteralPath $workspaceContainerNavigationPolicyCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceReadPresentationCode = Get-Content `
@@ -1139,6 +1145,25 @@ function Test-SourceContract {
         $codeBehind -match 'UpdateProductWorkspaceOpenReviewButton\(\)'
     ) 'Workspace review shortcut must require aligned counts and move focus only after an explicit click.'
     Assert-Condition (
+        $document.OuterXml.Contains('Click="ProductWorkspaceContainerNavigateButton_Click"') -and
+        $document.OuterXml.Contains('Tag="{Binding Ordinal}"') -and
+        $document.OuterXml.Contains(
+            'AutomationProperties.Name="{Binding NavigationAccessibilityName}"') -and
+        -not ($document.OuterXml.Contains(
+            'AutomationProperties.AutomationId="ProductWorkspaceContainerNavigateButton"'))
+    ) 'Repeated workspace navigation buttons must be explicit, ordinal-bound, named, and avoid duplicate AutomationIds.'
+    Assert-Condition (
+        $workspaceContainerNavigationPolicyCode -match 'requestedOrdinal\s*<=\s*0' -and
+        $workspaceContainerNavigationPolicyCode -match `
+            'workspaceOrdinals\.Count\(value\s*=>\s*value\s*==\s*requestedOrdinal\)\s*!=\s*1' -and
+        $workspaceContainerNavigationPolicyCode -match 'return\s+-1' -and
+        $codeBehind -match 'ProductWorkspaceContainerNavigationPolicy' -and
+        $codeBehind -match 'ProductWorkspaceContainerEditSelector\.SelectedIndex\s*=\s*candidateIndex' -and
+        $codeBehind -match 'ProductWorkspaceContainerEditSelector\.Focus\(' -and
+        $codeBehind -match 'WorkspaceContainerNavigationRejected' -and
+        $codeBehind -match 'Changed=False:DesktopFilesChanged=False'
+    ) 'Workspace card navigation must require unique read/editor ordinals, fail closed, and only select and focus the existing editor.'
+    Assert-Condition (
         $workspaceReadPresentationCode -match `
             'string displayName\s*=\s*resolved\s*\?\s*item\.UserVisibleName!\s*:\s*\$"'
     ) 'Workspace presentation must use a generated ordinal label for unresolved items.'
@@ -1616,7 +1641,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-readonly-finite-health-filter-review-shortcut-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-direct-navigation-finite-health-filter-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'

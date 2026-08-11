@@ -9,6 +9,7 @@ internal sealed record ProductWorkspaceReadItemPresentation(
     string MachineStatus);
 
 internal sealed record ProductWorkspaceReadContainerPresentation(
+    int Ordinal,
     string DisplayName,
     string AccessibilityName,
     ProductWorkspaceContainerHealth HealthKind,
@@ -16,7 +17,11 @@ internal sealed record ProductWorkspaceReadContainerPresentation(
     string Detail,
     string Appearance,
     string MachineStatus,
-    IReadOnlyList<ProductWorkspaceReadItemPresentation> Items);
+    IReadOnlyList<ProductWorkspaceReadItemPresentation> Items)
+{
+    public string NavigationAccessibilityName =>
+        $"查看并管理方格 {Ordinal}，{DisplayName}";
+}
 
 internal sealed record ProductWorkspaceReadFilterPresentation(
     string Detail,
@@ -60,6 +65,7 @@ internal sealed record ProductWorkspaceReadPresentation(
                     _ => "状态不可用",
                 };
                 return new ProductWorkspaceReadContainerPresentation(
+                container.Ordinal,
                 container.UserVisibleName,
                 $"方格 {container.Ordinal}，{container.UserVisibleName}，引用状态：{health}",
                 container.Health,

@@ -560,6 +560,41 @@ public sealed partial class MainWindow : Window
                 "DesktopFilesChanged=False");
     }
 
+    private void ProductWorkspaceContainerNavigateButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        int requestedOrdinal = sender is Button { Tag: int ordinal }
+            ? ordinal
+            : 0;
+        int candidateIndex = ProductWorkspaceContainerNavigationPolicy
+            .ResolveCandidateIndex(
+                requestedOrdinal,
+                _workspaceRead.Containers.Select(container => container.Ordinal).ToArray(),
+                _containerEditor.Candidates.Select(candidate => candidate.Ordinal).ToArray());
+        if (candidateIndex < 0)
+        {
+            ProductWorkspaceViewStatus.Text =
+                "方格管理入口已变化；没有选择管理项或修改桌面文件。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceViewStatus,
+                "WorkspaceContainerNavigationRejected:Ordinal=0:Focused=False:" +
+                    "Changed=False:DesktopFilesChanged=False");
+            return;
+        }
+
+        ProductWorkspaceContainerEditSelector.SelectedIndex = candidateIndex;
+        bool focused = ProductWorkspaceContainerEditSelector.Focus(
+            FocusState.Programmatic);
+        ProductWorkspaceViewStatus.Text = focused
+            ? $"已选择方格 {requestedOrdinal}，并将焦点移到现有方格管理入口；配置未改变。"
+            : $"已选择方格 {requestedOrdinal}；现有方格管理入口当前无法获得焦点。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceViewStatus,
+            $"WorkspaceContainerNavigationOpened:Ordinal={requestedOrdinal}:" +
+                $"Focused={focused}:Changed=False:DesktopFilesChanged=False");
+    }
+
     internal void ApplyProductWorkspaceLatestUndo(
         ProductWorkspaceLatestUndoPresentation presentation)
     {
