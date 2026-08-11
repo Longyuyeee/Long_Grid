@@ -721,6 +721,34 @@
                                         <ComboBoxItem Content="名称降序" />
                                         <ComboBoxItem Content="待审查优先" />
                                     </ComboBox>
+                                    <Border
+                                        x:Name="ProductWorkspaceNoResultsCard"
+                                        Padding="14"
+                                        AutomationProperties.AccessibilityView="Content"
+                                        AutomationProperties.Name="没有符合当前条件的正式方格"
+                                        Background="{ThemeResource LongGridSurfaceMutedBrush}"
+                                        CornerRadius="12"
+                                        Visibility="Collapsed">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock
+                                                FontWeight="SemiBold"
+                                                Text="没有符合当前条件的方格"
+                                                TextWrapping="Wrap" />
+                                            <TextBlock
+                                                Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                                Text="可以重置搜索、筛选和排序，恢复全部正式方格。"
+                                                TextWrapping="Wrap" />
+                                            <Button
+                                                x:Name="ProductWorkspaceResetViewButton"
+                                                HorizontalAlignment="Left"
+                                                AutomationProperties.AutomationId="ProductWorkspaceResetViewButton"
+                                                AutomationProperties.ItemStatus="WorkspaceViewResetUnavailable:DesktopFilesChanged=False"
+                                                AutomationProperties.Name="重置正式工作区视图"
+                                                Click="ProductWorkspaceResetViewButton_Click"
+                                                Content="重置工作区视图"
+                                                IsEnabled="False" />
+                                        </StackPanel>
+                                    </Border>
                                     <ListView
                                         x:Name="ProductWorkspaceContainerList"
                                         AutomationProperties.AutomationId="ProductWorkspaceContainerList"
