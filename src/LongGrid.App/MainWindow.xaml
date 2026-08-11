@@ -705,16 +705,27 @@
                                                                     Text="{Binding Detail}"
                                                                     TextWrapping="Wrap" />
                                                             </StackPanel>
-                                                            <Border
-                                                                Grid.Column="1"
-                                                                Padding="8,3"
-                                                                Background="{ThemeResource LongGridSurfaceBrush}"
-                                                                CornerRadius="8">
-                                                                <TextBlock
-                                                                    FontSize="11"
-                                                                    Foreground="{ThemeResource LongGridTextSecondaryBrush}"
-                                                                    Text="{Binding Appearance}" />
-                                                            </Border>
+                                                            <StackPanel Grid.Column="1" Spacing="4">
+                                                                <Border
+                                                                    Padding="8,3"
+                                                                    Background="{ThemeResource LongGridAccentSoftBrush}"
+                                                                    CornerRadius="8">
+                                                                    <TextBlock
+                                                                        FontSize="11"
+                                                                        FontWeight="SemiBold"
+                                                                        Foreground="{ThemeResource LongGridTextPrimaryBrush}"
+                                                                        Text="{Binding Health}" />
+                                                                </Border>
+                                                                <Border
+                                                                    Padding="8,3"
+                                                                    Background="{ThemeResource LongGridSurfaceBrush}"
+                                                                    CornerRadius="8">
+                                                                    <TextBlock
+                                                                        FontSize="11"
+                                                                        Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                                                        Text="{Binding Appearance}" />
+                                                                </Border>
+                                                            </StackPanel>
                                                         </Grid>
                                                         <ItemsControl ItemsSource="{Binding Items}">
                                                             <ItemsControl.ItemTemplate>

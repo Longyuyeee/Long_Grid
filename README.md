@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0/内部 RC 交付收尾阶段。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、135-ID UIA、响应式布局、正式工作区视图和有限产品会话；用户桌面与公共桌面的第一层元数据已经只读接线，用户可在 1..256 边界内原子批量添加未分组引用、移除同一方格内引用，或把同一源方格内引用批量改归属到另一正式方格，并通过可键盘访问的“选择前 256 项 / 选择此方格前 256 项 / 清除选择”操作栏管理批量选择。批量改归属经过默认取消确认，只提交一次配置编辑并可整体撤销一次；所有批量选择在空选择时归零、每次用户动作只发布一次辅助功能 live-region 事件，两组操作栏在紧凑宽度下纵向重排。正式产品批量选择现已具备纯键盘、Narrator、高对比度、200% 文本缩放和紧凑布局的专用人工会话链，但真实结果仍为 `PendingManualEvidence`。布局恢复、批量加入、批量移除、批量改归属或方格删除中最近一次仍有效的配置编辑会出现在统一即时撤销入口；原有上下文入口保留，所有路径继续复用同一强校验令牌与保存控制器。文件内容读取、桌面文件写入/移动和 DesktopHost 窗口执行仍保持零接线。便携 ZIP、unsigned MSIX 及其 SPDX 2.2 SBOM 已具备可复核的单命令链路，PR/main CI 不具备签名、密钥、OIDC write、安装或发布权限。许可证、正式 Publisher/证书、签名安装生命周期、#19/#20/#23/#24 外部矩阵仍未完成，所有产物均不可公开分发。
+> 当前状态：处于 Phase 0/内部 RC 交付收尾阶段。开发期 App 已具备现代 UI Shell、Design Token、品牌 RC1、一键启动、135-ID UIA、响应式布局、正式工作区视图和有限产品会话；用户桌面与公共桌面的第一层元数据已经只读接线。正式方格现会以文字徽标区分“空方格 / 引用正常 / 有引用待审查”，折叠后仍可读，并在 Narrator 名称与有限机器状态中保持同一语义；它不会把缺失或类型变化引用误报成未经验证的“离线”。用户可在 1..256 边界内原子批量添加未分组引用、移除同一方格内引用，或把同一源方格内引用批量改归属到另一正式方格，并通过可键盘访问的有限操作栏管理批量选择。布局恢复、批量加入、批量移除、批量改归属或方格删除中最近一次仍有效的配置编辑会出现在统一即时撤销入口；所有路径继续复用同一强校验令牌与保存控制器。文件内容读取、桌面文件写入/移动和 DesktopHost 窗口执行仍保持零接线。便携 ZIP、unsigned MSIX 及其 SPDX 2.2 SBOM 已具备可复核的单命令链路，PR/main CI 不具备签名、密钥、OIDC write、安装或发布权限。许可证、正式 Publisher/证书、签名安装生命周期、#19/#20/#23/#24 外部矩阵仍未完成，所有产物均不可公开分发。
 
 ## 产品原则
 
@@ -69,6 +69,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格未解析引用审查与双版本门禁审计](docs/51-unresolved-reference-review-gate-audit.md)
 - [Long方格引用编辑正式保存提交审计](docs/52-reference-edit-save-submission-audit.md)
 - [Long方格正式工作区只读视图审计](docs/53-formal-workspace-readonly-view-audit.md)
+- [Long方格正式方格健康状态审计](docs/88-formal-container-health-state-audit.md)
 - [Long方格正式容器创建与重命名提交审计](docs/54-container-create-rename-commit-audit.md)
 - [Long方格正式容器锁定与折叠提交审计](docs/55-container-lock-collapse-commit-audit.md)
 - [Long方格正式容器受限外观提交审计](docs/56-container-finite-appearance-commit-audit.md)

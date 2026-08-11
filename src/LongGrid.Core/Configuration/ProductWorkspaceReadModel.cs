@@ -6,6 +6,13 @@ public sealed record ProductWorkspaceReadItem(
     ConfigurationItemKind Kind,
     ProductItemReferenceResolution Resolution);
 
+public enum ProductWorkspaceContainerHealth
+{
+    Empty,
+    Ready,
+    NeedsReview,
+}
+
 public sealed record ProductWorkspaceReadContainer(
     int Ordinal,
     string UserVisibleName,
@@ -19,13 +26,16 @@ public sealed record ProductWorkspaceReadContainer(
     double HeightDip,
     IReadOnlyList<ProductWorkspaceReadItem> Items,
     int ResolvedCount,
-    int UnresolvedCount);
+    int UnresolvedCount,
+    ProductWorkspaceContainerHealth Health);
 
 public sealed record ProductWorkspaceReadSnapshot(
     IReadOnlyList<ProductWorkspaceReadContainer> Containers,
     int ItemCount,
     int ResolvedCount,
-    int UnresolvedCount);
+    int UnresolvedCount,
+    int EmptyContainerCount,
+    int NeedsReviewContainerCount);
 
 public sealed record ProductWorkspaceReadResult(
     ProductWorkspaceProjectionError Error,
@@ -53,6 +63,8 @@ public static class ProductWorkspaceReadModel
             state.Containers.Count);
         int resolvedTotal = 0;
         int unresolvedTotal = 0;
+        int emptyContainerTotal = 0;
+        int needsReviewContainerTotal = 0;
         for (int containerIndex = 0; containerIndex < state.Containers.Count; containerIndex++)
         {
             ProductContainerState container = state.Containers[containerIndex];
@@ -79,6 +91,20 @@ public static class ProductWorkspaceReadModel
             }
 
             int unresolved = items.Count - resolved;
+            ProductWorkspaceContainerHealth health = unresolved > 0
+                ? ProductWorkspaceContainerHealth.NeedsReview
+                : items.Count == 0
+                    ? ProductWorkspaceContainerHealth.Empty
+                    : ProductWorkspaceContainerHealth.Ready;
+            if (health == ProductWorkspaceContainerHealth.Empty)
+            {
+                emptyContainerTotal++;
+            }
+            else if (health == ProductWorkspaceContainerHealth.NeedsReview)
+            {
+                needsReviewContainerTotal++;
+            }
+
             resolvedTotal += resolved;
             unresolvedTotal += unresolved;
             containers.Add(new(
@@ -94,7 +120,8 @@ public static class ProductWorkspaceReadModel
                 container.Placement.HeightDip,
                 items.ToArray(),
                 resolved,
-                unresolved));
+                unresolved,
+                health));
         }
 
         return new(
@@ -104,6 +131,8 @@ public static class ProductWorkspaceReadModel
                 containers.ToArray(),
                 resolvedTotal + unresolvedTotal,
                 resolvedTotal,
-                unresolvedTotal));
+                unresolvedTotal,
+                emptyContainerTotal,
+                needsReviewContainerTotal));
     }
 }
