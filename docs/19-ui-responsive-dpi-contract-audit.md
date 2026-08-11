@@ -35,6 +35,8 @@
 
 这保证高 DPI 下不会把物理像素误当 DIP，也避免默认窗口超出小屏幕工作区。
 
+Stage 96 补充：正式方格卡片操作区不再把三个文字按钮放在无宽度分配的单行 StackPanel，而使用两行两列内在 Grid；管理入口跨两列，两个快捷动作等宽分列。该局部布局不依赖 AdaptiveTrigger，在 720px 紧凑模式下由现有可用宽度自然分配；200% 文本缩放与辅助技术仍需人工复核，详见[正式方格卡片操作区自适应布局审计](96-formal-container-card-action-layout-audit.md)。
+
 ## 3. 实现选择与纠偏
 
 第一版使用 XAML AdaptiveTrigger。Release 编译能够通过，但在真实窗口从 1154 物理像素缩至 720 时，布局状态没有可靠切换；仅有源码结构不能升级为运行时 Pass。最终改为单一 `ApplyResponsiveLayout`，由 RootLayout 的 `SizeChanged` 确定性设置：

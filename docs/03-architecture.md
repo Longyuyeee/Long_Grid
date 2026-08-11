@@ -316,6 +316,8 @@ DesktopHost 使用状态机管理 `Hidden / DesktopPassive / DesktopEditing / Pe
 
 正式方格卡片快速锁定采用同样的双快照唯一序号复核，但只在两侧均未锁定时固定提交 `SetLocked(true)`。卡片不提供反向状态切换；解除保护仍需进入现有管理区显式解锁。该配置动作不操作桌面文件或 DesktopHost。详见[正式方格卡片单向快速锁定审计](95-formal-container-quick-lock-audit.md)。
 
+正式方格卡片操作区使用两行两列内在 Grid：完整管理入口跨两列，折叠与单向锁定在第二行等宽分列，源码顺序即标准键盘顺序。该结构不引入新的 AdaptiveTrigger 或窗口尺寸状态，不改变任何配置/文件/DesktopHost 权限。详见[正式方格卡片操作区自适应布局审计](96-formal-container-card-action-layout-audit.md)。
+
 产品布局恢复预览要求正式 workspace、保存时拓扑与权威当前拓扑同时存在，才允许调用 `LayoutRecoveryPlanner`。Infrastructure 当前拓扑适配器已使用 CCD/Monitor 强身份和几何对账、generation/latest-wins 与关闭排空接入 App；只有完整样本才权威，其他状态继续 Awaiting。v1 仍缺保存时 Bounds/WorkArea/DPI/Rotation 元数据，因此强当前样本成立后停在 SavedTopologyMissing。presentation 只获得有限状态与计数，固定不改变桌面窗口；详见[产品布局恢复只读预览合同审计](58-product-layout-recovery-preview-contract-audit.md)与[产品显示拓扑只读适配器审计](59-product-display-topology-adapter-audit.md)。
 
 详细实现依据见[核心 Windows 能力实现审计](08-core-windows-implementation-audit.md)。

@@ -1227,6 +1227,43 @@ function Test-SourceContract {
         $workspaceReadPresentationCode -match 'CanQuickLock\s*=>\s*!IsLocked' -and
         $workspaceReadPresentationCode -match 'QuickLockAccessibilityName'
     ) 'Quick lock must require aligned unlocked snapshots, lock only, and keep unlock in the management area.'
+    $workspaceCardManageButton = $document.SelectSingleNode(
+        "//*[local-name()='Button' and @Click='ProductWorkspaceContainerNavigateButton_Click']")
+    $workspaceCardCollapseButton = $document.SelectSingleNode(
+        "//*[local-name()='Button' and @Click='ProductWorkspaceContainerQuickCollapseButton_Click']")
+    $workspaceCardLockButton = $document.SelectSingleNode(
+        "//*[local-name()='Button' and @Click='ProductWorkspaceContainerQuickLockButton_Click']")
+    $workspaceCardActionGrid = $workspaceCardManageButton.ParentNode
+    Assert-Condition (
+        $workspaceCardActionGrid.LocalName -eq 'Grid' -and
+        $workspaceCardActionGrid.GetAttribute('ColumnSpacing') -eq '8' -and
+        $workspaceCardActionGrid.GetAttribute('RowSpacing') -eq '8' -and
+        $workspaceCardActionGrid.SelectNodes(
+            "./*[local-name()='Grid.RowDefinitions']/*[local-name()='RowDefinition' and @Height='Auto']"
+        ).Count -eq 2 -and
+        $workspaceCardActionGrid.SelectNodes(
+            "./*[local-name()='Grid.ColumnDefinitions']/*[local-name()='ColumnDefinition' and @Width='*']"
+        ).Count -eq 2 -and
+        $workspaceCardManageButton.GetAttribute('Grid.ColumnSpan') -eq '2' -and
+        $workspaceCardManageButton.GetAttribute('HorizontalAlignment') -eq 'Stretch' -and
+        $workspaceCardCollapseButton.ParentNode -eq $workspaceCardActionGrid -and
+        $workspaceCardCollapseButton.GetAttribute('Grid.Row') -eq '1' -and
+        $workspaceCardCollapseButton.GetAttribute('HorizontalAlignment') -eq 'Stretch' -and
+        $workspaceCardLockButton.ParentNode -eq $workspaceCardActionGrid -and
+        $workspaceCardLockButton.GetAttribute('Grid.Row') -eq '1' -and
+        $workspaceCardLockButton.GetAttribute('Grid.Column') -eq '1' -and
+        $workspaceCardLockButton.GetAttribute('HorizontalAlignment') -eq 'Stretch'
+    ) 'Workspace card actions must use a two-row intrinsic grid with a full-width management action and equal quick actions.'
+    $workspaceCardActionOrder = @(
+        $workspaceCardActionGrid.SelectNodes("./*[local-name()='Button']") |
+            ForEach-Object { $_.GetAttribute('Click') }
+    ) -join '>'
+    Assert-Condition (
+        $workspaceCardActionOrder -eq (
+            'ProductWorkspaceContainerNavigateButton_Click>' +
+            'ProductWorkspaceContainerQuickCollapseButton_Click>' +
+            'ProductWorkspaceContainerQuickLockButton_Click')
+    ) 'Workspace card action source order must preserve manage, collapse, then lock keyboard traversal.'
     Assert-Condition (
         $workspaceReadPresentationCode -match `
             'string displayName\s*=\s*resolved\s*\?\s*item\.UserVisibleName!\s*:\s*\$"'
@@ -1705,7 +1742,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-direct-navigation-quick-collapse-quick-lock-finite-health-filter-review-shortcut-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
