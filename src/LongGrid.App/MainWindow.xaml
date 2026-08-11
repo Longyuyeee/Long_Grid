@@ -785,25 +785,40 @@
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
                                                         </ItemsControl>
-                                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <Grid ColumnSpacing="8" RowSpacing="8">
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto" />
+                                                                <RowDefinition Height="Auto" />
+                                                            </Grid.RowDefinitions>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
                                                             <Button
+                                                                Grid.ColumnSpan="2"
+                                                                HorizontalAlignment="Stretch"
                                                                 AutomationProperties.Name="{Binding NavigationAccessibilityName}"
                                                                 Click="ProductWorkspaceContainerNavigateButton_Click"
                                                                 Content="查看并管理此方格"
                                                                 Tag="{Binding Ordinal}" />
                                                             <Button
+                                                                Grid.Row="1"
+                                                                HorizontalAlignment="Stretch"
                                                                 AutomationProperties.Name="{Binding QuickCollapseAccessibilityName}"
                                                                 Click="ProductWorkspaceContainerQuickCollapseButton_Click"
                                                                 Content="{Binding QuickCollapseButtonText}"
                                                                 IsEnabled="{Binding CanQuickToggleCollapsed}"
                                                                 Tag="{Binding Ordinal}" />
                                                             <Button
+                                                                Grid.Row="1"
+                                                                Grid.Column="1"
+                                                                HorizontalAlignment="Stretch"
                                                                 AutomationProperties.Name="{Binding QuickLockAccessibilityName}"
                                                                 Click="ProductWorkspaceContainerQuickLockButton_Click"
                                                                 Content="{Binding QuickLockButtonText}"
                                                                 IsEnabled="{Binding CanQuickLock}"
                                                                 Tag="{Binding Ordinal}" />
-                                                        </StackPanel>
+                                                        </Grid>
                                                     </StackPanel>
                                                 </Border>
                                             </DataTemplate>
