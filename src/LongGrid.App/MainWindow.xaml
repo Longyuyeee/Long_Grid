@@ -722,6 +722,34 @@
                                         <ComboBoxItem Content="待审查优先" />
                                     </ComboBox>
                                     <Border
+                                        x:Name="ProductWorkspaceEmptyCreateCard"
+                                        Padding="14"
+                                        AutomationProperties.AccessibilityView="Content"
+                                        AutomationProperties.Name="尚未创建正式方格"
+                                        Background="{ThemeResource LongGridSurfaceMutedBrush}"
+                                        CornerRadius="12"
+                                        Visibility="Collapsed">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock
+                                                FontWeight="SemiBold"
+                                                Text="还没有正式方格"
+                                                TextWrapping="Wrap" />
+                                            <TextBlock
+                                                Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                                Text="先为第一个方格命名；此入口只移动焦点，仍需明确点击“创建并保存”。"
+                                                TextWrapping="Wrap" />
+                                            <Button
+                                                x:Name="ProductWorkspaceEmptyCreateButton"
+                                                HorizontalAlignment="Left"
+                                                AutomationProperties.AutomationId="ProductWorkspaceEmptyCreateButton"
+                                                AutomationProperties.ItemStatus="WorkspaceEmptyCreateShortcutUnavailable:Focused=False:Changed=False:DesktopFilesChanged=False"
+                                                AutomationProperties.Name="开始创建第一个正式方格"
+                                                Click="ProductWorkspaceEmptyCreateButton_Click"
+                                                Content="开始创建第一个方格"
+                                                IsEnabled="False" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border
                                         x:Name="ProductWorkspaceNoResultsCard"
                                         Padding="14"
                                         AutomationProperties.AccessibilityView="Content"

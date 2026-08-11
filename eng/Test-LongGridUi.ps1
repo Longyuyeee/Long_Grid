@@ -43,6 +43,8 @@ $workspaceContainerSortPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceContainerSortPolicy.cs'
 $workspaceViewResetPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceViewResetPolicy.cs'
+$workspaceEmptyCreateShortcutPolicyCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceEmptyCreateShortcutPolicy.cs'
 $workspaceReadPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReadPresentation.cs'
 $containerEditPresentationCodePath = Join-Path $projectRoot `
@@ -181,6 +183,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $workspaceViewResetPolicyCode = Get-Content `
         -LiteralPath $workspaceViewResetPolicyCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceEmptyCreateShortcutPolicyCode = Get-Content `
+        -LiteralPath $workspaceEmptyCreateShortcutPolicyCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceReadPresentationCode = Get-Content `
@@ -398,6 +404,7 @@ function Test-SourceContract {
         'ProductWorkspaceHealthFilterSelector',
         'ProductWorkspaceSortSelector',
         'ProductWorkspaceResetViewButton',
+        'ProductWorkspaceEmptyCreateButton',
         'ProductWorkspaceOpenReviewButton',
         'ProductWorkspaceContainerList',
         'ProductWorkspaceViewStatus',
@@ -1245,6 +1252,38 @@ function Test-SourceContract {
         -not ($codeBehind -match `
             'ProductWorkspaceResetViewButton_Click[\s\S]{0,1600}(Submit|Commit|Save|DesktopHost)')
     ) 'Workspace zero-result recovery must remain presentation-only and avoid persistence or desktop execution paths.'
+    $workspaceEmptyCreateNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceEmptyCreateButton'
+    Assert-Condition (
+        $workspaceEmptyCreateNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $workspaceEmptyCreateNode.GetAttribute('Click') -eq `
+            'ProductWorkspaceEmptyCreateButton_Click' -and
+        $workspaceEmptyCreateNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'WorkspaceEmptyCreateShortcutUnavailable:Focused=False:Changed=False:DesktopFilesChanged=False' -and
+        $workspaceEmptyCreateNode.ParentNode.ParentNode.GetAttribute('Visibility') -eq `
+            'Collapsed'
+    ) 'Workspace empty-create shortcut must start collapsed, disabled, finite, and explicit-click only.'
+    Assert-Condition (
+        $workspaceEmptyCreateShortcutPolicyCode -match 'isKnownEmptyWorkspace' -and
+        $workspaceEmptyCreateShortcutPolicyCode -match 'readContainerCount\s*==\s*0' -and
+        $workspaceEmptyCreateShortcutPolicyCode -match 'canCreateContainer' -and
+        $workspaceEmptyCreateShortcutPolicyCode -match 'editorCandidateCount\s*==\s*0' -and
+        $workspaceEmptyCreateShortcutPolicyCode -match 'ProductWorkspaceEmptyCreateShortcutStatus\.Invalid' -and
+        $workspaceReadPresentationCode -match 'IsKnownEmptyWorkspace' -and
+        $codeBehind -match 'ProductWorkspaceEmptyCreateShortcutPolicy\.Evaluate' -and
+        $codeBehind -match 'ApplyProductWorkspaceReadModel[\s\S]{0,1200}UpdateProductWorkspaceEmptyCreateShortcut' -and
+        $codeBehind -match 'ApplyProductWorkspaceContainerEditor[\s\S]{0,2400}UpdateProductWorkspaceEmptyCreateShortcut' -and
+        $codeBehind -match 'ProductWorkspaceContainerNameEditor\.Focus\(\s*FocusState\.Programmatic\)' -and
+        $codeBehind -match 'WorkspaceEmptyCreateShortcutOpened' -and
+        $codeBehind -match 'Changed=False:DesktopFilesChanged=False'
+    ) 'Workspace empty-create shortcut must align known-empty read and editor state, then focus the existing name editor without changing configuration.'
+    Assert-Condition (
+        -not ($workspaceEmptyCreateShortcutPolicyCode -match `
+            'Catalog|PersistedTarget|CanonicalTarget|DesktopHost|File\.|Directory\.|Save|Telemetry') -and
+        -not ($codeBehind -match `
+            'ProductWorkspaceEmptyCreateButton_Click[\s\S]{0,1800}(ProductWorkspaceContainerNameEditor\.Text\s*=|Submit|Commit|Save|DesktopHost|ProductWorkspaceContainerCreateButton_Click)')
+    ) 'Workspace empty-create shortcut must only focus the existing editor and must not fill, create, save, or execute desktop operations.'
     $workspaceOpenReviewNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceOpenReviewButton'
@@ -1865,7 +1904,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-zero-results-recovery-review-shortcut-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-zero-results-recovery-empty-create-shortcut-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'

@@ -24,6 +24,7 @@ public sealed partial class MainWindow : Window
     private bool _suppressBatchSelectionAnnouncements;
     private bool _suppressProductWorkspaceViewChanges;
     private bool _canResetProductWorkspaceView;
+    private bool _canOpenProductWorkspaceEmptyCreate;
     private string _organizationStartChoice = "suggested";
     private bool _practiceItemsAdded;
     private ProductConfigurationStartupMode _configurationStartupMode;
@@ -474,6 +475,7 @@ public sealed partial class MainWindow : Window
             "WorkspaceReviewShortcutPendingAlignment:Items=0:" +
                 "DesktopFilesChanged=False");
         ApplyProductWorkspaceFilters();
+        UpdateProductWorkspaceEmptyCreateShortcut();
     }
 
     private void ProductWorkspaceHealthFilterSelector_SelectionChanged(
@@ -565,6 +567,62 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetItemStatus(
             ProductWorkspaceViewStatus,
             machineStatusOverride ?? filtered.MachineStatus);
+    }
+
+    private ProductWorkspaceEmptyCreateShortcutDecision
+        ResolveProductWorkspaceEmptyCreateShortcut() =>
+        ProductWorkspaceEmptyCreateShortcutPolicy.Evaluate(
+            _workspaceRead.IsKnownEmptyWorkspace,
+            _workspaceRead.Containers.Count,
+            _containerEditor.CanCreate,
+            _containerEditor.Candidates.Count);
+
+    private void UpdateProductWorkspaceEmptyCreateShortcut()
+    {
+        ProductWorkspaceEmptyCreateShortcutDecision decision =
+            ResolveProductWorkspaceEmptyCreateShortcut();
+        _canOpenProductWorkspaceEmptyCreate = decision.CanOpen;
+        ProductWorkspaceEmptyCreateCard.Visibility = decision.CanOpen
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        ProductWorkspaceEmptyCreateButton.IsEnabled = decision.CanOpen;
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceEmptyCreateButton,
+            $"WorkspaceEmptyCreateShortcut{decision.Status}:Focused=False:" +
+                "Changed=False:DesktopFilesChanged=False");
+    }
+
+    private void ProductWorkspaceEmptyCreateButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ProductWorkspaceEmptyCreateShortcutDecision decision =
+            ResolveProductWorkspaceEmptyCreateShortcut();
+        if (!_canOpenProductWorkspaceEmptyCreate || !decision.CanOpen)
+        {
+            ProductWorkspaceViewStatus.Text =
+                "空工作区创建入口已变化；没有创建方格、修改配置或桌面文件。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceViewStatus,
+                "WorkspaceEmptyCreateShortcutRejected:Focused=False:" +
+                    "Changed=False:DesktopFilesChanged=False");
+            UpdateProductWorkspaceEmptyCreateShortcut();
+            return;
+        }
+
+        bool focused = ProductWorkspaceContainerNameEditor.Focus(
+            FocusState.Programmatic);
+        ProductWorkspaceViewStatus.Text = focused
+            ? "已将焦点移到方格名称；输入名称后仍需明确点击“创建并保存”。"
+            : "方格名称输入框当前无法获得焦点；没有创建或保存任何方格。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceViewStatus,
+            $"WorkspaceEmptyCreateShortcutOpened:Focused={focused}:" +
+                "Changed=False:DesktopFilesChanged=False");
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceEmptyCreateButton,
+            $"WorkspaceEmptyCreateShortcutAvailable:Focused={focused}:" +
+                "Changed=False:DesktopFilesChanged=False");
     }
 
     private void ProductWorkspaceResetViewButton_Click(
@@ -1111,6 +1169,7 @@ public sealed partial class MainWindow : Window
                 $"CanUndoRemoval={presentation.RemovalUndoToken is not null}:" +
                 "Changed=False:DesktopFilesChanged=False");
         UpdateProductWorkspaceContainerEditButtons();
+        UpdateProductWorkspaceEmptyCreateShortcut();
     }
 
     private void ProductWorkspaceContainerEditSelector_SelectionChanged(
