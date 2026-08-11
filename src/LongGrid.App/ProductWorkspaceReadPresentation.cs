@@ -26,12 +26,14 @@ internal sealed record ProductWorkspaceReadFilterPresentation(
 internal sealed record ProductWorkspaceReadPresentation(
     string Detail,
     string MachineStatus,
+    int UnresolvedReferenceCount,
     bool CanFilter,
     IReadOnlyList<ProductWorkspaceReadContainerPresentation> Containers)
 {
     public static ProductWorkspaceReadPresentation Unavailable { get; } = new(
         "等待正式产品会话；当前没有展示或修改任何桌面内容。",
         "WorkspaceViewUnavailable:Containers=0:Items=0",
+        0,
         false,
         Array.Empty<ProductWorkspaceReadContainerPresentation>());
 
@@ -39,6 +41,7 @@ internal sealed record ProductWorkspaceReadPresentation(
         new(
             "尚无正式配置；可以创建第一个方格，系统不会自动生成示例。",
             "WorkspaceViewNoSavedConfiguration:Containers=0:Items=0",
+            0,
             false,
             Array.Empty<ProductWorkspaceReadContainerPresentation>());
 
@@ -88,6 +91,7 @@ internal sealed record ProductWorkspaceReadPresentation(
                 $"Unresolved={snapshot.UnresolvedCount}:" +
                 $"EmptyContainers={snapshot.EmptyContainerCount}:" +
                 $"NeedsReviewContainers={snapshot.NeedsReviewContainerCount}",
+            snapshot.UnresolvedCount,
             true,
             containers);
     }

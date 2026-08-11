@@ -29,6 +29,8 @@ $resolvedReferenceReassignmentPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceResolvedReferenceReassignmentPresentation.cs'
 $workspaceReadModelCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReadModel.cs'
+$workspaceReviewShortcutPolicyCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceReviewShortcutPolicy.cs'
 $workspaceReadPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReadPresentation.cs'
 $containerEditPresentationCodePath = Join-Path $projectRoot `
@@ -139,6 +141,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $workspaceReadModelCode = Get-Content `
         -LiteralPath $workspaceReadModelCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceReviewShortcutPolicyCode = Get-Content `
+        -LiteralPath $workspaceReviewShortcutPolicyCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceReadPresentationCode = Get-Content `
@@ -353,6 +359,7 @@ function Test-SourceContract {
         'ProductWorkspaceResolvedReferenceRemovalStatus',
         'ProductWorkspaceContainerEditStatus',
         'ProductWorkspaceHealthFilterSelector',
+        'ProductWorkspaceOpenReviewButton',
         'ProductWorkspaceContainerList',
         'ProductWorkspaceViewStatus',
         'ProductWorkspaceReferenceReviewCard',
@@ -1098,6 +1105,17 @@ function Test-SourceContract {
             'ProductWorkspaceHealthFilterSelector_SelectionChanged' -and
         $workspaceHealthFilterNode.ChildNodes.Count -eq 4
     ) 'Workspace health filter must start disabled, select All, and expose four finite choices.'
+    $workspaceOpenReviewNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceOpenReviewButton'
+    Assert-Condition (
+        $workspaceOpenReviewNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $workspaceOpenReviewNode.GetAttribute('Visibility') -eq 'Collapsed' -and
+        $workspaceOpenReviewNode.GetAttribute('Click') -eq `
+            'ProductWorkspaceOpenReviewButton_Click' -and
+        $workspaceOpenReviewNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'WorkspaceReviewShortcutUnavailable:Items=0:DesktopFilesChanged=False'
+    ) 'Workspace review shortcut must start collapsed, disabled, finite, and explicit-click only.'
     Assert-Condition (
         $workspaceReadModelCode -match 'ProductWorkspaceContainerHealthFilterPolicy' -and
         $workspaceReadModelCode -match 'ProductWorkspaceContainerHealthFilter\.All' -and
@@ -1108,6 +1126,18 @@ function Test-SourceContract {
         $workspaceReadPresentationCode -match 'WorkspaceViewFilterUnavailable' -and
         $workspaceReadPresentationCode -match 'DesktopFilesChanged=False'
     ) 'Workspace health filter must use finite presentation-only modes and fail closed.'
+    Assert-Condition (
+        $workspaceReviewShortcutPolicyCode -match 'workspaceUnresolvedCount\s*>\s*0' -and
+        $workspaceReviewShortcutPolicyCode -match `
+            'reviewItemCount\s*==\s*workspaceUnresolvedCount' -and
+        $workspaceReviewShortcutPolicyCode -match 'reviewAvailable' -and
+        $codeBehind -match 'ProductWorkspaceOpenReviewButton\.IsEnabled\s*=\s*false' -and
+        $codeBehind -match 'ProductWorkspaceOpenReviewButton\.Visibility\s*=\s*Visibility\.Collapsed' -and
+        $codeBehind -match 'ProductWorkspaceHealthFilterSelector\.SelectedIndex\s*=\s*1' -and
+        $codeBehind -match 'ProductWorkspaceReferenceReviewSelector\.Focus\(' -and
+        $codeBehind -match 'FocusState\.Programmatic' -and
+        $codeBehind -match 'UpdateProductWorkspaceOpenReviewButton\(\)'
+    ) 'Workspace review shortcut must require aligned counts and move focus only after an explicit click.'
     Assert-Condition (
         $workspaceReadPresentationCode -match `
             'string displayName\s*=\s*resolved\s*\?\s*item\.UserVisibleName!\s*:\s*\$"'
@@ -1586,7 +1616,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-readonly-finite-container-health-filter-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-readonly-finite-health-filter-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
