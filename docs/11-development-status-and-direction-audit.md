@@ -480,3 +480,9 @@ CI 现保留质量门禁与工具恢复复用，但让 RC 入口自行执行 RID
 PR #154 的第二次干净 runner 验证已通过还原、格式化、构建和全部源码合同，但 636 项测试中的 `OlderSaveCompletionCannotOverwriteNewerWaitingEdit` 单项失败。复审确认产品状态机与 Stage 102 的工作流提交门保持有效，失败来自测试把 `Saving` 状态误当成 `SaveAsync` 已进入：两者之间仍存在受线程调度影响的异步让出窗口。
 
 测试替身现公开线程安全的调用计数等待点；旧保存完成与关闭超时两个场景都必须确认第一次工作流保存已经进入后才触发下一事件。断言、超时、覆盖率和产品代码均未放宽。定向 22 项测试通过，两个竞态场景 10 轮、共 20 次执行通过；完整 PR 与 main CI 仍是最终远端门禁。详见[Stage 105 保存控制器测试工作流准入确定性审计](105-save-controller-test-workflow-admission-determinism-audit.md)。
+
+## 27. 2026-08-12 Stage 106 DesktopHost 生命周期增量审计
+
+阶段 A 的 A1 已完成：App composition root 唯一持有 `ProductDesktopHostLifecycleController`，Core 以 `LONGGRID_ENABLE_DESKTOP_HOST=1` 作为严格开发 opt-in，默认与畸形值均保持 `DisabledBySafetyPolicy`。控制中心区分“安全策略关闭”和“等待宿主”，Catalog 后续刷新不会覆盖 DesktopHost 状态；关闭链退订并释放控制器。
+
+本切片只建立匿名有限状态与生命周期所有权。无论默认或 opt-in，当前都不构造 `ProductDesktopHostWindowBridge`、Windows inspector、HWND 或方格窗口，文件写入、移动、任务栏和插件权限保持零新增。Release 0 warning/0 error、647/647 测试及 91.22%/81.43% 覆盖率门禁通过；源码 UIA 合同通过，应用可启动关闭且零残留，但当前桌面会话的 live UIA Control View 在状态断言前持续出现 WinUI COM tree rebuild 异常，因此 live 状态读数保留 Conditional，不误报 Pass。下一切片是 A2 单显示器只读方格渲染。详见[Stage 106 审计](106-desktop-host-lifecycle-feature-flag-audit.md)。

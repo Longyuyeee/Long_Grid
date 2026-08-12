@@ -7,7 +7,8 @@ param(
     [string]$Architecture = 'x64',
 
     [switch]$NoBuild,
-    [switch]$ContractOnly
+    [switch]$ContractOnly,
+    [switch]$DesktopHostDevelopmentOptIn
 )
 
 $ErrorActionPreference = 'Stop'
@@ -79,6 +80,10 @@ $windowsDisplayTopologySourceCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsDisplayTopologySource.cs'
 $desktopHostWindowBridgeCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostWindowBridge.cs'
+$desktopHostFeaturePolicyCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopHostFeaturePolicy.cs'
+$desktopHostLifecycleControllerCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostLifecycleController.cs'
 $windowsDesktopHostWindowInspectorCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostWindowInspector.cs'
 $verifiedWindowBatchAdapterCodePath = Join-Path $projectRoot `
@@ -257,6 +262,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopHostWindowBridgeCode = Get-Content `
         -LiteralPath $desktopHostWindowBridgeCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopHostFeaturePolicyCode = Get-Content `
+        -LiteralPath $desktopHostFeaturePolicyCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopHostLifecycleControllerCode = Get-Content `
+        -LiteralPath $desktopHostLifecycleControllerCodePath `
         -Raw `
         -Encoding UTF8
     $windowsDesktopHostWindowInspectorCode = Get-Content `
@@ -957,6 +970,44 @@ function Test-SourceContract {
         'The initial window must remain bounded to 90 percent of the work area.'
     Assert-Condition ($codeBehind -match 'RuntimeStatusSnapshot\.CreateDevelopmentReadOnly') `
         'The UI must obtain its capability state from the audited Core snapshot.'
+    Assert-Condition (
+        $desktopHostFeaturePolicyCode -match 'LONGGRID_ENABLE_DESKTOP_HOST' -and
+        $desktopHostFeaturePolicyCode -match 'string\.Equals\(value,\s*"1",\s*StringComparison\.Ordinal\)'
+    ) `
+        'DesktopHost must remain disabled unless the exact audited development opt-in is present.'
+    Assert-Condition (
+        $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
+        $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and
+        $desktopHostLifecycleControllerCode -match 'Completed' -and
+        $desktopHostLifecycleControllerCode -match 'NativeHostConnected' -and
+        $desktopHostLifecycleControllerCode -match 'OwnedWindowCount'
+    ) `
+        'DesktopHost lifecycle must expose the finite anonymous state bridge.'
+    Assert-Condition (-not (
+        $desktopHostLifecycleControllerCode -match '\bnint\b|HWND|ProcessId|ThreadId|ProductDesktopHostWindowBridge|WindowsProductDesktopHostWindowInspector'
+    )) `
+        'The A1 lifecycle bridge must not create or expose native host/window authority.'
+    Assert-Condition (
+        ([regex]::Matches(
+            $appCode,
+            'ProductDesktopHostLifecycleController\s+productDesktopHostLifecycle')).Count -eq 1
+    ) `
+        'The App composition root must own exactly one DesktopHost lifecycle controller field.'
+    Assert-Condition (
+        $appCode -match 'ProductDesktopHostFeaturePolicy\.Evaluate' -and
+        $appCode -match 'Environment\.GetEnvironmentVariable' -and
+        $appCode -match 'ApplyProductDesktopHostLifecycleState' -and
+        $appCode -match 'productDesktopHostLifecycle\.DisposeAsync'
+    ) `
+        'The App must evaluate, present, and dispose the DesktopHost lifecycle boundary.'
+    Assert-Condition (
+        $codeBehind -match 'ApplyProductDesktopHostLifecycleState' -and
+        $codeBehind -match 'desktopHostFeatureEnabled:\s*_desktopHostFeatureEnabled' -and
+        $codeBehind -match 'DesktopHostValue\.Text\s*=\s*snapshot\.DesktopHost\s+switch' -and
+        $codeBehind -match 'RuntimeCapabilityState\.DisabledBySafetyPolicy' -and
+        $codeBehind -match 'RuntimeCapabilityState\.Disconnected'
+    ) `
+        'The control center must distinguish default-off from enabled-but-awaiting-host state.'
     Assert-Condition ($codeBehind -match 'FileOrganizationMode\.SafeReference') `
         'The onboarding prototype must default to the Core safe-reference semantic.'
     Assert-Condition ($codeBehind -match 'FileOrganizationMode\.ManagedMove') `
@@ -1929,7 +1980,7 @@ function Test-SourceContract {
         responsiveBreakpoints = 1
         compactWidth = 720
         dpiAwareInitialSize = 'pass'
-        coreRuntimeStatus = 'desktop-read-only-explicit-config-edit-enabled'
+        coreRuntimeStatus = 'desktop-read-only-config-edit-host-default-off'
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
@@ -1965,10 +2016,16 @@ function Find-UiaElement {
     )
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     do {
-        $element = $Root.FindFirst(
-            [System.Windows.Automation.TreeScope]::Descendants,
-            $condition
-        )
+        $element = $null
+        try {
+            $element = $Root.FindFirst(
+                [System.Windows.Automation.TreeScope]::Descendants,
+                $condition
+            )
+        }
+        catch [System.Runtime.InteropServices.COMException] {
+            # WinUI can briefly rebuild its automation tree during initial layout.
+        }
         if ($null -ne $element) {
             return $element
         }
@@ -2139,7 +2196,23 @@ public static class LongGridWindowNative
 }
 '@
 
-    $process = Start-Process -FilePath $appPath -PassThru
+    $desktopHostFlagName = 'LONGGRID_ENABLE_DESKTOP_HOST'
+    $previousDesktopHostFlag = [Environment]::GetEnvironmentVariable(
+        $desktopHostFlagName,
+        [EnvironmentVariableTarget]::Process)
+    try {
+        [Environment]::SetEnvironmentVariable(
+            $desktopHostFlagName,
+            $(if ($DesktopHostDevelopmentOptIn) { '1' } else { $null }),
+            [EnvironmentVariableTarget]::Process)
+        $process = Start-Process -FilePath $appPath -PassThru
+    }
+    finally {
+        [Environment]::SetEnvironmentVariable(
+            $desktopHostFlagName,
+            $previousDesktopHostFlag,
+            [EnvironmentVariableTarget]::Process)
+    }
     $liveResult = $null
     try {
         $deadline = [DateTime]::UtcNow.AddSeconds(15)
@@ -2229,8 +2302,15 @@ public static class LongGridWindowNative
             'The UI did not expose the Core development read-only mode.'
         Assert-Condition ($fileOperationCard.Current.ItemStatus -eq 'DisabledBySafetyPolicy') `
             'The UI did not expose the file-operation safety policy.'
-        Assert-Condition ($desktopHostCard.Current.ItemStatus -eq 'Disconnected') `
-            'The UI did not expose the disconnected DesktopHost boundary.'
+        $expectedDesktopHostStatus = if ($DesktopHostDevelopmentOptIn) {
+            'Disconnected'
+        }
+        else {
+            'DisabledBySafetyPolicy'
+        }
+        Assert-Condition (
+            $desktopHostCard.Current.ItemStatus -eq $expectedDesktopHostStatus
+        ) 'The UI did not expose the audited DesktopHost feature boundary.'
         Assert-VerticallyStacked `
             @($currentModeCard, $fileOperationCard, $desktopHostCard) `
             $layoutRoot.Current.BoundingRectangle
@@ -2462,7 +2542,8 @@ public static class LongGridWindowNative
             responsiveItemStatus = $layoutRoot.Current.ItemStatus
             compactCards = 3
             compactOrganizationModes = 2
-            coreRuntimeStatus = 'development-read-only'
+            coreRuntimeStatus = 'development-read-only-host-default-off'
+            desktopHost = $desktopHostCard.Current.ItemStatus
             firstOrganizationPrototype = 'blank-suggested-safe-preview-items-drop-semantics-two-step-undo'
             layoutRecoveryPrototype = 'review-expired-review-acknowledged-blocked-automatic-cancelled'
             productDesktopCatalog = $productCatalogStatus.Current.ItemStatus

@@ -3,6 +3,7 @@ using LongGrid.Core.DesktopHost;
 using LongGrid.Core.FileOperations;
 using LongGrid.Core.Runtime;
 using LongGrid.Infrastructure.Configuration;
+using LongGrid.Infrastructure.DesktopHost;
 using LongGrid.Infrastructure.DesktopItems;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -25,6 +26,8 @@ public sealed partial class MainWindow : Window
     private bool _suppressProductWorkspaceViewChanges;
     private bool _canResetProductWorkspaceView;
     private bool _canOpenProductWorkspaceEmptyCreate;
+    private bool _desktopCatalogConnected;
+    private bool _desktopHostFeatureEnabled;
     private string _organizationStartChoice = "suggested";
     private bool _practiceItemsAdded;
     private ProductConfigurationStartupMode _configurationStartupMode;
@@ -319,9 +322,11 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetItemStatus(
             ProductDesktopCatalogDetail,
             automationStatus);
+        _desktopCatalogConnected = snapshot.IsAuthoritative;
         ApplyRuntimeStatus(
             RuntimeStatusSnapshot.CreateDevelopmentReadOnly(
-                desktopCatalogConnected: snapshot.IsAuthoritative));
+                desktopCatalogConnected: _desktopCatalogConnected,
+                desktopHostFeatureEnabled: _desktopHostFeatureEnabled));
         CurrentModeDetail.Text = snapshot.Status switch
         {
             ProductDesktopCatalogStatus.Ready => "物理桌面目录已只读连接",
@@ -332,6 +337,17 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetItemStatus(
             CurrentModeValue,
             $"DevelopmentReadOnly:Catalog={snapshot.Status}:Generation={snapshot.Generation}");
+    }
+
+    internal void ApplyProductDesktopHostLifecycleState(
+        ProductDesktopHostLifecycleSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        _desktopHostFeatureEnabled = snapshot.FeatureEnabled;
+        ApplyRuntimeStatus(
+            RuntimeStatusSnapshot.CreateDevelopmentReadOnly(
+                desktopCatalogConnected: _desktopCatalogConnected,
+                desktopHostFeatureEnabled: _desktopHostFeatureEnabled));
     }
 
     private static (
@@ -2794,10 +2810,19 @@ public sealed partial class MainWindow : Window
 
         DesktopHostValue.Text = snapshot.DesktopHost switch
         {
-            RuntimeCapabilityState.Disconnected => "未连接",
+            RuntimeCapabilityState.DisabledBySafetyPolicy => "安全策略关闭",
+            RuntimeCapabilityState.Disconnected => "等待宿主",
+            RuntimeCapabilityState.ConnectedReadOnly => "只读已连接",
             _ => "状态不可用",
         };
-        DesktopHostDetail.Text = "不会创建宿主或影响 Explorer";
+        DesktopHostDetail.Text = snapshot.DesktopHost switch
+        {
+            RuntimeCapabilityState.DisabledBySafetyPolicy =>
+                "开发开关默认关闭，不会创建宿主或影响 Explorer",
+            RuntimeCapabilityState.Disconnected =>
+                "开发开关已开启；本阶段尚未创建桌面窗口",
+            _ => "宿主只报告匿名只读状态",
+        };
         AutomationProperties.SetItemStatus(
             DesktopHostValue,
             snapshot.DesktopHost.ToString());
