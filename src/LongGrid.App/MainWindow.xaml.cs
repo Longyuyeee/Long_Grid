@@ -360,6 +360,13 @@ public sealed partial class MainWindow : Window
                 DesktopHostValue,
                 snapshot.Status.ToString());
         }
+        else if (snapshot.Status == ProductDesktopHostLifecycleStatus.ReadyReadOnly)
+        {
+            DesktopHostDetail.Text =
+                $"已连接 {snapshot.OwnedWindowCount} 个显示器宿主，" +
+                $"呈现 {snapshot.RenderedContainerCount} 个只读方格 · " +
+                $"拓扑代次 {snapshot.TopologyGeneration}";
+        }
     }
 
     private static (

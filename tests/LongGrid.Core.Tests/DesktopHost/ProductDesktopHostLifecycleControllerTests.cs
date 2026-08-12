@@ -6,9 +6,10 @@ namespace LongGrid.Core.Tests.DesktopHost;
 public sealed class ProductDesktopHostLifecycleControllerTests
 {
     private static ProductDesktopHostReadOnlyProjection CreateProjection(
-        string title = "工作") =>
+        string title = "工作",
+        string containerId = "container-1") =>
         ProductDesktopHostReadOnlyProjection.Create(
-            "container-1",
+            containerId,
             title,
             ["需求.docx", "设计稿.fig"],
             "#2457D6",
@@ -18,6 +19,21 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             36,
             360,
             240);
+
+    private static ProductDesktopHostProjectionBatch CreateBatch(
+        params ProductDesktopHostDisplayProjection[]? displays) =>
+        ProductDesktopHostProjectionBatch.Create(
+            7,
+            11,
+            new string('A', 64),
+            displays is { Length: > 0 } ? displays :
+            [
+                ProductDesktopHostDisplayProjection.Create(
+                    "display-primary",
+                    new(0, 0, 1920, 1040),
+                    96,
+                    [CreateProjection()]),
+            ]);
 
     [Fact]
     public void DefaultPolicyCreatesNoNativeHostOrOwnedWindows()
@@ -113,7 +129,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             new FactoryBackedInspector(factory));
 
         ProductDesktopHostLifecycleSnapshot snapshot =
-            controller.ApplyProjection(CreateProjection());
+            controller.ApplyProjectionBatch(CreateBatch());
 
         Assert.Equal(
             ProductDesktopHostLifecycleStatus.DisabledBySafetyPolicy,
@@ -131,9 +147,9 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             new FactoryBackedInspector(factory));
 
         ProductDesktopHostLifecycleSnapshot ready =
-            controller.ApplyProjection(CreateProjection());
+            controller.ApplyProjectionBatch(CreateBatch());
         ProductDesktopHostLifecycleSnapshot unchanged =
-            controller.ApplyProjection(CreateProjection());
+            controller.ApplyProjectionBatch(CreateBatch());
 
         Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, ready.Status);
         Assert.True(ready.NativeHostConnected);
@@ -143,7 +159,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.False(onlySurface.IsDisposed);
 
         ProductDesktopHostLifecycleSnapshot waiting =
-            controller.ApplyProjection(null);
+            controller.ApplyProjectionBatch(null);
 
         Assert.Equal(ProductDesktopHostLifecycleStatus.AwaitingHost, waiting.Status);
         Assert.False(waiting.NativeHostConnected);
@@ -160,11 +176,16 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             ProductDesktopHostFeaturePolicy.Evaluate("1"),
             factory,
             new FactoryBackedInspector(factory));
-        _ = controller.ApplyProjection(CreateProjection());
+        _ = controller.ApplyProjectionBatch(CreateBatch());
         RecordingSurface first = Assert.Single(factory.Surfaces);
 
         ProductDesktopHostLifecycleSnapshot replacement =
-            controller.ApplyProjection(CreateProjection("项目"));
+            controller.ApplyProjectionBatch(CreateBatch(
+                ProductDesktopHostDisplayProjection.Create(
+                    "display-primary",
+                    new(0, 0, 1920, 1040),
+                    96,
+                    [CreateProjection("项目")])));
 
         Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, replacement.Status);
         Assert.True(first.IsDisposed);
@@ -184,12 +205,85 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             new FactoryBackedInspector(factory, returnWrongMarker: true));
 
         ProductDesktopHostLifecycleSnapshot snapshot =
-            controller.ApplyProjection(CreateProjection());
+            controller.ApplyProjectionBatch(CreateBatch());
 
         Assert.Equal(ProductDesktopHostLifecycleStatus.Faulted, snapshot.Status);
         Assert.False(snapshot.NativeHostConnected);
         Assert.Equal(0, snapshot.OwnedWindowCount);
         Assert.True(Assert.Single(factory.Surfaces).IsDisposed);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task MultiDisplayBatchOwnsOneSurfacePerDisplay()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        ProductDesktopHostDisplayProjection primary =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary",
+                new(0, 0, 1920, 1040),
+                96,
+                [CreateProjection(), CreateProjection("第二方格", "container-3")]);
+        ProductDesktopHostDisplayProjection secondary =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-secondary",
+                new(-1280, 0, 1280, 984),
+                120,
+                [ProductDesktopHostReadOnlyProjection.Create(
+                    "container-2",
+                    "副屏方格",
+                    ["项目"],
+                    "#123ABC",
+                    0.7,
+                    false,
+                    20,
+                    20,
+                    300,
+                    220)]);
+
+        ProductDesktopHostLifecycleSnapshot snapshot =
+            controller.ApplyProjectionBatch(CreateBatch(primary, secondary));
+
+        Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, snapshot.Status);
+        Assert.Equal(2, snapshot.OwnedWindowCount);
+        Assert.Equal(3, snapshot.RenderedContainerCount);
+        Assert.Equal(2, factory.Surfaces.Count);
+        await controller.DisposeAsync();
+        Assert.All(factory.Surfaces, surface => Assert.True(surface.IsDisposed));
+    }
+
+    [Fact]
+    public async Task SecondDisplayOwnershipFailureClosesEntireBatch()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory, mismatchSurfaceOrdinal: 2));
+        ProductDesktopHostDisplayProjection first =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary",
+                new(0, 0, 1920, 1040),
+                96,
+                [CreateProjection()]);
+        ProductDesktopHostDisplayProjection second =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-secondary",
+                new(-1280, 0, 1280, 984),
+                120,
+                [CreateProjection("副屏", "container-2")]);
+
+        ProductDesktopHostLifecycleSnapshot snapshot =
+            controller.ApplyProjectionBatch(CreateBatch(first, second));
+
+        Assert.Equal(ProductDesktopHostLifecycleStatus.Faulted, snapshot.Status);
+        Assert.Equal(0, snapshot.OwnedWindowCount);
+        Assert.Equal(2, factory.Surfaces.Count);
+        Assert.All(factory.Surfaces, surface => Assert.True(surface.IsDisposed));
         await controller.DisposeAsync();
     }
 
@@ -205,11 +299,14 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             ProductDesktopHostFeaturePolicy.Evaluate("1"));
 
         ProductDesktopHostLifecycleSnapshot snapshot =
-            controller.ApplyProjection(CreateProjection());
+            controller.ApplyProjectionBatch(CreateBatch());
 
         Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, snapshot.Status);
         Assert.True(snapshot.NativeHostConnected);
         Assert.Equal(1, snapshot.OwnedWindowCount);
+        Assert.Equal(7, snapshot.WorkspaceRevision);
+        Assert.Equal(11, snapshot.TopologyGeneration);
+        Assert.Equal(1, snapshot.RenderedContainerCount);
         await controller.DisposeAsync();
         Assert.Equal(ProductDesktopHostLifecycleStatus.Completed, controller.Snapshot.Status);
     }
@@ -242,7 +339,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         internal List<RecordingSurface> Surfaces { get; } = [];
 
         public IProductDesktopHostReadOnlySurface Create(
-            ProductDesktopHostReadOnlyProjection projection,
+            ProductDesktopHostDisplayProjection projection,
             nint instanceMarker)
         {
             var surface = new RecordingSurface(
@@ -276,7 +373,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
 
     private sealed class FactoryBackedInspector(
         RecordingSurfaceFactory factory,
-        bool returnWrongMarker = false) : IProductDesktopHostWindowInspector
+        bool returnWrongMarker = false,
+        int mismatchSurfaceOrdinal = 0) : IProductDesktopHostWindowInspector
     {
         public ProductDesktopHostWindowObservation Inspect(nint handle)
         {
@@ -287,11 +385,14 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                 return ProductDesktopHostWindowObservation.Missing;
             }
 
+            int ordinal = factory.Surfaces.IndexOf(surface) + 1;
+            bool mismatch = returnWrongMarker
+                || ordinal == mismatchSurfaceOrdinal;
             return new(
                 true,
                 surface.ProcessId,
                 surface.ThreadId,
-                returnWrongMarker ? surface.InstanceMarker + 1 : surface.InstanceMarker,
+                mismatch ? surface.InstanceMarker + 1 : surface.InstanceMarker,
                 new(24, 36, 360, 240));
         }
     }

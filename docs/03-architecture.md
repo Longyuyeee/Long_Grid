@@ -347,3 +347,9 @@ App 使用抑制标志把清空搜索、恢复全部筛选、恢复配置顺序�
 在严格默认关闭的 `LONGGRID_ENABLE_DESKTOP_HOST=1` 开发边界内，App 只把第一正式方格投影成有限的 `ProductDesktopHostReadOnlyProjection`。Infrastructure 创建产品自有的无激活、分层、点击穿透 ToolWindow，设置唯一实例标记，并在显示前后由既有窗口桥复读进程、线程、标记与 Bounds；任一不一致即销毁窗口并进入有限 `Faulted` 状态。
 
 该表面只用主工作区、静态 GDI 文本与最多 12 个可见显示名，不读取文件内容、不接收输入、不修改配置或桌面文件，也不访问 `Progman`、`WorkerW` 或 Explorer 内部结构。A3 应迁移到“每显示器一个 HWND + 多容器渲染批次”并绑定配置/拓扑/registry generation；在此之前不得把单 HWND 验证解释为多显示器、UIA、Win+D 或交互完成。
+
+## Stage 108：每显示器 generation 批次
+
+`ProductDesktopHostProjectionBuilder` 只接受权威 `ProductDisplayTopologySnapshot`，把最多 100 个正式方格按稳定 DisplayKey 分组；未知键回退唯一主显示器。批次携带 workspace revision、拓扑 generation 与 SHA-256 拓扑指纹，限制最多 16 个使用中显示器、全局唯一方格 ID 和有限显示文本。
+
+生命周期为每个实际含方格的显示器创建一个 HWND，同一显示器内所有方格由一个 `SetWindowRgn` 联合 Region 和一次 GDI 绘制承载。每个显示器 HWND 仍需进程、线程、实例标记与 Bounds 所有权复读；第二个或后续显示器失败时，先前已注册窗口也整批注销销毁。当前 GDI 用颜色与桌面基色混合近似有限透明度，不是最终逐像素 Composition 材质；A4 必须继续审计动态拓扑/关闭/资源，阶段 B 才能开放输入和 UIA Fragment。

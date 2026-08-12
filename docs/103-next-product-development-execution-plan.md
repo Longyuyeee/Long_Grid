@@ -290,6 +290,6 @@ MVP 完成必须同时满足：
 
 ## 12. 下一切片建议
 
-Stage 107 已完成 **A2：单显示器只读方格渲染**。严格开发 opt-in 后，App 会把第一正式方格的名称、有限颜色/透明度、折叠、DIP 放置与最多 12 个可见引用名投影到一个产品自有的只读 ToolWindow；创建后必须经进程、线程、实例标记与边界所有权复读，失败立即销毁。默认关闭或无正式方格时仍为零 HWND。
+Stage 108 已完成 **A3：多容器/多显示器 generation 投影**。App 仅在当前显示拓扑权威时构建批次：每个实际承载方格的显示器只创建一个产品 HWND，同一显示器的多个正式方格由一个 Region 聚合宿主绘制；批次绑定 workspace revision、拓扑 generation、拓扑指纹和窗口 registry generation。未知/旧 DisplayKey 确定性回退主显示器，任一显示器所有权失败会整批注销销毁。
 
-下一步是 **A3：多容器/多显示器 generation 投影**。该切片应把“单方格/主工作区”扩为“每显示器一个宿主 + 多方格渲染批次”，绑定配置 revision、拓扑 generation 和窗口 registry generation，避免逐方格 HWND 扩张；仍不开放点击、拖放、真实文件操作、任务栏或插件权限。A2 证据与限制见[Stage 107 审计](107-desktop-host-single-monitor-readonly-surface-audit.md)。
+下一步是 **A4：动态拓扑、关闭/故障补偿与资源审计**。应验证重复刷新、显示器增删/旋转/DPI 变化、Explorer 重启、会话切换、连续配置 revision 与异常关闭时的 latest-wins、无闪烁收敛和 USER/GDI/handle 上限；仍不开放点击、拖放、真实文件操作、任务栏或插件权限。A3 证据与限制见[Stage 108 审计](108-desktop-host-per-display-generation-batch-audit.md)。
