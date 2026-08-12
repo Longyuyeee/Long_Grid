@@ -290,6 +290,8 @@ MVP 完成必须同时满足：
 
 ## 12. 下一切片建议
 
+> 2026-08-12 / Stage 113 更新：B3「选择模型、焦点语义与隔离 UIA Selection 合同」已完成。单方格最多 256 个匿名 ID 支持普通/Ctrl/Shift/Ctrl+Shift、Previous/Next/Home/End、focus-only 导航和稳定 anchor；状态严格绑定 lease、三类 generation、expiry 与可见 ID 顺序。Passive UIA 仍无 Selection 且不可聚焦，Explicit 隔离合同才映射 Select/Add/Remove。正式 UIA provider、HWND、App 和文件系统未接线。下一切片为 B4「隔离交互 surface probe 与输入模式切换事务」。详见 [Stage 113 审计](113-desktop-interaction-selection-focus-uia-contract-audit.md)。
+
 > 2026-08-12 / Stage 112 更新：B2「产品命中区域与焦点/取消适配器」隔离切片已完成。命中复用正式 SurfaceLayout，区分 header/content/visible item，对重叠目标拒绝猜测 Z-order；三种明确激活生成固定最长 5 秒、绑定三类 generation 的 B1 意图；Esc、失焦、Win+D、全屏、会话/RDP、Explorer 和 shutdown 统一取消，evidence/timer 继续走 B1 复核。正式 HWND 保持 `HTTRANSPARENT`，App 与文件系统未接线。下一切片为 B3「选择模型、焦点语义与只读 UIA Selection 合同」，先完成纯状态机和隔离 probe。详见 [Stage 112 审计](112-desktop-interaction-hit-test-cancellation-audit.md)。
 
 > 2026-08-12 / Stage 111 更新：B1「桌面交互准入与模式状态机」工程切片已完成。交互拥有独立精确 opt-in，显式意图最长 5 秒，并绑定 workspace revision、topology generation、window registry generation、只读 UIA/被动窗口证明与单一未锁定目标；任一证据变化均回到 Passive。该状态机仍与 App、真实 HWND 输入及文件系统隔离。下一切片为 B2「产品命中区域与焦点/取消适配器」，复用统一 SurfaceLayout，先完成 hit-test、Esc/失焦/Win+D/拓扑变化取消和隔离 probe，不开放真实文件移动、复制或删除。详见 [Stage 111 审计](111-desktop-interaction-admission-state-machine-audit.md)。
