@@ -28,6 +28,7 @@ public sealed partial class MainWindow : Window
     private bool _canOpenProductWorkspaceEmptyCreate;
     private bool _desktopCatalogConnected;
     private bool _desktopHostFeatureEnabled;
+    private bool _desktopHostConnected;
     private string _organizationStartChoice = "suggested";
     private bool _practiceItemsAdded;
     private ProductConfigurationStartupMode _configurationStartupMode;
@@ -326,7 +327,8 @@ public sealed partial class MainWindow : Window
         ApplyRuntimeStatus(
             RuntimeStatusSnapshot.CreateDevelopmentReadOnly(
                 desktopCatalogConnected: _desktopCatalogConnected,
-                desktopHostFeatureEnabled: _desktopHostFeatureEnabled));
+                desktopHostFeatureEnabled: _desktopHostFeatureEnabled,
+                desktopHostConnected: _desktopHostConnected));
         CurrentModeDetail.Text = snapshot.Status switch
         {
             ProductDesktopCatalogStatus.Ready => "物理桌面目录已只读连接",
@@ -344,10 +346,20 @@ public sealed partial class MainWindow : Window
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         _desktopHostFeatureEnabled = snapshot.FeatureEnabled;
+        _desktopHostConnected = snapshot.NativeHostConnected;
         ApplyRuntimeStatus(
             RuntimeStatusSnapshot.CreateDevelopmentReadOnly(
                 desktopCatalogConnected: _desktopCatalogConnected,
-                desktopHostFeatureEnabled: _desktopHostFeatureEnabled));
+                desktopHostFeatureEnabled: _desktopHostFeatureEnabled,
+                desktopHostConnected: _desktopHostConnected));
+        if (snapshot.Status == ProductDesktopHostLifecycleStatus.Faulted)
+        {
+            DesktopHostValue.Text = "宿主异常";
+            DesktopHostDetail.Text = "所有权验证失败，桌面方格已安全关闭";
+            AutomationProperties.SetItemStatus(
+                DesktopHostValue,
+                snapshot.Status.ToString());
+        }
     }
 
     private static (
@@ -2821,6 +2833,8 @@ public sealed partial class MainWindow : Window
                 "开发开关默认关闭，不会创建宿主或影响 Explorer",
             RuntimeCapabilityState.Disconnected =>
                 "开发开关已开启；本阶段尚未创建桌面窗口",
+            RuntimeCapabilityState.ConnectedReadOnly =>
+                "单显示器只读方格已连接，不接收输入或文件操作",
             _ => "宿主只报告匿名只读状态",
         };
         AutomationProperties.SetItemStatus(

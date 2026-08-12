@@ -33,7 +33,8 @@ public sealed record RuntimeStatusSnapshot
 
     public static RuntimeStatusSnapshot CreateDevelopmentReadOnly(
         bool desktopCatalogConnected = false,
-        bool desktopHostFeatureEnabled = false) =>
+        bool desktopHostFeatureEnabled = false,
+        bool desktopHostConnected = false) =>
         new(
             RuntimeMode.DevelopmentReadOnly,
             desktopCatalogConnected
@@ -41,6 +42,8 @@ public sealed record RuntimeStatusSnapshot
                 : RuntimeCapabilityState.Disconnected,
             RuntimeCapabilityState.DisabledBySafetyPolicy,
             desktopHostFeatureEnabled
-                ? RuntimeCapabilityState.Disconnected
+                ? desktopHostConnected
+                    ? RuntimeCapabilityState.ConnectedReadOnly
+                    : RuntimeCapabilityState.Disconnected
                 : RuntimeCapabilityState.DisabledBySafetyPolicy);
 }
