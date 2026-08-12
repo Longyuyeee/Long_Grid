@@ -92,6 +92,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格 DesktopHost 每显示器 Generation 批次审计](docs/108-desktop-host-per-display-generation-batch-audit.md)
 - [Long方格 DesktopHost 动态拓扑生命周期加固审计](docs/109-desktop-host-dynamic-topology-lifecycle-audit.md)
 - [Long方格 DesktopHost 只读 UIA 与产品会话合同审计](docs/110-desktop-host-readonly-uia-session-contract-audit.md)
+- [Long方格桌面交互准入与模式状态机审计](docs/111-desktop-interaction-admission-state-machine-audit.md)
 - [Long方格正式容器创建与重命名提交审计](docs/54-container-create-rename-commit-audit.md)
 - [Long方格正式容器锁定与折叠提交审计](docs/55-container-lock-collapse-commit-audit.md)
 - [Long方格正式容器受限外观提交审计](docs/56-container-finite-appearance-commit-audit.md)
@@ -139,7 +140,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。A5 自动化子切片已完成：严格默认关闭的每显示器只读 DesktopHost 现在公开与视觉 Bounds 一致的 Root→方格→可见项目 UIA Fragment，全部不可聚焦且没有 Selection/Invoke；每个 HWND 还必须复读非置顶、无 Owner、NoActivate 和前台稳定，任一失败整批关闭。A5-01..A5-06 真实会话结果仍为 PendingManualEvidence，不能写成最终验收。下一代码切片 B1 将建立独立默认关闭的桌面交互准入状态机；当前不接收桌面交互，不读取文件内容，不写入、移动或删除桌面文件，也不访问 Explorer 内部桌面窗口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B1 工程切片已完成：在 A5 被动只读 DesktopHost 之前新增独立、严格默认关闭的桌面交互准入状态机；显式意图最长 5 秒，并绑定 workspace、显示拓扑、窗口注册表 generation、单一未锁定目标及两项宿主证明，任一变化立即回到 Passive。它尚未接入 App、真实 HWND 输入或文件操作；下一切片 B2 将实现共享几何命中与焦点/取消适配器。A5-01..A5-06 真实会话结果仍为 PendingManualEvidence，不能写成最终验收。当前不读取文件内容，不写入、移动或删除桌面文件，也不访问 Explorer 内部桌面窗口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 
@@ -150,7 +151,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -File ./eng/Start-LongGrid.ps1
 ```
 
-该入口默认执行锁定依赖恢复、必要构建和启动；不提权，默认不创建 DesktopHost 窗口。App 只读枚举用户桌面与公共桌面第一层元数据，不读取文件内容，也不执行桌面文件写入/移动。开发者可显式设置 `LONGGRID_ENABLE_DESKTOP_HOST=1` 验证带只读 UIA 与被动窗口复读的每显示器批次；受控人工会话使用 `eng/Start-DesktopHostProductSessionMatrix.ps1`。该开关不是用户许可或发布默认值。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[Stage 110 审计](docs/110-desktop-host-readonly-uia-session-contract-audit.md)。
+该入口默认执行锁定依赖恢复、必要构建和启动；不提权，默认不创建 DesktopHost 窗口。App 只读枚举用户桌面与公共桌面第一层元数据，不读取文件内容，也不执行桌面文件写入/移动。开发者可显式设置 `LONGGRID_ENABLE_DESKTOP_HOST=1` 验证带只读 UIA 与被动窗口复读的每显示器批次；受控人工会话使用 `eng/Start-DesktopHostProductSessionMatrix.ps1`。B1 另定义 `LONGGRID_ENABLE_DESKTOP_INTERACTION=1`，但当前 App 故意不读取它，单独设置任何一个开关都不会启用交互；二者都不是用户许可或发布默认值。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[Stage 110](docs/110-desktop-host-readonly-uia-session-contract-audit.md)与[Stage 111 审计](docs/111-desktop-interaction-admission-state-machine-audit.md)。
 
 从干净、已提交的工作树一键生成并交叉验证完整内部 RC 交付集合：
 

@@ -82,6 +82,8 @@ $desktopHostWindowBridgeCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostWindowBridge.cs'
 $desktopHostFeaturePolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopHostFeaturePolicy.cs'
+$desktopInteractionAdmissionCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionAdmission.cs'
 $desktopHostLifecycleControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostLifecycleController.cs'
 $desktopHostProjectionBatchCodePath = Join-Path $projectRoot `
@@ -276,6 +278,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopHostFeaturePolicyCode = Get-Content `
         -LiteralPath $desktopHostFeaturePolicyCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopInteractionAdmissionCode = Get-Content `
+        -LiteralPath $desktopInteractionAdmissionCodePath `
         -Raw `
         -Encoding UTF8
     $desktopHostLifecycleControllerCode = Get-Content `
@@ -1005,6 +1011,30 @@ function Test-SourceContract {
         $desktopHostFeaturePolicyCode -match 'string\.Equals\(value,\s*"1",\s*StringComparison\.Ordinal\)'
     ) `
         'DesktopHost must remain disabled unless the exact audited development opt-in is present.'
+    Assert-Condition (
+        $desktopInteractionAdmissionCode -match `
+            'LONGGRID_ENABLE_DESKTOP_INTERACTION' -and
+        $desktopInteractionAdmissionCode -match `
+            'DisabledByDesktopHostSafetyPolicy' -and
+        $desktopInteractionAdmissionCode -match `
+            'DisabledByInteractionSafetyPolicy' -and
+        $desktopInteractionAdmissionCode -match `
+            'MaximumIntentLifetime' -and
+        $desktopInteractionAdmissionCode -match 'WorkspaceRevision' -and
+        $desktopInteractionAdmissionCode -match 'TopologyGeneration' -and
+        $desktopInteractionAdmissionCode -match `
+            'WindowRegistryGeneration' -and
+        $desktopInteractionAdmissionCode -match `
+            'ReadOnlyAccessibilityAttested' -and
+        $desktopInteractionAdmissionCode -match `
+            'PassiveWindowContractAttested' -and
+        $desktopInteractionAdmissionCode -match 'TargetLocked' -and
+        -not ($appCode -match `
+            'ProductDesktopInteractionAdmissionController|LONGGRID_ENABLE_DESKTOP_INTERACTION') -and
+        -not ($desktopHostInputControllerCode -match `
+            'ProductDesktopInteractionAdmissionController')
+    ) `
+        'Desktop interaction must require a separate exact opt-in, finite generation-bound intent, current host attestations, and remain blocked from App and native input wiring.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and
