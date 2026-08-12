@@ -4,6 +4,8 @@
 
 每个阶段内的需求进入、风险分级、Phase 0 双轨验证、技术探针、PR、测试、Definition of Done 和发布流程统一遵循[开发流程与交付规范](10-development-workflow.md)。
 
+从当前内部 RC 收尾推进到桌面管理 MVP、任务栏实验和 Widget/Long助手生态的详细顺序、交付物及验收门槛，统一以[Stage 103 后续产品开发详细执行计划](103-next-product-development-execution-plan.md)为准。
+
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
 当前状态、证据等级、集成风险和建议顺序见[当前开发状态与后续方向审计](11-development-status-and-direction-audit.md)，与 2026-07-30 初始计划的逐项对比见[初始计划对齐与偏移审计](13-original-plan-alignment-audit.md)。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
