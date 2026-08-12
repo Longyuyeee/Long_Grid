@@ -468,3 +468,9 @@ PR #152 合并后的 main CI 在 633 项中仅有真实 Store 容器提交复读
 当前产品阶段明确为 Phase 0/内部 RC 收尾与 Phase 1 产品接线之间。控制中心、正式配置工作区、只读 Desktop Catalog、保存恢复和 DesktopHost 底层工程已经具备，但正式方格仍未作为稳定桌面可见层接入 App，因此不能把现状表述为已经达到 iTop/Fences 的用户体验。
 
 后续固定按六个产品阶段推进：真实 DesktopHost 接线、桌面直接交互、自动整理建议、布局/窗口工作空间、视觉性能与人工证据收口、签名安装和内部 MVP 发布。任务栏外观、LongBar、Widget Host 和 Long助手插件运行时保持 MVP 后独立阶段。下一切片是 A1：建立 App 对 DesktopHost 的唯一生命周期所有权、有限状态桥和默认关闭的开发 Feature Flag；不开放真实文件移动、任务栏或插件权限。详细交付与门槛见[Stage 103 后续产品开发详细执行计划](103-next-product-development-execution-plan.md)。
+
+## 25. 2026-08-12 Stage 104 CI RC 恢复增量审计
+
+Stage 103 文档 PR #154 暴露内部 RC 对 runner 缓存的隐式依赖：普通 solution restore 后传 `-NoRestore`，无法保证 `win-x64` self-contained runtime pack 已准备，导致 `NETSDK1112`。该失败与 Markdown 差异无关，且发生在其余全部工程门禁通过之后。
+
+CI 现保留质量门禁与工具恢复复用，但让 RC 入口自行执行 RID/Windows App SDK self-contained 专用恢复。新增源码合同禁止 CI 再次传 `-NoRestore`，并验证恢复先于 publish。应用行为、包内容、签名和发布权限不变；最终结论等待 PR 与 main 的干净 runner 证据。

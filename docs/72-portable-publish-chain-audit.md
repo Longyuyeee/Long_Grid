@@ -70,6 +70,6 @@
 
 ## 6. CI 与剩余风险
 
-PR/main CI 在既有完整测试、覆盖率和漏洞门禁之后，以 `-SkipQualityGates -NoRestore` 真实执行 publish、两次确定性压缩和结构复核；产物不上传到 Actions，也不创建 GitHub Release。
+PR/main CI 在既有完整测试、覆盖率和漏洞门禁之后，以 `-SkipQualityGates` 复用质量门禁，但仍由 RC 入口执行 `win-x64` + Windows App SDK self-contained 专用恢复，再真实执行 publish、两次确定性压缩和结构复核；不能把普通 solution restore 或 runner 缓存当成运行时包证据。产物不上传到 Actions，也不创建 GitHub Release。
 
 下一工程切片应审计 MSIX 工程与包身份，明确开发证书/正式证书隔离、版本升级/降级、卸载残留、开始菜单/快捷方式、多用户和回滚矩阵。在许可证、签名、SBOM、受支持机器矩阵、#19/#20/#23/#24 外部证据和正式渠道批准完成前，项目仍不能公开发布或宣称 RC 完成。
