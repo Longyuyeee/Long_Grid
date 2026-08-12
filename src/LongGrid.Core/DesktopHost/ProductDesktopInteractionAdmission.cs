@@ -64,6 +64,14 @@ public enum ProductDesktopInteractionCancellationReason
 {
     None,
     ExplicitCancel,
+    EscapePressed,
+    FocusLost,
+    DesktopRevealRequested,
+    FullScreenTransition,
+    SessionUnavailable,
+    RemoteSessionTransition,
+    ExplorerRestarted,
+    ApplicationShutdown,
     IntentExpired,
     HostUnavailable,
     HostAttestationLost,
@@ -226,6 +234,36 @@ public sealed class ProductDesktopInteractionAdmissionController
             return snapshot.HasActiveLease
                 ? CancelUnchecked(
                     ProductDesktopInteractionCancellationReason.ExplicitCancel)
+                : snapshot;
+        }
+    }
+
+    internal ProductDesktopInteractionSnapshot CancelForSystemTransition(
+        ProductDesktopInteractionCancellationReason reason)
+    {
+        if (reason is not (ProductDesktopInteractionCancellationReason
+                .EscapePressed
+            or ProductDesktopInteractionCancellationReason.FocusLost
+            or ProductDesktopInteractionCancellationReason
+                .DesktopRevealRequested
+            or ProductDesktopInteractionCancellationReason
+                .FullScreenTransition
+            or ProductDesktopInteractionCancellationReason.SessionUnavailable
+            or ProductDesktopInteractionCancellationReason
+                .RemoteSessionTransition
+            or ProductDesktopInteractionCancellationReason.ExplorerRestarted
+            or ProductDesktopInteractionCancellationReason
+                .ApplicationShutdown))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(reason),
+                "System transitions require an explicit cancellation reason.");
+        }
+
+        lock (sync)
+        {
+            return snapshot.HasActiveLease
+                ? CancelUnchecked(reason)
                 : snapshot;
         }
     }

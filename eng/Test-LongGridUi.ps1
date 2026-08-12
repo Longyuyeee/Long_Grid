@@ -84,6 +84,10 @@ $desktopHostFeaturePolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopHostFeaturePolicy.cs'
 $desktopInteractionAdmissionCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionAdmission.cs'
+$desktopInteractionCancellationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionCancellationAdapter.cs'
+$desktopInteractionHitTestCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionHitTestAdapter.cs'
 $desktopHostLifecycleControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostLifecycleController.cs'
 $desktopHostProjectionBatchCodePath = Join-Path $projectRoot `
@@ -282,6 +286,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopInteractionAdmissionCode = Get-Content `
         -LiteralPath $desktopInteractionAdmissionCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopInteractionCancellationCode = Get-Content `
+        -LiteralPath $desktopInteractionCancellationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopInteractionHitTestCode = Get-Content `
+        -LiteralPath $desktopInteractionHitTestCodePath `
         -Raw `
         -Encoding UTF8
     $desktopHostLifecycleControllerCode = Get-Content `
@@ -1035,6 +1047,33 @@ function Test-SourceContract {
             'ProductDesktopInteractionAdmissionController')
     ) `
         'Desktop interaction must require a separate exact opt-in, finite generation-bound intent, current host attestations, and remain blocked from App and native input wiring.'
+    Assert-Condition (
+        $desktopInteractionHitTestCode -match `
+            'ProductDesktopHostSurfaceLayout\s*\r?\n\s*\.GetContainerBounds' -and
+        $desktopInteractionHitTestCode -match 'AmbiguousTarget' -and
+        $desktopInteractionHitTestCode -match 'OutsideSurface' -and
+        $desktopInteractionHitTestCode -match `
+            'MaximumIntentLifetime' -and
+        $desktopInteractionHitTestCode -match 'DateTimeOffset\.MaxValue' -and
+        $desktopInteractionCancellationCode -match 'EscapePressed' -and
+        $desktopInteractionCancellationCode -match 'FocusLost' -and
+        $desktopInteractionCancellationCode -match `
+            'DesktopRevealRequested' -and
+        $desktopInteractionCancellationCode -match `
+            'SessionLockedOrDisconnected' -and
+        $desktopInteractionCancellationCode -match 'ExplorerRestarted' -and
+        $desktopInteractionCancellationCode -match `
+            'ApplicationShutdown' -and
+        $desktopInteractionCancellationCode -match `
+            'controller\.Revalidate' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)' -and
+        -not ($appCode -match `
+            'ProductDesktopInteractionHitTestAdapter|ProductDesktopInteractionIntentFactory|ProductDesktopInteractionCancellationAdapter') -and
+        -not ($windowsDesktopHostReadOnlySurfaceCode -match `
+            'ProductDesktopInteractionHitTestAdapter|ProductDesktopInteractionIntentFactory|ProductDesktopInteractionCancellationAdapter')
+    ) `
+        'B2 hit testing must reuse the shared surface layout, reject overlap, issue finite intentions, unify cancellation semantics, preserve HWND transparency, and remain App-blocked.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and
