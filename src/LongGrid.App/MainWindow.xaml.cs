@@ -367,6 +367,19 @@ public sealed partial class MainWindow : Window
                 $"呈现 {snapshot.RenderedContainerCount} 个只读方格 · " +
                 $"拓扑代次 {snapshot.TopologyGeneration}";
         }
+        else if (snapshot.Status ==
+            ProductDesktopHostLifecycleStatus.SuspendedUnsafeTopology)
+        {
+            DesktopHostValue.Text = "宿主已安全隐藏";
+            DesktopHostDetail.Text =
+                $"显示拓扑正在变化或不可验证 · 拓扑代次 {snapshot.TopologyGeneration}";
+        }
+        else if (snapshot.Status ==
+            ProductDesktopHostLifecycleStatus.AwaitingWorkspace)
+        {
+            DesktopHostValue.Text = "等待桌面方格";
+            DesktopHostDetail.Text = "当前工作区为空，未创建桌面宿主窗口";
+        }
     }
 
     private static (

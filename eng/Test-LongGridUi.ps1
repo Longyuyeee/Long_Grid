@@ -86,6 +86,8 @@ $desktopHostLifecycleControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostLifecycleController.cs'
 $desktopHostProjectionBatchCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostProjectionBatch.cs'
+$desktopHostProjectionUpdateCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostProjectionUpdate.cs'
 $desktopHostProjectionBuilderCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostProjectionBuilder.cs'
 $windowsDesktopHostWindowInspectorCodePath = Join-Path $projectRoot `
@@ -280,6 +282,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopHostProjectionBatchCode = Get-Content `
         -LiteralPath $desktopHostProjectionBatchCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopHostProjectionUpdateCode = Get-Content `
+        -LiteralPath $desktopHostProjectionUpdateCodePath `
         -Raw `
         -Encoding UTF8
     $desktopHostProjectionBuilderCode = Get-Content `
@@ -996,6 +1002,8 @@ function Test-SourceContract {
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and
+        $desktopHostLifecycleControllerCode -match 'AwaitingWorkspace' -and
+        $desktopHostLifecycleControllerCode -match 'SuspendedUnsafeTopology' -and
         $desktopHostLifecycleControllerCode -match 'ReadyReadOnly' -and
         $desktopHostLifecycleControllerCode -match 'Faulted' -and
         $desktopHostLifecycleControllerCode -match 'Completed' -and
@@ -1011,6 +1019,9 @@ function Test-SourceContract {
         $desktopHostLifecycleControllerCode -match 'WindowsProductDesktopHostWindowInspector' -and
         $desktopHostLifecycleControllerCode -match 'OwnershipAttested' -and
         $desktopHostLifecycleControllerCode -match 'ApplyProjectionBatch' -and
+        $desktopHostLifecycleControllerCode -match 'ApplyProjectionUpdate' -and
+        $desktopHostLifecycleControllerCode -match 'lastWorkspaceRevision' -and
+        $desktopHostLifecycleControllerCode -match 'lastTopologyGeneration' -and
         $desktopHostLifecycleControllerCode -match 'registrations' -and
         $desktopHostLifecycleControllerCode -match 'surfaces' -and
         $desktopHostLifecycleControllerCode -match 'ReleaseSurfaceUnsafe'
@@ -1028,6 +1039,17 @@ function Test-SourceContract {
         $desktopHostProjectionBuilderCode -match 'source\.Placement\.DisplayKey'
     ) `
         'The A3 projection must be bounded, generation-bound, authoritative-topology-only, and use a deterministic primary fallback.'
+    Assert-Condition (
+        $desktopHostProjectionUpdateCode -match 'TopologyRefreshing' -and
+        $desktopHostProjectionUpdateCode -match 'TopologyUnavailable' -and
+        $desktopHostProjectionUpdateCode -match 'EmptyWorkspace' -and
+        $desktopHostProjectionUpdateCode -match 'Invalid' -and
+        $desktopHostProjectionBuilderCode -match 'BuildUpdate' -and
+        $desktopHostLifecycleControllerCode -match 'UpdatesEqual' -and
+        $desktopHostLifecycleControllerCode -match 'update\.WorkspaceRevision\s*<' -and
+        $desktopHostLifecycleControllerCode -match 'update\.TopologyGeneration\s*<'
+    ) `
+        'The A4 projection boundary must distinguish unsafe states and reject stale generations.'
     Assert-Condition (
         $windowsDesktopHostReadOnlySurfaceCode -match 'WsExToolWindow' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'WsExNoActivate' -and
@@ -1055,8 +1077,8 @@ function Test-SourceContract {
         $appCode -match 'ProductDesktopHostFeaturePolicy\.Evaluate' -and
         $appCode -match 'Environment\.GetEnvironmentVariable' -and
         $appCode -match 'ApplyProductDesktopHostLifecycleState' -and
-        $appCode -match 'ApplyProjectionBatch' -and
-        $appCode -match 'ProductDesktopHostProjectionBuilder\.Build' -and
+        $appCode -match 'ApplyProjectionUpdate' -and
+        $appCode -match 'ProductDesktopHostProjectionBuilder\.BuildUpdate' -and
         $appCode -match 'productDesktopHostLifecycle\.DisposeAsync'
     ) `
         'The App must evaluate, present, and dispose the DesktopHost lifecycle boundary.'
@@ -2041,7 +2063,7 @@ function Test-SourceContract {
         responsiveBreakpoints = 1
         compactWidth = 720
         dpiAwareInitialSize = 'pass'
-        coreRuntimeStatus = 'desktop-read-only-config-edit-host-default-off-per-display-batch-opt-in'
+        coreRuntimeStatus = 'desktop-read-only-config-edit-host-default-off-dynamic-topology-hardened'
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'

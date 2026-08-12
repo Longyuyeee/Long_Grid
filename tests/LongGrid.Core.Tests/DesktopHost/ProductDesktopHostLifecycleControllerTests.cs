@@ -35,6 +35,38 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                     [CreateProjection()]),
             ]);
 
+    private static ProductDesktopHostProjectionBatch CreateVersionedBatch(
+        long workspaceRevision,
+        long topologyGeneration,
+        string title = "方格") =>
+        ProductDesktopHostProjectionBatch.Create(
+            workspaceRevision,
+            topologyGeneration,
+            new string('B', 64),
+            [
+                ProductDesktopHostDisplayProjection.Create(
+                    "display-primary",
+                    new(0, 0, 1920, 1040),
+                    96,
+                    [CreateProjection(title)]),
+            ]);
+
+    private static ProductDesktopHostProjectionUpdate ReadyUpdate(
+        long workspaceRevision,
+        long topologyGeneration,
+        string title = "方格")
+    {
+        ProductDesktopHostProjectionBatch batch = CreateVersionedBatch(
+            workspaceRevision,
+            topologyGeneration,
+            title);
+        return ProductDesktopHostProjectionUpdate.Create(
+            workspaceRevision,
+            topologyGeneration,
+            ProductDesktopHostProjectionDisposition.Ready,
+            batch);
+    }
+
     [Fact]
     public void DefaultPolicyCreatesNoNativeHostOrOwnedWindows()
     {
@@ -329,6 +361,131 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.False(completed.NativeHostConnected);
         Assert.Equal(0, completed.OwnedWindowCount);
         Assert.Equal(completed, controller.Snapshot);
+    }
+
+    [Fact]
+    public async Task RefreshingHidesSurfacesAndReadyRecoversSameTopologyGeneration()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        _ = controller.ApplyProjectionUpdate(ReadyUpdate(7, 11));
+        RecordingSurface first = Assert.Single(factory.Surfaces);
+
+        ProductDesktopHostLifecycleSnapshot suspended =
+            controller.ApplyProjectionUpdate(
+                ProductDesktopHostProjectionUpdate.Create(
+                    7,
+                    12,
+                    ProductDesktopHostProjectionDisposition.TopologyRefreshing));
+
+        Assert.Equal(
+            ProductDesktopHostLifecycleStatus.SuspendedUnsafeTopology,
+            suspended.Status);
+        Assert.True(first.IsDisposed);
+        Assert.Equal(0, suspended.OwnedWindowCount);
+
+        ProductDesktopHostLifecycleSnapshot recovered =
+            controller.ApplyProjectionUpdate(ReadyUpdate(7, 12, "恢复"));
+
+        Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, recovered.Status);
+        Assert.False(factory.Surfaces[^1].IsDisposed);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task StaleUpdateCannotReplaceLatestSurface()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        ProductDesktopHostLifecycleSnapshot latest =
+            controller.ApplyProjectionUpdate(ReadyUpdate(9, 15));
+        RecordingSurface surface = Assert.Single(factory.Surfaces);
+
+        ProductDesktopHostLifecycleSnapshot ignored =
+            controller.ApplyProjectionUpdate(ReadyUpdate(10, 14, "迟到"));
+
+        Assert.Equal(latest, ignored);
+        Assert.False(surface.IsDisposed);
+        Assert.Single(factory.Surfaces);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ConflictingTerminalUpdateFailsClosed()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        _ = controller.ApplyProjectionUpdate(ReadyUpdate(7, 11, "第一版"));
+
+        ProductDesktopHostLifecycleSnapshot conflict =
+            controller.ApplyProjectionUpdate(ReadyUpdate(7, 11, "冲突版"));
+
+        Assert.Equal(ProductDesktopHostLifecycleStatus.Faulted, conflict.Status);
+        Assert.Equal(0, conflict.OwnedWindowCount);
+        Assert.True(Assert.Single(factory.Surfaces).IsDisposed);
+
+        ProductDesktopHostLifecycleSnapshot recovered =
+            controller.ApplyProjectionUpdate(ReadyUpdate(8, 12, "恢复版"));
+
+        Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, recovered.Status);
+        Assert.Equal(2, factory.Surfaces.Count);
+        Assert.False(factory.Surfaces[^1].IsDisposed);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task EmptyWorkspaceOwnsNoSurfaceAndDisposedControllerRejectsUpdates()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+
+        ProductDesktopHostLifecycleSnapshot empty =
+            controller.ApplyProjectionUpdate(
+                ProductDesktopHostProjectionUpdate.Create(
+                    3,
+                    4,
+                    ProductDesktopHostProjectionDisposition.EmptyWorkspace));
+
+        Assert.Equal(ProductDesktopHostLifecycleStatus.AwaitingWorkspace, empty.Status);
+        Assert.Empty(factory.Surfaces);
+        await controller.DisposeAsync();
+        Assert.Throws<ObjectDisposedException>(() =>
+            controller.ApplyProjectionUpdate(ReadyUpdate(4, 4)));
+    }
+
+    [Fact]
+    public async Task RapidRevisionsReleaseEverySupersededSurface()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+
+        for (int revision = 1; revision <= 100; revision++)
+        {
+            _ = controller.ApplyProjectionUpdate(
+                ReadyUpdate(revision, 11, $"方格 {revision}"));
+        }
+
+        Assert.Equal(100, controller.Snapshot.WorkspaceRevision);
+        Assert.Equal(100, factory.Surfaces.Count);
+        Assert.All(factory.Surfaces[..^1], surface => Assert.True(surface.IsDisposed));
+        Assert.False(factory.Surfaces[^1].IsDisposed);
+        await controller.DisposeAsync();
+        Assert.True(factory.Surfaces[^1].IsDisposed);
     }
 
     private sealed class RecordingSurfaceFactory

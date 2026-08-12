@@ -5,6 +5,63 @@ namespace LongGrid.Infrastructure.DesktopHost;
 
 public static class ProductDesktopHostProjectionBuilder
 {
+    public static ProductDesktopHostProjectionUpdate BuildUpdate(
+        ProductWorkspaceState? state,
+        ProductWorkspaceReadSnapshot? readSnapshot,
+        ProductDisplayTopologySnapshot topology,
+        long workspaceRevision)
+    {
+        ArgumentNullException.ThrowIfNull(topology);
+        ArgumentOutOfRangeException.ThrowIfNegative(workspaceRevision);
+
+        ProductDesktopHostProjectionDisposition unavailableDisposition =
+            topology.Status == ProductDisplayTopologyStatus.Refreshing
+                ? ProductDesktopHostProjectionDisposition.TopologyRefreshing
+                : ProductDesktopHostProjectionDisposition.TopologyUnavailable;
+        if (!topology.IsAuthoritative)
+        {
+            return ProductDesktopHostProjectionUpdate.Create(
+                workspaceRevision,
+                topology.Generation,
+                unavailableDisposition);
+        }
+
+        if (state is null
+            || readSnapshot is null
+            || readSnapshot.Containers.Count != state.Containers.Count
+            || topology.Displays.Count == 0
+            || topology.Displays.Count(display => display.IsPrimary) != 1
+            || topology.Displays.Count >
+                ProductDesktopHostProjectionBatch.MaximumDisplays)
+        {
+            return ProductDesktopHostProjectionUpdate.Create(
+                workspaceRevision,
+                topology.Generation,
+                ProductDesktopHostProjectionDisposition.Invalid);
+        }
+
+        if (state.Containers.Count == 0)
+        {
+            return ProductDesktopHostProjectionUpdate.Create(
+                workspaceRevision,
+                topology.Generation,
+                ProductDesktopHostProjectionDisposition.EmptyWorkspace);
+        }
+
+        ProductDesktopHostProjectionBatch? batch = Build(
+            state,
+            readSnapshot,
+            topology,
+            workspaceRevision);
+        return ProductDesktopHostProjectionUpdate.Create(
+            workspaceRevision,
+            topology.Generation,
+            batch is null
+                ? ProductDesktopHostProjectionDisposition.Invalid
+                : ProductDesktopHostProjectionDisposition.Ready,
+            batch);
+    }
+
     public static ProductDesktopHostProjectionBatch? Build(
         ProductWorkspaceState? state,
         ProductWorkspaceReadSnapshot? readSnapshot,

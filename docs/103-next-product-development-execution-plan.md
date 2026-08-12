@@ -290,6 +290,6 @@ MVP 完成必须同时满足：
 
 ## 12. 下一切片建议
 
-Stage 108 已完成 **A3：多容器/多显示器 generation 投影**。App 仅在当前显示拓扑权威时构建批次：每个实际承载方格的显示器只创建一个产品 HWND，同一显示器的多个正式方格由一个 Region 聚合宿主绘制；批次绑定 workspace revision、拓扑 generation、拓扑指纹和窗口 registry generation。未知/旧 DisplayKey 确定性回退主显示器，任一显示器所有权失败会整批注销销毁。
+Stage 109 已完成 **A4 自动化子切片：动态拓扑、关闭/故障补偿与资源加固**。App 通过有类型更新显式区分空工作区、拓扑刷新、拓扑不可用和无效投影；非权威拓扑立即清空 HWND，workspace/topology 双代次 latest-wins，重复证据幂等，同终态冲突失败关闭，`Refreshing` 可在同一代次晋升到权威终态。100 次连续 revision 的模拟资源审计全部收敛并释放。
 
-下一步是 **A4：动态拓扑、关闭/故障补偿与资源审计**。应验证重复刷新、显示器增删/旋转/DPI 变化、Explorer 重启、会话切换、连续配置 revision 与异常关闭时的 latest-wins、无闪烁收敛和 USER/GDI/handle 上限；仍不开放点击、拖放、真实文件操作、任务栏或插件权限。A3 证据与限制见[Stage 108 审计](108-desktop-host-per-display-generation-batch-audit.md)。
+下一步是 **A5：DesktopHost UIA 与真实会话产品矩阵**。先补齐产品表面的 UIA Fragment/只读语义和 Win+D、显示桌面、全屏、Z-order 行为，再以 #20/#24 记录显示器拔插/旋转/DPI、Explorer 重启、锁屏/RDP/会话切换和 24 小时资源趋势。仍不开放点击、拖放、真实文件操作、任务栏或插件权限。A4 自动化证据与人工限制见[Stage 109 审计](109-desktop-host-dynamic-topology-lifecycle-audit.md)。

@@ -338,8 +338,8 @@ public partial class App : Application
                 ProductConfigurationError.None,
                 null)
             : ProductWorkspaceReadModel.Create(productWorkspaceSession.State);
-        _ = productDesktopHostLifecycle.ApplyProjectionBatch(
-            ProductDesktopHostProjectionBuilder.Build(
+        _ = productDesktopHostLifecycle.ApplyProjectionUpdate(
+            ProductDesktopHostProjectionBuilder.BuildUpdate(
                 productWorkspaceSession.State,
                 readModel.Snapshot,
                 topology,
