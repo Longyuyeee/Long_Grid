@@ -92,6 +92,8 @@ $desktopInteractionSelectionCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionSelection.cs'
 $desktopInteractionSelectionAccessibilityCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionSelectionAccessibility.cs'
+$desktopInteractionSurfaceModeCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionSurfaceModeTransaction.cs'
 $desktopHostLifecycleControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostLifecycleController.cs'
 $desktopHostProjectionBatchCodePath = Join-Path $projectRoot `
@@ -306,6 +308,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopInteractionSelectionAccessibilityCode = Get-Content `
         -LiteralPath $desktopInteractionSelectionAccessibilityCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopInteractionSurfaceModeCode = Get-Content `
+        -LiteralPath $desktopInteractionSurfaceModeCodePath `
         -Raw `
         -Encoding UTF8
     $desktopHostLifecycleControllerCode = Get-Content `
@@ -1120,6 +1126,37 @@ function Test-SourceContract {
             'ProductDesktopInteractionSelectionController|ProductDesktopInteractionSelectionAccessibilityAdapter|ISelectionProvider|ISelectionItemProvider')
     ) `
         'B3 selection must be bounded, lease and generation bound, expose stable Ctrl/Shift anchor semantics, keep Passive UIA nonfocusable and pattern-free, and remain isolated from App and the formal read-only provider.'
+    Assert-Condition (
+        $desktopInteractionSurfaceModeCode -match `
+            'IProductDesktopInteractionSurfaceModeAdapter' -and
+        $desktopInteractionSurfaceModeCode -match 'IsPassiveContract' -and
+        $desktopInteractionSurfaceModeCode -match 'IsExplicitContract' -and
+        $desktopInteractionSurfaceModeCode -match 'IsHiddenContract' -and
+        $desktopInteractionSurfaceModeCode -match 'HitTestTransparent' -and
+        $desktopInteractionSurfaceModeCode -match 'IsKeyboardFocusable' -and
+        $desktopInteractionSurfaceModeCode -match `
+            'SelectionPatternAvailable' -and
+        $desktopInteractionSurfaceModeCode -match 'ToolWindow' -and
+        $desktopInteractionSurfaceModeCode -match 'NoActivate' -and
+        $desktopInteractionSurfaceModeCode -match 'OwnsForeground' -and
+        $desktopInteractionSurfaceModeCode -match `
+            'WindowRegistryGeneration' -and
+        $desktopInteractionSurfaceModeCode -match 'ApplyExplicit' -and
+        $desktopInteractionSurfaceModeCode -match 'ApplyPassive' -and
+        $desktopInteractionSurfaceModeCode -match 'Restore' -and
+        $desktopInteractionSurfaceModeCode -match 'HideFailClosed' -and
+        $desktopInteractionSurfaceModeCode -match `
+            'ProductDesktopInteractionSelectionController' -and
+        $desktopInteractionSurfaceModeCode -match `
+            'ProductDesktopInteractionSelectionAccessibilityAdapter' -and
+        -not ($appCode -match `
+            'ProductDesktopInteractionSurfaceModeTransaction|IProductDesktopInteractionSurfaceModeAdapter') -and
+        -not ($windowsDesktopHostReadOnlySurfaceCode -match `
+            'ProductDesktopInteractionSurfaceModeTransaction|IProductDesktopInteractionSurfaceModeAdapter') -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
+    ) `
+        'B4 surface-mode switching must transact Passive/Explicit/Hidden evidence, preserve window policy and registry generation, fail closed through restore/hide, connect B3 semantics, and remain isolated from App and the formal read-only HWND.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and
