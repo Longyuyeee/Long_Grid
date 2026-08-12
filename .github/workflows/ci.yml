@@ -121,6 +121,12 @@ jobs:
           powershell -NoProfile -ExecutionPolicy Bypass
           -File ./eng/Test-LongGridCiHangDiagnostics.ps1
 
+      - name: Validate RC runtime restore contract
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Test-LongGridCiReleaseRestore.ps1
+
       - name: Test
         run: >-
           dotnet test LongGrid.sln
@@ -184,7 +190,6 @@ jobs:
           -PackageVersion 0.1.0.0
           -PortableVersion 0.1.0-ci
           -SkipQualityGates
-          -NoRestore
           -NoToolRestore
 
       - name: Upload test results

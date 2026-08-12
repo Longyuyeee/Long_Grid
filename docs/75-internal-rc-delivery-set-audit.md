@@ -87,11 +87,10 @@ PR/main CI 使用 GitHub 托管 Windows runner 的全新 checkout，先执行完
   -PortableVersion 0.1.0-ci `
   -PackageVersion 0.1.0.0 `
   -SkipQualityGates `
-  -NoRestore `
   -NoToolRestore
 ```
 
-真实构建整套集合。这里的 skip 只复用同一 job 已完成的 restore/format/build/test/coverage/probes/vulnerability 和工具恢复；聚合入口仍重新验证全部包、哈希、提交与安全边界。
+真实构建整套集合。这里的 skip 只复用同一 job 已完成的 format/build/test/coverage/probes/vulnerability；工具恢复由前置步骤完成，`win-x64` + Windows App SDK self-contained 发布恢复仍由 RC 入口负责。普通 solution restore 不保证下载 RID runtime pack，CI 不得传 `-NoRestore` 或依赖 runner 缓存。聚合入口仍重新验证全部包、哈希、提交与安全边界。
 
 CI 只上传 TRX/Cobertura。ZIP、MSIX、SBOM 和聚合 evidence 不作为 Actions artifact 或 GitHub Release 上传，避免把内部 unsigned 产物误当成可分发构建。
 

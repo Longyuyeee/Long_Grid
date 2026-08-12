@@ -462,3 +462,21 @@ Stage 91 同一测试树在本地与 PR CI 通过，但合并后 `main` CI 及�
 PR #152 合并后的 main CI 在 633 项中仅有真实 Store 容器提交复读用例失败，期望最新 `XDip=104`、实际为旧值 `0`；同提交 PR CI 和本地通过。根因不是布局编辑，而是旧保存修订在防抖结束后让出执行权，新修订先调用 latest-wins 工作流，旧修订再恢复并成为最后入队文档。
 
 状态机现要求普通保存同时匹配 Saving、Save 活动、当前修订和活跃修订，控制器在让出后重新准入，并用窄提交门固定准入到工作流调用的顺序。受控调度回归强制修订 2 先恢复、修订 1 后恢复，断言工作流只收到最新文档。全量 Release 636/636、覆盖率行 91.40%/分支 81.46% 通过；最终远端结论仍等待修复 PR 与合并后 main CI。该修复不增加 UIA、桌面文件、DesktopHost、任务栏或插件权限，当前开发方向仍为 Phase 0 外部证据与内部 RC 收尾。
+
+## 24. 2026-08-12 Stage 103 后续开发计划审计
+
+当前产品阶段明确为 Phase 0/内部 RC 收尾与 Phase 1 产品接线之间。控制中心、正式配置工作区、只读 Desktop Catalog、保存恢复和 DesktopHost 底层工程已经具备，但正式方格仍未作为稳定桌面可见层接入 App，因此不能把现状表述为已经达到 iTop/Fences 的用户体验。
+
+后续固定按六个产品阶段推进：真实 DesktopHost 接线、桌面直接交互、自动整理建议、布局/窗口工作空间、视觉性能与人工证据收口、签名安装和内部 MVP 发布。任务栏外观、LongBar、Widget Host 和 Long助手插件运行时保持 MVP 后独立阶段。下一切片是 A1：建立 App 对 DesktopHost 的唯一生命周期所有权、有限状态桥和默认关闭的开发 Feature Flag；不开放真实文件移动、任务栏或插件权限。详细交付与门槛见[Stage 103 后续产品开发详细执行计划](103-next-product-development-execution-plan.md)。
+
+## 25. 2026-08-12 Stage 104 CI RC 恢复增量审计
+
+Stage 103 文档 PR #154 暴露内部 RC 对 runner 缓存的隐式依赖：普通 solution restore 后传 `-NoRestore`，无法保证 `win-x64` self-contained runtime pack 已准备，导致 `NETSDK1112`。该失败与 Markdown 差异无关，且发生在其余全部工程门禁通过之后。
+
+CI 现保留质量门禁与工具恢复复用，但让 RC 入口自行执行 RID/Windows App SDK self-contained 专用恢复。新增源码合同禁止 CI 再次传 `-NoRestore`，并验证恢复先于 publish。应用行为、包内容、签名和发布权限不变；最终结论等待 PR 与 main 的干净 runner 证据。
+
+## 26. 2026-08-12 Stage 105 保存测试准入确定性审计
+
+PR #154 的第二次干净 runner 验证已通过还原、格式化、构建和全部源码合同，但 636 项测试中的 `OlderSaveCompletionCannotOverwriteNewerWaitingEdit` 单项失败。复审确认产品状态机与 Stage 102 的工作流提交门保持有效，失败来自测试把 `Saving` 状态误当成 `SaveAsync` 已进入：两者之间仍存在受线程调度影响的异步让出窗口。
+
+测试替身现公开线程安全的调用计数等待点；旧保存完成与关闭超时两个场景都必须确认第一次工作流保存已经进入后才触发下一事件。断言、超时、覆盖率和产品代码均未放宽。定向 22 项测试通过，两个竞态场景 10 轮、共 20 次执行通过；完整 PR 与 main CI 仍是最终远端门禁。详见[Stage 105 保存控制器测试工作流准入确定性审计](105-save-controller-test-workflow-admission-determinism-audit.md)。
