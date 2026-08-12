@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopHost;
 
 namespace LongGrid.Infrastructure.DesktopHost;
@@ -16,7 +17,10 @@ public sealed record ProductDesktopHostLifecycleSnapshot(
     ProductDesktopHostLifecycleStatus Status,
     long Generation,
     bool NativeHostConnected,
-    int OwnedWindowCount)
+    int OwnedWindowCount,
+    long WorkspaceRevision = 0,
+    long TopologyGeneration = 0,
+    int RenderedContainerCount = 0)
 {
     public bool FeatureEnabled =>
         Status is ProductDesktopHostLifecycleStatus.AwaitingHost
@@ -27,6 +31,7 @@ public sealed record ProductDesktopHostLifecycleSnapshot(
 public sealed record ProductDesktopHostReadOnlyProjection
 {
     public const int MaximumVisibleItems = 12;
+    public const int MaximumVisibleNameLength = 512;
 
     private ProductDesktopHostReadOnlyProjection(
         string containerId,
@@ -91,6 +96,9 @@ public sealed record ProductDesktopHostReadOnlyProjection
             .Take(MaximumVisibleItems)
             .ToArray();
         if (visibleItems.Any(string.IsNullOrWhiteSpace)
+            || containerId.Length > ProductConfigurationLimits.MaximumIdLength
+            || title.Length > ProductConfigurationLimits.MaximumNameLength
+            || visibleItems.Any(item => item.Length > MaximumVisibleNameLength)
             || color is null
             || color.Length != 7
             || color[0] != '#'
@@ -136,7 +144,7 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
 internal interface IProductDesktopHostReadOnlySurfaceFactory
 {
     IProductDesktopHostReadOnlySurface Create(
-        ProductDesktopHostReadOnlyProjection projection,
+        ProductDesktopHostDisplayProjection projection,
         nint instanceMarker);
 }
 
@@ -149,9 +157,10 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     private readonly ProductDesktopHostWindowBridge? windowBridge;
     private readonly Guid hostInstanceId = Guid.NewGuid();
     private ProductDesktopHostLifecycleSnapshot snapshot;
-    private IProductDesktopHostReadOnlySurface? surface;
-    private ProductDesktopHostReadOnlyProjection? currentProjection;
-    private string? registeredContainerId;
+    private readonly List<IProductDesktopHostReadOnlySurface> surfaces = [];
+    private readonly List<(string DisplayId, long WindowGeneration)>
+        registrations = [];
+    private ProductDesktopHostProjectionBatch? currentBatch;
     private long windowGeneration;
     private bool disposed;
 
@@ -207,8 +216,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         }
     }
 
-    public ProductDesktopHostLifecycleSnapshot ApplyProjection(
-        ProductDesktopHostReadOnlyProjection? projection)
+    public ProductDesktopHostLifecycleSnapshot ApplyProjectionBatch(
+        ProductDesktopHostProjectionBatch? batch)
     {
         ProductDesktopHostLifecycleSnapshot published;
         lock (gate)
@@ -219,20 +228,20 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                 return snapshot;
             }
 
-            if (projection is not null
-                && currentProjection is not null
-                && ProjectionsEqual(currentProjection, projection))
+            if (batch is not null
+                && currentBatch is not null
+                && BatchesEqual(currentBatch, batch))
             {
                 return snapshot;
             }
 
-            if (projection is null && surface is null)
+            if (batch is null && surfaces.Count == 0)
             {
                 return snapshot;
             }
 
             ReleaseSurfaceUnsafe();
-            if (projection is null)
+            if (batch is null)
             {
                 published = UpdateSnapshotUnsafe(
                     ProductDesktopHostLifecycleStatus.AwaitingHost,
@@ -241,7 +250,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             }
             else
             {
-                published = CreateSurfaceUnsafe(projection);
+                published = CreateSurfacesUnsafe(batch);
             }
         }
 
@@ -271,50 +280,69 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 
-    private ProductDesktopHostLifecycleSnapshot CreateSurfaceUnsafe(
-        ProductDesktopHostReadOnlyProjection projection)
+    private ProductDesktopHostLifecycleSnapshot CreateSurfacesUnsafe(
+        ProductDesktopHostProjectionBatch batch)
     {
         try
         {
-            nint marker = NextInstanceMarker();
-            IProductDesktopHostReadOnlySurface created =
-                surfaceFactory!.Create(projection, marker);
-            surface = created;
-            var identity = new ProductDesktopHostIdentity(
-                hostInstanceId,
-                1,
-                created.ProcessId,
-                created.ThreadId);
-            windowBridge!.Connect(identity);
-            long nextWindowGeneration = checked(windowGeneration + 1);
-            ProductDesktopHostWindowRegistrationResult registration =
-                windowBridge.Register(
+            ProductDesktopHostIdentity? identity = null;
+            ProductDesktopHostWindowRegistrationResult? registration = null;
+            foreach (ProductDesktopHostDisplayProjection display in batch.Displays)
+            {
+                IProductDesktopHostReadOnlySurface created =
+                    surfaceFactory!.Create(display, NextInstanceMarker());
+                surfaces.Add(created);
+                identity ??= new(
+                    hostInstanceId,
+                    batch.TopologyGeneration,
+                    created.ProcessId,
+                    created.ThreadId);
+                if (created.ProcessId != identity.ProcessId
+                    || created.ThreadId != identity.ThreadId)
+                {
+                    throw new InvalidOperationException(
+                        "Every display surface must share one host thread.");
+                }
+
+                if (surfaces.Count == 1)
+                {
+                    windowBridge!.Connect(identity);
+                }
+
+                long nextWindowGeneration = checked(windowGeneration + 1);
+                registration = windowBridge!.Register(
                     new(
-                        projection.ContainerId,
+                        DisplayRegistrationId(display.DisplayId),
                         identity,
                         nextWindowGeneration,
                         created.Handle,
                         created.InstanceMarker));
-            if (!registration.IsRegistered
-                || !registration.Snapshot.OwnershipAttested)
-            {
-                ReleaseSurfaceUnsafe();
-                return UpdateSnapshotUnsafe(
-                    ProductDesktopHostLifecycleStatus.Faulted,
-                    connected: false,
-                    ownedWindowCount: 0);
+                if (!registration.IsRegistered
+                    || !registration.Snapshot.OwnershipAttested)
+                {
+                    ReleaseSurfaceUnsafe();
+                    return UpdateSnapshotUnsafe(
+                        ProductDesktopHostLifecycleStatus.Faulted,
+                        connected: false,
+                        ownedWindowCount: 0);
+                }
+
+                windowGeneration = nextWindowGeneration;
+                registrations.Add((display.DisplayId, nextWindowGeneration));
             }
 
-            currentProjection = projection;
-            registeredContainerId = projection.ContainerId;
-            windowGeneration = nextWindowGeneration;
+            currentBatch = batch;
             return UpdateSnapshotUnsafe(
                 ProductDesktopHostLifecycleStatus.ReadyReadOnly,
                 connected: true,
-                ownedWindowCount: registration.Snapshot.VerifiedWindowCount);
+                ownedWindowCount: registration!.Snapshot.VerifiedWindowCount,
+                workspaceRevision: batch.WorkspaceRevision,
+                topologyGeneration: batch.TopologyGeneration,
+                renderedContainerCount: batch.ContainerCount);
         }
         catch (Exception exception) when (
             exception is Win32Exception
+                or ArgumentException
                 or InvalidOperationException
                 or PlatformNotSupportedException
                 or OverflowException)
@@ -329,30 +357,43 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
 
     private void ReleaseSurfaceUnsafe()
     {
-        if (registeredContainerId is not null && windowBridge is not null)
+        if (windowBridge is not null)
         {
-            _ = windowBridge.Unregister(
-                registeredContainerId,
-                windowGeneration);
+            foreach ((string displayId, long generation) in registrations)
+            {
+                _ = windowBridge.Unregister(
+                    DisplayRegistrationId(displayId),
+                    generation);
+            }
         }
 
-        surface?.Dispose();
-        surface = null;
-        currentProjection = null;
-        registeredContainerId = null;
+        foreach (IProductDesktopHostReadOnlySurface surface in surfaces)
+        {
+            surface.Dispose();
+        }
+
+        surfaces.Clear();
+        registrations.Clear();
+        currentBatch = null;
         windowBridge?.Disconnect(hostInstanceId);
     }
 
     private ProductDesktopHostLifecycleSnapshot UpdateSnapshotUnsafe(
         ProductDesktopHostLifecycleStatus status,
         bool connected,
-        int ownedWindowCount)
+        int ownedWindowCount,
+        long workspaceRevision = 0,
+        long topologyGeneration = 0,
+        int renderedContainerCount = 0)
     {
         snapshot = new(
             status,
             checked(snapshot.Generation + 1),
             connected,
-            ownedWindowCount);
+            ownedWindowCount,
+            workspaceRevision,
+            topologyGeneration,
+            renderedContainerCount);
         return snapshot;
     }
 
@@ -385,4 +426,22 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         && left.ItemNames.SequenceEqual(
             right.ItemNames,
             StringComparer.Ordinal);
+
+    private static bool BatchesEqual(
+        ProductDesktopHostProjectionBatch left,
+        ProductDesktopHostProjectionBatch right) =>
+        left.WorkspaceRevision == right.WorkspaceRevision
+        && left.TopologyGeneration == right.TopologyGeneration
+        && left.TopologyFingerprint == right.TopologyFingerprint
+        && left.Displays.Count == right.Displays.Count
+        && left.Displays.Zip(right.Displays).All(pair =>
+            pair.First.DisplayId == pair.Second.DisplayId
+            && pair.First.WorkArea == pair.Second.WorkArea
+            && pair.First.EffectiveDpi == pair.Second.EffectiveDpi
+            && pair.First.Containers.Count == pair.Second.Containers.Count
+            && pair.First.Containers.Zip(pair.Second.Containers).All(container =>
+                ProjectionsEqual(container.First, container.Second)));
+
+    private static string DisplayRegistrationId(string displayId) =>
+        $"display:{displayId}";
 }

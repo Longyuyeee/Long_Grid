@@ -56,4 +56,4 @@ A2 不是桌面管理 MVP 完成：
 - 点击、选择、拖动、缩放、折叠按钮、右键菜单和安全引用拖放均未开放；
 - Win+D、全屏、Explorer 重启、RDP、锁屏和动态显示人工矩阵未完成。
 
-下一步进入 **A3：多容器/多显示器 generation 投影**。应以每显示器宿主聚合多个方格，绑定 workspace revision、当前拓扑 generation、registry generation 与渲染 generation，并验证增删/迁移/拓扑变化的 latest-wins 和资源上限。A3 仍保持无输入、零文件内容读取、零桌面文件修改；交互必须等待阶段 B 单独准入。
+后续 Stage 108 已完成 **A3：多容器/多显示器 generation 投影**，以每个使用中显示器一个宿主聚合多个方格，并绑定 workspace revision、当前拓扑 generation、拓扑指纹与 registry generation。动态拓扑压力、Explorer/会话变化和长期资源上限继续进入 A4；交互仍等待阶段 B 单独准入。详见[Stage 108 审计](108-desktop-host-per-display-generation-batch-audit.md)。

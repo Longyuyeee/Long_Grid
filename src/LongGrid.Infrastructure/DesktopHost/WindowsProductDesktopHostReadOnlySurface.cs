@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using LongGrid.Core.DesktopHost;
 
 namespace LongGrid.Infrastructure.DesktopHost;
 
@@ -8,7 +9,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurfaceFactory
     : IProductDesktopHostReadOnlySurfaceFactory
 {
     public IProductDesktopHostReadOnlySurface Create(
-        ProductDesktopHostReadOnlyProjection projection,
+        ProductDesktopHostDisplayProjection projection,
         nint instanceMarker) =>
         WindowsProductDesktopHostReadOnlySurface.Create(
             projection,
@@ -23,11 +24,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     private readonly string className;
     private readonly nint module;
     private readonly WindowProcedure windowProcedure;
-    private readonly ProductDesktopHostReadOnlyProjection projection;
+    private readonly ProductDesktopHostDisplayProjection projection;
     private bool disposed;
 
     private WindowsProductDesktopHostReadOnlySurface(
-        ProductDesktopHostReadOnlyProjection projection,
+        ProductDesktopHostDisplayProjection projection,
         nint instanceMarker)
     {
         if (!OperatingSystem.IsWindows())
@@ -59,7 +60,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     public uint ThreadId { get; private set; }
 
     internal static WindowsProductDesktopHostReadOnlySurface Create(
-        ProductDesktopHostReadOnlyProjection projection,
+        ProductDesktopHostDisplayProjection projection,
         nint instanceMarker)
     {
         ArgumentNullException.ThrowIfNull(projection);
@@ -95,32 +96,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             throw new Win32Exception(Marshal.GetLastWin32Error());
         }
 
-        NativeRect workArea = ReadPrimaryWorkArea();
-        uint dpi = NativeMethods.GetDpiForSystem();
-        double scale = dpi == 0 ? 1 : dpi / 96d;
-        int width = Math.Clamp(
-            ToPixels(projection.WidthDip, scale),
-            160,
-            Math.Max(160, workArea.Width));
-        int requestedHeight = (int)(projection.IsCollapsed
-            ? HeaderHeightDip
-            : Math.Max(
-                projection.HeightDip,
-                HeaderHeightDip
-                    + (Math.Max(1, projection.ItemNames.Count) * ItemHeightDip)
-                    + 18));
-        int height = Math.Clamp(
-            ToPixels(requestedHeight, scale),
-            ToPixels(HeaderHeightDip, scale),
-            Math.Max(ToPixels(HeaderHeightDip, scale), workArea.Height));
-        int x = Math.Clamp(
-            checked(workArea.Left + ToPixels(projection.XDip, scale)),
-            workArea.Left,
-            Math.Max(workArea.Left, workArea.Right - width));
-        int y = Math.Clamp(
-            checked(workArea.Top + ToPixels(projection.YDip, scale)),
-            workArea.Top,
-            Math.Max(workArea.Top, workArea.Bottom - height));
+        PixelRect workArea = projection.WorkArea;
 
         Handle = NativeMethods.CreateWindowEx(
             NativeMethods.WsExToolWindow
@@ -128,12 +104,12 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 | NativeMethods.WsExNoActivate
                 | NativeMethods.WsExTransparent,
             className,
-            $"Long方格桌面只读宿主 · {projection.Title}",
+            "Long方格桌面只读宿主",
             NativeMethods.WsPopup,
-            x,
-            y,
-            width,
-            height,
+            workArea.Left,
+            workArea.Top,
+            workArea.Width,
+            workArea.Height,
             nint.Zero,
             nint.Zero,
             module,
@@ -157,14 +133,10 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             throw new Win32Exception(Marshal.GetLastWin32Error());
         }
 
-        byte alpha = (byte)Math.Clamp(
-            (int)Math.Round(projection.Opacity * byte.MaxValue),
-            0,
-            byte.MaxValue);
         if (!NativeMethods.SetLayeredWindowAttributes(
                 Handle,
                 0,
-                alpha,
+                byte.MaxValue,
                 NativeMethods.LwaAlpha))
         {
             throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -176,6 +148,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             NativeMethods.DwmWindowCornerPreference,
             ref cornerPreference,
             sizeof(int));
+        ApplyWindowRegion();
         _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwShowNoActivate);
         _ = NativeMethods.UpdateWindow(Handle);
     }
@@ -216,36 +189,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             return;
         }
 
-        nint backgroundBrush = nint.Zero;
-        nint borderPen = nint.Zero;
         try
         {
-            if (!NativeMethods.GetClientRect(window, out NativeRect client))
-            {
-                return;
-            }
-
-            uint background = ParseColor(projection.Color);
-            backgroundBrush = NativeMethods.CreateSolidBrush(background);
-            borderPen = NativeMethods.CreatePen(
-                NativeMethods.PsSolid,
-                1,
-                Lighten(background));
-            nint previousBrush = NativeMethods.SelectObject(
-                deviceContext,
-                backgroundBrush);
-            nint previousPen = NativeMethods.SelectObject(
-                deviceContext,
-                borderPen);
-            _ = NativeMethods.Rectangle(
-                deviceContext,
-                client.Left,
-                client.Top,
-                client.Right,
-                client.Bottom);
-            _ = NativeMethods.SelectObject(deviceContext, previousPen);
-            _ = NativeMethods.SelectObject(deviceContext, previousBrush);
-
             _ = NativeMethods.SetBkMode(
                 deviceContext,
                 NativeMethods.TransparentBackground);
@@ -255,23 +200,76 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 NativeMethods.GetStockObject(NativeMethods.DefaultGuiFont));
             try
             {
-                DrawText(
-                    deviceContext,
-                    projection.Title,
-                    new(18, 12, Math.Max(18, client.Right - 18), 36),
-                    NativeMethods.DtLeft
-                        | NativeMethods.DtVCenter
-                        | NativeMethods.DtSingleLine
-                        | NativeMethods.DtEndEllipsis);
-                if (!projection.IsCollapsed)
+                foreach (ProductDesktopHostReadOnlyProjection container
+                    in projection.Containers)
                 {
-                    DrawItems(deviceContext, client);
+                    DrawContainer(deviceContext, container);
                 }
             }
             finally
             {
                 _ = NativeMethods.SelectObject(deviceContext, previousFont);
             }
+        }
+        finally
+        {
+            _ = NativeMethods.EndPaint(window, ref paint);
+        }
+    }
+
+    private void DrawContainer(
+        nint deviceContext,
+        ProductDesktopHostReadOnlyProjection container)
+    {
+        NativeRect bounds = GetContainerBounds(container);
+        double scale = projection.EffectiveDpi / 96d;
+        int headerHeight = ToPixels(HeaderHeightDip, scale);
+        int horizontalPadding = ToPixels(18, scale);
+        uint background = BlendWithDesktop(
+            ParseColor(container.Color),
+            container.Opacity);
+        nint backgroundBrush = NativeMethods.CreateSolidBrush(background);
+        nint borderPen = NativeMethods.CreatePen(
+            NativeMethods.PsSolid,
+            1,
+            Lighten(background));
+        try
+        {
+            nint previousBrush = NativeMethods.SelectObject(
+                deviceContext,
+                backgroundBrush);
+            nint previousPen = NativeMethods.SelectObject(
+                deviceContext,
+                borderPen);
+            _ = NativeMethods.Rectangle(
+                deviceContext,
+                bounds.Left,
+                bounds.Top,
+                bounds.Right,
+                bounds.Bottom);
+            _ = NativeMethods.SelectObject(deviceContext, previousPen);
+            _ = NativeMethods.SelectObject(deviceContext, previousBrush);
+
+            DrawText(
+                deviceContext,
+                container.Title,
+                new(
+                    bounds.Left + horizontalPadding,
+                    bounds.Top + ToPixels(12, scale),
+                    Math.Max(
+                        bounds.Left + horizontalPadding,
+                        bounds.Right - horizontalPadding),
+                    bounds.Top + ToPixels(36, scale)),
+                NativeMethods.DtLeft
+                    | NativeMethods.DtVCenter
+                    | NativeMethods.DtSingleLine
+                    | NativeMethods.DtEndEllipsis);
+            if (container.IsCollapsed)
+            {
+                return;
+            }
+
+            DrawItems(deviceContext, container, bounds, scale, headerHeight);
         }
         finally
         {
@@ -284,42 +282,44 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             {
                 _ = NativeMethods.DeleteObject(backgroundBrush);
             }
-
-            _ = NativeMethods.EndPaint(window, ref paint);
         }
     }
 
-    private void DrawItems(nint deviceContext, NativeRect client)
+    private static void DrawItems(
+        nint deviceContext,
+        ProductDesktopHostReadOnlyProjection container,
+        NativeRect bounds,
+        double scale,
+        int headerHeight)
     {
-        if (projection.ItemNames.Count == 0)
+        IReadOnlyList<string> items = container.ItemNames.Count == 0
+            ? ["空方格 · 只读预览"]
+            : container.ItemNames;
+        int itemHeight = ToPixels(ItemHeightDip, scale);
+        int horizontalPadding = ToPixels(18, scale);
+        int top = bounds.Top + headerHeight;
+        foreach (string item in items)
         {
-            DrawText(
-                deviceContext,
-                "空方格 · 只读预览",
-                new(18, 54, Math.Max(18, client.Right - 18), 86),
-                NativeMethods.DtLeft
-                    | NativeMethods.DtVCenter
-                    | NativeMethods.DtSingleLine);
-            return;
-        }
-
-        int top = 54;
-        foreach (string item in projection.ItemNames)
-        {
-            if (top + ItemHeightDip > client.Bottom)
+            if (top + itemHeight > bounds.Bottom)
             {
                 break;
             }
 
             DrawText(
                 deviceContext,
-                $"•  {item}",
-                new(18, top, Math.Max(18, client.Right - 18), top + ItemHeightDip),
+                container.ItemNames.Count == 0 ? item : $"•  {item}",
+                new(
+                    bounds.Left + horizontalPadding,
+                    top,
+                    Math.Max(
+                        bounds.Left + horizontalPadding,
+                        bounds.Right - horizontalPadding),
+                    top + itemHeight),
                 NativeMethods.DtLeft
                     | NativeMethods.DtVCenter
                     | NativeMethods.DtSingleLine
                     | NativeMethods.DtEndEllipsis);
-            top += ItemHeightDip;
+            top += itemHeight;
         }
     }
 
@@ -356,20 +356,94 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         GC.KeepAlive(windowProcedure);
     }
 
-    private static NativeRect ReadPrimaryWorkArea()
+    private void ApplyWindowRegion()
     {
-        if (!NativeMethods.SystemParametersInfo(
-                NativeMethods.SpiGetWorkArea,
-                0,
-                out NativeRect workArea,
-                0)
-            || workArea.Width <= 0
-            || workArea.Height <= 0)
+        nint combined = NativeMethods.CreateRectRgn(0, 0, 0, 0);
+        if (combined == nint.Zero)
         {
             throw new Win32Exception(Marshal.GetLastWin32Error());
         }
 
-        return workArea;
+        bool transferred = false;
+        try
+        {
+            foreach (ProductDesktopHostReadOnlyProjection container
+                in projection.Containers)
+            {
+                NativeRect bounds = GetContainerBounds(container);
+                nint card = NativeMethods.CreateRectRgn(
+                    bounds.Left,
+                    bounds.Top,
+                    bounds.Right,
+                    bounds.Bottom);
+                if (card == nint.Zero)
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+
+                try
+                {
+                    if (NativeMethods.CombineRgn(
+                            combined,
+                            combined,
+                            card,
+                            NativeMethods.RgnOr) == NativeMethods.Error)
+                    {
+                        throw new Win32Exception(Marshal.GetLastWin32Error());
+                    }
+                }
+                finally
+                {
+                    _ = NativeMethods.DeleteObject(card);
+                }
+            }
+
+            if (NativeMethods.SetWindowRgn(Handle, combined, redraw: true) == 0)
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            transferred = true;
+        }
+        finally
+        {
+            if (!transferred)
+            {
+                _ = NativeMethods.DeleteObject(combined);
+            }
+        }
+    }
+
+    private NativeRect GetContainerBounds(
+        ProductDesktopHostReadOnlyProjection container)
+    {
+        double scale = projection.EffectiveDpi / 96d;
+        int workWidth = projection.WorkArea.Width;
+        int workHeight = projection.WorkArea.Height;
+        int width = Math.Clamp(
+            ToPixels(container.WidthDip, scale),
+            Math.Min(160, workWidth),
+            workWidth);
+        double requestedHeight = container.IsCollapsed
+            ? HeaderHeightDip
+            : Math.Max(
+                container.HeightDip,
+                HeaderHeightDip
+                    + (Math.Max(1, container.ItemNames.Count) * ItemHeightDip)
+                    + 18);
+        int height = Math.Clamp(
+            ToPixels(requestedHeight, scale),
+            Math.Min(ToPixels(HeaderHeightDip, scale), workHeight),
+            workHeight);
+        int left = Math.Clamp(
+            ToPixels(container.XDip, scale),
+            0,
+            Math.Max(0, workWidth - width));
+        int top = Math.Clamp(
+            ToPixels(container.YDip, scale),
+            0,
+            Math.Max(0, workHeight - height));
+        return new(left, top, checked(left + width), checked(top + height));
     }
 
     private static int ToPixels(double value, double scale) =>
@@ -399,6 +473,24 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         uint blue = Math.Min(255, ((color >> 16) & 0xFF) + 48);
         return red | (green << 8) | (blue << 16);
     }
+
+    private static uint BlendWithDesktop(uint color, double opacity)
+    {
+        const uint desktopChannel = 28;
+        uint red = BlendChannel(color & 0xFF, desktopChannel, opacity);
+        uint green = BlendChannel((color >> 8) & 0xFF, desktopChannel, opacity);
+        uint blue = BlendChannel((color >> 16) & 0xFF, desktopChannel, opacity);
+        return red | (green << 8) | (blue << 16);
+    }
+
+    private static uint BlendChannel(
+        uint foreground,
+        uint background,
+        double opacity) =>
+        (uint)Math.Clamp(
+            (int)Math.Round((foreground * opacity) + (background * (1 - opacity))),
+            0,
+            255);
 
     private delegate nint WindowProcedure(
         nint window,
@@ -481,7 +573,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint DtVCenter = 0x0004;
         internal const uint DtSingleLine = 0x0020;
         internal const uint DtEndEllipsis = 0x8000;
-        internal const uint SpiGetWorkArea = 0x0030;
+        internal const int RgnOr = 2;
+        internal const int Error = 0;
         internal const int DwmWindowCornerPreference = 33;
         internal const int DwmWindowCornerPreferenceRound = 2;
         internal static readonly nint ArrowCursor = new(32512);
@@ -526,9 +619,6 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal static extern nint LoadCursor(nint instance, nint cursorName);
 
         [DllImport("user32.dll")]
-        internal static extern uint GetDpiForSystem();
-
-        [DllImport("user32.dll")]
         internal static extern uint GetWindowThreadProcessId(
             nint window,
             out uint processId);
@@ -558,6 +648,26 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool UpdateWindow(nint window);
+
+        [DllImport("gdi32.dll")]
+        internal static extern nint CreateRectRgn(
+            int left,
+            int top,
+            int right,
+            int bottom);
+
+        [DllImport("gdi32.dll")]
+        internal static extern int CombineRgn(
+            nint destination,
+            nint source1,
+            nint source2,
+            int mode);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        internal static extern int SetWindowRgn(
+            nint window,
+            nint region,
+            [MarshalAs(UnmanagedType.Bool)] bool redraw);
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -614,14 +724,6 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             int characterCount,
             ref NativeRect rectangle,
             uint format);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool SystemParametersInfo(
-            uint action,
-            uint parameter,
-            out NativeRect value,
-            uint flags);
 
         [DllImport("dwmapi.dll")]
         internal static extern int DwmSetWindowAttribute(

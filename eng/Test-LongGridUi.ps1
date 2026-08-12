@@ -84,6 +84,10 @@ $desktopHostFeaturePolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopHostFeaturePolicy.cs'
 $desktopHostLifecycleControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostLifecycleController.cs'
+$desktopHostProjectionBatchCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostProjectionBatch.cs'
+$desktopHostProjectionBuilderCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostProjectionBuilder.cs'
 $windowsDesktopHostWindowInspectorCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostWindowInspector.cs'
 $windowsDesktopHostReadOnlySurfaceCodePath = Join-Path $projectRoot `
@@ -272,6 +276,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopHostLifecycleControllerCode = Get-Content `
         -LiteralPath $desktopHostLifecycleControllerCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopHostProjectionBatchCode = Get-Content `
+        -LiteralPath $desktopHostProjectionBatchCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopHostProjectionBuilderCode = Get-Content `
+        -LiteralPath $desktopHostProjectionBuilderCodePath `
         -Raw `
         -Encoding UTF8
     $windowsDesktopHostWindowInspectorCode = Get-Content `
@@ -988,17 +1000,34 @@ function Test-SourceContract {
         $desktopHostLifecycleControllerCode -match 'Faulted' -and
         $desktopHostLifecycleControllerCode -match 'Completed' -and
         $desktopHostLifecycleControllerCode -match 'NativeHostConnected' -and
-        $desktopHostLifecycleControllerCode -match 'OwnedWindowCount'
+        $desktopHostLifecycleControllerCode -match 'OwnedWindowCount' -and
+        $desktopHostLifecycleControllerCode -match 'WorkspaceRevision' -and
+        $desktopHostLifecycleControllerCode -match 'TopologyGeneration' -and
+        $desktopHostLifecycleControllerCode -match 'RenderedContainerCount'
     ) `
         'DesktopHost lifecycle must expose the finite anonymous state bridge.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'ProductDesktopHostWindowBridge' -and
         $desktopHostLifecycleControllerCode -match 'WindowsProductDesktopHostWindowInspector' -and
         $desktopHostLifecycleControllerCode -match 'OwnershipAttested' -and
-        $desktopHostLifecycleControllerCode -match 'ApplyProjection' -and
+        $desktopHostLifecycleControllerCode -match 'ApplyProjectionBatch' -and
+        $desktopHostLifecycleControllerCode -match 'registrations' -and
+        $desktopHostLifecycleControllerCode -match 'surfaces' -and
         $desktopHostLifecycleControllerCode -match 'ReleaseSurfaceUnsafe'
     ) `
-        'The A2 lifecycle must create only ownership-attested surfaces and release them on every exit.'
+        'The A3 lifecycle must create an ownership-attested display batch and release every surface on failure or exit.'
+    Assert-Condition (
+        $desktopHostProjectionBatchCode -match 'MaximumDisplays\s*=\s*16' -and
+        $desktopHostProjectionBatchCode -match 'MaximumContainers' -and
+        $desktopHostProjectionBatchCode -match 'TopologyFingerprint' -and
+        $desktopHostProjectionBatchCode -match 'TopologyGeneration' -and
+        $desktopHostProjectionBatchCode -match 'WorkspaceRevision' -and
+        $desktopHostProjectionBuilderCode -match 'topology\.IsAuthoritative' -and
+        $desktopHostProjectionBuilderCode -match 'DisplayTopologyFingerprint\.Compute' -and
+        $desktopHostProjectionBuilderCode -match 'display\.IsPrimary' -and
+        $desktopHostProjectionBuilderCode -match 'source\.Placement\.DisplayKey'
+    ) `
+        'The A3 projection must be bounded, generation-bound, authoritative-topology-only, and use a deterministic primary fallback.'
     Assert-Condition (
         $windowsDesktopHostReadOnlySurfaceCode -match 'WsExToolWindow' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'WsExNoActivate' -and
@@ -1007,10 +1036,15 @@ function Test-SourceContract {
         $windowsDesktopHostReadOnlySurfaceCode -match 'SwShowNoActivate' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'HtTransparent' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'InstanceMarkerProperty' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'SetWindowRgn' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'projection\.Containers' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'projection\.WorkArea' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'projection\.EffectiveDpi' -and
+        -not ($windowsDesktopHostReadOnlySurfaceCode -match 'SystemParametersInfo') -and
         -not ($windowsDesktopHostReadOnlySurfaceCode -match `
             'Progman|WorkerW|SetForegroundWindow|RegisterDragDrop|IFileOperation')
     ) `
-        'The A2 surface must remain no-activate, click-through, layered, product-owned, and Explorer-independent.'
+        'The A3 per-display surface must remain bounded, DPI-aware, no-activate, click-through, product-owned, and Explorer-independent.'
     Assert-Condition (
         ([regex]::Matches(
             $appCode,
@@ -1021,8 +1055,8 @@ function Test-SourceContract {
         $appCode -match 'ProductDesktopHostFeaturePolicy\.Evaluate' -and
         $appCode -match 'Environment\.GetEnvironmentVariable' -and
         $appCode -match 'ApplyProductDesktopHostLifecycleState' -and
-        $appCode -match 'ApplyProjection' -and
-        $appCode -match 'CreateDesktopHostProjection' -and
+        $appCode -match 'ApplyProjectionBatch' -and
+        $appCode -match 'ProductDesktopHostProjectionBuilder\.Build' -and
         $appCode -match 'productDesktopHostLifecycle\.DisposeAsync'
     ) `
         'The App must evaluate, present, and dispose the DesktopHost lifecycle boundary.'
@@ -2007,7 +2041,7 @@ function Test-SourceContract {
         responsiveBreakpoints = 1
         compactWidth = 720
         dpiAwareInitialSize = 'pass'
-        coreRuntimeStatus = 'desktop-read-only-config-edit-host-default-off-single-surface-opt-in'
+        coreRuntimeStatus = 'desktop-read-only-config-edit-host-default-off-per-display-batch-opt-in'
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'

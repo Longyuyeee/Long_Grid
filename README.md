@@ -135,7 +135,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。A2 已建立严格默认关闭的单显示器只读 DesktopHost：仅在 `LONGGRID_ENABLE_DESKTOP_HOST=1` 且存在正式方格时，显示一个产品自有、无激活、点击穿透的半透明方格；窗口必须通过所有权复读，失败或关闭立即销毁。默认启动仍为零 DesktopHost HWND。下一切片 A3 将扩展为每显示器宿主与多方格 generation 投影；当前不接收桌面交互，不读取文件内容，不写入、移动或删除桌面文件，也不访问 Explorer 内部桌面窗口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。A3 已建立严格默认关闭的每显示器只读 DesktopHost 批次：仅在 `LONGGRID_ENABLE_DESKTOP_HOST=1`、正式方格存在且当前显示拓扑权威时，为每个实际使用中的显示器创建一个产品宿主，并在其中聚合多个方格；窗口必须逐个通过所有权复读，任一失败或关闭会整批销毁。默认启动仍为零 DesktopHost HWND。下一切片 A4 将审计动态拓扑、关闭/故障补偿和长期资源；当前不接收桌面交互，不读取文件内容，不写入、移动或删除桌面文件，也不访问 Explorer 内部桌面窗口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 
@@ -146,7 +146,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -File ./eng/Start-LongGrid.ps1
 ```
 
-该入口默认执行锁定依赖恢复、必要构建和启动；不提权，默认不创建 DesktopHost 窗口。App 只读枚举用户桌面与公共桌面第一层元数据，不读取文件内容，也不执行桌面文件写入/移动。开发者可显式设置 `LONGGRID_ENABLE_DESKTOP_HOST=1` 验证 A2 单方格只读表面；该开关不是用户许可或发布默认值。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[Stage 107 审计](docs/107-desktop-host-single-monitor-readonly-surface-audit.md)。
+该入口默认执行锁定依赖恢复、必要构建和启动；不提权，默认不创建 DesktopHost 窗口。App 只读枚举用户桌面与公共桌面第一层元数据，不读取文件内容，也不执行桌面文件写入/移动。开发者可显式设置 `LONGGRID_ENABLE_DESKTOP_HOST=1` 验证 A3 每显示器多方格只读批次；该开关不是用户许可或发布默认值。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[Stage 108 审计](docs/108-desktop-host-per-display-generation-batch-audit.md)。
 
 从干净、已提交的工作树一键生成并交叉验证完整内部 RC 交付集合：
 
