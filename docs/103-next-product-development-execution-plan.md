@@ -290,6 +290,6 @@ MVP 完成必须同时满足：
 
 ## 12. 下一切片建议
 
-Stage 109 已完成 **A4 自动化子切片：动态拓扑、关闭/故障补偿与资源加固**。App 通过有类型更新显式区分空工作区、拓扑刷新、拓扑不可用和无效投影；非权威拓扑立即清空 HWND，workspace/topology 双代次 latest-wins，重复证据幂等，同终态冲突失败关闭，`Refreshing` 可在同一代次晋升到权威终态。100 次连续 revision 的模拟资源审计全部收敛并释放。
+Stage 110 已完成 **A5 自动化子切片：DesktopHost 只读 UIA 与产品会话合同**。正式 HWND 通过 `WM_GETOBJECT` 公开 Root→方格→当前可见项目的只读 Fragment，视觉、Region 与 UIA 共用布局计算；节点不可聚焦且不提供 Selection/Invoke。生命周期还强制复读 ToolWindow/NoActivate/非 Topmost/无 Owner/未占前台，并新增 A5-01..A5-06 受控会话启动器和手册。
 
-下一步是 **A5：DesktopHost UIA 与真实会话产品矩阵**。先补齐产品表面的 UIA Fragment/只读语义和 Win+D、显示桌面、全屏、Z-order 行为，再以 #20/#24 记录显示器拔插/旋转/DPI、Explorer 重启、锁屏/RDP/会话切换和 24 小时资源趋势。仍不开放点击、拖放、真实文件操作、任务栏或插件权限。A4 自动化证据与人工限制见[Stage 109 审计](109-desktop-host-dynamic-topology-lifecycle-audit.md)。
+A5 真实 Narrator、Win+D、全屏、Explorer 重启、锁定/RDP 与 24 小时资源证据继续保持 PendingManualEvidence，阶段 A 不能标记最终验收。下一代码切片是 **B1：桌面交互准入与模式状态机**，先建立与只读模式隔离的默认关闭策略、命中/焦点/取消和陈旧 generation 拒绝，不直接开放真实文件、拖放、任务栏或插件权限。A5 自动化证据与人工限制见[Stage 110 审计](110-desktop-host-readonly-uia-session-contract-audit.md)。

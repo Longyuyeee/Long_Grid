@@ -68,3 +68,5 @@ WinUI composition root 已改用 `BuildUpdate`/`ApplyProjectionUpdate`。控制�
 自动化 A4 已完成，但以下真实环境证据不能由模拟测试替代：显示器物理拔插、旋转、100%/150%/200% DPI、不同任务栏位置、锁屏、睡眠、RDP、会话切换、Explorer 重启及 24 小时 USER/GDI/handle 趋势。这些继续记录为 #20/#24 人工矩阵，不得写成已通过。
 
 下一开发切片进入 **A5：DesktopHost UIA 与真实会话产品矩阵**：建立产品表面的 UIA Fragment/只读语义、Win+D/显示桌面/全屏/Z-order 行为证据，并准备阶段 B 的显式输入准入；在 A5 验收前仍不开放桌面直接编辑或真实文件操作。
+
+后续结果：Stage 110 已完成 A5 自动化 UIA、被动窗口复读和受控产品会话合同；A5-01..A5-06 的最终结果仍保留为人工证据。详见[Stage 110 审计](110-desktop-host-readonly-uia-session-contract-audit.md)。

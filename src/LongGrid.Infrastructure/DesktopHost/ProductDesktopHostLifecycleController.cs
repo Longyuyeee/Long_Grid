@@ -22,7 +22,9 @@ public sealed record ProductDesktopHostLifecycleSnapshot(
     int OwnedWindowCount,
     long WorkspaceRevision = 0,
     long TopologyGeneration = 0,
-    int RenderedContainerCount = 0)
+    int RenderedContainerCount = 0,
+    bool ReadOnlyAccessibilityAvailable = false,
+    bool PassiveWindowContractAttested = false)
 {
     public bool FeatureEnabled =>
         Status is ProductDesktopHostLifecycleStatus.AwaitingHost
@@ -143,6 +145,10 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
     uint ProcessId { get; }
 
     uint ThreadId { get; }
+
+    bool ReadOnlyAccessibilityAttested { get; }
+
+    bool PassiveWindowContractAttested { get; }
 }
 
 internal interface IProductDesktopHostReadOnlySurfaceFactory
@@ -372,6 +378,12 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                 IProductDesktopHostReadOnlySurface created =
                     surfaceFactory!.Create(display, NextInstanceMarker());
                 surfaces.Add(created);
+                if (!created.ReadOnlyAccessibilityAttested
+                    || !created.PassiveWindowContractAttested)
+                {
+                    throw new InvalidOperationException(
+                        "Every display surface must attest read-only UIA and passive window behavior.");
+                }
                 identity ??= new(
                     hostInstanceId,
                     batch.TopologyGeneration,
@@ -418,7 +430,9 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                 ownedWindowCount: registration!.Snapshot.VerifiedWindowCount,
                 workspaceRevision: batch.WorkspaceRevision,
                 topologyGeneration: batch.TopologyGeneration,
-                renderedContainerCount: batch.ContainerCount);
+                renderedContainerCount: batch.ContainerCount,
+                readOnlyAccessibilityAvailable: true,
+                passiveWindowContractAttested: true);
         }
         catch (Exception exception) when (
             exception is Win32Exception
@@ -464,7 +478,9 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         int ownedWindowCount,
         long workspaceRevision = 0,
         long topologyGeneration = 0,
-        int renderedContainerCount = 0)
+        int renderedContainerCount = 0,
+        bool readOnlyAccessibilityAvailable = false,
+        bool passiveWindowContractAttested = false)
     {
         snapshot = new(
             status,
@@ -473,7 +489,9 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             ownedWindowCount,
             workspaceRevision,
             topologyGeneration,
-            renderedContainerCount);
+            renderedContainerCount,
+            readOnlyAccessibilityAvailable,
+            passiveWindowContractAttested);
         return snapshot;
     }
 

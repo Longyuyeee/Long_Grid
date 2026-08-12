@@ -56,6 +56,13 @@ jobs:
           -File ./eng/Start-Issue20DisplayMatrixSession.ps1
           -ValidateOnly
 
+      - name: Validate DesktopHost product session matrix chain
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Start-DesktopHostProductSessionMatrix.ps1
+          -ValidateOnly
+
       - name: Validate Issue 19 manual matrix session chain
         shell: powershell
         run: >-

@@ -3,6 +3,7 @@ using LongGrid.Infrastructure.DesktopHost;
 
 namespace LongGrid.Core.Tests.DesktopHost;
 
+[Collection(DesktopHostNativeWindowTestGroup.Name)]
 public sealed class ProductDesktopHostLifecycleControllerTests
 {
     private static ProductDesktopHostReadOnlyProjection CreateProjection(
@@ -246,6 +247,33 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         await controller.DisposeAsync();
     }
 
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task MissingSurfaceAttestationFailsClosed(
+        bool accessibilityAttested,
+        bool passiveWindowAttested)
+    {
+        var factory = new RecordingSurfaceFactory
+        {
+            AccessibilityAttested = accessibilityAttested,
+            PassiveWindowAttested = passiveWindowAttested,
+        };
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+
+        ProductDesktopHostLifecycleSnapshot snapshot =
+            controller.ApplyProjectionBatch(CreateBatch());
+
+        Assert.Equal(ProductDesktopHostLifecycleStatus.Faulted, snapshot.Status);
+        Assert.False(snapshot.ReadOnlyAccessibilityAvailable);
+        Assert.False(snapshot.PassiveWindowContractAttested);
+        Assert.True(Assert.Single(factory.Surfaces).IsDisposed);
+        await controller.DisposeAsync();
+    }
+
     [Fact]
     public async Task MultiDisplayBatchOwnsOneSurfacePerDisplay()
     {
@@ -283,6 +311,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, snapshot.Status);
         Assert.Equal(2, snapshot.OwnedWindowCount);
         Assert.Equal(3, snapshot.RenderedContainerCount);
+        Assert.True(snapshot.ReadOnlyAccessibilityAvailable);
+        Assert.True(snapshot.PassiveWindowContractAttested);
         Assert.Equal(2, factory.Surfaces.Count);
         await controller.DisposeAsync();
         Assert.All(factory.Surfaces, surface => Assert.True(surface.IsDisposed));
@@ -339,6 +369,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.Equal(7, snapshot.WorkspaceRevision);
         Assert.Equal(11, snapshot.TopologyGeneration);
         Assert.Equal(1, snapshot.RenderedContainerCount);
+        Assert.True(snapshot.ReadOnlyAccessibilityAvailable);
+        Assert.True(snapshot.PassiveWindowContractAttested);
         await controller.DisposeAsync();
         Assert.Equal(ProductDesktopHostLifecycleStatus.Completed, controller.Snapshot.Status);
     }
@@ -495,6 +527,10 @@ public sealed class ProductDesktopHostLifecycleControllerTests
 
         internal List<RecordingSurface> Surfaces { get; } = [];
 
+        internal bool AccessibilityAttested { get; init; } = true;
+
+        internal bool PassiveWindowAttested { get; init; } = true;
+
         public IProductDesktopHostReadOnlySurface Create(
             ProductDesktopHostDisplayProjection projection,
             nint instanceMarker)
@@ -503,7 +539,11 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                 nextHandle++,
                 instanceMarker,
                 (uint)Environment.ProcessId,
-                42);
+                42)
+            {
+                ReadOnlyAccessibilityAttested = AccessibilityAttested,
+                PassiveWindowContractAttested = PassiveWindowAttested,
+            };
             Surfaces.Add(surface);
             return surface;
         }
@@ -522,6 +562,10 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         public uint ProcessId { get; } = processId;
 
         public uint ThreadId { get; } = threadId;
+
+        public bool ReadOnlyAccessibilityAttested { get; init; } = true;
+
+        public bool PassiveWindowContractAttested { get; init; } = true;
 
         internal bool IsDisposed { get; private set; }
 

@@ -94,6 +94,8 @@ $windowsDesktopHostWindowInspectorCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostWindowInspector.cs'
 $windowsDesktopHostReadOnlySurfaceCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostReadOnlySurface.cs'
+$windowsDesktopHostUiaProviderCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostUiaProvider.cs'
 $verifiedWindowBatchAdapterCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostVerifiedWindowBatchAdapter.cs'
 $desktopHostThreadDispatcherCodePath = Join-Path $projectRoot `
@@ -298,6 +300,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $windowsDesktopHostReadOnlySurfaceCode = Get-Content `
         -LiteralPath $windowsDesktopHostReadOnlySurfaceCodePath `
+        -Raw `
+        -Encoding UTF8
+    $windowsDesktopHostUiaProviderCode = Get-Content `
+        -LiteralPath $windowsDesktopHostUiaProviderCodePath `
         -Raw `
         -Encoding UTF8
     $verifiedWindowBatchAdapterCode = Get-Content `
@@ -1011,7 +1017,9 @@ function Test-SourceContract {
         $desktopHostLifecycleControllerCode -match 'OwnedWindowCount' -and
         $desktopHostLifecycleControllerCode -match 'WorkspaceRevision' -and
         $desktopHostLifecycleControllerCode -match 'TopologyGeneration' -and
-        $desktopHostLifecycleControllerCode -match 'RenderedContainerCount'
+        $desktopHostLifecycleControllerCode -match 'RenderedContainerCount' -and
+        $desktopHostLifecycleControllerCode -match 'ReadOnlyAccessibilityAvailable' -and
+        $desktopHostLifecycleControllerCode -match 'PassiveWindowContractAttested'
     ) `
         'DesktopHost lifecycle must expose the finite anonymous state bridge.'
     Assert-Condition (
@@ -1067,6 +1075,20 @@ function Test-SourceContract {
             'Progman|WorkerW|SetForegroundWindow|RegisterDragDrop|IFileOperation')
     ) `
         'The A3 per-display surface must remain bounded, DPI-aware, no-activate, click-through, product-owned, and Explorer-independent.'
+    Assert-Condition (
+        $windowsDesktopHostReadOnlySurfaceCode -match 'WmGetObject' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'ReturnRawElementProvider' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'AttestPassiveWindowContract' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'WsExTopmost' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'GetForegroundWindow' -and
+        $windowsDesktopHostUiaProviderCode -match 'IRawElementProviderFragmentRoot' -and
+        $windowsDesktopHostUiaProviderCode -match 'ControlType\.Group' -and
+        $windowsDesktopHostUiaProviderCode -match 'ControlType\.Text' -and
+        $windowsDesktopHostUiaProviderCode -match 'IsKeyboardFocusableProperty' -and
+        $windowsDesktopHostUiaProviderCode -match 'GetPatternProvider\(int patternId\) => null' -and
+        -not ($windowsDesktopHostUiaProviderCode -match 'ISelectionProvider|ISelectionItemProvider|IInvokeProvider')
+    ) `
+        'The A5 product surface must expose a bounded read-only UIA Fragment and attest passive non-topmost behavior.'
     Assert-Condition (
         ([regex]::Matches(
             $appCode,
@@ -2063,7 +2085,7 @@ function Test-SourceContract {
         responsiveBreakpoints = 1
         compactWidth = 720
         dpiAwareInitialSize = 'pass'
-        coreRuntimeStatus = 'desktop-read-only-config-edit-host-default-off-dynamic-topology-hardened'
+        coreRuntimeStatus = 'desktop-read-only-config-edit-host-default-off-uia-session-attested'
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
