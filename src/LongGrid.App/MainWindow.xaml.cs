@@ -365,7 +365,8 @@ public sealed partial class MainWindow : Window
             DesktopHostDetail.Text =
                 $"已连接 {snapshot.OwnedWindowCount} 个显示器宿主，" +
                 $"呈现 {snapshot.RenderedContainerCount} 个只读方格 · " +
-                $"拓扑代次 {snapshot.TopologyGeneration}";
+                $"拓扑代次 {snapshot.TopologyGeneration} · " +
+                "UIA 只读树与非激活窗口合同已复读";
         }
         else if (snapshot.Status ==
             ProductDesktopHostLifecycleStatus.SuspendedUnsafeTopology)

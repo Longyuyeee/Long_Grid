@@ -19,12 +19,13 @@ internal sealed class WindowsProductDesktopHostReadOnlySurfaceFactory
 internal sealed class WindowsProductDesktopHostReadOnlySurface
     : IProductDesktopHostReadOnlySurface
 {
-    private const int HeaderHeightDip = 54;
-    private const int ItemHeightDip = 28;
     private readonly string className;
     private readonly nint module;
     private readonly WindowProcedure windowProcedure;
     private readonly ProductDesktopHostDisplayProjection projection;
+#if WINDOWS
+    private WindowsProductDesktopHostUiaRootProvider? uiaProvider;
+#endif
     private bool disposed;
 
     private WindowsProductDesktopHostReadOnlySurface(
@@ -58,6 +59,10 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     public uint ProcessId { get; private set; }
 
     public uint ThreadId { get; private set; }
+
+    public bool ReadOnlyAccessibilityAttested => uiaProvider is not null;
+
+    public bool PassiveWindowContractAttested { get; private set; }
 
     internal static WindowsProductDesktopHostReadOnlySurface Create(
         ProductDesktopHostDisplayProjection projection,
@@ -119,6 +124,10 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             throw new Win32Exception(Marshal.GetLastWin32Error());
         }
 
+#if WINDOWS
+        uiaProvider = new(Handle, projection, InstanceMarker);
+#endif
+
         ThreadId = NativeMethods.GetWindowThreadProcessId(
             Handle,
             out uint processId);
@@ -151,6 +160,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         ApplyWindowRegion();
         _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwShowNoActivate);
         _ = NativeMethods.UpdateWindow(Handle);
+        PassiveWindowContractAttested = AttestPassiveWindowContract();
     }
 
     private nint WindowProc(
@@ -161,6 +171,18 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     {
         switch (message)
         {
+#if WINDOWS
+            case NativeMethods.WmGetObject
+                when longParameter.ToInt64() ==
+                    System.Windows.Automation.Provider.AutomationInteropProvider.RootObjectId
+                    && uiaProvider is not null:
+                return System.Windows.Automation.Provider.AutomationInteropProvider
+                    .ReturnRawElementProvider(
+                        window,
+                        wordParameter,
+                        longParameter,
+                        uiaProvider);
+#endif
             case NativeMethods.WmEraseBackground:
                 return new nint(1);
             case NativeMethods.WmNcHitTest:
@@ -223,7 +245,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     {
         NativeRect bounds = GetContainerBounds(container);
         double scale = projection.EffectiveDpi / 96d;
-        int headerHeight = ToPixels(HeaderHeightDip, scale);
+        int headerHeight = ToPixels(
+            ProductDesktopHostSurfaceLayout.HeaderHeightDip,
+            scale);
         int horizontalPadding = ToPixels(18, scale);
         uint background = BlendWithDesktop(
             ParseColor(container.Color),
@@ -295,7 +319,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         IReadOnlyList<string> items = container.ItemNames.Count == 0
             ? ["空方格 · 只读预览"]
             : container.ItemNames;
-        int itemHeight = ToPixels(ItemHeightDip, scale);
+        int itemHeight = ToPixels(
+            ProductDesktopHostSurfaceLayout.ItemHeightDip,
+            scale);
         int horizontalPadding = ToPixels(18, scale);
         int top = bounds.Top + headerHeight;
         foreach (string item in items)
@@ -345,6 +371,14 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         disposed = true;
         if (Handle != nint.Zero)
         {
+#if WINDOWS
+            _ = NativeMethods.UiaReturnRawElementProvider(
+                Handle,
+                nint.Zero,
+                nint.Zero,
+                nint.Zero);
+            uiaProvider = null;
+#endif
             _ = NativeMethods.RemoveProp(
                 Handle,
                 WindowsProductDesktopHostWindowInspector.InstanceMarkerProperty);
@@ -414,36 +448,33 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         }
     }
 
+    private bool AttestPassiveWindowContract()
+    {
+        nint extendedStyle = NativeMethods.GetWindowLongPtr(
+            Handle,
+            NativeMethods.GwlExStyle);
+        long style = extendedStyle.ToInt64();
+        const long required = NativeMethods.WsExToolWindow
+            | NativeMethods.WsExLayered
+            | NativeMethods.WsExNoActivate
+            | NativeMethods.WsExTransparent;
+        return (style & required) == required
+            && (style & NativeMethods.WsExTopmost) == 0
+            && NativeMethods.GetWindow(Handle, NativeMethods.GwOwner) == nint.Zero
+            && NativeMethods.GetForegroundWindow() != Handle;
+    }
+
     private NativeRect GetContainerBounds(
         ProductDesktopHostReadOnlyProjection container)
     {
-        double scale = projection.EffectiveDpi / 96d;
-        int workWidth = projection.WorkArea.Width;
-        int workHeight = projection.WorkArea.Height;
-        int width = Math.Clamp(
-            ToPixels(container.WidthDip, scale),
-            Math.Min(160, workWidth),
-            workWidth);
-        double requestedHeight = container.IsCollapsed
-            ? HeaderHeightDip
-            : Math.Max(
-                container.HeightDip,
-                HeaderHeightDip
-                    + (Math.Max(1, container.ItemNames.Count) * ItemHeightDip)
-                    + 18);
-        int height = Math.Clamp(
-            ToPixels(requestedHeight, scale),
-            Math.Min(ToPixels(HeaderHeightDip, scale), workHeight),
-            workHeight);
-        int left = Math.Clamp(
-            ToPixels(container.XDip, scale),
-            0,
-            Math.Max(0, workWidth - width));
-        int top = Math.Clamp(
-            ToPixels(container.YDip, scale),
-            0,
-            Math.Max(0, workHeight - height));
-        return new(left, top, checked(left + width), checked(top + height));
+        PixelRect bounds = ProductDesktopHostSurfaceLayout.GetContainerBounds(
+            projection,
+            container);
+        return new(
+            bounds.Left,
+            bounds.Top,
+            checked(bounds.Left + bounds.Width),
+            checked(bounds.Top + bounds.Height));
     }
 
     private static int ToPixels(double value, double scale) =>
@@ -558,12 +589,14 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint WsExTransparent = 0x00000020;
         internal const uint WsExLayered = 0x00080000;
         internal const uint WsExNoActivate = 0x08000000;
+        internal const uint WsExTopmost = 0x00000008;
         internal const uint LwaAlpha = 0x00000002;
         internal const int SwShowNoActivate = 4;
         internal const uint WmPaint = 0x000F;
         internal const uint WmEraseBackground = 0x0014;
         internal const uint WmNcHitTest = 0x0084;
         internal const uint WmMouseActivate = 0x0021;
+        internal const uint WmGetObject = 0x003D;
         internal const int HtTransparent = -1;
         internal const int MaNoActivate = 3;
         internal const int TransparentBackground = 1;
@@ -577,10 +610,21 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const int Error = 0;
         internal const int DwmWindowCornerPreference = 33;
         internal const int DwmWindowCornerPreferenceRound = 2;
+        internal const int GwlExStyle = -20;
+        internal const uint GwOwner = 4;
         internal static readonly nint ArrowCursor = new(32512);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
         internal static extern nint GetModuleHandle(string? moduleName);
+
+        [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+        internal static extern nint GetWindowLongPtr(nint window, int index);
+
+        [DllImport("user32.dll")]
+        internal static extern nint GetWindow(nint window, uint command);
+
+        [DllImport("user32.dll")]
+        internal static extern nint GetForegroundWindow();
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern ushort RegisterClassEx(ref WindowClass windowClass);
@@ -731,5 +775,14 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             int attribute,
             ref int value,
             int size);
+
+#if WINDOWS
+        [DllImport("uiautomationcore.dll")]
+        internal static extern nint UiaReturnRawElementProvider(
+            nint window,
+            nint wordParameter,
+            nint longParameter,
+            nint provider);
+#endif
     }
 }
