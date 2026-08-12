@@ -150,6 +150,7 @@ public sealed class ProductWorkspaceSaveControllerTests
         await scheduler.WaitForCountAsync(1);
         scheduler.Release(0);
         await WaitForStatusAsync(controller, ProductWorkspaceSaveStatus.Saving);
+        await workflow.WaitForSaveCallCountAsync(1);
         controller.Submit(second);
         await scheduler.WaitForCountAsync(2);
         firstSave.SetResult(Failed(ProductConfigurationSaveError.IoFailure));
@@ -357,6 +358,7 @@ public sealed class ProductWorkspaceSaveControllerTests
         Task<ProductWorkspaceSaveCompletionResult> closing =
             controller.CompleteAsync(cancellation.Token);
         await WaitForStatusAsync(controller, ProductWorkspaceSaveStatus.Saving);
+        await workflow.WaitForSaveCallCountAsync(1);
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => closing);
@@ -703,6 +705,8 @@ public sealed class ProductWorkspaceSaveControllerTests
     {
         private int saveCalls;
 
+        public int SaveCalls => Volatile.Read(ref saveCalls);
+
         public ConcurrentQueue<ProductConfigurationDocument> SavedDocuments { get; } = [];
 
         public Func<ProductConfigurationDocument, int,
@@ -741,6 +745,23 @@ public sealed class ProductWorkspaceSaveControllerTests
         {
             CompleteCalls++;
             return Task.CompletedTask;
+        }
+
+        public async Task WaitForSaveCallCountAsync(int count)
+        {
+            for (int attempt = 0; attempt < 200; attempt++)
+            {
+                if (SaveCalls >= count)
+                {
+                    return;
+                }
+
+                await Task.Delay(5);
+            }
+
+            Assert.True(
+                SaveCalls >= count,
+                $"Expected {count} workflow save calls.");
         }
     }
 

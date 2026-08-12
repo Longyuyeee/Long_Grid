@@ -474,3 +474,9 @@ PR #152 合并后的 main CI 在 633 项中仅有真实 Store 容器提交复读
 Stage 103 文档 PR #154 暴露内部 RC 对 runner 缓存的隐式依赖：普通 solution restore 后传 `-NoRestore`，无法保证 `win-x64` self-contained runtime pack 已准备，导致 `NETSDK1112`。该失败与 Markdown 差异无关，且发生在其余全部工程门禁通过之后。
 
 CI 现保留质量门禁与工具恢复复用，但让 RC 入口自行执行 RID/Windows App SDK self-contained 专用恢复。新增源码合同禁止 CI 再次传 `-NoRestore`，并验证恢复先于 publish。应用行为、包内容、签名和发布权限不变；最终结论等待 PR 与 main 的干净 runner 证据。
+
+## 26. 2026-08-12 Stage 105 保存测试准入确定性审计
+
+PR #154 的第二次干净 runner 验证已通过还原、格式化、构建和全部源码合同，但 636 项测试中的 `OlderSaveCompletionCannotOverwriteNewerWaitingEdit` 单项失败。复审确认产品状态机与 Stage 102 的工作流提交门保持有效，失败来自测试把 `Saving` 状态误当成 `SaveAsync` 已进入：两者之间仍存在受线程调度影响的异步让出窗口。
+
+测试替身现公开线程安全的调用计数等待点；旧保存完成与关闭超时两个场景都必须确认第一次工作流保存已经进入后才触发下一事件。断言、超时、覆盖率和产品代码均未放宽。定向 22 项测试通过，两个竞态场景 10 轮、共 20 次执行通过；完整 PR 与 main CI 仍是最终远端门禁。详见[Stage 105 保存控制器测试工作流准入确定性审计](105-save-controller-test-workflow-admission-determinism-audit.md)。
