@@ -135,7 +135,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按纠偏后的 `Phase 0 Exit` 顺序推进：真实窗口恢复内部工程链、142-ID 干净会话入口，以及聚合便携 ZIP、unsigned MSIX、SPDX 2.2 和签名隔离状态的一键内部 RC 入口已经建立。App 只读枚举真实桌面第一层元数据，并允许把最多 256 个未分组项目原子加入 Long方格配置、从同一方格原子移除，或把同一源方格内最多 256 个引用原子改归属到另一正式方格；正式工作区可组合健康筛选、可见搜索与有限稳定排序，在零结果时一次性恢复默认视图，并在正式空工作区提供只聚焦名称编辑器的首个方格入口；名称编辑会在提交前给出有限状态提示，不采集最近使用遥测、不自动创建或保存。批量列表提供键盘可达的有限选择与清除、空选择状态复位、单次 live-region 播报和紧凑布局重排，也可继续使用标准 Ctrl/Shift 多选。专用 BSA-01–BSA-05 会话链已把纯键盘、Narrator、高对比度、200% 文本缩放和紧凑宽度拆成独立人工场景；CI 只验证安全入口，五项真实结果仍需在专用账户执行。布局恢复、批量加入、批量移除、批量改归属或方格删除中恰好一个仍有效的令牌会投影为统一即时撤销按钮；冲突或畸形状态默认关闭，仍保持零文件内容读取、零桌面文件写入/移动和零 DesktopHost 窗口执行。没有正式 Publisher/证书/许可证/受保护 Release environment 时，交付机械链停止扩张，优先收集 GitHub #19、#20、#23、#24 的真实人工、硬件或专用卷证据。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。A2 已建立严格默认关闭的单显示器只读 DesktopHost：仅在 `LONGGRID_ENABLE_DESKTOP_HOST=1` 且存在正式方格时，显示一个产品自有、无激活、点击穿透的半透明方格；窗口必须通过所有权复读，失败或关闭立即销毁。默认启动仍为零 DesktopHost HWND。下一切片 A3 将扩展为每显示器宿主与多方格 generation 投影；当前不接收桌面交互，不读取文件内容，不写入、移动或删除桌面文件，也不访问 Explorer 内部桌面窗口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 
@@ -146,7 +146,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -File ./eng/Start-LongGrid.ps1
 ```
 
-该入口默认执行锁定依赖恢复、必要构建和启动；不提权，App 启动后只读枚举用户桌面与公共桌面第一层元数据，不读取文件内容，也不执行桌面文件写入/移动或 DesktopHost 窗口操作。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[真实只读运行边界披露审计](docs/76-truthful-readonly-runtime-disclosure-audit.md)。
+该入口默认执行锁定依赖恢复、必要构建和启动；不提权，默认不创建 DesktopHost 窗口。App 只读枚举用户桌面与公共桌面第一层元数据，不读取文件内容，也不执行桌面文件写入/移动。开发者可显式设置 `LONGGRID_ENABLE_DESKTOP_HOST=1` 验证 A2 单方格只读表面；该开关不是用户许可或发布默认值。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[Stage 107 审计](docs/107-desktop-host-single-monitor-readonly-surface-audit.md)。
 
 从干净、已提交的工作树一键生成并交叉验证完整内部 RC 交付集合：
 

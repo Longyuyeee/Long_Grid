@@ -338,6 +338,10 @@ public partial class App : Application
                 ProductConfigurationError.None,
                 null)
             : ProductWorkspaceReadModel.Create(productWorkspaceSession.State);
+        _ = productDesktopHostLifecycle.ApplyProjection(
+            CreateDesktopHostProjection(
+                productWorkspaceSession.State,
+                readModel.Snapshot));
         ProductWorkspaceReadPresentation readPresentation = readModel.IsSuccess
             ? ProductWorkspaceReadPresentation.Create(readModel.Snapshot!)
             : productWorkspaceSession.Status ==
@@ -395,6 +399,36 @@ public partial class App : Application
                 workspaceCommits.CurrentReferenceRemovalUndoToken,
                 workspaceCommits.CurrentReferenceReassignmentUndoToken));
         ApplyProductWorkspaceReferenceReview();
+    }
+
+    private static ProductDesktopHostReadOnlyProjection? CreateDesktopHostProjection(
+        ProductWorkspaceState? state,
+        ProductWorkspaceReadSnapshot? readSnapshot)
+    {
+        if (state is null
+            || readSnapshot is null
+            || state.Containers.Count == 0
+            || readSnapshot.Containers.Count == 0)
+        {
+            return null;
+        }
+
+        ProductContainerState source = state.Containers[0];
+        ProductWorkspaceReadContainer visible = readSnapshot.Containers[0];
+        IEnumerable<string> itemNames = visible.Items.Select(item =>
+            item.UserVisibleName
+                ?? $"待审查项目 {item.Ordinal}");
+        return ProductDesktopHostReadOnlyProjection.Create(
+            source.Id,
+            visible.UserVisibleName,
+            itemNames,
+            visible.Color,
+            visible.Opacity,
+            visible.IsCollapsed,
+            visible.XDip,
+            visible.YDip,
+            visible.WidthDip,
+            visible.HeightDip);
     }
 
     private void ApplyProductWorkspaceReferenceReview()

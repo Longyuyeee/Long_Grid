@@ -86,6 +86,8 @@ $desktopHostLifecycleControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostLifecycleController.cs'
 $windowsDesktopHostWindowInspectorCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostWindowInspector.cs'
+$windowsDesktopHostReadOnlySurfaceCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostReadOnlySurface.cs'
 $verifiedWindowBatchAdapterCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostVerifiedWindowBatchAdapter.cs'
 $desktopHostThreadDispatcherCodePath = Join-Path $projectRoot `
@@ -274,6 +276,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $windowsDesktopHostWindowInspectorCode = Get-Content `
         -LiteralPath $windowsDesktopHostWindowInspectorCodePath `
+        -Raw `
+        -Encoding UTF8
+    $windowsDesktopHostReadOnlySurfaceCode = Get-Content `
+        -LiteralPath $windowsDesktopHostReadOnlySurfaceCodePath `
         -Raw `
         -Encoding UTF8
     $verifiedWindowBatchAdapterCode = Get-Content `
@@ -978,15 +984,33 @@ function Test-SourceContract {
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and
+        $desktopHostLifecycleControllerCode -match 'ReadyReadOnly' -and
+        $desktopHostLifecycleControllerCode -match 'Faulted' -and
         $desktopHostLifecycleControllerCode -match 'Completed' -and
         $desktopHostLifecycleControllerCode -match 'NativeHostConnected' -and
         $desktopHostLifecycleControllerCode -match 'OwnedWindowCount'
     ) `
         'DesktopHost lifecycle must expose the finite anonymous state bridge.'
-    Assert-Condition (-not (
-        $desktopHostLifecycleControllerCode -match '\bnint\b|HWND|ProcessId|ThreadId|ProductDesktopHostWindowBridge|WindowsProductDesktopHostWindowInspector'
-    )) `
-        'The A1 lifecycle bridge must not create or expose native host/window authority.'
+    Assert-Condition (
+        $desktopHostLifecycleControllerCode -match 'ProductDesktopHostWindowBridge' -and
+        $desktopHostLifecycleControllerCode -match 'WindowsProductDesktopHostWindowInspector' -and
+        $desktopHostLifecycleControllerCode -match 'OwnershipAttested' -and
+        $desktopHostLifecycleControllerCode -match 'ApplyProjection' -and
+        $desktopHostLifecycleControllerCode -match 'ReleaseSurfaceUnsafe'
+    ) `
+        'The A2 lifecycle must create only ownership-attested surfaces and release them on every exit.'
+    Assert-Condition (
+        $windowsDesktopHostReadOnlySurfaceCode -match 'WsExToolWindow' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'WsExNoActivate' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'WsExLayered' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'WsExTransparent' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'SwShowNoActivate' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'HtTransparent' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'InstanceMarkerProperty' -and
+        -not ($windowsDesktopHostReadOnlySurfaceCode -match `
+            'Progman|WorkerW|SetForegroundWindow|RegisterDragDrop|IFileOperation')
+    ) `
+        'The A2 surface must remain no-activate, click-through, layered, product-owned, and Explorer-independent.'
     Assert-Condition (
         ([regex]::Matches(
             $appCode,
@@ -997,6 +1021,8 @@ function Test-SourceContract {
         $appCode -match 'ProductDesktopHostFeaturePolicy\.Evaluate' -and
         $appCode -match 'Environment\.GetEnvironmentVariable' -and
         $appCode -match 'ApplyProductDesktopHostLifecycleState' -and
+        $appCode -match 'ApplyProjection' -and
+        $appCode -match 'CreateDesktopHostProjection' -and
         $appCode -match 'productDesktopHostLifecycle\.DisposeAsync'
     ) `
         'The App must evaluate, present, and dispose the DesktopHost lifecycle boundary.'
@@ -1005,7 +1031,8 @@ function Test-SourceContract {
         $codeBehind -match 'desktopHostFeatureEnabled:\s*_desktopHostFeatureEnabled' -and
         $codeBehind -match 'DesktopHostValue\.Text\s*=\s*snapshot\.DesktopHost\s+switch' -and
         $codeBehind -match 'RuntimeCapabilityState\.DisabledBySafetyPolicy' -and
-        $codeBehind -match 'RuntimeCapabilityState\.Disconnected'
+        $codeBehind -match 'RuntimeCapabilityState\.Disconnected' -and
+        $codeBehind -match 'RuntimeCapabilityState\.ConnectedReadOnly'
     ) `
         'The control center must distinguish default-off from enabled-but-awaiting-host state.'
     Assert-Condition ($codeBehind -match 'FileOrganizationMode\.SafeReference') `
@@ -1980,7 +2007,7 @@ function Test-SourceContract {
         responsiveBreakpoints = 1
         compactWidth = 720
         dpiAwareInitialSize = 'pass'
-        coreRuntimeStatus = 'desktop-read-only-config-edit-host-default-off'
+        coreRuntimeStatus = 'desktop-read-only-config-edit-host-default-off-single-surface-opt-in'
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
@@ -2302,14 +2329,14 @@ public static class LongGridWindowNative
             'The UI did not expose the Core development read-only mode.'
         Assert-Condition ($fileOperationCard.Current.ItemStatus -eq 'DisabledBySafetyPolicy') `
             'The UI did not expose the file-operation safety policy.'
-        $expectedDesktopHostStatus = if ($DesktopHostDevelopmentOptIn) {
-            'Disconnected'
+        $expectedDesktopHostStatuses = if ($DesktopHostDevelopmentOptIn) {
+            @('Disconnected', 'ConnectedReadOnly')
         }
         else {
-            'DisabledBySafetyPolicy'
+            @('DisabledBySafetyPolicy')
         }
         Assert-Condition (
-            $desktopHostCard.Current.ItemStatus -eq $expectedDesktopHostStatus
+            $expectedDesktopHostStatuses -contains $desktopHostCard.Current.ItemStatus
         ) 'The UI did not expose the audited DesktopHost feature boundary.'
         Assert-VerticallyStacked `
             @($currentModeCard, $fileOperationCard, $desktopHostCard) `

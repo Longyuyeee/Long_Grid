@@ -40,6 +40,21 @@ public sealed class RuntimeStatusSnapshotTests
     }
 
     [Fact]
+    public void VerifiedDevelopmentHostIsReportedReadOnly()
+    {
+        RuntimeStatusSnapshot snapshot =
+            RuntimeStatusSnapshot.CreateDevelopmentReadOnly(
+                desktopHostFeatureEnabled: true,
+                desktopHostConnected: true);
+
+        Assert.Equal(
+            RuntimeCapabilityState.ConnectedReadOnly,
+            snapshot.DesktopHost);
+        Assert.True(snapshot.HasExternalConnection);
+        Assert.False(snapshot.AllowsFileOperations);
+    }
+
+    [Fact]
     public void DevelopmentSnapshotsAreValueEquivalent()
     {
         RuntimeStatusSnapshot first =

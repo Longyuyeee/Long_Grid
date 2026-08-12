@@ -290,6 +290,6 @@ MVP 完成必须同时满足：
 
 ## 12. 下一切片建议
 
-Stage 106 已完成 **A1：DesktopHost composition root 与开发 Feature Flag**。App 现在唯一持有有限匿名生命周期控制器，`LONGGRID_ENABLE_DESKTOP_HOST=1` 是唯一开发 opt-in，未设置或任意其他值均保持安全策略关闭；即使 opt-in，本阶段仍只报告等待宿主且不创建 HWND。
+Stage 107 已完成 **A2：单显示器只读方格渲染**。严格开发 opt-in 后，App 会把第一正式方格的名称、有限颜色/透明度、折叠、DIP 放置与最多 12 个可见引用名投影到一个产品自有的只读 ToolWindow；创建后必须经进程、线程、实例标记与边界所有权复读，失败立即销毁。默认关闭或无正式方格时仍为零 HWND。
 
-下一步是 **A2：单显示器只读方格渲染**。该切片才会在受控开发模式创建第一个只读正式方格宿主，并验证关闭零残留；配置保存、桌面文件、任务栏和插件权限继续不得扩大。A1 证据与未决 live UIA 条件见[Stage 106 审计](106-desktop-host-lifecycle-feature-flag-audit.md)。
+下一步是 **A3：多容器/多显示器 generation 投影**。该切片应把“单方格/主工作区”扩为“每显示器一个宿主 + 多方格渲染批次”，绑定配置 revision、拓扑 generation 和窗口 registry generation，避免逐方格 HWND 扩张；仍不开放点击、拖放、真实文件操作、任务栏或插件权限。A2 证据与限制见[Stage 107 审计](107-desktop-host-single-monitor-readonly-surface-audit.md)。

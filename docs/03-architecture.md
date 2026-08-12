@@ -341,3 +341,9 @@ DesktopHost 使用状态机管理 `Hidden / DesktopPassive / DesktopEditing / Pe
 `ProductWorkspaceViewResetPolicy` 只根据会话可筛选性、总数/可见数和搜索/筛选/排序是否偏离默认值，决定是否展示恢复主动作。它不接收查询内容、presentation 项、配置身份或桌面事实。
 
 App 使用抑制标志把清空搜索、恢复全部筛选、恢复配置顺序合并为一次 UI 事务，随后一次性投影最终列表和 live-region 状态并将焦点移回搜索框。该过程只改窗口控件，不进入保存、Catalog 或 DesktopHost。
+
+## Stage 107：单显示器只读 DesktopHost 产品表面
+
+在严格默认关闭的 `LONGGRID_ENABLE_DESKTOP_HOST=1` 开发边界内，App 只把第一正式方格投影成有限的 `ProductDesktopHostReadOnlyProjection`。Infrastructure 创建产品自有的无激活、分层、点击穿透 ToolWindow，设置唯一实例标记，并在显示前后由既有窗口桥复读进程、线程、标记与 Bounds；任一不一致即销毁窗口并进入有限 `Faulted` 状态。
+
+该表面只用主工作区、静态 GDI 文本与最多 12 个可见显示名，不读取文件内容、不接收输入、不修改配置或桌面文件，也不访问 `Progman`、`WorkerW` 或 Explorer 内部结构。A3 应迁移到“每显示器一个 HWND + 多容器渲染批次”并绑定配置/拓扑/registry generation；在此之前不得把单 HWND 验证解释为多显示器、UIA、Win+D 或交互完成。
