@@ -88,6 +88,10 @@ $desktopInteractionCancellationCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionCancellationAdapter.cs'
 $desktopInteractionHitTestCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionHitTestAdapter.cs'
+$desktopInteractionSelectionCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionSelection.cs'
+$desktopInteractionSelectionAccessibilityCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionSelectionAccessibility.cs'
 $desktopHostLifecycleControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostLifecycleController.cs'
 $desktopHostProjectionBatchCodePath = Join-Path $projectRoot `
@@ -294,6 +298,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopInteractionHitTestCode = Get-Content `
         -LiteralPath $desktopInteractionHitTestCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopInteractionSelectionCode = Get-Content `
+        -LiteralPath $desktopInteractionSelectionCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopInteractionSelectionAccessibilityCode = Get-Content `
+        -LiteralPath $desktopInteractionSelectionAccessibilityCodePath `
         -Raw `
         -Encoding UTF8
     $desktopHostLifecycleControllerCode = Get-Content `
@@ -1074,6 +1086,40 @@ function Test-SourceContract {
             'ProductDesktopInteractionHitTestAdapter|ProductDesktopInteractionIntentFactory|ProductDesktopInteractionCancellationAdapter')
     ) `
         'B2 hit testing must reuse the shared surface layout, reject overlap, issue finite intentions, unify cancellation semantics, preserve HWND transparency, and remain App-blocked.'
+    Assert-Condition (
+        $desktopInteractionSelectionCode -match `
+            'MaximumVisibleItems\s*=\s*256' -and
+        $desktopInteractionSelectionCode -match 'LeaseIntentId' -and
+        $desktopInteractionSelectionCode -match 'WorkspaceRevision' -and
+        $desktopInteractionSelectionCode -match 'TopologyGeneration' -and
+        $desktopInteractionSelectionCode -match `
+            'WindowRegistryGeneration' -and
+        $desktopInteractionSelectionCode -match 'LeaseExpired' -and
+        $desktopInteractionSelectionCode -match 'VisibleItemsChanged' -and
+        $desktopInteractionSelectionCode -match 'SelectionRevision' -and
+        $desktopInteractionSelectionCode -match 'AnchorItemId' -and
+        $desktopInteractionSelectionCode -match `
+            'ProductDesktopSelectionModifiers\.Control' -and
+        $desktopInteractionSelectionCode -match `
+            'ProductDesktopSelectionModifiers\.Shift' -and
+        $desktopInteractionSelectionAccessibilityCode -match `
+            'PassiveReadOnly' -and
+        $desktopInteractionSelectionAccessibilityCode -match `
+            'SelectionPatternAvailable:\s*false' -and
+        $desktopInteractionSelectionAccessibilityCode -match `
+            'IsKeyboardFocusable:\s*false' -and
+        $desktopInteractionSelectionAccessibilityCode -match `
+            'CanSelectMultiple:\s*true' -and
+        $desktopInteractionSelectionAccessibilityCode -match `
+            'AddToSelection' -and
+        $desktopInteractionSelectionAccessibilityCode -match `
+            'RemoveFromSelection' -and
+        -not ($appCode -match `
+            'ProductDesktopInteractionSelectionController|ProductDesktopInteractionSelectionAccessibilityAdapter') -and
+        -not ($windowsDesktopHostUiaProviderCode -match `
+            'ProductDesktopInteractionSelectionController|ProductDesktopInteractionSelectionAccessibilityAdapter|ISelectionProvider|ISelectionItemProvider')
+    ) `
+        'B3 selection must be bounded, lease and generation bound, expose stable Ctrl/Shift anchor semantics, keep Passive UIA nonfocusable and pattern-free, and remain isolated from App and the formal read-only provider.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and
