@@ -148,6 +148,8 @@ P0-02 已验证 Shell 会强烈合并高频变化：1,100 次沙箱操作每轮�
 
 只读物理 Desktop Catalog 层把 P0-01a 的用户桌面/公共桌面第一层枚举晋升为 Infrastructure reader，并用 controller 提供递增 generation、并发 latest-wins、有限取消和关闭排空。只有两个来源都完整 Ready 才发布 Authoritative Catalog；Partial/Missing/AccessDenied/IoFailure 收集项只作匿名诊断，转换到产品会话时仍为 Unavailable。App 自动首刷并提供显式刷新，配置加载与目录刷新任意顺序汇合；Core 只在 Ready 时报告 ConnectedReadOnly，文件操作仍 DisabledBySafetyPolicy。Shell COM 虚拟项继续留在 Spike，详见[只读物理桌面目录与刷新代次审计](50-readonly-physical-desktop-catalog-audit.md)。
 
+DesktopHost 产品接线从 Stage 106 起由 App composition root 唯一持有 `ProductDesktopHostLifecycleController`。Core 只判定严格默认关闭的开发 Feature Policy，Infrastructure 只向 App 报告 `DisabledBySafetyPolicy`、`AwaitingHost`、`Completed`、generation、连接布尔值和窗口数量；presentation 不接收 HWND、进程/线程 ID 或路径。A1 尚不创建原生宿主或方格窗口；`LONGGRID_ENABLE_DESKTOP_HOST=1` 只把状态推进到等待宿主。Catalog 刷新与生命周期更新合并进同一 Runtime snapshot，互不覆盖。关闭时 App 先退订并释放生命周期控制器，再释放显示拓扑、Catalog 与保存控制器。详见[DesktopHost 生命周期与默认关闭开关审计](106-desktop-host-lifecycle-feature-flag-audit.md)。
+
 未解析引用审查层随后把会话中的非 Resolved 项投影为稳定匿名序号，并为每项签发包含 Catalog generation、edit revision、内部领域 ID 与预期解析状态的 token。Keep 不产生 edit；Replace 必须显式选择且当前 Catalog 身份唯一；Remove 必须明确确认。Gate 在每次预演时复核代际、修订、对象状态、锁定及候选，返回有限失败或 reducer 深快照。WinUI 在对话框打开前捕获 token/候选，目录刷新不能让旧选择静默指向新对象。当前只做 dry-run，App 不替换 session、不递增 revision、不调用普通 submit，也不触碰桌面文件，详见[未解析引用审查与双版本门禁审计](51-unresolved-reference-review-gate-audit.md)。
 
 正式编辑提交层将 Gate/Reducer 的成功结果交给 Infrastructure `ProductWorkspaceCommitCoordinator`：校验 → v1 projection → 唯一 controller Submit → edit revision 推进的顺序不可绕过。引用编辑和容器编辑共享同一把锁与同一单调 revision，外部配置加载也推进该 revision。controller 接受后，App 用返回 Document 立即替换内存配置基线并重新解析 session/review，因此防抖期间的 Catalog 刷新不会恢复旧状态。Waiting/Saving/Failed 期间导入/导出关闭；桌面文件 API 仍未接入。详见[引用编辑正式保存提交审计](52-reference-edit-save-submission-audit.md)。

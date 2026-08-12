@@ -19,6 +19,20 @@ public sealed class RuntimeStatusSnapshotTests
             RuntimeCapabilityState.DisabledBySafetyPolicy,
             snapshot.FileOperations);
         Assert.Equal(
+            RuntimeCapabilityState.DisabledBySafetyPolicy,
+            snapshot.DesktopHost);
+        Assert.False(snapshot.HasExternalConnection);
+        Assert.False(snapshot.AllowsFileOperations);
+    }
+
+    [Fact]
+    public void DevelopmentHostFlagOnlyMovesHostIntoWaitingState()
+    {
+        RuntimeStatusSnapshot snapshot =
+            RuntimeStatusSnapshot.CreateDevelopmentReadOnly(
+                desktopHostFeatureEnabled: true);
+
+        Assert.Equal(
             RuntimeCapabilityState.Disconnected,
             snapshot.DesktopHost);
         Assert.False(snapshot.HasExternalConnection);

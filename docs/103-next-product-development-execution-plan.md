@@ -290,6 +290,6 @@ MVP 完成必须同时满足：
 
 ## 12. 下一切片建议
 
-立即开始 **A1：DesktopHost composition root 与开发 Feature Flag**。
+Stage 106 已完成 **A1：DesktopHost composition root 与开发 Feature Flag**。App 现在唯一持有有限匿名生命周期控制器，`LONGGRID_ENABLE_DESKTOP_HOST=1` 是唯一开发 opt-in，未设置或任意其他值均保持安全策略关闭；即使 opt-in，本阶段仍只报告等待宿主且不创建 HWND。
 
-该切片只建立 App 对 DesktopHost 生命周期的唯一所有权、有限状态桥和默认关闭的开发标志，不立即开放真实桌面交互。完成后应能在受控开发模式创建一个只读正式方格宿主，并在关闭时零残留；配置保存、桌面文件、任务栏和插件权限不得扩大。
+下一步是 **A2：单显示器只读方格渲染**。该切片才会在受控开发模式创建第一个只读正式方格宿主，并验证关闭零残留；配置保存、桌面文件、任务栏和插件权限继续不得扩大。A1 证据与未决 live UIA 条件见[Stage 106 审计](106-desktop-host-lifecycle-feature-flag-audit.md)。

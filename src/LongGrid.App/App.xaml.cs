@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using LongGrid.Core.Configuration;
+using LongGrid.Core.DesktopHost;
 using LongGrid.Core.DesktopItems;
 using LongGrid.Infrastructure.Configuration;
 using LongGrid.Infrastructure.DesktopHost;
@@ -24,6 +25,7 @@ public partial class App : Application
     private readonly ProductWorkspaceCommitCoordinator workspaceCommits;
     private readonly ProductDesktopCatalogController productDesktopCatalog;
     private readonly ProductDisplayTopologyController productDisplayTopology;
+    private readonly ProductDesktopHostLifecycleController productDesktopHostLifecycle;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
     private ProductConfigurationLoadResult? currentConfigurationLoadResult;
@@ -47,6 +49,11 @@ public partial class App : Application
             ProductDesktopCatalogReader.CreateForCurrentUser());
         productDisplayTopology = new(
             ProductDisplayTopologyReader.CreateForCurrentSession());
+        ProductDesktopHostFeatureDecision desktopHostFeature =
+            ProductDesktopHostFeaturePolicy.Evaluate(
+                Environment.GetEnvironmentVariable(
+                    ProductDesktopHostFeaturePolicy.EnvironmentVariableName));
+        productDesktopHostLifecycle = new(desktopHostFeature);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -77,8 +84,12 @@ public partial class App : Application
         productDesktopCatalog.SnapshotChanged += ProductDesktopCatalog_SnapshotChanged;
         productDisplayTopology.SnapshotChanged +=
             ProductDisplayTopology_SnapshotChanged;
+        productDesktopHostLifecycle.SnapshotChanged +=
+            ProductDesktopHostLifecycle_SnapshotChanged;
         window.ApplyProductWorkspaceSaveState(productWorkspaceSaves.Snapshot);
         window.ApplyProductDesktopCatalogState(productDesktopCatalog.Snapshot);
+        window.ApplyProductDesktopHostLifecycleState(
+            productDesktopHostLifecycle.Snapshot);
         ApplyProductWorkspaceSessionViews();
         window.AppWindow.Closing += AppWindow_Closing;
         window.Activate();
@@ -268,6 +279,26 @@ public partial class App : Application
 
         _ = currentWindow.DispatcherQueue.TryEnqueue(
             ApplyProductWorkspaceSessionViews);
+    }
+
+    private void ProductDesktopHostLifecycle_SnapshotChanged(
+        object? sender,
+        ProductDesktopHostLifecycleSnapshot snapshot)
+    {
+        MainWindow? currentWindow = window;
+        if (currentWindow is null)
+        {
+            return;
+        }
+
+        if (currentWindow.DispatcherQueue.HasThreadAccess)
+        {
+            currentWindow.ApplyProductDesktopHostLifecycleState(snapshot);
+            return;
+        }
+
+        _ = currentWindow.DispatcherQueue.TryEnqueue(
+            () => currentWindow.ApplyProductDesktopHostLifecycleState(snapshot));
     }
 
     private void ApplyProductWorkspaceSessionViews()
@@ -1097,6 +1128,9 @@ public partial class App : Application
         productDesktopCatalog.SnapshotChanged -= ProductDesktopCatalog_SnapshotChanged;
         productDisplayTopology.SnapshotChanged -=
             ProductDisplayTopology_SnapshotChanged;
+        productDesktopHostLifecycle.SnapshotChanged -=
+            ProductDesktopHostLifecycle_SnapshotChanged;
+        await productDesktopHostLifecycle.DisposeAsync();
         await productDisplayTopology.DisposeAsync();
         await productDesktopCatalog.DisposeAsync();
         await productWorkspaceSaves.DisposeAsync();

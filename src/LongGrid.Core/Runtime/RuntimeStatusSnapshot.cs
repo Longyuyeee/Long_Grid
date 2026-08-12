@@ -25,19 +25,22 @@ public sealed record RuntimeStatusSnapshot
     public RuntimeCapabilityState DesktopHost { get; }
 
     public bool HasExternalConnection =>
-        DesktopCatalog != RuntimeCapabilityState.Disconnected ||
-        DesktopHost != RuntimeCapabilityState.Disconnected;
+        DesktopCatalog == RuntimeCapabilityState.ConnectedReadOnly ||
+        DesktopHost == RuntimeCapabilityState.ConnectedReadOnly;
 
     public bool AllowsFileOperations =>
         FileOperations != RuntimeCapabilityState.DisabledBySafetyPolicy;
 
     public static RuntimeStatusSnapshot CreateDevelopmentReadOnly(
-        bool desktopCatalogConnected = false) =>
+        bool desktopCatalogConnected = false,
+        bool desktopHostFeatureEnabled = false) =>
         new(
             RuntimeMode.DevelopmentReadOnly,
             desktopCatalogConnected
                 ? RuntimeCapabilityState.ConnectedReadOnly
                 : RuntimeCapabilityState.Disconnected,
             RuntimeCapabilityState.DisabledBySafetyPolicy,
-            RuntimeCapabilityState.Disconnected);
+            desktopHostFeatureEnabled
+                ? RuntimeCapabilityState.Disconnected
+                : RuntimeCapabilityState.DisabledBySafetyPolicy);
 }
