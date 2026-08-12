@@ -69,3 +69,5 @@ Issue #19/#20/#23/#24 与 BSA 仍是 PendingManualEvidence。自动双显示器�
 ## 6. 下一步 A4
 
 A4 聚焦动态拓扑、关闭/故障补偿与资源审计：连续权威/非权威拓扑切换、显示器增删/旋转/DPI、快速 workspace revision、Explorer 重启、锁屏/RDP/会话切换、异常关闭和 24 小时资源趋势。应定义安全保留上一权威批次与必须立即隐藏之间的状态机，并验证 latest-wins；不得在同一切片提前开放输入或文件权限。
+
+后续结果：Stage 109 已完成 A4 自动化状态机与资源收敛子切片，选择“非权威拓扑立即隐藏”，并加入双代次 latest-wins、同代次晋升/冲突闭合和 100 revision 释放测试；真实硬件、会话与 24 小时矩阵仍明确待人工证据。详见[Stage 109 审计](109-desktop-host-dynamic-topology-lifecycle-audit.md)。

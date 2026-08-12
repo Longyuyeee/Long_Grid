@@ -88,6 +88,9 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格 CI 内部 RC 运行时恢复确定性审计](docs/104-ci-rc-runtime-restore-determinism-audit.md)
 - [Long方格保存控制器测试工作流准入确定性审计](docs/105-save-controller-test-workflow-admission-determinism-audit.md)
 - [Long方格 DesktopHost 生命周期与默认关闭开关审计](docs/106-desktop-host-lifecycle-feature-flag-audit.md)
+- [Long方格 DesktopHost 单显示器只读产品表面审计](docs/107-desktop-host-single-monitor-readonly-surface-audit.md)
+- [Long方格 DesktopHost 每显示器 Generation 批次审计](docs/108-desktop-host-per-display-generation-batch-audit.md)
+- [Long方格 DesktopHost 动态拓扑生命周期加固审计](docs/109-desktop-host-dynamic-topology-lifecycle-audit.md)
 - [Long方格正式容器创建与重命名提交审计](docs/54-container-create-rename-commit-audit.md)
 - [Long方格正式容器锁定与折叠提交审计](docs/55-container-lock-collapse-commit-audit.md)
 - [Long方格正式容器受限外观提交审计](docs/56-container-finite-appearance-commit-audit.md)
@@ -135,7 +138,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。A3 已建立严格默认关闭的每显示器只读 DesktopHost 批次：仅在 `LONGGRID_ENABLE_DESKTOP_HOST=1`、正式方格存在且当前显示拓扑权威时，为每个实际使用中的显示器创建一个产品宿主，并在其中聚合多个方格；窗口必须逐个通过所有权复读，任一失败或关闭会整批销毁。默认启动仍为零 DesktopHost HWND。下一切片 A4 将审计动态拓扑、关闭/故障补偿和长期资源；当前不接收桌面交互，不读取文件内容，不写入、移动或删除桌面文件，也不访问 Explorer 内部桌面窗口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。A4 自动化加固已完成：严格默认关闭的每显示器只读 DesktopHost 现在显式区分空工作区、拓扑刷新、拓扑不可用和无效投影；非权威拓扑立即隐藏全部表面，迟到 revision 不覆盖当前状态，同终态代次冲突整批失败关闭，连续更新按 latest-wins 收敛。默认启动仍为零 DesktopHost HWND。下一切片 A5 将补齐 UIA 与真实会话产品矩阵；当前不接收桌面交互，不读取文件内容，不写入、移动或删除桌面文件，也不访问 Explorer 内部桌面窗口。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 
@@ -146,7 +149,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -File ./eng/Start-LongGrid.ps1
 ```
 
-该入口默认执行锁定依赖恢复、必要构建和启动；不提权，默认不创建 DesktopHost 窗口。App 只读枚举用户桌面与公共桌面第一层元数据，不读取文件内容，也不执行桌面文件写入/移动。开发者可显式设置 `LONGGRID_ENABLE_DESKTOP_HOST=1` 验证 A3 每显示器多方格只读批次；该开关不是用户许可或发布默认值。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[Stage 108 审计](docs/108-desktop-host-per-display-generation-batch-audit.md)。
+该入口默认执行锁定依赖恢复、必要构建和启动；不提权，默认不创建 DesktopHost 窗口。App 只读枚举用户桌面与公共桌面第一层元数据，不读取文件内容，也不执行桌面文件写入/移动。开发者可显式设置 `LONGGRID_ENABLE_DESKTOP_HOST=1` 验证 A4 动态拓扑加固后的每显示器多方格只读批次；该开关不是用户许可或发布默认值。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[Stage 109 审计](docs/109-desktop-host-dynamic-topology-lifecycle-audit.md)。
 
 从干净、已提交的工作树一键生成并交叉验证完整内部 RC 交付集合：
 

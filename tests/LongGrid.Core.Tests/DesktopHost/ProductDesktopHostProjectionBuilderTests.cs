@@ -109,6 +109,41 @@ public sealed class ProductDesktopHostProjectionBuilderTests
             workspaceRevision: 14));
     }
 
+    [Theory]
+    [InlineData(
+        ProductDisplayTopologyStatus.Refreshing,
+        ProductDesktopHostProjectionDisposition.TopologyRefreshing)]
+    [InlineData(
+        ProductDisplayTopologyStatus.Degraded,
+        ProductDesktopHostProjectionDisposition.TopologyUnavailable)]
+    public void BuildUpdateDistinguishesUnsafeTopologyStates(
+        ProductDisplayTopologyStatus status,
+        ProductDesktopHostProjectionDisposition expected)
+    {
+        ProductWorkspaceState state = CreateState();
+        ProductWorkspaceReadSnapshot read =
+            ProductWorkspaceReadModel.Create(state).Snapshot!;
+        var topology = new ProductDisplayTopologySnapshot(
+            status,
+            10,
+            Array.Empty<DisplayTopologyNode>(),
+            0,
+            0,
+            0);
+
+        ProductDesktopHostProjectionUpdate update =
+            ProductDesktopHostProjectionBuilder.BuildUpdate(
+                state,
+                read,
+                topology,
+                workspaceRevision: 15);
+
+        Assert.Equal(expected, update.Disposition);
+        Assert.Null(update.Batch);
+        Assert.Equal(15, update.WorkspaceRevision);
+        Assert.Equal(10, update.TopologyGeneration);
+    }
+
     private static ProductWorkspaceState CreateState() => new()
     {
         ProfileId = "profile",
