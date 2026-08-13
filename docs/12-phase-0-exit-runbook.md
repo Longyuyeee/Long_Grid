@@ -6,6 +6,8 @@
 
 关联：Issue #19–#24、ADR-0001
 
+执行顺序与每步验收目标以 [`125-phase0-internal-rc-closeout-plan.md`](125-phase0-internal-rc-closeout-plan.md) 为准；本文只负责 Phase 0 各实机场景的操作与证据记录细节。
+
 ## 1. 用途与判定规则
 
 本手册把 Phase 0 剩余工作整理为可复读的执行入口。自动化探针通过不代替人工体验、真实硬件或负责人决策；没有原始证据时只能记录 `Inconclusive`，不得填写 `Pass`。
