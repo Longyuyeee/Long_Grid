@@ -13,7 +13,9 @@ internal static class NativeMethods
     internal const uint SwpNoOwnerZOrder = 0x0200;
     internal const uint SwpShowWindow = 0x0040;
     internal const int SwHide = 0;
+    internal const int SwShowNoActivate = 4;
     internal const int GwlExStyle = -20;
+    internal const uint GwOwner = 4;
     internal const int RgnOr = 2;
     internal const int RgnCopy = 5;
     internal const uint GrGdiObjects = 0;
@@ -24,6 +26,8 @@ internal static class NativeMethods
     internal const uint WmPaint = 0x000F;
     internal const uint WmClose = 0x0010;
     internal const uint WmGetObject = 0x003D;
+    internal const uint WmNcHitTest = 0x0084;
+    internal const uint WmMouseActivate = 0x0021;
     internal const uint WmKeyDown = 0x0100;
     internal const uint WmLeftButtonDown = 0x0201;
     internal const int VkTab = 0x09;
@@ -31,6 +35,9 @@ internal static class NativeMethods
     internal const int VkShift = 0x10;
     internal const int VkEscape = 0x1B;
     internal const int VkSpace = 0x20;
+    internal const int HtClient = 1;
+    internal const int HtTransparent = -1;
+    internal const int MaNoActivate = 3;
     internal const int VkEnd = 0x23;
     internal const int VkHome = 0x24;
     internal const int VkLeft = 0x25;
@@ -155,6 +162,16 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     internal static extern nint GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    internal static extern nint GetWindow(nint window, uint command);
+
+    [DllImport("user32.dll", EntryPoint = "SendMessageW")]
+    internal static extern nint SendMessage(
+        nint window,
+        uint message,
+        nint wordParameter,
+        nint longParameter);
 
     [DllImport("user32.dll")]
     internal static extern nint SetFocus(nint window);
@@ -357,6 +374,10 @@ internal static class NativeMethods
     internal static extern bool EqualRgn(
         nint first,
         nint second);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool PtInRegion(nint region, int x, int y);
 
     [DllImport("gdi32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

@@ -96,6 +96,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格桌面交互命中与取消适配器审计](docs/112-desktop-interaction-hit-test-cancellation-audit.md)
 - [Long方格桌面交互选择、焦点与 UIA Selection 合同审计](docs/113-desktop-interaction-selection-focus-uia-contract-audit.md)
 - [Long方格隔离交互 Surface 与输入模式事务审计](docs/114-desktop-interaction-surface-mode-transaction-audit.md)
+- [Long方格原生交互 Surface 适配器探针审计](docs/115-native-interaction-surface-adapter-probe-audit.md)
 - [Long方格正式容器创建与重命名提交审计](docs/54-container-create-rename-commit-audit.md)
 - [Long方格正式容器锁定与折叠提交审计](docs/55-container-lock-collapse-commit-audit.md)
 - [Long方格正式容器受限外观提交审计](docs/56-container-finite-appearance-commit-audit.md)
@@ -143,7 +144,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B4 隔离工程切片已完成：产品形状的 surface 协调器以 B1 lease 和 registry generation 事务化验证 Passive→Explicit→Passive/Hidden，复核 HTTRANSPARENT、键盘焦点、Selection pattern、ToolWindow、NoActivate、Topmost、Owner 与前台所有权，并把 B3 选择/UIA 投影绑定到同一显式快照；Apply/验证/恢复失败时补偿，无法恢复时隐藏且不会谎报成功。正式 HWND 仍为 HTTRANSPARENT，正式 UIA provider、App 和文件系统均未接线；下一切片 B5 将建立受控真实 HWND 适配器探针，验证原生样式、Region、消息、UIA 与恢复，但仍不默认接入 App。A5-01..A5-06 真实会话结果仍为 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B5 受控原生探针已完成：一个默认隐藏、匿名、探针自有 HWND 真实实现 B4 adapter，验证 ToolWindow/NoActivate、非 Topmost/无 Owner、Window Region、WM_NCHITTEST、WM_MOUSEACTIVATE、真实 HWND UIA Selection、Passive→Explicit→Passive/Hidden、失败补偿、generation 漂移、前台稳定和资源平台期。探针不发送合成输入、不检查 Explorer、不读写桌面文件；正式 HWND 继续 HTTRANSPARENT，App 与生产 UIA provider 未接线。下一切片 B6 将设计受控开发 opt-in composition root 和双重关闭开关，仍默认 Passive，并先验证关闭/崩溃/会话恢复。A5-01..A5-06 真实会话结果仍为 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 
