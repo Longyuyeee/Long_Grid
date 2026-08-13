@@ -53,6 +53,8 @@ public sealed class ProductDesktopHostProjectionBuilderTests
         Assert.Equal(
             ["container-secondary"],
             batch.Displays[1].Containers.Select(container => container.ContainerId));
+        Assert.False(batch.Displays[0].Containers[0].IsLocked);
+        Assert.True(batch.Displays[1].Containers[0].IsLocked);
         Assert.Equal(120u, batch.Displays[1].EffectiveDpi);
     }
 
@@ -150,7 +152,11 @@ public sealed class ProductDesktopHostProjectionBuilderTests
         Containers =
         [
             CreateContainer("container-fallback", "unknown-display", 24),
-            CreateContainer("container-secondary", Secondary.StableId, 48),
+            CreateContainer(
+                "container-secondary",
+                Secondary.StableId,
+                48,
+                isLocked: true),
         ],
         SavedDisplayTopology = null,
         ExtensionData = null,
@@ -159,11 +165,12 @@ public sealed class ProductDesktopHostProjectionBuilderTests
     private static ProductContainerState CreateContainer(
         string id,
         string displayKey,
-        double xDip) => new()
+        double xDip,
+        bool isLocked = false) => new()
         {
             Id = id,
             Name = id,
-            IsLocked = false,
+            IsLocked = isLocked,
             Appearance = new()
             {
                 Color = "#2457D6",

@@ -90,6 +90,8 @@ $desktopInteractionDevelopmentControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionDevelopmentController.cs'
 $desktopInteractionSystemSurfaceEventCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionSystemSurfaceEvent.cs'
+$desktopInteractionIntentBridgePolicyCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionIntentBridgePolicy.cs'
 $desktopInteractionHitTestCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionHitTestAdapter.cs'
 $desktopInteractionSelectionCodePath = Join-Path $projectRoot `
@@ -106,6 +108,10 @@ $desktopHostLifecycleControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostLifecycleController.cs'
 $desktopSystemSurfaceEventSourceCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopInteractionSystemSurfaceEventSource.cs'
+$desktopIntentPreparationBridgeCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionIntentPreparationBridge.cs'
+$desktopIntentSessionLauncherCodePath = Join-Path $projectRoot `
+    'eng\Start-DesktopInteractionIntentSession.ps1'
 $desktopHostProjectionBatchCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostProjectionBatch.cs'
 $desktopHostProjectionUpdateCodePath = Join-Path $projectRoot `
@@ -316,6 +322,10 @@ function Test-SourceContract {
         -LiteralPath $desktopInteractionSystemSurfaceEventCodePath `
         -Raw `
         -Encoding UTF8
+    $desktopInteractionIntentBridgePolicyCode = Get-Content `
+        -LiteralPath $desktopInteractionIntentBridgePolicyCodePath `
+        -Raw `
+        -Encoding UTF8
     $desktopInteractionHitTestCode = Get-Content `
         -LiteralPath $desktopInteractionHitTestCodePath `
         -Raw `
@@ -346,6 +356,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopSystemSurfaceEventSourceCode = Get-Content `
         -LiteralPath $desktopSystemSurfaceEventSourceCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopIntentPreparationBridgeCode = Get-Content `
+        -LiteralPath $desktopIntentPreparationBridgeCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopIntentSessionLauncherCode = Get-Content `
+        -LiteralPath $desktopIntentSessionLauncherCodePath `
         -Raw `
         -Encoding UTF8
     $desktopHostProjectionBatchCode = Get-Content `
@@ -1259,7 +1277,7 @@ function Test-SourceContract {
         -not ($appCode -match `
             'ProductDesktopInteractionSurfaceModeTransaction|ProductDesktopInteractionHitTestAdapter|ProductDesktopInteractionIntentFactory') -and
         $appCode -match `
-            'productDesktopHostLifecycle\s*=\s*new\(\s*desktopHostFeature,\s*productDesktopInteraction\)' -and
+            'productDesktopHostLifecycle\s*=\s*new\(\s*desktopHostFeature,\s*productDesktopInteraction,\s*productDesktopIntentPreparation\)' -and
         $desktopHostLifecycleControllerCode -match `
             'startHidden:\s*controlledSurfaceLifecycle' -and
         $desktopHostLifecycleControllerCode -match `
@@ -1324,6 +1342,53 @@ function Test-SourceContract {
             'ProductDesktopInteractionSurfaceModeTransaction|ProductDesktopInteractionHitTestAdapter|ProductDesktopInteractionIntentFactory')
     ) `
         'B6c1 must convert only finite public system observations into monotonic fail-closed Hidden/Passive lifecycle events, require stable recovery, release subscriptions, and keep Explicit/input/file operations disconnected.'
+    Assert-Condition (
+        $desktopInteractionIntentBridgePolicyCode -match `
+            'LONGGRID_ENABLE_DESKTOP_INTENT_BRIDGE' -and
+        $desktopInteractionIntentBridgePolicyCode -match `
+            'LONGGRID_ACKNOWLEDGE_DESKTOP_INTENT_SESSION' -and
+        $desktopInteractionIntentBridgePolicyCode -match `
+            'StringComparison\.Ordinal' -and
+        $desktopIntentPreparationBridgeCode -match `
+            'MaximumUserActionAge\s*=\s*TimeSpan\.FromSeconds\(1\)' -and
+        $desktopIntentPreparationBridgeCode -match `
+            'ExplicitUserActionConfirmed' -and
+        $desktopIntentPreparationBridgeCode -match `
+            'ReplayedUserAction' -and
+        $desktopIntentPreparationBridgeCode -match `
+            'ProductDesktopInteractionHitTestAdapter\.HitTest' -and
+        $desktopIntentPreparationBridgeCode -match `
+            'ProductDesktopInteractionIntentFactory\.Create' -and
+        $desktopIntentPreparationBridgeCode -match `
+            'ExplicitInteractionEntered:\s*false' -and
+        $desktopIntentPreparationBridgeCode -match `
+            'RealFileOperationsAllowed:\s*false' -and
+        $desktopHostLifecycleControllerCode -match `
+            'PrepareInteractionIntent' -and
+        $desktopHostLifecycleControllerCode -match `
+            'intentPreparation\?\.Invalidate' -and
+        $desktopHostLifecycleControllerCode -match `
+            'intentPreparation\?\.Complete' -and
+        $appCode -match `
+            'ProductDesktopInteractionIntentBridgePolicy\.Evaluate' -and
+        $appCode -match `
+            'ProductDesktopInteractionIntentPreparationBridge' -and
+        -not ($appCode -match `
+            'PrepareInteractionIntent|ProductDesktopInteractionIntentFactory|ProductDesktopInteractionHitTestAdapter|TryEnterExplicitInteraction') -and
+        $desktopIntentSessionLauncherCode -match `
+            'AcknowledgeNoExplicitInteraction' -and
+        $desktopIntentSessionLauncherCode -match `
+            'preparesIntentOnly\s*=\s*\$true' -and
+        $desktopIntentSessionLauncherCode -match `
+            'entersExplicitInteraction\s*=\s*\$false' -and
+        -not ($desktopIntentPreparationBridgeCode -match `
+            'ProductDesktopInteractionAdmissionController|ProductDesktopInteractionSurfaceModeTransaction|ApplyExplicit|System\.IO|File\.|Directory\.|IFileOperation') -and
+        $desktopHostPassiveSurfaceAdapterCode -match `
+            'ApplyExplicit[\s\S]*return false' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
+    ) `
+        'B6c2 must require exact third-stage and manual-session gates, accept only fresh confirmed monotonic unique hits, prepare but never consume intents, invalidate on lifecycle changes, and keep Explicit/input/file operations disconnected.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and

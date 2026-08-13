@@ -490,6 +490,92 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
+    public async Task IntentPreparationRequiresReadyPassiveAndSystemEventRevokesIt()
+    {
+        var factory = new RecordingSurfaceFactory();
+        ProductDesktopHostFeatureDecision host =
+            ProductDesktopHostFeaturePolicy.Evaluate("1");
+        ProductDesktopInteractionFeatureDecision interactionFeature =
+            ProductDesktopInteractionFeaturePolicy.Evaluate(host, "1");
+        var interaction = new ProductDesktopInteractionDevelopmentController(
+            interactionFeature);
+        var bridge = new ProductDesktopInteractionIntentPreparationBridge(
+            ProductDesktopInteractionIntentBridgePolicy.Evaluate(
+                interactionFeature,
+                "1",
+                "1"));
+        var controller = new ProductDesktopHostLifecycleController(
+            host,
+            factory,
+            new FactoryBackedInspector(factory),
+            interaction,
+            bridge);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var request = new ProductDesktopInteractionIntentPreparationRequest(
+            Guid.NewGuid(),
+            1,
+            now,
+            ExplicitUserActionConfirmed: true,
+            ProductDesktopInteractionActivationKind.PrimaryPointerPress,
+            "display-primary",
+            ClientX: 30,
+            ClientY: 40);
+
+        ProductDesktopInteractionIntentPreparationResult before =
+            controller.PrepareInteractionIntent(request, now);
+        _ = controller.ApplyProjectionBatch(CreateBatch());
+        ProductDesktopInteractionIntentPreparationResult prepared =
+            controller.PrepareInteractionIntent(request, now);
+        _ = controller.ApplySystemSurfaceEvent(new(
+            ProductDesktopInteractionSystemSurfaceEventKind.FocusLost,
+            1,
+            now.AddMilliseconds(100)));
+        ProductDesktopInteractionIntentPreparationResult suspended =
+            controller.PrepareInteractionIntent(
+                request with
+                {
+                    UserActionId = Guid.NewGuid(),
+                    UserActionSequence = 2,
+                    ObservedAtUtc = now.AddMilliseconds(200),
+                },
+                now.AddMilliseconds(200));
+
+        Assert.Equal(
+            ProductDesktopInteractionIntentPreparationStatus
+                .AwaitingPassiveSurface,
+            before.Snapshot.Status);
+        Assert.True(prepared.IsPrepared);
+        Assert.False(prepared.Snapshot.ExplicitInteractionEntered);
+        Assert.False(prepared.Snapshot.RealFileOperationsAllowed);
+        Assert.Equal(
+            ProductDesktopInteractionIntentPreparationStatus
+                .AwaitingPassiveSurface,
+            suspended.Snapshot.Status);
+        Assert.Null(suspended.PreparedIntent);
+        Assert.False(bridge.Snapshot.PreparedIntentAvailable);
+
+        _ = controller.ApplySystemSurfaceEvent(new(
+            ProductDesktopInteractionSystemSurfaceEventKind.RecoveryCandidate,
+            2,
+            now.AddSeconds(1)));
+        ProductDesktopInteractionIntentPreparationResult recovered =
+            controller.PrepareInteractionIntent(
+                request with
+                {
+                    UserActionId = Guid.NewGuid(),
+                    UserActionSequence = 3,
+                    ObservedAtUtc = now.AddSeconds(1),
+                },
+                now.AddSeconds(1));
+
+        Assert.True(recovered.IsPrepared);
+        await controller.DisposeAsync();
+        Assert.Equal(
+            ProductDesktopInteractionIntentPreparationStatus.Completed,
+            bridge.Snapshot.Status);
+    }
+
+    [Fact]
     public async Task StaleAndInvalidSystemSurfaceEventsCannotChangeLifecycle()
     {
         var factory = new RecordingSurfaceFactory();
