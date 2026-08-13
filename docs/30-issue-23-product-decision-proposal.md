@@ -4,7 +4,7 @@
 
 基线：`main` / `fa40012`（PR #79 已合入）
 
-状态：**D23-01–D23-10 owner-approved / D23-11 deferred / Usability results pending**
+状态：**D23-01–D23-10 owner-approved / D23-11 deferred / D23-12 engineering-unblock approved / Usability results pending**
 
 ## 1. 目的与约束
 
@@ -17,6 +17,8 @@
 - 不添加 `LICENSE`；当前可以继续开发和未签名内部验证，但正式分发与外部贡献入口继续受 D23-11 阻断；
 - 不把 `ConditionalPass`、UIA 或 CI 写成真实可用性通过；
 - 不扩展未经批准的文件移动、Provider、Windows build 或 CPU 架构矩阵。
+
+2026-08-13 新增 D23-12：负责人确认当前无法安排五人测试，批准把该证据从“工程编码入口”延期到“内部 RC 前证据汇合门”。这不产生任何 P1～P5 结果，不关闭 Issue #23，不接受可用性风险，也不允许 M4/RC/分发绕过五人测试；工程只可按 Stage 129 的默认关闭和可回滚边界继续。
 
 ## 2. 建议决策
 
@@ -33,6 +35,7 @@
 | D23-09 | 性能预算 | **保留 PRD 目标作为首片门禁，不升级为发布 SLA**：空闲 CPU `<0.2%`/5 分钟、空闲专用内存 `<120 MB`、唤起 P95 `<300 ms`、100 项恢复 P95 `<1 s`；缩略图探针预算仅作隔离回归 | 当前 500 请求只覆盖合成样本；正式渲染、真实 500 项和长时间常驻尚未验证 | Approved 2026-08-04; product measurement pending |
 | D23-10 | ADR-0001 | **继续 Proposed；目标方向为 WinUI 3 App + 独立原生 DesktopHost，待 #19/#20/安装/可用性证据后再决定 Accepted 或 Revised** | 自动探针支持独立宿主方向，但真实输入、Narrator、动态显示和安装仍 Pending | Approved 2026-08-04; evidence pending |
 | D23-11 | 许可证与商业模式 | **当前开发跳过许可证选择；正式分发或接受外部贡献前重新决策** | 仓库根目录无 `LICENSE`，GitHub 未识别许可证 | Deferred by owner 2026-08-04 |
+| D23-12 | 外部证据排期 | **五人测试延期到内部 RC 前证据汇合门；工程可继续到 M4-ready** | 当前无法安排参与者；P1 未执行且无结果 | Approved 2026-08-13 |
 
 ## 3. 对后续 Issue 的影响
 

@@ -6,6 +6,8 @@
 
 结论：**Scope approved / Ready to schedule / Results Pending / 不得关闭 Issue #23**
 
+> 2026-08-13 负责人确认当前无法安排参与者，并由 [Stage 129](129-external-evidence-deferment-decision.md) 将五人测试延期到内部 RC 前证据汇合门。工程可继续到 M4-ready，但本测试、Issue #23 和 `Results Pending` 状态均未关闭或降低。
+
 ## 0. 2026-08-13 执行就绪复审
 
 本轮按 [Stage 125 收尾执行计划](125-phase0-internal-rc-closeout-plan.md)进入 C1，并重新核对当前 App、launcher、测试任务、通过门槛和 Issue #23：
