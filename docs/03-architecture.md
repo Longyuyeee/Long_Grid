@@ -158,6 +158,8 @@ Stage 118 / B6c1 增加独立系统表面观察器。它只读取公开的 Shell
 
 Stage 119 / B6c2 在 App composition root 中构造第三重默认关闭的 Intent 准备桥。除 Host/Interaction 外，bridge opt-in 与人工会话确认也必须精确为 `1`。生命周期仅在 ReadyReadOnly/Passive 证明成立时，把一秒内、逐动作确认、单调序号、唯一显示器与唯一未锁定方格命中的请求交给既有 HitTest/Intent Factory；结果最长 5 秒并绑定 workspace/topology/window-registry 与 bridge generation。新动作、系统信号、Surface 释放、证据漂移、超时和关闭都会失效准备。App/MainWindow 没有调用准备入口，bridge 不调用 Admission/Surface transaction，正式 HWND 仍 `HTTRANSPARENT` 且 adapter 固定拒绝 Explicit。详见[产品 Intent 准备与人工会话门禁审计](119-product-intent-preparation-manual-session-gate-audit.md)。
 
+Stage 120 / B6c3 增加第四重精确 Input forwarding opt-in 与独立人工会话确认。隔离适配器只接受来源已证明、非注入、非自动重复、序号递增且 ActionId 未重放的三类归一化激活，最多记忆 64 个近期 ID，并把一次动作唯一转交 B6c2 准备桥。生命周期在系统事件、Surface/证据变化和关闭时同步失效两层状态。App 没有调用转发入口，适配器没有 Windows 输入源、Hook、Raw Input 或 SendInput，正式 HWND/Explicit/文件权限不变。详见[隔离输入转发与人工证据门禁审计](120-isolated-input-forwarding-manual-evidence-gate-audit.md)。
+
 未解析引用审查层随后把会话中的非 Resolved 项投影为稳定匿名序号，并为每项签发包含 Catalog generation、edit revision、内部领域 ID 与预期解析状态的 token。Keep 不产生 edit；Replace 必须显式选择且当前 Catalog 身份唯一；Remove 必须明确确认。Gate 在每次预演时复核代际、修订、对象状态、锁定及候选，返回有限失败或 reducer 深快照。WinUI 在对话框打开前捕获 token/候选，目录刷新不能让旧选择静默指向新对象。当前只做 dry-run，App 不替换 session、不递增 revision、不调用普通 submit，也不触碰桌面文件，详见[未解析引用审查与双版本门禁审计](51-unresolved-reference-review-gate-audit.md)。
 
 正式编辑提交层将 Gate/Reducer 的成功结果交给 Infrastructure `ProductWorkspaceCommitCoordinator`：校验 → v1 projection → 唯一 controller Submit → edit revision 推进的顺序不可绕过。引用编辑和容器编辑共享同一把锁与同一单调 revision，外部配置加载也推进该 revision。controller 接受后，App 用返回 Document 立即替换内存配置基线并重新解析 session/review，因此防抖期间的 Catalog 刷新不会恢复旧状态。Waiting/Saving/Failed 期间导入/导出关闭；桌面文件 API 仍未接入。详见[引用编辑正式保存提交审计](52-reference-edit-save-submission-audit.md)。

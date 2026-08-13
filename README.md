@@ -148,7 +148,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6c2 已建立默认关闭的产品 Intent 准备桥：除 Host/Interaction 双开关外，还要求 Intent bridge 与人工会话确认两个值精确为 `1`；只有一秒内、明确确认、序号递增并唯一命中当前未锁定方格的用户动作才能形成绑定 workspace/topology/registry generation 的 5 秒 Intent。系统表面变化、Surface 替换、代次漂移、超时和 shutdown 都使准备失效。App 没有输入转送或 Intent 消费入口，正式 HWND 仍 `HTTRANSPARENT`，adapter 仍拒绝 Explicit，文件权限仍为零。下一切片 B6c3 才建立隔离的产品输入转送和人工证据。A5 与 B6c2 真实会话结果继续 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6c3 已建立第四重默认关闭的隔离输入转发边界：只有 Host、Interaction、Intent bridge、Input forwarding 与对应人工会话确认都精确开启时，来源已证明、非注入、非自动重复且未重放的指针/键盘/辅助技术归一化动作才会被转成一次 B6c2 Intent 准备。适配器不拥有 Windows 输入源，不安装 Hook、不发送输入、不消费 Intent；正式 HWND 仍 `HTTRANSPARENT`，adapter 仍拒绝 Explicit，文件权限仍为零。下一切片 B6c4 先在隔离原生窗口验证真实来源并完成 B6C3 人工矩阵。A5、B6c2 与 B6c3 真实会话结果继续 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 
