@@ -35,7 +35,7 @@ public sealed class ProductDesktopInteractionDevelopmentControllerTests
         Assert.Equal(
             ProductDesktopInteractionMode.Passive,
             controller.Snapshot.Admission.Mode);
-        Assert.True(controller.Snapshot.IsDevelopmentInteractionAvailable);
+        Assert.False(controller.Snapshot.IsDevelopmentInteractionAvailable);
         Assert.False(controller.Snapshot.NativeSurfaceAdapterConnected);
         Assert.False(controller.Snapshot.RealFileOperationsAllowed);
         Assert.False(controller.Snapshot.HiddenRequired);
@@ -85,6 +85,10 @@ public sealed class ProductDesktopInteractionDevelopmentControllerTests
     public void ResumeRequiresCompleteCurrentPassiveAttestation()
     {
         var controller = Controller("1", "1");
+        var adapter = new FakeSurfaceAdapter();
+        ProductDesktopInteractionDevelopmentSnapshot attached =
+            controller.AttachPassiveSurface(adapter, Evidence());
+        Assert.True(attached.IsDevelopmentInteractionAvailable);
         controller.SuspendFailClosed(
             ProductDesktopInteractionCancellationSignal
                 .SessionLockedOrDisconnected,
@@ -105,6 +109,49 @@ public sealed class ProductDesktopInteractionDevelopmentControllerTests
             ProductDesktopInteractionDevelopmentStatus.Passive,
             resumed.Status);
         Assert.False(resumed.HiddenRequired);
+        Assert.True(resumed.Surface!.IsPassiveContract);
+    }
+
+    [Fact]
+    public void AttachRequiresInitialHiddenContractAndExactGeneration()
+    {
+        var controller = Controller("1", "1");
+        var passiveAdapter = new FakeSurfaceAdapter
+        {
+            Mode = ProductDesktopInteractionSurfaceMode.Passive,
+        };
+
+        ProductDesktopInteractionDevelopmentSnapshot rejected =
+            controller.AttachPassiveSurface(passiveAdapter, Evidence());
+
+        Assert.Equal(
+            ProductDesktopInteractionDevelopmentStatus.SuspendedFailClosed,
+            rejected.Status);
+        Assert.True(passiveAdapter.HideCalls > 0);
+        Assert.False(rejected.IsDevelopmentInteractionAvailable);
+    }
+
+    [Fact]
+    public void AttachedSurfaceSuspendsHiddenAndDetachesByIdentity()
+    {
+        var controller = Controller("1", "1");
+        var adapter = new FakeSurfaceAdapter();
+        _ = controller.AttachPassiveSurface(adapter, Evidence());
+
+        ProductDesktopInteractionDevelopmentSnapshot suspended =
+            controller.SuspendFailClosed(
+                ProductDesktopInteractionCancellationSignal.FocusLost,
+                Now);
+        ProductDesktopInteractionDevelopmentSnapshot wrongDetach =
+            controller.DetachPassiveSurface(new FakeSurfaceAdapter());
+        ProductDesktopInteractionDevelopmentSnapshot detached =
+            controller.DetachPassiveSurface(adapter);
+
+        Assert.True(suspended.Surface!.IsHiddenContract);
+        Assert.True(suspended.NativeSurfaceAdapterConnected);
+        Assert.Equal(suspended, wrongDetach);
+        Assert.False(detached.NativeSurfaceAdapterConnected);
+        Assert.Null(detached.Surface);
     }
 
     [Fact]
@@ -185,4 +232,61 @@ public sealed class ProductDesktopInteractionDevelopmentControllerTests
             WindowRegistryGeneration: 11,
             AvailableContainerIds: new HashSet<string>(StringComparer.Ordinal),
             LockedContainerIds: new HashSet<string>(StringComparer.Ordinal));
+
+    private sealed class FakeSurfaceAdapter
+        : IProductDesktopInteractionSurfaceModeAdapter
+    {
+        internal ProductDesktopInteractionSurfaceMode Mode { get; set; } =
+            ProductDesktopInteractionSurfaceMode.Hidden;
+
+        internal int HideCalls { get; private set; }
+
+        public ProductDesktopInteractionSurfaceCapture Capture() =>
+            new(true, EvidenceForMode());
+
+        public bool ApplyExplicit(ProductDesktopInteractionLease lease) => false;
+
+        public bool ApplyPassive(long expectedWindowRegistryGeneration)
+        {
+            if (expectedWindowRegistryGeneration != 11)
+            {
+                return false;
+            }
+
+            Mode = ProductDesktopInteractionSurfaceMode.Passive;
+            return true;
+        }
+
+        public bool Restore(ProductDesktopInteractionSurfaceEvidence evidence)
+        {
+            Mode = evidence.Mode;
+            return evidence.WindowRegistryGeneration == 11;
+        }
+
+        public bool Hide(long expectedWindowRegistryGeneration)
+        {
+            HideCalls++;
+            if (expectedWindowRegistryGeneration != 11)
+            {
+                return false;
+            }
+
+            Mode = ProductDesktopInteractionSurfaceMode.Hidden;
+            return true;
+        }
+
+        private ProductDesktopInteractionSurfaceEvidence EvidenceForMode() =>
+            new(
+                Mode,
+                WindowRegistryGeneration: 11,
+                Visible: Mode != ProductDesktopInteractionSurfaceMode.Hidden,
+                HitTestTransparent: true,
+                IsKeyboardFocusable: false,
+                SelectionPatternAvailable: false,
+                ToolWindow: true,
+                NoActivate: true,
+                Topmost: false,
+                HasOwner: false,
+                OwnsForeground: false);
+    }
 }

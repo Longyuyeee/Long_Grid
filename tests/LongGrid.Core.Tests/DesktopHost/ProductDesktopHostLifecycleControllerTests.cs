@@ -376,6 +376,116 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
+    public async Task DoubleOptInCreatesHiddenThenPublishesAttestedPassiveSurface()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var interaction = new ProductDesktopInteractionDevelopmentController(
+            ProductDesktopInteractionFeaturePolicy.Evaluate(
+                ProductDesktopHostFeaturePolicy.Evaluate("1"),
+                "1"));
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory),
+            interaction);
+
+        ProductDesktopHostLifecycleSnapshot ready =
+            controller.ApplyProjectionBatch(CreateBatch());
+        RecordingSurface surface = Assert.Single(factory.Surfaces);
+
+        Assert.True(surface.WasCreatedHidden);
+        Assert.True(surface.ApplyPassiveCalls > 0);
+        Assert.True(interaction.Snapshot.IsDevelopmentInteractionAvailable);
+        Assert.True(interaction.Snapshot.Surface!.IsPassiveContract);
+
+        await controller.DisposeAsync();
+
+        Assert.True(surface.ApplyHiddenCalls > 0);
+        Assert.True(surface.IsDisposed);
+        Assert.False(interaction.Snapshot.NativeSurfaceAdapterConnected);
+    }
+
+    [Fact]
+    public async Task WindowsDoubleOptInAttestsHiddenRegionBeforePassivePublish()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        ProductDesktopHostFeatureDecision host =
+            ProductDesktopHostFeaturePolicy.Evaluate("1");
+        var interaction = new ProductDesktopInteractionDevelopmentController(
+            ProductDesktopInteractionFeaturePolicy.Evaluate(host, "1"));
+        var controller = new ProductDesktopHostLifecycleController(
+            host,
+            interaction);
+
+        ProductDesktopHostLifecycleSnapshot ready =
+            controller.ApplyProjectionBatch(CreateBatch());
+
+        Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, ready.Status);
+        Assert.True(interaction.Snapshot.Surface!.IsPassiveContract);
+
+        ProductDesktopInteractionDevelopmentSnapshot suspended =
+            interaction.SuspendFailClosed(
+                ProductDesktopInteractionCancellationSignal.FocusLost,
+                DateTimeOffset.UtcNow);
+        Assert.True(suspended.Surface!.IsHiddenContract);
+
+        await controller.DisposeAsync();
+        Assert.False(interaction.Snapshot.NativeSurfaceAdapterConnected);
+    }
+
+    [Fact]
+    public void ProductPassiveAdapterRejectsExplicitAndStaleGeneration()
+    {
+        var surface = new RecordingSurface(101, 201, 301, 401, startHidden: true);
+        var adapter = new ProductDesktopHostPassiveSurfaceModeAdapter(
+            new IProductDesktopHostReadOnlySurface[] { surface },
+            registryGeneration: 9);
+
+        Assert.False(adapter.ApplyPassive(8));
+        Assert.True(adapter.Hide(9));
+        Assert.False(adapter.ApplyExplicit(new(
+            Guid.NewGuid(),
+            "container-1",
+            1,
+            2,
+            9,
+            DateTimeOffset.UtcNow.AddSeconds(1))));
+        Assert.True(adapter.Capture().Evidence!.IsHiddenContract);
+    }
+
+    [Fact]
+    public async Task PassiveAttestationFailureHidesAndFaultsLifecycle()
+    {
+        var factory = new RecordingSurfaceFactory
+        {
+            PassiveWindowAttested = false,
+        };
+        ProductDesktopHostFeatureDecision host =
+            ProductDesktopHostFeaturePolicy.Evaluate("1");
+        var interaction = new ProductDesktopInteractionDevelopmentController(
+            ProductDesktopInteractionFeaturePolicy.Evaluate(host, "1"));
+        var controller = new ProductDesktopHostLifecycleController(
+            host,
+            factory,
+            new FactoryBackedInspector(factory),
+            interaction);
+
+        ProductDesktopHostLifecycleSnapshot faulted =
+            controller.ApplyProjectionBatch(CreateBatch());
+        RecordingSurface surface = Assert.Single(factory.Surfaces);
+
+        Assert.Equal(ProductDesktopHostLifecycleStatus.Faulted, faulted.Status);
+        Assert.True(surface.ApplyHiddenCalls > 0);
+        Assert.True(surface.IsDisposed);
+        Assert.False(interaction.Snapshot.NativeSurfaceAdapterConnected);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
     public async Task DisposalIsIdempotentAndPublishesAnonymousCompletion()
     {
         var controller = new ProductDesktopHostLifecycleController(
@@ -533,13 +643,15 @@ public sealed class ProductDesktopHostLifecycleControllerTests
 
         public IProductDesktopHostReadOnlySurface Create(
             ProductDesktopHostDisplayProjection projection,
-            nint instanceMarker)
+            nint instanceMarker,
+            bool startHidden)
         {
             var surface = new RecordingSurface(
                 nextHandle++,
                 instanceMarker,
                 (uint)Environment.ProcessId,
-                42)
+                42,
+                startHidden)
             {
                 ReadOnlyAccessibilityAttested = AccessibilityAttested,
                 PassiveWindowContractAttested = PassiveWindowAttested,
@@ -553,8 +665,17 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         nint handle,
         nint instanceMarker,
         uint processId,
-        uint threadId) : IProductDesktopHostReadOnlySurface
+        uint threadId,
+        bool startHidden) : IProductDesktopHostReadOnlySurface
     {
+        private bool visible = !startHidden;
+
+        internal bool WasCreatedHidden { get; } = startHidden;
+
+        internal int ApplyPassiveCalls { get; private set; }
+
+        internal int ApplyHiddenCalls { get; private set; }
+
         public nint Handle { get; } = handle;
 
         public nint InstanceMarker { get; } = instanceMarker;
@@ -567,7 +688,26 @@ public sealed class ProductDesktopHostLifecycleControllerTests
 
         public bool PassiveWindowContractAttested { get; init; } = true;
 
+        bool IProductDesktopHostReadOnlySurface.PassiveWindowContractAttested =>
+            visible && PassiveWindowContractAttested;
+
+        public bool HiddenWindowContractAttested => !visible;
+
         internal bool IsDisposed { get; private set; }
+
+        public bool ApplyPassive()
+        {
+            ApplyPassiveCalls++;
+            visible = true;
+            return PassiveWindowContractAttested;
+        }
+
+        public bool ApplyHidden()
+        {
+            ApplyHiddenCalls++;
+            visible = false;
+            return true;
+        }
 
         public void Dispose() => IsDisposed = true;
     }
