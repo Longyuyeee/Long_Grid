@@ -106,6 +106,8 @@ $nativeInteractionSurfaceProbeCodePath = Join-Path $projectRoot `
     'probes\LongGrid.Spikes.DesktopHostWindowModels\NativeInteractionSurfaceModeProbe.cs'
 $nativeInputForwardingSourceProbeCodePath = Join-Path $projectRoot `
     'probes\LongGrid.Spikes.DesktopHostWindowModels\NativeInputForwardingSourceProbe.cs'
+$readOnlyDisplayTopologyObserverCodePath = Join-Path $projectRoot `
+    'probes\LongGrid.Spikes.DesktopHostWindowModels\ReadOnlyDisplayTopologyGenerationObserver.cs'
 $desktopHostProbeProgramCodePath = Join-Path $projectRoot `
     'probes\LongGrid.Spikes.DesktopHostWindowModels\Program.cs'
 $desktopHostPassiveSurfaceAdapterCodePath = Join-Path $projectRoot `
@@ -364,6 +366,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $nativeInputForwardingSourceProbeCode = Get-Content `
         -LiteralPath $nativeInputForwardingSourceProbeCodePath `
+        -Raw `
+        -Encoding UTF8
+    $readOnlyDisplayTopologyObserverCode = Get-Content `
+        -LiteralPath $readOnlyDisplayTopologyObserverCodePath `
         -Raw `
         -Encoding UTF8
     $desktopHostProbeProgramCode = Get-Content `
@@ -1573,7 +1579,19 @@ function Test-SourceContract {
         $nativeInputForwardingSourceProbeCode -match `
             'PreparedIntentInvalidationCount' -and
         $nativeInputForwardingSourceProbeCode -match `
-            'DisplayTopologyGenerationObserved:\s*false' -and
+            'DisplayTopologyGenerationObserved' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'systemSurfaceSafe\s*&&\s*displayTopologySafe' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            '!systemSurfaceSafe\s*\|\|\s*!displayTopologySafe' -and
+        $readOnlyDisplayTopologyObserverCode -match `
+            'ProductDisplayTopologyReader' -and
+        $readOnlyDisplayTopologyObserverCode -match `
+            'DisplayTopologyFingerprint\.Compute' -and
+        $readOnlyDisplayTopologyObserverCode -match `
+            'DisplayTopologyStabilizer' -and
+        $readOnlyDisplayTopologyObserverCode -match `
+            'DisplayTopologyStabilizationState\.Ready' -and
         $nativeInputForwardingSourceProbeCode -match `
             'SwHide' -and
         $nativeInputForwardingSourceProbeCode -match `
@@ -1581,22 +1599,28 @@ function Test-SourceContract {
         $desktopSystemSurfaceSessionLauncherCode -match `
             'AcknowledgeSystemStateChange' -and
         $desktopSystemSurfaceSessionLauncherCode -match `
-            'AcknowledgeNoDisplayTopologyEvidence' -and
+            'AcknowledgeReadOnlyDisplayTopologyObservation' -and
         $desktopSystemSurfaceSessionLauncherCode -match `
-            'B6C3-07-EXPLORER' -and
+            "B6C3-07'" -and
         $desktopSystemSurfaceSessionLauncherCode -match `
-            'observesDisplayTopologyGeneration\s*=\s*\$false' -and
+            'observesDisplayTopologyGeneration\s*=\s*\$true' -and
+        $desktopSystemSurfaceSessionLauncherCode -match `
+            'requiresAuthoritativeDisplayTopology\s*=\s*\$true' -and
+        $desktopSystemSurfaceSessionLauncherCode -match `
+            'requiresStabilizedDisplayTopology\s*=\s*\$true' -and
         $desktopSystemSurfaceSessionLauncherCode -match `
             'changesSystemState\s*=\s*\$false' -and
         $desktopSystemSurfaceSessionLauncherCode -match `
             'finalResultStatus\s*=\s*''PendingManualEvidence''' -and
         -not ($desktopSystemSurfaceSessionLauncherCode -match `
-            'Start-LongGrid\.ps1|Stop-Process|tsdiscon|logoff|SetDisplayConfig|Restart-Computer') -and
+            'Start-LongGrid\.ps1|Stop-Process|tsdiscon|logoff|SetDisplayConfig|ChangeDisplaySettings|Restart-Computer') -and
+        -not ($readOnlyDisplayTopologyObserverCode -match `
+            'SetDisplayConfig|ChangeDisplaySettings|EnumDisplaySettings|DeviceIoControl') -and
         -not ($nativeInputForwardingSourceProbeCode -match `
             'SendInput\(|SetWindowsHookEx|RegisterRawInputDevices|GetAsyncKeyState|IFileOperation|MoveFile|DeleteFile|ApplyExplicit|TryEnterExplicitInteraction') -and
         -not ($appCode -match 'RunSystemSurfaceInteractive')
     ) `
-        'B6c6 must observe only public system-surface events in a probe-owned manual session, invalidate and hide on unsafe state, require finite safe recovery, retain topology/manual limits, and keep product Explicit and files disconnected.'
+        'B6c7 must combine public system-surface events with authoritative read-only topology fingerprints, invalidate and hide on unsafe generation, require stabilized joint recovery, retain manual evidence, and keep product Explicit and files disconnected.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and

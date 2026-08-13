@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('B6C3-05', 'B6C3-06', 'B6C3-07-EXPLORER')]
+    [ValidateSet('B6C3-05', 'B6C3-06', 'B6C3-07')]
     [string] $Scenario,
 
     [ValidateSet('O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7', 'O8', 'O9')]
@@ -11,7 +11,7 @@ param(
 
     [switch] $AcknowledgeControlledEnvironment,
     [switch] $AcknowledgeSystemStateChange,
-    [switch] $AcknowledgeNoDisplayTopologyEvidence,
+    [switch] $AcknowledgeReadOnlyDisplayTopologyObservation,
     [switch] $AcknowledgeNoExplicitInteraction,
     [switch] $AcknowledgeRecoveryPlan,
     [switch] $NoRestore,
@@ -40,10 +40,10 @@ if (-not $ValidateOnly) {
 
     if (-not $AcknowledgeControlledEnvironment -or
         -not $AcknowledgeSystemStateChange -or
-        -not $AcknowledgeNoDisplayTopologyEvidence -or
+        -not $AcknowledgeReadOnlyDisplayTopologyObservation -or
         -not $AcknowledgeNoExplicitInteraction -or
         -not $AcknowledgeRecoveryPlan) {
-        throw 'Controlled environment, system-state, topology limitation, no-Explicit and recovery acknowledgements are required.'
+        throw 'Controlled environment, system-state, read-only topology, no-Explicit and recovery acknowledgements are required.'
     }
 
     if ([Environment]::GetEnvironmentVariable(
@@ -56,7 +56,7 @@ if (-not $ValidateOnly) {
 $contract = [ordered]@{
     schemaVersion = 1
     purpose = 'DesktopInteractionSystemSurfaceManualSession'
-    supportedScenarios = 'B6C3-05-B6C3-06-and-B6C3-07-Explorer-only'
+    supportedScenarios = 'B6C3-05-B6C3-06-and-B6C3-07'
     scenario = if ($ValidateOnly) { 'RequiredAtRuntime' } else { $Scenario }
     operatorId = if ($ValidateOnly) { 'O1-O9-required-at-runtime' } else { $OperatorId }
     operatorIdentifierPolicy = 'AnonymousLabelsOnly'
@@ -65,7 +65,9 @@ $contract = [ordered]@{
     invalidatesPreparedIntentOnUnsafeEvent = $true
     hidesProbeSourceOnUnsafeEvent = $true
     requiresTwoSafeSamplesBeforeRecovery = $true
-    observesDisplayTopologyGeneration = $false
+    observesDisplayTopologyGeneration = $true
+    requiresAuthoritativeDisplayTopology = $true
+    requiresStabilizedDisplayTopology = $true
     launchesProbeOwnedNativeSource = $true
     startsProductApp = $false
     changesSystemState = $false
@@ -82,7 +84,9 @@ if ($contract.finalResultStatus -ne 'PendingManualEvidence' -or
     -not $contract.invalidatesPreparedIntentOnUnsafeEvent -or
     -not $contract.hidesProbeSourceOnUnsafeEvent -or
     -not $contract.requiresTwoSafeSamplesBeforeRecovery -or
-    $contract.observesDisplayTopologyGeneration -or
+    -not $contract.observesDisplayTopologyGeneration -or
+    -not $contract.requiresAuthoritativeDisplayTopology -or
+    -not $contract.requiresStabilizedDisplayTopology -or
     -not $contract.launchesProbeOwnedNativeSource -or
     $contract.startsProductApp -or
     $contract.changesSystemState -or
@@ -97,13 +101,14 @@ if ($contract.finalResultStatus -ne 'PendingManualEvidence' -or
 
 $contract | ConvertTo-Json -Depth 3
 if ($ValidateOnly) {
-    Write-Output 'System-surface session validation passed; live evidence and display-topology generation remain pending.'
+    Write-Output 'System-surface and read-only display-topology session validation passed; live evidence remains pending.'
     exit 0
 }
 
 Write-Warning (
     "Execute only $Scenario from the runbook. The probe observes public Windows " +
-    'state and never changes system state itself. It cannot validate display-topology generation.'
+    'state and samples authoritative display topology without changing either. ' +
+    'Only the operator can supply live evidence.'
 )
 
 $flagNames = @(

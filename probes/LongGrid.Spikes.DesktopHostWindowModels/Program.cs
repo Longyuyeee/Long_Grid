@@ -404,8 +404,9 @@ internal static class Program
                                    Run the B6c5 acknowledged visible manual source;
                                    press Escape or close it to destroy the source.
               --native-input-system-surface-session
-                                   Run the B6c6 acknowledged source with public
-                                   Windows system-surface observation enabled.
+                                   Run the B6c7 acknowledged source with public
+                                   system-surface and read-only authoritative
+                                   display-topology observation enabled.
               --json               Write a machine-readable report.
               --help               Show this help.
             """);

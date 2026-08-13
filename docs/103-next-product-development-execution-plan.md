@@ -327,3 +327,9 @@ B6C3 启动器现已与实际能力对齐：它只启动 probe 自有可见输�
 独立系统表面启动器现只在五项确认后运行 probe 自有来源，并复用 Stage 118 的公开 Windows 观察器。危险事件同步失效 Prepared 并隐藏来源；连续两个安全样本后只恢复 AwaitingPassiveSurface，不自动重建意图。它覆盖 B6C3-05、06 和 07-Explorer，明确不观察显示拓扑 generation，也不改变系统状态、启动正式 App、进入 Explicit 或写证据。
 
 下一执行单元为 B6c7：执行 B6C3-01～06 与 07-Explorer 的真实匿名矩阵，并单独审计只读显示拓扑 generation 接入。两组证据及恢复结果复核前，正式产品输入和真实文件操作继续关闭。
+
+## Stage 124 / B6c7 补充：系统表面与显示拓扑联合失效会话
+
+独立人工会话现复用正式 `ProductDisplayTopologyReader`、`DisplayTopologyFingerprint` 与 `DisplayTopologyStabilizer`，以 250 ms 周期只读采样显示配置。会话先等待权威基线；拓扑指纹变化或读取降级会同步失效 Prepared 并隐藏来源。恢复必须同时满足系统表面安全和权威拓扑经过默认静默期、两个一致样本，且只回到 AwaitingPassiveSurface。启动器不会调用显示配置写 API，也不自动制造场景或生成 Pass。
+
+下一执行单元为 B6c8：按手册执行 B6C3-01～08 的受控匿名真人矩阵，分别复核物理输入/Narrator、系统表面、Explorer 与显示 topology generation 的首次结果和恢复。证据未由负责人复核前，不把来源接入正式 App，不开放 Explicit、Intent 消费或真实文件操作。
