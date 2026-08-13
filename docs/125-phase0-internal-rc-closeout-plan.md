@@ -371,6 +371,16 @@ Stage 128 对 C0 遗留的已合并远端分支执行独立卫生审计：只允
 - **结论**：E1/M1 工程 Pass；外部证据状态不变，不能据此进入 RC；
 - **下一步**：进入独立 E2/M2 切片。详见 [Stage 130](130-formal-explicit-surface-adapter-audit.md)。
 
+### M2/E2a：原子 Intent 消费边界（工程实现完成，待远端验收）
+
+- **审计基线**：`main@271276e`；
+- **需求对齐**：只关闭 Prepared Intent 至多一次消费、Passive 即时复读、匿名项目选择身份和生命周期取消；不接正式 HWND 输入源、不操作桌面文件；
+- **实现摘要**：桥锁内原子消费后进入既有 admission / Explicit / selection 事务；Explicit 期间后续输入不能再次准备；系统事件、投影释放和关闭统一取消；
+- **安全边界**：Host/Interaction/Bridge/Forwarding 四重门禁缺一关闭，文件操作能力恒为 false，App 只组装而不调用消费入口；
+- **外部证据**：不适用为通过依据；物理输入、Narrator、动态系统表面和四个开放 Issue 继续 Pending；
+- **结论**：E2a 代码与本地验收完成后仍不等于 E2/M2 完成；
+- **下一步**：PR/main CI 通过并回填本节后，进入独立 E2b 正式 pointer/keyboard/UIA 来源。详见 [Stage 131](131-atomic-intent-consumption-audit.md)。
+
 ### C1：工程就绪复审（结果尚未执行）
 
 - **审计基线**：`main@508528b`；

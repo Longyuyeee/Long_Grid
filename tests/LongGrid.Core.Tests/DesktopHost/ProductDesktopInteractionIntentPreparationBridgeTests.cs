@@ -245,6 +245,37 @@ public sealed class ProductDesktopInteractionIntentPreparationBridgeTests
         Assert.Null(after.PreparedIntent);
     }
 
+    [Fact]
+    public void CurrentPreparedIntentCanBeConsumedExactlyOnce()
+    {
+        ProductDesktopInteractionIntentPreparationBridge bridge = Bridge();
+        ProductDesktopInteractionPreparedIntent prepared = bridge.Prepare(
+            Request(sequence: 1),
+            Batch(),
+            Evidence(),
+            Now).PreparedIntent!;
+
+        bool first = bridge.TryConsume(
+            prepared,
+            Evidence(),
+            Now,
+            out ProductDesktopInteractionIntent? intent);
+        bool replay = bridge.TryConsume(
+            prepared,
+            Evidence(),
+            Now,
+            out ProductDesktopInteractionIntent? replayed);
+
+        Assert.True(first);
+        Assert.Equal(prepared.Intent, intent);
+        Assert.False(replay);
+        Assert.Null(replayed);
+        Assert.Equal(
+            ProductDesktopInteractionIntentPreparationStatus.Consumed,
+            bridge.Snapshot.Status);
+        Assert.False(bridge.Snapshot.PreparedIntentAvailable);
+    }
+
     private static ProductDesktopInteractionIntentPreparationBridge Bridge() =>
         new(ProductDesktopInteractionIntentBridgePolicy.Evaluate(
             EnabledInteraction(),

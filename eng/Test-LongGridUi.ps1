@@ -122,6 +122,8 @@ $desktopIntentSessionLauncherCodePath = Join-Path $projectRoot `
     'eng\Start-DesktopInteractionIntentSession.ps1'
 $desktopInputForwardingAdapterCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionInputForwardingAdapter.cs'
+$desktopIntentConsumptionControllerCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionIntentConsumptionController.cs'
 $desktopInputForwardingSessionLauncherCodePath = Join-Path $projectRoot `
     'eng\Start-DesktopInteractionInputForwardingSession.ps1'
 $desktopSystemSurfaceSessionLauncherCodePath = Join-Path $projectRoot `
@@ -398,6 +400,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopInputForwardingAdapterCode = Get-Content `
         -LiteralPath $desktopInputForwardingAdapterCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopIntentConsumptionControllerCode = Get-Content `
+        -LiteralPath $desktopIntentConsumptionControllerCodePath `
         -Raw `
         -Encoding UTF8
     $desktopInputForwardingSessionLauncherCode = Get-Content `
@@ -1324,7 +1330,7 @@ function Test-SourceContract {
         -not ($appCode -match `
             'ProductDesktopInteractionSurfaceModeTransaction|ProductDesktopInteractionHitTestAdapter|ProductDesktopInteractionIntentFactory') -and
         $appCode -match `
-            'productDesktopHostLifecycle\s*=\s*new\(\s*desktopHostFeature,\s*productDesktopInteraction,\s*productDesktopIntentPreparation,\s*productDesktopInputForwarding\)' -and
+            'productDesktopHostLifecycle\s*=\s*new\(\s*desktopHostFeature,\s*productDesktopInteraction,\s*productDesktopIntentPreparation,\s*productDesktopInputForwarding,\s*productDesktopIntentConsumption\)' -and
         $desktopHostLifecycleControllerCode -match `
             'startHidden:\s*controlledSurfaceLifecycle' -and
         $desktopHostLifecycleControllerCode -match `
@@ -1486,6 +1492,40 @@ function Test-SourceContract {
             'mode == ProductDesktopInteractionSurfaceMode\.Explicit[\s\S]*NativeMethods\.HtClient[\s\S]*NativeMethods\.HtTransparent'
     ) `
         'B6c3 must require exact fourth-stage and manual-session gates, forward only attested non-injected non-repeat normalized actions once into intent preparation, remain bounded, and keep global capture, synthetic input, formal Explicit consumption and file operations disconnected.'
+    Assert-Condition (
+        $desktopIntentPreparationBridgeCode -match `
+            'internal bool TryConsume' -and
+        $desktopIntentPreparationBridgeCode -match `
+            'ProductDesktopInteractionIntentPreparationStatus\.Consumed' -and
+        $desktopIntentConsumptionControllerCode -match `
+            'featureDecision\.IsEnabled && inputForwardingDecision\.IsEnabled' -and
+        $desktopIntentConsumptionControllerCode -match `
+            'bridge\.TryConsume' -and
+        $desktopIntentConsumptionControllerCode -match `
+            'ProductDesktopInteractionSurfaceModeTransaction' -and
+        $desktopIntentConsumptionControllerCode -match 'ApplySelection' -and
+        $desktopIntentConsumptionControllerCode -match `
+            'RealFileOperationsAllowed:\s*false' -and
+        -not ($desktopIntentConsumptionControllerCode -match `
+            'SetWindowsHookEx|SendInput|GetAsyncKeyState|RegisterRawInputDevices|System\.IO|File\.|Directory\.|IFileOperation|MoveFile|DeleteFile') -and
+        $desktopHostLifecycleControllerCode -match `
+            'ConsumePreparedInteractionIntent' -and
+        $desktopHostLifecycleControllerCode -match `
+            'TryCreatePassiveInteractionEvidenceUnsafe' -and
+        $desktopHostLifecycleControllerCode -match `
+            'capture\.Evidence\?\.IsPassiveContract != true' -and
+        $desktopHostLifecycleControllerCode -match `
+            'intentConsumption\?\.Cancel' -and
+        $desktopHostLifecycleControllerCode -match `
+            'intentConsumption\?\.DetachSurface' -and
+        $desktopHostProjectionBuilderCode -match `
+            '\$"item:\{item\.Ordinal\}"' -and
+        $appCode -match `
+            'ProductDesktopInteractionIntentConsumptionController' -and
+        -not ($appCode -match `
+            'ForwardInteractionInput|ConsumePreparedInteractionIntent|ApplyInteractionSelection')
+    ) `
+        'E2a/M2 must atomically consume one prepared intent behind all four gates, require a freshly recaptured Passive surface, carry bounded anonymous item identities into the existing Explicit/selection transaction, cancel on lifecycle loss, expose no file operations, and remain disconnected from a formal HWND input source.'
     Assert-Condition (
         $nativeInputForwardingSourceProbeCode -match `
             'NativeInputForwardingProbeWindow\.Create' -and

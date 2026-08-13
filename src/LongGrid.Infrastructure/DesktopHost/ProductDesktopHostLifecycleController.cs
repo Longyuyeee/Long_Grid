@@ -53,7 +53,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
         double yDip,
         double widthDip,
         double heightDip,
-        bool isLocked)
+        bool isLocked,
+        IReadOnlyList<string> itemIds)
     {
         ContainerId = containerId;
         Title = title;
@@ -66,6 +67,7 @@ public sealed record ProductDesktopHostReadOnlyProjection
         WidthDip = widthDip;
         HeightDip = heightDip;
         IsLocked = isLocked;
+        ItemIds = itemIds;
     }
 
     public string ContainerId { get; }
@@ -90,6 +92,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
 
     public bool IsLocked { get; }
 
+    public IReadOnlyList<string> ItemIds { get; }
+
     public static ProductDesktopHostReadOnlyProjection Create(
         string containerId,
         string title,
@@ -101,7 +105,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
         double yDip,
         double widthDip,
         double heightDip,
-        bool isLocked = false)
+        bool isLocked = false,
+        IEnumerable<string>? itemIds = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(containerId);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
@@ -109,10 +114,21 @@ public sealed record ProductDesktopHostReadOnlyProjection
         string[] visibleItems = itemNames
             .Take(MaximumVisibleItems)
             .ToArray();
+        string[] visibleItemIds = (itemIds
+                ?? Enumerable.Range(1, visibleItems.Length)
+                    .Select(ordinal => $"item:{ordinal}"))
+            .Take(MaximumVisibleItems)
+            .ToArray();
         if (visibleItems.Any(string.IsNullOrWhiteSpace)
             || containerId.Length > ProductConfigurationLimits.MaximumIdLength
             || title.Length > ProductConfigurationLimits.MaximumNameLength
             || visibleItems.Any(item => item.Length > MaximumVisibleNameLength)
+            || visibleItemIds.Length != visibleItems.Length
+            || visibleItemIds.Any(string.IsNullOrWhiteSpace)
+            || visibleItemIds.Any(id => id.Length
+                > ProductConfigurationLimits.MaximumIdLength)
+            || visibleItemIds.Distinct(StringComparer.Ordinal).Count()
+                != visibleItemIds.Length
             || color is null
             || color.Length != 7
             || color[0] != '#'
@@ -141,7 +157,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
             yDip,
             widthDip,
             heightDip,
-            isLocked);
+            isLocked,
+            Array.AsReadOnly(visibleItemIds));
     }
 }
 
@@ -191,6 +208,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         intentPreparation;
     private readonly ProductDesktopInteractionInputForwardingAdapter?
         inputForwarding;
+    private readonly ProductDesktopInteractionIntentConsumptionController?
+        intentConsumption;
     private readonly Guid hostInstanceId = Guid.NewGuid();
     private ProductDesktopHostLifecycleSnapshot snapshot;
     private readonly List<IProductDesktopHostReadOnlySurface> surfaces = [];
@@ -226,7 +245,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             featureDecision,
             interactionDevelopment,
             intentPreparation,
-            inputForwarding: null)
+            inputForwarding: null,
+            intentConsumption: null)
     {
     }
 
@@ -237,6 +257,21 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         ProductDesktopInteractionInputForwardingAdapter? inputForwarding)
         : this(
             featureDecision,
+            interactionDevelopment,
+            intentPreparation,
+            inputForwarding,
+            intentConsumption: null)
+    {
+    }
+
+    public ProductDesktopHostLifecycleController(
+        ProductDesktopHostFeatureDecision featureDecision,
+        ProductDesktopInteractionDevelopmentController? interactionDevelopment,
+        ProductDesktopInteractionIntentPreparationBridge? intentPreparation,
+        ProductDesktopInteractionInputForwardingAdapter? inputForwarding,
+        ProductDesktopInteractionIntentConsumptionController? intentConsumption)
+        : this(
+            featureDecision,
             featureDecision?.IsEnabled == true
                 ? new WindowsProductDesktopHostReadOnlySurfaceFactory()
                 : null,
@@ -245,7 +280,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                 : null,
             interactionDevelopment,
             intentPreparation,
-            inputForwarding)
+            inputForwarding,
+            intentConsumption)
     {
     }
 
@@ -258,7 +294,9 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         ProductDesktopInteractionIntentPreparationBridge?
             intentPreparation = null,
         ProductDesktopInteractionInputForwardingAdapter?
-            inputForwarding = null)
+            inputForwarding = null,
+        ProductDesktopInteractionIntentConsumptionController?
+            intentConsumption = null)
     {
         ArgumentNullException.ThrowIfNull(featureDecision);
         enabled = featureDecision.IsEnabled;
@@ -272,6 +310,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         this.interactionDevelopment = interactionDevelopment;
         this.intentPreparation = intentPreparation;
         this.inputForwarding = inputForwarding;
+        this.intentConsumption = intentConsumption;
         windowBridge = windowInspector is null
             ? null
             : new(windowInspector);
@@ -408,6 +447,9 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             if (systemEvent.RequiresHiddenSurface)
             {
                 InvalidatePreparedInputUnsafe();
+                _ = intentConsumption?.Cancel(
+                    systemEvent.ToCancellationSignal(),
+                    systemEvent.ObservedAtUtc);
                 if (interactionSurface is null)
                 {
                     return snapshot;
@@ -500,26 +542,16 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     PreparedIntent: null);
             }
 
-            if (snapshot.Status
-                    != ProductDesktopHostLifecycleStatus.ReadyReadOnly
-                || currentBatch is null
-                || interactionSurface is null
-                || interactionDevelopment?.Snapshot is not
-                { IsDevelopmentInteractionAvailable: true, Surface: not null }
-                    interaction)
+            if (!TryCreatePassiveInteractionEvidenceUnsafe(out var evidence))
             {
                 ProductDesktopInteractionIntentPreparationSnapshot awaiting =
                     intentPreparation.AwaitPassiveSurface();
                 return new(awaiting, PreparedIntent: null);
             }
 
-            ProductDesktopInteractionEvidence evidence =
-                CreateInteractionEvidence(
-                    currentBatch,
-                    interaction.Surface.WindowRegistryGeneration);
             return intentPreparation.Prepare(
                 request,
-                currentBatch,
+                currentBatch!,
                 evidence,
                 nowUtc);
         }
@@ -550,28 +582,90 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     PreparedIntent: null);
             }
 
-            if (snapshot.Status
-                    != ProductDesktopHostLifecycleStatus.ReadyReadOnly
-                || currentBatch is null
-                || interactionSurface is null
-                || interactionDevelopment?.Snapshot is not
-                { IsDevelopmentInteractionAvailable: true, Surface: not null }
-                    interaction)
+            if (!TryCreatePassiveInteractionEvidenceUnsafe(out var evidence))
             {
                 ProductDesktopInteractionInputForwardingSnapshot awaiting =
                     inputForwarding.AwaitPassiveSurface();
                 return new(awaiting, PreparedIntent: null);
             }
 
-            ProductDesktopInteractionEvidence evidence =
-                CreateInteractionEvidence(
-                    currentBatch,
-                    interaction.Surface.WindowRegistryGeneration);
             return inputForwarding.Forward(
                 input,
-                currentBatch,
+                currentBatch!,
                 evidence,
                 nowUtc);
+        }
+    }
+
+    public ProductDesktopInteractionIntentConsumptionResult
+        ConsumePreparedInteractionIntent(
+            ProductDesktopInteractionPreparedIntent preparedIntent,
+            DateTimeOffset nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(preparedIntent);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (intentConsumption is null
+                || currentBatch is null
+                || interactionSurface is null
+                || snapshot.Status
+                    != ProductDesktopHostLifecycleStatus.ReadyReadOnly)
+            {
+                return ProductDesktopInteractionIntentConsumptionResult
+                    .Disabled;
+            }
+
+            if (!TryCreatePassiveInteractionEvidenceUnsafe(out var evidence))
+            {
+                return intentConsumption.AwaitPassiveSurface();
+            }
+
+            ProductDesktopHostReadOnlyProjection? target = currentBatch.Displays
+                .SelectMany(display => display.Containers)
+                .SingleOrDefault(container => string.Equals(
+                    container.ContainerId,
+                    preparedIntent.Intent.TargetContainerId,
+                    StringComparison.Ordinal));
+            if (target is null)
+            {
+                return intentConsumption.RejectUnavailableTarget();
+            }
+
+            return intentConsumption.Consume(
+                preparedIntent,
+                evidence,
+                target.ItemIds,
+                nowUtc);
+        }
+    }
+
+    public ProductDesktopInteractionIntentConsumptionResult
+        ApplyInteractionSelection(
+            ProductDesktopSelectionRequest request,
+            DateTimeOffset nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (intentConsumption is null || currentBatch is null)
+            {
+                return ProductDesktopInteractionIntentConsumptionResult
+                    .Disabled;
+            }
+
+            string? targetId = intentConsumption.Snapshot.Transaction
+                ?.Admission.Lease?.TargetContainerId;
+            ProductDesktopHostReadOnlyProjection? target = currentBatch.Displays
+                .SelectMany(display => display.Containers)
+                .SingleOrDefault(container => string.Equals(
+                    container.ContainerId,
+                    targetId,
+                    StringComparison.Ordinal));
+            return target is null
+                ? intentConsumption.RejectUnavailableTarget()
+                : intentConsumption.ApplySelection(request, target.ItemIds, nowUtc);
         }
     }
 
@@ -618,6 +712,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             {
                 _ = intentPreparation?.Complete();
             }
+            _ = intentConsumption?.Complete(DateTimeOffset.UtcNow);
             ReleaseSurfaceUnsafe();
             published = UpdateSnapshotUnsafe(
                 ProductDesktopHostLifecycleStatus.Completed,
@@ -707,6 +802,11 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                             batch,
                             registration.Snapshot.Generation));
                 interactionAttached = attached.IsDevelopmentInteractionAvailable;
+                if (interactionAttached && intentConsumption?.IsEnabled == true)
+                {
+                    interactionAttached = intentConsumption.AttachSurface(
+                        interactionSurface);
+                }
                 if (!interactionAttached)
                 {
                     ReleaseSurfaceUnsafe();
@@ -747,6 +847,9 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         InvalidatePreparedInputUnsafe();
         if (interactionSurface is not null)
         {
+            _ = intentConsumption?.DetachSurface(
+                interactionSurface,
+                DateTimeOffset.UtcNow);
             _ = interactionDevelopment?.DetachPassiveSurface(
                 interactionSurface);
             interactionSurface = null;
@@ -783,6 +886,49 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         {
             _ = intentPreparation?.Invalidate();
         }
+    }
+
+    private bool TryCreatePassiveInteractionEvidenceUnsafe(
+        out ProductDesktopInteractionEvidence evidence)
+    {
+        evidence = default!;
+        if (snapshot.Status != ProductDesktopHostLifecycleStatus.ReadyReadOnly
+            || currentBatch is null
+            || interactionSurface is null
+            || interactionDevelopment?.Snapshot is not
+            { IsDevelopmentInteractionAvailable: true, Surface: not null }
+                interaction)
+        {
+            return false;
+        }
+
+        ProductDesktopInteractionSurfaceCapture capture;
+        try
+        {
+            capture = interactionSurface.Capture();
+        }
+        catch (Exception exception) when (
+            exception is Win32Exception
+                or ArgumentException
+                or InvalidOperationException
+                or PlatformNotSupportedException
+                or OverflowException)
+        {
+            return false;
+        }
+
+        if (!capture.Succeeded
+            || capture.Evidence?.IsPassiveContract != true
+            || capture.Evidence.WindowRegistryGeneration
+                != interaction.Surface.WindowRegistryGeneration)
+        {
+            return false;
+        }
+
+        evidence = CreateInteractionEvidence(
+            currentBatch,
+            capture.Evidence.WindowRegistryGeneration);
+        return true;
     }
 
     private ProductDesktopHostLifecycleSnapshot UpdateSnapshotUnsafe(
@@ -858,6 +1004,9 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         && left.YDip.Equals(right.YDip)
         && left.WidthDip.Equals(right.WidthDip)
         && left.HeightDip.Equals(right.HeightDip)
+        && left.ItemIds.SequenceEqual(
+            right.ItemIds,
+            StringComparer.Ordinal)
         && left.ItemNames.SequenceEqual(
             right.ItemNames,
             StringComparer.Ordinal);

@@ -1,5 +1,6 @@
 using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopHost;
+using LongGrid.Core.DesktopItems;
 using LongGrid.Infrastructure.DesktopHost;
 
 namespace LongGrid.Core.Tests.DesktopHost;
@@ -56,6 +57,12 @@ public sealed class ProductDesktopHostProjectionBuilderTests
         Assert.False(batch.Displays[0].Containers[0].IsLocked);
         Assert.True(batch.Displays[1].Containers[0].IsLocked);
         Assert.Equal(120u, batch.Displays[1].EffectiveDpi);
+        Assert.Equal(
+            ["item:1", "item:2"],
+            batch.Displays[0].Containers[0].ItemIds);
+        Assert.DoesNotContain(
+            batch.Displays[0].Containers[0].ItemIds,
+            id => id.Contains("persisted", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -151,7 +158,15 @@ public sealed class ProductDesktopHostProjectionBuilderTests
         ProfileId = "profile",
         Containers =
         [
-            CreateContainer("container-fallback", "unknown-display", 24),
+            CreateContainer(
+                "container-fallback",
+                "unknown-display",
+                24,
+                items:
+                [
+                    CreateResolvedItem("persisted-secret-1", "Visible One"),
+                    CreateResolvedItem("persisted-secret-2", "Visible Two"),
+                ]),
             CreateContainer(
                 "container-secondary",
                 Secondary.StableId,
@@ -166,7 +181,8 @@ public sealed class ProductDesktopHostProjectionBuilderTests
         string id,
         string displayKey,
         double xDip,
-        bool isLocked = false) => new()
+        bool isLocked = false,
+        IReadOnlyList<ProductItemReferenceState>? items = null) => new()
         {
             Id = id,
             Name = id,
@@ -187,7 +203,20 @@ public sealed class ProductDesktopHostProjectionBuilderTests
                 HeightDip = 240,
                 ExtensionData = null,
             },
-            Items = Array.Empty<ProductItemReferenceState>(),
+            Items = items ?? Array.Empty<ProductItemReferenceState>(),
             ExtensionData = null,
         };
+
+    private static ProductItemReferenceState CreateResolvedItem(
+        string id,
+        string name) =>
+        ProductItemReferenceState.CreateResolved(
+            id,
+            new DesktopCatalogEntry(
+                new DesktopItemIdentity(
+                    "filesystem",
+                    Path.Combine(Path.GetTempPath(), "LongGrid.E2a", name)),
+                "user-desktop",
+                name,
+                DesktopItemKind.File));
 }

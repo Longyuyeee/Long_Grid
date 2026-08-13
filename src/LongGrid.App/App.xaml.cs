@@ -93,6 +93,11 @@ public partial class App : Application
             new ProductDesktopInteractionInputForwardingAdapter(
                 inputForwardingFeature,
                 productDesktopIntentPreparation);
+        var productDesktopIntentConsumption =
+            new ProductDesktopInteractionIntentConsumptionController(
+                interactionFeature,
+                inputForwardingFeature,
+                productDesktopIntentPreparation);
         productDesktopSystemSurfaceEvents = interactionFeature.IsEnabled
             ? new()
             : null;
@@ -100,7 +105,8 @@ public partial class App : Application
             desktopHostFeature,
             productDesktopInteraction,
             productDesktopIntentPreparation,
-            productDesktopInputForwarding);
+            productDesktopInputForwarding,
+            productDesktopIntentConsumption);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)

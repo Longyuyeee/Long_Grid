@@ -98,6 +98,8 @@ public static class ProductDesktopHostProjectionBuilder
                     ? name
                     : name[..ProductDesktopHostReadOnlyProjection.MaximumVisibleNameLength];
             });
+            IEnumerable<string> itemIds = visible.Items.Select(item =>
+                $"item:{item.Ordinal}");
             ProductDesktopHostReadOnlyProjection container =
                 ProductDesktopHostReadOnlyProjection.Create(
                     source.Id,
@@ -110,7 +112,8 @@ public static class ProductDesktopHostProjectionBuilder
                     visible.YDip,
                     visible.WidthDip,
                     visible.HeightDip,
-                    source.IsLocked);
+                    source.IsLocked,
+                    itemIds);
             string displayId = byDisplay.ContainsKey(source.Placement.DisplayKey)
                 ? source.Placement.DisplayKey
                 : primary.StableId;
