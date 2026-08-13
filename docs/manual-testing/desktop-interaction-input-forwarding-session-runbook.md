@@ -2,7 +2,7 @@
 
 本手册只验证“归一化输入 → Intent 准备”的隔离边界。正式 DesktopHost HWND 仍为 `HTTRANSPARENT`；会话不安装全局 Hook、不调用 `SendInput`、不进入 Explicit、不修改真实桌面文件，也不自动生成通过证据。
 
-Stage 121 的 `--native-input-forwarding` 自动探针只验证同步 Win32 消息和真实 HWND UIA Provider 的归一化合同，结果为 Conditional Pass；它明确没有验证物理设备或 Narrator，因此不能替代本手册的人工执行。
+Stage 121 的 `--native-input-forwarding` 自动探针只验证同步 Win32 消息和真实 HWND UIA Provider 的归一化合同，结果为 Conditional Pass；它明确没有验证物理设备或 Narrator，因此不能替代本手册的人工执行。Stage 122 起，下面的启动器只创建 probe 自有可见短会话窗口，不再启动正式 App；窗口显示有限计数，按 Escape 或关闭窗口会销毁来源，最终状态仍固定为 `PendingManualEvidence`。
 
 ## 前置条件
 
@@ -35,6 +35,10 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -AcknowledgeNoExplicitInteraction `
   -AcknowledgeRecoveryPlan
 ```
+
+启动后只对可见的“Long Grid manual input source”窗口执行当前场景。B6C3-01 可点击窗口，B6C3-02 可先点击再按 Enter/Space，B6C3-03 使用 Narrator 或独立 UIA 客户端执行 Invoke，B6C3-04 只执行真实按键自动重复子项，B6C3-08 只执行关闭与清理子项。B6C3-05 至 B6C3-07 依赖尚未接入本 probe 的系统事件会话，启动器会明确拒绝，不能用可见来源窗口替代。不要把程序显示的 Prepared 计数当作人工 Pass；仍须按场景记录预期、实际和恢复结果。
+
+该窗口不具备原生注入检测能力；普通 HWND 消息不能证明物理来源。B6C3-04 中显式 `IsInjected=true` 的拒绝由 adapter 自动化合同覆盖，人工会话不得声称验证了注入检测。
 
 ## 记录规则
 

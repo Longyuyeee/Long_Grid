@@ -315,3 +315,9 @@ MVP 完成必须同时满足：
 Stage 110 已完成 **A5 自动化子切片：DesktopHost 只读 UIA 与产品会话合同**。正式 HWND 通过 `WM_GETOBJECT` 公开 Root→方格→当前可见项目的只读 Fragment，视觉、Region 与 UIA 共用布局计算；节点不可聚焦且不提供 Selection/Invoke。生命周期还强制复读 ToolWindow/NoActivate/非 Topmost/无 Owner/未占前台，并新增 A5-01..A5-06 受控会话启动器和手册。
 
 A5 真实 Narrator、Win+D、全屏、Explorer 重启、锁定/RDP 与 24 小时资源证据继续保持 PendingManualEvidence，阶段 A 不能标记最终验收。下一代码切片是 **B1：桌面交互准入与模式状态机**，先建立与只读模式隔离的默认关闭策略、命中/焦点/取消和陈旧 generation 拒绝，不直接开放真实文件、拖放、任务栏或插件权限。A5 自动化证据与人工限制见[Stage 110 审计](110-desktop-host-readonly-uia-session-contract-audit.md)。
+
+## Stage 122 / B6c5 补充：人工拥有的短生命周期来源
+
+B6C3 启动器现已与实际能力对齐：它只启动 probe 自有可见输入来源，不启动尚未接入来源的正式 App。会话必须具备场景、匿名操作员和四项确认，probe 再复核六个精确进程开关；鼠标、Enter/Space 和 UIA/Narrator Invoke 只进入 Intent 准备，Escape/关闭即销毁。程序不写证据且结果固定 PendingManualEvidence。
+
+下一执行单元为 B6c6：先按手册执行 B6C3-01～04 与 08 中来源窗口可承载的子项，再为 B6C3-05～07 建立独立系统事件人工会话；两组都只匿名记录环境类别、有限状态与恢复结果并由负责人复核。未完成该门禁前，禁止把输入源接入正式 App、开放 Explicit 或进入真实文件操作。

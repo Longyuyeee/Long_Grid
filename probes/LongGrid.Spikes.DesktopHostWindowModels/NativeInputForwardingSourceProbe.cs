@@ -8,6 +8,123 @@ using LongGrid.Infrastructure.DesktopHost;
 
 internal static class NativeInputForwardingSourceProbe
 {
+    internal static int RunInteractive(bool perMonitorV2Requested)
+    {
+        if (!perMonitorV2Requested)
+        {
+            Console.Error.WriteLine(
+                "Per-monitor-v2 DPI awareness is required for the manual input source session.");
+            return 2;
+        }
+
+        ProductDesktopInteractionFeatureDecision interactionDecision =
+            ProductDesktopInteractionFeaturePolicy.Evaluate(
+                ProductDesktopHostFeaturePolicy.Evaluate(
+                    Environment.GetEnvironmentVariable(
+                        ProductDesktopHostFeaturePolicy.EnvironmentVariableName)),
+                Environment.GetEnvironmentVariable(
+                    ProductDesktopInteractionFeaturePolicy.EnvironmentVariableName),
+                Environment.GetEnvironmentVariable(
+                    ProductDesktopInteractionFeaturePolicy
+                        .EmergencyDisableEnvironmentVariableName));
+        ProductDesktopInteractionIntentBridgeFeatureDecision bridgeDecision =
+            ProductDesktopInteractionIntentBridgePolicy.Evaluate(
+                interactionDecision,
+                Environment.GetEnvironmentVariable(
+                    ProductDesktopInteractionIntentBridgePolicy
+                        .EnvironmentVariableName),
+                Environment.GetEnvironmentVariable(
+                    ProductDesktopInteractionIntentBridgePolicy
+                        .ManualSessionEnvironmentVariableName));
+        ProductDesktopInteractionInputForwardingFeatureDecision
+            forwardingDecision =
+                ProductDesktopInteractionInputForwardingPolicy.Evaluate(
+                    bridgeDecision,
+                    Environment.GetEnvironmentVariable(
+                        ProductDesktopInteractionInputForwardingPolicy
+                            .EnvironmentVariableName),
+                    Environment.GetEnvironmentVariable(
+                        ProductDesktopInteractionInputForwardingPolicy
+                            .ManualSessionEnvironmentVariableName));
+        if (!forwardingDecision.IsEnabled)
+        {
+            Console.Error.WriteLine(
+                $"Manual input source safety gates are not enabled: {forwardingDecision.Status}.");
+            return 3;
+        }
+
+        var bridge = new ProductDesktopInteractionIntentPreparationBridge(
+            bridgeDecision);
+        var forwarding = new ProductDesktopInteractionInputForwardingAdapter(
+            forwardingDecision,
+            bridge);
+        ProductDesktopHostProjectionBatch batch = Batch();
+        ProductDesktopInteractionEvidence evidence = Evidence();
+        int observed = 0;
+        int prepared = 0;
+        int rejected = 0;
+        long sequence = 0;
+        NativeInputForwardingProbeWindow? host = null;
+        using (host = NativeInputForwardingProbeWindow.Create(
+            (kind, x, y, autoRepeat) =>
+            {
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                ProductDesktopInteractionInputForwardingResult result =
+                    forwarding.Forward(
+                        new(
+                            Guid.NewGuid(),
+                            Interlocked.Increment(ref sequence),
+                            now,
+                            kind,
+                            "display-probe",
+                            x,
+                            y,
+                            SourceAttested: true,
+                            IsInjected: false,
+                            IsAutoRepeat: autoRepeat),
+                        batch,
+                        evidence,
+                        now);
+                int currentObserved = Interlocked.Increment(ref observed);
+                if (result.IsPrepared)
+                {
+                    _ = Interlocked.Increment(ref prepared);
+                }
+                else
+                {
+                    _ = Interlocked.Increment(ref rejected);
+                }
+
+                host?.UpdateStatus(
+                    kind,
+                    result.Snapshot.Status,
+                    currentObserved,
+                    prepared,
+                    rejected);
+            },
+            interactive: true))
+        {
+            Console.WriteLine("B6c5 probe-owned manual input source session");
+            Console.WriteLine(
+                "Click the visible window, press Enter/Space, or invoke it with UI Automation/Narrator. Press Escape or close it to destroy the source.");
+            Console.WriteLine(
+                "No global hooks, Raw Input, SendInput, Explicit interaction, file operations, evidence capture, or automatic Pass are enabled.");
+            int exitCode = host.RunMessageLoop();
+            _ = forwarding.Complete();
+            Console.WriteLine("FinalResultStatus: PendingManualEvidence");
+            Console.WriteLine($"ObservedInputCount: {observed}");
+            Console.WriteLine($"PreparedIntentCount: {prepared}");
+            Console.WriteLine($"RejectedInputCount: {rejected}");
+            Console.WriteLine(
+                $"ProbeOwnedWindowDestroyed: {!NativeMethods.IsWindow(host.Window)}");
+            Console.WriteLine("PhysicalDeviceInputAutomaticallyVerified: false");
+            Console.WriteLine("NativeInjectionDetection: false");
+            Console.WriteLine("DesktopFilesReadOrChanged: false");
+            Console.WriteLine("ExplicitInteractionEntered: false");
+            return exitCode;
+        }
+    }
+
     internal static NativeInputForwardingSourceReport Run(
         bool perMonitorV2Requested)
     {
@@ -257,6 +374,9 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
         int,
         int,
         bool> forward;
+    private readonly bool interactive;
+    private bool messageLoopRunning;
+    private string status = "Waiting for an acknowledged manual action.";
     private bool disposed;
 
     private NativeInputForwardingProbeWindow(
@@ -269,7 +389,8 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
             ProductDesktopInteractionForwardedInputKind,
             int,
             int,
-            bool> forward)
+            bool> forward,
+        bool interactive)
     {
         this.className = className;
         this.instance = instance;
@@ -277,6 +398,7 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
         Window = window;
         this.provider = provider;
         this.forward = forward;
+        this.interactive = interactive;
     }
 
     internal nint Window { get; }
@@ -286,7 +408,8 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
             ProductDesktopInteractionForwardedInputKind,
             int,
             int,
-            bool> forward)
+            bool> forward,
+        bool interactive = false)
     {
         ArgumentNullException.ThrowIfNull(forward);
         string className = $"LongGrid.B6c4.InputSource.{Guid.NewGuid():N}";
@@ -313,6 +436,11 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
                     nint.Zero,
                     nint.Zero,
                     nint.Zero);
+                if (host?.messageLoopRunning == true)
+                {
+                    NativeMethods.PostQuitMessage(0);
+                }
+
                 return nint.Zero;
             }
 
@@ -336,15 +464,15 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
         {
             window = NativeMethods.CreateWindowEx(
                 NativeMethods.WsExToolWindow
-                | NativeMethods.WsExNoActivate
+                | (interactive ? 0 : NativeMethods.WsExNoActivate)
                 | NativeMethods.WsExLayered,
                 className,
-                "Long Grid isolated input source probe",
+                "Long Grid manual input source",
                 NativeMethods.WsPopup,
                 32,
                 32,
-                320,
-                240,
+                520,
+                260,
                 nint.Zero,
                 nint.Zero,
                 instance,
@@ -353,27 +481,31 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
                 || !NativeMethods.SetLayeredWindowAttributes(
                     window,
                     0,
-                    1,
+                    interactive ? (byte)245 : (byte)1,
                     NativeMethods.LwaAlpha))
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error());
             }
 
-            provider = new(window, () => host!.ForwardAssistive());
+            provider = new(
+                window,
+                () => host!.ForwardAssistive(),
+                interactive);
             host = new(
                 className,
                 instance,
                 procedure,
                 window,
                 provider,
-                forward);
+                forward,
+                interactive);
             if (!NativeMethods.SetWindowPos(
                 window,
                 NativeMethods.HwndTop,
                 32,
                 32,
-                320,
-                240,
+                520,
+                260,
                 NativeMethods.SwpNoActivate
                 | NativeMethods.SwpNoZOrder
                 | NativeMethods.SwpShowWindow))
@@ -395,8 +527,55 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
         }
     }
 
+    internal int RunMessageLoop()
+    {
+        if (!interactive)
+        {
+            throw new InvalidOperationException(
+                "Only the manually-owned visible source can run a message loop.");
+        }
+
+        messageLoopRunning = true;
+        int messageResult;
+        while ((messageResult = NativeMethods.GetMessage(
+            out WindowMessage message,
+            nint.Zero,
+            0,
+            0)) > 0)
+        {
+            _ = NativeMethods.TranslateMessage(ref message);
+            _ = NativeMethods.DispatchMessage(ref message);
+        }
+
+        messageLoopRunning = false;
+        return messageResult < 0 ? 2 : 0;
+    }
+
+    internal void UpdateStatus(
+        ProductDesktopInteractionForwardedInputKind kind,
+        ProductDesktopInteractionInputForwardingStatus result,
+        int observed,
+        int prepared,
+        int rejected)
+    {
+        status = $"Last: {kind} -> {result}   Observed {observed} / Prepared {prepared} / Rejected {rejected}";
+        _ = NativeMethods.InvalidateRect(Window, nint.Zero, erase: true);
+    }
+
     private nint HandleMessage(uint message, nint word, nint data)
     {
+        if (message == NativeMethods.WmPaint)
+        {
+            Paint();
+            return nint.Zero;
+        }
+
+        if (message == NativeMethods.WmClose)
+        {
+            _ = NativeMethods.DestroyWindow(Window);
+            return nint.Zero;
+        }
+
         if (message == NativeMethods.WmLeftButtonDown)
         {
             long packed = data.ToInt64();
@@ -407,12 +586,23 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
                 x,
                 y,
                 false);
+            if (interactive)
+            {
+                _ = NativeMethods.SetFocus(Window);
+            }
+
             return nint.Zero;
         }
 
         if (message == NativeMethods.WmKeyDown)
         {
             int key = unchecked((int)word.ToInt64());
+            if (interactive && key == NativeMethods.VkEscape)
+            {
+                _ = NativeMethods.DestroyWindow(Window);
+                return nint.Zero;
+            }
+
             if (key is NativeMethods.VkReturn or NativeMethods.VkSpace)
             {
                 bool autoRepeat = (data.ToInt64() & (1L << 30)) != 0;
@@ -427,6 +617,58 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
         }
 
         return NativeMethods.DefWindowProc(Window, message, word, data);
+    }
+
+    private void Paint()
+    {
+        nint deviceContext = NativeMethods.BeginPaint(
+            Window,
+            out PaintStruct paint);
+        try
+        {
+            var bounds = new NativeRect
+            {
+                Left = 0,
+                Top = 0,
+                Right = 520,
+                Bottom = 260,
+            };
+            _ = NativeMethods.FillRect(
+                deviceContext,
+                ref bounds,
+                NativeMethods.GetSysColorBrush(NativeMethods.ColorWindow));
+            DrawLine(deviceContext, "Long Grid - acknowledged manual input source", 20, 18);
+            DrawLine(deviceContext, "Click here, then press Enter or Space. UIA/Narrator Invoke is also accepted.", 20, 58);
+            DrawLine(deviceContext, status, 20, 104);
+            DrawLine(deviceContext, "Press Escape or close this window to destroy the source.", 20, 150);
+            DrawLine(deviceContext, "Result remains PendingManualEvidence; no file or Explicit action occurs.", 20, 190);
+        }
+        finally
+        {
+            _ = NativeMethods.EndPaint(Window, ref paint);
+        }
+    }
+
+    private static void DrawLine(
+        nint deviceContext,
+        string text,
+        int left,
+        int top)
+    {
+        var bounds = new NativeRect
+        {
+            Left = left,
+            Top = top,
+            Right = 500,
+            Bottom = top + 30,
+        };
+        _ = NativeMethods.DrawText(
+            deviceContext,
+            text,
+            text.Length,
+            ref bounds,
+            NativeMethods.DtLeft | NativeMethods.DtSingleLine
+                | NativeMethods.DtEndEllipsis);
     }
 
     private void ForwardAssistive() =>
@@ -458,7 +700,8 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
 
 internal sealed class NativeInputForwardingInvokeProvider(
     nint window,
-    Action invoke) : IRawElementProviderSimple, IInvokeProvider
+    Action invoke,
+    bool keyboardFocusable) : IRawElementProviderSimple, IInvokeProvider
 {
     public ProviderOptions ProviderOptions => ProviderOptions.ServerSideProvider;
 
@@ -475,7 +718,7 @@ internal sealed class NativeInputForwardingInvokeProvider(
         var id when id == AutomationElementIdentifiers.ControlTypeProperty.Id =>
             ControlType.Button.Id,
         var id when id == AutomationElementIdentifiers.IsKeyboardFocusableProperty.Id =>
-            false,
+            keyboardFocusable,
         _ => null,
     };
 
