@@ -8,8 +8,16 @@ param(
 
     [string] $TargetRoot,
 
+    [ValidateSet('PrepareBaseline', 'AttemptFailure', 'RecoverAndRetry')]
+    [string] $Phase,
+
+    [ValidateSet('Debug', 'Release')]
+    [string] $Configuration = 'Release',
+
     [switch] $AcknowledgeDedicatedEnvironment,
     [switch] $AcknowledgeRecoveryPlan,
+    [switch] $NoRestore,
+    [switch] $NoBuild,
     [switch] $ValidateOnly
 )
 
@@ -20,6 +28,8 @@ $sessionRunbook = Join-Path $projectRoot `
     'docs\manual-testing\issue-24-persistence-boundary-runbook.md'
 $configurationAudit = Join-Path $projectRoot `
     'docs\28-product-configuration-contract-audit.md'
+$hostProject = Join-Path $projectRoot `
+    'tools\LongGrid.Tools.PersistenceBoundarySession\LongGrid.Tools.PersistenceBoundarySession.csproj'
 $markerName = '.longgrid-issue24-dedicated-volume-v1'
 $markerContent = 'LONGGRID-ISSUE24-DEDICATED-VOLUME-V1'
 
@@ -27,7 +37,11 @@ if ($env:OS -ne 'Windows_NT') {
     throw 'Issue #24 dedicated-environment sessions can only run on Windows.'
 }
 
-foreach ($requiredPath in @($phaseExitRunbook, $sessionRunbook, $configurationAudit)) {
+foreach ($requiredPath in @(
+    $phaseExitRunbook,
+    $sessionRunbook,
+    $configurationAudit,
+    $hostProject)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Issue #24 session dependency was not found: $requiredPath"
     }
@@ -49,6 +63,10 @@ if (-not $ValidateOnly) {
 
     if ([string]::IsNullOrWhiteSpace($TargetRoot)) {
         throw 'TargetRoot is required and must be the root of a disposable dedicated test volume.'
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Phase)) {
+        throw 'Phase is required and must be PrepareBaseline, AttemptFailure, or RecoverAndRetry.'
     }
 
     if (-not $AcknowledgeDedicatedEnvironment) {
@@ -115,6 +133,8 @@ if (-not $ValidateOnly) {
     if ($actualMarker -ne $markerContent) {
         throw 'The dedicated-volume marker content is invalid.'
     }
+
+    $sessionDirectory = Join-Path $resolvedTarget 'LongGrid-Issue24-ProductStore-Session'
 }
 
 $commit = 'unavailable'
@@ -130,6 +150,7 @@ $sessionContract = [ordered]@{
     purpose = 'Issue24ProductionPersistenceBoundaryDedicatedEnvironment'
     scenario = if ($ValidateOnly) { 'I24-01-or-I24-02-required-at-runtime' } else { $Scenario }
     scenarioName = if ($ValidateOnly) { 'RecordedAtRuntime' } else { $scenarioCatalog[$Scenario] }
+    phase = if ($ValidateOnly) { 'PrepareBaseline-AttemptFailure-or-RecoverAndRetry-required-at-runtime' } else { $Phase }
     operatorId = if ($ValidateOnly) { 'O1-O9-required-at-runtime' } else { $OperatorId }
     operatorIdentifierPolicy = 'AnonymousLabelsOnly'
     commit = $commit
@@ -137,12 +158,15 @@ $sessionContract = [ordered]@{
     architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
     resultStatus = 'PendingDedicatedEnvironmentEvidence'
     targetIdentifierRecorded = $false
-    readsTargetMarkerOnly = -not $ValidateOnly
-    writesTargetVolume = $false
+    readsTargetMarker = -not $ValidateOnly
+    liveSessionWritesTargetVolume = $true
+    writesTargetVolume = -not $ValidateOnly
     fillsTargetVolume = $false
     changesVolumeState = $false
     changesAcl = $false
     runsPersistenceProbe = $false
+    runsProductConfigurationStoreHost = -not $ValidateOnly
+    usesFormalProductConfigurationStore = $true
     capturesEvidence = $false
     writesResultFile = $false
     requiresDedicatedEnvironmentAcknowledgement = $true
@@ -154,11 +178,14 @@ $sessionContract = [ordered]@{
 if ($sessionContract.operatorIdentifierPolicy -ne 'AnonymousLabelsOnly' -or
     $sessionContract.resultStatus -ne 'PendingDedicatedEnvironmentEvidence' -or
     $sessionContract.targetIdentifierRecorded -or
-    $sessionContract.writesTargetVolume -or
+    -not $sessionContract.liveSessionWritesTargetVolume -or
+    $sessionContract.writesTargetVolume -ne (-not $ValidateOnly) -or
     $sessionContract.fillsTargetVolume -or
     $sessionContract.changesVolumeState -or
     $sessionContract.changesAcl -or
     $sessionContract.runsPersistenceProbe -or
+    $sessionContract.runsProductConfigurationStoreHost -ne (-not $ValidateOnly) -or
+    -not $sessionContract.usesFormalProductConfigurationStore -or
     $sessionContract.capturesEvidence -or
     $sessionContract.writesResultFile -or
     -not $sessionContract.requiresDedicatedEnvironmentAcknowledgement -or
@@ -176,7 +203,29 @@ if ($ValidateOnly) {
 }
 
 Write-Warning (
-    'Preflight passed. This launcher does not write, fill, mount, unmount, or change the target volume and does not ' +
-    'run the persistence probe. Follow only the selected scenario in the runbook, restore the disposable environment, ' +
-    'and record a manual result. The final status remains PendingDedicatedEnvironmentEvidence.'
+    "Preflight passed for $Scenario / $Phase. The formal ProductConfigurationStore host writes only its fixed session " +
+    'directory on the marked disposable volume. It does not fill the volume, change volume/ACL state, capture evidence ' +
+    'or decide final Pass. Follow the selected phase in the runbook and keep the final result Pending until manual review.'
 )
+
+$arguments = @(
+    'run',
+    '--project', $hostProject,
+    '--configuration', $Configuration
+)
+if ($NoRestore) {
+    $arguments += '--no-restore'
+}
+if ($NoBuild) {
+    $arguments += '--no-build'
+}
+$arguments += @(
+    '--',
+    '--phase', $Phase,
+    '--directory', $sessionDirectory
+)
+
+& dotnet @arguments
+if ($LASTEXITCODE -ne 0) {
+    throw "Issue #24 formal product-store phase failed with exit code $LASTEXITCODE."
+}

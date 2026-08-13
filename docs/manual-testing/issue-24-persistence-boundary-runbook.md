@@ -13,6 +13,8 @@
 
 本轮不验证物理断电、磁盘缓存丢失、OneDrive、网络盘、FAT/exFAT、完整产品生命周期或 `LongGrid.Infrastructure`。这些能力不得根据本轮结果自动升级为 Pass。
 
+当前入口直接运行正式 `LongGrid.Infrastructure.ProductConfigurationStore` 的专用证据宿主，不再只读标记后停止。宿主固定使用测试卷根目录下的 `LongGrid-Issue24-ProductStore-Session`，不得用它指向其他目录。
+
 ## 2. 专用环境要求
 
 - 仅使用可还原快照的 VM 或可丢弃测试机，以及可卸载的独立虚拟磁盘；不得使用系统卷、工作区卷、用户资料卷或唯一工作设备；
@@ -29,15 +31,16 @@
 powershell -NoProfile -ExecutionPolicy Bypass `
   -File ./eng/Start-Issue24PersistenceBoundarySession.ps1 `
   -Scenario I24-01 `
+  -Phase PrepareBaseline `
   -OperatorId O1 `
   -TargetRoot '<dedicated-volume-root>' `
   -AcknowledgeDedicatedEnvironment `
   -AcknowledgeRecoveryPlan
 ```
 
-I24-02 只替换 `-Scenario`。入口必须拒绝 Windows 系统卷、工作区同卷、UNC/网络根、子目录、缺少标记、缺少匿名操作员或缺少两项确认的会话。输出不得包含目标路径或卷标。
+I24-02 只替换 `-Scenario`。三个阶段依次为 `PrepareBaseline`、`AttemptFailure`、`RecoverAndRetry`，每阶段单独运行并保留首次结果。入口必须拒绝 Windows 系统卷、工作区同卷、UNC/网络根、子目录、缺少标记、缺少匿名操作员或缺少两项确认的会话。输出不得包含目标路径或卷标。
 
-预检成功不执行写入、不消耗容量、不改变卷状态、不运行配置探针，也不产生 Pass/Fail。操作者随后必须使用 VM、VHD 或测试存储设施完成所选场景。
+`-ValidateOnly` 不执行写入、不消耗容量、不改变卷状态，也不产生 Pass/Fail。真实阶段会写入正式 v2 产品配置：基线阶段建立可复读的主/备份；失败阶段尝试约 3 MiB 的有效匿名候选；恢复阶段在操作者恢复卷后重试。宿主从不填盘、不切换只读、不修改 ACL，这些条件仍必须由 VM、VHD、配额或测试存储设施负责。
 
 ## 4. 执行纪律
 
@@ -45,18 +48,18 @@ I24-02 只替换 `-Scenario`。入口必须拒绝 Windows 系统卷、工作区�
 
 1. 从干净快照开始，确认测试卷没有业务数据，并保留恢复所需的安全余量；
 2. 使用专用存储设施设置受控配额或容量边界，不得通过填满系统盘制造条件；
-3. 在测试卷仍可写时建立至少一个可复读的已提交版本与备份；
-4. 让后续候选写入在真实容量/配额边界失败，记录有限错误类别、主/备份哈希是否不变、暂存物状态与写租约是否释放；
-5. 恢复容量后重试，确认可成功提交且旧有效版本仍可解释；
+3. 在测试卷仍可写时运行 `PrepareBaseline`，确认 `BaselinePrepared` 且主/备份 SHA-256 不同；
+4. 设置受控边界后运行 `AttemptFailure`，只有 `ExpectedFailureObserved` / `IoFailure` 且主/备份 SHA-256 与基线一致才进入复核；`UnexpectedSaveSuccess` 必须记为 Fail；
+5. 恢复容量后运行 `RecoverAndRetry`，确认 `RecoverySucceeded`、新主版本可加载且备份等于失败前主版本；
 6. 还原快照或移除测试卷，确认宿主和工作区未改变。
 
 ### I24-02：只读独立卷
 
-1. 从干净快照开始，在可写状态建立可复读的主版本与备份；
+1. 从干净快照开始，在可写状态运行 `PrepareBaseline` 建立可复读的主版本与备份；
 2. 使用测试存储设施把独立卷切换为只读；不得通过修改真实用户目录 ACL 冒充只读卷；
-3. 确认保存失败不发布候选、不清空主/备份，也不把空配置作为成功返回；
+3. 运行 `AttemptFailure`，确认结果为 `ExpectedFailureObserved` / `IoFailure`，候选未发布且主/备份 SHA-256 与基线一致；
 4. 确认读取行为是最近有效版本或明确安全模式，错误输出不泄漏路径、内容或设备标识；
-5. 恢复可写状态并重试，确认写租约释放且后续保存可完成；
+5. 恢复可写状态并运行 `RecoverAndRetry`，确认 `RecoverySucceeded` 且后续保存完成；
 6. 还原快照或移除测试卷，确认宿主和工作区未改变。
 
 任何无法证明测试卷独立、恢复计划有效、旧版本未变或写租约已释放的情况都记为 `Inconclusive`；不得通过重复成功覆盖首次失败。
