@@ -384,6 +384,8 @@ Stage 128 对 C0 遗留的已合并远端分支执行独立卫生审计：只允
 - **结论**：E2a 工程 Pass，但不等于 E2/M2 完成；
 - **下一步**：进入独立 E2b 正式 pointer/keyboard/UIA 来源。详见 [Stage 131](131-atomic-intent-consumption-audit.md)。
 
+E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输入来源；正式方案使用产品自有、每显示器一个、Region 受限的 activation HWND，初始三类激活统一进入 E2a，Explicit 后 pointer/keyboard/UIA 选择统一进入现有 selection transaction。实现固定拆为 E2b1 来源/激活闭环与 E2b2 选择/UIA 闭环，详见 [Stage 132](132-formal-input-source-design-audit.md)。
+
 ### C1：工程就绪复审（结果尚未执行）
 
 - **审计基线**：`main@508528b`；

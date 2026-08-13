@@ -276,3 +276,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-14 E1/M1 正式 Explicit 表面适配器补充：正式产品 HWND 可在代际匹配的 lease 下切换到可命中的 Explicit 表面，根 UIA 只暴露尚未消费输入的空 Selection provider；Passive/Hidden 仍穿透或隐藏。多显示器任一应用/复读失败会逆序隐藏全部表面，紧急禁用优先级不变。本切片不接入正式输入、Intent 消费或桌面文件操作；外部证据继续 Pending，下一切片为 E2/M2。
 
 2026-08-14 E2a/M2 原子消费补充：Prepared Intent 现在只能在桥锁内按候选、代次、序号、证据和时限原子消费一次，再进入既有 admission / Explicit / selection 事务；每次准备、转发和消费都重新复读 Passive，Explicit 期间不能准备第二个 Intent。投影增加每容器局部匿名 `item:N` 身份，系统事件、投影释放和关闭统一取消。App 尚未接入正式 HWND 输入源且文件操作恒关闭，因此 E2/M2 未完成；下一切片固定为 E2b pointer/keyboard/UIA 来源。
+
+2026-08-14 E2b 输入源设计补充：M1 Passive 整窗穿透无法可靠收到首次 pointer/keyboard，因此不得直接添加不可达消息处理冒充接线。正式方案采用每显示器一个、仅覆盖有限方格激活按钮 Region 的产品自有 ToolWindow；初始 pointer/Enter/Space/UIA Invoke 统一进入 E2a，Explicit 后主 surface pointer/UIA 与来源键盘代理统一调用现有 selection transaction。禁止全局 Hook、Raw Input、SendInput、Explorer 嵌入和文件操作；实现按 E2b1 来源闭环、E2b2 选择/UIA 闭环推进。
