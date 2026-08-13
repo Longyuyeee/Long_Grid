@@ -116,7 +116,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 - [x] Issue #20 匿名动态矩阵入口、I20/observer 映射、恢复确认和 CI `PendingManualEvidence` 合同（Ready to execute；I20-01–I20-08 真实硬件/会话结果仍 Pending）。
 - [ ] 其余探针与交互验证。
 
-当前阶段固定顺序：Stage 125 的 C0 文档/治理基线 → C1 Issue #23 五人测试 → C2 输入、无障碍、系统表面与拓扑实机矩阵 → C3 正式 DesktopHost 被动表面确认与 Issue #19 收口 → C4 Issue #20 动态显示矩阵 → C5a 正式产品存储证据宿主 → C5b Issue #24 真实卷矩阵 → C6 ADR 与 Phase 0 退出审计。详细范围、不可伪造门禁和验收目标见[Stage 125](125-phase0-internal-rc-closeout-plan.md)。
+Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨道 M1 → M4-ready；外部证据轨道继续保持 C1 → C2/C3 → C4 → C5b → C6，并在内部 RC 前强制汇合。详细范围、不可伪造门禁和验收目标见[Stage 125](125-phase0-internal-rc-closeout-plan.md)与[Stage 129](129-external-evidence-deferment-decision.md)。
 
 执行停止规则：已有 Conditional Pass 的探针族，除 CI 回归、安全缺陷、明确支持决策或现有退出场景失败外，不再增加深度；每个新 PR 必须对应一个未满足的阶段退出条件。
 
