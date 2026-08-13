@@ -38,7 +38,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 
 正确输出必须同时包含：
 
-- `requiredAutomationIds: 140`；
+- `requiredAutomationIds: 142`；
 - `focusedAutomationIds: 8`；
 - `resultStatus: PendingManualEvidence`；
 - `launcherChangesDesktopFiles: false`；
