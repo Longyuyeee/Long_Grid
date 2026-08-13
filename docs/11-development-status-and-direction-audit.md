@@ -527,4 +527,4 @@ B6c6 将 Stage 118 的真实公开 Windows 事件源接到 probe 自有人工来
 
 E1/M1 已进入实现验证：正式 surface adapter 不再硬编码拒绝 Explicit，而是用代际匹配 lease 驱动产品自有 HWND 的命中测试和根 UIA Selection/Focusable 状态。Passive、Explicit、Hidden 均要求终态复读；多显示器部分失败逆序隐藏全部表面，旧 Explicit capture 不能绕过 lease 恢复权限。
 
-App composition root、Intent preparation 和 input forwarding 仍没有调用正式 surface transaction，因而本阶段没有正式输入源或 Intent 消费；文件能力仍为零。双 opt-in、紧急禁用、生命周期先隐藏后释放保持不变。E1 工程结论等待 PR/main CI；#19/#20/#23/#24 与 X1～X5 继续 Pending。详见[Stage 130 审计](130-formal-explicit-surface-adapter-audit.md)。
+App composition root、Intent preparation 和 input forwarding 仍没有调用正式 surface transaction，因而本阶段没有正式输入源或 Intent 消费；文件能力仍为零。双 opt-in、紧急禁用、生命周期先隐藏后释放保持不变。PR #180 与合并后 main 完整 CI 均通过，E1 工程结论为 Pass；#19/#20/#23/#24 与 X1～X5 继续 Pending。下一切片为独立 E2/M2。详见[Stage 130 审计](130-formal-explicit-surface-adapter-audit.md)。

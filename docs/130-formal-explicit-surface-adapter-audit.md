@@ -54,7 +54,7 @@ Explicit UIA provider 目前只声明表面可选择并返回空选择，不接�
 - UI 源码合同、14 个启动/人工会话/CI 合同入口和 3 个原生探针通过；
 - 原生 B5 探针保持 `Conditional Pass`，因为物理设备、Narrator、触控等仍属外部人工证据。
 
-远端入口：PR #180；首个实现提交 `c3a99fd`。PR/main CI 和合并 SHA 在远端验收后回填。
+远端验收：PR #180；首个实现提交 `c3a99fd`；PR CI run 31720374196 成功；squash 合并为 `main@78c853fea3d5d08071a0cab19af18dc4db4f5446`；main CI run 31720966794 成功。
 
 ## 4. 安全、隐私与外部证据
 
@@ -66,6 +66,6 @@ Explicit UIA provider 目前只声明表面可选择并返回空选择，不接�
 
 ## 5. 结论与下一步
 
-E1/M1 本地工程验收为 `Pass`，远端状态暂为 `Pending PR/main CI`。远端双 CI 通过后才完成切片，但产品仍不可分发，且不得进入内部 RC。
+E1/M1 工程验收为 `Pass`，PR 与合并后 main 的完整 CI 均通过。产品仍不可分发，且不得进入内部 RC；这不是任何外部人工/硬件证据的 Pass。
 
 下一切片固定为 E2/M2：在新的独立 PR 中设计并接入正式输入源、Prepared Intent 消费与可访问交互；必须继续保留默认关闭、显式动作、去重/取消和零桌面文件写入边界。
