@@ -7,22 +7,25 @@ using LongGrid.Core.DesktopHost;
 namespace LongGrid.Infrastructure.DesktopHost;
 
 internal sealed class WindowsProductDesktopHostUiaRootProvider
-    : IRawElementProviderFragmentRoot
+    : IRawElementProviderFragmentRoot, ISelectionProvider
 {
     private readonly nint window;
     private readonly ProductDesktopHostDisplayProjection projection;
     private readonly WindowsProductDesktopHostUiaContainerProvider[] containers;
+    private readonly Func<bool> isExplicit;
 
     internal WindowsProductDesktopHostUiaRootProvider(
         nint window,
         ProductDesktopHostDisplayProjection projection,
-        nint instanceMarker)
+        nint instanceMarker,
+        Func<bool>? isExplicit = null)
     {
         this.window = window != nint.Zero
             ? window
             : throw new ArgumentOutOfRangeException(nameof(window));
         this.projection = projection
             ?? throw new ArgumentNullException(nameof(projection));
+        this.isExplicit = isExplicit ?? (() => false);
         int marker = unchecked((int)instanceMarker.ToInt64());
         containers = projection.Containers
             .Select((container, index) =>
@@ -38,6 +41,12 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
         Containers => containers;
 
     internal ProductDesktopHostDisplayProjection Projection => projection;
+
+    internal bool ExplicitSelectionAvailable => isExplicit();
+
+    public bool CanSelectMultiple => true;
+
+    public bool IsSelectionRequired => false;
 
     public ProviderOptions ProviderOptions =>
         ProviderOptions.ServerSideProvider | ProviderOptions.UseComThreading;
@@ -62,7 +71,11 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
 
     public IRawElementProviderFragmentRoot FragmentRoot => this;
 
-    public object? GetPatternProvider(int patternId) => null;
+    public object? GetPatternProvider(int patternId) =>
+        ExplicitSelectionAvailable
+        && patternId == SelectionPatternIdentifiers.Pattern.Id
+            ? this
+            : null;
 
     public object? GetPropertyValue(int propertyId) => propertyId switch
     {
@@ -76,9 +89,11 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
             || id == AutomationElementIdentifiers.IsContentElementProperty.Id => true,
         var id when id == AutomationElementIdentifiers.IsEnabledProperty.Id => true,
         var id when id == AutomationElementIdentifiers.IsKeyboardFocusableProperty.Id =>
-            false,
+            ExplicitSelectionAvailable,
         var id when id == AutomationElementIdentifiers.ItemStatusProperty.Id =>
-            $"只读预览；{containers.Length} 个方格；不接收输入",
+            ExplicitSelectionAvailable
+                ? $"显式交互表面；{containers.Length} 个方格；等待输入消费接线"
+                : $"只读预览；{containers.Length} 个方格；不接收输入",
         _ => null,
     };
 
@@ -122,6 +137,8 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
     }
 
     public IRawElementProviderFragment? GetFocus() => null;
+
+    public IRawElementProviderSimple[] GetSelection() => [];
 
     internal Rect ScreenBounds(PixelRect local) => new(
         projection.WorkArea.Left + local.Left,

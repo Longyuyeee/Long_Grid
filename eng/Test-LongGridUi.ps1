@@ -1179,13 +1179,13 @@ function Test-SourceContract {
         $desktopInteractionCancellationCode -match `
             'controller\.Revalidate' -and
         $windowsDesktopHostReadOnlySurfaceCode -match `
-            'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)' -and
+            'mode == ProductDesktopInteractionSurfaceMode\.Explicit[\s\S]*NativeMethods\.HtClient[\s\S]*NativeMethods\.HtTransparent' -and
         -not ($appCode -match `
             'ProductDesktopInteractionHitTestAdapter|ProductDesktopInteractionIntentFactory|ProductDesktopInteractionCancellationAdapter') -and
         -not ($windowsDesktopHostReadOnlySurfaceCode -match `
             'ProductDesktopInteractionHitTestAdapter|ProductDesktopInteractionIntentFactory|ProductDesktopInteractionCancellationAdapter')
     ) `
-        'B2 hit testing must reuse the shared surface layout, reject overlap, issue finite intentions, unify cancellation semantics, preserve HWND transparency, and remain App-blocked.'
+        'B2 hit testing must reuse the shared surface layout, reject overlap, issue finite intentions, unify cancellation semantics, preserve Passive HWND transparency, and remain App-blocked.'
     Assert-Condition (
         $desktopInteractionSelectionCode -match `
             'MaximumVisibleItems\s*=\s*256' -and
@@ -1216,10 +1216,15 @@ function Test-SourceContract {
             'RemoveFromSelection' -and
         -not ($appCode -match `
             'ProductDesktopInteractionSelectionController|ProductDesktopInteractionSelectionAccessibilityAdapter') -and
+        $windowsDesktopHostUiaProviderCode -match 'ISelectionProvider' -and
+        $windowsDesktopHostUiaProviderCode -match `
+            'ExplicitSelectionAvailable[\s\S]*SelectionPatternIdentifiers\.Pattern\.Id' -and
+        $windowsDesktopHostUiaProviderCode -match `
+            'GetSelection\(\) => \[\]' -and
         -not ($windowsDesktopHostUiaProviderCode -match `
-            'ProductDesktopInteractionSelectionController|ProductDesktopInteractionSelectionAccessibilityAdapter|ISelectionProvider|ISelectionItemProvider')
+            'ProductDesktopInteractionSelectionController|ProductDesktopInteractionSelectionAccessibilityAdapter|ISelectionItemProvider')
     ) `
-        'B3 selection must be bounded, lease and generation bound, expose stable Ctrl/Shift anchor semantics, keep Passive UIA nonfocusable and pattern-free, and remain isolated from App and the formal read-only provider.'
+        'B3/M1 selection must be bounded, lease and generation bound, expose stable Ctrl/Shift anchor semantics, keep Passive UIA nonfocusable and pattern-free, and expose only an empty lease-gated root Selection provider until App consumption is connected.'
     Assert-Condition (
         $desktopInteractionSurfaceModeCode -match `
             'IProductDesktopInteractionSurfaceModeAdapter' -and
@@ -1246,11 +1251,11 @@ function Test-SourceContract {
         -not ($appCode -match `
             'ProductDesktopInteractionSurfaceModeTransaction|IProductDesktopInteractionSurfaceModeAdapter') -and
         -not ($windowsDesktopHostReadOnlySurfaceCode -match `
-            'ProductDesktopInteractionSurfaceModeTransaction|IProductDesktopInteractionSurfaceModeAdapter') -and
+            'ProductDesktopInteractionSurfaceModeTransaction') -and
         $windowsDesktopHostReadOnlySurfaceCode -match `
-            'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
+            'mode == ProductDesktopInteractionSurfaceMode\.Explicit[\s\S]*NativeMethods\.HtClient[\s\S]*NativeMethods\.HtTransparent'
     ) `
-        'B4 surface-mode switching must transact Passive/Explicit/Hidden evidence, preserve window policy and registry generation, fail closed through restore/hide, connect B3 semantics, and remain isolated from App and the formal read-only HWND.'
+        'B4/M1 surface-mode switching must transact Passive/Explicit/Hidden evidence, preserve window policy and registry generation, fail closed through restore/hide, connect B3 semantics, and keep the transaction isolated from App while the formal HWND implements the adapter contract.'
     Assert-Condition (
         $nativeInteractionSurfaceProbeCode -match `
             'IProductDesktopInteractionSurfaceModeAdapter' -and
@@ -1279,9 +1284,9 @@ function Test-SourceContract {
         -not ($windowsDesktopHostReadOnlySurfaceCode -match `
             'NativeInteractionSurfaceModeProbe|NativeInteractionSurfaceAdapter') -and
         $windowsDesktopHostReadOnlySurfaceCode -match `
-            'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
+            'mode == ProductDesktopInteractionSurfaceMode\.Explicit[\s\S]*NativeMethods\.HtClient[\s\S]*NativeMethods\.HtTransparent'
     ) `
-        'B5 must use only a probe-owned HWND to validate the B4 adapter, native Region/messages, real HWND UIA, compensation, foreground stability, and bounded resources while production App and read-only HWND remain disconnected.'
+        'B5 must keep its historical validation probe-owned and isolated while M1 independently carries the verified Region/message/UIA contract into the production-owned HWND.'
     Assert-Condition (
         $desktopInteractionDevelopmentControllerCode -match `
             'ProductDesktopInteractionDevelopmentStatus' -and
@@ -1329,7 +1334,7 @@ function Test-SourceContract {
         $desktopHostPassiveSurfaceAdapterCode -match `
             'IProductDesktopInteractionSurfaceModeAdapter' -and
         $desktopHostPassiveSurfaceAdapterCode -match `
-            'ApplyExplicit[\s\S]*return false' -and
+            'ApplyExplicit[\s\S]*surface\.ApplyExplicit\(\)' -and
         $desktopHostPassiveSurfaceAdapterCode -match `
             'expectedWindowRegistryGeneration != registryGeneration' -and
         $desktopHostPassiveSurfaceAdapterCode -match `
@@ -1344,9 +1349,9 @@ function Test-SourceContract {
         $windowsDesktopHostReadOnlySurfaceCode -match 'IsWindowVisible' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'SwHide' -and
         $windowsDesktopHostReadOnlySurfaceCode -match `
-            'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
+            'mode == ProductDesktopInteractionSurfaceMode\.Explicit[\s\S]*NativeMethods\.HtClient[\s\S]*NativeMethods\.HtTransparent'
     ) `
-        'B6b must create product HWNDs hidden behind both opt-ins, attach only after registry evidence, publish verified Passive, hide before detach/shutdown, reject Explicit and stale generations, forbid file operations, and keep WM_NCHITTEST transparent.'
+        'B6b/M1 must create product HWNDs hidden behind both opt-ins, attach only after registry evidence, publish verified Passive, admit only generation-bound Explicit surface changes, hide before detach/shutdown, reject stale generations, forbid file operations, and keep Passive WM_NCHITTEST transparent.'
     Assert-Condition (
         $desktopInteractionSystemSurfaceEventCode -match `
             'ProductDesktopInteractionSystemSurfaceEventKind' -and
@@ -1426,11 +1431,11 @@ function Test-SourceContract {
         -not ($desktopIntentPreparationBridgeCode -match `
             'ProductDesktopInteractionAdmissionController|ProductDesktopInteractionSurfaceModeTransaction|ApplyExplicit|System\.IO|File\.|Directory\.|IFileOperation') -and
         $desktopHostPassiveSurfaceAdapterCode -match `
-            'ApplyExplicit[\s\S]*return false' -and
+            'ApplyExplicit[\s\S]*surface\.ApplyExplicit\(\)' -and
         $windowsDesktopHostReadOnlySurfaceCode -match `
-            'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
+            'mode == ProductDesktopInteractionSurfaceMode\.Explicit[\s\S]*NativeMethods\.HtClient[\s\S]*NativeMethods\.HtTransparent'
     ) `
-        'B6c2 must require exact third-stage and manual-session gates, accept only fresh confirmed monotonic unique hits, prepare but never consume intents, invalidate on lifecycle changes, and keep Explicit/input/file operations disconnected.'
+        'B6c2 must require exact third-stage and manual-session gates, accept only fresh confirmed monotonic unique hits, prepare but never consume intents, invalidate on lifecycle changes, and keep its bridge disconnected from the formal Explicit adapter, input consumption and file operations.'
     Assert-Condition (
         $desktopInteractionInputForwardingPolicyCode -match `
             'LONGGRID_ENABLE_DESKTOP_INPUT_FORWARDING' -and
@@ -1476,11 +1481,11 @@ function Test-SourceContract {
         -not ($desktopInputForwardingAdapterCode -match `
             'SetWindowsHookEx|SendInput|GetAsyncKeyState|RegisterRawInputDevices|ProductDesktopInteractionAdmissionController|ProductDesktopInteractionSurfaceModeTransaction|ApplyExplicit|System\.IO|File\.|Directory\.|IFileOperation') -and
         $desktopHostPassiveSurfaceAdapterCode -match `
-            'ApplyExplicit[\s\S]*return false' -and
+            'ApplyExplicit[\s\S]*surface\.ApplyExplicit\(\)' -and
         $windowsDesktopHostReadOnlySurfaceCode -match `
-            'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
+            'mode == ProductDesktopInteractionSurfaceMode\.Explicit[\s\S]*NativeMethods\.HtClient[\s\S]*NativeMethods\.HtTransparent'
     ) `
-        'B6c3 must require exact fourth-stage and manual-session gates, forward only attested non-injected non-repeat normalized actions once into intent preparation, remain bounded, and keep global capture, synthetic input, Explicit and file operations disconnected.'
+        'B6c3 must require exact fourth-stage and manual-session gates, forward only attested non-injected non-repeat normalized actions once into intent preparation, remain bounded, and keep global capture, synthetic input, formal Explicit consumption and file operations disconnected.'
     Assert-Condition (
         $nativeInputForwardingSourceProbeCode -match `
             'NativeInputForwardingProbeWindow\.Create' -and
@@ -1703,10 +1708,12 @@ function Test-SourceContract {
         $windowsDesktopHostUiaProviderCode -match 'ControlType\.Group' -and
         $windowsDesktopHostUiaProviderCode -match 'ControlType\.Text' -and
         $windowsDesktopHostUiaProviderCode -match 'IsKeyboardFocusableProperty' -and
-        $windowsDesktopHostUiaProviderCode -match 'GetPatternProvider\(int patternId\) => null' -and
-        -not ($windowsDesktopHostUiaProviderCode -match 'ISelectionProvider|ISelectionItemProvider|IInvokeProvider')
+        $windowsDesktopHostUiaProviderCode -match `
+            'ExplicitSelectionAvailable[\s\S]*SelectionPatternIdentifiers\.Pattern\.Id' -and
+        -not ($windowsDesktopHostUiaProviderCode -match `
+            'ISelectionItemProvider|IInvokeProvider')
     ) `
-        'The A5 product surface must expose a bounded read-only UIA Fragment and attest passive non-topmost behavior.'
+        'The A5/M1 product surface must expose bounded UIA Fragments, keep Passive pattern-free, gate the empty root Selection provider to Explicit, and attest non-topmost behavior.'
     Assert-Condition (
         ([regex]::Matches(
             $appCode,

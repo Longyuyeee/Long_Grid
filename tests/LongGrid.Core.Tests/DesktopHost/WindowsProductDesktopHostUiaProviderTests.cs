@@ -90,6 +90,53 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         Assert.Equal(240, bounds.Height);
     }
 
+    [Fact]
+    public void NativeSurfaceExplicitModeIsSelectableWithoutTakingForeground()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary",
+                new(100, 200, 1920, 1040),
+                96,
+                [CreateContainer("container-1", "工作", ["需求文档.docx"], false, 24, 36)]);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(display, new nint(902));
+        var adapter = new ProductDesktopHostPassiveSurfaceModeAdapter(
+            new IProductDesktopHostReadOnlySurface[] { surface },
+            registryGeneration: 11);
+
+        Assert.True(adapter.ApplyExplicit(new(
+            Guid.NewGuid(),
+            "container-1",
+            7,
+            9,
+            11,
+            DateTimeOffset.UtcNow.AddSeconds(1))));
+
+        AutomationElement root = AutomationElement.FromHandle(surface.Handle);
+        Assert.True(root.Current.IsKeyboardFocusable);
+        Assert.Contains("等待输入消费接线", root.Current.ItemStatus, StringComparison.Ordinal);
+        Assert.True(root.TryGetCurrentPattern(SelectionPattern.Pattern, out _));
+        ProductDesktopInteractionSurfaceEvidence explicitEvidence =
+            adapter.Capture().Evidence!;
+        Assert.True(explicitEvidence.IsExplicitContract);
+        Assert.False(explicitEvidence.OwnsForeground);
+
+        Assert.True(adapter.ApplyPassive(11));
+        root = AutomationElement.FromHandle(surface.Handle);
+        Assert.False(root.Current.IsKeyboardFocusable);
+        Assert.False(root.TryGetCurrentPattern(SelectionPattern.Pattern, out _));
+        Assert.True(adapter.Capture().Evidence!.IsPassiveContract);
+
+        Assert.True(adapter.Hide(11));
+        Assert.True(adapter.Capture().Evidence!.IsHiddenContract);
+    }
+
     private static ProductDesktopHostReadOnlyProjection CreateContainer(
         string id,
         string title,
