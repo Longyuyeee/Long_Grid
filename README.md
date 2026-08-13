@@ -144,7 +144,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B5 受控原生探针已完成：一个默认隐藏、匿名、探针自有 HWND 真实实现 B4 adapter，验证 ToolWindow/NoActivate、非 Topmost/无 Owner、Window Region、WM_NCHITTEST、WM_MOUSEACTIVATE、真实 HWND UIA Selection、Passive→Explicit→Passive/Hidden、失败补偿、generation 漂移、前台稳定和资源平台期。探针不发送合成输入、不检查 Explorer、不读写桌面文件；正式 HWND 继续 HTTRANSPARENT，App 与生产 UIA provider 未接线。下一切片 B6 将设计受控开发 opt-in composition root 和双重关闭开关，仍默认 Passive，并先验证关闭/崩溃/会话恢复。A5-01..A5-06 真实会话结果仍为 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6a 受控开发态 Composition Root 基础已接入：正式 App 同时复核 `LONGGRID_ENABLE_DESKTOP_HOST=1` 与 `LONGGRID_ENABLE_DESKTOP_INTERACTION=1`，并让精确的进程级 `LONGGRID_DISABLE_DESKTOP_INTERACTION=1` 拥有最高优先级；双开关成立时仍只从 Passive 启动。开发控制器覆盖系统表面暂停、完整被动证明恢复、运行时不可逆紧急禁用和 shutdown 完成，始终报告原生 adapter 未连接、真实文件操作不允许。正式 HWND 继续 `HTTRANSPARENT`，App 没有 Surface/命中/Intent 工厂接线。下一切片 B6b 只在相同门禁后构造产品 Surface adapter，并先验证 Hidden/Passive 生命周期，不立即开放显式输入。A5-01..A5-06 真实会话结果仍为 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 

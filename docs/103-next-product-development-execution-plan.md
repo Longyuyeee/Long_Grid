@@ -290,6 +290,8 @@ MVP 完成必须同时满足：
 
 ## 12. 下一切片建议
 
+> 2026-08-13 / Stage 116 更新：B6a「受控开发态交互 Composition Root 基础」已完成代码切片。正式 App 现在同时评估 DesktopHost 与 Interaction 两个精确 opt-in，并让精确 emergency-disable 拥有最高优先级；双开关成立后只创建 Passive 开发控制器。失焦、Win+D、全屏、会话、RDP、Explorer 与 shutdown 统一进入 fail-closed 隐藏要求，只有完整 Host/UIA/Passive/generation 证明才可恢复；运行时紧急禁用不可逆。该切片刻意没有显式交互入口、没有构造产品 Surface adapter、没有改变正式 HWND 的 `HTTRANSPARENT`，也没有真实文件操作。下一切片 B6b 将在相同门禁后接入仅支持 Hidden/Passive 的产品 adapter 生命周期，先证明创建、暂停、恢复、紧急隐藏和销毁，再单独审计 Explicit 输入。详见 [Stage 116 审计](116-controlled-development-interaction-composition-root-audit.md)。
+
 > 2026-08-13 / Stage 115 更新：B5「受控真实 HWND 交互适配器探针」已完成。一个默认隐藏、匿名且仅由探针拥有的 HWND 实现 B4 adapter，真实复核 ToolWindow/NoActivate、非 Topmost、无 Owner、前台不变、Window Region、`WM_NCHITTEST`、`WM_MOUSEACTIVATE` 与 HWND UIA Selection；成功往返、Apply 后失败、证据复核失败、恢复失败隐藏、隐藏失败报告及 generation 漂移全部通过。UIA 首次测量后进程驻留 1 个 GDI 对象和 2 个句柄，随后三个完整创建/查询/销毁周期严格保持平台期。正式 App、正式 read-only HWND、Explorer 和桌面文件仍未接线。下一切片为 B6「受控开发 opt-in composition root 与双重关闭开关」，先建立默认 Passive、超时/崩溃/会话恢复和紧急关闭路径，不开放真实文件操作。详见 [Stage 115 审计](115-native-interaction-surface-adapter-probe-audit.md)。
 
 > 2026-08-12 / Stage 114 更新：B4「隔离交互 surface probe 与输入模式切换事务」已完成。协调器在内存匿名项目上原子复核 Passive、Explicit 和 Hidden 合同，绑定 B1 lease、workspace/topology/window-registry generation，并把 B3 selection/UIA snapshot 接入同一事务；窗口策略强制 ToolWindow、NoActivate、非 Topmost、无 Owner、不拥有前台。Apply/验证失败恢复精确 Passive，恢复失败则隐藏，隐藏失败单独报告，不能冒充安全状态。正式 App、正式 read-only HWND、真实文件和 Explorer 对象仍未接线。下一切片为 B5「受控真实 HWND 交互适配器探针」，只在探针自有隐藏窗口中验证样式/Region/消息/UIA/恢复，不开放真实桌面文件操作。详见 [Stage 114 审计](114-desktop-interaction-surface-mode-transaction-audit.md)。

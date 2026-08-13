@@ -86,6 +86,8 @@ $desktopInteractionAdmissionCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionAdmission.cs'
 $desktopInteractionCancellationCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionCancellationAdapter.cs'
+$desktopInteractionDevelopmentControllerCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionDevelopmentController.cs'
 $desktopInteractionHitTestCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionHitTestAdapter.cs'
 $desktopInteractionSelectionCodePath = Join-Path $projectRoot `
@@ -298,6 +300,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopInteractionCancellationCode = Get-Content `
         -LiteralPath $desktopInteractionCancellationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopInteractionDevelopmentControllerCode = Get-Content `
+        -LiteralPath $desktopInteractionDevelopmentControllerCodePath `
         -Raw `
         -Encoding UTF8
     $desktopInteractionHitTestCode = Get-Content `
@@ -1051,9 +1057,13 @@ function Test-SourceContract {
         $desktopInteractionAdmissionCode -match `
             'LONGGRID_ENABLE_DESKTOP_INTERACTION' -and
         $desktopInteractionAdmissionCode -match `
+            'LONGGRID_DISABLE_DESKTOP_INTERACTION' -and
+        $desktopInteractionAdmissionCode -match `
             'DisabledByDesktopHostSafetyPolicy' -and
         $desktopInteractionAdmissionCode -match `
             'DisabledByInteractionSafetyPolicy' -and
+        $desktopInteractionAdmissionCode -match `
+            'DisabledByEmergencyPolicy' -and
         $desktopInteractionAdmissionCode -match `
             'MaximumIntentLifetime' -and
         $desktopInteractionAdmissionCode -match 'WorkspaceRevision' -and
@@ -1070,7 +1080,7 @@ function Test-SourceContract {
         -not ($desktopHostInputControllerCode -match `
             'ProductDesktopInteractionAdmissionController')
     ) `
-        'Desktop interaction must require a separate exact opt-in, finite generation-bound intent, current host attestations, and remain blocked from App and native input wiring.'
+        'Desktop interaction must require separate exact opt-ins, honor the emergency override, bind finite intent to current attestations, and remain blocked from native input wiring.'
     Assert-Condition (
         $desktopInteractionHitTestCode -match `
             'ProductDesktopHostSurfaceLayout\s*\r?\n\s*\.GetContainerBounds' -and
@@ -1194,6 +1204,42 @@ function Test-SourceContract {
             'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
     ) `
         'B5 must use only a probe-owned HWND to validate the B4 adapter, native Region/messages, real HWND UIA, compensation, foreground stability, and bounded resources while production App and read-only HWND remain disconnected.'
+    Assert-Condition (
+        $desktopInteractionDevelopmentControllerCode -match `
+            'ProductDesktopInteractionDevelopmentStatus' -and
+        $desktopInteractionDevelopmentControllerCode -match `
+            'SuspendedFailClosed' -and
+        $desktopInteractionDevelopmentControllerCode -match `
+            'EmergencyDisabled' -and
+        $desktopInteractionDevelopmentControllerCode -match `
+            'SuspendFailClosed' -and
+        $desktopInteractionDevelopmentControllerCode -match `
+            'TryResumePassive' -and
+        $desktopInteractionDevelopmentControllerCode -match `
+            'EmergencyDisable' -and
+        $desktopInteractionDevelopmentControllerCode -match `
+            'Complete' -and
+        $desktopInteractionDevelopmentControllerCode -match `
+            'NativeSurfaceAdapterConnected:\s*false' -and
+        $desktopInteractionDevelopmentControllerCode -match `
+            'RealFileOperationsAllowed:\s*false' -and
+        -not ($desktopInteractionDevelopmentControllerCode -match `
+            'System\.IO|File\.|Directory\.|IFileOperation|MoveFile|DeleteFile') -and
+        ([regex]::Matches(
+            $appCode,
+            'ProductDesktopInteractionDevelopmentController\s+\r?\n?\s*productDesktopInteraction')).Count -eq 1 -and
+        $appCode -match `
+            'ProductDesktopInteractionFeaturePolicy\.Evaluate' -and
+        $appCode -match `
+            'EmergencyDisableEnvironmentVariableName' -and
+        $appCode -match `
+            'productDesktopInteraction\.Complete\(DateTimeOffset\.UtcNow\)' -and
+        -not ($appCode -match `
+            'ProductDesktopInteractionSurfaceModeTransaction|IProductDesktopInteractionSurfaceModeAdapter|ProductDesktopInteractionHitTestAdapter|ProductDesktopInteractionIntentFactory') -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
+    ) `
+        'B6a must wire one development interaction controller through both exact opt-ins and the emergency override, start Passive, suspend/hide fail closed, complete on shutdown, forbid file operations, and leave the production HWND read-only.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and
