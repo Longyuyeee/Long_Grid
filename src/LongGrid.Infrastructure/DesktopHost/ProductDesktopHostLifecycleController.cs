@@ -52,7 +52,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
         double xDip,
         double yDip,
         double widthDip,
-        double heightDip)
+        double heightDip,
+        bool isLocked)
     {
         ContainerId = containerId;
         Title = title;
@@ -64,6 +65,7 @@ public sealed record ProductDesktopHostReadOnlyProjection
         YDip = yDip;
         WidthDip = widthDip;
         HeightDip = heightDip;
+        IsLocked = isLocked;
     }
 
     public string ContainerId { get; }
@@ -86,6 +88,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
 
     public double HeightDip { get; }
 
+    public bool IsLocked { get; }
+
     public static ProductDesktopHostReadOnlyProjection Create(
         string containerId,
         string title,
@@ -96,7 +100,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
         double xDip,
         double yDip,
         double widthDip,
-        double heightDip)
+        double heightDip,
+        bool isLocked = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(containerId);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
@@ -135,7 +140,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
             xDip,
             yDip,
             widthDip,
-            heightDip);
+            heightDip,
+            isLocked);
     }
 }
 
@@ -177,6 +183,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     private readonly ProductDesktopHostWindowBridge? windowBridge;
     private readonly ProductDesktopInteractionDevelopmentController?
         interactionDevelopment;
+    private readonly ProductDesktopInteractionIntentPreparationBridge?
+        intentPreparation;
     private readonly Guid hostInstanceId = Guid.NewGuid();
     private ProductDesktopHostLifecycleSnapshot snapshot;
     private readonly List<IProductDesktopHostReadOnlySurface> surfaces = [];
@@ -200,6 +208,14 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     public ProductDesktopHostLifecycleController(
         ProductDesktopHostFeatureDecision featureDecision,
         ProductDesktopInteractionDevelopmentController? interactionDevelopment)
+        : this(featureDecision, interactionDevelopment, intentPreparation: null)
+    {
+    }
+
+    public ProductDesktopHostLifecycleController(
+        ProductDesktopHostFeatureDecision featureDecision,
+        ProductDesktopInteractionDevelopmentController? interactionDevelopment,
+        ProductDesktopInteractionIntentPreparationBridge? intentPreparation)
         : this(
             featureDecision,
             featureDecision?.IsEnabled == true
@@ -208,7 +224,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             featureDecision?.IsEnabled == true
                 ? new WindowsProductDesktopHostWindowInspector()
                 : null,
-            interactionDevelopment)
+            interactionDevelopment,
+            intentPreparation)
     {
     }
 
@@ -217,7 +234,9 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         IProductDesktopHostReadOnlySurfaceFactory? surfaceFactory,
         IProductDesktopHostWindowInspector? windowInspector,
         ProductDesktopInteractionDevelopmentController?
-            interactionDevelopment = null)
+            interactionDevelopment = null,
+        ProductDesktopInteractionIntentPreparationBridge?
+            intentPreparation = null)
     {
         ArgumentNullException.ThrowIfNull(featureDecision);
         enabled = featureDecision.IsEnabled;
@@ -229,6 +248,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
 
         this.surfaceFactory = surfaceFactory;
         this.interactionDevelopment = interactionDevelopment;
+        this.intentPreparation = intentPreparation;
         windowBridge = windowInspector is null
             ? null
             : new(windowInspector);
@@ -364,6 +384,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             lastSystemSurfaceSequence = systemEvent.Sequence;
             if (systemEvent.RequiresHiddenSurface)
             {
+                _ = intentPreparation?.Invalidate();
                 if (interactionSurface is null)
                 {
                     return snapshot;
@@ -433,6 +454,54 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         return published ?? snapshot;
     }
 
+    public ProductDesktopInteractionIntentPreparationResult
+        PrepareInteractionIntent(
+            ProductDesktopInteractionIntentPreparationRequest request,
+            DateTimeOffset nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (intentPreparation is null)
+            {
+                return new(
+                    new(
+                        ProductDesktopInteractionIntentPreparationStatus
+                            .DisabledBySafetyPolicy,
+                        0,
+                        0,
+                        PreparedIntentAvailable: false,
+                        ExplicitInteractionEntered: false,
+                        RealFileOperationsAllowed: false),
+                    PreparedIntent: null);
+            }
+
+            if (snapshot.Status
+                    != ProductDesktopHostLifecycleStatus.ReadyReadOnly
+                || currentBatch is null
+                || interactionSurface is null
+                || interactionDevelopment?.Snapshot is not
+                { IsDevelopmentInteractionAvailable: true, Surface: not null }
+                    interaction)
+            {
+                ProductDesktopInteractionIntentPreparationSnapshot awaiting =
+                    intentPreparation.AwaitPassiveSurface();
+                return new(awaiting, PreparedIntent: null);
+            }
+
+            ProductDesktopInteractionEvidence evidence =
+                CreateInteractionEvidence(
+                    currentBatch,
+                    interaction.Surface.WindowRegistryGeneration);
+            return intentPreparation.Prepare(
+                request,
+                currentBatch,
+                evidence,
+                nowUtc);
+        }
+    }
+
     private ProductDesktopHostLifecycleSnapshot ApplyNewUpdateUnsafe(
         ProductDesktopHostProjectionUpdate update)
     {
@@ -468,6 +537,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             }
 
             disposed = true;
+            _ = intentPreparation?.Complete();
             ReleaseSurfaceUnsafe();
             published = UpdateSnapshotUnsafe(
                 ProductDesktopHostLifecycleStatus.Completed,
@@ -594,6 +664,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
 
     private void ReleaseSurfaceUnsafe()
     {
+        _ = intentPreparation?.Invalidate();
         if (interactionSurface is not null)
         {
             _ = interactionDevelopment?.DetachPassiveSurface(
@@ -659,8 +730,15 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             batch.WorkspaceRevision,
             batch.TopologyGeneration,
             registryGeneration,
-            AvailableContainerIds: new HashSet<string>(StringComparer.Ordinal),
-            LockedContainerIds: new HashSet<string>(StringComparer.Ordinal));
+            AvailableContainerIds: new HashSet<string>(
+                batch.Displays.SelectMany(display => display.Containers)
+                    .Select(container => container.ContainerId),
+                StringComparer.Ordinal),
+            LockedContainerIds: new HashSet<string>(
+                batch.Displays.SelectMany(display => display.Containers)
+                    .Where(container => container.IsLocked)
+                    .Select(container => container.ContainerId),
+                StringComparer.Ordinal));
 
     private void Publish(ProductDesktopHostLifecycleSnapshot value) =>
         SnapshotChanged?.Invoke(this, value);

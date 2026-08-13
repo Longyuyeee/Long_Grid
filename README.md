@@ -100,6 +100,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格受控开发态交互 Composition Root 基础审计](docs/116-controlled-development-interaction-composition-root-audit.md)
 - [Long方格产品 Hidden/Passive Surface 生命周期审计](docs/117-product-hidden-passive-surface-lifecycle-audit.md)
 - [Long方格系统表面事件与 Fail-Closed 桥审计](docs/118-system-surface-event-fail-closed-bridge-audit.md)
+- [Long方格产品 Intent 准备与人工会话门禁审计](docs/119-product-intent-preparation-manual-session-gate-audit.md)
 - [Long方格正式容器创建与重命名提交审计](docs/54-container-create-rename-commit-audit.md)
 - [Long方格正式容器锁定与折叠提交审计](docs/55-container-lock-collapse-commit-audit.md)
 - [Long方格正式容器受限外观提交审计](docs/56-container-finite-appearance-commit-audit.md)
@@ -147,7 +148,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6c1 已把失焦、桌面显示、全屏、锁屏/会话、RDP、Explorer 身份变化和电源变化接入有限系统事件桥：危险或未知状态立即让产品 HWND Hidden，只有连续两个安全样本且 Host/UIA/workspace/topology/registry 证据完整才恢复 Passive。观察器只使用公开只读系统查询，不使用全局 Hook、输入合成或 Explorer 内部挂接。正式 HWND 的 `WM_NCHITTEST` 继续固定 `HTTRANSPARENT`，adapter 继续拒绝 Explicit，没有 Intent/Selection 或真实文件入口。下一切片 B6c2 才建立默认关闭的产品意图转接与人工会话门禁。A5-01..A5-06 真实会话结果仍为 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6c2 已建立默认关闭的产品 Intent 准备桥：除 Host/Interaction 双开关外，还要求 Intent bridge 与人工会话确认两个值精确为 `1`；只有一秒内、明确确认、序号递增并唯一命中当前未锁定方格的用户动作才能形成绑定 workspace/topology/registry generation 的 5 秒 Intent。系统表面变化、Surface 替换、代次漂移、超时和 shutdown 都使准备失效。App 没有输入转送或 Intent 消费入口，正式 HWND 仍 `HTTRANSPARENT`，adapter 仍拒绝 Explicit，文件权限仍为零。下一切片 B6c3 才建立隔离的产品输入转送和人工证据。A5 与 B6c2 真实会话结果继续 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 
@@ -158,7 +159,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -File ./eng/Start-LongGrid.ps1
 ```
 
-该入口默认执行锁定依赖恢复、必要构建和启动；不提权，默认不创建 DesktopHost 窗口。App 只读枚举用户桌面与公共桌面第一层元数据，不读取文件内容，也不执行桌面文件写入/移动。开发者可显式设置 `LONGGRID_ENABLE_DESKTOP_HOST=1` 验证带只读 UIA 与被动窗口复读的每显示器批次；受控人工会话使用 `eng/Start-DesktopHostProductSessionMatrix.ps1`。只有 `LONGGRID_ENABLE_DESKTOP_HOST=1` 与 `LONGGRID_ENABLE_DESKTOP_INTERACTION=1` 同时精确成立且 emergency-disable 未启用时，App 才创建 Hidden/Passive 产品 Surface 与只读系统事件观察器；单独设置任一开关都不会启用该路径，二者也都不是用户许可或发布默认值。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[Stage 110](docs/110-desktop-host-readonly-uia-session-contract-audit.md)、[Stage 117](docs/117-product-hidden-passive-surface-lifecycle-audit.md)与[Stage 118](docs/118-system-surface-event-fail-closed-bridge-audit.md)。
+该入口默认执行锁定依赖恢复、必要构建和启动；不提权，默认不创建 DesktopHost 窗口。App 只读枚举用户桌面与公共桌面第一层元数据，不读取文件内容，也不执行桌面文件写入/移动。开发者可显式设置 `LONGGRID_ENABLE_DESKTOP_HOST=1` 验证带只读 UIA 与被动窗口复读的每显示器批次；受控宿主矩阵使用 `eng/Start-DesktopHostProductSessionMatrix.ps1`。Hidden/Passive 产品 Surface 还要求 Interaction 精确 opt-in；Intent 准备则只能使用 `eng/Start-DesktopInteractionIntentSession.ps1` 同时建立第三重桥接值和人工会话确认。所有开发值都不是用户许可或发布默认值。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[Stage 117](docs/117-product-hidden-passive-surface-lifecycle-audit.md)、[Stage 118](docs/118-system-surface-event-fail-closed-bridge-audit.md)与[Stage 119](docs/119-product-intent-preparation-manual-session-gate-audit.md)。
 
 从干净、已提交的工作树一键生成并交叉验证完整内部 RC 交付集合：
 

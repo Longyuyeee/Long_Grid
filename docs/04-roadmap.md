@@ -269,3 +269,5 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-08-12 连续保存确定性补充：普通保存只有在 `Saving`、普通 Save 活动、当前修订和活跃修订四者一致时才能进入正式工作流；工作流调用必须在窄提交门内排序，避免旧修订在主动让出后晚于新修订入队。并发回归必须用受控调度点强制逆序恢复，不得依赖繁忙 runner 或重复运行。该稳定性修复不扩大文件、窗口、任务栏或插件权限，Phase 0 外部证据优先级不变。
 
 2026-08-13 B6c1 系统表面安全桥补充：双 opt-in 产品 Surface 现在只通过公开只读 Windows 状态感知失焦、桌面显示、全屏、会话/RDP、Explorer Shell 身份和电源变化；危险或未知状态立即 Hidden，连续两个安全样本且 Host/UIA/三类 generation 复核通过后才恢复 Passive。无 Surface 的启动事件不制造 Fault，计时器与系统订阅在 shutdown 前释放。正式 HWND 仍 `HTTRANSPARENT`，Explicit、Intent、文件操作、任务栏与插件权限保持关闭；真实 Win+D/全屏/会话矩阵仍 Pending。
+
+2026-08-13 B6c2 Intent 准备门禁补充：产品桥在 Host/Interaction 之外新增精确 bridge opt-in 与人工会话确认，只把一秒内、逐动作确认、单调序号、唯一显示器/未锁定方格命中转成最长 5 秒且绑定三类 generation 的准备态 Intent。新动作、系统信号、Surface/证据变化、超时和关闭均使其失效。App 没有输入转送或消费入口，正式 HWND/adapter 继续拒绝 Explicit，文件、任务栏与插件权限不变；下一阶段先做隔离输入证据。

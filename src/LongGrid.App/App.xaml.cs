@@ -67,12 +67,25 @@ public partial class App : Application
                     ProductDesktopInteractionFeaturePolicy
                         .EmergencyDisableEnvironmentVariableName));
         productDesktopInteraction = new(interactionFeature);
+        ProductDesktopInteractionIntentBridgeFeatureDecision intentBridgeFeature =
+            ProductDesktopInteractionIntentBridgePolicy.Evaluate(
+                interactionFeature,
+                Environment.GetEnvironmentVariable(
+                    ProductDesktopInteractionIntentBridgePolicy
+                        .EnvironmentVariableName),
+                Environment.GetEnvironmentVariable(
+                    ProductDesktopInteractionIntentBridgePolicy
+                        .ManualSessionEnvironmentVariableName));
+        var productDesktopIntentPreparation =
+            new ProductDesktopInteractionIntentPreparationBridge(
+                intentBridgeFeature);
         productDesktopSystemSurfaceEvents = interactionFeature.IsEnabled
             ? new()
             : null;
         productDesktopHostLifecycle = new(
             desktopHostFeature,
-            productDesktopInteraction);
+            productDesktopInteraction,
+            productDesktopIntentPreparation);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
