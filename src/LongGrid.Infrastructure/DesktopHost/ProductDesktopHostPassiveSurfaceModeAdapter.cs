@@ -21,9 +21,12 @@ internal sealed class ProductDesktopHostPassiveSurfaceModeAdapter(
     {
         bool passive = surfaces.All(surface =>
             surface.PassiveWindowContractAttested);
+        bool explicitInteraction = surfaces.All(surface =>
+            surface.ExplicitWindowContractAttested);
         bool hidden = surfaces.All(surface =>
             surface.HiddenWindowContractAttested);
-        if (passive == hidden)
+        if ((passive ? 1 : 0) + (explicitInteraction ? 1 : 0)
+            + (hidden ? 1 : 0) != 1)
         {
             return ProductDesktopInteractionSurfaceCapture.Failed;
         }
@@ -33,12 +36,14 @@ internal sealed class ProductDesktopHostPassiveSurfaceModeAdapter(
             new(
                 passive
                     ? ProductDesktopInteractionSurfaceMode.Passive
-                    : ProductDesktopInteractionSurfaceMode.Hidden,
+                    : explicitInteraction
+                        ? ProductDesktopInteractionSurfaceMode.Explicit
+                        : ProductDesktopInteractionSurfaceMode.Hidden,
                 registryGeneration,
-                Visible: passive,
-                HitTestTransparent: true,
-                IsKeyboardFocusable: false,
-                SelectionPatternAvailable: false,
+                Visible: !hidden,
+                HitTestTransparent: !explicitInteraction,
+                IsKeyboardFocusable: explicitInteraction,
+                SelectionPatternAvailable: explicitInteraction,
                 ToolWindow: true,
                 NoActivate: true,
                 Topmost: false,
@@ -49,7 +54,11 @@ internal sealed class ProductDesktopHostPassiveSurfaceModeAdapter(
     public bool ApplyExplicit(ProductDesktopInteractionLease lease)
     {
         ArgumentNullException.ThrowIfNull(lease);
-        return false;
+        return Apply(
+            lease.WindowRegistryGeneration,
+            surface => surface.ApplyExplicit(),
+            evidence => evidence.IsExplicitContract,
+            hideOperation: false);
     }
 
     public bool ApplyPassive(long expectedWindowRegistryGeneration) =>
@@ -69,6 +78,11 @@ internal sealed class ProductDesktopHostPassiveSurfaceModeAdapter(
                     ApplyPassive(registryGeneration),
                 ProductDesktopInteractionSurfaceMode.Hidden =>
                     Hide(registryGeneration),
+                // An Explicit lease cannot be reconstructed from capture evidence.
+                // Transaction baselines are constrained to Passive; fail closed if
+                // an invalid caller attempts to restore an Explicit capture.
+                ProductDesktopInteractionSurfaceMode.Explicit =>
+                    RejectExplicitRestore(),
                 _ => false,
             };
     }
@@ -79,6 +93,12 @@ internal sealed class ProductDesktopHostPassiveSurfaceModeAdapter(
             surface => surface.ApplyHidden(),
             evidence => evidence.IsHiddenContract,
             hideOperation: true);
+
+    private bool RejectExplicitRestore()
+    {
+        _ = Hide(registryGeneration);
+        return false;
+    }
 
     private bool Apply(
         long expectedWindowRegistryGeneration,
@@ -104,9 +124,9 @@ internal sealed class ProductDesktopHostPassiveSurfaceModeAdapter(
             && verify(capture.Evidence);
         if (!verified && !hideOperation)
         {
-            foreach (IProductDesktopHostReadOnlySurface surface in surfaces)
+            for (int index = surfaces.Count - 1; index >= 0; index--)
             {
-                _ = SafeApply(surface.ApplyHidden);
+                _ = SafeApply(surfaces[index].ApplyHidden);
             }
         }
 

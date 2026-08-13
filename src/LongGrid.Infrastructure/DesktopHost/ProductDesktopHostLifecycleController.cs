@@ -159,7 +159,11 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
 
     bool PassiveWindowContractAttested { get; }
 
+    bool ExplicitWindowContractAttested { get; }
+
     bool HiddenWindowContractAttested { get; }
+
+    bool ApplyExplicit();
 
     bool ApplyPassive();
 

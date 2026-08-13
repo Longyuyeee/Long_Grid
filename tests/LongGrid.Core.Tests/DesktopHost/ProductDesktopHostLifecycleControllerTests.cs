@@ -717,7 +717,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
-    public void ProductPassiveAdapterRejectsExplicitAndStaleGeneration()
+    public void ProductSurfaceAdapterRejectsStaleGeneration()
     {
         var surface = new RecordingSurface(101, 201, 301, 401, startHidden: true);
         var adapter = new ProductDesktopHostPassiveSurfaceModeAdapter(
@@ -731,8 +731,69 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             "container-1",
             1,
             2,
-            9,
+            8,
             DateTimeOffset.UtcNow.AddSeconds(1))));
+        Assert.True(adapter.Capture().Evidence!.IsHiddenContract);
+    }
+
+    [Fact]
+    public void ProductSurfaceAdapterAppliesExplicitAndReturnsPassive()
+    {
+        var surface = new RecordingSurface(101, 201, 301, 401, startHidden: true);
+        var adapter = new ProductDesktopHostPassiveSurfaceModeAdapter(
+            new IProductDesktopHostReadOnlySurface[] { surface },
+            registryGeneration: 9);
+
+        Assert.True(adapter.ApplyPassive(9));
+        Assert.True(adapter.Capture().Evidence!.IsPassiveContract);
+
+        Assert.True(adapter.ApplyExplicit(Lease(9)));
+        Assert.True(adapter.Capture().Evidence!.IsExplicitContract);
+        Assert.Equal(1, surface.ApplyExplicitCalls);
+
+        Assert.True(adapter.ApplyPassive(9));
+        Assert.True(adapter.Capture().Evidence!.IsPassiveContract);
+    }
+
+    [Fact]
+    public void ProductSurfaceAdapterPartialExplicitFailureHidesEverySurface()
+    {
+        var compensationOrder = new List<string>();
+        var first = new RecordingSurface(101, 201, 301, 401, startHidden: false)
+        {
+            HiddenApplied = () => compensationOrder.Add("first"),
+        };
+        var second = new RecordingSurface(102, 202, 301, 401, startHidden: false)
+        {
+            ExplicitWindowAttested = false,
+            HiddenApplied = () => compensationOrder.Add("second"),
+        };
+        var adapter = new ProductDesktopHostPassiveSurfaceModeAdapter(
+            new IProductDesktopHostReadOnlySurface[] { first, second },
+            registryGeneration: 9);
+
+        Assert.False(adapter.ApplyExplicit(Lease(9)));
+
+        Assert.True(adapter.Capture().Evidence!.IsHiddenContract);
+        Assert.True(first.HiddenWindowContractAttested);
+        Assert.True(second.HiddenWindowContractAttested);
+        Assert.Equal(1, first.ApplyHiddenCalls);
+        Assert.Equal(1, second.ApplyHiddenCalls);
+        Assert.Equal(["second", "first"], compensationOrder);
+    }
+
+    [Fact]
+    public void ProductSurfaceAdapterDoesNotRestoreExplicitCaptureWithoutLease()
+    {
+        var surface = new RecordingSurface(101, 201, 301, 401, startHidden: false);
+        var adapter = new ProductDesktopHostPassiveSurfaceModeAdapter(
+            new IProductDesktopHostReadOnlySurface[] { surface },
+            registryGeneration: 9);
+        Assert.True(adapter.ApplyExplicit(Lease(9)));
+        ProductDesktopInteractionSurfaceEvidence explicitEvidence =
+            adapter.Capture().Evidence!;
+
+        Assert.False(adapter.Restore(explicitEvidence));
         Assert.True(adapter.Capture().Evidence!.IsHiddenContract);
     }
 
@@ -947,11 +1008,15 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         uint threadId,
         bool startHidden) : IProductDesktopHostReadOnlySurface
     {
-        private bool visible = !startHidden;
+        private ProductDesktopInteractionSurfaceMode mode = startHidden
+            ? ProductDesktopInteractionSurfaceMode.Hidden
+            : ProductDesktopInteractionSurfaceMode.Passive;
 
         internal bool WasCreatedHidden { get; } = startHidden;
 
         internal int ApplyPassiveCalls { get; private set; }
+
+        internal int ApplyExplicitCalls { get; private set; }
 
         internal int ApplyHiddenCalls { get; private set; }
 
@@ -968,28 +1033,54 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         public bool PassiveWindowContractAttested { get; init; } = true;
 
         bool IProductDesktopHostReadOnlySurface.PassiveWindowContractAttested =>
-            visible && PassiveWindowContractAttested;
+            mode == ProductDesktopInteractionSurfaceMode.Passive
+            && PassiveWindowContractAttested;
 
-        public bool HiddenWindowContractAttested => !visible;
+        internal bool ExplicitWindowAttested { get; init; } = true;
+
+        internal Action? HiddenApplied { get; init; }
+
+        public bool ExplicitWindowContractAttested =>
+            mode == ProductDesktopInteractionSurfaceMode.Explicit
+            && ExplicitWindowAttested;
+
+        public bool HiddenWindowContractAttested =>
+            mode == ProductDesktopInteractionSurfaceMode.Hidden;
 
         internal bool IsDisposed { get; private set; }
 
         public bool ApplyPassive()
         {
             ApplyPassiveCalls++;
-            visible = true;
+            mode = ProductDesktopInteractionSurfaceMode.Passive;
             return PassiveWindowContractAttested;
+        }
+
+        public bool ApplyExplicit()
+        {
+            ApplyExplicitCalls++;
+            mode = ProductDesktopInteractionSurfaceMode.Explicit;
+            return ExplicitWindowAttested;
         }
 
         public bool ApplyHidden()
         {
             ApplyHiddenCalls++;
-            visible = false;
+            mode = ProductDesktopInteractionSurfaceMode.Hidden;
+            HiddenApplied?.Invoke();
             return true;
         }
 
         public void Dispose() => IsDisposed = true;
     }
+
+    private static ProductDesktopInteractionLease Lease(long generation) => new(
+        Guid.NewGuid(),
+        "container-1",
+        1,
+        2,
+        generation,
+        DateTimeOffset.UtcNow.AddSeconds(1));
 
     private sealed class FactoryBackedInspector(
         RecordingSurfaceFactory factory,

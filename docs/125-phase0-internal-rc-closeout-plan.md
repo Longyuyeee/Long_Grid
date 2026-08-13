@@ -358,6 +358,17 @@ Stage 129 已批准外部证据与工程实现双轨推进，但不允许把工�
 
 Stage 128 对 C0 遗留的已合并远端分支执行独立卫生审计：只允许删除 PR head、merge commit 和 tree 三者精确对应且无开放 PR 的 `codex/*`；删除结果通过 PR 轨迹记录，不改变任何阶段证据。
 
+### M1：正式 Explicit 表面适配器（执行中）
+
+- **审计基线**：`main@d9b43bd`；
+- **需求对齐**：只闭合正式 Passive/Explicit/Hidden 表面切换、复读和补偿；不接输入源、不消费 Intent、不操作桌面文件；
+- **实现摘要**：代际匹配 lease 可使产品自有 HWND 进入 Explicit；根 UIA 暴露空 Selection provider；多表面失败逆序隐藏；
+- **安全边界**：默认关闭、Host/Interaction 双 opt-in、emergency disable 最高优先级和关闭前隐藏保持不变；
+- **外部证据**：不适用为通过依据；X1～X5 和四个开放 Issue 状态不变；
+- **自动化验收**：Release 0 warning/0 error，881/881 测试，line 91.11% / branch 80.64%，UI 合同、14 个安全入口和 3 个原生探针通过；
+- **结论**：本地工程 Pass，等待 PR CI 与 main CI；
+- **下一步**：远端双 CI 通过后进入独立 E2/M2 切片。详见 [Stage 130](130-formal-explicit-surface-adapter-audit.md)。
+
 ### C1：工程就绪复审（结果尚未执行）
 
 - **审计基线**：`main@508528b`；

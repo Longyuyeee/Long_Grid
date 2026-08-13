@@ -26,6 +26,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     private readonly WindowProcedure windowProcedure;
     private readonly ProductDesktopHostDisplayProjection projection;
     private readonly bool startHidden;
+    private volatile ProductDesktopInteractionSurfaceMode mode;
 #if WINDOWS
     private WindowsProductDesktopHostUiaRootProvider? uiaProvider;
 #endif
@@ -44,6 +45,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
 
         this.projection = projection;
         this.startHidden = startHidden;
+        mode = startHidden
+            ? ProductDesktopInteractionSurfaceMode.Hidden
+            : ProductDesktopInteractionSurfaceMode.Passive;
         InstanceMarker = instanceMarker != nint.Zero
             ? instanceMarker
             : throw new ArgumentOutOfRangeException(nameof(instanceMarker));
@@ -70,13 +74,24 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     public bool PassiveWindowContractAttested =>
         !disposed
         && Handle != nint.Zero
+        && mode == ProductDesktopInteractionSurfaceMode.Passive
         && NativeMethods.IsWindowVisible(Handle)
         && AttestStableWindowPolicy()
         && AttestWindowRegion(expectEmpty: false);
 
+    public bool ExplicitWindowContractAttested =>
+        !disposed
+        && Handle != nint.Zero
+        && mode == ProductDesktopInteractionSurfaceMode.Explicit
+        && NativeMethods.IsWindowVisible(Handle)
+        && AttestStableWindowPolicy()
+        && AttestWindowRegion(expectEmpty: false)
+        && uiaProvider?.ExplicitSelectionAvailable == true;
+
     public bool HiddenWindowContractAttested =>
         !disposed
         && Handle != nint.Zero
+        && mode == ProductDesktopInteractionSurfaceMode.Hidden
         && !NativeMethods.IsWindowVisible(Handle)
         && AttestStableWindowPolicy()
         && AttestWindowRegion(expectEmpty: true);
@@ -144,7 +159,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         }
 
 #if WINDOWS
-        uiaProvider = new(Handle, projection, InstanceMarker);
+        uiaProvider = new(
+            Handle,
+            projection,
+            InstanceMarker,
+            () => mode == ProductDesktopInteractionSurfaceMode.Explicit);
 #endif
 
         ThreadId = NativeMethods.GetWindowThreadProcessId(
@@ -207,7 +226,10 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             case NativeMethods.WmEraseBackground:
                 return new nint(1);
             case NativeMethods.WmNcHitTest:
-                return new nint(NativeMethods.HtTransparent);
+                return new nint(
+                    mode == ProductDesktopInteractionSurfaceMode.Explicit
+                        ? NativeMethods.HtClient
+                        : NativeMethods.HtTransparent);
             case NativeMethods.WmMouseActivate:
                 return new nint(NativeMethods.MaNoActivate);
             case NativeMethods.WmPaint:
@@ -414,15 +436,27 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     public bool ApplyPassive()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        mode = ProductDesktopInteractionSurfaceMode.Passive;
         ApplyWindowRegion();
         _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwShowNoActivate);
         _ = NativeMethods.UpdateWindow(Handle);
         return PassiveWindowContractAttested;
     }
 
+    public bool ApplyExplicit()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        mode = ProductDesktopInteractionSurfaceMode.Explicit;
+        ApplyWindowRegion();
+        _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwShowNoActivate);
+        _ = NativeMethods.UpdateWindow(Handle);
+        return ExplicitWindowContractAttested;
+    }
+
     public bool ApplyHidden()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        mode = ProductDesktopInteractionSurfaceMode.Hidden;
         ApplyEmptyWindowRegion();
         _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwHide);
         return HiddenWindowContractAttested;
@@ -686,6 +720,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint WmMouseActivate = 0x0021;
         internal const uint WmGetObject = 0x003D;
         internal const int HtTransparent = -1;
+        internal const int HtClient = 1;
         internal const int MaNoActivate = 3;
         internal const int TransparentBackground = 1;
         internal const int DefaultGuiFont = 17;

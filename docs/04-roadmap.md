@@ -272,3 +272,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-13 B6c5 人工来源会话补充：B6C3 启动器现只在四项人工确认和六个进程门禁成立后启动 probe 自有可见 ToolWindow，不再误启尚无输入源的正式 App。窗口接受定向 pointer、Enter/Space 与 UIA/Narrator Invoke，显示有限计数并在 Escape/关闭时销毁；不捕获全局输入、不发送输入、不进入 Explicit、不操作文件、不写证据，结果固定保持 PendingManualEvidence。该来源只承载 B6C3-01～04 与 08 的适用子项，并明确拒绝用它冒充依赖系统事件的 05～07。下一阶段执行来源人工矩阵并建立独立系统事件会话，批准前不得接入正式 DesktopHost。
 
 2026-08-13 B6c6 系统表面人工会话补充：probe 自有来源现可在独立五确认启动器中订阅公开 Windows 事件源；失焦、Win+D/桌面显示、全屏、会话/RDP 与 Explorer 身份变化会失效 Prepared 并隐藏来源，连续两个安全样本后只以非激活 AwaitingPassiveSurface 恢复。会话不改变系统状态、不启动正式 App、不进入 Explicit/文件路径、不写证据；B6C3-07 仅覆盖 Explorer 子项，显示拓扑 generation 继续 Pending。下一阶段执行匿名真人矩阵并评估只读 topology generation 接入。
+
+2026-08-14 E1/M1 正式 Explicit 表面适配器补充：正式产品 HWND 可在代际匹配的 lease 下切换到可命中的 Explicit 表面，根 UIA 只暴露尚未消费输入的空 Selection provider；Passive/Hidden 仍穿透或隐藏。多显示器任一应用/复读失败会逆序隐藏全部表面，紧急禁用优先级不变。本切片不接入正式输入、Intent 消费或桌面文件操作；外部证据继续 Pending，下一切片为 E2/M2。
