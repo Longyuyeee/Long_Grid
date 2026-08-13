@@ -122,6 +122,8 @@ $desktopInputForwardingAdapterCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionInputForwardingAdapter.cs'
 $desktopInputForwardingSessionLauncherCodePath = Join-Path $projectRoot `
     'eng\Start-DesktopInteractionInputForwardingSession.ps1'
+$desktopSystemSurfaceSessionLauncherCodePath = Join-Path $projectRoot `
+    'eng\Start-DesktopInteractionSystemSurfaceSession.ps1'
 $desktopHostProjectionBatchCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostProjectionBatch.cs'
 $desktopHostProjectionUpdateCodePath = Join-Path $projectRoot `
@@ -394,6 +396,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopInputForwardingSessionLauncherCode = Get-Content `
         -LiteralPath $desktopInputForwardingSessionLauncherCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopSystemSurfaceSessionLauncherCode = Get-Content `
+        -LiteralPath $desktopSystemSurfaceSessionLauncherCodePath `
         -Raw `
         -Encoding UTF8
     $desktopHostProjectionBatchCode = Get-Content `
@@ -1551,6 +1557,46 @@ function Test-SourceContract {
         -not ($appCode -match 'NativeInputForwardingProbeWindow')
     ) `
         'B6c5 must launch only an acknowledged probe-owned visible source, accept bounded physical/UIA input until Escape or close, retain PendingManualEvidence, and keep the product App, global input, Explicit and files disconnected.'
+    Assert-Condition (
+        $desktopHostProbeProgramCode -match `
+            '--native-input-system-surface-session' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'RunSystemSurfaceInteractive' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'WindowsProductDesktopInteractionSystemSurfaceEventSource' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'SurfaceChanged' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'forwarding\.Invalidate\(\)' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'forwarding\.AwaitPassiveSurface\(\)' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'PreparedIntentInvalidationCount' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'DisplayTopologyGenerationObserved:\s*false' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'SwHide' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'SwShowNoActivate' -and
+        $desktopSystemSurfaceSessionLauncherCode -match `
+            'AcknowledgeSystemStateChange' -and
+        $desktopSystemSurfaceSessionLauncherCode -match `
+            'AcknowledgeNoDisplayTopologyEvidence' -and
+        $desktopSystemSurfaceSessionLauncherCode -match `
+            'B6C3-07-EXPLORER' -and
+        $desktopSystemSurfaceSessionLauncherCode -match `
+            'observesDisplayTopologyGeneration\s*=\s*\$false' -and
+        $desktopSystemSurfaceSessionLauncherCode -match `
+            'changesSystemState\s*=\s*\$false' -and
+        $desktopSystemSurfaceSessionLauncherCode -match `
+            'finalResultStatus\s*=\s*''PendingManualEvidence''' -and
+        -not ($desktopSystemSurfaceSessionLauncherCode -match `
+            'Start-LongGrid\.ps1|Stop-Process|tsdiscon|logoff|SetDisplayConfig|Restart-Computer') -and
+        -not ($nativeInputForwardingSourceProbeCode -match `
+            'SendInput\(|SetWindowsHookEx|RegisterRawInputDevices|GetAsyncKeyState|IFileOperation|MoveFile|DeleteFile|ApplyExplicit|TryEnterExplicitInteraction') -and
+        -not ($appCode -match 'RunSystemSurfaceInteractive')
+    ) `
+        'B6c6 must observe only public system-surface events in a probe-owned manual session, invalidate and hide on unsafe state, require finite safe recovery, retain topology/manual limits, and keep product Explicit and files disconnected.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and

@@ -77,6 +77,13 @@ jobs:
           -File ./eng/Start-DesktopInteractionInputForwardingSession.ps1
           -ValidateOnly
 
+      - name: Validate system-surface manual session chain
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Start-DesktopInteractionSystemSurfaceSession.ps1
+          -ValidateOnly
+
       - name: Validate Issue 19 manual matrix session chain
         shell: powershell
         run: >-

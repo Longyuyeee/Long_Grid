@@ -36,9 +36,28 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -AcknowledgeRecoveryPlan
 ```
 
-启动后只对可见的“Long Grid manual input source”窗口执行当前场景。B6C3-01 可点击窗口，B6C3-02 可先点击再按 Enter/Space，B6C3-03 使用 Narrator 或独立 UIA 客户端执行 Invoke，B6C3-04 只执行真实按键自动重复子项，B6C3-08 只执行关闭与清理子项。B6C3-05 至 B6C3-07 依赖尚未接入本 probe 的系统事件会话，启动器会明确拒绝，不能用可见来源窗口替代。不要把程序显示的 Prepared 计数当作人工 Pass；仍须按场景记录预期、实际和恢复结果。
+启动后只对可见的“Long Grid manual input source”窗口执行当前场景。B6C3-01 可点击窗口，B6C3-02 可先点击再按 Enter/Space，B6C3-03 使用 Narrator 或独立 UIA 客户端执行 Invoke，B6C3-04 只执行真实按键自动重复子项，B6C3-08 只执行关闭与清理子项。原输入启动器会继续拒绝 B6C3-05 至 B6C3-07；这些场景必须使用下方独立系统表面启动器，不能用普通来源窗口替代。不要把程序显示的 Prepared 计数当作人工 Pass；仍须按场景记录预期、实际和恢复结果。
 
 该窗口不具备原生注入检测能力；普通 HWND 消息不能证明物理来源。B6C3-04 中显式 `IsInjected=true` 的拒绝由 adapter 自动化合同覆盖，人工会话不得声称验证了注入检测。
+
+### B6c6 系统表面会话
+
+B6C3-05、B6C3-06 和 B6C3-07 的 Explorer 子项使用独立启动器。它不主动改变系统状态；操作员必须在受控环境中准备恢复通道，并且每次只执行一个场景：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\eng\Start-DesktopInteractionSystemSurfaceSession.ps1 `
+  -Scenario B6C3-05 -OperatorId O1 `
+  -AcknowledgeControlledEnvironment `
+  -AcknowledgeSystemStateChange `
+  -AcknowledgeNoDisplayTopologyEvidence `
+  -AcknowledgeNoExplicitInteraction `
+  -AcknowledgeRecoveryPlan
+```
+
+先点击窗口或按 Enter/Space，确认显示 `Prepared`；再执行当前场景。危险事件后来源窗口应隐藏，`PreparedIntentInvalidationCount` 应增加；连续两个安全样本后窗口只以非激活方式恢复，必须重新操作才能产生新 Prepared。关闭窗口后确认无残留进程和输入层。
+
+`B6C3-07-EXPLORER` 只验证 Explorer Shell 身份变化，不验证显示器 generation。显示热插拔、旋转、DPI/WorkArea 和拓扑代次继续使用 Issue #20/A5 手册，不得在本会话记为 Pass。
 
 ## 记录规则
 

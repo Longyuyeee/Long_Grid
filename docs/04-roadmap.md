@@ -277,3 +277,5 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-08-13 B6c4 原生来源探针补充：探针专属 NoActivate ToolWindow 已验证 pointer message、Enter/Space 与真实 HWND UIA Invoke Provider 归一化到 B6c3，auto-repeat 拒绝、普通键忽略、前台稳定和 UIA 预热后资源清理通过。自动化明确使用同步窗口消息且物理设备输入仍未验证；正式 App/HWND、Explicit 与文件权限不变，下一阶段只在人工会话中建立短生命周期来源桥。
 
 2026-08-13 B6c5 人工来源会话补充：B6C3 启动器现只在四项人工确认和六个进程门禁成立后启动 probe 自有可见 ToolWindow，不再误启尚无输入源的正式 App。窗口接受定向 pointer、Enter/Space 与 UIA/Narrator Invoke，显示有限计数并在 Escape/关闭时销毁；不捕获全局输入、不发送输入、不进入 Explicit、不操作文件、不写证据，结果固定保持 PendingManualEvidence。该来源只承载 B6C3-01～04 与 08 的适用子项，并明确拒绝用它冒充依赖系统事件的 05～07。下一阶段执行来源人工矩阵并建立独立系统事件会话，批准前不得接入正式 DesktopHost。
+
+2026-08-13 B6c6 系统表面人工会话补充：probe 自有来源现可在独立五确认启动器中订阅公开 Windows 事件源；失焦、Win+D/桌面显示、全屏、会话/RDP 与 Explorer 身份变化会失效 Prepared 并隐藏来源，连续两个安全样本后只以非激活 AwaitingPassiveSurface 恢复。会话不改变系统状态、不启动正式 App、不进入 Explicit/文件路径、不写证据；B6C3-07 仅覆盖 Explorer 子项，显示拓扑 generation 继续 Pending。下一阶段执行匿名真人矩阵并评估只读 topology generation 接入。
