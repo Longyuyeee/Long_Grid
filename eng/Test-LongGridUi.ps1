@@ -104,6 +104,8 @@ $desktopInteractionSurfaceModeCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionSurfaceModeTransaction.cs'
 $nativeInteractionSurfaceProbeCodePath = Join-Path $projectRoot `
     'probes\LongGrid.Spikes.DesktopHostWindowModels\NativeInteractionSurfaceModeProbe.cs'
+$nativeInputForwardingSourceProbeCodePath = Join-Path $projectRoot `
+    'probes\LongGrid.Spikes.DesktopHostWindowModels\NativeInputForwardingSourceProbe.cs'
 $desktopHostPassiveSurfaceAdapterCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostPassiveSurfaceModeAdapter.cs'
 $desktopHostLifecycleControllerCodePath = Join-Path $projectRoot `
@@ -354,6 +356,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $nativeInteractionSurfaceProbeCode = Get-Content `
         -LiteralPath $nativeInteractionSurfaceProbeCodePath `
+        -Raw `
+        -Encoding UTF8
+    $nativeInputForwardingSourceProbeCode = Get-Content `
+        -LiteralPath $nativeInputForwardingSourceProbeCodePath `
         -Raw `
         -Encoding UTF8
     $desktopHostPassiveSurfaceAdapterCode = Get-Content `
@@ -1457,6 +1463,44 @@ function Test-SourceContract {
             'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
     ) `
         'B6c3 must require exact fourth-stage and manual-session gates, forward only attested non-injected non-repeat normalized actions once into intent preparation, remain bounded, and keep global capture, synthetic input, Explicit and file operations disconnected.'
+    Assert-Condition (
+        $nativeInputForwardingSourceProbeCode -match `
+            'NativeInputForwardingProbeWindow\.Create' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'WsExToolWindow' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'WsExNoActivate' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'WmLeftButtonDown' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'WmKeyDown' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'InvokePattern\.Pattern' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'IInvokeProvider' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'ProductDesktopInteractionInputForwardingAdapter' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'SyntheticWindowMessagesUsed:\s*true' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'SendInputUsed:\s*false' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'GlobalHooksInstalled:\s*false' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'RawInputRegistered:\s*false' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'PhysicalDeviceInputVerified:\s*false' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'ExplicitInteractionEntered:\s*false' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'DesktopFilesReadOrChanged:\s*false' -and
+        $nativeInputForwardingSourceProbeCode -match 'ForegroundStable' -and
+        $nativeInputForwardingSourceProbeCode -match 'CleanupPassed' -and
+        -not ($nativeInputForwardingSourceProbeCode -match `
+            'SendInput\(|SetWindowsHookEx|RegisterRawInputDevices|GetAsyncKeyState|IFileOperation|MoveFile|DeleteFile|ApplyExplicit|TryEnterExplicitInteraction') -and
+        -not ($appCode -match 'NativeInputForwardingSourceProbe')
+    ) `
+        'B6c4 must keep the native input source probe-owned, normalize pointer/key/UIA paths into B6c3, report synthetic-message and physical-input limits, preserve foreground and cleanup, and remain disconnected from product Explicit and files.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and

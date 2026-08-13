@@ -492,3 +492,9 @@ PR #154 的第二次干净 runner 验证已通过还原、格式化、构建和�
 B6c3 已把 B6c2 Intent 准备桥包在第四重默认关闭的输入转发边界之后。只有来源已证明、非注入、非自动重复、序号递增且 ActionId 未重放的 pointer/keyboard/assistive 归一化动作才能触发一次准备；近期 ID 保留上限为 64。生命周期变化和 shutdown 同步失效转发与准备状态。
 
 当前 App 只构造边界，没有实际 Windows 输入源，也不调用转发入口。正式 HWND 继续 `HTTRANSPARENT`，产品 adapter 继续拒绝 Explicit，文件、任务栏、Widget 与插件权限保持不变。B6c3 人工矩阵仍为 PendingManualEvidence；下一代码切片是 B6c4 隔离原生输入来源探针，而不是直接开放正式桌面输入。详见[Stage 120 审计](120-isolated-input-forwarding-manual-evidence-gate-audit.md)。
+
+## 29. 2026-08-13 Stage 121 原生输入来源探针增量审计
+
+B6c4 已在探针专属 NoActivate HWND 内验证 pointer/key/UIA Invoke 三条来源归一化链。自动化使用同步窗口消息而非 SendInput，报告明确 `PhysicalDeviceInputVerified=false`；auto-repeat 和普通键负向边界、前台稳定及 UIA 预热后资源平台均通过。
+
+探针不进入正式 App，正式 DesktopHost 仍点击穿透，Explicit、文件、任务栏、Widget 和插件权限保持关闭。物理输入和 Narrator 总结论仍是 PendingManualEvidence；下一切片只能建立人工会话显式拥有的短生命周期来源桥。详见[Stage 121 审计](121-native-input-source-normalization-probe-audit.md)。

@@ -290,6 +290,8 @@ MVP 完成必须同时满足：
 
 ## 12. 下一切片建议
 
+> 2026-08-13 / Stage 121 更新：B6c4「原生输入来源归一化探针」已完成。探针专属 NoActivate ToolWindow 把 pointer message、Enter/Space 和真实 HWND UIA Invoke Provider 唯一归一化到 B6c3；auto-repeat 拒绝、普通键忽略、前台稳定和 UIA 预热后资源平台通过。同步窗口消息与物理设备证据明确区分，`PhysicalDeviceInputVerified=false`；探针不进入 App，不调用 SendInput/Hook/Raw Input，不消费 Intent、不进入 Explicit、不接触文件。下一切片 B6c5 只建立人工会话显式拥有的短生命周期来源桥并执行物理输入/Narrator 矩阵。详见 [Stage 121 审计](121-native-input-source-normalization-probe-audit.md)。
+
 > 2026-08-13 / Stage 120 更新：B6c3「隔离输入转发与人工证据门禁」已完成代码切片。第四重精确 forwarding opt-in 与独立人工会话确认只允许来源已证明、非注入、非自动重复、序号递增且 ActionId 未重放的 pointer/keyboard/assistive 归一化动作进入 B6c2 准备桥；近期 ID 记忆固定 64 项。系统事件、Surface/证据变化和 shutdown 同步失效转发与准备。App 不调用转发入口，适配器没有 Windows 输入源、Hook、Raw Input 或 SendInput，正式 HWND 继续穿透，Explicit 与文件权限仍为零。下一切片 B6c4 先在隔离原生窗口验证真实输入来源并执行 B6C3 人工矩阵，不直接开放正式 Explicit。详见 [Stage 120 审计](120-isolated-input-forwarding-manual-evidence-gate-audit.md)。
 
 > 2026-08-13 / Stage 119 更新：B6c2「产品 Intent 准备与人工会话门禁」已完成代码切片。新增 Intent bridge 精确开关与人工会话确认，二者必须在 Host/Interaction 双开关和 emergency-disable 之后同时成立。Bridge 只接受一秒内、明确确认、序号递增、唯一显示器/方格命中且目标未锁定的动作，复用 B1 Factory 形成绑定三类 generation 的 5 秒 Intent；bridge generation 使新动作、系统表面变化、Surface 替换、证据漂移、超时和 shutdown 后的准备失效。App 没有输入转送或消费调用，正式 HWND 继续穿透，adapter 继续拒绝 Explicit，文件权限为零。下一切片 B6c3 只建立隔离输入转送与人工证据，不直接开放 Explicit。详见 [Stage 119 审计](119-product-intent-preparation-manual-session-gate-audit.md)。

@@ -4,6 +4,12 @@
     "net8.0-windows7.0": {
       "longgrid.core": {
         "type": "Project"
+      },
+      "longgrid.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "LongGrid.Core": "[1.0.0, )"
+        }
       }
     }
   }
