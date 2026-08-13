@@ -54,7 +54,7 @@ Explicit UIA provider 目前只声明表面可选择并返回空选择，不接�
 - UI 源码合同、14 个启动/人工会话/CI 合同入口和 3 个原生探针通过；
 - 原生 B5 探针保持 `Conditional Pass`，因为物理设备、Narrator、触控等仍属外部人工证据。
 
-PR/main CI 和合并 SHA 在远端验收后回填。
+远端入口：PR #180；首个实现提交 `c3a99fd`。PR/main CI 和合并 SHA 在远端验收后回填。
 
 ## 4. 安全、隐私与外部证据
 
