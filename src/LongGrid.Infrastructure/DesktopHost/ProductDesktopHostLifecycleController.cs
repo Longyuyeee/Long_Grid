@@ -10,6 +10,7 @@ public enum ProductDesktopHostLifecycleStatus
     AwaitingHost,
     AwaitingWorkspace,
     SuspendedUnsafeTopology,
+    SuspendedSystemSurface,
     ReadyReadOnly,
     Faulted,
     Completed,
@@ -24,12 +25,14 @@ public sealed record ProductDesktopHostLifecycleSnapshot(
     long TopologyGeneration = 0,
     int RenderedContainerCount = 0,
     bool ReadOnlyAccessibilityAvailable = false,
-    bool PassiveWindowContractAttested = false)
+    bool PassiveWindowContractAttested = false,
+    ProductDesktopInteractionSystemSurfaceEventKind? LastSystemSurfaceEvent = null)
 {
     public bool FeatureEnabled =>
         Status is ProductDesktopHostLifecycleStatus.AwaitingHost
             or ProductDesktopHostLifecycleStatus.AwaitingWorkspace
             or ProductDesktopHostLifecycleStatus.SuspendedUnsafeTopology
+            or ProductDesktopHostLifecycleStatus.SuspendedSystemSurface
             or ProductDesktopHostLifecycleStatus.ReadyReadOnly
             or ProductDesktopHostLifecycleStatus.Faulted;
 }
@@ -183,6 +186,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     private ProductDesktopHostProjectionUpdate? currentUpdate;
     private long lastWorkspaceRevision = -1;
     private long lastTopologyGeneration = -1;
+    private long lastSystemSurfaceSequence;
     private long windowGeneration;
     private ProductDesktopHostPassiveSurfaceModeAdapter? interactionSurface;
     private bool disposed;
@@ -339,6 +343,94 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
 
         Publish(published);
         return published;
+    }
+
+    public ProductDesktopHostLifecycleSnapshot ApplySystemSurfaceEvent(
+        ProductDesktopInteractionSystemSurfaceEvent systemEvent)
+    {
+        ArgumentNullException.ThrowIfNull(systemEvent);
+        ProductDesktopHostLifecycleSnapshot? published = null;
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (!enabled
+                || interactionDevelopment is null
+                || !systemEvent.IsValid
+                || systemEvent.Sequence <= lastSystemSurfaceSequence)
+            {
+                return snapshot;
+            }
+
+            lastSystemSurfaceSequence = systemEvent.Sequence;
+            if (systemEvent.RequiresHiddenSurface)
+            {
+                if (interactionSurface is null)
+                {
+                    return snapshot;
+                }
+
+                ProductDesktopInteractionDevelopmentSnapshot suspended =
+                    interactionDevelopment.SuspendFailClosed(
+                        systemEvent.ToCancellationSignal(),
+                        systemEvent.ObservedAtUtc);
+                if (suspended.Surface?.IsHiddenContract != true
+                    || !suspended.HiddenRequired)
+                {
+                    ReleaseSurfaceUnsafe();
+                    published = UpdateSnapshotUnsafe(
+                        ProductDesktopHostLifecycleStatus.Faulted,
+                        connected: false,
+                        ownedWindowCount: 0);
+                }
+                else
+                {
+                    published = UpdateSnapshotUnsafe(
+                        ProductDesktopHostLifecycleStatus
+                            .SuspendedSystemSurface,
+                        connected: true,
+                        ownedWindowCount: surfaces.Count,
+                        workspaceRevision: currentBatch?.WorkspaceRevision ?? 0,
+                        topologyGeneration: currentBatch?.TopologyGeneration ?? 0,
+                        renderedContainerCount: currentBatch?.ContainerCount ?? 0,
+                        readOnlyAccessibilityAvailable: true,
+                        passiveWindowContractAttested: false,
+                        lastSystemSurfaceEvent: systemEvent.Kind);
+                }
+            }
+            else if (snapshot.Status
+                    == ProductDesktopHostLifecycleStatus.SuspendedSystemSurface
+                && currentBatch is not null
+                && interactionSurface is not null
+                && interactionDevelopment.Snapshot.Surface is
+                { WindowRegistryGeneration: > 0 } hidden)
+            {
+                ProductDesktopInteractionDevelopmentSnapshot resumed =
+                    interactionDevelopment.TryResumePassive(
+                        CreateInteractionEvidence(
+                            currentBatch,
+                            hidden.WindowRegistryGeneration));
+                if (resumed.IsDevelopmentInteractionAvailable)
+                {
+                    published = UpdateSnapshotUnsafe(
+                        ProductDesktopHostLifecycleStatus.ReadyReadOnly,
+                        connected: true,
+                        ownedWindowCount: surfaces.Count,
+                        workspaceRevision: currentBatch.WorkspaceRevision,
+                        topologyGeneration: currentBatch.TopologyGeneration,
+                        renderedContainerCount: currentBatch.ContainerCount,
+                        readOnlyAccessibilityAvailable: true,
+                        passiveWindowContractAttested: true,
+                        lastSystemSurfaceEvent: systemEvent.Kind);
+                }
+            }
+        }
+
+        if (published is not null)
+        {
+            Publish(published);
+        }
+
+        return published ?? snapshot;
     }
 
     private ProductDesktopHostLifecycleSnapshot ApplyNewUpdateUnsafe(
@@ -538,7 +630,9 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         long topologyGeneration = 0,
         int renderedContainerCount = 0,
         bool readOnlyAccessibilityAvailable = false,
-        bool passiveWindowContractAttested = false)
+        bool passiveWindowContractAttested = false,
+        ProductDesktopInteractionSystemSurfaceEventKind?
+            lastSystemSurfaceEvent = null)
     {
         snapshot = new(
             status,
@@ -549,7 +643,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             topologyGeneration,
             renderedContainerCount,
             readOnlyAccessibilityAvailable,
-            passiveWindowContractAttested);
+            passiveWindowContractAttested,
+            lastSystemSurfaceEvent);
         return snapshot;
     }
 

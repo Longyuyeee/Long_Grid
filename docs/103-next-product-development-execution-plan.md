@@ -290,6 +290,8 @@ MVP 完成必须同时满足：
 
 ## 12. 下一切片建议
 
+> 2026-08-13 / Stage 118 更新：B6c1「系统表面事件与 Fail-Closed 桥」已完成代码切片。双 opt-in 路径新增可释放的公开系统状态观察器，把失焦、桌面 Shell 前台、D3D 全屏/演示、锁屏/会话、RDP、Explorer Shell 身份与电源变化映射为有限单调事件。危险或未知状态立即 Hidden；连续两个安全样本后仍须重新复核 Host/UIA/workspace/topology/registry 证据才能 Passive。无 Surface 的早期事件不制造 Fault，计时器/会话/WinUI 并发由单锁串行，shutdown 配对退订。没有全局 Hook、输入合成、Explorer 内部挂接、Explicit、Intent 或文件能力。下一切片 B6c2 才建立独立默认关闭的产品意图桥和人工会话门禁。详见 [Stage 118 审计](118-system-surface-event-fail-closed-bridge-audit.md)。
+
 > 2026-08-13 / Stage 117 更新：B6b「产品 Hidden/Passive Surface 生命周期」已完成代码切片。双 opt-in 路径先创建隐藏、空 Region 的产品自有 HWND，待所有窗口完成 registry 所有权注册并形成 Host/UIA/workspace/topology/registry 证明后，才通过产品 adapter 恢复 Region 并发布 Passive。暂停、证明失败、拓扑替换、紧急禁用与 shutdown 都先隐藏再 detach/注销/销毁；adapter 固定拒绝 Explicit 与陈旧 generation。Host-only 只读预览语义不变，正式 `WM_NCHITTEST` 继续 `HTTRANSPARENT`，文件/任务栏/插件权限仍为零。下一切片 B6c 只建立产品意图转接、失焦/系统表面事件来源与 Explicit 前人工会话门禁，不直接开放真实文件操作。详见 [Stage 117 审计](117-product-hidden-passive-surface-lifecycle-audit.md)。
 
 > 2026-08-13 / Stage 116 更新：B6a「受控开发态交互 Composition Root 基础」已完成代码切片。正式 App 现在同时评估 DesktopHost 与 Interaction 两个精确 opt-in，并让精确 emergency-disable 拥有最高优先级；双开关成立后只创建 Passive 开发控制器。失焦、Win+D、全屏、会话、RDP、Explorer 与 shutdown 统一进入 fail-closed 隐藏要求，只有完整 Host/UIA/Passive/generation 证明才可恢复；运行时紧急禁用不可逆。该切片刻意没有显式交互入口、没有构造产品 Surface adapter、没有改变正式 HWND 的 `HTTRANSPARENT`，也没有真实文件操作。下一切片 B6b 将在相同门禁后接入仅支持 Hidden/Passive 的产品 adapter 生命周期，先证明创建、暂停、恢复、紧急隐藏和销毁，再单独审计 Explicit 输入。详见 [Stage 116 审计](116-controlled-development-interaction-composition-root-audit.md)。

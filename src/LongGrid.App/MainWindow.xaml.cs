@@ -376,6 +376,17 @@ public sealed partial class MainWindow : Window
                 $"显示拓扑正在变化或不可验证 · 拓扑代次 {snapshot.TopologyGeneration}";
         }
         else if (snapshot.Status ==
+            ProductDesktopHostLifecycleStatus.SuspendedSystemSurface)
+        {
+            DesktopHostValue.Text = "宿主已安全隐藏";
+            DesktopHostDetail.Text =
+                "检测到桌面、全屏、会话、远程连接或 Explorer 状态变化；" +
+                "等待稳定复读后恢复只读方格";
+            AutomationProperties.SetItemStatus(
+                DesktopHostValue,
+                snapshot.Status.ToString());
+        }
+        else if (snapshot.Status ==
             ProductDesktopHostLifecycleStatus.AwaitingWorkspace)
         {
             DesktopHostValue.Text = "等待桌面方格";

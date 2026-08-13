@@ -88,6 +88,8 @@ $desktopInteractionCancellationCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionCancellationAdapter.cs'
 $desktopInteractionDevelopmentControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionDevelopmentController.cs'
+$desktopInteractionSystemSurfaceEventCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionSystemSurfaceEvent.cs'
 $desktopInteractionHitTestCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionHitTestAdapter.cs'
 $desktopInteractionSelectionCodePath = Join-Path $projectRoot `
@@ -102,6 +104,8 @@ $desktopHostPassiveSurfaceAdapterCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostPassiveSurfaceModeAdapter.cs'
 $desktopHostLifecycleControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostLifecycleController.cs'
+$desktopSystemSurfaceEventSourceCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopInteractionSystemSurfaceEventSource.cs'
 $desktopHostProjectionBatchCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostProjectionBatch.cs'
 $desktopHostProjectionUpdateCodePath = Join-Path $projectRoot `
@@ -308,6 +312,10 @@ function Test-SourceContract {
         -LiteralPath $desktopInteractionDevelopmentControllerCodePath `
         -Raw `
         -Encoding UTF8
+    $desktopInteractionSystemSurfaceEventCode = Get-Content `
+        -LiteralPath $desktopInteractionSystemSurfaceEventCodePath `
+        -Raw `
+        -Encoding UTF8
     $desktopInteractionHitTestCode = Get-Content `
         -LiteralPath $desktopInteractionHitTestCodePath `
         -Raw `
@@ -334,6 +342,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopHostLifecycleControllerCode = Get-Content `
         -LiteralPath $desktopHostLifecycleControllerCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopSystemSurfaceEventSourceCode = Get-Content `
+        -LiteralPath $desktopSystemSurfaceEventSourceCodePath `
         -Raw `
         -Encoding UTF8
     $desktopHostProjectionBatchCode = Get-Content `
@@ -1275,6 +1287,43 @@ function Test-SourceContract {
             'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
     ) `
         'B6b must create product HWNDs hidden behind both opt-ins, attach only after registry evidence, publish verified Passive, hide before detach/shutdown, reject Explicit and stale generations, forbid file operations, and keep WM_NCHITTEST transparent.'
+    Assert-Condition (
+        $desktopInteractionSystemSurfaceEventCode -match `
+            'ProductDesktopInteractionSystemSurfaceEventKind' -and
+        $desktopInteractionSystemSurfaceEventCode -match `
+            'RecoveryCandidate' -and
+        $desktopInteractionSystemSurfaceEventCode -match `
+            'ToCancellationSignal' -and
+        $desktopSystemSurfaceEventSourceCode -match `
+            'GetShellWindow' -and
+        $desktopSystemSurfaceEventSourceCode -match `
+            'GetForegroundWindow' -and
+        $desktopSystemSurfaceEventSourceCode -match `
+            'SHQueryUserNotificationState' -and
+        $desktopSystemSurfaceEventSourceCode -match `
+            'SessionSwitch' -and
+        $desktopSystemSurfaceEventSourceCode -match `
+            'PowerModeChanged' -and
+        $desktopSystemSurfaceEventSourceCode -match `
+            'StableSamplesRequired = 2' -and
+        $desktopSystemSurfaceEventSourceCode -match `
+            'SystemEvents\.SessionSwitch -=' -and
+        $desktopHostLifecycleControllerCode -match `
+            'ApplySystemSurfaceEvent' -and
+        $desktopHostLifecycleControllerCode -match `
+            'lastSystemSurfaceSequence' -and
+        $desktopHostLifecycleControllerCode -match `
+            'SuspendedSystemSurface' -and
+        $appCode -match `
+            'productDesktopSystemSurfaceEvents\.Start\(\)' -and
+        $appCode -match `
+            'productDesktopSystemSurfaceEvents\.Dispose\(\)' -and
+        -not ($desktopSystemSurfaceEventSourceCode -match `
+            'SetWindowsHookEx|SendInput|SetForegroundWindow|WorkerW|Progman|System\.IO') -and
+        -not ($appCode -match `
+            'ProductDesktopInteractionSurfaceModeTransaction|ProductDesktopInteractionHitTestAdapter|ProductDesktopInteractionIntentFactory')
+    ) `
+        'B6c1 must convert only finite public system observations into monotonic fail-closed Hidden/Passive lifecycle events, require stable recovery, release subscriptions, and keep Explicit/input/file operations disconnected.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and
