@@ -290,6 +290,8 @@ MVP 完成必须同时满足：
 
 ## 12. 下一切片建议
 
+> 2026-08-13 / Stage 120 更新：B6c3「隔离输入转发与人工证据门禁」已完成代码切片。第四重精确 forwarding opt-in 与独立人工会话确认只允许来源已证明、非注入、非自动重复、序号递增且 ActionId 未重放的 pointer/keyboard/assistive 归一化动作进入 B6c2 准备桥；近期 ID 记忆固定 64 项。系统事件、Surface/证据变化和 shutdown 同步失效转发与准备。App 不调用转发入口，适配器没有 Windows 输入源、Hook、Raw Input 或 SendInput，正式 HWND 继续穿透，Explicit 与文件权限仍为零。下一切片 B6c4 先在隔离原生窗口验证真实输入来源并执行 B6C3 人工矩阵，不直接开放正式 Explicit。详见 [Stage 120 审计](120-isolated-input-forwarding-manual-evidence-gate-audit.md)。
+
 > 2026-08-13 / Stage 119 更新：B6c2「产品 Intent 准备与人工会话门禁」已完成代码切片。新增 Intent bridge 精确开关与人工会话确认，二者必须在 Host/Interaction 双开关和 emergency-disable 之后同时成立。Bridge 只接受一秒内、明确确认、序号递增、唯一显示器/方格命中且目标未锁定的动作，复用 B1 Factory 形成绑定三类 generation 的 5 秒 Intent；bridge generation 使新动作、系统表面变化、Surface 替换、证据漂移、超时和 shutdown 后的准备失效。App 没有输入转送或消费调用，正式 HWND 继续穿透，adapter 继续拒绝 Explicit，文件权限为零。下一切片 B6c3 只建立隔离输入转送与人工证据，不直接开放 Explicit。详见 [Stage 119 审计](119-product-intent-preparation-manual-session-gate-audit.md)。
 
 > 2026-08-13 / Stage 118 更新：B6c1「系统表面事件与 Fail-Closed 桥」已完成代码切片。双 opt-in 路径新增可释放的公开系统状态观察器，把失焦、桌面 Shell 前台、D3D 全屏/演示、锁屏/会话、RDP、Explorer Shell 身份与电源变化映射为有限单调事件。危险或未知状态立即 Hidden；连续两个安全样本后仍须重新复核 Host/UIA/workspace/topology/registry 证据才能 Passive。无 Surface 的早期事件不制造 Fault，计时器/会话/WinUI 并发由单锁串行，shutdown 配对退订。没有全局 Hook、输入合成、Explorer 内部挂接、Explicit、Intent 或文件能力。下一切片 B6c2 才建立独立默认关闭的产品意图桥和人工会话门禁。详见 [Stage 118 审计](118-system-surface-event-fail-closed-bridge-audit.md)。

@@ -92,6 +92,8 @@ $desktopInteractionSystemSurfaceEventCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionSystemSurfaceEvent.cs'
 $desktopInteractionIntentBridgePolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionIntentBridgePolicy.cs'
+$desktopInteractionInputForwardingPolicyCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionInputForwardingPolicy.cs'
 $desktopInteractionHitTestCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionHitTestAdapter.cs'
 $desktopInteractionSelectionCodePath = Join-Path $projectRoot `
@@ -112,6 +114,10 @@ $desktopIntentPreparationBridgeCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionIntentPreparationBridge.cs'
 $desktopIntentSessionLauncherCodePath = Join-Path $projectRoot `
     'eng\Start-DesktopInteractionIntentSession.ps1'
+$desktopInputForwardingAdapterCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionInputForwardingAdapter.cs'
+$desktopInputForwardingSessionLauncherCodePath = Join-Path $projectRoot `
+    'eng\Start-DesktopInteractionInputForwardingSession.ps1'
 $desktopHostProjectionBatchCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostProjectionBatch.cs'
 $desktopHostProjectionUpdateCodePath = Join-Path $projectRoot `
@@ -326,6 +332,10 @@ function Test-SourceContract {
         -LiteralPath $desktopInteractionIntentBridgePolicyCodePath `
         -Raw `
         -Encoding UTF8
+    $desktopInteractionInputForwardingPolicyCode = Get-Content `
+        -LiteralPath $desktopInteractionInputForwardingPolicyCodePath `
+        -Raw `
+        -Encoding UTF8
     $desktopInteractionHitTestCode = Get-Content `
         -LiteralPath $desktopInteractionHitTestCodePath `
         -Raw `
@@ -364,6 +374,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopIntentSessionLauncherCode = Get-Content `
         -LiteralPath $desktopIntentSessionLauncherCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopInputForwardingAdapterCode = Get-Content `
+        -LiteralPath $desktopInputForwardingAdapterCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopInputForwardingSessionLauncherCode = Get-Content `
+        -LiteralPath $desktopInputForwardingSessionLauncherCodePath `
         -Raw `
         -Encoding UTF8
     $desktopHostProjectionBatchCode = Get-Content `
@@ -1277,7 +1295,7 @@ function Test-SourceContract {
         -not ($appCode -match `
             'ProductDesktopInteractionSurfaceModeTransaction|ProductDesktopInteractionHitTestAdapter|ProductDesktopInteractionIntentFactory') -and
         $appCode -match `
-            'productDesktopHostLifecycle\s*=\s*new\(\s*desktopHostFeature,\s*productDesktopInteraction,\s*productDesktopIntentPreparation\)' -and
+            'productDesktopHostLifecycle\s*=\s*new\(\s*desktopHostFeature,\s*productDesktopInteraction,\s*productDesktopIntentPreparation,\s*productDesktopInputForwarding\)' -and
         $desktopHostLifecycleControllerCode -match `
             'startHidden:\s*controlledSurfaceLifecycle' -and
         $desktopHostLifecycleControllerCode -match `
@@ -1389,6 +1407,56 @@ function Test-SourceContract {
             'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
     ) `
         'B6c2 must require exact third-stage and manual-session gates, accept only fresh confirmed monotonic unique hits, prepare but never consume intents, invalidate on lifecycle changes, and keep Explicit/input/file operations disconnected.'
+    Assert-Condition (
+        $desktopInteractionInputForwardingPolicyCode -match `
+            'LONGGRID_ENABLE_DESKTOP_INPUT_FORWARDING' -and
+        $desktopInteractionInputForwardingPolicyCode -match `
+            'LONGGRID_ACKNOWLEDGE_DESKTOP_INPUT_FORWARDING_SESSION' -and
+        $desktopInteractionInputForwardingPolicyCode -match `
+            'StringComparison\.Ordinal' -and
+        $desktopInputForwardingAdapterCode -match `
+            'RememberedActionCapacity\s*=\s*64' -and
+        $desktopInputForwardingAdapterCode -match 'SourceAttested' -and
+        $desktopInputForwardingAdapterCode -match 'IsInjected' -and
+        $desktopInputForwardingAdapterCode -match 'IsAutoRepeat' -and
+        $desktopInputForwardingAdapterCode -match `
+            'ProductDesktopInteractionIntentPreparationBridge' -and
+        $desktopInputForwardingAdapterCode -match `
+            'ExplicitUserActionConfirmed:\s*true' -and
+        $desktopInputForwardingAdapterCode -match `
+            'CapturesGlobalInput:\s*false' -and
+        $desktopInputForwardingAdapterCode -match `
+            'SendsSyntheticInput:\s*false' -and
+        $desktopInputForwardingAdapterCode -match `
+            'ExplicitInteractionEntered:\s*false' -and
+        $desktopInputForwardingAdapterCode -match `
+            'RealFileOperationsAllowed:\s*false' -and
+        $desktopHostLifecycleControllerCode -match 'ForwardInteractionInput' -and
+        $desktopHostLifecycleControllerCode -match `
+            'inputForwarding\.Invalidate' -and
+        $desktopHostLifecycleControllerCode -match `
+            'inputForwarding\.Complete' -and
+        $appCode -match `
+            'ProductDesktopInteractionInputForwardingPolicy\.Evaluate' -and
+        $appCode -match `
+            'ProductDesktopInteractionInputForwardingAdapter' -and
+        -not ($appCode -match 'ForwardInteractionInput') -and
+        $desktopInputForwardingSessionLauncherCode -match `
+            'AcknowledgeIsolatedSource' -and
+        $desktopInputForwardingSessionLauncherCode -match `
+            'forwardsNormalizedInputOnly\s*=\s*\$true' -and
+        $desktopInputForwardingSessionLauncherCode -match `
+            'capturesGlobalInput\s*=\s*\$false' -and
+        $desktopInputForwardingSessionLauncherCode -match `
+            'entersExplicitInteraction\s*=\s*\$false' -and
+        -not ($desktopInputForwardingAdapterCode -match `
+            'SetWindowsHookEx|SendInput|GetAsyncKeyState|RegisterRawInputDevices|ProductDesktopInteractionAdmissionController|ProductDesktopInteractionSurfaceModeTransaction|ApplyExplicit|System\.IO|File\.|Directory\.|IFileOperation') -and
+        $desktopHostPassiveSurfaceAdapterCode -match `
+            'ApplyExplicit[\s\S]*return false' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
+    ) `
+        'B6c3 must require exact fourth-stage and manual-session gates, forward only attested non-injected non-repeat normalized actions once into intent preparation, remain bounded, and keep global capture, synthetic input, Explicit and file operations disconnected.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and

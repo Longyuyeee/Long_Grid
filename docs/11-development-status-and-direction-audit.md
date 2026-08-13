@@ -486,3 +486,9 @@ PR #154 的第二次干净 runner 验证已通过还原、格式化、构建和�
 阶段 A 的 A1 已完成：App composition root 唯一持有 `ProductDesktopHostLifecycleController`，Core 以 `LONGGRID_ENABLE_DESKTOP_HOST=1` 作为严格开发 opt-in，默认与畸形值均保持 `DisabledBySafetyPolicy`。控制中心区分“安全策略关闭”和“等待宿主”，Catalog 后续刷新不会覆盖 DesktopHost 状态；关闭链退订并释放控制器。
 
 本切片只建立匿名有限状态与生命周期所有权。无论默认或 opt-in，当前都不构造 `ProductDesktopHostWindowBridge`、Windows inspector、HWND 或方格窗口，文件写入、移动、任务栏和插件权限保持零新增。Release 0 warning/0 error、647/647 测试及 91.22%/81.43% 覆盖率门禁通过；源码 UIA 合同通过，应用可启动关闭且零残留，但当前桌面会话的 live UIA Control View 在状态断言前持续出现 WinUI COM tree rebuild 异常，因此 live 状态读数保留 Conditional，不误报 Pass。下一切片是 A2 单显示器只读方格渲染。详见[Stage 106 审计](106-desktop-host-lifecycle-feature-flag-audit.md)。
+
+## 28. 2026-08-13 Stage 120 隔离输入转发增量审计
+
+B6c3 已把 B6c2 Intent 准备桥包在第四重默认关闭的输入转发边界之后。只有来源已证明、非注入、非自动重复、序号递增且 ActionId 未重放的 pointer/keyboard/assistive 归一化动作才能触发一次准备；近期 ID 保留上限为 64。生命周期变化和 shutdown 同步失效转发与准备状态。
+
+当前 App 只构造边界，没有实际 Windows 输入源，也不调用转发入口。正式 HWND 继续 `HTTRANSPARENT`，产品 adapter 继续拒绝 Explicit，文件、任务栏、Widget 与插件权限保持不变。B6c3 人工矩阵仍为 PendingManualEvidence；下一代码切片是 B6c4 隔离原生输入来源探针，而不是直接开放正式桌面输入。详见[Stage 120 审计](120-isolated-input-forwarding-manual-evidence-gate-audit.md)。

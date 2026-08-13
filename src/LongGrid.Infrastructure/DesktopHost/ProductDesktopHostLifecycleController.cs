@@ -185,6 +185,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         interactionDevelopment;
     private readonly ProductDesktopInteractionIntentPreparationBridge?
         intentPreparation;
+    private readonly ProductDesktopInteractionInputForwardingAdapter?
+        inputForwarding;
     private readonly Guid hostInstanceId = Guid.NewGuid();
     private ProductDesktopHostLifecycleSnapshot snapshot;
     private readonly List<IProductDesktopHostReadOnlySurface> surfaces = [];
@@ -218,6 +220,19 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         ProductDesktopInteractionIntentPreparationBridge? intentPreparation)
         : this(
             featureDecision,
+            interactionDevelopment,
+            intentPreparation,
+            inputForwarding: null)
+    {
+    }
+
+    public ProductDesktopHostLifecycleController(
+        ProductDesktopHostFeatureDecision featureDecision,
+        ProductDesktopInteractionDevelopmentController? interactionDevelopment,
+        ProductDesktopInteractionIntentPreparationBridge? intentPreparation,
+        ProductDesktopInteractionInputForwardingAdapter? inputForwarding)
+        : this(
+            featureDecision,
             featureDecision?.IsEnabled == true
                 ? new WindowsProductDesktopHostReadOnlySurfaceFactory()
                 : null,
@@ -225,7 +240,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                 ? new WindowsProductDesktopHostWindowInspector()
                 : null,
             interactionDevelopment,
-            intentPreparation)
+            intentPreparation,
+            inputForwarding)
     {
     }
 
@@ -236,7 +252,9 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         ProductDesktopInteractionDevelopmentController?
             interactionDevelopment = null,
         ProductDesktopInteractionIntentPreparationBridge?
-            intentPreparation = null)
+            intentPreparation = null,
+        ProductDesktopInteractionInputForwardingAdapter?
+            inputForwarding = null)
     {
         ArgumentNullException.ThrowIfNull(featureDecision);
         enabled = featureDecision.IsEnabled;
@@ -249,6 +267,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         this.surfaceFactory = surfaceFactory;
         this.interactionDevelopment = interactionDevelopment;
         this.intentPreparation = intentPreparation;
+        this.inputForwarding = inputForwarding;
         windowBridge = windowInspector is null
             ? null
             : new(windowInspector);
@@ -384,7 +403,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             lastSystemSurfaceSequence = systemEvent.Sequence;
             if (systemEvent.RequiresHiddenSurface)
             {
-                _ = intentPreparation?.Invalidate();
+                InvalidatePreparedInputUnsafe();
                 if (interactionSurface is null)
                 {
                     return snapshot;
@@ -502,6 +521,56 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         }
     }
 
+    public ProductDesktopInteractionInputForwardingResult
+        ForwardInteractionInput(
+            ProductDesktopInteractionForwardedInput input,
+            DateTimeOffset nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (inputForwarding is null)
+            {
+                return new(
+                    new(
+                        ProductDesktopInteractionInputForwardingStatus
+                            .DisabledBySafetyPolicy,
+                        0,
+                        0,
+                        PreparedIntentAvailable: false,
+                        CapturesGlobalInput: false,
+                        SendsSyntheticInput: false,
+                        ExplicitInteractionEntered: false,
+                        RealFileOperationsAllowed: false),
+                    PreparedIntent: null);
+            }
+
+            if (snapshot.Status
+                    != ProductDesktopHostLifecycleStatus.ReadyReadOnly
+                || currentBatch is null
+                || interactionSurface is null
+                || interactionDevelopment?.Snapshot is not
+                { IsDevelopmentInteractionAvailable: true, Surface: not null }
+                    interaction)
+            {
+                ProductDesktopInteractionInputForwardingSnapshot awaiting =
+                    inputForwarding.AwaitPassiveSurface();
+                return new(awaiting, PreparedIntent: null);
+            }
+
+            ProductDesktopInteractionEvidence evidence =
+                CreateInteractionEvidence(
+                    currentBatch,
+                    interaction.Surface.WindowRegistryGeneration);
+            return inputForwarding.Forward(
+                input,
+                currentBatch,
+                evidence,
+                nowUtc);
+        }
+    }
+
     private ProductDesktopHostLifecycleSnapshot ApplyNewUpdateUnsafe(
         ProductDesktopHostProjectionUpdate update)
     {
@@ -537,7 +606,14 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             }
 
             disposed = true;
-            _ = intentPreparation?.Complete();
+            if (inputForwarding?.IsEnabled == true)
+            {
+                _ = inputForwarding.Complete();
+            }
+            else
+            {
+                _ = intentPreparation?.Complete();
+            }
             ReleaseSurfaceUnsafe();
             published = UpdateSnapshotUnsafe(
                 ProductDesktopHostLifecycleStatus.Completed,
@@ -664,7 +740,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
 
     private void ReleaseSurfaceUnsafe()
     {
-        _ = intentPreparation?.Invalidate();
+        InvalidatePreparedInputUnsafe();
         if (interactionSurface is not null)
         {
             _ = interactionDevelopment?.DetachPassiveSurface(
@@ -691,6 +767,18 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         registrations.Clear();
         currentBatch = null;
         windowBridge?.Disconnect(hostInstanceId);
+    }
+
+    private void InvalidatePreparedInputUnsafe()
+    {
+        if (inputForwarding?.IsEnabled == true)
+        {
+            _ = inputForwarding.Invalidate();
+        }
+        else
+        {
+            _ = intentPreparation?.Invalidate();
+        }
     }
 
     private ProductDesktopHostLifecycleSnapshot UpdateSnapshotUnsafe(

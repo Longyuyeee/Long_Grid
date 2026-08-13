@@ -271,3 +271,5 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-08-13 B6c1 系统表面安全桥补充：双 opt-in 产品 Surface 现在只通过公开只读 Windows 状态感知失焦、桌面显示、全屏、会话/RDP、Explorer Shell 身份和电源变化；危险或未知状态立即 Hidden，连续两个安全样本且 Host/UIA/三类 generation 复核通过后才恢复 Passive。无 Surface 的启动事件不制造 Fault，计时器与系统订阅在 shutdown 前释放。正式 HWND 仍 `HTTRANSPARENT`，Explicit、Intent、文件操作、任务栏与插件权限保持关闭；真实 Win+D/全屏/会话矩阵仍 Pending。
 
 2026-08-13 B6c2 Intent 准备门禁补充：产品桥在 Host/Interaction 之外新增精确 bridge opt-in 与人工会话确认，只把一秒内、逐动作确认、单调序号、唯一显示器/未锁定方格命中转成最长 5 秒且绑定三类 generation 的准备态 Intent。新动作、系统信号、Surface/证据变化、超时和关闭均使其失效。App 没有输入转送或消费入口，正式 HWND/adapter 继续拒绝 Explicit，文件、任务栏与插件权限不变；下一阶段先做隔离输入证据。
+
+2026-08-13 B6c3 隔离输入转发补充：第四重精确 forwarding opt-in 与独立会话确认只允许来源已证明、非注入、非自动重复且未重放的 pointer/keyboard/assistive activation 进入 B6c2 准备桥；近期 ActionId 记忆固定 64 项，系统事件、Surface/证据变化与关闭同步失效。适配器不拥有 Windows 输入源，正式 HWND 继续穿透且 Explicit/文件权限保持关闭；下一阶段用隔离原生窗口验证真实来源并完成 B6C3 人工矩阵。

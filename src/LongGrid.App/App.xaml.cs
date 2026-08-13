@@ -79,13 +79,28 @@ public partial class App : Application
         var productDesktopIntentPreparation =
             new ProductDesktopInteractionIntentPreparationBridge(
                 intentBridgeFeature);
+        ProductDesktopInteractionInputForwardingFeatureDecision
+            inputForwardingFeature =
+                ProductDesktopInteractionInputForwardingPolicy.Evaluate(
+                    intentBridgeFeature,
+                    Environment.GetEnvironmentVariable(
+                        ProductDesktopInteractionInputForwardingPolicy
+                            .EnvironmentVariableName),
+                    Environment.GetEnvironmentVariable(
+                        ProductDesktopInteractionInputForwardingPolicy
+                            .ManualSessionEnvironmentVariableName));
+        var productDesktopInputForwarding =
+            new ProductDesktopInteractionInputForwardingAdapter(
+                inputForwardingFeature,
+                productDesktopIntentPreparation);
         productDesktopSystemSurfaceEvents = interactionFeature.IsEnabled
             ? new()
             : null;
         productDesktopHostLifecycle = new(
             desktopHostFeature,
             productDesktopInteraction,
-            productDesktopIntentPreparation);
+            productDesktopIntentPreparation,
+            productDesktopInputForwarding);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)

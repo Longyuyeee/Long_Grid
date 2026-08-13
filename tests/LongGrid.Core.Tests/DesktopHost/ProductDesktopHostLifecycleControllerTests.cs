@@ -576,6 +576,80 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
+    public async Task IsolatedInputForwardingRequiresReadyPassiveAndRevokesOnSystemEvent()
+    {
+        var factory = new RecordingSurfaceFactory();
+        ProductDesktopHostFeatureDecision host =
+            ProductDesktopHostFeaturePolicy.Evaluate("1");
+        ProductDesktopInteractionFeatureDecision interactionFeature =
+            ProductDesktopInteractionFeaturePolicy.Evaluate(host, "1");
+        var interaction = new ProductDesktopInteractionDevelopmentController(
+            interactionFeature);
+        ProductDesktopInteractionIntentBridgeFeatureDecision bridgeFeature =
+            ProductDesktopInteractionIntentBridgePolicy.Evaluate(
+                interactionFeature,
+                "1",
+                "1");
+        var bridge = new ProductDesktopInteractionIntentPreparationBridge(
+            bridgeFeature);
+        var forwarding = new ProductDesktopInteractionInputForwardingAdapter(
+            ProductDesktopInteractionInputForwardingPolicy.Evaluate(
+                bridgeFeature,
+                "1",
+                "1"),
+            bridge);
+        var controller = new ProductDesktopHostLifecycleController(
+            host,
+            factory,
+            new FactoryBackedInspector(factory),
+            interaction,
+            bridge,
+            forwarding);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var input = new ProductDesktopInteractionForwardedInput(
+            Guid.NewGuid(),
+            1,
+            now,
+            ProductDesktopInteractionForwardedInputKind.PrimaryPointerPress,
+            "display-primary",
+            ClientX: 30,
+            ClientY: 40,
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: false);
+
+        ProductDesktopInteractionInputForwardingResult before =
+            controller.ForwardInteractionInput(input, now);
+        _ = controller.ApplyProjectionBatch(CreateBatch());
+        ProductDesktopInteractionInputForwardingResult prepared =
+            controller.ForwardInteractionInput(input, now);
+        _ = controller.ApplySystemSurfaceEvent(new(
+            ProductDesktopInteractionSystemSurfaceEventKind.FocusLost,
+            1,
+            now.AddMilliseconds(100)));
+
+        Assert.Equal(
+            ProductDesktopInteractionInputForwardingStatus
+                .AwaitingPassiveSurface,
+            before.Snapshot.Status);
+        Assert.True(prepared.IsPrepared);
+        Assert.False(prepared.Snapshot.CapturesGlobalInput);
+        Assert.False(prepared.Snapshot.ExplicitInteractionEntered);
+        Assert.Equal(
+            ProductDesktopInteractionInputForwardingStatus.Invalidated,
+            forwarding.Snapshot.Status);
+        Assert.False(bridge.Snapshot.PreparedIntentAvailable);
+
+        await controller.DisposeAsync();
+        Assert.Equal(
+            ProductDesktopInteractionInputForwardingStatus.Completed,
+            forwarding.Snapshot.Status);
+        Assert.Equal(
+            ProductDesktopInteractionIntentPreparationStatus.Completed,
+            bridge.Snapshot.Status);
+    }
+
+    [Fact]
     public async Task StaleAndInvalidSystemSurfaceEventsCannotChangeLifecycle()
     {
         var factory = new RecordingSurfaceFactory();
