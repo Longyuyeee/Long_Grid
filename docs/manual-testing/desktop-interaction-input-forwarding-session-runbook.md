@@ -40,9 +40,9 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 
 该窗口不具备原生注入检测能力；普通 HWND 消息不能证明物理来源。B6C3-04 中显式 `IsInjected=true` 的拒绝由 adapter 自动化合同覆盖，人工会话不得声称验证了注入检测。
 
-### B6c6 系统表面会话
+### B6c7 系统表面与只读显示拓扑会话
 
-B6C3-05、B6C3-06 和 B6C3-07 的 Explorer 子项使用独立启动器。它不主动改变系统状态；操作员必须在受控环境中准备恢复通道，并且每次只执行一个场景：
+B6C3-05、B6C3-06 和 B6C3-07 使用独立启动器。它只读取公开系统状态与权威显示拓扑，不主动改变两者；操作员必须在受控环境中准备恢复通道，并且每次只执行一个场景：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
@@ -50,14 +50,14 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -Scenario B6C3-05 -OperatorId O1 `
   -AcknowledgeControlledEnvironment `
   -AcknowledgeSystemStateChange `
-  -AcknowledgeNoDisplayTopologyEvidence `
+  -AcknowledgeReadOnlyDisplayTopologyObservation `
   -AcknowledgeNoExplicitInteraction `
   -AcknowledgeRecoveryPlan
 ```
 
-先点击窗口或按 Enter/Space，确认显示 `Prepared`；再执行当前场景。危险事件后来源窗口应隐藏，`PreparedIntentInvalidationCount` 应增加；连续两个安全样本后窗口只以非激活方式恢复，必须重新操作才能产生新 Prepared。关闭窗口后确认无残留进程和输入层。
+先等待权威显示拓扑基线完成、窗口以非激活方式出现，再点击窗口或按 Enter/Space，确认显示 `Prepared`；随后执行当前场景。危险系统事件、显示拓扑指纹变化或非权威读取都会让来源窗口隐藏并失效 Prepared。只有系统表面安全且权威拓扑经过静默期与两个一致样本后，窗口才以非激活方式恢复；必须重新操作才能产生新 Prepared。关闭窗口后确认无残留进程和输入层。
 
-`B6C3-07-EXPLORER` 只验证 Explorer Shell 身份变化，不验证显示器 generation。显示热插拔、旋转、DPI/WorkArea 和拓扑代次继续使用 Issue #20/A5 手册，不得在本会话记为 Pass。
+`B6C3-07` 分别验证 Explorer Shell 身份变化和显示器 generation 变化。启动器不会制造热插拔、旋转、DPI/WorkArea 变化；操作员只能按 Issue #20/A5 的受控步骤制造单一变化，并核对 `DisplayTopologyGenerationChangeCount`、失效、隐藏和稳定恢复。程序输出仍固定为 `PendingManualEvidence`，不能据计数自动记为 Pass。
 
 ## 记录规则
 

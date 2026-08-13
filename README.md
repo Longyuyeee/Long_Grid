@@ -101,6 +101,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格产品 Hidden/Passive Surface 生命周期审计](docs/117-product-hidden-passive-surface-lifecycle-audit.md)
 - [Long方格系统表面事件与 Fail-Closed 桥审计](docs/118-system-surface-event-fail-closed-bridge-audit.md)
 - [Long方格产品 Intent 准备与人工会话门禁审计](docs/119-product-intent-preparation-manual-session-gate-audit.md)
+- [Long方格系统表面与显示拓扑联合失效会话审计](docs/124-system-surface-display-topology-joint-session-audit.md)
 - [Long方格正式容器创建与重命名提交审计](docs/54-container-create-rename-commit-audit.md)
 - [Long方格正式容器锁定与折叠提交审计](docs/55-container-lock-collapse-commit-audit.md)
 - [Long方格正式容器受限外观提交审计](docs/56-container-finite-appearance-commit-audit.md)
@@ -148,7 +149,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6c6 已增加独立系统表面人工会话：probe 自有来源在失焦、Win+D/桌面显示、全屏、会话/RDP 或 Explorer 身份变化时立即失效 Prepared 并隐藏，连续两个安全样本后只以非激活 AwaitingPassiveSurface 恢复。它不启动正式 App、不改变系统状态、不进入 Explicit 或文件操作，也不自动写 Pass；B6C3-07 只覆盖 Explorer 子项，显示拓扑 generation 仍未接入。下一阶段 B6c7 执行来源与系统表面真人矩阵，并单独审计只读 topology generation。A5、B6c2–B6c6 真实会话结果继续 PendingManualEvidence；任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6c7 已把独立系统表面人工会话与权威只读显示拓扑采样合并：probe 自有来源在失焦、Win+D/桌面显示、全屏、会话/RDP、Explorer 身份变化、拓扑指纹变化或非权威读取时立即失效 Prepared 并隐藏；只有系统表面安全且拓扑经过静默期与两个一致样本后，才以非激活 AwaitingPassiveSurface 恢复。它不启动正式 App、不改变系统或显示配置、不进入 Explicit 或文件操作，也不自动写 Pass。下一阶段执行 B6C3 真人矩阵并复核匿名证据，再决定是否进入正式 App 输入接线。A5、B6c2–B6c7 真实会话结果继续 PendingManualEvidence；任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 

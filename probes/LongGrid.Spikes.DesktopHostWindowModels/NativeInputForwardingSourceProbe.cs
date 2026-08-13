@@ -79,46 +79,70 @@ internal static class NativeInputForwardingSourceProbe
         int unsafeSystemEvents = 0;
         int preparedIntentsInvalidated = 0;
         int recoveryCandidates = 0;
+        int topologyGenerationChanges = 0;
+        int topologyUnavailableEvents = 0;
+        int topologyRecoveryCandidates = 0;
         long sequence = 0;
+        var safetyGate = new object();
+        bool systemSurfaceSafe = true;
+        bool displayTopologySafe = !observeSystemSurfaces;
         NativeInputForwardingProbeWindow? host = null;
         WindowsProductDesktopInteractionSystemSurfaceEventSource?
             systemSurfaceSource = null;
+        ReadOnlyDisplayTopologyGenerationObserver? topologyObserver = null;
         using (host = NativeInputForwardingProbeWindow.Create(
             (kind, x, y, autoRepeat) =>
             {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
-                ProductDesktopInteractionInputForwardingResult result =
-                    forwarding.Forward(
-                        new(
-                            Guid.NewGuid(),
-                            Interlocked.Increment(ref sequence),
-                            now,
+                lock (safetyGate)
+                {
+                    int currentObserved = Interlocked.Increment(ref observed);
+                    if (!systemSurfaceSafe || !displayTopologySafe)
+                    {
+                        ProductDesktopInteractionInputForwardingSnapshot blocked =
+                            forwarding.Invalidate();
+                        _ = Interlocked.Increment(ref rejected);
+                        host?.UpdateStatus(
                             kind,
-                            "display-probe",
-                            x,
-                            y,
-                            SourceAttested: true,
-                            IsInjected: false,
-                            IsAutoRepeat: autoRepeat),
-                        batch,
-                        evidence,
-                        now);
-                int currentObserved = Interlocked.Increment(ref observed);
-                if (result.IsPrepared)
-                {
-                    _ = Interlocked.Increment(ref prepared);
-                }
-                else
-                {
-                    _ = Interlocked.Increment(ref rejected);
-                }
+                            blocked.Status,
+                            currentObserved,
+                            prepared,
+                            rejected);
+                        return;
+                    }
 
-                host?.UpdateStatus(
-                    kind,
-                    result.Snapshot.Status,
-                    currentObserved,
-                    prepared,
-                    rejected);
+                    ProductDesktopInteractionInputForwardingResult result =
+                        forwarding.Forward(
+                            new(
+                                Guid.NewGuid(),
+                                Interlocked.Increment(ref sequence),
+                                now,
+                                kind,
+                                "display-probe",
+                                x,
+                                y,
+                                SourceAttested: true,
+                                IsInjected: false,
+                                IsAutoRepeat: autoRepeat),
+                            batch,
+                            evidence,
+                            now);
+                    if (result.IsPrepared)
+                    {
+                        _ = Interlocked.Increment(ref prepared);
+                    }
+                    else
+                    {
+                        _ = Interlocked.Increment(ref rejected);
+                    }
+
+                    host?.UpdateStatus(
+                        kind,
+                        result.Snapshot.Status,
+                        currentObserved,
+                        prepared,
+                        rejected);
+                }
             },
             interactive: true,
             focusLost: observeSystemSurfaces
@@ -140,54 +164,64 @@ internal static class NativeInputForwardingSourceProbe
                             return;
                         }
 
-                        ProductDesktopInteractionInputForwardingSnapshot
-                            snapshot;
-                        bool invalidatedPrepared = false;
-                        if (systemEvent.Kind
-                            == ProductDesktopInteractionSystemSurfaceEventKind
-                                .RecoveryCandidate)
+                        lock (safetyGate)
                         {
-                            _ = Interlocked.Increment(ref recoveryCandidates);
-                            snapshot = forwarding.AwaitPassiveSurface();
-                        }
-                        else
-                        {
-                            invalidatedPrepared =
-                                forwarding.Snapshot.PreparedIntentAvailable;
-                            snapshot = forwarding.Invalidate();
-                            _ = Interlocked.Increment(ref unsafeSystemEvents);
-                            if (invalidatedPrepared)
-                            {
-                                _ = Interlocked.Increment(
-                                    ref preparedIntentsInvalidated);
-                            }
-                        }
-
-                        host.UpdateSystemSurfaceStatus(
-                            systemEvent.Kind,
-                            snapshot.Status,
-                            unsafeSystemEvents,
-                            preparedIntentsInvalidated,
-                            recoveryCandidates);
-                        host.ApplySystemSurfaceVisibility(
-                            systemEvent.Kind
+                            ProductDesktopInteractionInputForwardingSnapshot
+                                snapshot;
+                            if (systemEvent.Kind
                                 == ProductDesktopInteractionSystemSurfaceEventKind
-                                    .RecoveryCandidate);
+                                    .RecoveryCandidate)
+                            {
+                                systemSurfaceSafe = true;
+                                _ = Interlocked.Increment(ref recoveryCandidates);
+                                snapshot = displayTopologySafe
+                                    ? forwarding.AwaitPassiveSurface()
+                                    : forwarding.Snapshot;
+                            }
+                            else
+                            {
+                                systemSurfaceSafe = false;
+                                bool invalidatedPrepared = forwarding.Snapshot
+                                    .PreparedIntentAvailable;
+                                snapshot = forwarding.Invalidate();
+                                _ = Interlocked.Increment(ref unsafeSystemEvents);
+                                if (invalidatedPrepared)
+                                {
+                                    _ = Interlocked.Increment(
+                                        ref preparedIntentsInvalidated);
+                                }
+                            }
+
+                            host.UpdateSystemSurfaceStatus(
+                                systemEvent.Kind,
+                                snapshot.Status,
+                                unsafeSystemEvents,
+                                preparedIntentsInvalidated,
+                                recoveryCandidates);
+                            host.ApplySystemSurfaceVisibility(
+                                systemSurfaceSafe && displayTopologySafe);
+                        }
                     };
                     systemSurfaceSource.SurfaceChanged += surfaceChanged;
                     systemSurfaceSource.Start();
+
+                    topologyObserver = new(
+                        ProductDisplayTopologyReader.CreateForCurrentSession());
+                    topologyObserver.Changed += OnTopologyChanged;
+                    host.ApplySystemSurfaceVisibility(recovered: false);
+                    topologyObserver.Start();
                 }
 
                 Console.WriteLine(
                     observeSystemSurfaces
-                        ? "B6c6 probe-owned manual system-surface session"
+                        ? "B6c7 probe-owned manual system-surface and display-topology session"
                         : "B6c5 probe-owned manual input source session");
                 Console.WriteLine(
                     "Click the visible window, press Enter/Space, or invoke it with UI Automation/Narrator. Press Escape or close it to destroy the source.");
                 if (observeSystemSurfaces)
                 {
                     Console.WriteLine(
-                        "After preparing once, perform only the acknowledged focus/Win+D/full-screen/session/RDP/Explorer scenario and verify invalidation before recovery.");
+                        "Wait for an authoritative topology baseline. After preparing once, perform only the acknowledged focus/Win+D/full-screen/session/RDP/Explorer/display-topology scenario and verify invalidation before recovery.");
                 }
 
                 Console.WriteLine(
@@ -196,6 +230,13 @@ internal static class NativeInputForwardingSourceProbe
             }
             finally
             {
+                if (topologyObserver is not null)
+                {
+                    topologyObserver.Changed -= OnTopologyChanged;
+                    topologyObserver.Dispose();
+                    topologyObserver = null;
+                }
+
                 if (systemSurfaceSource is not null)
                 {
                     systemSurfaceSource.SurfaceChanged -= surfaceChanged;
@@ -214,13 +255,76 @@ internal static class NativeInputForwardingSourceProbe
                 $"PreparedIntentInvalidationCount: {preparedIntentsInvalidated}");
             Console.WriteLine($"RecoveryCandidateCount: {recoveryCandidates}");
             Console.WriteLine(
+                $"DisplayTopologyGenerationChangeCount: {topologyGenerationChanges}");
+            Console.WriteLine(
+                $"DisplayTopologyUnavailableCount: {topologyUnavailableEvents}");
+            Console.WriteLine(
+                $"DisplayTopologyRecoveryCandidateCount: {topologyRecoveryCandidates}");
+            Console.WriteLine(
                 $"ProbeOwnedWindowDestroyed: {!NativeMethods.IsWindow(host.Window)}");
             Console.WriteLine("PhysicalDeviceInputAutomaticallyVerified: false");
             Console.WriteLine("NativeInjectionDetection: false");
-            Console.WriteLine("DisplayTopologyGenerationObserved: false");
+            Console.WriteLine(
+                $"DisplayTopologyGenerationObserved: {topologyGenerationChanges > 0}");
             Console.WriteLine("DesktopFilesReadOrChanged: false");
             Console.WriteLine("ExplicitInteractionEntered: false");
             return exitCode;
+        }
+
+        void OnTopologyChanged(
+            object? _,
+            ReadOnlyDisplayTopologyObservation topology)
+        {
+            lock (safetyGate)
+            {
+                ProductDesktopInteractionInputForwardingSnapshot snapshot;
+                switch (topology.Kind)
+                {
+                    case ReadOnlyDisplayTopologyObservationKind.BaselineReady:
+                        displayTopologySafe = true;
+                        snapshot = systemSurfaceSafe
+                            ? forwarding.AwaitPassiveSurface()
+                            : forwarding.Snapshot;
+                        break;
+                    case ReadOnlyDisplayTopologyObservationKind.Stabilized:
+                        displayTopologySafe = true;
+                        _ = Interlocked.Increment(
+                            ref topologyRecoveryCandidates);
+                        snapshot = systemSurfaceSafe
+                            ? forwarding.AwaitPassiveSurface()
+                            : forwarding.Snapshot;
+                        break;
+                    case ReadOnlyDisplayTopologyObservationKind.GenerationChanged:
+                        displayTopologySafe = false;
+                        _ = Interlocked.Increment(ref topologyGenerationChanges);
+                        CountPreparedInvalidation();
+                        snapshot = forwarding.Invalidate();
+                        break;
+                    default:
+                        displayTopologySafe = false;
+                        _ = Interlocked.Increment(ref topologyUnavailableEvents);
+                        CountPreparedInvalidation();
+                        snapshot = forwarding.Invalidate();
+                        break;
+                }
+
+                host?.UpdateDisplayTopologyStatus(
+                    topology,
+                    snapshot.Status,
+                    topologyGenerationChanges,
+                    topologyUnavailableEvents,
+                    topologyRecoveryCandidates);
+                host?.ApplySystemSurfaceVisibility(
+                    systemSurfaceSafe && displayTopologySafe);
+            }
+        }
+
+        void CountPreparedInvalidation()
+        {
+            if (forwarding.Snapshot.PreparedIntentAvailable)
+            {
+                _ = Interlocked.Increment(ref preparedIntentsInvalidated);
+            }
         }
     }
 
@@ -698,6 +802,21 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
         {
             _ = NativeMethods.UpdateWindow(Window);
         }
+    }
+
+    internal void UpdateDisplayTopologyStatus(
+        ReadOnlyDisplayTopologyObservation topology,
+        ProductDesktopInteractionInputForwardingStatus result,
+        int generationChanges,
+        int unavailableEvents,
+        int recoveryCandidates)
+    {
+        lock (statusGate)
+        {
+            status = $"Topology: {topology.Kind} generation {topology.Generation} -> {result}   Changed {generationChanges} / Unavailable {unavailableEvents} / Recovery {recoveryCandidates}";
+        }
+
+        _ = NativeMethods.InvalidateRect(Window, nint.Zero, erase: true);
     }
 
     private nint HandleMessage(uint message, nint word, nint data)
