@@ -12,6 +12,8 @@
 
 > 2026-08-14 最新增量：E1/M1 已由 PR #180 完成；E2a 已实现 Prepared Intent 原子消费、Passive 即时复读、匿名项目选择身份和生命周期取消，详见 [Stage 131](131-atomic-intent-consumption-audit.md)。正式 HWND pointer/keyboard/UIA 来源仍待 E2b，文件操作和全部外部证据门禁不变。本文其余 2026-08-13 内容保留为历史快照。
 
+> 2026-08-14 收尾复审：当前主线、GitHub/CI、实现缺口、计划偏移、风险优先级和 E2b1 → E2b2 → M3/M4-ready 唯一顺序已集中到 [Stage 133](133-current-development-status-and-closeout-audit.md)。本文件下方内容继续作为历史演进记录，不再单独决定当前状态。
+
 ## 0A. 2026-08-13 权威收尾快照
 
 - `main@37e902c`（PR #173）CI 通过：873/873 测试，行覆盖率 90.49%，分支覆盖率 80.35%；
