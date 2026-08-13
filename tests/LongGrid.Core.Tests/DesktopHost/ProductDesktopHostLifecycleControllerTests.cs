@@ -650,6 +650,121 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
+    public async Task PreparedInputIsConsumedOnceIntoExplicitSelectionAndCancelled()
+    {
+        var factory = new RecordingSurfaceFactory();
+        ProductDesktopHostFeatureDecision host =
+            ProductDesktopHostFeaturePolicy.Evaluate("1");
+        ProductDesktopInteractionFeatureDecision interactionFeature =
+            ProductDesktopInteractionFeaturePolicy.Evaluate(host, "1");
+        var interaction = new ProductDesktopInteractionDevelopmentController(
+            interactionFeature);
+        ProductDesktopInteractionIntentBridgeFeatureDecision bridgeFeature =
+            ProductDesktopInteractionIntentBridgePolicy.Evaluate(
+                interactionFeature,
+                "1",
+                "1");
+        var bridge = new ProductDesktopInteractionIntentPreparationBridge(
+            bridgeFeature);
+        var forwarding = new ProductDesktopInteractionInputForwardingAdapter(
+            ProductDesktopInteractionInputForwardingPolicy.Evaluate(
+                bridgeFeature,
+                "1",
+                "1"),
+            bridge);
+        var consumption =
+            new ProductDesktopInteractionIntentConsumptionController(
+                interactionFeature,
+                ProductDesktopInteractionInputForwardingPolicy.Evaluate(
+                    bridgeFeature,
+                    "1",
+                    "1"),
+                bridge);
+        var controller = new ProductDesktopHostLifecycleController(
+            host,
+            factory,
+            new FactoryBackedInspector(factory),
+            interaction,
+            bridge,
+            forwarding,
+            consumption);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        _ = controller.ApplyProjectionBatch(CreateBatch());
+        ProductDesktopInteractionInputForwardingResult prepared =
+            controller.ForwardInteractionInput(
+                new(
+                    Guid.NewGuid(),
+                    1,
+                    now,
+                    ProductDesktopInteractionForwardedInputKind
+                        .PrimaryPointerPress,
+                    "display-primary",
+                    30,
+                    40,
+                    SourceAttested: true,
+                    IsInjected: false,
+                    IsAutoRepeat: false),
+                now);
+
+        ProductDesktopInteractionIntentConsumptionResult entered =
+            controller.ConsumePreparedInteractionIntent(
+                prepared.PreparedIntent!,
+                now);
+        ProductDesktopInteractionInputForwardingResult blockedWhileExplicit =
+            controller.ForwardInteractionInput(
+                new(
+                    Guid.NewGuid(),
+                    2,
+                    now.AddMilliseconds(1),
+                    ProductDesktopInteractionForwardedInputKind.KeyboardActivation,
+                    "display-primary",
+                    30,
+                    40,
+                    SourceAttested: true,
+                    IsInjected: false,
+                    IsAutoRepeat: false),
+                now.AddMilliseconds(1));
+        ProductDesktopInteractionIntentConsumptionResult selected =
+            controller.ApplyInteractionSelection(
+                new(
+                    ProductDesktopSelectionAction.SelectItem,
+                    ItemId: "item:2"),
+                now.AddMilliseconds(2));
+        ProductDesktopInteractionIntentConsumptionResult replay =
+            controller.ConsumePreparedInteractionIntent(
+                prepared.PreparedIntent!,
+                now.AddMilliseconds(3));
+        _ = controller.ApplySystemSurfaceEvent(new(
+            ProductDesktopInteractionSystemSurfaceEventKind.FocusLost,
+            1,
+            now.AddMilliseconds(4)));
+
+        Assert.True(entered.IsExplicit);
+        Assert.Equal(
+            ProductDesktopInteractionInputForwardingStatus.AwaitingPassiveSurface,
+            blockedWhileExplicit.Snapshot.Status);
+        Assert.Null(blockedWhileExplicit.PreparedIntent);
+        Assert.False(bridge.Snapshot.PreparedIntentAvailable);
+        Assert.True(selected.IsExplicit);
+        Assert.Equal(
+            ["item:2"],
+            selected.Snapshot.Transaction!.Selection!.SelectedItemIds);
+        Assert.Equal(
+            ProductDesktopInteractionIntentConsumptionStatus.AwaitingSurface,
+            replay.Snapshot.Status);
+        Assert.True(Assert.Single(factory.Surfaces).HiddenWindowContractAttested);
+        Assert.Equal(
+            ProductDesktopInteractionIntentConsumptionStatus.Cancelled,
+            consumption.Snapshot.Status);
+        Assert.False(consumption.Snapshot.PreparedIntentConsumed);
+
+        await controller.DisposeAsync();
+        Assert.Equal(
+            ProductDesktopInteractionIntentConsumptionStatus.Completed,
+            consumption.Snapshot.Status);
+    }
+
+    [Fact]
     public async Task StaleAndInvalidSystemSurfaceEventsCannotChangeLifecycle()
     {
         var factory = new RecordingSurfaceFactory();

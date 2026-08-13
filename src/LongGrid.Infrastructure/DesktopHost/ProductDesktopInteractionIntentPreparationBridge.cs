@@ -13,6 +13,7 @@ public enum ProductDesktopInteractionIntentPreparationStatus
     HitRejected,
     IntentRejected,
     Prepared,
+    Consumed,
     Invalidated,
     Completed,
 }
@@ -234,6 +235,42 @@ public sealed class ProductDesktopInteractionIntentPreparationBridge
                     == snapshot.LastUserActionSequence
                 && candidate.Intent.ExpiresAtUtc > nowUtc
                 && EvidenceMatches(candidate.Intent, evidence);
+        }
+    }
+
+    internal bool TryConsume(
+        ProductDesktopInteractionPreparedIntent candidate,
+        ProductDesktopInteractionEvidence evidence,
+        DateTimeOffset nowUtc,
+        out ProductDesktopInteractionIntent? intent)
+    {
+        ArgumentNullException.ThrowIfNull(candidate);
+        ArgumentNullException.ThrowIfNull(evidence);
+        lock (gate)
+        {
+            bool current = enabled
+                && !completed
+                && preparedIntent == candidate
+                && snapshot.PreparedIntentAvailable
+                && candidate.BridgeGeneration == snapshot.BridgeGeneration
+                && candidate.UserActionSequence
+                    == snapshot.LastUserActionSequence
+                && candidate.Intent.ExpiresAtUtc > nowUtc
+                && EvidenceMatches(candidate.Intent, evidence);
+            if (!current)
+            {
+                intent = null;
+                return false;
+            }
+
+            intent = candidate.Intent;
+            preparedIntent = null;
+            snapshot = CreateSnapshot(
+                ProductDesktopInteractionIntentPreparationStatus.Consumed,
+                checked(snapshot.BridgeGeneration + 1),
+                snapshot.LastUserActionSequence,
+                prepared: false);
+            return true;
         }
     }
 
