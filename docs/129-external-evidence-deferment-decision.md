@@ -77,4 +77,4 @@ E4 完成后必须停止新功能开发，执行 X1 → X2 → X3 → X4 → X5�
 
 本决策完成后，下一工程切片固定为 E1/M1：审计并实现正式 `ProductDesktopHostPassiveSurfaceModeAdapter.ApplyExplicit`。首片只允许受控开发态表面模式切换和补偿，不接入正式输入、不移动桌面文件、不默认启用。
 
-2026-08-14 执行记录：E1/M1 已按上述边界进入 Stage 130 实现与验证。正式 adapter 具备代际绑定 Explicit 变更和失败隐藏补偿，但 App/输入桥仍未消费该能力；外部证据、开放 Issue、ADR 与 RC 门禁均未改变。只有 PR/main CI 都通过后，才允许在独立切片开始 E2/M2。
+2026-08-14 执行记录：E1/M1 已按上述边界由 PR #180 合并到 `main@78c853f`，PR/main 完整 CI 均通过。正式 adapter 具备代际绑定 Explicit 变更和失败隐藏补偿，但 App/输入桥仍未消费该能力；外部证据、开放 Issue、ADR 与 RC 门禁均未改变。下一工程切片为独立 E2/M2。
