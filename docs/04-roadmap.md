@@ -275,3 +275,5 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-08-13 B6c3 隔离输入转发补充：第四重精确 forwarding opt-in 与独立会话确认只允许来源已证明、非注入、非自动重复且未重放的 pointer/keyboard/assistive activation 进入 B6c2 准备桥；近期 ActionId 记忆固定 64 项，系统事件、Surface/证据变化与关闭同步失效。适配器不拥有 Windows 输入源，正式 HWND 继续穿透且 Explicit/文件权限保持关闭；下一阶段用隔离原生窗口验证真实来源并完成 B6C3 人工矩阵。
 
 2026-08-13 B6c4 原生来源探针补充：探针专属 NoActivate ToolWindow 已验证 pointer message、Enter/Space 与真实 HWND UIA Invoke Provider 归一化到 B6c3，auto-repeat 拒绝、普通键忽略、前台稳定和 UIA 预热后资源清理通过。自动化明确使用同步窗口消息且物理设备输入仍未验证；正式 App/HWND、Explicit 与文件权限不变，下一阶段只在人工会话中建立短生命周期来源桥。
+
+2026-08-13 B6c5 人工来源会话补充：B6C3 启动器现只在四项人工确认和六个进程门禁成立后启动 probe 自有可见 ToolWindow，不再误启尚无输入源的正式 App。窗口接受定向 pointer、Enter/Space 与 UIA/Narrator Invoke，显示有限计数并在 Escape/关闭时销毁；不捕获全局输入、不发送输入、不进入 Explicit、不操作文件、不写证据，结果固定保持 PendingManualEvidence。该来源只承载 B6C3-01～04 与 08 的适用子项，并明确拒绝用它冒充依赖系统事件的 05～07。下一阶段执行来源人工矩阵并建立独立系统事件会话，批准前不得接入正式 DesktopHost。

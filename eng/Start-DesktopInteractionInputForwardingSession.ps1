@@ -22,11 +22,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$startScript = Join-Path $PSScriptRoot 'Start-LongGrid.ps1'
+$probeProject = Join-Path $projectRoot `
+    'probes\LongGrid.Spikes.DesktopHostWindowModels\LongGrid.Spikes.DesktopHostWindowModels.csproj'
 $runbook = Join-Path $projectRoot `
     'docs\manual-testing\desktop-interaction-input-forwarding-session-runbook.md'
 
-foreach ($requiredPath in @($startScript, $runbook)) {
+foreach ($requiredPath in @($probeProject, $runbook)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Input-forwarding session dependency was not found: $requiredPath"
     }
@@ -36,6 +37,10 @@ if (-not $ValidateOnly) {
     if ([string]::IsNullOrWhiteSpace($Scenario) -or
         [string]::IsNullOrWhiteSpace($OperatorId)) {
         throw 'Scenario and anonymous OperatorId are required for a live session.'
+    }
+
+    if ($Scenario -in @('B6C3-05', 'B6C3-06', 'B6C3-07')) {
+        throw 'B6C3-05 through B6C3-07 require the deferred system-surface manual session; the probe-owned input source must not claim those scenarios.'
     }
 
     if (-not $AcknowledgeControlledEnvironment -or
@@ -53,16 +58,24 @@ if (-not $ValidateOnly) {
 }
 
 $contract = [ordered]@{
-    schemaVersion = 1
+    schemaVersion = 2
     purpose = 'DesktopInteractionIsolatedInputForwardingManualSession'
     scenarios = 'B6C3-01-through-B6C3-08'
+    supportedVisibleSourceScenarios = 'B6C3-01-through-B6C3-04-and-B6C3-08-close-path'
+    deferredSystemSurfaceScenarios = 'B6C3-05-through-B6C3-07'
     scenario = if ($ValidateOnly) { 'RequiredAtRuntime' } else { $Scenario }
     operatorId = if ($ValidateOnly) { 'O1-O9-required-at-runtime' } else { $OperatorId }
     operatorIdentifierPolicy = 'AnonymousLabelsOnly'
     finalResultStatus = 'PendingManualEvidence'
+    fullMatrixStatus = 'PendingManualEvidence'
+    launchesProbeOwnedNativeSource = $true
+    startsProductApp = $false
+    acceptsPhysicalPointerKeyboardAndUia = $true
+    destroysSourceOnEscapeOrClose = $true
     forwardsNormalizedInputOnly = $true
     requiresSourceAttestation = $true
-    rejectsInjectedInput = $true
+    adapterRejectsInjectedAttestation = $true
+    detectsNativeInjection = $false
     rejectsAutoRepeat = $true
     preparesIntentOnly = $true
     capturesGlobalInput = $false
@@ -76,9 +89,14 @@ $contract = [ordered]@{
 }
 
 if ($contract.finalResultStatus -ne 'PendingManualEvidence' -or
+    -not $contract.launchesProbeOwnedNativeSource -or
+    $contract.startsProductApp -or
+    -not $contract.acceptsPhysicalPointerKeyboardAndUia -or
+    -not $contract.destroysSourceOnEscapeOrClose -or
     -not $contract.forwardsNormalizedInputOnly -or
     -not $contract.requiresSourceAttestation -or
-    -not $contract.rejectsInjectedInput -or
+    -not $contract.adapterRejectsInjectedAttestation -or
+    $contract.detectsNativeInjection -or
     -not $contract.rejectsAutoRepeat -or
     -not $contract.preparesIntentOnly -or
     $contract.capturesGlobalInput -or
@@ -124,11 +142,20 @@ try {
         [Environment]::SetEnvironmentVariable($flagName, '1', 'Process')
     }
 
-    & $startScript `
-        -Configuration $Configuration `
-        -Architecture x64 `
-        -NoRestore:$NoRestore `
-        -NoBuild:$NoBuild
+    $arguments = @(
+        'run',
+        '--project', $probeProject,
+        '--configuration', $Configuration
+    )
+    if ($NoRestore) {
+        $arguments += '--no-restore'
+    }
+    if ($NoBuild) {
+        $arguments += '--no-build'
+    }
+    $arguments += @('--', '--native-input-forwarding-session')
+
+    & dotnet @arguments
     if ($LASTEXITCODE -ne 0) {
         throw "Long方格 input-forwarding session exited with code $LASTEXITCODE."
     }

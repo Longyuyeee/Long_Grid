@@ -257,6 +257,12 @@ internal static class Program
             return inputReport.Result == "Conditional Pass" ? 0 : 2;
         }
 
+        if (options.NativeInputForwardingSession)
+        {
+            return NativeInputForwardingSourceProbe.RunInteractive(
+                perMonitorV2Requested);
+        }
+
         if (options.InteractiveSlice)
         {
             return InteractiveDesktopHostSliceProbe.RunInteractive(
@@ -388,6 +394,9 @@ internal static class Program
                                    Run the B5 probe-owned HWND mode adapter.
               --native-input-forwarding
                                    Run the B6c4 probe-owned HWND input source.
+              --native-input-forwarding-session
+                                   Run the B6c5 acknowledged visible manual source;
+                                   press Escape or close it to destroy the source.
               --json               Write a machine-readable report.
               --help               Show this help.
             """);
@@ -405,7 +414,8 @@ internal sealed record ProbeOptions(
     bool InteractiveSlice,
     bool InteractiveSliceSmoke,
     bool NativeInteractionSurfaceMode,
-    bool NativeInputForwardingSource)
+    bool NativeInputForwardingSource,
+    bool NativeInputForwardingSession)
 {
     internal static ProbeOptions Parse(IEnumerable<string> args)
     {
@@ -420,6 +430,7 @@ internal sealed record ProbeOptions(
         bool interactiveSliceSmoke = false;
         bool nativeInteractionSurfaceMode = false;
         bool nativeInputForwardingSource = false;
+        bool nativeInputForwardingSession = false;
 
         foreach (string argument in args)
         {
@@ -459,6 +470,9 @@ internal sealed record ProbeOptions(
                 case "--native-input-forwarding":
                     nativeInputForwardingSource = true;
                     break;
+                case "--native-input-forwarding-session":
+                    nativeInputForwardingSession = true;
+                    break;
                 default:
                     throw new ArgumentException($"Unknown option: {argument}");
             }
@@ -472,7 +486,8 @@ internal sealed record ProbeOptions(
             + (interactiveSlice ? 1 : 0)
             + (interactiveSliceSmoke ? 1 : 0)
             + (nativeInteractionSurfaceMode ? 1 : 0)
-            + (nativeInputForwardingSource ? 1 : 0) > 1)
+            + (nativeInputForwardingSource ? 1 : 0)
+            + (nativeInputForwardingSession ? 1 : 0) > 1)
         {
             throw new ArgumentException(
                 "Choose only one transaction probe mode.");
@@ -489,7 +504,8 @@ internal sealed record ProbeOptions(
             interactiveSlice,
             interactiveSliceSmoke,
             nativeInteractionSurfaceMode,
-            nativeInputForwardingSource);
+            nativeInputForwardingSource,
+            nativeInputForwardingSession);
     }
 }
 

@@ -498,3 +498,9 @@ B6c3 已把 B6c2 Intent 准备桥包在第四重默认关闭的输入转发边�
 B6c4 已在探针专属 NoActivate HWND 内验证 pointer/key/UIA Invoke 三条来源归一化链。自动化使用同步窗口消息而非 SendInput，报告明确 `PhysicalDeviceInputVerified=false`；auto-repeat 和普通键负向边界、前台稳定及 UIA 预热后资源平台均通过。
 
 探针不进入正式 App，正式 DesktopHost 仍点击穿透，Explicit、文件、任务栏、Widget 和插件权限保持关闭。物理输入和 Narrator 总结论仍是 PendingManualEvidence；下一切片只能建立人工会话显式拥有的短生命周期来源桥。详见[Stage 121 审计](121-native-input-source-normalization-probe-audit.md)。
+
+## 30. 2026-08-13 Stage 122 人工原生输入来源会话增量审计
+
+B6c5 修正了人工执行链的实际错位：旧启动器打开正式 App，但 App 没有输入源；新 schema v2 启动器只在完整人工确认后启动 probe 自有可见窗口。该窗口通过真实消息循环接受窗口定向鼠标、Enter/Space 和 UIA/Narrator Invoke，实时显示有限 observed/prepared/rejected 状态，并由 Escape/关闭确定销毁。六个开关只在子会话存活期间设置，退出后恢复。
+
+正式 App 仍不引用 probe，正式 DesktopHost 仍点击穿透；全局 Hook、Raw Input、SendInput、Admission/Explicit、桌面文件、任务栏、Widget 和插件权限均未开放。自动化只能验证启动、归一化和退出合同，不能替代真人或 Narrator 证据，因此 B6C3 总结论仍为 PendingManualEvidence。B6c5 只承载 01～04 与 08 的适用子项并拒绝冒充系统事件场景；下一阶段 B6c6 需分别执行来源矩阵和建立 05～07 系统事件人工会话，而不是直接把来源接入产品。详见[Stage 122 审计](122-manual-native-input-source-session-audit.md)。

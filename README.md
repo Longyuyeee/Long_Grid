@@ -148,7 +148,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6c4 已用探针专属、无激活 HWND 验证 pointer message、Enter/Space 和真实 HWND UIA Invoke Provider 都能唯一归一化到 B6c3，并验证自动重复拒绝、普通键忽略、前台稳定和预热后资源清理。自动化明确使用同步窗口消息而不是物理设备，未调用 SendInput、Hook 或 Raw Input；正式 App 不引用探针，正式 HWND 仍 `HTTRANSPARENT`，Explicit 和文件权限仍为零。下一切片 B6c5 才建立人工会话显式拥有的短生命周期来源桥并执行物理输入/Narrator 矩阵。A5、B6c2–B6c4 真实会话结果继续 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6c5 已把 B6C3 人工启动器改为只启动 probe 自有、可见、短生命周期的原生来源窗口；它在完整确认和六重门禁后接受窗口定向 pointer、Enter/Space 与 UIA/Narrator Invoke，显示有限计数，并在 Escape/关闭时销毁。正式 App 不引用该来源，正式 HWND 仍 `HTTRANSPARENT`，全局输入、SendInput、Explicit 和文件权限仍为零，程序也不会自动写 Pass。该窗口只承载 B6C3-01～04 和 08 的适用子项，05～07 仍需独立系统事件人工会话。下一阶段 B6c6 执行来源矩阵并补齐系统事件会话；A5、B6c2–B6c5 真实会话结果继续 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 

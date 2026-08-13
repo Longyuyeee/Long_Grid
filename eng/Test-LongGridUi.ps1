@@ -106,6 +106,8 @@ $nativeInteractionSurfaceProbeCodePath = Join-Path $projectRoot `
     'probes\LongGrid.Spikes.DesktopHostWindowModels\NativeInteractionSurfaceModeProbe.cs'
 $nativeInputForwardingSourceProbeCodePath = Join-Path $projectRoot `
     'probes\LongGrid.Spikes.DesktopHostWindowModels\NativeInputForwardingSourceProbe.cs'
+$desktopHostProbeProgramCodePath = Join-Path $projectRoot `
+    'probes\LongGrid.Spikes.DesktopHostWindowModels\Program.cs'
 $desktopHostPassiveSurfaceAdapterCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostPassiveSurfaceModeAdapter.cs'
 $desktopHostLifecycleControllerCodePath = Join-Path $projectRoot `
@@ -360,6 +362,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $nativeInputForwardingSourceProbeCode = Get-Content `
         -LiteralPath $nativeInputForwardingSourceProbeCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopHostProbeProgramCode = Get-Content `
+        -LiteralPath $desktopHostProbeProgramCodePath `
         -Raw `
         -Encoding UTF8
     $desktopHostPassiveSurfaceAdapterCode = Get-Content `
@@ -1501,6 +1507,50 @@ function Test-SourceContract {
         -not ($appCode -match 'NativeInputForwardingSourceProbe')
     ) `
         'B6c4 must keep the native input source probe-owned, normalize pointer/key/UIA paths into B6c3, report synthetic-message and physical-input limits, preserve foreground and cleanup, and remain disconnected from product Explicit and files.'
+    Assert-Condition (
+        $desktopHostProbeProgramCode -match `
+            '--native-input-forwarding-session' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'RunInteractive' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'Environment\.GetEnvironmentVariable' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'GetMessage' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'WmClose' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'VkEscape' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'PendingManualEvidence' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'PhysicalDeviceInputAutomaticallyVerified:\s*false' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'NativeInjectionDetection:\s*false' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'DesktopFilesReadOrChanged:\s*false' -and
+        $nativeInputForwardingSourceProbeCode -match `
+            'ExplicitInteractionEntered:\s*false' -and
+        $desktopInputForwardingSessionLauncherCode -match `
+            'launchesProbeOwnedNativeSource\s*=\s*\$true' -and
+        $desktopInputForwardingSessionLauncherCode -match `
+            'startsProductApp\s*=\s*\$false' -and
+        $desktopInputForwardingSessionLauncherCode -match `
+            'deferredSystemSurfaceScenarios' -and
+        $desktopInputForwardingSessionLauncherCode -match `
+            'adapterRejectsInjectedAttestation\s*=\s*\$true' -and
+        $desktopInputForwardingSessionLauncherCode -match `
+            'detectsNativeInjection\s*=\s*\$false' -and
+        $desktopInputForwardingSessionLauncherCode -match `
+            "B6C3-05.*B6C3-06.*B6C3-07" -and
+        $desktopInputForwardingSessionLauncherCode -match `
+            '--native-input-forwarding-session' -and
+        -not ($desktopInputForwardingSessionLauncherCode -match `
+            'Start-LongGrid\.ps1') -and
+        -not ($nativeInputForwardingSourceProbeCode -match `
+            'SendInput\(|SetWindowsHookEx|RegisterRawInputDevices|GetAsyncKeyState|IFileOperation|MoveFile|DeleteFile|ApplyExplicit|TryEnterExplicitInteraction') -and
+        -not ($appCode -match 'NativeInputForwardingProbeWindow')
+    ) `
+        'B6c5 must launch only an acknowledged probe-owned visible source, accept bounded physical/UIA input until Escape or close, retain PendingManualEvidence, and keep the product App, global input, Explicit and files disconnected.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and
