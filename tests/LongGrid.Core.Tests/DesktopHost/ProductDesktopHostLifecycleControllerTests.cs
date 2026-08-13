@@ -438,6 +438,125 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
+    public async Task SystemSurfaceEventHidesThenStableRecoveryRestoresPassive()
+    {
+        var factory = new RecordingSurfaceFactory();
+        ProductDesktopHostFeatureDecision host =
+            ProductDesktopHostFeaturePolicy.Evaluate("1");
+        var interaction = new ProductDesktopInteractionDevelopmentController(
+            ProductDesktopInteractionFeaturePolicy.Evaluate(host, "1"));
+        var controller = new ProductDesktopHostLifecycleController(
+            host,
+            factory,
+            new FactoryBackedInspector(factory),
+            interaction);
+        _ = controller.ApplyProjectionBatch(CreateBatch());
+        RecordingSurface surface = Assert.Single(factory.Surfaces);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+
+        ProductDesktopHostLifecycleSnapshot suspended =
+            controller.ApplySystemSurfaceEvent(new(
+                ProductDesktopInteractionSystemSurfaceEventKind
+                    .DesktopRevealRequested,
+                1,
+                now));
+
+        Assert.Equal(
+            ProductDesktopHostLifecycleStatus.SuspendedSystemSurface,
+            suspended.Status);
+        Assert.True(suspended.NativeHostConnected);
+        Assert.False(suspended.PassiveWindowContractAttested);
+        Assert.True(surface.HiddenWindowContractAttested);
+        Assert.Equal(
+            ProductDesktopInteractionSystemSurfaceEventKind
+                .DesktopRevealRequested,
+            suspended.LastSystemSurfaceEvent);
+
+        ProductDesktopHostLifecycleSnapshot resumed =
+            controller.ApplySystemSurfaceEvent(new(
+                ProductDesktopInteractionSystemSurfaceEventKind
+                    .RecoveryCandidate,
+                2,
+                now.AddSeconds(2)));
+
+        Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, resumed.Status);
+        Assert.Equal(
+            ProductDesktopInteractionSystemSurfaceEventKind.RecoveryCandidate,
+            resumed.LastSystemSurfaceEvent);
+        Assert.True(resumed.PassiveWindowContractAttested);
+        Assert.True(surface.PassiveWindowContractAttested);
+        Assert.True(interaction.Snapshot.IsDevelopmentInteractionAvailable);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task StaleAndInvalidSystemSurfaceEventsCannotChangeLifecycle()
+    {
+        var factory = new RecordingSurfaceFactory();
+        ProductDesktopHostFeatureDecision host =
+            ProductDesktopHostFeaturePolicy.Evaluate("1");
+        var interaction = new ProductDesktopInteractionDevelopmentController(
+            ProductDesktopInteractionFeaturePolicy.Evaluate(host, "1"));
+        var controller = new ProductDesktopHostLifecycleController(
+            host,
+            factory,
+            new FactoryBackedInspector(factory),
+            interaction);
+        ProductDesktopHostLifecycleSnapshot ready =
+            controller.ApplyProjectionBatch(CreateBatch());
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        _ = controller.ApplySystemSurfaceEvent(new(
+            ProductDesktopInteractionSystemSurfaceEventKind.FocusLost,
+            2,
+            now));
+        ProductDesktopHostLifecycleSnapshot suspended = controller.Snapshot;
+
+        ProductDesktopHostLifecycleSnapshot stale =
+            controller.ApplySystemSurfaceEvent(new(
+                ProductDesktopInteractionSystemSurfaceEventKind
+                    .RecoveryCandidate,
+                1,
+                now.AddSeconds(1)));
+        ProductDesktopHostLifecycleSnapshot invalid =
+            controller.ApplySystemSurfaceEvent(new(
+                ProductDesktopInteractionSystemSurfaceEventKind
+                    .RecoveryCandidate,
+                0,
+                default));
+
+        Assert.NotEqual(ready, suspended);
+        Assert.Equal(suspended, stale);
+        Assert.Equal(suspended, invalid);
+        Assert.True(Assert.Single(factory.Surfaces).HiddenWindowContractAttested);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task SystemSurfaceEventBeforeSurfaceDoesNotManufactureFault()
+    {
+        ProductDesktopHostFeatureDecision host =
+            ProductDesktopHostFeaturePolicy.Evaluate("1");
+        var interaction = new ProductDesktopInteractionDevelopmentController(
+            ProductDesktopInteractionFeaturePolicy.Evaluate(host, "1"));
+        var controller = new ProductDesktopHostLifecycleController(
+            host,
+            interaction);
+        ProductDesktopHostLifecycleSnapshot awaiting = controller.Snapshot;
+
+        ProductDesktopHostLifecycleSnapshot unchanged =
+            controller.ApplySystemSurfaceEvent(new(
+                ProductDesktopInteractionSystemSurfaceEventKind.FocusLost,
+                1,
+                DateTimeOffset.UtcNow));
+
+        Assert.Equal(awaiting, unchanged);
+        Assert.Equal(
+            ProductDesktopHostLifecycleStatus.AwaitingHost,
+            unchanged.Status);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
     public void ProductPassiveAdapterRejectsExplicitAndStaleGeneration()
     {
         var surface = new RecordingSurface(101, 201, 301, 401, startHidden: true);

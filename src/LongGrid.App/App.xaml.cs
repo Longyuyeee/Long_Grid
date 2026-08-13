@@ -28,6 +28,8 @@ public partial class App : Application
     private readonly ProductDesktopHostLifecycleController productDesktopHostLifecycle;
     private readonly ProductDesktopInteractionDevelopmentController
         productDesktopInteraction;
+    private readonly WindowsProductDesktopInteractionSystemSurfaceEventSource?
+        productDesktopSystemSurfaceEvents;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
     private ProductConfigurationLoadResult? currentConfigurationLoadResult;
@@ -65,6 +67,9 @@ public partial class App : Application
                     ProductDesktopInteractionFeaturePolicy
                         .EmergencyDisableEnvironmentVariableName));
         productDesktopInteraction = new(interactionFeature);
+        productDesktopSystemSurfaceEvents = interactionFeature.IsEnabled
+            ? new()
+            : null;
         productDesktopHostLifecycle = new(
             desktopHostFeature,
             productDesktopInteraction);
@@ -100,6 +105,14 @@ public partial class App : Application
             ProductDisplayTopology_SnapshotChanged;
         productDesktopHostLifecycle.SnapshotChanged +=
             ProductDesktopHostLifecycle_SnapshotChanged;
+        if (productDesktopSystemSurfaceEvents is not null)
+        {
+            productDesktopSystemSurfaceEvents.SurfaceChanged +=
+                ProductDesktopSystemSurfaceEvents_SurfaceChanged;
+            productDesktopSystemSurfaceEvents.Start();
+        }
+
+        window.Activated += MainWindow_Activated;
         window.ApplyProductWorkspaceSaveState(productWorkspaceSaves.Snapshot);
         window.ApplyProductDesktopCatalogState(productDesktopCatalog.Snapshot);
         window.ApplyProductDesktopHostLifecycleState(
@@ -313,6 +326,39 @@ public partial class App : Application
 
         _ = currentWindow.DispatcherQueue.TryEnqueue(
             () => currentWindow.ApplyProductDesktopHostLifecycleState(snapshot));
+    }
+
+    private void MainWindow_Activated(
+        object sender,
+        WindowActivatedEventArgs args)
+    {
+        if (args.WindowActivationState == WindowActivationState.Deactivated)
+        {
+            productDesktopSystemSurfaceEvents?.ReportFocusLost();
+        }
+    }
+
+    private void ProductDesktopSystemSurfaceEvents_SurfaceChanged(
+        object? sender,
+        ProductDesktopInteractionSystemSurfaceEvent systemEvent)
+    {
+        MainWindow? currentWindow = window;
+        if (currentWindow is null)
+        {
+            return;
+        }
+
+        void Apply() =>
+            _ = closingDrainInProgress
+                ? productDesktopHostLifecycle.Snapshot
+                : productDesktopHostLifecycle.ApplySystemSurfaceEvent(systemEvent);
+        if (currentWindow.DispatcherQueue.HasThreadAccess)
+        {
+            Apply();
+            return;
+        }
+
+        _ = currentWindow.DispatcherQueue.TryEnqueue(Apply);
     }
 
     private void ApplyProductWorkspaceSessionViews()
@@ -1150,6 +1196,18 @@ public partial class App : Application
             ProductDisplayTopology_SnapshotChanged;
         productDesktopHostLifecycle.SnapshotChanged -=
             ProductDesktopHostLifecycle_SnapshotChanged;
+        if (productDesktopSystemSurfaceEvents is not null)
+        {
+            productDesktopSystemSurfaceEvents.SurfaceChanged -=
+                ProductDesktopSystemSurfaceEvents_SurfaceChanged;
+            productDesktopSystemSurfaceEvents.Dispose();
+        }
+
+        if (window is not null)
+        {
+            window.Activated -= MainWindow_Activated;
+        }
+
         _ = productDesktopInteraction.Complete(DateTimeOffset.UtcNow);
         await productDesktopHostLifecycle.DisposeAsync();
         await productDisplayTopology.DisposeAsync();

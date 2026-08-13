@@ -97,6 +97,9 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [Long方格桌面交互选择、焦点与 UIA Selection 合同审计](docs/113-desktop-interaction-selection-focus-uia-contract-audit.md)
 - [Long方格隔离交互 Surface 与输入模式事务审计](docs/114-desktop-interaction-surface-mode-transaction-audit.md)
 - [Long方格原生交互 Surface 适配器探针审计](docs/115-native-interaction-surface-adapter-probe-audit.md)
+- [Long方格受控开发态交互 Composition Root 基础审计](docs/116-controlled-development-interaction-composition-root-audit.md)
+- [Long方格产品 Hidden/Passive Surface 生命周期审计](docs/117-product-hidden-passive-surface-lifecycle-audit.md)
+- [Long方格系统表面事件与 Fail-Closed 桥审计](docs/118-system-surface-event-fail-closed-bridge-audit.md)
 - [Long方格正式容器创建与重命名提交审计](docs/54-container-create-rename-commit-audit.md)
 - [Long方格正式容器锁定与折叠提交审计](docs/55-container-lock-collapse-commit-audit.md)
 - [Long方格正式容器受限外观提交审计](docs/56-container-finite-appearance-commit-audit.md)
@@ -144,7 +147,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6b 产品 Hidden/Passive Surface 生命周期已接入：正式 App 仍要求 DesktopHost 与 Interaction 两个精确 opt-in，emergency-disable 继续最高优先；双开关路径先创建空 Region 的隐藏产品 HWND，完成 registry 所有权与 Host/UIA/generation 证明后才发布 Passive。失焦/系统切换、证明失败、拓扑替换、紧急禁用和 shutdown 都要求先隐藏，再注销与销毁；adapter 明确拒绝 Explicit 和陈旧 generation。正式 HWND 的 `WM_NCHITTEST` 继续固定 `HTTRANSPARENT`，没有 hit-test/Intent/Selection 或真实文件入口。下一切片 B6c 将只建立 Explicit 前的产品级意图转接与人工会话门禁，默认仍关闭。A5-01..A5-06 真实会话结果仍为 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6c1 已把失焦、桌面显示、全屏、锁屏/会话、RDP、Explorer 身份变化和电源变化接入有限系统事件桥：危险或未知状态立即让产品 HWND Hidden，只有连续两个安全样本且 Host/UIA/workspace/topology/registry 证据完整才恢复 Passive。观察器只使用公开只读系统查询，不使用全局 Hook、输入合成或 Explorer 内部挂接。正式 HWND 的 `WM_NCHITTEST` 继续固定 `HTTRANSPARENT`，adapter 继续拒绝 Explicit，没有 Intent/Selection 或真实文件入口。下一切片 B6c2 才建立默认关闭的产品意图转接与人工会话门禁。A5-01..A5-06 真实会话结果仍为 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 
@@ -155,7 +158,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -File ./eng/Start-LongGrid.ps1
 ```
 
-该入口默认执行锁定依赖恢复、必要构建和启动；不提权，默认不创建 DesktopHost 窗口。App 只读枚举用户桌面与公共桌面第一层元数据，不读取文件内容，也不执行桌面文件写入/移动。开发者可显式设置 `LONGGRID_ENABLE_DESKTOP_HOST=1` 验证带只读 UIA 与被动窗口复读的每显示器批次；受控人工会话使用 `eng/Start-DesktopHostProductSessionMatrix.ps1`。B1 另定义 `LONGGRID_ENABLE_DESKTOP_INTERACTION=1`，但当前 App 故意不读取它，单独设置任何一个开关都不会启用交互；二者都不是用户许可或发布默认值。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[Stage 110](docs/110-desktop-host-readonly-uia-session-contract-audit.md)与[Stage 111 审计](docs/111-desktop-interaction-admission-state-machine-audit.md)。
+该入口默认执行锁定依赖恢复、必要构建和启动；不提权，默认不创建 DesktopHost 窗口。App 只读枚举用户桌面与公共桌面第一层元数据，不读取文件内容，也不执行桌面文件写入/移动。开发者可显式设置 `LONGGRID_ENABLE_DESKTOP_HOST=1` 验证带只读 UIA 与被动窗口复读的每显示器批次；受控人工会话使用 `eng/Start-DesktopHostProductSessionMatrix.ps1`。只有 `LONGGRID_ENABLE_DESKTOP_HOST=1` 与 `LONGGRID_ENABLE_DESKTOP_INTERACTION=1` 同时精确成立且 emergency-disable 未启用时，App 才创建 Hidden/Passive 产品 Surface 与只读系统事件观察器；单独设置任一开关都不会启用该路径，二者也都不是用户许可或发布默认值。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[Stage 110](docs/110-desktop-host-readonly-uia-session-contract-audit.md)、[Stage 117](docs/117-product-hidden-passive-surface-lifecycle-audit.md)与[Stage 118](docs/118-system-surface-event-fail-closed-bridge-audit.md)。
 
 从干净、已提交的工作树一键生成并交叉验证完整内部 RC 交付集合：
 
