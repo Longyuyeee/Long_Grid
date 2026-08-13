@@ -15,21 +15,23 @@ public sealed record ProductDesktopInteractionDevelopmentSnapshot(
     long Revision,
     bool NativeSurfaceAdapterConnected,
     bool HiddenRequired,
-    bool RealFileOperationsAllowed)
+    bool RealFileOperationsAllowed,
+    ProductDesktopInteractionSurfaceEvidence? Surface)
 {
     public bool IsDevelopmentInteractionAvailable =>
         Status == ProductDesktopInteractionDevelopmentStatus.Passive
         && Admission.Mode == ProductDesktopInteractionMode.Passive
         && !Admission.HasActiveLease
-        && !NativeSurfaceAdapterConnected
+        && NativeSurfaceAdapterConnected
         && !HiddenRequired
-        && !RealFileOperationsAllowed;
+        && !RealFileOperationsAllowed
+        && Surface?.IsPassiveContract == true;
 }
 
 /// <summary>
 /// Owns the fail-closed development interaction policy at the App composition
-/// boundary. B6a deliberately exposes no explicit-interaction entry point and
-/// creates no native adapter; B6b may attach one only behind this controller.
+/// boundary. B6b may attach only a Hidden/Passive native adapter; this
+/// controller deliberately exposes no explicit-interaction entry point.
 /// </summary>
 public sealed class ProductDesktopInteractionDevelopmentController
 {
@@ -37,6 +39,7 @@ public sealed class ProductDesktopInteractionDevelopmentController
     private readonly bool enabled;
     private readonly ProductDesktopInteractionAdmissionController admission;
     private readonly ProductDesktopInteractionCancellationAdapter cancellation;
+    private IProductDesktopInteractionSurfaceModeAdapter? surface;
     private ProductDesktopInteractionDevelopmentSnapshot snapshot;
 
     public ProductDesktopInteractionDevelopmentController(
@@ -72,6 +75,72 @@ public sealed class ProductDesktopInteractionDevelopmentController
         }
     }
 
+    public bool CanAttachNativeSurface
+    {
+        get
+        {
+            lock (sync)
+            {
+                return enabled
+                    && snapshot.Status
+                        == ProductDesktopInteractionDevelopmentStatus.Passive
+                    && surface is null;
+            }
+        }
+    }
+
+    public ProductDesktopInteractionDevelopmentSnapshot AttachPassiveSurface(
+        IProductDesktopInteractionSurfaceModeAdapter adapter,
+        ProductDesktopInteractionEvidence evidence)
+    {
+        ArgumentNullException.ThrowIfNull(adapter);
+        ArgumentNullException.ThrowIfNull(evidence);
+        lock (sync)
+        {
+            if (!CanAttachNativeSurfaceUnsafe()
+                || !IsCompletePassiveEvidence(evidence))
+            {
+                return snapshot;
+            }
+
+            ProductDesktopInteractionSurfaceEvidence? initial =
+                CaptureEvidence(adapter);
+            if (initial?.IsHiddenContract != true
+                || initial.WindowRegistryGeneration
+                    != evidence.WindowRegistryGeneration)
+            {
+                _ = TryCall(() => adapter.Hide(
+                    evidence.WindowRegistryGeneration));
+                return Publish(
+                    ProductDesktopInteractionDevelopmentStatus
+                        .SuspendedFailClosed,
+                    hiddenRequired: true,
+                    currentSurface: CaptureEvidence(adapter));
+            }
+
+            surface = adapter;
+            bool applied = TryCall(() => adapter.ApplyPassive(
+                evidence.WindowRegistryGeneration));
+            ProductDesktopInteractionSurfaceEvidence? passive =
+                applied ? CaptureEvidence(adapter) : null;
+            if (passive?.IsPassiveContract == true
+                && passive.WindowRegistryGeneration
+                    == evidence.WindowRegistryGeneration)
+            {
+                return Publish(
+                    ProductDesktopInteractionDevelopmentStatus.Passive,
+                    hiddenRequired: false,
+                    currentSurface: passive);
+            }
+
+            HideAttachedSurfaceUnsafe(evidence.WindowRegistryGeneration);
+            return Publish(
+                ProductDesktopInteractionDevelopmentStatus.SuspendedFailClosed,
+                hiddenRequired: true,
+                currentSurface: CaptureEvidence(adapter));
+        }
+    }
+
     public ProductDesktopInteractionDevelopmentSnapshot SuspendFailClosed(
         ProductDesktopInteractionCancellationSignal signal,
         DateTimeOffset nowUtc)
@@ -96,9 +165,12 @@ public sealed class ProductDesktopInteractionDevelopmentController
             }
 
             _ = cancellation.Handle(signal, nowUtc);
+            long generation = snapshot.Surface?.WindowRegistryGeneration ?? 0;
+            HideAttachedSurfaceUnsafe(generation);
             return Publish(
                 ProductDesktopInteractionDevelopmentStatus.SuspendedFailClosed,
-                hiddenRequired: true);
+                hiddenRequired: true,
+                currentSurface: CaptureEvidence(surface));
         }
     }
 
@@ -116,20 +188,58 @@ public sealed class ProductDesktopInteractionDevelopmentController
                 return snapshot;
             }
 
-            bool passiveAttested = evidence.NativeHostConnected
-                && evidence.HostReadyReadOnly
-                && evidence.ReadOnlyAccessibilityAttested
-                && evidence.PassiveWindowContractAttested
-                && evidence.WorkspaceRevision > 0
-                && evidence.TopologyGeneration > 0
-                && evidence.WindowRegistryGeneration > 0
-                && evidence.AvailableContainerIds is not null
-                && evidence.LockedContainerIds is not null;
-            return passiveAttested
-                ? Publish(
+            if (!IsCompletePassiveEvidence(evidence) || surface is null)
+            {
+                return snapshot;
+            }
+
+            bool applied = TryCall(() => surface.ApplyPassive(
+                evidence.WindowRegistryGeneration));
+            ProductDesktopInteractionSurfaceEvidence? passive =
+                applied ? CaptureEvidence(surface) : null;
+            if (passive?.IsPassiveContract == true
+                && passive.WindowRegistryGeneration
+                    == evidence.WindowRegistryGeneration)
+            {
+                return Publish(
                     ProductDesktopInteractionDevelopmentStatus.Passive,
-                    hiddenRequired: false)
-                : snapshot;
+                    hiddenRequired: false,
+                    currentSurface: passive);
+            }
+
+            HideAttachedSurfaceUnsafe(evidence.WindowRegistryGeneration);
+            return Publish(
+                ProductDesktopInteractionDevelopmentStatus.SuspendedFailClosed,
+                hiddenRequired: true,
+                currentSurface: CaptureEvidence(surface));
+        }
+    }
+
+    public ProductDesktopInteractionDevelopmentSnapshot DetachPassiveSurface(
+        IProductDesktopInteractionSurfaceModeAdapter adapter)
+    {
+        ArgumentNullException.ThrowIfNull(adapter);
+        lock (sync)
+        {
+            if (!ReferenceEquals(surface, adapter))
+            {
+                return snapshot;
+            }
+
+            long generation = snapshot.Surface?.WindowRegistryGeneration ?? 0;
+            HideAttachedSurfaceUnsafe(generation);
+            surface = null;
+            ProductDesktopInteractionDevelopmentStatus status =
+                snapshot.Status is ProductDesktopInteractionDevelopmentStatus
+                    .EmergencyDisabled
+                    or ProductDesktopInteractionDevelopmentStatus.Completed
+                    ? snapshot.Status
+                    : ProductDesktopInteractionDevelopmentStatus.Passive;
+            return Publish(
+                status,
+                hiddenRequired: status
+                    != ProductDesktopInteractionDevelopmentStatus.Passive,
+                currentSurface: null);
         }
     }
 
@@ -149,9 +259,13 @@ public sealed class ProductDesktopInteractionDevelopmentController
                 ProductDesktopInteractionCancellationSignal
                     .ApplicationShutdown,
                 nowUtc);
+            long generation = snapshot.Surface?.WindowRegistryGeneration ?? 0;
+            HideAttachedSurfaceUnsafe(generation);
+            surface = null;
             return Publish(
                 ProductDesktopInteractionDevelopmentStatus.EmergencyDisabled,
-                hiddenRequired: true);
+                hiddenRequired: true,
+                currentSurface: null);
         }
     }
 
@@ -170,32 +284,98 @@ public sealed class ProductDesktopInteractionDevelopmentController
                 ProductDesktopInteractionCancellationSignal
                     .ApplicationShutdown,
                 nowUtc);
+            long generation = snapshot.Surface?.WindowRegistryGeneration ?? 0;
+            HideAttachedSurfaceUnsafe(generation);
+            surface = null;
             return Publish(
                 ProductDesktopInteractionDevelopmentStatus.Completed,
-                hiddenRequired: true);
+                hiddenRequired: true,
+                currentSurface: null);
         }
     }
 
     private ProductDesktopInteractionDevelopmentSnapshot Publish(
         ProductDesktopInteractionDevelopmentStatus status,
-        bool hiddenRequired)
+        bool hiddenRequired,
+        ProductDesktopInteractionSurfaceEvidence? currentSurface)
     {
         snapshot = CreateSnapshot(
             status,
             checked(snapshot.Revision + 1),
-            hiddenRequired);
+            hiddenRequired,
+            currentSurface);
         return snapshot;
     }
 
     private ProductDesktopInteractionDevelopmentSnapshot CreateSnapshot(
         ProductDesktopInteractionDevelopmentStatus status,
         long revision,
-        bool hiddenRequired) =>
+        bool hiddenRequired,
+        ProductDesktopInteractionSurfaceEvidence? currentSurface = null) =>
         new(
             status,
             admission.Snapshot,
             revision,
-            NativeSurfaceAdapterConnected: false,
+            NativeSurfaceAdapterConnected: surface is not null,
             hiddenRequired,
-            RealFileOperationsAllowed: false);
+            RealFileOperationsAllowed: false,
+            currentSurface);
+
+    private bool CanAttachNativeSurfaceUnsafe() =>
+        enabled
+        && snapshot.Status == ProductDesktopInteractionDevelopmentStatus.Passive
+        && surface is null;
+
+    private static bool IsCompletePassiveEvidence(
+        ProductDesktopInteractionEvidence evidence) =>
+        evidence.NativeHostConnected
+        && evidence.HostReadyReadOnly
+        && evidence.ReadOnlyAccessibilityAttested
+        && evidence.PassiveWindowContractAttested
+        && evidence.WorkspaceRevision > 0
+        && evidence.TopologyGeneration > 0
+        && evidence.WindowRegistryGeneration > 0
+        && evidence.AvailableContainerIds is not null
+        && evidence.LockedContainerIds is not null;
+
+    private void HideAttachedSurfaceUnsafe(long generation)
+    {
+        if (surface is null || generation <= 0)
+        {
+            return;
+        }
+
+        _ = TryCall(() => surface.Hide(generation));
+    }
+
+    private static ProductDesktopInteractionSurfaceEvidence? CaptureEvidence(
+        IProductDesktopInteractionSurfaceModeAdapter? adapter)
+    {
+        if (adapter is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            ProductDesktopInteractionSurfaceCapture capture = adapter.Capture();
+            return capture.Succeeded ? capture.Evidence : null;
+        }
+        catch (Exception exception) when (exception is not StackOverflowException)
+        {
+            return null;
+        }
+    }
+
+    private static bool TryCall(Func<bool> operation)
+    {
+        try
+        {
+            return operation();
+        }
+        catch (Exception exception) when (exception is not StackOverflowException)
+        {
+            return false;
+        }
+    }
 }

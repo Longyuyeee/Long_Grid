@@ -144,7 +144,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6a 受控开发态 Composition Root 基础已接入：正式 App 同时复核 `LONGGRID_ENABLE_DESKTOP_HOST=1` 与 `LONGGRID_ENABLE_DESKTOP_INTERACTION=1`，并让精确的进程级 `LONGGRID_DISABLE_DESKTOP_INTERACTION=1` 拥有最高优先级；双开关成立时仍只从 Passive 启动。开发控制器覆盖系统表面暂停、完整被动证明恢复、运行时不可逆紧急禁用和 shutdown 完成，始终报告原生 adapter 未连接、真实文件操作不允许。正式 HWND 继续 `HTTRANSPARENT`，App 没有 Surface/命中/Intent 工厂接线。下一切片 B6b 只在相同门禁后构造产品 Surface adapter，并先验证 Hidden/Passive 生命周期，不立即开放显式输入。A5-01..A5-06 真实会话结果仍为 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6b 产品 Hidden/Passive Surface 生命周期已接入：正式 App 仍要求 DesktopHost 与 Interaction 两个精确 opt-in，emergency-disable 继续最高优先；双开关路径先创建空 Region 的隐藏产品 HWND，完成 registry 所有权与 Host/UIA/generation 证明后才发布 Passive。失焦/系统切换、证明失败、拓扑替换、紧急禁用和 shutdown 都要求先隐藏，再注销与销毁；adapter 明确拒绝 Explicit 和陈旧 generation。正式 HWND 的 `WM_NCHITTEST` 继续固定 `HTTRANSPARENT`，没有 hit-test/Intent/Selection 或真实文件入口。下一切片 B6c 将只建立 Explicit 前的产品级意图转接与人工会话门禁，默认仍关闭。A5-01..A5-06 真实会话结果仍为 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 

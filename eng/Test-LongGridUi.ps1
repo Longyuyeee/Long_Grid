@@ -98,6 +98,8 @@ $desktopInteractionSurfaceModeCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionSurfaceModeTransaction.cs'
 $nativeInteractionSurfaceProbeCodePath = Join-Path $projectRoot `
     'probes\LongGrid.Spikes.DesktopHostWindowModels\NativeInteractionSurfaceModeProbe.cs'
+$desktopHostPassiveSurfaceAdapterCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostPassiveSurfaceModeAdapter.cs'
 $desktopHostLifecycleControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostLifecycleController.cs'
 $desktopHostProjectionBatchCodePath = Join-Path $projectRoot `
@@ -324,6 +326,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $nativeInteractionSurfaceProbeCode = Get-Content `
         -LiteralPath $nativeInteractionSurfaceProbeCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopHostPassiveSurfaceAdapterCode = Get-Content `
+        -LiteralPath $desktopHostPassiveSurfaceAdapterCodePath `
         -Raw `
         -Encoding UTF8
     $desktopHostLifecycleControllerCode = Get-Content `
@@ -1220,7 +1226,11 @@ function Test-SourceContract {
         $desktopInteractionDevelopmentControllerCode -match `
             'Complete' -and
         $desktopInteractionDevelopmentControllerCode -match `
-            'NativeSurfaceAdapterConnected:\s*false' -and
+            'AttachPassiveSurface' -and
+        $desktopInteractionDevelopmentControllerCode -match `
+            'DetachPassiveSurface' -and
+        $desktopInteractionDevelopmentControllerCode -match `
+            'NativeSurfaceAdapterConnected:\s*surface is not null' -and
         $desktopInteractionDevelopmentControllerCode -match `
             'RealFileOperationsAllowed:\s*false' -and
         -not ($desktopInteractionDevelopmentControllerCode -match `
@@ -1235,11 +1245,36 @@ function Test-SourceContract {
         $appCode -match `
             'productDesktopInteraction\.Complete\(DateTimeOffset\.UtcNow\)' -and
         -not ($appCode -match `
-            'ProductDesktopInteractionSurfaceModeTransaction|IProductDesktopInteractionSurfaceModeAdapter|ProductDesktopInteractionHitTestAdapter|ProductDesktopInteractionIntentFactory') -and
+            'ProductDesktopInteractionSurfaceModeTransaction|ProductDesktopInteractionHitTestAdapter|ProductDesktopInteractionIntentFactory') -and
+        $appCode -match `
+            'productDesktopHostLifecycle\s*=\s*new\(\s*desktopHostFeature,\s*productDesktopInteraction\)' -and
+        $desktopHostLifecycleControllerCode -match `
+            'startHidden:\s*controlledSurfaceLifecycle' -and
+        $desktopHostLifecycleControllerCode -match `
+            'AttachPassiveSurface' -and
+        $desktopHostLifecycleControllerCode -match `
+            'DetachPassiveSurface' -and
+        $desktopHostPassiveSurfaceAdapterCode -match `
+            'IProductDesktopInteractionSurfaceModeAdapter' -and
+        $desktopHostPassiveSurfaceAdapterCode -match `
+            'ApplyExplicit[\s\S]*return false' -and
+        $desktopHostPassiveSurfaceAdapterCode -match `
+            'expectedWindowRegistryGeneration != registryGeneration' -and
+        $desktopHostPassiveSurfaceAdapterCode -match `
+            'surface\.ApplyPassive\(\)' -and
+        $desktopHostPassiveSurfaceAdapterCode -match `
+            'surface\.ApplyHidden\(\)' -and
+        -not ($desktopHostPassiveSurfaceAdapterCode -match `
+            'System\.IO|File\.|Directory\.|IFileOperation|MoveFile|DeleteFile|SetForegroundWindow') -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'startHidden' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'ApplyEmptyWindowRegion' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'GetWindowRgn' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'IsWindowVisible' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'SwHide' -and
         $windowsDesktopHostReadOnlySurfaceCode -match `
             'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
     ) `
-        'B6a must wire one development interaction controller through both exact opt-ins and the emergency override, start Passive, suspend/hide fail closed, complete on shutdown, forbid file operations, and leave the production HWND read-only.'
+        'B6b must create product HWNDs hidden behind both opt-ins, attach only after registry evidence, publish verified Passive, hide before detach/shutdown, reject Explicit and stale generations, forbid file operations, and keep WM_NCHITTEST transparent.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and
@@ -1313,7 +1348,9 @@ function Test-SourceContract {
     Assert-Condition (
         $windowsDesktopHostReadOnlySurfaceCode -match 'WmGetObject' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'ReturnRawElementProvider' -and
-        $windowsDesktopHostReadOnlySurfaceCode -match 'AttestPassiveWindowContract' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'AttestStableWindowPolicy' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'PassiveWindowContractAttested' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'WsExTopmost' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'GetForegroundWindow' -and
         $windowsDesktopHostUiaProviderCode -match 'IRawElementProviderFragmentRoot' -and

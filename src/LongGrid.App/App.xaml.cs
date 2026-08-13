@@ -64,8 +64,10 @@ public partial class App : Application
                 Environment.GetEnvironmentVariable(
                     ProductDesktopInteractionFeaturePolicy
                         .EmergencyDisableEnvironmentVariableName));
-        productDesktopHostLifecycle = new(desktopHostFeature);
         productDesktopInteraction = new(interactionFeature);
+        productDesktopHostLifecycle = new(
+            desktopHostFeature,
+            productDesktopInteraction);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)

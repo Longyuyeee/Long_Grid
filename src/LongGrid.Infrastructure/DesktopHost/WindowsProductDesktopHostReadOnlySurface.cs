@@ -10,10 +10,12 @@ internal sealed class WindowsProductDesktopHostReadOnlySurfaceFactory
 {
     public IProductDesktopHostReadOnlySurface Create(
         ProductDesktopHostDisplayProjection projection,
-        nint instanceMarker) =>
+        nint instanceMarker,
+        bool startHidden) =>
         WindowsProductDesktopHostReadOnlySurface.Create(
             projection,
-            instanceMarker);
+            instanceMarker,
+            startHidden);
 }
 
 internal sealed class WindowsProductDesktopHostReadOnlySurface
@@ -23,6 +25,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     private readonly nint module;
     private readonly WindowProcedure windowProcedure;
     private readonly ProductDesktopHostDisplayProjection projection;
+    private readonly bool startHidden;
 #if WINDOWS
     private WindowsProductDesktopHostUiaRootProvider? uiaProvider;
 #endif
@@ -30,7 +33,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
 
     private WindowsProductDesktopHostReadOnlySurface(
         ProductDesktopHostDisplayProjection projection,
-        nint instanceMarker)
+        nint instanceMarker,
+        bool startHidden)
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -39,6 +43,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         }
 
         this.projection = projection;
+        this.startHidden = startHidden;
         InstanceMarker = instanceMarker != nint.Zero
             ? instanceMarker
             : throw new ArgumentOutOfRangeException(nameof(instanceMarker));
@@ -62,16 +67,30 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
 
     public bool ReadOnlyAccessibilityAttested => uiaProvider is not null;
 
-    public bool PassiveWindowContractAttested { get; private set; }
+    public bool PassiveWindowContractAttested =>
+        !disposed
+        && Handle != nint.Zero
+        && NativeMethods.IsWindowVisible(Handle)
+        && AttestStableWindowPolicy()
+        && AttestWindowRegion(expectEmpty: false);
+
+    public bool HiddenWindowContractAttested =>
+        !disposed
+        && Handle != nint.Zero
+        && !NativeMethods.IsWindowVisible(Handle)
+        && AttestStableWindowPolicy()
+        && AttestWindowRegion(expectEmpty: true);
 
     internal static WindowsProductDesktopHostReadOnlySurface Create(
         ProductDesktopHostDisplayProjection projection,
-        nint instanceMarker)
+        nint instanceMarker,
+        bool startHidden = false)
     {
         ArgumentNullException.ThrowIfNull(projection);
         var surface = new WindowsProductDesktopHostReadOnlySurface(
             projection,
-            instanceMarker);
+            instanceMarker,
+            startHidden);
         try
         {
             surface.CreateNativeWindow();
@@ -157,10 +176,12 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             NativeMethods.DwmWindowCornerPreference,
             ref cornerPreference,
             sizeof(int));
-        ApplyWindowRegion();
-        _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwShowNoActivate);
-        _ = NativeMethods.UpdateWindow(Handle);
-        PassiveWindowContractAttested = AttestPassiveWindowContract();
+        bool applied = startHidden ? ApplyHidden() : ApplyPassive();
+        if (!applied)
+        {
+            throw new InvalidOperationException(
+                "DesktopHost surface failed its initial mode attestation.");
+        }
     }
 
     private nint WindowProc(
@@ -390,6 +411,23 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         GC.KeepAlive(windowProcedure);
     }
 
+    public bool ApplyPassive()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        ApplyWindowRegion();
+        _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwShowNoActivate);
+        _ = NativeMethods.UpdateWindow(Handle);
+        return PassiveWindowContractAttested;
+    }
+
+    public bool ApplyHidden()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        ApplyEmptyWindowRegion();
+        _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwHide);
+        return HiddenWindowContractAttested;
+    }
+
     private void ApplyWindowRegion()
     {
         nint combined = NativeMethods.CreateRectRgn(0, 0, 0, 0);
@@ -448,7 +486,34 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         }
     }
 
-    private bool AttestPassiveWindowContract()
+    private void ApplyEmptyWindowRegion()
+    {
+        nint empty = NativeMethods.CreateRectRgn(0, 0, 0, 0);
+        if (empty == nint.Zero)
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+
+        bool transferred = false;
+        try
+        {
+            if (NativeMethods.SetWindowRgn(Handle, empty, redraw: true) == 0)
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            transferred = true;
+        }
+        finally
+        {
+            if (!transferred)
+            {
+                _ = NativeMethods.DeleteObject(empty);
+            }
+        }
+    }
+
+    private bool AttestStableWindowPolicy()
     {
         nint extendedStyle = NativeMethods.GetWindowLongPtr(
             Handle,
@@ -462,6 +527,28 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             && (style & NativeMethods.WsExTopmost) == 0
             && NativeMethods.GetWindow(Handle, NativeMethods.GwOwner) == nint.Zero
             && NativeMethods.GetForegroundWindow() != Handle;
+    }
+
+    private bool AttestWindowRegion(bool expectEmpty)
+    {
+        nint region = NativeMethods.CreateRectRgn(0, 0, 0, 0);
+        if (region == nint.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            int result = NativeMethods.GetWindowRgn(Handle, region);
+            return expectEmpty
+                ? result == NativeMethods.NullRegion
+                : result is not (NativeMethods.Error
+                    or NativeMethods.NullRegion);
+        }
+        finally
+        {
+            _ = NativeMethods.DeleteObject(region);
+        }
     }
 
     private NativeRect GetContainerBounds(
@@ -591,6 +678,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint WsExNoActivate = 0x08000000;
         internal const uint WsExTopmost = 0x00000008;
         internal const uint LwaAlpha = 0x00000002;
+        internal const int SwHide = 0;
         internal const int SwShowNoActivate = 4;
         internal const uint WmPaint = 0x000F;
         internal const uint WmEraseBackground = 0x0014;
@@ -607,6 +695,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint DtSingleLine = 0x0020;
         internal const uint DtEndEllipsis = 0x8000;
         internal const int RgnOr = 2;
+        internal const int NullRegion = 1;
         internal const int Error = 0;
         internal const int DwmWindowCornerPreference = 33;
         internal const int DwmWindowCornerPreferenceRound = 2;
@@ -691,6 +780,10 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool IsWindowVisible(nint window);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool UpdateWindow(nint window);
 
         [DllImport("gdi32.dll")]
@@ -712,6 +805,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             nint window,
             nint region,
             [MarshalAs(UnmanagedType.Bool)] bool redraw);
+
+        [DllImport("user32.dll")]
+        internal static extern int GetWindowRgn(nint window, nint region);
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]

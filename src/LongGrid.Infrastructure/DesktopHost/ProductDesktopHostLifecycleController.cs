@@ -149,13 +149,20 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
     bool ReadOnlyAccessibilityAttested { get; }
 
     bool PassiveWindowContractAttested { get; }
+
+    bool HiddenWindowContractAttested { get; }
+
+    bool ApplyPassive();
+
+    bool ApplyHidden();
 }
 
 internal interface IProductDesktopHostReadOnlySurfaceFactory
 {
     IProductDesktopHostReadOnlySurface Create(
         ProductDesktopHostDisplayProjection projection,
-        nint instanceMarker);
+        nint instanceMarker,
+        bool startHidden);
 }
 
 public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
@@ -165,6 +172,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     private readonly bool enabled;
     private readonly IProductDesktopHostReadOnlySurfaceFactory? surfaceFactory;
     private readonly ProductDesktopHostWindowBridge? windowBridge;
+    private readonly ProductDesktopInteractionDevelopmentController?
+        interactionDevelopment;
     private readonly Guid hostInstanceId = Guid.NewGuid();
     private ProductDesktopHostLifecycleSnapshot snapshot;
     private readonly List<IProductDesktopHostReadOnlySurface> surfaces = [];
@@ -175,10 +184,18 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     private long lastWorkspaceRevision = -1;
     private long lastTopologyGeneration = -1;
     private long windowGeneration;
+    private ProductDesktopHostPassiveSurfaceModeAdapter? interactionSurface;
     private bool disposed;
 
     public ProductDesktopHostLifecycleController(
         ProductDesktopHostFeatureDecision featureDecision)
+        : this(featureDecision, interactionDevelopment: null)
+    {
+    }
+
+    public ProductDesktopHostLifecycleController(
+        ProductDesktopHostFeatureDecision featureDecision,
+        ProductDesktopInteractionDevelopmentController? interactionDevelopment)
         : this(
             featureDecision,
             featureDecision?.IsEnabled == true
@@ -186,14 +203,17 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                 : null,
             featureDecision?.IsEnabled == true
                 ? new WindowsProductDesktopHostWindowInspector()
-                : null)
+                : null,
+            interactionDevelopment)
     {
     }
 
     internal ProductDesktopHostLifecycleController(
         ProductDesktopHostFeatureDecision featureDecision,
         IProductDesktopHostReadOnlySurfaceFactory? surfaceFactory,
-        IProductDesktopHostWindowInspector? windowInspector)
+        IProductDesktopHostWindowInspector? windowInspector,
+        ProductDesktopInteractionDevelopmentController?
+            interactionDevelopment = null)
     {
         ArgumentNullException.ThrowIfNull(featureDecision);
         enabled = featureDecision.IsEnabled;
@@ -204,6 +224,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         }
 
         this.surfaceFactory = surfaceFactory;
+        this.interactionDevelopment = interactionDevelopment;
         windowBridge = windowInspector is null
             ? null
             : new(windowInspector);
@@ -371,15 +392,22 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     {
         try
         {
+            bool controlledSurfaceLifecycle =
+                interactionDevelopment?.CanAttachNativeSurface == true;
             ProductDesktopHostIdentity? identity = null;
             ProductDesktopHostWindowRegistrationResult? registration = null;
             foreach (ProductDesktopHostDisplayProjection display in batch.Displays)
             {
                 IProductDesktopHostReadOnlySurface created =
-                    surfaceFactory!.Create(display, NextInstanceMarker());
+                    surfaceFactory!.Create(
+                        display,
+                        NextInstanceMarker(),
+                        startHidden: controlledSurfaceLifecycle);
                 surfaces.Add(created);
                 if (!created.ReadOnlyAccessibilityAttested
-                    || !created.PassiveWindowContractAttested)
+                    || (controlledSurfaceLifecycle
+                        ? !created.HiddenWindowContractAttested
+                        : !created.PassiveWindowContractAttested))
                 {
                     throw new InvalidOperationException(
                         "Every display surface must attest read-only UIA and passive window behavior.");
@@ -424,6 +452,29 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             }
 
             currentBatch = batch;
+            bool interactionAttached = false;
+            if (controlledSurfaceLifecycle)
+            {
+                interactionSurface = new(
+                    surfaces.AsReadOnly(),
+                    registration!.Snapshot.Generation);
+                ProductDesktopInteractionDevelopmentSnapshot attached =
+                    interactionDevelopment!.AttachPassiveSurface(
+                        interactionSurface,
+                        CreateInteractionEvidence(
+                            batch,
+                            registration.Snapshot.Generation));
+                interactionAttached = attached.IsDevelopmentInteractionAvailable;
+                if (!interactionAttached)
+                {
+                    ReleaseSurfaceUnsafe();
+                    return UpdateSnapshotUnsafe(
+                        ProductDesktopHostLifecycleStatus.Faulted,
+                        connected: false,
+                        ownedWindowCount: 0);
+                }
+            }
+
             return UpdateSnapshotUnsafe(
                 ProductDesktopHostLifecycleStatus.ReadyReadOnly,
                 connected: true,
@@ -451,6 +502,13 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
 
     private void ReleaseSurfaceUnsafe()
     {
+        if (interactionSurface is not null)
+        {
+            _ = interactionDevelopment?.DetachPassiveSurface(
+                interactionSurface);
+            interactionSurface = null;
+        }
+
         if (windowBridge is not null)
         {
             foreach ((string displayId, long generation) in registrations)
@@ -494,6 +552,20 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             passiveWindowContractAttested);
         return snapshot;
     }
+
+    private static ProductDesktopInteractionEvidence CreateInteractionEvidence(
+        ProductDesktopHostProjectionBatch batch,
+        long registryGeneration) =>
+        new(
+            NativeHostConnected: true,
+            HostReadyReadOnly: true,
+            ReadOnlyAccessibilityAttested: true,
+            PassiveWindowContractAttested: true,
+            batch.WorkspaceRevision,
+            batch.TopologyGeneration,
+            registryGeneration,
+            AvailableContainerIds: new HashSet<string>(StringComparer.Ordinal),
+            LockedContainerIds: new HashSet<string>(StringComparer.Ordinal));
 
     private void Publish(ProductDesktopHostLifecycleSnapshot value) =>
         SnapshotChanged?.Invoke(this, value);
