@@ -273,3 +273,5 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-08-13 B6c2 Intent 准备门禁补充：产品桥在 Host/Interaction 之外新增精确 bridge opt-in 与人工会话确认，只把一秒内、逐动作确认、单调序号、唯一显示器/未锁定方格命中转成最长 5 秒且绑定三类 generation 的准备态 Intent。新动作、系统信号、Surface/证据变化、超时和关闭均使其失效。App 没有输入转送或消费入口，正式 HWND/adapter 继续拒绝 Explicit，文件、任务栏与插件权限不变；下一阶段先做隔离输入证据。
 
 2026-08-13 B6c3 隔离输入转发补充：第四重精确 forwarding opt-in 与独立会话确认只允许来源已证明、非注入、非自动重复且未重放的 pointer/keyboard/assistive activation 进入 B6c2 准备桥；近期 ActionId 记忆固定 64 项，系统事件、Surface/证据变化与关闭同步失效。适配器不拥有 Windows 输入源，正式 HWND 继续穿透且 Explicit/文件权限保持关闭；下一阶段用隔离原生窗口验证真实来源并完成 B6C3 人工矩阵。
+
+2026-08-13 B6c4 原生来源探针补充：探针专属 NoActivate ToolWindow 已验证 pointer message、Enter/Space 与真实 HWND UIA Invoke Provider 归一化到 B6c3，auto-repeat 拒绝、普通键忽略、前台稳定和 UIA 预热后资源清理通过。自动化明确使用同步窗口消息且物理设备输入仍未验证；正式 App/HWND、Explicit 与文件权限不变，下一阶段只在人工会话中建立短生命周期来源桥。

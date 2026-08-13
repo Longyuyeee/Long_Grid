@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\LongGrid.Core\LongGrid.Core.csproj" />
+    <ProjectReference Include="..\..\src\LongGrid.Infrastructure\LongGrid.Infrastructure.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

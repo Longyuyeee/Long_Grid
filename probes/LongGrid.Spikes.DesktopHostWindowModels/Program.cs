@@ -239,6 +239,24 @@ internal static class Program
             return nativeReport.Result == "Conditional Pass" ? 0 : 2;
         }
 
+        if (options.NativeInputForwardingSource)
+        {
+            NativeInputForwardingSourceReport inputReport =
+                NativeInputForwardingSourceProbe.Run(perMonitorV2Requested);
+            Console.WriteLine(
+                options.Json
+                    ? JsonSerializer.Serialize(inputReport, JsonOptions)
+                    : $"{inputReport.Probe}{Environment.NewLine}"
+                        + $"Pointer: {inputReport.PointerMessagePreparedOnce}"
+                        + $"{Environment.NewLine}"
+                        + $"Keyboard: {inputReport.KeyboardMessagePreparedOnce}"
+                        + $"{Environment.NewLine}"
+                        + $"UIA Invoke: {inputReport.UiaInvokePreparedOnce}"
+                        + $"{Environment.NewLine}"
+                        + $"Result: {inputReport.Result}");
+            return inputReport.Result == "Conditional Pass" ? 0 : 2;
+        }
+
         if (options.InteractiveSlice)
         {
             return InteractiveDesktopHostSliceProbe.RunInteractive(
@@ -368,6 +386,8 @@ internal static class Program
                                    Run its non-input automated smoke probe.
               --native-interaction-surface
                                    Run the B5 probe-owned HWND mode adapter.
+              --native-input-forwarding
+                                   Run the B6c4 probe-owned HWND input source.
               --json               Write a machine-readable report.
               --help               Show this help.
             """);
@@ -384,7 +404,8 @@ internal sealed record ProbeOptions(
     bool VisibleInputUiaFragment,
     bool InteractiveSlice,
     bool InteractiveSliceSmoke,
-    bool NativeInteractionSurfaceMode)
+    bool NativeInteractionSurfaceMode,
+    bool NativeInputForwardingSource)
 {
     internal static ProbeOptions Parse(IEnumerable<string> args)
     {
@@ -398,6 +419,7 @@ internal sealed record ProbeOptions(
         bool interactiveSlice = false;
         bool interactiveSliceSmoke = false;
         bool nativeInteractionSurfaceMode = false;
+        bool nativeInputForwardingSource = false;
 
         foreach (string argument in args)
         {
@@ -434,6 +456,9 @@ internal sealed record ProbeOptions(
                 case "--native-interaction-surface":
                     nativeInteractionSurfaceMode = true;
                     break;
+                case "--native-input-forwarding":
+                    nativeInputForwardingSource = true;
+                    break;
                 default:
                     throw new ArgumentException($"Unknown option: {argument}");
             }
@@ -446,7 +471,8 @@ internal sealed record ProbeOptions(
             + (visibleInputUiaFragment ? 1 : 0)
             + (interactiveSlice ? 1 : 0)
             + (interactiveSliceSmoke ? 1 : 0)
-            + (nativeInteractionSurfaceMode ? 1 : 0) > 1)
+            + (nativeInteractionSurfaceMode ? 1 : 0)
+            + (nativeInputForwardingSource ? 1 : 0) > 1)
         {
             throw new ArgumentException(
                 "Choose only one transaction probe mode.");
@@ -462,7 +488,8 @@ internal sealed record ProbeOptions(
             visibleInputUiaFragment,
             interactiveSlice,
             interactiveSliceSmoke,
-            nativeInteractionSurfaceMode);
+            nativeInteractionSurfaceMode,
+            nativeInputForwardingSource);
     }
 }
 

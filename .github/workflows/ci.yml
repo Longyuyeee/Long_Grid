@@ -125,6 +125,16 @@ jobs:
           --native-interaction-surface
           --json
 
+      - name: Validate native isolated input forwarding source
+        run: >-
+          dotnet run
+          --project probes/LongGrid.Spikes.DesktopHostWindowModels
+          --configuration Release
+          --no-build
+          --
+          --native-input-forwarding
+          --json
+
       - name: Validate UI automation contract
         shell: powershell
         run: >-

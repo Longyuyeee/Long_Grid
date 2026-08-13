@@ -2,6 +2,8 @@
 
 本手册只验证“归一化输入 → Intent 准备”的隔离边界。正式 DesktopHost HWND 仍为 `HTTRANSPARENT`；会话不安装全局 Hook、不调用 `SendInput`、不进入 Explicit、不修改真实桌面文件，也不自动生成通过证据。
 
+Stage 121 的 `--native-input-forwarding` 自动探针只验证同步 Win32 消息和真实 HWND UIA Provider 的归一化合同，结果为 Conditional Pass；它明确没有验证物理设备或 Narrator，因此不能替代本手册的人工执行。
+
 ## 前置条件
 
 - 在隔离测试账户或可恢复虚拟机中执行；关闭无关应用并保存工作。

@@ -148,7 +148,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6c3 已建立第四重默认关闭的隔离输入转发边界：只有 Host、Interaction、Intent bridge、Input forwarding 与对应人工会话确认都精确开启时，来源已证明、非注入、非自动重复且未重放的指针/键盘/辅助技术归一化动作才会被转成一次 B6c2 Intent 准备。适配器不拥有 Windows 输入源，不安装 Hook、不发送输入、不消费 Intent；正式 HWND 仍 `HTTRANSPARENT`，adapter 仍拒绝 Explicit，文件权限仍为零。下一切片 B6c4 先在隔离原生窗口验证真实来源并完成 B6C3 人工矩阵。A5、B6c2 与 B6c3 真实会话结果继续 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6c4 已用探针专属、无激活 HWND 验证 pointer message、Enter/Space 和真实 HWND UIA Invoke Provider 都能唯一归一化到 B6c3，并验证自动重复拒绝、普通键忽略、前台稳定和预热后资源清理。自动化明确使用同步窗口消息而不是物理设备，未调用 SendInput、Hook 或 Raw Input；正式 App 不引用探针，正式 HWND 仍 `HTTRANSPARENT`，Explicit 和文件权限仍为零。下一切片 B6c5 才建立人工会话显式拥有的短生命周期来源桥并执行物理输入/Narrator 矩阵。A5、B6c2–B6c4 真实会话结果继续 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 
