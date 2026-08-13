@@ -94,6 +94,8 @@ $desktopInteractionSelectionAccessibilityCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionSelectionAccessibility.cs'
 $desktopInteractionSurfaceModeCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionSurfaceModeTransaction.cs'
+$nativeInteractionSurfaceProbeCodePath = Join-Path $projectRoot `
+    'probes\LongGrid.Spikes.DesktopHostWindowModels\NativeInteractionSurfaceModeProbe.cs'
 $desktopHostLifecycleControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostLifecycleController.cs'
 $desktopHostProjectionBatchCodePath = Join-Path $projectRoot `
@@ -312,6 +314,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopInteractionSurfaceModeCode = Get-Content `
         -LiteralPath $desktopInteractionSurfaceModeCodePath `
+        -Raw `
+        -Encoding UTF8
+    $nativeInteractionSurfaceProbeCode = Get-Content `
+        -LiteralPath $nativeInteractionSurfaceProbeCodePath `
         -Raw `
         -Encoding UTF8
     $desktopHostLifecycleControllerCode = Get-Content `
@@ -1157,6 +1163,37 @@ function Test-SourceContract {
             'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
     ) `
         'B4 surface-mode switching must transact Passive/Explicit/Hidden evidence, preserve window policy and registry generation, fail closed through restore/hide, connect B3 semantics, and remain isolated from App and the formal read-only HWND.'
+    Assert-Condition (
+        $nativeInteractionSurfaceProbeCode -match `
+            'IProductDesktopInteractionSurfaceModeAdapter' -and
+        $nativeInteractionSurfaceProbeCode -match 'CreateWindowEx' -and
+        $nativeInteractionSurfaceProbeCode -match 'SetWindowRgn' -and
+        $nativeInteractionSurfaceProbeCode -match 'WmNcHitTest' -and
+        $nativeInteractionSurfaceProbeCode -match 'WmMouseActivate' -and
+        $nativeInteractionSurfaceProbeCode -match `
+            'AutomationElement\.FromHandle' -and
+        $nativeInteractionSurfaceProbeCode -match `
+            'SelectionPattern\.Pattern' -and
+        $nativeInteractionSurfaceProbeCode -match `
+            'FailExplicitAfterMutation' -and
+        $nativeInteractionSurfaceProbeCode -match 'FailRestore' -and
+        $nativeInteractionSurfaceProbeCode -match 'FailHide' -and
+        $nativeInteractionSurfaceProbeCode -match `
+            'RepeatedResourcePlateau' -and
+        $nativeInteractionSurfaceProbeCode -match `
+            'SyntheticInputUsed:\s*false' -and
+        $nativeInteractionSurfaceProbeCode -match `
+            'DesktopFilesReadOrChanged:\s*false' -and
+        $nativeInteractionSurfaceProbeCode -match `
+            'ExplorerWindowInspected:\s*false' -and
+        -not ($appCode -match `
+            'NativeInteractionSurfaceModeProbe|NativeInteractionSurfaceAdapter') -and
+        -not ($windowsDesktopHostReadOnlySurfaceCode -match `
+            'NativeInteractionSurfaceModeProbe|NativeInteractionSurfaceAdapter') -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'WmNcHitTest:\s*\r?\n\s*return new nint\(NativeMethods\.HtTransparent\)'
+    ) `
+        'B5 must use only a probe-owned HWND to validate the B4 adapter, native Region/messages, real HWND UIA, compensation, foreground stability, and bounded resources while production App and read-only HWND remain disconnected.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and

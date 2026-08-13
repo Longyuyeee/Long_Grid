@@ -222,6 +222,23 @@ internal static class Program
                 : 2;
         }
 
+        if (options.NativeInteractionSurfaceMode)
+        {
+            NativeInteractionSurfaceModeReport nativeReport =
+                NativeInteractionSurfaceModeProbe.Run(perMonitorV2Requested);
+            Console.WriteLine(
+                options.Json
+                    ? JsonSerializer.Serialize(nativeReport, JsonOptions)
+                    : $"{nativeReport.Probe}{Environment.NewLine}"
+                        + $"Round trip: "
+                        + $"{nativeReport.PassiveExplicitPassiveRoundTrip}"
+                        + $"{Environment.NewLine}"
+                        + $"Cleanup: {nativeReport.CleanupPassed}"
+                        + $"{Environment.NewLine}"
+                        + $"Result: {nativeReport.Result}");
+            return nativeReport.Result == "Conditional Pass" ? 0 : 2;
+        }
+
         if (options.InteractiveSlice)
         {
             return InteractiveDesktopHostSliceProbe.RunInteractive(
@@ -349,6 +366,8 @@ internal static class Program
                                    use keyboard/mouse and press Esc to close.
               --interactive-slice-smoke
                                    Run its non-input automated smoke probe.
+              --native-interaction-surface
+                                   Run the B5 probe-owned HWND mode adapter.
               --json               Write a machine-readable report.
               --help               Show this help.
             """);
@@ -364,7 +383,8 @@ internal sealed record ProbeOptions(
     bool CompositeTransaction,
     bool VisibleInputUiaFragment,
     bool InteractiveSlice,
-    bool InteractiveSliceSmoke)
+    bool InteractiveSliceSmoke,
+    bool NativeInteractionSurfaceMode)
 {
     internal static ProbeOptions Parse(IEnumerable<string> args)
     {
@@ -377,6 +397,7 @@ internal sealed record ProbeOptions(
         bool visibleInputUiaFragment = false;
         bool interactiveSlice = false;
         bool interactiveSliceSmoke = false;
+        bool nativeInteractionSurfaceMode = false;
 
         foreach (string argument in args)
         {
@@ -410,6 +431,9 @@ internal sealed record ProbeOptions(
                 case "--interactive-slice-smoke":
                     interactiveSliceSmoke = true;
                     break;
+                case "--native-interaction-surface":
+                    nativeInteractionSurfaceMode = true;
+                    break;
                 default:
                     throw new ArgumentException($"Unknown option: {argument}");
             }
@@ -421,7 +445,8 @@ internal sealed record ProbeOptions(
             + (compositeTransaction ? 1 : 0)
             + (visibleInputUiaFragment ? 1 : 0)
             + (interactiveSlice ? 1 : 0)
-            + (interactiveSliceSmoke ? 1 : 0) > 1)
+            + (interactiveSliceSmoke ? 1 : 0)
+            + (nativeInteractionSurfaceMode ? 1 : 0) > 1)
         {
             throw new ArgumentException(
                 "Choose only one transaction probe mode.");
@@ -436,7 +461,8 @@ internal sealed record ProbeOptions(
             compositeTransaction,
             visibleInputUiaFragment,
             interactiveSlice,
-            interactiveSliceSmoke);
+            interactiveSliceSmoke,
+            nativeInteractionSurfaceMode);
     }
 }
 

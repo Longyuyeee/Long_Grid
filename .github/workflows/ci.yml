@@ -101,6 +101,16 @@ jobs:
           --interactive-slice-smoke
           --json
 
+      - name: Validate native interaction surface mode adapter
+        run: >-
+          dotnet run
+          --project probes/LongGrid.Spikes.DesktopHostWindowModels
+          --configuration Release
+          --no-build
+          --
+          --native-interaction-surface
+          --json
+
       - name: Validate UI automation contract
         shell: powershell
         run: >-
