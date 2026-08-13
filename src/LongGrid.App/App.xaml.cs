@@ -26,6 +26,8 @@ public partial class App : Application
     private readonly ProductDesktopCatalogController productDesktopCatalog;
     private readonly ProductDisplayTopologyController productDisplayTopology;
     private readonly ProductDesktopHostLifecycleController productDesktopHostLifecycle;
+    private readonly ProductDesktopInteractionDevelopmentController
+        productDesktopInteraction;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
     private ProductConfigurationLoadResult? currentConfigurationLoadResult;
@@ -53,7 +55,17 @@ public partial class App : Application
             ProductDesktopHostFeaturePolicy.Evaluate(
                 Environment.GetEnvironmentVariable(
                     ProductDesktopHostFeaturePolicy.EnvironmentVariableName));
+        ProductDesktopInteractionFeatureDecision interactionFeature =
+            ProductDesktopInteractionFeaturePolicy.Evaluate(
+                desktopHostFeature,
+                Environment.GetEnvironmentVariable(
+                    ProductDesktopInteractionFeaturePolicy
+                        .EnvironmentVariableName),
+                Environment.GetEnvironmentVariable(
+                    ProductDesktopInteractionFeaturePolicy
+                        .EmergencyDisableEnvironmentVariableName));
         productDesktopHostLifecycle = new(desktopHostFeature);
+        productDesktopInteraction = new(interactionFeature);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -1136,6 +1148,7 @@ public partial class App : Application
             ProductDisplayTopology_SnapshotChanged;
         productDesktopHostLifecycle.SnapshotChanged -=
             ProductDesktopHostLifecycle_SnapshotChanged;
+        _ = productDesktopInteraction.Complete(DateTimeOffset.UtcNow);
         await productDesktopHostLifecycle.DisposeAsync();
         await productDisplayTopology.DisposeAsync();
         await productDesktopCatalog.DisposeAsync();
