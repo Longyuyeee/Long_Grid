@@ -321,3 +321,9 @@ A5 真实 Narrator、Win+D、全屏、Explorer 重启、锁定/RDP 与 24 小时
 B6C3 启动器现已与实际能力对齐：它只启动 probe 自有可见输入来源，不启动尚未接入来源的正式 App。会话必须具备场景、匿名操作员和四项确认，probe 再复核六个精确进程开关；鼠标、Enter/Space 和 UIA/Narrator Invoke 只进入 Intent 准备，Escape/关闭即销毁。程序不写证据且结果固定 PendingManualEvidence。
 
 下一执行单元为 B6c6：先按手册执行 B6C3-01～04 与 08 中来源窗口可承载的子项，再为 B6C3-05～07 建立独立系统事件人工会话；两组都只匿名记录环境类别、有限状态与恢复结果并由负责人复核。未完成该门禁前，禁止把输入源接入正式 App、开放 Explicit 或进入真实文件操作。
+
+## Stage 123 / B6c6 补充：系统表面失效人工会话
+
+独立系统表面启动器现只在五项确认后运行 probe 自有来源，并复用 Stage 118 的公开 Windows 观察器。危险事件同步失效 Prepared 并隐藏来源；连续两个安全样本后只恢复 AwaitingPassiveSurface，不自动重建意图。它覆盖 B6C3-05、06 和 07-Explorer，明确不观察显示拓扑 generation，也不改变系统状态、启动正式 App、进入 Explicit 或写证据。
+
+下一执行单元为 B6c7：执行 B6C3-01～06 与 07-Explorer 的真实匿名矩阵，并单独审计只读显示拓扑 generation 接入。两组证据及恢复结果复核前，正式产品输入和真实文件操作继续关闭。

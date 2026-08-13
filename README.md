@@ -148,7 +148,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6c5 已把 B6C3 人工启动器改为只启动 probe 自有、可见、短生命周期的原生来源窗口；它在完整确认和六重门禁后接受窗口定向 pointer、Enter/Space 与 UIA/Narrator Invoke，显示有限计数，并在 Escape/关闭时销毁。正式 App 不引用该来源，正式 HWND 仍 `HTTRANSPARENT`，全局输入、SendInput、Explicit 和文件权限仍为零，程序也不会自动写 Pass。该窗口只承载 B6C3-01～04 和 08 的适用子项，05～07 仍需独立系统事件人工会话。下一阶段 B6c6 执行来源矩阵并补齐系统事件会话；A5、B6c2–B6c5 真实会话结果继续 PendingManualEvidence。任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6c6 已增加独立系统表面人工会话：probe 自有来源在失焦、Win+D/桌面显示、全屏、会话/RDP 或 Explorer 身份变化时立即失效 Prepared 并隐藏，连续两个安全样本后只以非激活 AwaitingPassiveSurface 恢复。它不启动正式 App、不改变系统状态、不进入 Explicit 或文件操作，也不自动写 Pass；B6C3-07 只覆盖 Explorer 子项，显示拓扑 generation 仍未接入。下一阶段 B6c7 执行来源与系统表面真人矩阵，并单独审计只读 topology generation。A5、B6c2–B6c6 真实会话结果继续 PendingManualEvidence；任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
 
 ## 开发启动
 

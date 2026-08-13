@@ -8,7 +8,20 @@ using LongGrid.Infrastructure.DesktopHost;
 
 internal static class NativeInputForwardingSourceProbe
 {
-    internal static int RunInteractive(bool perMonitorV2Requested)
+    internal static int RunInteractive(bool perMonitorV2Requested) =>
+        RunManualSession(
+            perMonitorV2Requested,
+            observeSystemSurfaces: false);
+
+    internal static int RunSystemSurfaceInteractive(
+        bool perMonitorV2Requested) =>
+        RunManualSession(
+            perMonitorV2Requested,
+            observeSystemSurfaces: true);
+
+    private static int RunManualSession(
+        bool perMonitorV2Requested,
+        bool observeSystemSurfaces)
     {
         if (!perMonitorV2Requested)
         {
@@ -63,8 +76,13 @@ internal static class NativeInputForwardingSourceProbe
         int observed = 0;
         int prepared = 0;
         int rejected = 0;
+        int unsafeSystemEvents = 0;
+        int preparedIntentsInvalidated = 0;
+        int recoveryCandidates = 0;
         long sequence = 0;
         NativeInputForwardingProbeWindow? host = null;
+        WindowsProductDesktopInteractionSystemSurfaceEventSource?
+            systemSurfaceSource = null;
         using (host = NativeInputForwardingProbeWindow.Create(
             (kind, x, y, autoRepeat) =>
             {
@@ -102,23 +120,104 @@ internal static class NativeInputForwardingSourceProbe
                     prepared,
                     rejected);
             },
-            interactive: true))
+            interactive: true,
+            focusLost: observeSystemSurfaces
+                ? () => systemSurfaceSource?.ReportFocusLost()
+                : null))
         {
-            Console.WriteLine("B6c5 probe-owned manual input source session");
-            Console.WriteLine(
-                "Click the visible window, press Enter/Space, or invoke it with UI Automation/Narrator. Press Escape or close it to destroy the source.");
-            Console.WriteLine(
-                "No global hooks, Raw Input, SendInput, Explicit interaction, file operations, evidence capture, or automatic Pass are enabled.");
-            int exitCode = host.RunMessageLoop();
+            EventHandler<ProductDesktopInteractionSystemSurfaceEvent>?
+                surfaceChanged = null;
+            int exitCode;
+            try
+            {
+                if (observeSystemSurfaces)
+                {
+                    systemSurfaceSource = new();
+                    surfaceChanged = (_, systemEvent) =>
+                    {
+                        if (!systemEvent.IsValid)
+                        {
+                            return;
+                        }
+
+                        ProductDesktopInteractionInputForwardingSnapshot
+                            snapshot;
+                        bool invalidatedPrepared = false;
+                        if (systemEvent.Kind
+                            == ProductDesktopInteractionSystemSurfaceEventKind
+                                .RecoveryCandidate)
+                        {
+                            _ = Interlocked.Increment(ref recoveryCandidates);
+                            snapshot = forwarding.AwaitPassiveSurface();
+                        }
+                        else
+                        {
+                            invalidatedPrepared =
+                                forwarding.Snapshot.PreparedIntentAvailable;
+                            snapshot = forwarding.Invalidate();
+                            _ = Interlocked.Increment(ref unsafeSystemEvents);
+                            if (invalidatedPrepared)
+                            {
+                                _ = Interlocked.Increment(
+                                    ref preparedIntentsInvalidated);
+                            }
+                        }
+
+                        host.UpdateSystemSurfaceStatus(
+                            systemEvent.Kind,
+                            snapshot.Status,
+                            unsafeSystemEvents,
+                            preparedIntentsInvalidated,
+                            recoveryCandidates);
+                        host.ApplySystemSurfaceVisibility(
+                            systemEvent.Kind
+                                == ProductDesktopInteractionSystemSurfaceEventKind
+                                    .RecoveryCandidate);
+                    };
+                    systemSurfaceSource.SurfaceChanged += surfaceChanged;
+                    systemSurfaceSource.Start();
+                }
+
+                Console.WriteLine(
+                    observeSystemSurfaces
+                        ? "B6c6 probe-owned manual system-surface session"
+                        : "B6c5 probe-owned manual input source session");
+                Console.WriteLine(
+                    "Click the visible window, press Enter/Space, or invoke it with UI Automation/Narrator. Press Escape or close it to destroy the source.");
+                if (observeSystemSurfaces)
+                {
+                    Console.WriteLine(
+                        "After preparing once, perform only the acknowledged focus/Win+D/full-screen/session/RDP/Explorer scenario and verify invalidation before recovery.");
+                }
+
+                Console.WriteLine(
+                    "No global hooks, Raw Input, SendInput, Explicit interaction, file operations, evidence capture, or automatic Pass are enabled.");
+                exitCode = host.RunMessageLoop();
+            }
+            finally
+            {
+                if (systemSurfaceSource is not null)
+                {
+                    systemSurfaceSource.SurfaceChanged -= surfaceChanged;
+                    systemSurfaceSource.Dispose();
+                    systemSurfaceSource = null;
+                }
+            }
+
             _ = forwarding.Complete();
             Console.WriteLine("FinalResultStatus: PendingManualEvidence");
             Console.WriteLine($"ObservedInputCount: {observed}");
             Console.WriteLine($"PreparedIntentCount: {prepared}");
             Console.WriteLine($"RejectedInputCount: {rejected}");
+            Console.WriteLine($"UnsafeSystemEventCount: {unsafeSystemEvents}");
+            Console.WriteLine(
+                $"PreparedIntentInvalidationCount: {preparedIntentsInvalidated}");
+            Console.WriteLine($"RecoveryCandidateCount: {recoveryCandidates}");
             Console.WriteLine(
                 $"ProbeOwnedWindowDestroyed: {!NativeMethods.IsWindow(host.Window)}");
             Console.WriteLine("PhysicalDeviceInputAutomaticallyVerified: false");
             Console.WriteLine("NativeInjectionDetection: false");
+            Console.WriteLine("DisplayTopologyGenerationObserved: false");
             Console.WriteLine("DesktopFilesReadOrChanged: false");
             Console.WriteLine("ExplicitInteractionEntered: false");
             return exitCode;
@@ -374,9 +473,12 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
         int,
         int,
         bool> forward;
+    private readonly Action? focusLost;
+    private readonly object statusGate = new();
     private readonly bool interactive;
     private bool messageLoopRunning;
     private string status = "Waiting for an acknowledged manual action.";
+    private bool closing;
     private bool disposed;
 
     private NativeInputForwardingProbeWindow(
@@ -390,7 +492,8 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
             int,
             int,
             bool> forward,
-        bool interactive)
+        bool interactive,
+        Action? focusLost)
     {
         this.className = className;
         this.instance = instance;
@@ -399,6 +502,7 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
         this.provider = provider;
         this.forward = forward;
         this.interactive = interactive;
+        this.focusLost = focusLost;
     }
 
     internal nint Window { get; }
@@ -409,7 +513,8 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
             int,
             int,
             bool> forward,
-        bool interactive = false)
+        bool interactive = false,
+        Action? focusLost = null)
     {
         ArgumentNullException.ThrowIfNull(forward);
         string className = $"LongGrid.B6c4.InputSource.{Guid.NewGuid():N}";
@@ -498,7 +603,8 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
                 window,
                 provider,
                 forward,
-                interactive);
+                interactive,
+                focusLost);
             if (!NativeMethods.SetWindowPos(
                 window,
                 NativeMethods.HwndTop,
@@ -558,8 +664,40 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
         int prepared,
         int rejected)
     {
-        status = $"Last: {kind} -> {result}   Observed {observed} / Prepared {prepared} / Rejected {rejected}";
+        lock (statusGate)
+        {
+            status = $"Last: {kind} -> {result}   Observed {observed} / Prepared {prepared} / Rejected {rejected}";
+        }
+
         _ = NativeMethods.InvalidateRect(Window, nint.Zero, erase: true);
+    }
+
+    internal void UpdateSystemSurfaceStatus(
+        ProductDesktopInteractionSystemSurfaceEventKind kind,
+        ProductDesktopInteractionInputForwardingStatus result,
+        int unsafeEvents,
+        int invalidatedPrepared,
+        int recoveryCandidates)
+    {
+        lock (statusGate)
+        {
+            status = $"System: {kind} -> {result}   Unsafe {unsafeEvents} / Invalidated {invalidatedPrepared} / Recovery {recoveryCandidates}";
+        }
+
+        _ = NativeMethods.InvalidateRect(Window, nint.Zero, erase: true);
+    }
+
+    internal void ApplySystemSurfaceVisibility(bool recovered)
+    {
+        _ = NativeMethods.ShowWindow(
+            Window,
+            recovered
+                ? NativeMethods.SwShowNoActivate
+                : NativeMethods.SwHide);
+        if (recovered)
+        {
+            _ = NativeMethods.UpdateWindow(Window);
+        }
     }
 
     private nint HandleMessage(uint message, nint word, nint data)
@@ -572,7 +710,18 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
 
         if (message == NativeMethods.WmClose)
         {
+            closing = true;
             _ = NativeMethods.DestroyWindow(Window);
+            return nint.Zero;
+        }
+
+        if (message == NativeMethods.WmKillFocus)
+        {
+            if (!closing)
+            {
+                focusLost?.Invoke();
+            }
+
             return nint.Zero;
         }
 
@@ -599,6 +748,7 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
             int key = unchecked((int)word.ToInt64());
             if (interactive && key == NativeMethods.VkEscape)
             {
+                closing = true;
                 _ = NativeMethods.DestroyWindow(Window);
                 return nint.Zero;
             }
@@ -621,6 +771,12 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
 
     private void Paint()
     {
+        string currentStatus;
+        lock (statusGate)
+        {
+            currentStatus = status;
+        }
+
         nint deviceContext = NativeMethods.BeginPaint(
             Window,
             out PaintStruct paint);
@@ -639,7 +795,7 @@ internal sealed class NativeInputForwardingProbeWindow : IDisposable
                 NativeMethods.GetSysColorBrush(NativeMethods.ColorWindow));
             DrawLine(deviceContext, "Long Grid - acknowledged manual input source", 20, 18);
             DrawLine(deviceContext, "Click here, then press Enter or Space. UIA/Narrator Invoke is also accepted.", 20, 58);
-            DrawLine(deviceContext, status, 20, 104);
+            DrawLine(deviceContext, currentStatus, 20, 104);
             DrawLine(deviceContext, "Press Escape or close this window to destroy the source.", 20, 150);
             DrawLine(deviceContext, "Result remains PendingManualEvidence; no file or Explicit action occurs.", 20, 190);
         }

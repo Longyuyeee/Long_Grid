@@ -263,6 +263,12 @@ internal static class Program
                 perMonitorV2Requested);
         }
 
+        if (options.NativeInputSystemSurfaceSession)
+        {
+            return NativeInputForwardingSourceProbe
+                .RunSystemSurfaceInteractive(perMonitorV2Requested);
+        }
+
         if (options.InteractiveSlice)
         {
             return InteractiveDesktopHostSliceProbe.RunInteractive(
@@ -397,6 +403,9 @@ internal static class Program
               --native-input-forwarding-session
                                    Run the B6c5 acknowledged visible manual source;
                                    press Escape or close it to destroy the source.
+              --native-input-system-surface-session
+                                   Run the B6c6 acknowledged source with public
+                                   Windows system-surface observation enabled.
               --json               Write a machine-readable report.
               --help               Show this help.
             """);
@@ -415,7 +424,8 @@ internal sealed record ProbeOptions(
     bool InteractiveSliceSmoke,
     bool NativeInteractionSurfaceMode,
     bool NativeInputForwardingSource,
-    bool NativeInputForwardingSession)
+    bool NativeInputForwardingSession,
+    bool NativeInputSystemSurfaceSession)
 {
     internal static ProbeOptions Parse(IEnumerable<string> args)
     {
@@ -431,6 +441,7 @@ internal sealed record ProbeOptions(
         bool nativeInteractionSurfaceMode = false;
         bool nativeInputForwardingSource = false;
         bool nativeInputForwardingSession = false;
+        bool nativeInputSystemSurfaceSession = false;
 
         foreach (string argument in args)
         {
@@ -473,6 +484,9 @@ internal sealed record ProbeOptions(
                 case "--native-input-forwarding-session":
                     nativeInputForwardingSession = true;
                     break;
+                case "--native-input-system-surface-session":
+                    nativeInputSystemSurfaceSession = true;
+                    break;
                 default:
                     throw new ArgumentException($"Unknown option: {argument}");
             }
@@ -487,7 +501,8 @@ internal sealed record ProbeOptions(
             + (interactiveSliceSmoke ? 1 : 0)
             + (nativeInteractionSurfaceMode ? 1 : 0)
             + (nativeInputForwardingSource ? 1 : 0)
-            + (nativeInputForwardingSession ? 1 : 0) > 1)
+            + (nativeInputForwardingSession ? 1 : 0)
+            + (nativeInputSystemSurfaceSession ? 1 : 0) > 1)
         {
             throw new ArgumentException(
                 "Choose only one transaction probe mode.");
@@ -505,7 +520,8 @@ internal sealed record ProbeOptions(
             interactiveSliceSmoke,
             nativeInteractionSurfaceMode,
             nativeInputForwardingSource,
-            nativeInputForwardingSession);
+            nativeInputForwardingSession,
+            nativeInputSystemSurfaceSession);
     }
 }
 

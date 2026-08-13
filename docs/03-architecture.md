@@ -164,6 +164,8 @@ Stage 121 / B6c4 在 probe 工程内创建随机类名的 NoActivate ToolWindow�
 
 Stage 122 / B6c5 将同一来源窗口扩展为仅由 B6C3 人工启动器显式拥有的可见短会话。启动器不再打开正式 App；probe 重新验证六个进程级开关，显示有限 prepared/rejected 计数，并在 Escape/关闭时退出消息循环、销毁 HWND 和恢复开关。该路径接受真实窗口定向 pointer/key/UIA Invoke，但不使用全局输入、SendInput、文件 API或 Explicit，也不自动验证物理设备或写入 Pass。详见[人工原生输入来源会话审计](122-manual-native-input-source-session-audit.md)。
 
+Stage 123 / B6c6 在 probe 自有人工来源上复用公开 Windows 系统表面事件源。失焦、桌面显示、全屏、会话/RDP 或 Explorer 身份变化会同步使 Prepared Intent 失效并隐藏来源；连续两个安全样本后只恢复 AwaitingPassiveSurface 和非激活可见窗口，不复用旧意图。启动器不改变系统状态，显示拓扑 generation 明确保留未覆盖。详见[系统表面事件与准备态失效人工会话审计](123-system-surface-intent-invalidation-session-audit.md)。
+
 未解析引用审查层随后把会话中的非 Resolved 项投影为稳定匿名序号，并为每项签发包含 Catalog generation、edit revision、内部领域 ID 与预期解析状态的 token。Keep 不产生 edit；Replace 必须显式选择且当前 Catalog 身份唯一；Remove 必须明确确认。Gate 在每次预演时复核代际、修订、对象状态、锁定及候选，返回有限失败或 reducer 深快照。WinUI 在对话框打开前捕获 token/候选，目录刷新不能让旧选择静默指向新对象。当前只做 dry-run，App 不替换 session、不递增 revision、不调用普通 submit，也不触碰桌面文件，详见[未解析引用审查与双版本门禁审计](51-unresolved-reference-review-gate-audit.md)。
 
 正式编辑提交层将 Gate/Reducer 的成功结果交给 Infrastructure `ProductWorkspaceCommitCoordinator`：校验 → v1 projection → 唯一 controller Submit → edit revision 推进的顺序不可绕过。引用编辑和容器编辑共享同一把锁与同一单调 revision，外部配置加载也推进该 revision。controller 接受后，App 用返回 Document 立即替换内存配置基线并重新解析 session/review，因此防抖期间的 Catalog 刷新不会恢复旧状态。Waiting/Saving/Failed 期间导入/导出关闭；桌面文件 API 仍未接入。详见[引用编辑正式保存提交审计](52-reference-edit-save-submission-audit.md)。

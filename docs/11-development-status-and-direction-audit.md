@@ -504,3 +504,9 @@ B6c4 已在探针专属 NoActivate HWND 内验证 pointer/key/UIA Invoke 三条�
 B6c5 修正了人工执行链的实际错位：旧启动器打开正式 App，但 App 没有输入源；新 schema v2 启动器只在完整人工确认后启动 probe 自有可见窗口。该窗口通过真实消息循环接受窗口定向鼠标、Enter/Space 和 UIA/Narrator Invoke，实时显示有限 observed/prepared/rejected 状态，并由 Escape/关闭确定销毁。六个开关只在子会话存活期间设置，退出后恢复。
 
 正式 App 仍不引用 probe，正式 DesktopHost 仍点击穿透；全局 Hook、Raw Input、SendInput、Admission/Explicit、桌面文件、任务栏、Widget 和插件权限均未开放。自动化只能验证启动、归一化和退出合同，不能替代真人或 Narrator 证据，因此 B6C3 总结论仍为 PendingManualEvidence。B6c5 只承载 01～04 与 08 的适用子项并拒绝冒充系统事件场景；下一阶段 B6c6 需分别执行来源矩阵和建立 05～07 系统事件人工会话，而不是直接把来源接入产品。详见[Stage 122 审计](122-manual-native-input-source-session-audit.md)。
+
+## 31. 2026-08-13 Stage 123 系统表面 Intent 失效会话增量审计
+
+B6c6 将 Stage 118 的真实公开 Windows 事件源接到 probe 自有人工来源，而非正式 App 输入路径。操作员准备一次 Intent 后，失焦、桌面显示、全屏、会话/RDP 或 Explorer 身份变化会立即 Invalidate 并隐藏来源；连续两个安全样本后只回 AwaitingPassiveSurface 并非激活恢复。会话输出有限事件/失效/恢复计数，关闭后退订并释放 Timer/SystemEvents。
+
+启动器本身不改变系统状态，正式 App、全局输入、Explicit、文件、任务栏、Widget 和插件权限仍无新增。B6C3-07 只覆盖 Explorer Shell 身份变化，显示器 topology generation 明确未观察；所有真人结果继续 PendingManualEvidence。下一阶段 B6c7 执行来源与系统表面矩阵，并单独审计只读显示拓扑接入。详见[Stage 123 审计](123-system-surface-intent-invalidation-session-audit.md)。
