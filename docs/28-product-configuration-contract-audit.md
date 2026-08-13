@@ -56,11 +56,11 @@ Core 测试覆盖：合法往返、camelCase 枚举、五层未知字段保留�
 
 `eng/Start-Issue24PersistenceBoundarySession.ps1` 为 I24-01 真实容量/配额耗尽和 I24-02 只读独立卷建立统一入口。真实会话必须使用匿名 O1–O9、确认专用环境与恢复计划，并指向带固定标记的非工作区独立卷根目录。
 
-启动器只读取标记并输出脱敏合同；它不写卷、不填盘、不改变卷状态或 ACL、不运行配置探针、不截图、不写结果文件。CI 只调用 `-ValidateOnly`，固定输出 `PendingDedicatedEnvironmentEvidence`。因此入口就绪不提升 P0-06 的 `Conditional Pass`，也不产生真实卷结果。执行纪律见[专用环境运行手册](manual-testing/issue-24-persistence-boundary-runbook.md)，安全判定见[专用环境就绪审计](31-issue-24-dedicated-environment-readiness-audit.md)。
+Stage 127 后，`-ValidateOnly` 仍只输出脱敏合同且零写入；真实会话则按 `PrepareBaseline → AttemptFailure → RecoverAndRetry` 运行直接依赖正式 `ProductConfigurationStore` 的专用宿主。宿主只写固定会话目录，不填盘、不改变卷状态或 ACL、不运行旧配置 probe、不截图、不写结果文件；容量/只读条件仍由专用 VM/VHD/配额设施建立。入口就绪不提升 P0-06 的 `Conditional Pass`，也不产生真实卷结果。执行纪律见[专用环境运行手册](manual-testing/issue-24-persistence-boundary-runbook.md)，实现与安全判定见[Stage 127 审计](127-c5a-product-store-volume-session-host-audit.md)。
 
 ## 7. 下一动作
 
-首个 `LongGrid.Infrastructure` 适配器、latest-wins/App 有界关闭排空、完整单实例、恢复状态 UI、显式恢复动作、受限导入/导出、匿名证据清单、单项原始证据导出与单项永久清理已建立；正式迁移等待真实 v2 字段获批，下一步是获批的自动保留/容量策略或真实产品状态入队。专用环境真实卷矩阵可独立执行，全部证据链完成后才能关闭 Issue #24。正式程序集继续不得引用或改名发布 spike 程序集。
+`LongGrid.Infrastructure`、latest-wins/App 有界关闭排空、完整单实例、恢复状态 UI、显式恢复动作、受限导入/导出、匿名证据清单、单项原始证据导出、单项永久清理和 v2 产品状态入队已建立；自动保留/容量策略仍等待批准。Stage 127 已补齐正式存储证据宿主，专用环境真实卷矩阵仍须人工执行；全部证据链完成后才能关闭 Issue #24。正式程序集继续不得引用或改名发布 spike 程序集。
 
 ## 8. 2026-08-04 正式存储增量
 

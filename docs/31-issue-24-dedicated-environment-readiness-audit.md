@@ -2,7 +2,7 @@
 
 审计日期：2026-08-04
 
-结论：**Session contract ready / Dedicated-volume results pending / 不得关闭 Issue #24**
+结论：**正式 ProductConfigurationStore 会话合同 ready / Dedicated-volume results pending / 不得关闭 Issue #24**
 
 ## 1. 需求对齐
 
@@ -14,7 +14,8 @@ Issue #24 要求在隔离持久化探针和正式 v1 schema 之后补齐真实�
 - 真实会话必须确认专用环境和恢复计划，并使用带固定标记的独立卷根目录；
 - 启动器拒绝 Windows 系统卷、工作区同卷、UNC/网络根、子目录、缺少标记或缺少确认的会话；
 - 输出固定为 `PendingDedicatedEnvironmentEvidence`，不包含目标标识；
-- 启动器只读取标记，不写卷、不填盘、不改变卷状态/ACL、不运行探针、不截图、不写结果文件；
+- `-ValidateOnly` 只验证合同；真实会话按三阶段在固定专用目录运行正式 `ProductConfigurationStore`；
+- 宿主会写基线/候选配置，但不填盘、不改变卷状态/ACL、不运行旧 probe、不截图、不写结果文件；
 - CI 只执行 `-ValidateOnly`，证明依赖与安全合同未漂移，不产生真实卷证据。
 
 ## 3. 风险与停止规则
@@ -32,7 +33,7 @@ Issue #24 要求在隔离持久化探针和正式 v1 schema 之后补齐真实�
 
 - I24-01 与 I24-02 尚未在专用 VM/测试卷执行；
 - 物理断电、缓存丢失、非 NTFS、网络/云盘仍未批准进入本轮；
-- 本报告创建时正式 `LongGrid.Infrastructure` 适配器、App 关闭排空和完整单实例激活尚未实现；后续切片现已完成这些能力，以及恢复状态 UI、显式恢复动作、当前 v1 本地 JSON 受限导入/导出、匿名证据清单、单项原始证据导出、观察生命周期统计和单项永久清理；正式迁移等待真实 v2 字段准入，自动保留/容量策略、真实产品状态入队与本报告的真实卷证据仍 Pending；
+- 正式 `LongGrid.Infrastructure`、App 关闭排空、单实例、恢复 UI、显式恢复、v2 产品状态入队与有限导入/导出均已进入主线；当前新增正式存储三阶段证据宿主，真实卷结果仍 Pending；
 - 会话入口通过不等于真实卷通过，更不等于产品持久化完成。
 
 ## 5. 下一动作
