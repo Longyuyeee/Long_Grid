@@ -395,14 +395,15 @@ E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输�
 - **结论**：E2/M2 Engineering Pass；物理输入、Narrator、高对比、文本缩放、动态系统表面与四个开放 Issue 继续 Pending；
 - **下一步**：M3 集成差距审计，只补 DesktopHost 交互与既有配置、恢复、保存链之间的缺口。详见 [Stage 135](135-formal-item-selection-and-accessibility-audit.md)。
 
-### M3a：目录—投影修订集成（远端证据待回填）
+### M3a：目录—投影修订集成（工程完成）
 
 - **审计基线**：`main@eef24097ac8d04f18886eca98ce970131a942e9d`；
 - **需求对齐**：只补正式目录刷新与既有工作区/投影修订链断点，不重建配置、保存或 DesktopHost，不开启真实文件操作；
 - **实现摘要**：目录 generation/status 变化先调用既有外部修订入口，清除过期令牌后重建投影；重复快照幂等，迟到旧代次拒绝，配置加载/恢复只重设基线；
 - **本地自动化**：Release 0 warning/0 error，912/912；line 90.73%、branch 79.41%；格式、依赖漏洞、11 个安全 launcher、3 项原生 DesktopHost probe 与 UI/交付合同通过；
 - **安全边界**：只处理状态、代次和修订，不持久化条目名称、路径、内容或身份，不修改配置文档；
-- **结论**：M3a 本地 Engineering Pass / Remote Evidence Pending；M3、M4-ready 与外部证据状态不变；
+- **PR CI / main CI**：PR #189 run `31773023830` 成功；squash 合并 `main@50c937ad543e112d56663463410da1db5c985cb3`；main run `31773310428` 全部 34 步成功；
+- **结论**：M3a Engineering Pass / Manual Evidence Pending；M3、M4-ready 与外部证据状态不变；
 - **下一步**：继续 M3 选择可观察性、保存/恢复组合旅程和匿名证据清理审计。详见 [Stage 136](136-catalog-projection-revision-integration-audit.md)。
 
 ### C1：工程就绪复审（结果尚未执行）

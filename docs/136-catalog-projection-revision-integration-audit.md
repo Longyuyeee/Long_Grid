@@ -4,7 +4,7 @@
 
 ## 1. 判定
 
-M3a 的本地实现判定为 **Engineering Pass / Remote Evidence Pending**。本切片修复正式配置加载后刷新桌面目录会使 DesktopHost 进入冲突故障的问题：目录的 `Refreshing`、`Ready`、`Failed`、`Cancelled` 与新 generation 现在先形成单调的工作区外部修订，再重建正式工作区和 DesktopHost 投影。
+M3a 判定为 **Engineering Pass / Manual Evidence Pending**。本切片修复正式配置加载后刷新桌面目录会使 DesktopHost 进入冲突故障的问题：目录的 `Refreshing`、`Ready`、`Failed`、`Cancelled` 与新 generation 现在先形成单调的工作区外部修订，再重建正式工作区和 DesktopHost 投影。
 
 这只是 M3 的第一个集成缺口，不代表 M3、M4-ready、Phase 0 或内部 RC 完成。实现没有读取文件内容，没有公开路径，也没有移动、重命名、删除或写入桌面文件。
 
@@ -39,7 +39,8 @@ M3a 的本地实现判定为 **Engineering Pass / Remote Evidence Pending**。�
 - App Release build：0 warning / 0 error；
 - 同步器与 DesktopHost lifecycle 专项：42/42；
 - 本地全量：Release 0 warning / 0 error，912/912；line 90.73%（25684/28308），branch 79.41%（8294/10444）；格式、依赖漏洞、11 个安全 launcher、3 项原生 DesktopHost probe、UI/clean-session/single-instance/hang/release-restore/RC 合同全部通过；
-- PR CI 与 main CI：待本切片提交后执行并回填；
+- PR #189 CI run `31773023830`：912/912，line 90.19%（25532/28308），branch 79.17%（8268/10444），完整流水线通过；
+- squash 合并为 `main@50c937ad543e112d56663463410da1db5c985cb3`；main CI run `31773310428`：912/912，line 90.21%（25536/28308），branch 79.18%（8270/10444），全部 34 步通过；
 - 物理目录刷新、Explorer 重启、Narrator、高对比、文本缩放和动态系统表面的人工证据继续 Pending。
 
 ## 5. 剩余 M3 缺口
@@ -52,6 +53,6 @@ M3a 的本地实现判定为 **Engineering Pass / Remote Evidence Pending**。�
 
 ## 6. 远端轨迹
 
-- 实现 PR / merge SHA：待回填；
-- PR CI / main CI：待回填；
-- 结论：本地 Engineering Pass，远端证据未完成前不得升级为 M3a Final Pass。
+- 实现 PR / merge SHA：PR #189 / `50c937ad543e112d56663463410da1db5c985cb3`；
+- PR CI / main CI：`31773023830` / `31773310428`，均成功；
+- 结论：M3a Engineering Pass / Manual Evidence Pending。M3、M4-ready、Phase 0、内部 RC 和公开分发均未因本切片完成。
