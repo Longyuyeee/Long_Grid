@@ -441,6 +441,18 @@ E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输�
 - **结论**：M3 Engineering Pass / Manual Evidence Pending；M4-ready、Phase 0 外部证据、内部 RC 和公开分发状态不变；
 - **下一步**：进入 500 项规模、故障恢复和资源长稳自动预检，按独立切片推进 M4-ready。
 
+### M4a：正式产品 500 项规模预检（实现完成，等待远端复验）
+
+- **审计基线**：`main@cd4a3ff9a9cc80964be0275d9a1d7a5bf3f062b5`；
+- **需求对齐**：使用 100 个方格、500 个不同安全引用覆盖正式 JSON 合同、目录解析、读模型、DesktopHost 投影、搜索/筛选/排序、逐项选择和正式配置保存/恢复；不读取真实桌面，不把缩略图重复探针冒充产品规模，不进入故障矩阵或 24 小时长稳；
+- **实现摘要**：新增可复用规模预检和独立 JSON 工具；20 轮内存链、5 轮持久化链均校验有限计数，任一合同或回归预算失败返回非零；CI 增加独立步骤；
+- **预算边界**：core pipeline P95 `<1,000 ms`、save P95 `<3,000 ms`、500 项 recovery P95 `<1,000 ms` 仅为共享 CI 自动回归上限，不替代 D23-09 正式 App/支持设备预算；
+- **本地自动化**：目标 Release 0 warning/0 error；专项 1/1；完整 Core 921/921；代表运行 core/save/recovery P95 为 9.562/11.570/1.749 ms，沙箱清理和零真实桌面/文件操作声明通过；
+- **安全边界**：500 个不同身份均为合成内存引用；只在随机临时目录复用正式配置存储，运行结束清理；报告不含路径、名称或内容；
+- **PR CI / main CI**：等待本切片远端运行；
+- **结论**：Engineering Implementation Complete / Remote Validation Pending；不据此宣称真实设备性能、M4-ready 或 RC；
+- **下一步**：远端闭合后进入 M4b 故障恢复矩阵。详见 [Stage 141](141-product-500-item-scale-preflight-audit.md)。
+
 ### C1：工程就绪复审（结果尚未执行）
 
 - **审计基线**：`main@508528b`；

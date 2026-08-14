@@ -214,6 +214,13 @@ jobs:
           --acl-kill-iterations 2
           --json
 
+      - name: Product 500-item scale preflight
+        run: >-
+          dotnet run
+          --project tools/LongGrid.Tools.ProductScalePreflight
+          --configuration Release
+          --no-build
+
       - name: File operation safety probe
         run: >-
           dotnet run
