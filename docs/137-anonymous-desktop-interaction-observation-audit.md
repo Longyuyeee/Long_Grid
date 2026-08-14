@@ -4,7 +4,7 @@
 
 ## 1. 判定
 
-M3b 本地实现判定为 **Engineering Ready / Remote and Manual Evidence Pending**。正式 DesktopHost 的唯一 selection transaction 现在派生出最小匿名观察摘要，并通过既有 lifecycle 快照进入 App 状态卡；进入 Explicit、选择变化、Escape、系统表面失效和投影释放都能使 App 观察状态同步收敛。
+M3b 判定为 **Engineering Pass / Manual Evidence Pending**。正式 DesktopHost 的唯一 selection transaction 现在派生出最小匿名观察摘要，并通过既有 lifecycle 快照进入 App 状态卡；进入 Explicit、选择变化、Escape、系统表面失效和投影释放都能使 App 观察状态同步收敛。
 
 本切片没有建立第二份可写选择状态。App 只收到是否处于 Explicit、选中数量、是否存在焦点和选择修订，不收到容器 ID、项目 ID、名称、路径或文件内容，也不能从摘要提交配置编辑或文件操作。
 
@@ -40,7 +40,8 @@ Stage 135 已完成 pointer、有限键盘与 UIA 的同源选择事务，Stage 
 - 本地全量两次均为 911/912：唯一失败是既有 `NativeActivationSourceExposesFiniteInvokeAndHideRestoreContract` 在 UIA 调用中未取得 Windows 前台许可并按安全合同返回 `ElementNotEnabledException`；调用前窗口可见、合同、CanActivate 与 IsEnabled 均已复读为真。没有放宽 `SetForegroundWindow`/NoActivate 合同，也没有把失败改写为通过；
 - 失败运行仍生成覆盖率：line 90.52%（25726/28420），branch 79.05%（8316/10520），覆盖率门禁通过；M3b 核心事务独立重跑通过；
 - 格式、依赖漏洞、11 个安全 launcher、3 项原生 DesktopHost probe、UI/clean-session/single-instance/hang/release-restore/RC 合同，以及持久化、文件操作安全和缩略图隔离探针均通过；
-- PR CI 与 main CI：必须由独立 Windows runner 完整重跑后回填；若同一原生失败可复现，不得合并；
+- 独立 PR Windows runner 未复现本机前台许可异常：PR #191 run `31775852179` 为 912/912，line 90.21%（25632/28414），branch 79.05%（8316/10520），完整流水线通过；
+- squash 合并为 `main@93c77e59a28820a9aaff13fcc4cb2a59ec91dc4d`；main run `31776200563` 再次为 912/912、line 90.21%、branch 79.05%，全部 34 步通过；
 - 物理 pointer/keyboard、Narrator、高对比、文本缩放、动态系统表面和 Explorer 生命周期人工证据继续 Pending。
 
 ## 5. 剩余 M3 顺序
@@ -52,6 +53,6 @@ Stage 135 已完成 pointer、有限键盘与 UIA 的同源选择事务，Stage 
 
 ## 6. 远端轨迹
 
-- 实现 PR / merge SHA：待回填；
-- PR CI / main CI：待回填；
-- 结论：本地 Engineering Ready；远端完整测试通过前不得升级为 Engineering Pass，人工证据完成前不得升级 M3b 或整个 M3 的最终判定。
+- 实现 PR / merge SHA：PR #191 / `93c77e59a28820a9aaff13fcc4cb2a59ec91dc4d`；
+- PR CI / main CI：`31775852179` / `31776200563`，均成功；
+- 结论：M3b Engineering Pass / Manual Evidence Pending。M3、M4-ready、Phase 0、内部 RC 和公开分发均未因本切片完成。
