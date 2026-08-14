@@ -3,7 +3,7 @@
 - 审计日期：2026-08-15
 - 开发基线：`main@b5bb94c06b574182ad740f23cd8d73dd53576f30`
 - 切片：M4c2a
-- 当前判定：**Session Contract Engineering Pass Pending / Live Evidence Pending**
+- 当前判定：**M4c2a Session Contract Engineering Pass / Live Evidence Pending**
 
 ## 1. 需求对齐与真实差距
 
@@ -68,3 +68,10 @@ live 入口即使完成 24 小时，也固定返回 `PendingProductTelemetryInte
 - 本切片验收：脚本解析/合同验证通过，CI 完整门禁通过，文档与代码 blocker 一致；
 - 本切片不得产生：M4c Pass、M4-ready、RC 可分发或真实 24 小时证据；
 - 下一步：M4c2b 正式 worker 与匿名状态修订遥测设计审计，先关闭可观测性缺口，再安排 M4c2c 真实 24 小时执行。
+
+## 7. 远端轨迹
+
+- 实现 PR：[#205](https://github.com/Longyuyeee/Long_Grid/pull/205)，head `8ecf08913127a5c02698f3fe181bba8f95488b25`；
+- PR run `31819228748`：924/924，lines 90.83%、branches 78.22%；格式、构建、新会话合同、M4c1、缩略图隔离、安全、依赖和内部 unsigned RC 交付集审计全部通过；
+- squash 合并：`main@8e7ee34dd71e583f58294f83244983779ab37ebe`；合并后 main run `31819825057` 为 924/924，lines 90.83%、branches 78.22%，相同合同与完整门禁通过；
+- 远端合同仍明确输出 `formalThumbnailWorkerIntegrated=false`、`formalStateRevisionTelemetryAvailable=false` 和 `canProduceM4cPass=false`，因此 M4c2a 关闭不改变 M4c/M4-ready/RC 状态。

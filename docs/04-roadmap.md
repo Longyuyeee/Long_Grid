@@ -306,3 +306,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-14 M4c1 远端收口：PR #203 run `31815841350` 为 924/924、lines 90.81%、branches 78.20%；squash 合并 `main@484e8cc` 后 main run `31816415351` 为 924/924、lines 90.83%、branches 78.22%。两次均通过加速预检、缩略图 worker 隔离门、安全探针、依赖门和内部 unsigned RC 交付集审计。M4c1 判定 Accelerated Engineering Pass；M4c2 正式 App 24 小时趋势、M4-ready 与外部证据仍 Pending。
 
 2026-08-15 M4c2a 正式 App 24 小时会话合同：冻结 24 小时/60 秒采样、30 分钟预热、首尾 60 分钟比较窗，以及 private bytes、handle、thread、窗口、UIA、worker/Profile 和状态修订预算。审计确认正式 App 尚未接入缩略图 worker，也没有匿名状态修订遥测；会话入口因此固定输出 `PendingProductTelemetryIntegration`，不得产生 M4c Pass。下一步为 M4c2b 正式 worker/遥测接线，再执行 M4c2c 真实会话，详见 [Stage 145](145-formal-app-resource-stability-session-contract-audit.md)。
+
+2026-08-15 M4c2a 远端收口：PR #205 run `31819228748` 与 squash 合并 `main@8e7ee34` 后的 main run `31819825057` 均为 924/924、lines 90.83%、branches 78.22%，新 24 小时合同门及既有完整流水线通过。M4c2a 判定 Session Contract Engineering Pass；正式 worker、revision telemetry、真实 24 小时证据和 M4c 继续 Pending。
