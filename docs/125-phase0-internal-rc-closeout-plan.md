@@ -406,7 +406,7 @@ E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输�
 - **结论**：M3a Engineering Pass / Manual Evidence Pending；M3、M4-ready 与外部证据状态不变；
 - **下一步**：继续 M3 选择可观察性、保存/恢复组合旅程和匿名证据清理审计。详见 [Stage 136](136-catalog-projection-revision-integration-audit.md)。
 
-### M3b：匿名桌面交互观察链（远端证据待回填）
+### M3b：匿名桌面交互观察链（工程完成）
 
 - **审计基线**：`main@447682250406c9b369142006e6beffff91dfc0ac`；
 - **需求对齐**：只把唯一 selection transaction 的最小匿名摘要接入 App 状态，不复制选择控制器，不公开身份，不增加配置或文件命令；
@@ -414,7 +414,8 @@ E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输�
 - **本地专项**：App Release 0 warning/0 error；DesktopHost lifecycle/UIA 50/50；143 项 UI automation 合同通过；覆盖率 line 90.52% / branch 79.05%；
 - **本地完整门禁例外**：两次均为 911/912，既有原生 activation UIA 测试因测试进程未获 Windows 前台许可而安全拒绝；其余 launcher、probe、安全和交付合同通过，保留失败并要求 PR runner 完整复验；
 - **安全边界**：快照及 Automation 状态不含 container/item ID、名称、路径或内容，并固定声明匿名观察和零文件操作；
-- **结论**：M3b 本地 Engineering Ready / Remote and Manual Evidence Pending；PR 完整测试通过前不得标记 Engineering Pass，M3、M4-ready 与外部证据状态不变；
+- **PR CI / main CI**：PR #191 run `31775852179` 与 main run `31776200563` 均为 912/912、line 90.21%、branch 79.05%，全部 34 步成功；squash 合并 `main@93c77e59a28820a9aaff13fcc4cb2a59ec91dc4d`；
+- **结论**：M3b Engineering Pass / Manual Evidence Pending；本机前台许可例外未在两次独立 runner 复现，M3、M4-ready 与外部证据状态不变；
 - **下一步**：M3c 保存失败、显式重试、配置恢复、目录失败/取消与 DesktopHost 隐藏/恢复组合旅程。详见 [Stage 137](137-anonymous-desktop-interaction-observation-audit.md)。
 
 ### C1：工程就绪复审（结果尚未执行）
