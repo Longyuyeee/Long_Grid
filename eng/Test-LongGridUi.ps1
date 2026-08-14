@@ -532,6 +532,7 @@ function Test-SourceContract {
         'CurrentModeValue',
         'FileOperationValue',
         'DesktopHostValue',
+        'DesktopKeyboardInteractionButton',
         'ProductDesktopCatalogCard',
         'ProductDesktopCatalogTitle',
         'ProductDesktopCatalogDetail',
@@ -759,6 +760,16 @@ function Test-SourceContract {
         'ProductDesktopCatalogCard'
     Assert-Condition (-not ($productCatalogCardNode.OuterXml -match 'Storyboard|Transition')) `
         'Desktop catalog status must keep a Reduced Motion-safe static baseline.'
+
+    $desktopKeyboardInteractionNode = Get-XamlNodeByAutomationId `
+        $document `
+        'DesktopKeyboardInteractionButton'
+    Assert-Condition (
+        $desktopKeyboardInteractionNode.GetAttribute('Click') -eq `
+            'DesktopKeyboardInteractionButton_Click' -and
+        $desktopKeyboardInteractionNode.GetAttribute('AccessKey') -eq 'I' -and
+        $desktopKeyboardInteractionNode.GetAttribute('IsEnabled') -eq 'False'
+    ) 'Desktop interaction must use a disabled-by-default standard App command.'
 
     $productSessionDetailNode = Get-XamlNodeByAutomationId `
         $document `
@@ -1877,6 +1888,10 @@ function Test-SourceContract {
         'The file-operation boundary must expose a machine-readable UIA status.'
     Assert-Condition ($codeBehind -match 'AutomationProperties\.SetItemStatus\(\s*DesktopHostValue') `
         'The DesktopHost boundary must expose a machine-readable UIA status.'
+    Assert-Condition (
+        $codeBehind -match 'DesktopKeyboardInteractionRequested\?\.Invoke' -and
+        $appCode -match 'productDesktopHostLifecycle\.RequestKeyboardInteraction\(\)'
+    ) 'The App keyboard command must call only the lifecycle-owned no-handle capability.'
 
     $forbiddenPatterns = @(
         'System\.IO\.',
@@ -2768,8 +2783,9 @@ function Test-SourceContract {
         productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-single-undo'
         productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
-        productSavePresentation = 'privacy-safe-static-reduced-motion'
-        readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'
+                    productSavePresentation = 'privacy-safe-static-reduced-motion'
+                    productDesktopActivation = 'finite-region-pointer-app-keyboard-uia-invoke-no-file-operations'
+                    readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'
     }
 }
 

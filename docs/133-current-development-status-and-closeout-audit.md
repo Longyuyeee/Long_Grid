@@ -4,6 +4,8 @@
 
 审计基线：`main@272dad6288c5d92d1f76e6f810afe45609c5cb9a`（PR #184；main CI 31727572596 成功）
 
+> Stage 134 已完成 E2b1 正式产品激活源工程切片；本文关于“E2b1 未实现”的描述保留为当时基线，当前状态与下一步以 Stage 134 为准。
+
 ## 1. 总体结论
 
 项目仍处于 **Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中**，尚不是内部 RC。正式配置、Catalog、工作区编辑/保存/恢复、权威显示拓扑、DesktopHost 生命周期以及 Passive/Explicit/Hidden 表面已经进入产品程序集；E2a 又关闭了 Prepared Intent 原子至多一次消费和选择事务入口。当前最近的唯一工程阻断是 E2b：正式产品输入来源、键盘焦点代理、项目 pointer/UIA 选择尚未实现。

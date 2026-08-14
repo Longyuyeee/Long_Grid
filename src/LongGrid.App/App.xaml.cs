@@ -139,6 +139,8 @@ public partial class App : Application
             ProductDisplayTopology_SnapshotChanged;
         productDesktopHostLifecycle.SnapshotChanged +=
             ProductDesktopHostLifecycle_SnapshotChanged;
+        window.DesktopKeyboardInteractionRequested +=
+            MainWindow_DesktopKeyboardInteractionRequested;
         if (productDesktopSystemSurfaceEvents is not null)
         {
             productDesktopSystemSurfaceEvents.SurfaceChanged +=
@@ -150,7 +152,8 @@ public partial class App : Application
         window.ApplyProductWorkspaceSaveState(productWorkspaceSaves.Snapshot);
         window.ApplyProductDesktopCatalogState(productDesktopCatalog.Snapshot);
         window.ApplyProductDesktopHostLifecycleState(
-            productDesktopHostLifecycle.Snapshot);
+            productDesktopHostLifecycle.Snapshot,
+            productDesktopHostLifecycle.CanRequestKeyboardInteraction);
         ApplyProductWorkspaceSessionViews();
         window.AppWindow.Closing += AppWindow_Closing;
         window.Activate();
@@ -354,12 +357,26 @@ public partial class App : Application
 
         if (currentWindow.DispatcherQueue.HasThreadAccess)
         {
-            currentWindow.ApplyProductDesktopHostLifecycleState(snapshot);
+            currentWindow.ApplyProductDesktopHostLifecycleState(
+                snapshot,
+                productDesktopHostLifecycle.CanRequestKeyboardInteraction);
             return;
         }
 
         _ = currentWindow.DispatcherQueue.TryEnqueue(
-            () => currentWindow.ApplyProductDesktopHostLifecycleState(snapshot));
+            () => currentWindow.ApplyProductDesktopHostLifecycleState(
+                snapshot,
+                productDesktopHostLifecycle.CanRequestKeyboardInteraction));
+    }
+
+    private void MainWindow_DesktopKeyboardInteractionRequested(
+        object? sender,
+        EventArgs e)
+    {
+        _ = productDesktopHostLifecycle.RequestKeyboardInteraction();
+        window?.ApplyProductDesktopHostLifecycleState(
+            productDesktopHostLifecycle.Snapshot,
+            productDesktopHostLifecycle.CanRequestKeyboardInteraction);
     }
 
     private void MainWindow_Activated(
@@ -368,7 +385,10 @@ public partial class App : Application
     {
         if (args.WindowActivationState == WindowActivationState.Deactivated)
         {
-            productDesktopSystemSurfaceEvents?.ReportFocusLost();
+            if (!productDesktopHostLifecycle.OwnsForegroundActivationSource)
+            {
+                productDesktopSystemSurfaceEvents?.ReportFocusLost();
+            }
         }
     }
 
@@ -1240,6 +1260,8 @@ public partial class App : Application
         if (window is not null)
         {
             window.Activated -= MainWindow_Activated;
+            window.DesktopKeyboardInteractionRequested -=
+                MainWindow_DesktopKeyboardInteractionRequested;
         }
 
         _ = productDesktopInteraction.Complete(DateTimeOffset.UtcNow);

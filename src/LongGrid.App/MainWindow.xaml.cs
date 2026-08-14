@@ -29,6 +29,8 @@ public sealed partial class MainWindow : Window
     private bool _desktopCatalogConnected;
     private bool _desktopHostFeatureEnabled;
     private bool _desktopHostConnected;
+
+    internal event EventHandler? DesktopKeyboardInteractionRequested;
     private string _organizationStartChoice = "suggested";
     private bool _practiceItemsAdded;
     private ProductConfigurationStartupMode _configurationStartupMode;
@@ -342,9 +344,12 @@ public sealed partial class MainWindow : Window
     }
 
     internal void ApplyProductDesktopHostLifecycleState(
-        ProductDesktopHostLifecycleSnapshot snapshot)
+        ProductDesktopHostLifecycleSnapshot snapshot,
+        bool canRequestKeyboardInteraction = false)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
+        DesktopKeyboardInteractionButton.IsEnabled =
+            canRequestKeyboardInteraction;
         _desktopHostFeatureEnabled = snapshot.FeatureEnabled;
         _desktopHostConnected = snapshot.NativeHostConnected;
         ApplyRuntimeStatus(
@@ -393,6 +398,11 @@ public sealed partial class MainWindow : Window
             DesktopHostDetail.Text = "当前工作区为空，未创建桌面宿主窗口";
         }
     }
+
+    private void DesktopKeyboardInteractionButton_Click(
+        object sender,
+        RoutedEventArgs e) =>
+        DesktopKeyboardInteractionRequested?.Invoke(this, EventArgs.Empty);
 
     private static (
         string Title,

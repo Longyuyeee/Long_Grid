@@ -201,6 +201,14 @@
                                         <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="桌面宿主" />
                                         <TextBlock x:Name="DesktopHostValue" AutomationProperties.AutomationId="DesktopHostValue" FontSize="22" FontWeight="SemiBold" />
                                         <TextBlock x:Name="DesktopHostDetail" Style="{StaticResource LongGridSubtitleTextStyle}" />
+                                        <Button
+                                            x:Name="DesktopKeyboardInteractionButton"
+                                            AccessKey="I"
+                                            AutomationProperties.AutomationId="DesktopKeyboardInteractionButton"
+                                            AutomationProperties.Name="进入桌面方格交互"
+                                            Click="DesktopKeyboardInteractionButton_Click"
+                                            Content="进入桌面交互 (_I)"
+                                            IsEnabled="False" />
                                     </StackPanel>
                                 </Border>
                             </Grid>

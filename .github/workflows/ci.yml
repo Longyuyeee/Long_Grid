@@ -77,6 +77,13 @@ jobs:
           -File ./eng/Start-DesktopInteractionInputForwardingSession.ps1
           -ValidateOnly
 
+      - name: Validate product activation session chain
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Start-DesktopInteractionActivationSession.ps1
+          -ValidateOnly
+
       - name: Validate system-surface manual session chain
         shell: powershell
         run: >-

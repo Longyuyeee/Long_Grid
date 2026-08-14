@@ -687,7 +687,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             interaction,
             bridge,
             forwarding,
-            consumption);
+            consumption,
+            new RecordingActivationSourceFactory());
         DateTimeOffset now = DateTimeOffset.UtcNow;
         _ = controller.ApplyProjectionBatch(CreateBatch());
         ProductDesktopInteractionInputForwardingResult prepared =
@@ -762,6 +763,80 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.Equal(
             ProductDesktopInteractionIntentConsumptionStatus.Completed,
             consumption.Snapshot.Status);
+    }
+
+    [Fact]
+    public async Task FormalActivationSourceOwnsFiniteKeyboardEntryAndRevokesWithSurface()
+    {
+        var surfaceFactory = new RecordingSurfaceFactory();
+        var activationFactory = new RecordingActivationSourceFactory();
+        ProductDesktopHostFeatureDecision host =
+            ProductDesktopHostFeaturePolicy.Evaluate("1");
+        ProductDesktopInteractionFeatureDecision interactionFeature =
+            ProductDesktopInteractionFeaturePolicy.Evaluate(host, "1");
+        var interaction = new ProductDesktopInteractionDevelopmentController(
+            interactionFeature);
+        ProductDesktopInteractionIntentBridgeFeatureDecision bridgeFeature =
+            ProductDesktopInteractionIntentBridgePolicy.Evaluate(
+                interactionFeature,
+                "1",
+                "1");
+        var bridge = new ProductDesktopInteractionIntentPreparationBridge(
+            bridgeFeature);
+        ProductDesktopInteractionInputForwardingFeatureDecision
+            forwardingFeature =
+                ProductDesktopInteractionInputForwardingPolicy.Evaluate(
+                    bridgeFeature,
+                    "1",
+                    "1");
+        var forwarding = new ProductDesktopInteractionInputForwardingAdapter(
+            forwardingFeature,
+            bridge);
+        var consumption =
+            new ProductDesktopInteractionIntentConsumptionController(
+                interactionFeature,
+                forwardingFeature,
+                bridge);
+        var controller = new ProductDesktopHostLifecycleController(
+            host,
+            surfaceFactory,
+            new FactoryBackedInspector(surfaceFactory),
+            interaction,
+            bridge,
+            forwarding,
+            consumption,
+            activationFactory);
+
+        ProductDesktopHostLifecycleSnapshot ready =
+            controller.ApplyProjectionBatch(CreateBatch());
+        RecordingActivationSource source =
+            Assert.Single(activationFactory.Sources);
+        source.OwnsForegroundWindowValue = true;
+
+        Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, ready.Status);
+        Assert.True(controller.CanRequestKeyboardInteraction);
+        Assert.True(controller.OwnsForegroundActivationSource);
+        Assert.True(controller.RequestKeyboardInteraction());
+        Assert.Equal(
+            ProductDesktopInteractionForwardedInputKind.KeyboardActivation,
+            source.LastInput!.Kind);
+        Assert.True(source.LastInput.SourceAttested);
+        Assert.False(source.LastInput.IsInjected);
+        Assert.False(source.LastInput.IsAutoRepeat);
+        Assert.True(consumption.Snapshot.IsExplicit);
+        Assert.False(controller.CanRequestKeyboardInteraction);
+
+        _ = controller.ApplySystemSurfaceEvent(new(
+            ProductDesktopInteractionSystemSurfaceEventKind.FocusLost,
+            1,
+            DateTimeOffset.UtcNow));
+
+        Assert.False(source.IsVisible);
+        Assert.False(controller.OwnsForegroundActivationSource);
+        Assert.True(Assert.Single(surfaceFactory.Surfaces)
+            .HiddenWindowContractAttested);
+        await controller.DisposeAsync();
+        Assert.True(source.IsDisposed);
     }
 
     [Fact]
@@ -1113,6 +1188,89 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             };
             Surfaces.Add(surface);
             return surface;
+        }
+    }
+
+    private sealed class RecordingActivationSourceFactory
+        : IProductDesktopInteractionActivationSourceFactory
+    {
+        internal List<RecordingActivationSource> Sources { get; } = [];
+
+        public IProductDesktopInteractionActivationSource Create(
+            ProductDesktopHostDisplayProjection projection,
+            nint instanceMarker,
+            Func<ProductDesktopInteractionForwardedInput, bool>
+                forwardAndConsume)
+        {
+            var source = new RecordingActivationSource(
+                projection.DisplayId,
+                forwardAndConsume);
+            Sources.Add(source);
+            return source;
+        }
+    }
+
+    private sealed class RecordingActivationSource(
+        string displayId,
+        Func<ProductDesktopInteractionForwardedInput, bool> forwardAndConsume)
+        : IProductDesktopInteractionActivationSource
+    {
+        private long sequence;
+
+        public nint Handle { get; } = new(700);
+
+        public string DisplayId { get; } = displayId;
+
+        public bool ContractAttested { get; set; } = true;
+
+        public bool IsVisible { get; private set; } = true;
+
+        public bool CanActivate => IsVisible && ContractAttested;
+
+        public bool OwnsForegroundWindow =>
+            IsVisible && OwnsForegroundWindowValue;
+
+        internal bool OwnsForegroundWindowValue { get; set; }
+
+        internal ProductDesktopInteractionForwardedInput? LastInput
+        { get; private set; }
+
+        internal bool IsDisposed { get; private set; }
+
+        public bool ApplyVisible()
+        {
+            IsVisible = true;
+            return ContractAttested;
+        }
+
+        public bool ApplyHidden()
+        {
+            IsVisible = false;
+            OwnsForegroundWindowValue = false;
+            return true;
+        }
+
+        public bool RequestKeyboardInteraction()
+        {
+            LastInput = new(
+                Guid.NewGuid(),
+                ++sequence,
+                DateTimeOffset.UtcNow,
+                ProductDesktopInteractionForwardedInputKind.KeyboardActivation,
+                DisplayId,
+                30,
+                40,
+                SourceAttested: ContractAttested,
+                IsInjected: false,
+                IsAutoRepeat: false);
+            return IsVisible && forwardAndConsume(LastInput);
+        }
+
+        public void Dispose()
+        {
+            IsVisible = false;
+            OwnsForegroundWindowValue = false;
+            IsDisposed = true;
         }
     }
 
