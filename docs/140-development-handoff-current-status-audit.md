@@ -3,14 +3,14 @@
 - 审计日期：2026-08-14
 - 仓库：`https://github.com/Longyuyeee/Long_Grid.git`
 - 默认分支：`main`
-- 已合并实现基线：`main@43b40243cd686298d655eb925ef2f851390f99c1`（PR #195）
+- 已合并实现基线：`main@484e8cc976a7886d1652044b22535b9ecc841822`（PR #203）
 - 本文性质：换机交接快照；GitHub `origin/main` 始终是源码与计划的最终权威
 
 ## 1. 交接判定
 
 当前代码、测试、审计文档、协议和构建入口均已进入 Git/GitHub 管理，**继续开发不依赖当前电脑上的未提交文件或本地证据目录**。换机前可以暂停功能开发；新电脑只需从 GitHub 干净克隆并复验基线。
 
-M1、E2/M2 与 M3 工程链已经完成，当前处于 **M3 Engineering Pass / Manual Evidence Pending，准备进入 M4 自动预检**。这不等于 Phase 0 已退出、M4-ready、内部 RC 可分发或产品已经对齐 iTop Easy Desktop 的全部能力。
+M1、E2/M2、M3、M4a、M4b 与 M4c1 工程链已经完成，当前处于 **M4c1 Accelerated Engineering Pass / M4c2 24 小时实机 Pending**。下一步是先冻结 M4c2 的正式 App 采样入口、资源预算、证据格式和停止条件，再实现长稳会话；这不等于 Phase 0 已退出、M4-ready、内部 RC 可分发或产品已经对齐 iTop Easy Desktop 的全部能力。
 
 本机工作区在审计开始时无未提交文件。唯一 Git stash 为 `stage125-local-draft-before-origin-main-sync`，仅包含旧 README 和 Stage 103 的 9 行历史草稿；其内容已被后续 Stage 125～139 主线事实取代，**不得在新电脑恢复或作为交接数据使用**。`TestResults*`、`artifacts/`、`bin/`、`obj/` 均为被忽略的可再生成目录，不需要迁移。
 
@@ -93,7 +93,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 1. **M4a：500 项规模预检**——已由 PR #197 合并到 `main@91ff6fd`，PR/main 完整门禁均通过；
 2. **M4b1：持久化与目录恢复预检**——PR #199 与 `main@a47a19d` 的 5 场景和完整门禁均通过；
 3. **M4b2：原生生命周期故障矩阵**——PR #201 与 `main@8d04e2f` 的 5 场景和完整门禁均通过，M4b Engineering Pass；
-4. **M4c1：加速资源所有权/释放预检**——200 轮本地矩阵已通过，等待 PR/main 远端门禁；
+4. **M4c1：加速资源所有权/释放预检**——200 轮矩阵与 PR/main 双重门禁已通过，判定 Accelerated Engineering Pass；
 5. **M4c2：正式 App 24 小时资源趋势**——冻结入口和预算后，在支持设备验证 Surface、UIA、目录、worker、窗口、handle/thread/private bytes 与状态漂移；
 6. **外部证据汇合**——按 C1 → C2/C3 → C4 → C5b → C6 完成五人测试、输入/无障碍/系统表面、显示硬件、专用卷和 ADR/Issue 收口；
 7. **内部 RC**——许可证、签名、安装/升级/卸载/回滚、正式品牌确认完成后，才允许把内部工程产物提升为可分发候选；
