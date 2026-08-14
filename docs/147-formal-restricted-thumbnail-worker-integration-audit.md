@@ -3,7 +3,7 @@
 - 审计日期：2026-08-15
 - 开发基线：`main@da45970cc5be9fade7a0fcebae196eb6518816f7`
 - 切片：M4c2b2
-- 当前判定：**Engineering Pass（本地）/ 远端证据 Pending / 真实 24 小时证据 Pending**
+- 当前判定：**Engineering Pass / 真实 24 小时证据 Pending**
 
 ## 1. 需求对齐与真实缺口
 
@@ -58,10 +58,18 @@ M4c2b2 因此只关闭以下缺口：
 - 匿名 named-pipe 测试改为要求正式 worker `true/1/1`，继续验证 schema/sequence、未知请求拒绝和敏感内容缺失；
 - 既有 worker matrix 新增 `FormalProductRuntimeReused=true` 硬门，500 请求、故障恢复、父退出、AppContainer、Profile/ACL、共享内存与预算全部继续执行；
 - worker 中迁入的 Windows 原生隔离路径不计入 XPlat 单元覆盖率汇总，避免把原 probe 代码改变所属程序集后虚假拉低 Core/Infrastructure 门；覆盖阈值不降低，且 CI 必须继续通过上述真实 500 请求产品程序集矩阵；
-- 本地复验：生命周期/遥测专项 11/11、Core 全量 935/935；产品 worker、Infrastructure 与 probe Release build 均为 0 warning / 0 error；真实隔离矩阵 500/500、`FormalProductRuntimeReused=true`、`ConditionalPass`；M4c2b2 `ValidateOnly` 通过；远端正式 App/交付门待本切片收尾复验。
+- 本地复验：生命周期/遥测专项 11/11、Core 全量 935/935；产品 worker、Infrastructure 与 probe Release build 均为 0 warning / 0 error；真实隔离矩阵 500/500、`FormalProductRuntimeReused=true`、`ConditionalPass`；M4c2b2 `ValidateOnly` 通过。
 - 本机正式 App Release build 仍被既有 NuGet 缓存不一致阻断：Windows App SDK 要求 `Microsoft.Windows.SDK.NET.Ref 10.0.19041.38`，本机解析到 `.34`；本次改动文件格式验证通过，全仓格式门只命中 3 个未触碰的既有文件。两项均不冒充通过，正式 App 与全量交付集以干净 Windows runner 为权威门禁。
 
-## 6. 非目标与下一步
+## 6. 远端门禁与问题闭环
+
+- PR #209 首次 run `31826819854` 在正式 startup 链发现 worker 未恢复 `win-x64` RID 资产；补充与正式 App 一致的 RID 并锁定恢复图；
+- 第二次 run `31827191407` 已越过 startup 和 935 测试，但发现迁入产品程序集的原生 probe 路径被 XPlat 汇总重复计入，覆盖率虚降至 lines 82.95% / branches 71.95%；没有降低 90% / 75% 阈值，而是用带理由的程序集排除把该路径交还给强制真实隔离矩阵；
+- 最终 PR run `31827595353`：935/935、lines 90.87%、branches 78.06%；正式 App build/startup、`FormalProductRuntimeReused=true` 的 500 请求矩阵、依赖门及 800 文件内部 unsigned RC 交付集审计全部通过；
+- PR #209 squash 合并为 `main@168944671af10e8afa47e8dc49415f5e3e4a18f0`；main run `31828145653`：935/935、lines 90.86%、branches 78.04%，同一完整门禁再次通过；
+- 交付集仍明确 `signed=false`、`installable=false`、`distributionApproved=false`，不得把工程门禁通过冒充发布批准。
+
+## 7. 非目标与下一步
 
 - 本切片不把受控副本兼容性实验升级为任意用户文件授权；provider 不支持时仍只能安全回退类型图标/已有缓存；
 - 本切片不批准 ADR-0002，不代替安全负责人、Windows build/provider/企业策略矩阵或真实设备证据；
