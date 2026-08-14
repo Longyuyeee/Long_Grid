@@ -90,7 +90,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 
 ## 6. 恢复开发后的固定顺序
 
-1. **M4a：500 项规模预检**——正式 App 的目录、解析、投影、选择、搜索/排序、保存和恢复必须满足批准预算；
+1. **M4a：500 项规模预检**——已实现 100 方格/500 个不同安全引用的配置、解析、投影、选择、搜索/排序、保存和恢复自动门，等待远端复验；
 2. **M4b：故障恢复矩阵**——覆盖配置损坏、目录不可用、Explorer 生命周期、显示器变化、取消/重试与进程恢复；
 3. **M4c：资源长稳预检**——DesktopHost Surface、UIA、目录观察器、缩略图 worker 与 App 至少 24 小时无持续增长、残留窗口或状态漂移；
 4. **外部证据汇合**——按 C1 → C2/C3 → C4 → C5b → C6 完成五人测试、输入/无障碍/系统表面、显示硬件、专用卷和 ADR/Issue 收口；
@@ -108,6 +108,6 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 - [x] 仓库范围未发现 `.env`、PFX、SNK、PEM 或私钥文件；
 - [x] 一键启动、便携包、unsigned MSIX 和内部 RC 构建入口已文档化；
 - [x] 已完成/未完成能力、人工证据与发布边界已明确；
-- [ ] 本交接文档 PR 合并且合并后 main CI 通过（以 GitHub 最新状态为准）。
+- [x] 本交接文档已由 PR #196 合并，`main@cd4a3ff` 的 34 步 CI 通过。
 
 换机后的第一条事实校验应是 `git status --short --branch` 与 `git log -1 --oneline`；若本文中的 SHA 与新的 `origin/main` 不同，以 GitHub 合并历史和更晚的审计文档为准。
