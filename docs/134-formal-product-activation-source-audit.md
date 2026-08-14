@@ -34,7 +34,7 @@ E2b 尚未整体完成：下一步固定为 E2b2 项目 pointer/keyboard/UIA 选
 
 ## 4. 自动化与人工证据
 
-本地收口结果：locked restore 与 format 通过；Release build 为 0 warning / 0 error；890/890 测试通过；line 90.39%（24806/27444）、branch 79.24%（7834/9886）；启动链、E2b1 人工会话合同、143 项 UI automation id 合同、三项原生 DesktopHost probes 与依赖漏洞门禁通过。禁止 API 扫描未发现 Hook、Raw Input、`SendInput`、`RegisterHotKey`、Explorer/Progman/WorkerW 或桌面文件操作入口。
+本地收口结果：locked restore 与 format 通过；Release build 为 0 warning / 0 error；891/891 测试通过；line 90.61%（24868/27444）、branch 79.79%（7888/9886）；启动链、E2b1 人工会话合同、143 项 UI automation id 合同、三项原生 DesktopHost probes 与依赖漏洞门禁通过。禁止 API 扫描未发现 Hook、Raw Input、`SendInput`、`RegisterHotKey`、Explorer/Progman/WorkerW 或桌面文件操作入口。
 
 新增 `Start-DesktopInteractionActivationSession.ps1` 与人工手册，覆盖真实鼠标、App `Alt+I`、Narrator Invoke、系统表面隐藏恢复和进程关闭残留。当前没有执行者证据，因此这些结果明确保持 Pending。
 

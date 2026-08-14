@@ -590,7 +590,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
     private static int SignedHighWord(nint value) =>
         unchecked((short)((value.ToInt64() >> 16) & 0xFFFF));
 
-    private readonly record struct ActivationRegion(
+    internal readonly record struct ActivationRegion(
         int Left,
         int Top,
         int Width,
@@ -840,7 +840,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
     }
 
 #if WINDOWS
-    private sealed class ActivationUiaProvider
+    internal sealed class ActivationUiaProvider
         : IRawElementProviderFragmentRoot
     {
         private readonly nint window;
@@ -948,7 +948,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             region.Height);
     }
 
-    private sealed class ActivationUiaButtonProvider(
+    internal sealed class ActivationUiaButtonProvider(
         ActivationUiaProvider root,
         ActivationRegion region,
         int index,
