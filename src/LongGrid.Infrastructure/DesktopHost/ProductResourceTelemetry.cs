@@ -251,13 +251,15 @@ internal sealed class ProductResourceTelemetryServer : IAsyncDisposable
             || snapshot.WorkerProcessCount < 0
             || snapshot.ActiveOwnedProfileCount < 0
             || snapshot.ContainsPathsNamesContentHandlesOrProcessIds
+            || snapshot.WorkerProcessCount > 1
+            || snapshot.ActiveOwnedProfileCount > 1
             || snapshot.FormalThumbnailWorkerIntegrated
-            || snapshot.WorkerProcessCount != 0
-            || snapshot.ActiveOwnedProfileCount != 0)
+                != (snapshot.WorkerProcessCount == 1
+                    && snapshot.ActiveOwnedProfileCount == 1))
         {
             throw new InvalidOperationException(
                 "Product resource telemetry must remain finite, anonymous, "
-                + "monotonic and honest about unavailable worker integration.");
+                + "monotonic and honest about formal worker integration.");
         }
     }
 }

@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
+namespace LongGrid.ThumbnailWorker;
+
 internal sealed class ThumbnailSharedMemoryTransfer : IDisposable
 {
     private const uint FileMapRead = 0x0004;

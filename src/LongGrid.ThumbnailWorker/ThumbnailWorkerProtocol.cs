@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+namespace LongGrid.ThumbnailWorker;
+
 internal enum ThumbnailWorkerRequestKind
 {
     Extract,

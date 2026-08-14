@@ -2,6 +2,8 @@ using System.Security;
 using System.Security.AccessControl;
 using System.Security.Principal;
 
+namespace LongGrid.ThumbnailWorker;
+
 internal sealed class ThumbnailPathAclLease : IDisposable
 {
     private readonly FileInfo _file;

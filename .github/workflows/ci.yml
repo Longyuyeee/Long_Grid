@@ -258,7 +258,7 @@ jobs:
           --
           --json
 
-      - name: Thumbnail worker isolation probe
+      - name: Formal product thumbnail worker isolation probe
         run: >-
           dotnet run
           --project probes/LongGrid.Spikes.ShellItemImages

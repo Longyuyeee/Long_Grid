@@ -72,3 +72,5 @@ M4c2a 已冻结 24 小时资源预算，但正式 App 缺少匿名状态修订�
 - 本切片不把同用户匿名遥测提升为诊断 API、远程接口、持续日志或公开产品功能；
 - 本切片不产生真实 24 小时 Pass；
 - 下一步 M4c2b2：提取最小 worker runtime、保持零 Capability/Job kill-on-close/受控副本/有界 IPC，让 probe 反向复用并为正式 App 提供只读生命周期计数。
+
+后续进展：M4c2b2 已在本地把 runtime 提取为独立 `LongGrid.ThumbnailWorker` 产品可执行组件，probe 反向复用，正式受控会话匿名计数提升为 worker/Profile `1/1`；远端门禁与真实 24 小时证据仍 Pending。详见 [Stage 147](147-formal-restricted-thumbnail-worker-integration-audit.md)。

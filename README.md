@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1、E2/M2、M3、M4a、M4b、M4c1、M4c2a 与 M4c2b1 工程链已完成；默认关闭、同用户、只读匿名状态遥测已通过 PR/main 双重门禁。正式缩略图 worker 仍未接入，因此当前入口固定 `canProduceM4cPass=false`。下一步为 M4c2b2 提取并接入受限 worker runtime，再执行 M4c2c 真实 24 小时会话。M4c、M4-ready 与 RC 仍 Pending。桌面文件内容读取、写入和移动继续关闭，物理输入/Narrator/高对比/动态系统表面证据仍 Pending。#19、#20、#23、#24、ADR-0001、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，M4c2a 见 [Stage 145](docs/145-formal-app-resource-stability-session-contract-audit.md)，M4c2b1 见 [Stage 146](docs/146-formal-app-anonymous-resource-telemetry-audit.md)。
+> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1、E2/M2、M3、M4a、M4b、M4c1、M4c2a 与 M4c2b1 工程链已完成；M4c2b2 已在本地把受限缩略图 runtime 提取为独立产品可执行组件，让 probe 与正式 App 复用，并等待远端门禁。受控会话现在能匿名证明 worker/Profile `1/1`，但当前入口仍固定 `canProduceM4cPass=false`。下一步为 M4c2c 从合并提交执行真实 24 小时会话。M4c、M4-ready 与 RC 仍 Pending。桌面文件内容读取、写入和移动继续关闭，正式缩略图 UI、物理输入/Narrator/高对比/动态系统表面证据仍 Pending。#19、#20、#23、#24、ADR-0001/0002、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，M4c2b1 见 [Stage 146](docs/146-formal-app-anonymous-resource-telemetry-audit.md)，M4c2b2 见 [Stage 147](docs/147-formal-restricted-thumbnail-worker-integration-audit.md)。
 
 ## 产品原则
 
@@ -31,6 +31,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [加速资源长稳预检审计（Stage 144）](docs/144-accelerated-resource-stability-preflight-audit.md)
 - [正式 App 24 小时资源长稳会话合同审计（Stage 145）](docs/145-formal-app-resource-stability-session-contract-audit.md)
 - [正式 App 匿名资源遥测审计（Stage 146）](docs/146-formal-app-anonymous-resource-telemetry-audit.md)
+- [正式受限缩略图 worker 接线审计（Stage 147）](docs/147-formal-restricted-thumbnail-worker-integration-audit.md)
 - [质量、安全与隐私基线](docs/05-quality-security.md)
 - [桌面管理与任务栏美化深度审计](docs/06-desktop-taskbar-audit.md)
 - [核心 Windows 能力实现审计](docs/08-core-windows-implementation-audit.md)

@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+namespace LongGrid.ThumbnailWorker;
+
 internal enum ThumbnailInputStrategy
 {
     ControlledCopy = 1,
@@ -86,6 +88,8 @@ internal sealed class ThumbnailWorkerClient : IDisposable
     internal bool UsesKillOnJobClose => _workerJob.IsConfigured;
 
     internal bool AllWorkersAppContainer { get; private set; } = true;
+
+    internal bool IsWorkerRunning => _process is { HasExited: false };
 
     internal bool UsesControlledInputCopies =>
         _appContainerProfile.BrokeredInputCopiesCreated > 0;

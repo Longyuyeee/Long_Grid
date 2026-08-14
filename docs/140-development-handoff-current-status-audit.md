@@ -96,10 +96,11 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 4. **M4c1：加速资源所有权/释放预检**——200 轮矩阵与 PR/main 双重门禁已通过，判定 Accelerated Engineering Pass；
 5. **M4c2a：正式 App 24 小时资源合同**——入口与预算已冻结并通过远端门禁；
 6. **M4c2b1：匿名 revision telemetry**——同用户只读管道、严格连续序列与会话漂移计算已经 PR/main 双重门禁闭合；
-7. **M4c2b2/M4c2c：正式 worker 与真实执行**——提取并接入受限 worker 后，在支持设备验证 Surface、UIA、目录、worker/Profile、窗口、handle/thread/private bytes 与状态漂移；
-8. **外部证据汇合**——按 C1 → C2/C3 → C4 → C5b → C6 完成五人测试、输入/无障碍/系统表面、显示硬件、专用卷和 ADR/Issue 收口；
-9. **内部 RC**——许可证、签名、安装/升级/卸载/回滚、正式品牌确认完成后，才允许把内部工程产物提升为可分发候选；
-10. **MVP 后扩展**——任务栏外观实验、LongBar、Widget Host、LPWP 插件兼容和广泛窗口视觉能力分别立项、隔离权限与资源预算，不进入核心常驻路径。
+7. **M4c2b2：正式 worker 接线**——独立受限产品 runtime、probe 反向复用和正式 App 受控生命周期已本地闭合，等待远端门禁；
+8. **M4c2c：真实执行**——从 M4c2b2 合并提交在支持设备验证 UIA、目录、worker/Profile、窗口、handle/thread/private bytes 与状态漂移；
+9. **外部证据汇合**——按 C1 → C2/C3 → C4 → C5b → C6 完成五人测试、输入/无障碍/系统表面、显示硬件、专用卷和 ADR/Issue 收口；
+10. **内部 RC**——许可证、签名、安装/升级/卸载/回滚、正式品牌确认完成后，才允许把内部工程产物提升为可分发候选；
+11. **MVP 后扩展**——任务栏外观实验、LongBar、Widget Host、LPWP 插件兼容和广泛窗口视觉能力分别立项、隔离权限与资源预算，不进入核心常驻路径。
 
 每个切片继续遵守：从最新 `main` 建立 `codex/<slice>` 短分支，先写范围/非目标和验收，完成实现与自动化，更新审计文档，审阅差异，推送 PR，等待 PR CI，合并后再次确认 main CI。不得把自动化、probe 或设计文档冒充真人/实机/发布证据。
 
