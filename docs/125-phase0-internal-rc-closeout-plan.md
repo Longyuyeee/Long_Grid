@@ -463,6 +463,16 @@ E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输�
 - **结论**：M4b1 Engineering Pass；M4b、M4-ready 与 RC 状态不因本切片提前改变；
 - **下一步**：进入 M4b2 Explorer、显示器与 DesktopHost 生命周期。详见 [Stage 142](142-product-recovery-preflight-audit.md)。
 
+### M4b2：Explorer、显示器与 DesktopHost 生命周期（实现待远端复验）
+
+- **审计基线**：`main@9f921471c32edaa870ab54db5088414b23ad080b`；
+- **范围**：Explorer 重启、session 不可用、拓扑不可用后恢复、单屏到双屏替换、Host 重启拒绝旧窗口身份；
+- **自动化**：正式 lifecycle/topology/window bridge 组合预检、同入口测试和独立 CI 步骤；全内存合成适配器，不创建原生窗口；
+- **本地结果**：5/5 场景通过，专项 1/1，完整核心测试 923/923，目标工具 Release 0 warning / 0 error，所有合成 Surface 已释放；
+- **远端证据**：PR CI、合并 commit 和 main CI Pending；
+- **结论**：本地 Engineering Pass / 远端证据 Pending；M4b、M4-ready 与 RC 状态不因本切片提前改变；
+- **下一步**：远端双重门禁关闭 M4b2 后进入 M4c 资源长稳预检。详见 [Stage 143](143-desktop-host-lifecycle-recovery-preflight-audit.md)。
+
 ### C1：工程就绪复审（结果尚未执行）
 
 - **审计基线**：`main@508528b`；
