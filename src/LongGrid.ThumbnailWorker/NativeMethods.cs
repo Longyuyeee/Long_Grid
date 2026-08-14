@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 
+namespace LongGrid.ThumbnailWorker;
+
 internal static class NativeMethods
 {
     internal const uint CoInitMultithreaded = 0;

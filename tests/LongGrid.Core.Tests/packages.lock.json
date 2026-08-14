@@ -115,8 +115,12 @@
       "longgrid.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "LongGrid.Core": "[1.0.0, )"
+          "LongGrid.Core": "[1.0.0, )",
+          "LongGrid.ThumbnailWorker": "[1.0.0, )"
         }
+      },
+      "longgrid.thumbnailworker": {
+        "type": "Project"
       }
     }
   }

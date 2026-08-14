@@ -2,12 +2,22 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 
+namespace LongGrid.ThumbnailWorker;
+
 internal sealed class ThumbnailAppContainerProfile : IDisposable
 {
     internal const long MaximumBrokeredInputBytes = 32L * 1024 * 1024;
     internal const long MaximumBrokeredTotalBytes = 64L * 1024 * 1024;
     private const long MaximumStagedRuntimeBytes = 128L * 1024 * 1024;
     private const string ProfilePrefix = "LongGridThumbnailWorker";
+
+    internal static IReadOnlyList<string> RequiredRuntimeFileNames { get; } =
+    [
+        "LongGrid.ThumbnailWorker.exe",
+        "LongGrid.ThumbnailWorker.dll",
+        "LongGrid.ThumbnailWorker.deps.json",
+        "LongGrid.ThumbnailWorker.runtimeconfig.json",
+    ];
 
     private readonly Dictionary<string, BrokeredInput> _brokeredInputs =
         new(StringComparer.OrdinalIgnoreCase);
@@ -267,15 +277,17 @@ internal sealed class ThumbnailAppContainerProfile : IDisposable
     {
         string sourceDirectory = AppContext.BaseDirectory;
         long totalBytes = 0;
-        foreach (string sourcePath in Directory.EnumerateFiles(
-            sourceDirectory,
-            "*",
-            SearchOption.TopDirectoryOnly))
+        foreach (string fileName in RequiredRuntimeFileNames)
         {
+            string sourcePath = Path.Combine(sourceDirectory, fileName);
             var source = new FileInfo(sourcePath);
-            if ((source.Attributes & FileAttributes.ReparsePoint) != 0)
+            source.Refresh();
+            if (!source.Exists
+                || (source.Attributes & FileAttributes.ReparsePoint) != 0)
             {
-                continue;
+                throw new FileNotFoundException(
+                    "The allowlisted thumbnail worker runtime file is unavailable.",
+                    sourcePath);
             }
 
             totalBytes = checked(totalBytes + source.Length);
@@ -287,20 +299,13 @@ internal sealed class ThumbnailAppContainerProfile : IDisposable
 
             File.Copy(
                 sourcePath,
-                Path.Combine(destinationDirectory, source.Name),
+                Path.Combine(destinationDirectory, fileName),
                 overwrite: false);
         }
 
         string executable = Path.Combine(
             destinationDirectory,
-            "LongGrid.Spikes.ShellItemImages.exe");
-        if (!File.Exists(executable))
-        {
-            throw new FileNotFoundException(
-                "The thumbnail worker apphost was not found in the staged runtime.",
-                executable);
-        }
-
+            "LongGrid.ThumbnailWorker.exe");
         return executable;
     }
 

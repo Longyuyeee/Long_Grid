@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
+namespace LongGrid.ThumbnailWorker;
+
 internal sealed class ThumbnailWorkerJob : IDisposable
 {
     private const uint JobObjectLimitKillOnJobClose = 0x00002000;

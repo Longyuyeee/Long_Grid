@@ -1,5 +1,7 @@
 using Microsoft.Win32.SafeHandles;
 
+namespace LongGrid.ThumbnailWorker;
+
 internal sealed class SafeGdiBitmapHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
     private static int _releasedCount;

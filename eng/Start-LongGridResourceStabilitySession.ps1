@@ -55,7 +55,10 @@ function Assert-Condition {
 
 function Get-LongGridProcesses {
     @(
-        Get-Process -Name 'LongGrid.App' -ErrorAction SilentlyContinue
+        Get-Process -Name @(
+            'LongGrid.App',
+            'LongGrid.ThumbnailWorker'
+        ) -ErrorAction SilentlyContinue
     )
 }
 
@@ -63,8 +66,15 @@ function Assert-CleanSession {
     param([string] $Checkpoint)
 
     $processes = @(Get-LongGridProcesses)
-    Assert-Condition ($processes.Count -eq 0) `
-        "$Checkpoint requires zero LongGrid.App processes; found PID(s): $($processes.Id -join ', '). This launcher never terminates processes it did not start."
+    try {
+        Assert-Condition ($processes.Count -eq 0) `
+            "$Checkpoint requires zero LongGrid.App or LongGrid.ThumbnailWorker processes; found PID(s): $($processes.Id -join ', '). This launcher never terminates processes it did not start."
+    }
+    finally {
+        foreach ($process in $processes) {
+            $process.Dispose()
+        }
+    }
 }
 
 function Get-Median {
@@ -240,7 +250,7 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 $sessionContract = [ordered]@{
     schemaVersion = 1
     purpose = 'M4c2FormalApp24HourResourceStabilitySession'
-    slice = 'M4c2b1'
+    slice = 'M4c2b2'
     mode = if ($ValidateOnly) { 'ValidateOnly' } else { 'LivePartialEvidence' }
     operatorId = if ($ValidateOnly) {
         'O1-O9-required-at-runtime'
@@ -263,6 +273,14 @@ $sessionContract = [ordered]@{
         handleMaximumSlopePerHour = $handleSlopeLimitPerHour
         threadFinalMedianDelta = $threadMedianDeltaLimit
         threadMaximumSlopePerHour = $threadSlopeLimitPerHour
+        workerPrivateBytesFinalMedianDeltaBytes =
+            $privateBytesMedianDeltaLimit
+        workerPrivateBytesMaximumSlopeBytesPerHour =
+            $privateBytesSlopeLimitPerHour
+        workerHandleFinalMedianDelta = $handleMedianDeltaLimit
+        workerHandleMaximumSlopePerHour = $handleSlopeLimitPerHour
+        workerThreadFinalMedianDelta = $threadMedianDeltaLimit
+        workerThreadMaximumSlopePerHour = $threadSlopeLimitPerHour
         topLevelWindowFinalMedianDelta = $windowMedianDeltaLimit
         topLevelWindowMaximumTransientIncrease = $windowTransientIncreaseLimit
         maximumConsecutiveUiaMisses = $maximumConsecutiveUiaMisses
@@ -281,11 +299,10 @@ $sessionContract = [ordered]@{
     changesSystemSettings = $false
     recordsPathsNamesContentHandlesOrProcessIds = $false
     writesEvidenceOnlyToExplicitDirectory = -not $ValidateOnly
-    formalThumbnailWorkerIntegrated = $false
+    formalThumbnailWorkerIntegrated = $true
     formalStateRevisionTelemetryAvailable = $true
     canProduceM4cPass = $false
     blockers = @(
-        'FormalThumbnailWorkerNotIntegrated',
         'Real24HourEvidenceNotCollected'
     )
 }
@@ -304,6 +321,12 @@ Assert-Condition (
     $sessionContract.budgets.handleMaximumSlopePerHour -eq 1 -and
     $sessionContract.budgets.threadFinalMedianDelta -eq 4 -and
     $sessionContract.budgets.threadMaximumSlopePerHour -eq 0.25 -and
+    $sessionContract.budgets.workerPrivateBytesFinalMedianDeltaBytes -eq 64MB -and
+    $sessionContract.budgets.workerPrivateBytesMaximumSlopeBytesPerHour -eq 2MB -and
+    $sessionContract.budgets.workerHandleFinalMedianDelta -eq 32 -and
+    $sessionContract.budgets.workerHandleMaximumSlopePerHour -eq 1 -and
+    $sessionContract.budgets.workerThreadFinalMedianDelta -eq 4 -and
+    $sessionContract.budgets.workerThreadMaximumSlopePerHour -eq 0.25 -and
     $sessionContract.budgets.topLevelWindowFinalMedianDelta -eq 0 -and
     $sessionContract.budgets.topLevelWindowMaximumTransientIncrease -eq 2 -and
     -not $sessionContract.enablesExplicitInteraction -and
@@ -311,11 +334,11 @@ Assert-Condition (
     -not $sessionContract.changesDesktopFiles -and
     -not $sessionContract.changesSystemSettings -and
     -not $sessionContract.recordsPathsNamesContentHandlesOrProcessIds -and
-    -not $sessionContract.formalThumbnailWorkerIntegrated -and
+    $sessionContract.formalThumbnailWorkerIntegrated -and
     $sessionContract.formalStateRevisionTelemetryAvailable -and
     -not $sessionContract.canProduceM4cPass -and
-    $sessionContract.blockers.Count -eq 2
-) 'The M4c2b1 duration, budget, privacy, blocker or evidence contract is invalid.'
+    $sessionContract.blockers.Count -eq 1
+) 'The M4c2b2 duration, budget, privacy, blocker or evidence contract is invalid.'
 
 $slopeSelfTestSamples = @(
     [pscustomobject]@{ elapsedSeconds = 0; value = 10 },
@@ -361,12 +384,12 @@ Assert-Condition (
     (Get-MaximumSampleGap $slopeSelfTestSamples) -eq 3600 -and
     (Get-MaximumConsecutiveUiaMisses $uiaSelfTestSamples) -eq 2 -and
     (Get-StateRevisionDriftCount $telemetrySelfTestSamples) -eq 0
-) 'The M4c2b1 deterministic trend helper self-test failed.'
+) 'The M4c2b2 deterministic trend helper self-test failed.'
 
 $sessionContract | ConvertTo-Json -Depth 5
 
 if ($ValidateOnly) {
-    Write-Output 'M4c2b1 anonymous resource telemetry contract validation passed; formal worker, live 24-hour evidence and M4c remain pending.'
+    Write-Output 'M4c2b2 formal restricted worker contract validation passed; live 24-hour evidence and M4c remain pending.'
     exit 0
 }
 
@@ -402,7 +425,7 @@ $existingEvidence = @(Get-ChildItem -LiteralPath $EvidenceDirectory -Force)
 Assert-Condition ($existingEvidence.Count -eq 0) `
     'EvidenceDirectory must be empty before the session starts.'
 
-Assert-CleanSession 'M4c2a resource-stability preflight'
+Assert-CleanSession 'M4c2b2 resource-stability preflight'
 
 & $startScript `
     -Configuration $Configuration `
@@ -465,11 +488,14 @@ $telemetryReader = $null
 $telemetryWriter = $null
 $samples = [System.Collections.Generic.List[object]]::new()
 $sessionStartedUtc = $null
+$workerProcessId = $null
+$workerExitOrRestartCount = 0
+$orphanWorkerCountAtEnd = 0
 $sessionId = [Guid]::NewGuid().ToString('N')
 $telemetryPipeName = "LongGrid.ResourceTelemetry.$sessionId"
 $lastTelemetrySequence = 0
 $evidencePath = Join-Path $EvidenceDirectory `
-    "long-grid-m4c2b1-$sessionId.json"
+    "long-grid-m4c2b2-$sessionId.json"
 
 try {
     $env:LONGGRID_ENABLE_DESKTOP_HOST = '1'
@@ -531,11 +557,26 @@ try {
             $telemetry.SchemaVersion -eq 1 -and
             $telemetry.Sequence -eq ($lastTelemetrySequence + 1) -and
             -not $telemetry.ContainsPathsNamesContentHandlesOrProcessIds -and
-            -not $telemetry.FormalThumbnailWorkerIntegrated -and
-            $telemetry.WorkerProcessCount -eq 0 -and
-            $telemetry.ActiveOwnedProfileCount -eq 0
-        ) 'Formal App resource telemetry violated its anonymous blocker contract.'
+            $telemetry.FormalThumbnailWorkerIntegrated -and
+            $telemetry.WorkerProcessCount -eq 1 -and
+            $telemetry.ActiveOwnedProfileCount -eq 1
+        ) 'Formal App resource telemetry violated its restricted worker contract.'
         $lastTelemetrySequence = $telemetry.Sequence
+
+        $workerProcesses = @(
+            Get-Process -Name 'LongGrid.ThumbnailWorker' `
+                -ErrorAction SilentlyContinue
+        )
+        Assert-Condition ($workerProcesses.Count -eq 1) `
+            'The formal App must own exactly one restricted thumbnail worker.'
+        $workerProcess = $workerProcesses[0]
+        $workerProcess.Refresh()
+        if ($null -eq $workerProcessId) {
+            $workerProcessId = $workerProcess.Id
+        } elseif ($workerProcessId -ne $workerProcess.Id) {
+            $workerExitOrRestartCount++
+            $workerProcessId = $workerProcess.Id
+        }
 
         $samples.Add([pscustomobject]@{
             elapsedSeconds = [Math]::Round(
@@ -544,12 +585,16 @@ try {
             privateBytes = [long]$productProcess.PrivateMemorySize64
             handleCount = [int]$productProcess.HandleCount
             threadCount = [int]$productProcess.Threads.Count
+            workerPrivateBytes = [long]$workerProcess.PrivateMemorySize64
+            workerHandleCount = [int]$workerProcess.HandleCount
+            workerThreadCount = [int]$workerProcess.Threads.Count
             topLevelWindowCount = Get-TopLevelWindowCount $productProcess.Id
             mainWindowPresent = $productProcess.MainWindowHandle -ne [IntPtr]::Zero
             uiAutomationRootAvailable = Test-UiaRootAvailable `
                 $productProcess.MainWindowHandle
             telemetry = $telemetry
         })
+        $workerProcess.Dispose()
 
         if ($sampledUtc -ge $deadlineUtc) {
             break
@@ -586,6 +631,25 @@ finally {
 
         $productProcess.Dispose()
     }
+
+    $workerExitDeadline = [DateTime]::UtcNow.AddSeconds(15)
+    $remainingWorkerCount = 0
+    do {
+        $remainingWorkers = @(
+            Get-Process -Name 'LongGrid.ThumbnailWorker' `
+                -ErrorAction SilentlyContinue
+        )
+        $remainingWorkerCount = $remainingWorkers.Count
+        foreach ($remainingWorker in $remainingWorkers) {
+            $remainingWorker.Dispose()
+        }
+        if ($remainingWorkerCount -eq 0) {
+            break
+        }
+
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $workerExitDeadline)
+    $orphanWorkerCountAtEnd = $remainingWorkerCount
 
     if ($null -eq $oldDesktopHostOptIn) {
         Remove-Item Env:LONGGRID_ENABLE_DESKTOP_HOST -ErrorAction SilentlyContinue
@@ -641,6 +705,12 @@ if ($firstWindow.Count -gt 0 -and $lastWindow.Count -gt 0) {
     $lastHandleMedian = Get-Median @($lastWindow.handleCount)
     $firstThreadMedian = Get-Median @($firstWindow.threadCount)
     $lastThreadMedian = Get-Median @($lastWindow.threadCount)
+    $firstWorkerPrivateMedian = Get-Median @($firstWindow.workerPrivateBytes)
+    $lastWorkerPrivateMedian = Get-Median @($lastWindow.workerPrivateBytes)
+    $firstWorkerHandleMedian = Get-Median @($firstWindow.workerHandleCount)
+    $lastWorkerHandleMedian = Get-Median @($lastWindow.workerHandleCount)
+    $firstWorkerThreadMedian = Get-Median @($firstWindow.workerThreadCount)
+    $lastWorkerThreadMedian = Get-Median @($lastWindow.workerThreadCount)
     $firstWindowMedian = Get-Median @($firstWindow.topLevelWindowCount)
     $lastWindowMedian = Get-Median @($lastWindow.topLevelWindowCount)
     $maximumWindowCount = @(
@@ -652,6 +722,16 @@ if ($firstWindow.Count -gt 0 -and $lastWindow.Count -gt 0) {
     $handleSlope = Get-LinearSlopePerHour $eligibleSamples 'handleCount'
     $threadDelta = $lastThreadMedian - $firstThreadMedian
     $threadSlope = Get-LinearSlopePerHour $eligibleSamples 'threadCount'
+    $workerPrivateDelta =
+        $lastWorkerPrivateMedian - $firstWorkerPrivateMedian
+    $workerPrivateSlope = Get-LinearSlopePerHour `
+        $eligibleSamples 'workerPrivateBytes'
+    $workerHandleDelta = $lastWorkerHandleMedian - $firstWorkerHandleMedian
+    $workerHandleSlope = Get-LinearSlopePerHour `
+        $eligibleSamples 'workerHandleCount'
+    $workerThreadDelta = $lastWorkerThreadMedian - $firstWorkerThreadMedian
+    $workerThreadSlope = Get-LinearSlopePerHour `
+        $eligibleSamples 'workerThreadCount'
     $windowDelta = $lastWindowMedian - $firstWindowMedian
     $summary = [ordered]@{
         expectedSampleCount = $expectedSampleCount
@@ -663,6 +743,14 @@ if ($firstWindow.Count -gt 0 -and $lastWindow.Count -gt 0) {
         handleSlopePerHour = $handleSlope
         threadFinalMedianDelta = $threadDelta
         threadSlopePerHour = $threadSlope
+        workerPrivateBytesFinalMedianDelta = $workerPrivateDelta
+        workerPrivateBytesSlopePerHour = $workerPrivateSlope
+        workerHandleFinalMedianDelta = $workerHandleDelta
+        workerHandleSlopePerHour = $workerHandleSlope
+        workerThreadFinalMedianDelta = $workerThreadDelta
+        workerThreadSlopePerHour = $workerThreadSlope
+        workerExitOrRestartCount = $workerExitOrRestartCount
+        orphanWorkerCountAtEnd = $orphanWorkerCountAtEnd
         topLevelWindowFinalMedianDelta = $windowDelta
         topLevelWindowMaximum = $maximumWindowCount
         uiAutomationMisses = @(
@@ -671,7 +759,7 @@ if ($firstWindow.Count -gt 0 -and $lastWindow.Count -gt 0) {
         maximumConsecutiveUiaMisses = $maximumObservedUiaMisses
         unexpectedStateRevisionDriftCount = $stateRevisionDriftCount
         formalStateRevisionTelemetryAvailable = $true
-        workerActivityObserved = $false
+        workerActivityObserved = $true
         partialProcessBudgetsWithinLimits =
             $sampleCoveragePercent -ge $minimumSampleCoveragePercent -and
             $maximumObservedSampleGap -le $maximumSampleGapSeconds -and
@@ -681,6 +769,14 @@ if ($firstWindow.Count -gt 0 -and $lastWindow.Count -gt 0) {
             $handleSlope -le $handleSlopeLimitPerHour -and
             $threadDelta -le $threadMedianDeltaLimit -and
             $threadSlope -le $threadSlopeLimitPerHour -and
+            $workerPrivateDelta -le $privateBytesMedianDeltaLimit -and
+            $workerPrivateSlope -le $privateBytesSlopeLimitPerHour -and
+            $workerHandleDelta -le $handleMedianDeltaLimit -and
+            $workerHandleSlope -le $handleSlopeLimitPerHour -and
+            $workerThreadDelta -le $threadMedianDeltaLimit -and
+            $workerThreadSlope -le $threadSlopeLimitPerHour -and
+            $workerExitOrRestartCount -eq 0 -and
+            $orphanWorkerCountAtEnd -eq 0 -and
             $windowDelta -le $windowMedianDeltaLimit -and
             ($maximumWindowCount - $firstWindowMedian) -le `
                 $windowTransientIncreaseLimit -and
@@ -692,7 +788,7 @@ if ($firstWindow.Count -gt 0 -and $lastWindow.Count -gt 0) {
 $evidence = [ordered]@{
     schemaVersion = 1
     purpose = $sessionContract.purpose
-    slice = 'M4c2b1'
+    slice = 'M4c2b2'
     commit = $commit
     operatorId = $OperatorId
     operatorIdentifierPolicy = 'AnonymousLabelsOnly'
@@ -701,13 +797,13 @@ $evidence = [ordered]@{
     elapsedHours = [Math]::Round(
         ($sessionEndedUtc - $sessionStartedUtc).TotalHours,
         6)
-    resultStatus = 'PendingFormalThumbnailWorkerIntegration'
+    resultStatus = 'PendingReal24HourEvidenceReview'
     budgets = $sessionContract.budgets
     sampleCount = $samples.Count
     samples = $samples
     summary = $summary
     blockers = @(
-        'FormalThumbnailWorkerNotIntegrated'
+        'Real24HourEvidenceNotReviewed'
     )
     canProduceM4cPass = $false
     containsPathsNamesContentHandlesOrProcessIds = $false
@@ -722,7 +818,7 @@ $evidenceJson = $evidence | ConvertTo-Json -Depth 8
 Move-Item -LiteralPath $temporaryEvidencePath -Destination $evidencePath
 
 Write-Output (
-    'M4c2b1 anonymous telemetry evidence was written to the explicit evidence directory. ' +
-    'The result remains PendingFormalThumbnailWorkerIntegration and cannot produce M4c Pass.'
+    'M4c2b2 formal worker evidence was written to the explicit evidence directory. ' +
+    'The result remains PendingReal24HourEvidenceReview and cannot produce M4c Pass.'
 )
 exit 4

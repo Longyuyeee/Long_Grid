@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
+namespace LongGrid.ThumbnailWorker;
+
 internal static class ShellImageExtractor
 {
     private static readonly Guid ImageFactoryInterfaceId =

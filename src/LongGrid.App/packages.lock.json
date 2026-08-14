@@ -133,8 +133,12 @@
       "longgrid.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "LongGrid.Core": "[1.0.0, )"
+          "LongGrid.Core": "[1.0.0, )",
+          "LongGrid.ThumbnailWorker": "[1.0.0, )"
         }
+      },
+      "longgrid.thumbnailworker": {
+        "type": "Project"
       }
     },
     "net8.0-windows10.0.19041/win-x64": {

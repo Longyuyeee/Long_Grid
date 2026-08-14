@@ -93,9 +93,9 @@ public sealed class ProductResourceTelemetryTests
         Assert.Equal("Ready", root.GetProperty("CatalogStatus").GetString());
         Assert.Equal(7, root.GetProperty("CatalogGeneration").GetInt64());
         Assert.Equal(2, root.GetProperty("DesktopHostOwnedWindowCount").GetInt32());
-        Assert.False(root.GetProperty("FormalThumbnailWorkerIntegrated").GetBoolean());
-        Assert.Equal(0, root.GetProperty("WorkerProcessCount").GetInt32());
-        Assert.Equal(0, root.GetProperty("ActiveOwnedProfileCount").GetInt32());
+        Assert.True(root.GetProperty("FormalThumbnailWorkerIntegrated").GetBoolean());
+        Assert.Equal(1, root.GetProperty("WorkerProcessCount").GetInt32());
+        Assert.Equal(1, root.GetProperty("ActiveOwnedProfileCount").GetInt32());
         Assert.False(root.GetProperty(
             "ContainsPathsNamesContentHandlesOrProcessIds").GetBoolean());
         Assert.DoesNotContain("secret-container", json, StringComparison.Ordinal);
@@ -130,8 +130,8 @@ public sealed class ProductResourceTelemetryTests
             SelectionRevision: 0,
             ProductDesktopInteractionDevelopmentStatus.Passive,
             InteractionRevision: 6,
-            FormalThumbnailWorkerIntegrated: false,
-            WorkerProcessCount: 0,
-            ActiveOwnedProfileCount: 0,
+            FormalThumbnailWorkerIntegrated: true,
+            WorkerProcessCount: 1,
+            ActiveOwnedProfileCount: 1,
             ContainsPathsNamesContentHandlesOrProcessIds: false);
 }

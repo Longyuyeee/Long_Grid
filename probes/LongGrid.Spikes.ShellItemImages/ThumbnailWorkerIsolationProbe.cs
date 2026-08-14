@@ -77,7 +77,8 @@ internal static class ThumbnailWorkerIsolationProbe
         }
 
         bool commonPassed =
-            report.Stress.Succeeded + report.Stress.Failed == StressRequests
+            report.FormalProductRuntimeReused
+            && report.Stress.Succeeded + report.Stress.Failed == StressRequests
             && report.ProviderMatrix.SameSampleSet
             && report.ProviderMatrix.ParentSamplesSafelyClassified
             && report.ProviderMatrix.StrategiesAgreePerFormat
@@ -649,6 +650,10 @@ internal static class ThumbnailWorkerIsolationProbe
             TimestampUtc: DateTimeOffset.UtcNow,
             OperatingSystem: Environment.OSVersion.VersionString,
             Architecture: RuntimeInformation.OSArchitecture.ToString(),
+            FormalProductRuntimeReused: string.Equals(
+                typeof(ThumbnailWorkerClient).Assembly.GetName().Name,
+                "LongGrid.ThumbnailWorker",
+                StringComparison.Ordinal),
             WarmupSucceeded: warmupSucceeded,
             WarmupHResult: warmupHResult,
             ProviderCompatibility: providerCompatibility,
@@ -1081,6 +1086,7 @@ internal sealed record ThumbnailWorkerIsolationReport(
     DateTimeOffset TimestampUtc,
     string OperatingSystem,
     string Architecture,
+    bool FormalProductRuntimeReused,
     bool WarmupSucceeded,
     int WarmupHResult,
     ThumbnailProviderCompatibilityResult ProviderCompatibility,

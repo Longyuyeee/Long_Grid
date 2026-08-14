@@ -4,6 +4,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
+namespace LongGrid.ThumbnailWorker;
+
 internal sealed class AppContainerThumbnailWorkerProcess : IDisposable
 {
     private const uint CreateNoWindow = 0x08000000;

@@ -1,5 +1,7 @@
 using System.Text;
 
+namespace LongGrid.ThumbnailWorker;
+
 internal sealed class BoundedLineReader
 {
     private const int BufferSize = 1_024;

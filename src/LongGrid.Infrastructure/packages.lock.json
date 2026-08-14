@@ -4,6 +4,9 @@
     "net8.0-windows7.0": {
       "longgrid.core": {
         "type": "Project"
+      },
+      "longgrid.thumbnailworker": {
+        "type": "Project"
       }
     }
   }

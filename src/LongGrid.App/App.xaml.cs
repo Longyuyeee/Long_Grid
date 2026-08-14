@@ -32,6 +32,8 @@ public partial class App : Application
         productDesktopInteraction;
     private readonly WindowsProductDesktopInteractionSystemSurfaceEventSource?
         productDesktopSystemSurfaceEvents;
+    private readonly ProductThumbnailWorkerLifecycleController
+        productThumbnailWorker;
     private readonly ProductResourceTelemetryServer? productResourceTelemetry;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
@@ -120,6 +122,8 @@ public partial class App : Application
                 Environment.GetEnvironmentVariable(
                     ProductResourceTelemetryFeaturePolicy
                         .SessionEnvironmentVariableName));
+        productThumbnailWorker =
+            ProductThumbnailWorkerLifecycleController.Start(telemetryFeature);
         productResourceTelemetry = ProductResourceTelemetryServer.TryStart(
             telemetryFeature,
             CaptureProductResourceTelemetry);
@@ -1336,6 +1340,7 @@ public partial class App : Application
         {
             await productResourceTelemetry.DisposeAsync();
         }
+        productThumbnailWorker.Dispose();
         await productDesktopHostLifecycle.DisposeAsync();
         await productDisplayTopology.DisposeAsync();
         await productDesktopCatalog.DisposeAsync();
@@ -1359,6 +1364,8 @@ public partial class App : Application
             productDesktopHostLifecycle.Snapshot;
         ProductDesktopInteractionDevelopmentSnapshot interaction =
             productDesktopInteraction.Snapshot;
+        ProductThumbnailWorkerLifecycleSnapshot worker =
+            productThumbnailWorker.Snapshot;
         return new(
             1,
             sequence,
@@ -1384,9 +1391,9 @@ public partial class App : Application
             desktopHost.SelectionRevision,
             interaction.Status,
             interaction.Revision,
-            FormalThumbnailWorkerIntegrated: false,
-            WorkerProcessCount: 0,
-            ActiveOwnedProfileCount: 0,
+            worker.FormalIntegrationAvailable,
+            worker.WorkerProcessCount,
+            worker.ActiveOwnedProfileCount,
             ContainsPathsNamesContentHandlesOrProcessIds: false);
     }
 }
