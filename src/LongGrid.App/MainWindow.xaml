@@ -1625,25 +1625,33 @@
                                             Text="尚未准备导出。"
                                             TextWrapping="Wrap" />
                                     </Grid>
-                                    <TextBlock FontSize="16" FontWeight="SemiBold" Text="配置证据清单" />
+                                    <TextBlock FontSize="16" FontWeight="SemiBold" Text="证据清单" />
                                     <TextBlock
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
-                                        Text="仅显示 Long方格归档证据的匿名类型、角色、大小和时间；不读取内容或显示路径。阈值未批准前不自动清理；永久清理只作用于明确选择的一条。"
+                                        Text="可在明确确认后保存一条当前交互的匿名快照；清单仅显示类型、角色、大小和时间，不显示路径。不会持续记录；导出和永久清理都只作用于明确选择的一条。"
                                         TextWrapping="Wrap" />
                                     <Grid ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <Button
+                                            x:Name="CaptureAnonymousInteractionEvidenceButton"
+                                            AutomationProperties.AutomationId="CaptureAnonymousInteractionEvidenceButton"
+                                            AutomationProperties.Name="确认保存当前匿名交互证据"
+                                            Click="CaptureAnonymousInteractionEvidenceButton_Click"
+                                            Content="保存匿名交互快照…" />
+                                        <Button
                                             x:Name="RefreshConfigurationEvidenceButton"
+                                            Grid.Column="1"
                                             AutomationProperties.AutomationId="RefreshConfigurationEvidenceButton"
-                                            AutomationProperties.Name="刷新配置证据清单"
+                                            AutomationProperties.Name="刷新证据清单"
                                             Click="RefreshConfigurationEvidenceButton_Click"
                                             Content="刷新证据" />
                                         <TextBlock
                                             x:Name="ConfigurationEvidenceStatus"
-                                            Grid.Column="1"
+                                            Grid.Column="2"
                                             AutomationProperties.AutomationId="ConfigurationEvidenceStatus"
                                             AutomationProperties.LiveSetting="Polite"
                                             VerticalAlignment="Center"
@@ -1654,14 +1662,14 @@
                                     <ListView
                                         x:Name="ConfigurationEvidenceList"
                                         AutomationProperties.AutomationId="ConfigurationEvidenceList"
-                                        AutomationProperties.Name="配置证据匿名清单"
+                                        AutomationProperties.Name="证据匿名清单"
                                         MaxHeight="220"
                                         SelectionChanged="ConfigurationEvidenceList_SelectionChanged"
                                         SelectionMode="Single" />
                                     <Button
                                         x:Name="ExportConfigurationEvidenceButton"
                                         AutomationProperties.AutomationId="ExportConfigurationEvidenceButton"
-                                        AutomationProperties.Name="导出所选原始配置证据"
+                                        AutomationProperties.Name="导出所选证据"
                                         Click="ExportConfigurationEvidenceButton_Click"
                                         Content="导出所选证据…"
                                         IsEnabled="False"
@@ -1669,7 +1677,7 @@
                                     <Button
                                         x:Name="RemoveConfigurationEvidenceButton"
                                         AutomationProperties.AutomationId="RemoveConfigurationEvidenceButton"
-                                        AutomationProperties.Name="永久清理所选配置证据"
+                                        AutomationProperties.Name="永久清理所选证据"
                                         Click="RemoveConfigurationEvidenceButton_Click"
                                         Content="清理所选证据…"
                                         IsEnabled="False"

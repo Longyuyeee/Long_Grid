@@ -12,6 +12,7 @@ public enum ProductConfigurationExportError
     EvidenceChanged,
     EvidenceTooLarge,
     EvidenceVerificationFailed,
+    AnonymousEvidenceInvalid,
     WriteLeaseUnavailable,
     DestinationUnavailable,
     IoFailure,
@@ -68,13 +69,48 @@ public enum ProductConfigurationEvidenceOrigin
 {
     DamagedRecovery,
     ImportPrevious,
+    AnonymousInteraction,
 }
 
 public enum ProductConfigurationEvidenceRole
 {
     Primary,
     Backup,
+    Snapshot,
 }
+
+public enum ProductAnonymousInteractionHostStatus
+{
+    Disabled,
+    AwaitingHost,
+    AwaitingWorkspace,
+    SuspendedUnsafeTopology,
+    SuspendedSystemSurface,
+    ReadyReadOnly,
+    Faulted,
+    Completed,
+}
+
+public sealed record ProductAnonymousInteractionEvidence(
+    ProductAnonymousInteractionHostStatus HostStatus,
+    long LifecycleGeneration,
+    long WorkspaceRevision,
+    long TopologyGeneration,
+    bool ExplicitInteractionActive,
+    int SelectedItemCount,
+    bool FocusedItemAvailable,
+    long SelectionRevision,
+    int SchemaVersion = 1,
+    bool Anonymous = true,
+    bool RealFileOperationsAllowed = false)
+{
+    public const int CurrentSchemaVersion = 1;
+    public const int MaximumSelectedItemCount = 256;
+}
+
+public sealed record ProductAnonymousInteractionEvidenceCaptureResult(
+    long SizeBytes,
+    DateTimeOffset CapturedUtc);
 
 public sealed class ProductConfigurationEvidenceItem
 {

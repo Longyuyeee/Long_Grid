@@ -67,9 +67,9 @@ try {
             'The 142-ID UI source contract validation failed.'
         $uiResult = $uiJson | ConvertFrom-Json
         Assert-Condition (
-            $uiResult.contract.requiredAutomationIds -eq 143 -and
+            $uiResult.contract.requiredAutomationIds -eq 144 -and
             $uiResult.outcome -eq 'Pass'
-        ) 'The clean-session chain requires the complete 143-ID UI source contract.'
+        ) 'The clean-session chain requires the complete 144-ID UI source contract.'
 
         $singleContract = & powershell -NoProfile -ExecutionPolicy Bypass `
             -File $singleInstanceScript `
@@ -87,7 +87,7 @@ try {
             schemaVersion = 1
             purpose = 'LongGridCleanSessionUiaAndSingleInstance'
             mode = 'validate-only'
-            requiredAutomationIds = 143
+            requiredAutomationIds = 144
             startsProcess = $false
             terminatesForeignProcess = $false
             liveEvidence = 'PendingCleanInteractiveSession'
@@ -125,7 +125,7 @@ try {
         'The live clean-session UIA validation failed.'
     $uiResult = $uiJson | ConvertFrom-Json
     Assert-Condition (
-        $uiResult.contract.requiredAutomationIds -eq 143 -and
+        $uiResult.contract.requiredAutomationIds -eq 144 -and
         $uiResult.live.cleanSessionStart -eq 'zero-existing-processes' -and
         $uiResult.live.cleanSessionEnd -eq 'zero-remaining-processes' -and
         $uiResult.outcome -eq 'Pass'
@@ -149,7 +149,7 @@ try {
         schemaVersion = 1
         purpose = 'LongGridCleanSessionUiaAndSingleInstance'
         mode = 'live'
-        requiredAutomationIds = 143
+        requiredAutomationIds = 144
         uiOutcome = $uiResult.outcome
         responsiveLayout = $uiResult.live.responsiveLayout
         singleInstance = 'redirect-exit-restore'

@@ -121,6 +121,7 @@ public partial class App : Application
             () => configurationStore.PrepareExportAsync(),
             ExportConfigurationAsync,
             () => configurationStore.GetEvidenceInventoryAsync(),
+            CaptureAnonymousInteractionEvidenceAsync,
             ExportConfigurationEvidenceAsync,
             item => configurationStore.RemoveEvidenceAsync(item, userConfirmed: true),
             () => productWorkspaceSaves.Retry(),
@@ -1110,6 +1111,45 @@ public partial class App : Application
             item,
             selected.Path,
             selected.Metadata,
+            userConfirmed: true);
+    }
+
+    private Task<ProductAnonymousInteractionEvidenceCaptureResult>
+        CaptureAnonymousInteractionEvidenceAsync()
+    {
+        ProductDesktopHostLifecycleSnapshot snapshot =
+            productDesktopHostLifecycle.Snapshot;
+        ProductAnonymousInteractionHostStatus hostStatus = snapshot.Status switch
+        {
+            ProductDesktopHostLifecycleStatus.DisabledBySafetyPolicy =>
+                ProductAnonymousInteractionHostStatus.Disabled,
+            ProductDesktopHostLifecycleStatus.AwaitingHost =>
+                ProductAnonymousInteractionHostStatus.AwaitingHost,
+            ProductDesktopHostLifecycleStatus.AwaitingWorkspace =>
+                ProductAnonymousInteractionHostStatus.AwaitingWorkspace,
+            ProductDesktopHostLifecycleStatus.SuspendedUnsafeTopology =>
+                ProductAnonymousInteractionHostStatus.SuspendedUnsafeTopology,
+            ProductDesktopHostLifecycleStatus.SuspendedSystemSurface =>
+                ProductAnonymousInteractionHostStatus.SuspendedSystemSurface,
+            ProductDesktopHostLifecycleStatus.ReadyReadOnly =>
+                ProductAnonymousInteractionHostStatus.ReadyReadOnly,
+            ProductDesktopHostLifecycleStatus.Faulted =>
+                ProductAnonymousInteractionHostStatus.Faulted,
+            ProductDesktopHostLifecycleStatus.Completed =>
+                ProductAnonymousInteractionHostStatus.Completed,
+            _ => throw new InvalidOperationException(
+                "The DesktopHost lifecycle status is not finite."),
+        };
+        return configurationStore.CaptureAnonymousInteractionEvidenceAsync(
+            new(
+                hostStatus,
+                snapshot.Generation,
+                snapshot.WorkspaceRevision,
+                snapshot.TopologyGeneration,
+                snapshot.ExplicitInteractionActive,
+                snapshot.SelectedItemCount,
+                snapshot.FocusedItemAvailable,
+                snapshot.SelectionRevision),
             userConfirmed: true);
     }
 

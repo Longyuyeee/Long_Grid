@@ -483,6 +483,7 @@ function Test-SourceContract {
         'ConfigurationImportStatus',
         'ExportConfigurationButton',
         'ConfigurationExportStatus',
+        'CaptureAnonymousInteractionEvidenceButton',
         'RefreshConfigurationEvidenceButton',
         'ConfigurationEvidenceStatus',
         'ConfigurationEvidenceList',
@@ -701,6 +702,13 @@ function Test-SourceContract {
         $evidenceButtonNode.GetAttribute('Click') -eq `
             'RefreshConfigurationEvidenceButton_Click'
     ) 'Configuration evidence must use the audited read-only refresh handler.'
+    $captureEvidenceNode = Get-XamlNodeByAutomationId `
+        $document `
+        'CaptureAnonymousInteractionEvidenceButton'
+    Assert-Condition (
+        $captureEvidenceNode.GetAttribute('Click') -eq `
+            'CaptureAnonymousInteractionEvidenceButton_Click'
+    ) 'Anonymous interaction evidence must use the confirmed one-shot capture handler.'
     $evidenceStatusNode = Get-XamlNodeByAutomationId $document 'ConfigurationEvidenceStatus'
     Assert-Condition (
         $evidenceStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
@@ -1869,6 +1877,10 @@ function Test-SourceContract {
         'Configuration export must expose preview conflicts without publishing stale state.'
     Assert-Condition ($codeBehind -match 'ConfigurationEvidenceList\.ItemsSource') `
         'Configuration evidence must expose only the finite inventory contract.'
+    Assert-Condition (
+        $codeBehind -match 'AnonymousEvidenceCaptureCommitted:Anonymous=True:' -and
+        $codeBehind -match 'ContinuousLogging=False'
+    ) 'Interaction evidence capture must disclose anonymity and reject continuous logging.'
     Assert-Condition ($codeBehind -match 'EvidenceExportFolderPickerOpen') `
         'Raw evidence export must request a destination only after confirmation.'
     Assert-Condition ($codeBehind -match 'EvidenceExportCommitted:SourcePreserved') `
@@ -2777,7 +2789,7 @@ function Test-SourceContract {
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
-        configurationRepair = 'confirmed-recovery-bounded-import-export-evidence-inventory-export-and-single-removal'
+        configurationRepair = 'confirmed-recovery-bounded-import-export-anonymous-interaction-evidence-and-single-removal'
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
