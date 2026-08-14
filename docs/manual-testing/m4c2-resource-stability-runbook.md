@@ -1,6 +1,6 @@
 # M4c2 正式 App 资源长稳会话运行手册
 
-当前入口属于 **M4c2a 部分证据工具**。正式缩略图 worker 与匿名状态修订遥测尚未接入，因此即使运行满 24 小时，也只能得到 `PendingProductTelemetryIntegration`，不得登记为 M4c Pass。
+当前入口已进入 **M4c2b1 匿名状态遥测**。正式缩略图 worker 尚未接入，因此即使运行满 24 小时，也只能得到 `PendingFormalThumbnailWorkerIntegration`，不得登记为 M4c Pass。
 
 ## 运行前
 
@@ -44,5 +44,5 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 
 - 入口只关闭自己创建的 App；如发现其他 Long方格进程，不得由本会话清理；
 - 检查证据 JSON 的 commit、24 小时持续时间、样本完整性和固定预算；
-- 当前版本必须看到 `FormalThumbnailWorkerNotIntegrated` 与 `FormalStateRevisionTelemetryNotAvailable`；缺少 blocker 反而是合同失败；
+- 当前版本必须看到 `formalStateRevisionTelemetryAvailable=true` 和 `FormalThumbnailWorkerNotIntegrated`；worker blocker 缺失反而是合同失败；
 - 删除 blocker、放宽预算或手工把结果改为 Pass 都会使证据无效。

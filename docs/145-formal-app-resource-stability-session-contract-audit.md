@@ -75,3 +75,5 @@ live 入口即使完成 24 小时，也固定返回 `PendingProductTelemetryInte
 - PR run `31819228748`：924/924，lines 90.83%、branches 78.22%；格式、构建、新会话合同、M4c1、缩略图隔离、安全、依赖和内部 unsigned RC 交付集审计全部通过；
 - squash 合并：`main@8e7ee34dd71e583f58294f83244983779ab37ebe`；合并后 main run `31819825057` 为 924/924，lines 90.83%、branches 78.22%，相同合同与完整门禁通过；
 - 远端合同仍明确输出 `formalThumbnailWorkerIntegrated=false`、`formalStateRevisionTelemetryAvailable=false` 和 `canProduceM4cPass=false`，因此 M4c2a 关闭不改变 M4c/M4-ready/RC 状态。
+
+后续进展：M4c2b1 已增加默认关闭的同用户匿名状态遥测，`formalStateRevisionTelemetryAvailable` 在受控会话合同中提升为 `true`；正式 worker 与真实 24 小时证据仍 Pending。详见 [Stage 146](146-formal-app-anonymous-resource-telemetry-audit.md)。

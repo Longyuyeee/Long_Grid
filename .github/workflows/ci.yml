@@ -242,7 +242,7 @@ jobs:
           --configuration Release
           --no-build
 
-      - name: Validate 24-hour resource stability session contract
+      - name: Validate anonymous resource telemetry session contract
         shell: powershell
         run: >-
           powershell -NoProfile -ExecutionPolicy Bypass
