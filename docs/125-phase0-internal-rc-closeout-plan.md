@@ -386,6 +386,15 @@ Stage 128 对 C0 遗留的已合并远端分支执行独立卫生审计：只允
 
 E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输入来源；正式方案使用产品自有、每显示器一个、Region 受限的 activation HWND，初始三类激活统一进入 E2a，Explicit 后 pointer/keyboard/UIA 选择统一进入现有 selection transaction。实现固定拆为 E2b1 来源/激活闭环与 E2b2 选择/UIA 闭环，详见 [Stage 132](132-formal-input-source-design-audit.md)。
 
+### M2/E2b：正式输入与项目选择（工程完成）
+
+- **E2b1**：PR #186，squash 合并 `main@ee9d20c6266335b09918afc3f0340e577cb881f6`；每显示器有限 activation HWND 统一接入 pointer、App keyboard command 与 UIA Invoke；PR/main CI 通过；
+- **E2b2**：PR #187，squash 合并 `main@6a4878b0156aaacd5128fbe9e1dfabf681e58f4f`；主 surface pointer、有限键盘代理与 UIA SelectionItem/Invoke 统一调用既有 selection transaction；
+- **自动化验收**：907/907；远端 line 90.19% / branch 79.13%；PR final run `31770324116` 全绿；main run `31770627835` 初次出现既有 dispatcher 测试单次 runner 超时，保留轨迹并重跑失败 job 后 34 步全绿；
+- **安全边界**：没有全局 Hook、Raw Input、SendInput、RegisterHotKey、Explorer/WorkerW 或桌面文件操作；Passive 项目 Pattern 关闭，取消后恢复 NoActivate/Hidden/Passive；
+- **结论**：E2/M2 Engineering Pass；物理输入、Narrator、高对比、文本缩放、动态系统表面与四个开放 Issue 继续 Pending；
+- **下一步**：M3 集成差距审计，只补 DesktopHost 交互与既有配置、恢复、保存链之间的缺口。详见 [Stage 135](135-formal-item-selection-and-accessibility-audit.md)。
+
 ### C1：工程就绪复审（结果尚未执行）
 
 - **审计基线**：`main@508528b`；

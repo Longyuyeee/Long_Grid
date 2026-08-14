@@ -4,9 +4,9 @@
 
 ## 1. 判定
 
-E2b2 的实现与 PR CI 已闭合，当前判定为 **PR Engineering Pass / main CI Pending / Manual Evidence Pending**。主 DesktopHost surface 的项目 pointer、activation source 的有限键盘命令，以及 UIA `SelectionItem`/`Invoke` 全部调用既有 `ProductDesktopSelectionRequest` 与同一个 selection transaction；没有新增第二份选择状态。
+E2b2 的实现、PR CI、合并与 main CI 已闭合，判定为 **Engineering Pass / Manual Evidence Pending**。主 DesktopHost surface 的项目 pointer、activation source 的有限键盘命令，以及 UIA `SelectionItem`/`Invoke` 全部调用既有 `ProductDesktopSelectionRequest` 与同一个 selection transaction；没有新增第二份选择状态。E2a、E2b1 与 E2b2 至此共同满足 E2/M2 工程门槛。
 
-本切片只选择当前投影中的匿名项目身份，不读取文件内容，不公开路径，也不移动、重命名、删除或写入桌面文件。E2/M2 只有在合并后 main CI 通过后才能升级为 Engineering Pass；物理鼠标、Narrator、高对比、文本缩放和动态系统表面的人工证据仍保持 Pending。
+本切片只选择当前投影中的匿名项目身份，不读取文件内容，不公开路径，也不移动、重命名、删除或写入桌面文件。物理鼠标、Narrator、高对比、文本缩放和动态系统表面的人工证据仍保持 Pending，不能用 Engineering Pass 代替。
 
 ## 2. 需求对齐
 
@@ -33,14 +33,14 @@ E2b2 的实现与 PR CI 已闭合，当前判定为 **PR Engineering Pass / main
 
 本地 Release build 为 0 warning / 0 error；907/907 测试通过；最终本地覆盖率 line 90.75%（12800/14105）、branch 79.40%（4140/5214），门禁通过。新增证据覆盖键盘命令映射、pointer hit-test 纯适配器、pointer/keyboard/UIA 同项目结果一致、Space/Ctrl+Space、surface/source 绑定路径、Escape 恢复，以及原生 UIA 项目的 SelectionItem/Invoke/GetSelection/GetFocus 同源状态。三项原生 DesktopHost probe、143 项 UI automation id 合同、依赖漏洞门禁和人工 launcher 合同通过；人工会话 runbook 已扩展到 E2B2-01～05，但尚无执行者结果。
 
-PR #187 首轮 run `31768930804` 在远端合并双目标覆盖率后以 line 89.52% 失败；没有降低门槛，而是将 pointer hit-test 与有限键盘映射拆成纯适配器并补齐原生 UIA/失效分支。修复后的 PR run `31769835644` 全绿：907/907，远端 line 90.19%（25444/28210）、branch 79.13%（8252/10428），全部 34 个步骤通过。合并 SHA 与 main CI 待合并后回填。
+PR #187 首轮 run `31768930804` 在远端合并双目标覆盖率后以 line 89.52% 失败；没有降低门槛，而是将 pointer hit-test 与有限键盘映射拆成纯适配器并补齐原生 UIA/失效分支。修复 run `31769835644` 与最终 PR run `31770324116` 全绿，随后 squash 合并为 `main@6a4878b0156aaacd5128fbe9e1dfabf681e58f4f`。
+
+main run `31770627835` 首次因既有 `ProductDesktopHostThreadDispatcherTests.StartedOperationIsAwaitedInsteadOfReportedAsTimeout` 在 runner 上单次 6 秒超时而失败；同一树的两次 PR CI、本地完整测试均未复现。保留失败轨迹并重跑失败 job 后全绿：907/907，远端 line 90.19%（25444/28210）、branch 79.13%（8252/10428），全部 34 个步骤通过。
 
 ## 5. 下一步
 
-1. 合并 PR #187，等待 main CI 并回填 merge SHA；
-2. 若 main CI 全绿，裁决 E2/M2 Engineering Pass，但明确保留 Manual Evidence Pending；
-3. 进入 M3 集成差距审计：只补 DesktopHost 交互与既有配置、恢复、保存链的缺口，不重建工作区，不开启真实文件移动；
-4. M3 后执行正式核心旅程、500 项规模、故障恢复和资源长稳预检，推进到 M4-ready；
-5. 到达 ReadyForExternalValidation 后停止功能扩张，按 X1～X5 汇合外部证据。
+1. 进入 M3 集成差距审计：只补 DesktopHost 交互与既有配置、恢复、保存链的缺口，不重建工作区，不开启真实文件移动；
+2. M3 后执行正式核心旅程、500 项规模、故障恢复和资源长稳预检，推进到 M4-ready；
+3. 到达 ReadyForExternalValidation 后停止功能扩张，按 X1～X5 汇合外部证据。
 
 Phase 0、内部 RC、许可证、签名和公开分发均未因本切片完成。
