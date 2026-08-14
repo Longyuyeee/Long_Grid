@@ -3,7 +3,7 @@
 - 审计日期：2026-08-14
 - 开发基线：`main@9f921471c32edaa870ab54db5088414b23ad080b`
 - 切片：M4b2
-- 当前判定：**本地 Engineering Pass / 远端证据 Pending**
+- 当前判定：**M4b2 Engineering Pass / M4b Engineering Pass**
 
 ## 1. 需求对齐与现状审计
 
@@ -43,11 +43,13 @@ M4b2 承接 Stage 142 明确留下的原生生命周期风险：Explorer 重启�
 - 独立工具：`Passed`，5/5 场景全部为 true；
 - `allSyntheticSurfacesReleased=true`；
 - `readsRealDesktop=false`、`createsNativeWindows=false`、`realFileOperationsAllowed=false`；
-- 完整解决方案、覆盖率、探针与内部 unsigned RC 交付集以干净 PR runner 为权威。
+- PR 与 main 干净 Windows runner 均完成完整解决方案、覆盖率、探针与内部 unsigned RC 交付集复验。
 
 ## 6. 远端轨迹与下一步
 
-- 实现 PR / head SHA：Pending；
-- PR CI / 合并 commit / main CI：Pending；
-- 合并前判定：本地 Engineering Pass / 远端证据 Pending；
-- 下一步：完成 PR/main 双重门禁后关闭 M4b2 与 M4b 工程切片，再进入 M4c 资源长稳预检；真实 Explorer/session/显示器设备矩阵仍在外部证据门中执行。
+- 实现 PR / head SHA：PR #201 / `6293dd708d00487dd7d24842ae9b6e6381685d19`；
+- PR CI：run `31812773516` 成功，923/923，lines 90.68%（27512/30340），branches 78.34%（8580/10952）；M4b2 5/5 与全部释放/安全边界通过；
+- squash 合并：`main@8d04e2f825992d93d770028feaf6c3e62118e6b9`；
+- main CI：run `31813422201` 成功，923/923，覆盖率同上；M4a/M4b1/M4b2、安全探针、依赖门和内部 unsigned RC 交付集全部通过；
+- 最终判定：M4b2 Engineering Pass，连同 Stage 142 的 M4b1，M4b 工程切片判定 Engineering Pass；这不是 M4-ready、真实设备证据、内部 RC 或公开分发批准；
+- 下一步：进入 M4c 资源长稳预检；真实 Explorer/session/显示器设备矩阵仍在外部证据门中执行。

@@ -298,3 +298,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-14 M4b1 远端收口：PR #199 与合并后 `main@a47a19d` 的完整流水线均为 922/922、lines 90.51%、branches 78.60%；5 场景恢复专项、安全探针、依赖门和内部 unsigned RC 交付集审计全部通过。M4b1 判定 Engineering Pass；M4b2 原生生命周期、M4c 24 小时长稳和外部人工证据仍 Pending。
 
 2026-08-14 M4b2 DesktopHost 生命周期恢复预检：用进程内合成适配器把 Explorer 重启、session 不可用、拓扑不可用后恢复、单屏到双屏替换和 Host 重启串成 5 场景正式门禁；旧 Surface 必须释放，系统事件必须先 Hidden，旧 Host claim 必须被拒绝，最终所有合成 Surface 必须释放。不创建 HWND、不读取真实显示器/Explorer 或桌面文件；本地已通过，PR/main 远端证据待汇合，详见 [Stage 143](143-desktop-host-lifecycle-recovery-preflight-audit.md)。
+
+2026-08-14 M4b2/M4b 远端收口：PR #201 与合并后 `main@8d04e2f` 的完整流水线均为 923/923、lines 90.68%、branches 78.34%；M4b2 5 场景、M4a/M4b1、安全探针、依赖门和内部 unsigned RC 交付集审计全部通过。M4b2 与 M4b 判定 Engineering Pass；M4-ready、M4c 24 小时长稳和真实设备/人工证据仍 Pending。
