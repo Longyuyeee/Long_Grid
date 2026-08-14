@@ -3,7 +3,7 @@
 - 审计日期：2026-08-14
 - 开发基线：`main@cd4a3ff9a9cc80964be0275d9a1d7a5bf3f062b5`
 - 切片：M4a
-- 当前判定：**PR Validation Passed / Main Validation Pending**
+- 当前判定：**M4a Engineering Pass**
 
 ## 1. 需求与范围
 
@@ -64,6 +64,8 @@ D23-09 的空闲 CPU、内存、唤起和 100 项恢复预算仍需在正式 App
 - 实现 PR / head SHA：PR #197 / `3c871b004d001b99b3dcce10d386f04fe539a830`；
 - PR CI：run `31806277821` 成功；Release 0 warning/0 error，921/921，line 90.38%（26464/29282），branch 78.82%（8450/10720），完整门禁通过；
 - PR runner 的专项结果：core/save/recovery P95 为 19.257/38.101/5.205 ms；100/500 数量、500 次选择、安全布尔值与沙箱清理全部通过；
-- merge SHA / main CI：等待本切片合并后运行；
-- 合并前判定：M4a PR Validation Passed / Main Validation Pending；
-- 下一步：远端复验并回填真实 SHA/CI；通过后进入 M4b 配置、目录、Explorer、显示器、取消/重试与进程恢复故障矩阵。M4-ready、内部 RC 和公开分发仍未完成。
+- squash 合并：`main@91ff6fdabb931b8583fdb66b6a9c43f5857163d4`；
+- main CI：run `31807522227` 成功；Release 0 warning/0 error，921/921，line 90.39%（26468/29282），branch 78.84%（8452/10720），完整门禁通过；
+- main runner 的专项结果：core/save/recovery P95 为 13.962/37.419/3.413 ms；100/500 数量、500 次选择、安全布尔值与沙箱清理全部通过；
+- 最终判定：M4a Engineering Pass；这仍不是正式设备性能 SLA、M4-ready、内部 RC 或公开分发；
+- 下一步：进入 M4b 配置、目录、Explorer、显示器、取消/重试与进程恢复故障矩阵。
