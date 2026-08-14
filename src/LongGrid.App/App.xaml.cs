@@ -23,6 +23,8 @@ public partial class App : Application
     private readonly ProductConfigurationStore configurationStore;
     private readonly ProductWorkspaceSaveController productWorkspaceSaves;
     private readonly ProductWorkspaceCommitCoordinator workspaceCommits;
+    private readonly ProductWorkspaceCatalogRevisionSynchronizer
+        workspaceCatalogRevisions;
     private readonly ProductDesktopCatalogController productDesktopCatalog;
     private readonly ProductDisplayTopologyController productDisplayTopology;
     private readonly ProductDesktopHostLifecycleController productDesktopHostLifecycle;
@@ -49,6 +51,7 @@ public partial class App : Application
             new ProductConfigurationSaveCoordinator(configurationStore));
         productWorkspaceSaves = new(saveWorkflow);
         workspaceCommits = new(productWorkspaceSaves);
+        workspaceCatalogRevisions = new(workspaceCommits);
         productDesktopCatalog = new(
             ProductDesktopCatalogReader.CreateForCurrentUser());
         productDisplayTopology = new(
@@ -275,6 +278,7 @@ public partial class App : Application
         productWorkspaceSession = ProductWorkspaceSessionLoader.Load(
             loadResult,
             CreateWorkspaceCatalogSnapshot(productDesktopCatalog.Snapshot));
+        _ = workspaceCatalogRevisions.ResetBaseline(productDesktopCatalog.Snapshot);
         window?.ApplyConfigurationStartupState(startupState);
         ApplyProductWorkspaceSessionViews();
         return startupState;
@@ -313,12 +317,21 @@ public partial class App : Application
     private void ApplyProductDesktopCatalogSnapshot(
         ProductDesktopCatalogSnapshot snapshot)
     {
-        window?.ApplyProductDesktopCatalogState(snapshot);
         if (currentConfigurationLoadResult is null)
+        {
+            window?.ApplyProductDesktopCatalogState(snapshot);
+            return;
+        }
+
+        ProductWorkspaceCatalogRevisionSyncResult revisionSync =
+            workspaceCatalogRevisions.Observe(snapshot);
+        if (revisionSync.Status ==
+            ProductWorkspaceCatalogRevisionSyncStatus.StaleIgnored)
         {
             return;
         }
 
+        window?.ApplyProductDesktopCatalogState(snapshot);
         productWorkspaceSession = ProductWorkspaceSessionLoader.Load(
             currentConfigurationLoadResult,
             CreateWorkspaceCatalogSnapshot(snapshot));
