@@ -190,6 +190,27 @@ public sealed class ProductWorkspaceSaveController : IAsyncDisposable
         return new(ProductWorkspaceSaveRetryStatus.Accepted, published);
     }
 
+    public bool DiscardFailedRetryForExternalBaseline()
+    {
+        ProductWorkspaceSaveSnapshot published;
+        lock (gate)
+        {
+            if (!accepting || snapshot.Status != ProductWorkspaceSaveStatus.Failed)
+            {
+                return false;
+            }
+
+            workflow.DiscardRetry();
+            snapshot = ProductWorkspaceSaveStateMachine
+                .ExternalBaselineReplaced(snapshot).Snapshot;
+            pendingDocument = null;
+            published = snapshot;
+        }
+
+        Publish(published);
+        return true;
+    }
+
     public async Task<ProductWorkspaceSaveCompletionResult> CompleteAsync(
         CancellationToken cancellationToken = default)
     {

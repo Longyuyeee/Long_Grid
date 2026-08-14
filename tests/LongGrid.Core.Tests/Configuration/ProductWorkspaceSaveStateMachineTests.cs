@@ -142,6 +142,31 @@ public sealed class ProductWorkspaceSaveStateMachineTests
         Assert.Equal(failed.Snapshot, retry.Snapshot);
     }
 
+    [Fact]
+    public void ExternalBaselineReplacementClearsOnlyFiniteFailure()
+    {
+        ProductWorkspaceSaveSnapshot failed = ProductWorkspaceSaveStateMachine
+            .SaveCompleted(
+                ProductWorkspaceSaveStateMachine.DebounceElapsed(
+                    ProductWorkspaceSaveStateMachine.AcceptEdit(
+                        ProductWorkspaceSaveSnapshot.Initial).Snapshot,
+                    revision: 1).Snapshot,
+                revision: 1,
+                ProductWorkspaceSaveFailure.IoFailure).Snapshot;
+
+        ProductWorkspaceSaveTransition reset =
+            ProductWorkspaceSaveStateMachine.ExternalBaselineReplaced(failed);
+        ProductWorkspaceSaveTransition unchanged =
+            ProductWorkspaceSaveStateMachine.ExternalBaselineReplaced(
+                ProductWorkspaceSaveSnapshot.Initial);
+
+        Assert.Equal(ProductWorkspaceSaveStatus.Clean, reset.Snapshot.Status);
+        Assert.Equal(1, reset.Snapshot.SavedRevision);
+        Assert.False(reset.Snapshot.CanRetry);
+        Assert.Equal(ProductWorkspaceSaveFailure.None, reset.Snapshot.Failure);
+        Assert.Same(ProductWorkspaceSaveSnapshot.Initial, unchanged.Snapshot);
+    }
+
     [Theory]
     [InlineData(ProductWorkspaceSaveFailure.DamagedEvidence, true)]
     [InlineData(ProductWorkspaceSaveFailure.WriteLeaseUnavailable, true)]

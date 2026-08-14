@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1 与 E2/M2 已完成；M3a 已闭合目录—投影修订断点，M3b 已把唯一选择事务的匿名摘要接入正式 App 状态卡。下一步审计保存失败/重试/恢复组合旅程和匿名证据清理。桌面文件内容读取、写入和移动继续关闭，物理输入/Narrator/高对比/动态系统表面证据仍 Pending。#19、#20、#23、#24、ADR-0001、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，最新实现与下一步见 [Stage 137](docs/137-anonymous-desktop-interaction-observation-audit.md)。
+> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1 与 E2/M2 已完成；M3a 已闭合目录—投影修订断点，M3b 已接入匿名选择摘要，M3c 已阻断配置恢复后复用旧失败保存快照，并复审目录失败/取消时 DesktopHost 隐藏及恢复链。下一步为最小匿名交互证据导出与确认清理。桌面文件内容读取、写入和移动继续关闭，物理输入/Narrator/高对比/动态系统表面证据仍 Pending。#19、#20、#23、#24、ADR-0001、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，最新实现与下一步见 [Stage 138](docs/138-save-recovery-desktop-host-journey-audit.md)。
 
 ## 产品原则
 

@@ -832,6 +832,10 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
                     null,
                     CanRetry: false));
 
+        public void DiscardRetry()
+        {
+        }
+
         public Task CompleteAsync(CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
     }

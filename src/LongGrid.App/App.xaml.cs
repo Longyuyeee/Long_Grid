@@ -272,6 +272,7 @@ public partial class App : Application
         ProductConfigurationLoadResult loadResult)
     {
         currentConfigurationLoadResult = loadResult;
+        _ = productWorkspaceSaves.DiscardFailedRetryForExternalBaseline();
         _ = workspaceCommits.AdvanceExternalRevision();
         ProductConfigurationStartupState startupState =
             ProductConfigurationStartupState.FromLoadResult(loadResult);

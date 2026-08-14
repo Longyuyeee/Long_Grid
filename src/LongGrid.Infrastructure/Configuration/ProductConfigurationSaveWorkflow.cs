@@ -99,6 +99,15 @@ public sealed class ProductConfigurationSaveWorkflow
         }
     }
 
+    public void DiscardRetry()
+    {
+        lock (gate)
+        {
+            ++latestAttempt;
+            retryDocument = null;
+        }
+    }
+
     public Task CompleteAsync(CancellationToken cancellationToken = default)
     {
         lock (gate)
