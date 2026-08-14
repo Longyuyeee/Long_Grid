@@ -501,14 +501,15 @@ E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输�
 - **结论**：M4c2b1 Engineering Pass；`formalStateRevisionTelemetryAvailable=true`，但正式 worker 仍未接入、24 小时未执行，`canProduceM4cPass=false`；
 - **下一步**：M4c2b2 提取独立受限 worker runtime 并让 probe/App 共同复用。详见 [Stage 146](146-formal-app-anonymous-resource-telemetry-audit.md)。
 
-### M4c2b2：正式受限缩略图 worker（实现待远端复验）
+### M4c2b2：正式受限缩略图 worker（Engineering Pass）
 
 - **审计基线**：`main@da45970cc5be9fade7a0fcebae196eb6518816f7`；
 - **范围**：独立 `LongGrid.ThumbnailWorker` 产品可执行项目、四文件 allowlist 暂存、零 Capability AppContainer/Job/有限 IPC；probe 反向复用；正式 App 仅在 M4c2 双 opt-in 会话启动 idle worker；
 - **安全边界**：普通 App 启动零 worker/Profile；不读真实文件内容、不接渲染、不扩大 Capability；启动或运行中证明失败即 fail closed；
 - **本地结果**：生命周期/遥测 11/11、Core 935/935；产品 worker/Infrastructure/probe Release 0 warning / 0 error；真实隔离矩阵 500/500、`FormalProductRuntimeReused=true`、`ConditionalPass`；M4c2b2 `ValidateOnly` 通过；
-- **结论**：本地 Engineering Pass，远端正式 App/完整交付门 Pending；`formalThumbnailWorkerIntegrated=true`，但真实 24 小时未执行，`canProduceM4cPass=false`；
-- **下一步**：通过 PR/main 双重门禁后，由 M4c2c 从同一合并提交执行和审计真实 24 小时会话。详见 [Stage 147](147-formal-restricted-thumbnail-worker-integration-audit.md)。
+- **远端结果**：PR #209 run `31827595353` 为 935/935、lines 90.87%、branches 78.06%；squash 合并 `main@1689446` 后 main run `31828145653` 为 935/935、lines 90.86%、branches 78.04%。两次均通过正式 App build/startup、产品 worker 500 矩阵、依赖门和 800 文件内部 unsigned RC 交付集审计；
+- **结论**：M4c2b2 Engineering Pass；`formalThumbnailWorkerIntegrated=true`，但真实 24 小时未执行，`canProduceM4cPass=false`；
+- **下一步**：由 M4c2c 从 `main@1689446` 执行和审计真实 24 小时会话。详见 [Stage 147](147-formal-restricted-thumbnail-worker-integration-audit.md)。
 
 ### C1：工程就绪复审（结果尚未执行）
 

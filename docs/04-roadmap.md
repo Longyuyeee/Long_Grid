@@ -314,3 +314,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-15 M4c2b1 远端收口：PR #207 run `31822678611` 与 squash 合并 `main@5f4a5c2` 后 main run `31823246761` 均为 929/929、lines 90.85%、branches 77.97%；正式 App Build、匿名遥测合同、安全/worker 隔离与完整交付集审计全部通过。M4c2b1 判定 Engineering Pass；下一切片固定为 M4c2b2 独立受限 worker runtime，真实 24 小时证据与 M4c 继续 Pending。
 
 2026-08-15 M4c2b2 正式受限 worker：把原 probe 内协议、AppContainer/Profile/Job、受控副本、共享内存和 client 提取为独立 `LongGrid.ThumbnailWorker` 产品可执行组件；runtime 只 allowlist 暂存自身四个必需文件，probe 反向复用并新增产品程序集硬门。正式 App 仅在 M4c2 双 opt-in 会话启动一个 idle 零 Capability worker/Profile，运行中证明失败即 fail closed；会话同步采样 App/worker 趋势和零重启/孤儿预算。真实 24 小时证据与 M4c 继续 Pending，详见 [Stage 147](147-formal-restricted-thumbnail-worker-integration-audit.md)。
+
+2026-08-15 M4c2b2 远端收口：PR #209 首两次运行分别暴露并修复 worker 缺少 `win-x64` RID 资产、原 probe 原生路径迁入产品程序集后被重复计入单元覆盖率的问题；最终 PR run `31827595353` 与 squash 合并 `main@1689446` 后 main run `31828145653` 均为 935/935，覆盖率分别为 lines 90.87% / branches 78.06% 与 lines 90.86% / branches 78.04%。正式 App、产品 worker 500 矩阵、依赖门及 800 文件内部 unsigned RC 交付集审计全部通过。M4c2b2 判定 Engineering Pass；下一步固定 M4c2c 真实 24 小时会话，M4c 继续 Pending。
