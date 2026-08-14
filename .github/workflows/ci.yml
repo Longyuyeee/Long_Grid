@@ -242,6 +242,13 @@ jobs:
           --configuration Release
           --no-build
 
+      - name: Validate 24-hour resource stability session contract
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Start-LongGridResourceStabilitySession.ps1
+          -ValidateOnly
+
       - name: File operation safety probe
         run: >-
           dotnet run
