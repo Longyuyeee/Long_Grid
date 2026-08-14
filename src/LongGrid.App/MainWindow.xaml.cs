@@ -367,7 +367,18 @@ public sealed partial class MainWindow : Window
         }
         else if (snapshot.Status == ProductDesktopHostLifecycleStatus.ReadyReadOnly)
         {
+            DesktopHostValue.Text = snapshot.ExplicitInteractionActive
+                ? snapshot.SelectedItemCount > 0
+                    ? $"桌面已选择 {snapshot.SelectedItemCount} 项"
+                    : "桌面交互已激活"
+                : "只读宿主已连接";
+            string interactionDetail = snapshot.ExplicitInteractionActive
+                ? $"匿名选择 {snapshot.SelectedItemCount} 项 · " +
+                    $"焦点 {(snapshot.FocusedItemAvailable ? "可用" : "未设置")} · " +
+                    $"选择修订 {snapshot.SelectionRevision} · "
+                : string.Empty;
             DesktopHostDetail.Text =
+                interactionDetail +
                 $"已连接 {snapshot.OwnedWindowCount} 个显示器宿主，" +
                 $"呈现 {snapshot.RenderedContainerCount} 个只读方格 · " +
                 $"拓扑代次 {snapshot.TopologyGeneration} · " +
@@ -397,6 +408,22 @@ public sealed partial class MainWindow : Window
             DesktopHostValue.Text = "等待桌面方格";
             DesktopHostDetail.Text = "当前工作区为空，未创建桌面宿主窗口";
         }
+        AutomationProperties.SetItemStatus(
+            DesktopHostValue,
+            string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                "DesktopHost{0}:Generation={1}:WorkspaceRevision={2}:" +
+                "TopologyGeneration={3}:Explicit={4}:SelectedCount={5}:" +
+                "Focused={6}:SelectionRevision={7}:" +
+                "Anonymous=True:RealFileOperationsAllowed=False",
+                snapshot.Status,
+                snapshot.Generation,
+                snapshot.WorkspaceRevision,
+                snapshot.TopologyGeneration,
+                snapshot.ExplicitInteractionActive,
+                snapshot.SelectedItemCount,
+                snapshot.FocusedItemAvailable,
+                snapshot.SelectionRevision));
     }
 
     private void DesktopKeyboardInteractionButton_Click(
