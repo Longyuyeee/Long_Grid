@@ -262,6 +262,50 @@ public sealed class ProductWorkspaceSaveControllerTests
     }
 
     [Fact]
+    public async Task ExternalBaselineDiscardsFailedRetryBeforeRecoveryCanContinue()
+    {
+        var scheduler = new ManualScheduler();
+        var workflow = new FakeWorkflow
+        {
+            SaveHandler = (_, _) => Task.FromResult(
+                Failed(ProductConfigurationSaveError.IoFailure)),
+        };
+        var controller = new ProductWorkspaceSaveController(workflow, scheduler);
+
+        controller.Submit(CreateEdit("Stale before recovery"));
+        await scheduler.WaitForCountAsync(1);
+        scheduler.Release(0);
+        await WaitForStatusAsync(controller, ProductWorkspaceSaveStatus.Failed);
+
+        bool discarded = controller.DiscardFailedRetryForExternalBaseline();
+        ProductWorkspaceSaveRetryResult retry = controller.Retry();
+
+        Assert.True(discarded);
+        Assert.Equal(1, workflow.DiscardRetryCalls);
+        Assert.Equal(ProductWorkspaceSaveStatus.Clean, controller.Snapshot.Status);
+        Assert.False(controller.Snapshot.CanRetry);
+        Assert.Equal(ProductWorkspaceSaveRetryStatus.NotAvailable, retry.Status);
+        Assert.Equal(0, workflow.RetryCalls);
+    }
+
+    [Fact]
+    public void ExternalBaselineDoesNotInterruptPendingSave()
+    {
+        var scheduler = new ManualScheduler();
+        var workflow = new FakeWorkflow();
+        var controller = new ProductWorkspaceSaveController(workflow, scheduler);
+        controller.Submit(CreateEdit("Still pending"));
+
+        bool discarded = controller.DiscardFailedRetryForExternalBaseline();
+
+        Assert.False(discarded);
+        Assert.Equal(0, workflow.DiscardRetryCalls);
+        Assert.Equal(
+            ProductWorkspaceSaveStatus.WaitingForDebounce,
+            controller.Snapshot.Status);
+    }
+
+    [Fact]
     public async Task MissingWorkflowRetryBecomesNonRetryableFiniteFailure()
     {
         var scheduler = new ManualScheduler();
@@ -725,6 +769,8 @@ public sealed class ProductWorkspaceSaveControllerTests
 
         public int CompleteCalls { get; private set; }
 
+        public int DiscardRetryCalls { get; private set; }
+
         public Task<ProductConfigurationSaveAttemptResult> SaveAsync(
             ProductConfigurationDocument document,
             CancellationToken cancellationToken = default)
@@ -739,6 +785,11 @@ public sealed class ProductWorkspaceSaveControllerTests
         {
             RetryCalls++;
             return RetryHandler();
+        }
+
+        public void DiscardRetry()
+        {
+            DiscardRetryCalls++;
         }
 
         public Task CompleteAsync(CancellationToken cancellationToken = default)

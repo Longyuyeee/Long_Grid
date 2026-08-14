@@ -284,3 +284,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-14 M3a 目录—投影修订集成：正式配置加载后，目录 `Refreshing`、终态或 generation 变化会先推进既有工作区外部修订并清除过期令牌，再重建工作区和 DesktopHost 投影；重复快照幂等，低代次拒绝，配置重载只重设基线。该切片不修改配置文档或桌面文件，M3 仍需闭合选择可观察性、保存/恢复组合旅程与匿名证据清理，详见 [Stage 136](136-catalog-projection-revision-integration-audit.md)。
 
 2026-08-14 M3b 匿名桌面交互观察链：唯一 selection transaction 派生 Explicit、选中数量、焦点存在性和选择修订，并通过既有 lifecycle 快照进入正式 App 状态卡；进入、选择、Escape、系统失效与投影释放同步收敛。摘要不含容器/项目 ID、名称、路径或内容，不能提交配置或文件操作；M3 下一步为保存/重试/恢复组合旅程，详见 [Stage 137](137-anonymous-desktop-interaction-observation-audit.md)。
+
+2026-08-14 M3c 保存/恢复组合旅程：配置恢复或导入加载新权威基线时，正式 App 只对已失败保存执行外部基线替换，原子清除工作流捕获的旧文档与 UI 重试能力，避免旧重试覆盖恢复结果；其余保存状态不被打断。目录失败/取消继续通过 `AwaitingCatalog` 生成空投影、释放 DesktopHost Surface，权威目录恢复后按既有单调修订链重建。没有新增桌面文件读写、移动或身份采集；下一阶段为 M3d 匿名证据导出与确认清理，详见 [Stage 138](138-save-recovery-desktop-host-journey-audit.md)。

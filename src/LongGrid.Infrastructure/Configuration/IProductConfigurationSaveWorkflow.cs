@@ -11,5 +11,7 @@ public interface IProductConfigurationSaveWorkflow
     Task<ProductConfigurationSaveAttemptResult> RetryAsync(
         CancellationToken cancellationToken = default);
 
+    void DiscardRetry();
+
     Task CompleteAsync(CancellationToken cancellationToken = default);
 }

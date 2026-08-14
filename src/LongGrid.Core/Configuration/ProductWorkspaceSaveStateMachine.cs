@@ -187,6 +187,27 @@ public static class ProductWorkspaceSaveStateMachine
                 snapshot.CurrentRevision));
     }
 
+    public static ProductWorkspaceSaveTransition ExternalBaselineReplaced(
+        ProductWorkspaceSaveSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if (snapshot.Status != ProductWorkspaceSaveStatus.Failed)
+        {
+            return NoCommand(snapshot);
+        }
+
+        return NoCommand(
+            snapshot with
+            {
+                Status = ProductWorkspaceSaveStatus.Clean,
+                SavedRevision = snapshot.CurrentRevision,
+                ActiveSaveRevision = null,
+                Activity = ProductWorkspaceSaveActivity.None,
+                Failure = ProductWorkspaceSaveFailure.None,
+                CanRetry = false,
+            });
+    }
+
     private static ProductWorkspaceSaveTransition NoCommand(
         ProductWorkspaceSaveSnapshot snapshot) =>
         new(snapshot, ProductWorkspaceSaveCommand.None);

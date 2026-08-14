@@ -418,6 +418,16 @@ E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输�
 - **结论**：M3b Engineering Pass / Manual Evidence Pending；本机前台许可例外未在两次独立 runner 复现，M3、M4-ready 与外部证据状态不变；
 - **下一步**：M3c 保存失败、显式重试、配置恢复、目录失败/取消与 DesktopHost 隐藏/恢复组合旅程。详见 [Stage 137](137-anonymous-desktop-interaction-observation-audit.md)。
 
+### M3c：保存/恢复与 DesktopHost 组合旅程（工程完成）
+
+- **审计基线**：`main@1c13966a23cf469601aa4389952d7eefe3ba9189`；
+- **需求对齐**：只闭合失败保存重试与外部配置基线替换之间的过期意图，并复审既有目录失败/取消—投影隐藏—恢复链；不新增配置存储、目录枚举、DesktopHost 或文件操作系统；
+- **实现摘要**：配置恢复/导入成功加载新基线时，仅在保存控制器处于有限失败态时同步清除工作流捕获文档和 UI 重试能力；Clean/Waiting/Saving/Saved 不被该入口打断。目录不可用继续令含引用会话进入 `AwaitingCatalog`、投影进入空工作区并释放 Surface，后续权威目录快照按既有修订链恢复；
+- **本地专项**：Release 0 warning/0 error；保存、会话加载与 DesktopHost lifecycle 组合专项 86/86；完整测试 914/915，唯一失败为 Stage 137 已记录的本机 Windows 前台许可安全拒绝；line 90.64%、branch 79.41%，其余本地门禁通过，远端复验见 [Stage 138](138-save-recovery-desktop-host-journey-audit.md)；
+- **安全边界**：重置入口只清除内存重试快照和有限状态，不读取/移动桌面文件，不记录配置内容、项目身份或路径；
+- **结论**：M3c Engineering Pass / Manual Evidence Pending；M3 与 M4-ready 状态不因本切片单独改变；
+- **下一步**：M3d 最小匿名交互证据导出与确认清理，复用既有证据库并保持零项目身份。详见 [Stage 138](138-save-recovery-desktop-host-journey-audit.md)。
+
 ### C1：工程就绪复审（结果尚未执行）
 
 - **审计基线**：`main@508528b`；

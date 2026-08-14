@@ -108,6 +108,29 @@ public sealed class ProductConfigurationSaveWorkflowTests
     }
 
     [Fact]
+    public async Task ExternalBaselineDiscardRemovesCapturedRetryDocument()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(directory.Path);
+        await File.WriteAllTextAsync(store.PrimaryPath, "{ damaged");
+        ProductConfigurationSaveWorkflow workflow = CreateWorkflow(store);
+
+        ProductConfigurationSaveAttemptResult failed = await workflow.SaveAsync(
+            CreateDocument("profile-before-recovery"));
+        workflow.DiscardRetry();
+        File.Delete(store.PrimaryPath);
+        ProductConfigurationSaveAttemptResult retry =
+            await workflow.RetryAsync();
+        await workflow.CompleteAsync();
+
+        Assert.True(failed.CanRetry);
+        Assert.Equal(
+            ProductConfigurationSaveAttemptStatus.NoRetryAvailable,
+            retry.Status);
+        Assert.False(File.Exists(store.PrimaryPath));
+    }
+
+    [Fact]
     public async Task CompletedWorkflowRejectsSaveAndRetryWithoutWriting()
     {
         using TemporaryDirectory directory = new(create: false);
