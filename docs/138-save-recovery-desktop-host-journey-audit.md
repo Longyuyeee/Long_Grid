@@ -38,7 +38,8 @@ M3c 判定为 **Engineering Pass / Manual Evidence Pending**。审计发现此�
 - 本地完整测试为 914/915；唯一失败仍是 Stage 137 已记录的 `NativeActivationSourceExposesFiniteInvokeAndHideRestoreContract`，测试进程未获得 Windows 前台许可后按安全合同返回 `ElementNotEnabledException`；独立重跑仍复现，没有放宽前台/NoActivate 合同，也没有把失败改写为通过；
 - 失败运行仍产生覆盖率：line 90.64%（148302/163618），branch 79.41%（47591/59928），覆盖率门禁通过；
 - 格式与 diff 检查、依赖漏洞门、143 项 UI automation 合同、启动链、100 次配置持久化及故障注入矩阵、临时沙箱文件操作安全探针通过；
-- PR Windows runner、合并后 main runner 与最终文档闭环证据将在远端运行完成后回填；
+- 实现 PR #193 run `31779220650` 为 916/916，line 90.25%（25698/28474）、branch 79.09%（8330/10532），完整 34 步通过；本机前台许可异常未在独立 runner 复现；
+- squash 合并为 `main@109521212672c0de50b8dad79a530a8b79afdbe4`；合并后 main run `31780154798` 为 916/916，line 90.26%（25702/28474）、branch 79.11%（8332/10532），完整流水线再次通过；
 - 真实配置损坏/恢复、目录取消、Explorer 重启与动态系统表面仍属于专用人工证据，不得用单元测试冒充。
 
 ## 5. 剩余 M3 顺序
@@ -49,6 +50,6 @@ M3c 判定为 **Engineering Pass / Manual Evidence Pending**。审计发现此�
 
 ## 6. 远端轨迹
 
-- 实现 PR / merge SHA：等待本切片远端运行；
-- PR CI / main CI：等待本切片远端运行；
+- 实现 PR / merge SHA：PR #193 / `109521212672c0de50b8dad79a530a8b79afdbe4`；
+- PR CI / main CI：`31779220650` / `31780154798`，均成功；
 - 当前结论：M3c Engineering Pass / Manual Evidence Pending。M3、M4-ready、Phase 0、内部 RC 和公开分发均未因本切片完成。
