@@ -280,3 +280,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-14 E2b 输入源设计补充：M1 Passive 整窗穿透无法可靠收到首次 pointer/keyboard，因此不得直接添加不可达消息处理冒充接线。正式方案采用每显示器一个、仅覆盖有限方格激活按钮 Region 的产品自有 ToolWindow；初始 pointer/Enter/Space/UIA Invoke 统一进入 E2a，Explicit 后主 surface pointer/UIA 与来源键盘代理统一调用现有 selection transaction。禁止全局 Hook、Raw Input、SendInput、Explorer 嵌入和文件操作；实现按 E2b1 来源闭环、E2b2 选择/UIA 闭环推进。
 
 2026-08-14 E2/M2 工程收口：E2b1 产品自有有限 activation HWND 与 E2b2 主 surface pointer、有限键盘代理、UIA SelectionItem/Invoke 已统一进入既有 selection transaction；选中、焦点、锚点、修订和 UIA 事件同源，Escape/系统事件/投影释放恢复安全态。PR #186/#187 与合并后 main CI 通过，E2/M2 判定 Engineering Pass；物理输入、Narrator、高对比、文本缩放和动态系统表面仍 Pending，下一阶段固定为 M3 集成差距审计。
+
+2026-08-14 M3a 目录—投影修订集成：正式配置加载后，目录 `Refreshing`、终态或 generation 变化会先推进既有工作区外部修订并清除过期令牌，再重建工作区和 DesktopHost 投影；重复快照幂等，低代次拒绝，配置重载只重设基线。该切片不修改配置文档或桌面文件，M3 仍需闭合选择可观察性、保存/恢复组合旅程与匿名证据清理，详见 [Stage 136](136-catalog-projection-revision-integration-audit.md)。
