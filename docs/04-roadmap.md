@@ -308,3 +308,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-15 M4c2a 正式 App 24 小时会话合同：冻结 24 小时/60 秒采样、30 分钟预热、首尾 60 分钟比较窗，以及 private bytes、handle、thread、窗口、UIA、worker/Profile 和状态修订预算。审计确认正式 App 尚未接入缩略图 worker，也没有匿名状态修订遥测；会话入口因此固定输出 `PendingProductTelemetryIntegration`，不得产生 M4c Pass。下一步为 M4c2b 正式 worker/遥测接线，再执行 M4c2c 真实会话，详见 [Stage 145](145-formal-app-resource-stability-session-contract-audit.md)。
 
 2026-08-15 M4c2a 远端收口：PR #205 run `31819228748` 与 squash 合并 `main@8e7ee34` 后的 main run `31819825057` 均为 924/924、lines 90.83%、branches 78.22%，新 24 小时合同门及既有完整流水线通过。M4c2a 判定 Session Contract Engineering Pass；正式 worker、revision telemetry、真实 24 小时证据和 M4c 继续 Pending。
+
+2026-08-15 M4c2b1 正式 App 匿名资源遥测：双 opt-in 与 32 位随机管道名才启用同用户单连接只读 named pipe；快照只含保存、目录、拓扑、DesktopHost、选择和交互有限状态/修订/计数，禁止路径、名称、内容、身份、句柄值和 PID。会话入口从每个进程样本同步读取产品快照并对预热后意外状态漂移执行零预算；正式 worker 与 24 小时证据继续阻止 M4c Pass，详见 [Stage 146](146-formal-app-anonymous-resource-telemetry-audit.md)。

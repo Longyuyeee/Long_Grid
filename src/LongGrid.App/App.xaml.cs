@@ -32,6 +32,7 @@ public partial class App : Application
         productDesktopInteraction;
     private readonly WindowsProductDesktopInteractionSystemSurfaceEventSource?
         productDesktopSystemSurfaceEvents;
+    private readonly ProductResourceTelemetryServer? productResourceTelemetry;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
     private ProductConfigurationLoadResult? currentConfigurationLoadResult;
@@ -110,6 +111,18 @@ public partial class App : Application
             productDesktopIntentPreparation,
             productDesktopInputForwarding,
             productDesktopIntentConsumption);
+        ProductResourceTelemetryFeatureDecision telemetryFeature =
+            ProductResourceTelemetryFeaturePolicy.Evaluate(
+                desktopHostFeature,
+                Environment.GetEnvironmentVariable(
+                    ProductResourceTelemetryFeaturePolicy
+                        .PipeEnvironmentVariableName),
+                Environment.GetEnvironmentVariable(
+                    ProductResourceTelemetryFeaturePolicy
+                        .SessionEnvironmentVariableName));
+        productResourceTelemetry = ProductResourceTelemetryServer.TryStart(
+            telemetryFeature,
+            CaptureProductResourceTelemetry);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -1319,6 +1332,10 @@ public partial class App : Application
         }
 
         _ = productDesktopInteraction.Complete(DateTimeOffset.UtcNow);
+        if (productResourceTelemetry is not null)
+        {
+            await productResourceTelemetry.DisposeAsync();
+        }
         await productDesktopHostLifecycle.DisposeAsync();
         await productDisplayTopology.DisposeAsync();
         await productDesktopCatalog.DisposeAsync();
@@ -1329,5 +1346,47 @@ public partial class App : Application
         productWorkspaceSaves.SnapshotChanged -= ProductWorkspaceSaves_SnapshotChanged;
         sender.Closing -= AppWindow_Closing;
         window?.Close();
+    }
+
+    private ProductResourceTelemetrySnapshot CaptureProductResourceTelemetry(
+        long sequence)
+    {
+        LongGrid.Core.Configuration.ProductWorkspaceSaveSnapshot save =
+            productWorkspaceSaves.Snapshot;
+        ProductDesktopCatalogSnapshot catalog = productDesktopCatalog.Snapshot;
+        ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
+        ProductDesktopHostLifecycleSnapshot desktopHost =
+            productDesktopHostLifecycle.Snapshot;
+        ProductDesktopInteractionDevelopmentSnapshot interaction =
+            productDesktopInteraction.Snapshot;
+        return new(
+            1,
+            sequence,
+            DateTimeOffset.UtcNow,
+            save.Status,
+            save.CurrentRevision,
+            save.SavedRevision,
+            catalog.Status,
+            catalog.Generation,
+            catalog.Entries.Count,
+            topology.Status,
+            topology.Generation,
+            topology.Displays.Count,
+            desktopHost.Status,
+            desktopHost.Generation,
+            desktopHost.OwnedWindowCount,
+            desktopHost.WorkspaceRevision,
+            desktopHost.TopologyGeneration,
+            desktopHost.RenderedContainerCount,
+            desktopHost.ReadOnlyAccessibilityAvailable,
+            desktopHost.PassiveWindowContractAttested,
+            desktopHost.ExplicitInteractionActive,
+            desktopHost.SelectionRevision,
+            interaction.Status,
+            interaction.Revision,
+            FormalThumbnailWorkerIntegrated: false,
+            WorkerProcessCount: 0,
+            ActiveOwnedProfileCount: 0,
+            ContainsPathsNamesContentHandlesOrProcessIds: false);
     }
 }

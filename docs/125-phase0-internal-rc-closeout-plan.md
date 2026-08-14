@@ -492,6 +492,14 @@ E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输�
 - **结论**：本切片最多达到 Session Contract Engineering Pass；live 入口固定 `PendingProductTelemetryIntegration` 且 `canProduceM4cPass=false`；
 - **下一步**：M4c2b 接入正式受限 worker 与匿名状态修订遥测，再由 M4c2c 从同一新 commit 执行 24 小时会话。详见 [Stage 145](145-formal-app-resource-stability-session-contract-audit.md)。
 
+### M4c2b1：正式 App 匿名资源遥测（实现待远端复验）
+
+- **审计基线**：`main@243c2f33401d24dfdf66322ecbfedb0660fb6a18`；
+- **范围**：双 opt-in + 32 位随机 pipe 名、`CurrentUserOnly` 单连接只读协议、schema/sequence 和保存/目录/拓扑/DesktopHost/交互有限状态白名单；会话入口逐样本读取并计算预热后状态漂移；
+- **安全边界**：不含路径、名称、内容、身份、句柄值、PID、账户或机器名；未知请求固定拒绝；App shutdown 先释放管道；
+- **结论**：本地 Engineering Pass；`formalStateRevisionTelemetryAvailable=true`，但正式 worker 仍未接入、24 小时未执行，`canProduceM4cPass=false`；
+- **下一步**：M4c2b2 提取独立受限 worker runtime 并让 probe/App 共同复用。详见 [Stage 146](146-formal-app-anonymous-resource-telemetry-audit.md)。
+
 ### C1：工程就绪复审（结果尚未执行）
 
 - **审计基线**：`main@508528b`；

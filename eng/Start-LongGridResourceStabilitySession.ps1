@@ -147,6 +147,49 @@ function Get-MaximumConsecutiveUiaMisses {
     return $maximum
 }
 
+function Get-StateRevisionDriftCount {
+    param([object[]] $Samples)
+
+    [int]$driftCount = 0
+    [string]$previous = ''
+    foreach ($sample in $Samples) {
+        $telemetry = $sample.telemetry
+        [string]$current = [ordered]@{
+            workspaceSaveStatus = $telemetry.WorkspaceSaveStatus
+            workspaceCurrentRevision = $telemetry.WorkspaceCurrentRevision
+            workspaceSavedRevision = $telemetry.WorkspaceSavedRevision
+            catalogStatus = $telemetry.CatalogStatus
+            catalogGeneration = $telemetry.CatalogGeneration
+            catalogEntryCount = $telemetry.CatalogEntryCount
+            topologyStatus = $telemetry.TopologyStatus
+            topologyGeneration = $telemetry.TopologyGeneration
+            topologyDisplayCount = $telemetry.TopologyDisplayCount
+            desktopHostStatus = $telemetry.DesktopHostStatus
+            desktopHostGeneration = $telemetry.DesktopHostGeneration
+            desktopHostOwnedWindowCount = `
+                $telemetry.DesktopHostOwnedWindowCount
+            desktopHostWorkspaceRevision = `
+                $telemetry.DesktopHostWorkspaceRevision
+            desktopHostTopologyGeneration = `
+                $telemetry.DesktopHostTopologyGeneration
+            desktopHostRenderedContainerCount = `
+                $telemetry.DesktopHostRenderedContainerCount
+            explicitInteractionActive = $telemetry.ExplicitInteractionActive
+            selectionRevision = $telemetry.SelectionRevision
+            interactionStatus = $telemetry.InteractionStatus
+            interactionRevision = $telemetry.InteractionRevision
+        } | ConvertTo-Json -Compress
+        if (-not [string]::IsNullOrEmpty($previous) -and
+            -not [string]::Equals($previous, $current)) {
+            $driftCount++
+        }
+
+        $previous = $current
+    }
+
+    return $driftCount
+}
+
 function Get-TopLevelWindowCount {
     param([int] $ProcessId)
 
@@ -197,7 +240,7 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 $sessionContract = [ordered]@{
     schemaVersion = 1
     purpose = 'M4c2FormalApp24HourResourceStabilitySession'
-    slice = 'M4c2a'
+    slice = 'M4c2b1'
     mode = if ($ValidateOnly) { 'ValidateOnly' } else { 'LivePartialEvidence' }
     operatorId = if ($ValidateOnly) {
         'O1-O9-required-at-runtime'
@@ -239,11 +282,10 @@ $sessionContract = [ordered]@{
     recordsPathsNamesContentHandlesOrProcessIds = $false
     writesEvidenceOnlyToExplicitDirectory = -not $ValidateOnly
     formalThumbnailWorkerIntegrated = $false
-    formalStateRevisionTelemetryAvailable = $false
+    formalStateRevisionTelemetryAvailable = $true
     canProduceM4cPass = $false
     blockers = @(
         'FormalThumbnailWorkerNotIntegrated',
-        'FormalStateRevisionTelemetryNotAvailable',
         'Real24HourEvidenceNotCollected'
     )
 }
@@ -270,10 +312,10 @@ Assert-Condition (
     -not $sessionContract.changesSystemSettings -and
     -not $sessionContract.recordsPathsNamesContentHandlesOrProcessIds -and
     -not $sessionContract.formalThumbnailWorkerIntegrated -and
-    -not $sessionContract.formalStateRevisionTelemetryAvailable -and
+    $sessionContract.formalStateRevisionTelemetryAvailable -and
     -not $sessionContract.canProduceM4cPass -and
-    $sessionContract.blockers.Count -eq 3
-) 'The M4c2a duration, budget, privacy, blocker or evidence contract is invalid.'
+    $sessionContract.blockers.Count -eq 2
+) 'The M4c2b1 duration, budget, privacy, blocker or evidence contract is invalid.'
 
 $slopeSelfTestSamples = @(
     [pscustomobject]@{ elapsedSeconds = 0; value = 10 },
@@ -286,19 +328,45 @@ $uiaSelfTestSamples = @(
     [pscustomobject]@{ uiAutomationRootAvailable = $false },
     [pscustomobject]@{ uiAutomationRootAvailable = $true }
 )
+$telemetrySelfTest = [pscustomobject]@{
+    WorkspaceSaveStatus = 'Saved'
+    WorkspaceCurrentRevision = 2
+    WorkspaceSavedRevision = 2
+    CatalogStatus = 'Ready'
+    CatalogGeneration = 3
+    CatalogEntryCount = 4
+    TopologyStatus = 'Ready'
+    TopologyGeneration = 5
+    TopologyDisplayCount = 1
+    DesktopHostStatus = 'ReadyReadOnly'
+    DesktopHostGeneration = 6
+    DesktopHostOwnedWindowCount = 1
+    DesktopHostWorkspaceRevision = 2
+    DesktopHostTopologyGeneration = 5
+    DesktopHostRenderedContainerCount = 1
+    ExplicitInteractionActive = $false
+    SelectionRevision = 0
+    InteractionStatus = 'EmergencyDisabled'
+    InteractionRevision = 0
+}
+$telemetrySelfTestSamples = @(
+    [pscustomobject]@{ telemetry = $telemetrySelfTest },
+    [pscustomobject]@{ telemetry = $telemetrySelfTest }
+)
 Assert-Condition (
     (Get-Median @(3, 1, 2)) -eq 2 -and
     (Get-Median @(4, 1, 3, 2)) -eq 2.5 -and
     [Math]::Abs((Get-LinearSlopePerHour $slopeSelfTestSamples 'value') - 2) `
         -lt 0.000001 -and
     (Get-MaximumSampleGap $slopeSelfTestSamples) -eq 3600 -and
-    (Get-MaximumConsecutiveUiaMisses $uiaSelfTestSamples) -eq 2
-) 'The M4c2a deterministic trend helper self-test failed.'
+    (Get-MaximumConsecutiveUiaMisses $uiaSelfTestSamples) -eq 2 -and
+    (Get-StateRevisionDriftCount $telemetrySelfTestSamples) -eq 0
+) 'The M4c2b1 deterministic trend helper self-test failed.'
 
 $sessionContract | ConvertTo-Json -Depth 5
 
 if ($ValidateOnly) {
-    Write-Output 'M4c2a resource-stability session contract validation passed; live 24-hour evidence and M4c remain pending.'
+    Write-Output 'M4c2b1 anonymous resource telemetry contract validation passed; formal worker, live 24-hour evidence and M4c remain pending.'
     exit 0
 }
 
@@ -388,16 +456,26 @@ Add-Type -AssemblyName UIAutomationClient
 $oldDesktopHostOptIn = $env:LONGGRID_ENABLE_DESKTOP_HOST
 $oldInteractionEmergencyDisable = `
     $env:LONGGRID_DISABLE_DESKTOP_INTERACTION
+$oldTelemetryPipe = $env:LONGGRID_RESOURCE_TELEMETRY_PIPE
+$oldTelemetryAcknowledgement = `
+    $env:LONGGRID_ACKNOWLEDGE_RESOURCE_STABILITY_SESSION
 $productProcess = $null
+$telemetryPipe = $null
+$telemetryReader = $null
+$telemetryWriter = $null
 $samples = [System.Collections.Generic.List[object]]::new()
 $sessionStartedUtc = $null
 $sessionId = [Guid]::NewGuid().ToString('N')
+$telemetryPipeName = "LongGrid.ResourceTelemetry.$sessionId"
+$lastTelemetrySequence = 0
 $evidencePath = Join-Path $EvidenceDirectory `
-    "long-grid-m4c2a-$sessionId.json"
+    "long-grid-m4c2b1-$sessionId.json"
 
 try {
     $env:LONGGRID_ENABLE_DESKTOP_HOST = '1'
     $env:LONGGRID_DISABLE_DESKTOP_INTERACTION = '1'
+    $env:LONGGRID_RESOURCE_TELEMETRY_PIPE = $telemetryPipeName
+    $env:LONGGRID_ACKNOWLEDGE_RESOURCE_STABILITY_SESSION = '1'
 
     $productProcess = Start-Process -FilePath $appPath -PassThru
     $windowDeadline = [DateTime]::UtcNow.AddSeconds(15)
@@ -413,6 +491,25 @@ try {
     Assert-Condition ($productProcess.MainWindowHandle -ne [IntPtr]::Zero) `
         'LongGrid.App did not expose a main window within 15 seconds.'
 
+    $telemetryPipe = [System.IO.Pipes.NamedPipeClientStream]::new(
+        '.',
+        $telemetryPipeName,
+        [System.IO.Pipes.PipeDirection]::InOut,
+        [System.IO.Pipes.PipeOptions]::Asynchronous)
+    $telemetryPipe.Connect(15000)
+    $telemetryReader = [System.IO.StreamReader]::new(
+        $telemetryPipe,
+        [System.Text.Encoding]::UTF8,
+        $false,
+        4096,
+        $true)
+    $telemetryWriter = [System.IO.StreamWriter]::new(
+        $telemetryPipe,
+        [System.Text.UTF8Encoding]::new($false),
+        4096,
+        $true)
+    $telemetryWriter.AutoFlush = $true
+
     $sessionStartedUtc = [DateTimeOffset]::UtcNow
     $deadlineUtc = $sessionStartedUtc.AddHours($durationHours)
     do {
@@ -421,6 +518,24 @@ try {
         if ($productProcess.HasExited) {
             break
         }
+
+        $telemetryWriter.WriteLine('snapshot')
+        $telemetryReadTask = $telemetryReader.ReadLineAsync()
+        Assert-Condition ($telemetryReadTask.Wait(15000)) `
+            'Formal App resource telemetry timed out after 15 seconds.'
+        $telemetryJson = $telemetryReadTask.GetAwaiter().GetResult()
+        Assert-Condition (-not [string]::IsNullOrWhiteSpace($telemetryJson)) `
+            'Formal App resource telemetry disconnected during the session.'
+        $telemetry = $telemetryJson | ConvertFrom-Json
+        Assert-Condition (
+            $telemetry.SchemaVersion -eq 1 -and
+            $telemetry.Sequence -eq ($lastTelemetrySequence + 1) -and
+            -not $telemetry.ContainsPathsNamesContentHandlesOrProcessIds -and
+            -not $telemetry.FormalThumbnailWorkerIntegrated -and
+            $telemetry.WorkerProcessCount -eq 0 -and
+            $telemetry.ActiveOwnedProfileCount -eq 0
+        ) 'Formal App resource telemetry violated its anonymous blocker contract.'
+        $lastTelemetrySequence = $telemetry.Sequence
 
         $samples.Add([pscustomobject]@{
             elapsedSeconds = [Math]::Round(
@@ -433,6 +548,7 @@ try {
             mainWindowPresent = $productProcess.MainWindowHandle -ne [IntPtr]::Zero
             uiAutomationRootAvailable = Test-UiaRootAvailable `
                 $productProcess.MainWindowHandle
+            telemetry = $telemetry
         })
 
         if ($sampledUtc -ge $deadlineUtc) {
@@ -443,6 +559,21 @@ try {
     } while ($true)
 }
 finally {
+    if ($null -ne $telemetryWriter) {
+        try {
+            $telemetryWriter.WriteLine('complete')
+        }
+        catch [System.IO.IOException] {
+        }
+        $telemetryWriter.Dispose()
+    }
+    if ($null -ne $telemetryReader) {
+        $telemetryReader.Dispose()
+    }
+    if ($null -ne $telemetryPipe) {
+        $telemetryPipe.Dispose()
+    }
+
     if ($null -ne $productProcess) {
         $productProcess.Refresh()
         if (-not $productProcess.HasExited) {
@@ -469,6 +600,21 @@ finally {
         $env:LONGGRID_DISABLE_DESKTOP_INTERACTION = `
             $oldInteractionEmergencyDisable
     }
+
+    if ($null -eq $oldTelemetryPipe) {
+        Remove-Item Env:LONGGRID_RESOURCE_TELEMETRY_PIPE `
+            -ErrorAction SilentlyContinue
+    } else {
+        $env:LONGGRID_RESOURCE_TELEMETRY_PIPE = $oldTelemetryPipe
+    }
+
+    if ($null -eq $oldTelemetryAcknowledgement) {
+        Remove-Item Env:LONGGRID_ACKNOWLEDGE_RESOURCE_STABILITY_SESSION `
+            -ErrorAction SilentlyContinue
+    } else {
+        $env:LONGGRID_ACKNOWLEDGE_RESOURCE_STABILITY_SESSION = `
+            $oldTelemetryAcknowledgement
+    }
 }
 
 $sessionEndedUtc = [DateTimeOffset]::UtcNow
@@ -482,6 +628,7 @@ $maximumObservedUiaMisses = Get-MaximumConsecutiveUiaMisses @($samples)
 $eligibleSamples = @(
     $samples | Where-Object elapsedSeconds -ge ($warmupMinutes * 60)
 )
+$stateRevisionDriftCount = Get-StateRevisionDriftCount $eligibleSamples
 $windowSampleCount = [int]($comparisonWindowMinutes * 60 / $sampleSeconds)
 $firstWindow = @($eligibleSamples | Select-Object -First $windowSampleCount)
 $lastWindow = @($eligibleSamples | Select-Object -Last $windowSampleCount)
@@ -522,6 +669,8 @@ if ($firstWindow.Count -gt 0 -and $lastWindow.Count -gt 0) {
             $eligibleSamples | Where-Object { -not $_.uiAutomationRootAvailable }
         ).Count
         maximumConsecutiveUiaMisses = $maximumObservedUiaMisses
+        unexpectedStateRevisionDriftCount = $stateRevisionDriftCount
+        formalStateRevisionTelemetryAvailable = $true
         workerActivityObserved = $false
         partialProcessBudgetsWithinLimits =
             $sampleCoveragePercent -ge $minimumSampleCoveragePercent -and
@@ -535,14 +684,15 @@ if ($firstWindow.Count -gt 0 -and $lastWindow.Count -gt 0) {
             $windowDelta -le $windowMedianDeltaLimit -and
             ($maximumWindowCount - $firstWindowMedian) -le `
                 $windowTransientIncreaseLimit -and
-            $maximumObservedUiaMisses -le $maximumConsecutiveUiaMisses
+            $maximumObservedUiaMisses -le $maximumConsecutiveUiaMisses -and
+            $stateRevisionDriftCount -eq 0
     }
 }
 
 $evidence = [ordered]@{
     schemaVersion = 1
     purpose = $sessionContract.purpose
-    slice = 'M4c2a'
+    slice = 'M4c2b1'
     commit = $commit
     operatorId = $OperatorId
     operatorIdentifierPolicy = 'AnonymousLabelsOnly'
@@ -551,14 +701,13 @@ $evidence = [ordered]@{
     elapsedHours = [Math]::Round(
         ($sessionEndedUtc - $sessionStartedUtc).TotalHours,
         6)
-    resultStatus = 'PendingProductTelemetryIntegration'
+    resultStatus = 'PendingFormalThumbnailWorkerIntegration'
     budgets = $sessionContract.budgets
     sampleCount = $samples.Count
     samples = $samples
     summary = $summary
     blockers = @(
-        'FormalThumbnailWorkerNotIntegrated',
-        'FormalStateRevisionTelemetryNotAvailable'
+        'FormalThumbnailWorkerNotIntegrated'
     )
     canProduceM4cPass = $false
     containsPathsNamesContentHandlesOrProcessIds = $false
@@ -573,7 +722,7 @@ $evidenceJson = $evidence | ConvertTo-Json -Depth 8
 Move-Item -LiteralPath $temporaryEvidencePath -Destination $evidencePath
 
 Write-Output (
-    'M4c2a partial live evidence was written to the explicit evidence directory. ' +
-    'The result remains PendingProductTelemetryIntegration and cannot produce M4c Pass.'
+    'M4c2b1 anonymous telemetry evidence was written to the explicit evidence directory. ' +
+    'The result remains PendingFormalThumbnailWorkerIntegration and cannot produce M4c Pass.'
 )
 exit 4
