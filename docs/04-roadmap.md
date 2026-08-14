@@ -310,3 +310,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-15 M4c2a 远端收口：PR #205 run `31819228748` 与 squash 合并 `main@8e7ee34` 后的 main run `31819825057` 均为 924/924、lines 90.83%、branches 78.22%，新 24 小时合同门及既有完整流水线通过。M4c2a 判定 Session Contract Engineering Pass；正式 worker、revision telemetry、真实 24 小时证据和 M4c 继续 Pending。
 
 2026-08-15 M4c2b1 正式 App 匿名资源遥测：双 opt-in 与 32 位随机管道名才启用同用户单连接只读 named pipe；快照只含保存、目录、拓扑、DesktopHost、选择和交互有限状态/修订/计数，禁止路径、名称、内容、身份、句柄值和 PID。会话入口从每个进程样本同步读取产品快照并对预热后意外状态漂移执行零预算；正式 worker 与 24 小时证据继续阻止 M4c Pass，详见 [Stage 146](146-formal-app-anonymous-resource-telemetry-audit.md)。
+
+2026-08-15 M4c2b1 远端收口：PR #207 run `31822678611` 与 squash 合并 `main@5f4a5c2` 后 main run `31823246761` 均为 929/929、lines 90.85%、branches 77.97%；正式 App Build、匿名遥测合同、安全/worker 隔离与完整交付集审计全部通过。M4c2b1 判定 Engineering Pass；下一切片固定为 M4c2b2 独立受限 worker runtime，真实 24 小时证据与 M4c 继续 Pending。
