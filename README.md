@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1、E2/M2、M3、M4a、M4b 与 M4c1 工程链已完成；M4c2a 正在冻结正式 App 24 小时采样合同。审计确认正式缩略图 worker 与匿名状态修订遥测尚未接入，因此当前会话入口只能产生部分 Pending 证据，不能宣称 M4c Pass。下一步为 M4c2b 正式 worker/遥测接线，再执行 M4c2c 真实 24 小时会话。M4c、M4-ready 与 RC 仍 Pending。桌面文件内容读取、写入和移动继续关闭，物理输入/Narrator/高对比/动态系统表面证据仍 Pending。#19、#20、#23、#24、ADR-0001、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，M4c1 见 [Stage 144](docs/144-accelerated-resource-stability-preflight-audit.md)，M4c2a 见 [Stage 145](docs/145-formal-app-resource-stability-session-contract-audit.md)。
+> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1、E2/M2、M3、M4a、M4b、M4c1 与 M4c2a 工程链已完成；正式 App 24 小时采样合同和部分会话入口已通过 PR/main 门禁。审计确认正式缩略图 worker 与匿名状态修订遥测尚未接入，因此当前入口只能产生部分 Pending 证据，不能宣称 M4c Pass。下一步固定为 M4c2b 正式 worker/遥测接线，再执行 M4c2c 真实 24 小时会话。M4c、M4-ready 与 RC 仍 Pending。桌面文件内容读取、写入和移动继续关闭，物理输入/Narrator/高对比/动态系统表面证据仍 Pending。#19、#20、#23、#24、ADR-0001、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，M4c1 见 [Stage 144](docs/144-accelerated-resource-stability-preflight-audit.md)，M4c2a 见 [Stage 145](docs/145-formal-app-resource-stability-session-contract-audit.md)。
 
 ## 产品原则
 

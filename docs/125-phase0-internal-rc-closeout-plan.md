@@ -483,11 +483,12 @@ E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输�
 - **结论**：M4c1 Accelerated Engineering Pass；真实 App 24 小时证据未采集，M4c、M4-ready 与 RC 继续 Pending；
 - **下一步**：进入 M4c2，先冻结正式 App 24 小时采样入口、预算、证据格式和停止条件。详见 [Stage 144](144-accelerated-resource-stability-preflight-audit.md)。
 
-### M4c2a：正式 App 24 小时资源会话合同（实现待远端复验）
+### M4c2a：正式 App 24 小时资源会话合同（工程完成）
 
 - **审计基线**：`main@b5bb94c06b574182ad740f23cd8d73dd53576f30`；
 - **范围**：冻结 24 小时时长、60 秒采样、预热/比较窗、完整性和 private bytes/handle/thread/window/UIA/worker/Profile/revision 预算；新增正式 App 部分证据入口与 CI `ValidateOnly` 合同门；
 - **真实 blocker**：AppContainer 缩略图 worker 尚未进入正式 App；匿名状态修订遥测尚不可用；
+- **远端证据**：PR #205 run `31819228748` 与 squash 合并 `main@8e7ee34` 后的 main run `31819825057` 均为 924/924，lines 90.83%、branches 78.22%，相同合同与完整门禁通过；
 - **结论**：本切片最多达到 Session Contract Engineering Pass；live 入口固定 `PendingProductTelemetryIntegration` 且 `canProduceM4cPass=false`；
 - **下一步**：M4c2b 接入正式受限 worker 与匿名状态修订遥测，再由 M4c2c 从同一新 commit 执行 24 小时会话。详见 [Stage 145](145-formal-app-resource-stability-session-contract-audit.md)。
 

@@ -1,16 +1,16 @@
 # Stage 140：换机开发交接与当前状态审计
 
-- 审计日期：2026-08-14
+- 审计日期：2026-08-15
 - 仓库：`https://github.com/Longyuyeee/Long_Grid.git`
 - 默认分支：`main`
-- 已合并实现基线：`main@484e8cc976a7886d1652044b22535b9ecc841822`（PR #203）
+- 已合并实现基线：`main@8e7ee34dd71e583f58294f83244983779ab37ebe`（PR #205）
 - 本文性质：换机交接快照；GitHub `origin/main` 始终是源码与计划的最终权威
 
 ## 1. 交接判定
 
 当前代码、测试、审计文档、协议和构建入口均已进入 Git/GitHub 管理，**继续开发不依赖当前电脑上的未提交文件或本地证据目录**。换机前可以暂停功能开发；新电脑只需从 GitHub 干净克隆并复验基线。
 
-M1、E2/M2、M3、M4a、M4b 与 M4c1 工程链已经完成，当前处于 **M4c1 Accelerated Engineering Pass / M4c2 24 小时实机 Pending**。下一步是先冻结 M4c2 的正式 App 采样入口、资源预算、证据格式和停止条件，再实现长稳会话；这不等于 Phase 0 已退出、M4-ready、内部 RC 可分发或产品已经对齐 iTop Easy Desktop 的全部能力。
+M1、E2/M2、M3、M4a、M4b、M4c1 与 M4c2a 工程链已经完成，当前处于 **M4c2a Session Contract Engineering Pass / M4c2b Product Telemetry Pending / M4c2c 24 小时实机 Pending**。下一步是接入正式受限 worker 与匿名状态修订遥测，再执行同一新 commit 的长稳会话；这不等于 Phase 0 已退出、M4-ready、内部 RC 可分发或产品已经对齐 iTop Easy Desktop 的全部能力。
 
 本机工作区在审计开始时无未提交文件。唯一 Git stash 为 `stage125-local-draft-before-origin-main-sync`，仅包含旧 README 和 Stage 103 的 9 行历史草稿；其内容已被后续 Stage 125～139 主线事实取代，**不得在新电脑恢复或作为交接数据使用**。`TestResults*`、`artifacts/`、`bin/`、`obj/` 均为被忽略的可再生成目录，不需要迁移。
 
