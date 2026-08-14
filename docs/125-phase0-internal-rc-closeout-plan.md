@@ -473,6 +473,16 @@ E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输�
 - **结论**：M4b2 Engineering Pass；连同 M4b1，M4b Engineering Pass。M4-ready 与 RC 状态不因本切片提前改变；
 - **下一步**：进入 M4c 资源长稳预检。详见 [Stage 143](143-desktop-host-lifecycle-recovery-preflight-audit.md)。
 
+### M4c1：加速资源所有权与释放预检（实现待远端复验）
+
+- **审计基线**：`main@5b23198f1a1574f5500be017b723120417723de2`；
+- **范围**：200 轮 DesktopHost/UIA 生命周期、200 轮目录控制器、200 轮系统表面分类器，并继续强制既有缩略图 worker 清理门；
+- **本地结果**：600/600 合成 Surface 释放，600 次目录刷新/1200 次通知，200/200 系统状态恢复；目标工具 Release 0 warning / 0 error；
+- **诚实边界**：`realApp24HourSoakRequired=true`、`real24HourEvidenceCollected=false`；不使用短运行内存差值冒充长期 SLA；
+- **远端证据**：PR CI、合并 commit 和 main CI Pending；
+- **结论**：本地 Accelerated Engineering Pass；M4c、M4-ready 与 RC 继续 Pending；
+- **下一步**：远端双重门禁关闭 M4c1 后冻结 M4c2 正式 App 24 小时采样入口和预算。详见 [Stage 144](144-accelerated-resource-stability-preflight-audit.md)。
+
 ### C1：工程就绪复审（结果尚未执行）
 
 - **审计基线**：`main@508528b`；

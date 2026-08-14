@@ -45,6 +45,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LongGrid.Tools.ProductRecov
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LongGrid.Tools.DesktopHostRecoveryPreflight", "tools\LongGrid.Tools.DesktopHostRecoveryPreflight\LongGrid.Tools.DesktopHostRecoveryPreflight.csproj", "{08382267-8FBE-46DA-AE17-6944DDC3C741}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LongGrid.Tools.ResourceStabilityPreflight", "tools\LongGrid.Tools.ResourceStabilityPreflight\LongGrid.Tools.ResourceStabilityPreflight.csproj", "{5931E879-BB82-4D53-9528-404FF0912DB4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -122,6 +124,10 @@ Global
 		{08382267-8FBE-46DA-AE17-6944DDC3C741}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{08382267-8FBE-46DA-AE17-6944DDC3C741}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{08382267-8FBE-46DA-AE17-6944DDC3C741}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5931E879-BB82-4D53-9528-404FF0912DB4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5931E879-BB82-4D53-9528-404FF0912DB4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5931E879-BB82-4D53-9528-404FF0912DB4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5931E879-BB82-4D53-9528-404FF0912DB4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{6FBD98BA-F87F-42CA-AE3B-7D232352B5AB} = {503E6675-B70F-49E3-A811-13C1BBDB95E2}
@@ -141,5 +147,6 @@ Global
 		{1939D7A7-3B46-4B01-B214-72CA06D870C1} = {E3398E20-37AA-4979-A5CA-7B10293EAE4E}
 		{205DBB77-3420-41CD-B887-E76EDCDEEBAD} = {E3398E20-37AA-4979-A5CA-7B10293EAE4E}
 		{08382267-8FBE-46DA-AE17-6944DDC3C741} = {E3398E20-37AA-4979-A5CA-7B10293EAE4E}
+		{5931E879-BB82-4D53-9528-404FF0912DB4} = {E3398E20-37AA-4979-A5CA-7B10293EAE4E}
 	EndGlobalSection
 EndGlobal

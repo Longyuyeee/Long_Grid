@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1、E2/M2、M3、M4a 与 M4b 工程链已完成；M4b1 的配置/目录恢复和 M4b2 的 Explorer/session、拓扑、显示器替换、Host 重启组合预检均由 PR 与 main 完整门禁复验。下一步进入 M4c 资源长稳预检。桌面文件内容读取、写入和移动继续关闭，物理输入/Narrator/高对比/动态系统表面证据仍 Pending。#19、#20、#23、#24、ADR-0001、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，M4b1 见 [Stage 142](docs/142-product-recovery-preflight-audit.md)，M4b2 见 [Stage 143](docs/143-desktop-host-lifecycle-recovery-preflight-audit.md)。
+> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1、E2/M2、M3、M4a 与 M4b 工程链已完成；M4c 已拆为 CI 加速所有权/释放预检（M4c1）和正式 App 24 小时趋势证据（M4c2），M4c1 本地 200 轮矩阵已通过并等待远端门禁。下一步关闭 M4c1 后冻结 M4c2 入口和预算。桌面文件内容读取、写入和移动继续关闭，物理输入/Narrator/高对比/动态系统表面证据仍 Pending。#19、#20、#23、#24、ADR-0001、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，M4b2 见 [Stage 143](docs/143-desktop-host-lifecycle-recovery-preflight-audit.md)，M4c1 见 [Stage 144](docs/144-accelerated-resource-stability-preflight-audit.md)。
 
 ## 产品原则
 
@@ -28,6 +28,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [正式产品 500 项规模预检审计（Stage 141）](docs/141-product-500-item-scale-preflight-audit.md)
 - [正式产品故障恢复预检审计（Stage 142）](docs/142-product-recovery-preflight-audit.md)
 - [DesktopHost 原生生命周期恢复预检审计（Stage 143）](docs/143-desktop-host-lifecycle-recovery-preflight-audit.md)
+- [加速资源长稳预检审计（Stage 144）](docs/144-accelerated-resource-stability-preflight-audit.md)
 - [质量、安全与隐私基线](docs/05-quality-security.md)
 - [桌面管理与任务栏美化深度审计](docs/06-desktop-taskbar-audit.md)
 - [核心 Windows 能力实现审计](docs/08-core-windows-implementation-audit.md)
