@@ -21,7 +21,7 @@ M4c2b2 因此只关闭以下缺口：
 
 ## 2. 产品组件边界
 
-产品 worker 是独立 `net8.0-windows` 可执行项目，不依赖 probe 或 WinUI。Profile 暂存只复制以下四个固定文件：
+产品 worker 是独立 `net8.0-windows` 可执行项目，不依赖 probe 或 WinUI，并与正式 App 一致锁定 `win-x64` RID，使 startup/pack 的 `--no-restore` 链使用已恢复的同一资产图。Profile 暂存只复制以下四个固定文件：
 
 - `LongGrid.ThumbnailWorker.exe`；
 - `LongGrid.ThumbnailWorker.dll`；
