@@ -4,22 +4,22 @@
 
 ## 1. 判定
 
-E2b2 的本地工程实现已闭合，当前判定为 **Local Engineering Pass / PR 与 main CI Pending / Manual Evidence Pending**。主 DesktopHost surface 的项目 pointer、activation source 的有限键盘命令，以及 UIA `SelectionItem`/`Invoke` 全部调用既有 `ProductDesktopSelectionRequest` 与同一个 selection transaction；没有新增第二份选择状态。
+E2b2 的实现与 PR CI 已闭合，当前判定为 **PR Engineering Pass / main CI Pending / Manual Evidence Pending**。主 DesktopHost surface 的项目 pointer、activation source 的有限键盘命令，以及 UIA `SelectionItem`/`Invoke` 全部调用既有 `ProductDesktopSelectionRequest` 与同一个 selection transaction；没有新增第二份选择状态。
 
-本切片只选择当前投影中的匿名项目身份，不读取文件内容，不公开路径，也不移动、重命名、删除或写入桌面文件。E2/M2 只有在本 PR 与合并后 main CI 均通过后才能升级为 Engineering Pass；物理鼠标、Narrator、高对比、文本缩放和动态系统表面的人工证据仍保持 Pending。
+本切片只选择当前投影中的匿名项目身份，不读取文件内容，不公开路径，也不移动、重命名、删除或写入桌面文件。E2/M2 只有在合并后 main CI 通过后才能升级为 Engineering Pass；物理鼠标、Narrator、高对比、文本缩放和动态系统表面的人工证据仍保持 Pending。
 
 ## 2. 需求对齐
 
 | 合同 | 实现 | 当前判定 |
 | --- | --- | --- |
-| pointer 项目命中 | Explicit 主 surface 只在当前 lease 目标方格的可见项目行处理真实 `WM_LBUTTONDOWN`；Ctrl/Shift 映射到现有 modifiers | 本地通过 |
-| 有限键盘代理 | 初次激活消费成功后，产品自有 activation HWND 临时移除 `NOACTIVATE` 并取得焦点；只处理方向键、Home/End、Space、Escape | 本地通过 |
-| UIA 项目模式 | 仅当前 Explicit 目标项目暴露 ListItem、SelectionItem 与 Invoke；Passive 继续为不可聚焦 Text | 本地通过 |
-| 同源状态 | pointer、keyboard、UIA 均进入 lifecycle 来源证明后调用 `ApplyInteractionSelection`；selected/focused/anchor/revision 只来自 transaction snapshot | 本地通过 |
-| UIA 查询与事件 | `GetSelection`、`GetFocus`、`IsSelected`、`SelectionContainer` 读取同一 snapshot；选择变化发送 IsSelected property 与 SelectionItem 事件 | 本地通过 |
-| 可见反馈 | 选中高亮与焦点框分别绘制，刷新由事务成功路径统一触发 | 本地通过 |
-| 取消与失效 | Escape 调用既有 cancellation adapter；系统隐藏、投影释放和关闭恢复 `NOACTIVATE`、撤销 Pattern/焦点并清空选择 | 本地通过 |
-| 安全边界 | 无全局 Hook、Raw Input、`SendInput`、`RegisterHotKey`、Explorer/WorkerW 集成或文件操作 | 本地通过 |
+| pointer 项目命中 | Explicit 主 surface 只在当前 lease 目标方格的可见项目行处理真实 `WM_LBUTTONDOWN`；Ctrl/Shift 映射到现有 modifiers | PR CI 通过 |
+| 有限键盘代理 | 初次激活消费成功后，产品自有 activation HWND 临时移除 `NOACTIVATE` 并取得焦点；只处理方向键、Home/End、Space、Escape | PR CI 通过 |
+| UIA 项目模式 | 仅当前 Explicit 目标项目暴露 ListItem、SelectionItem 与 Invoke；Passive 继续为不可聚焦 Text | PR CI 通过 |
+| 同源状态 | pointer、keyboard、UIA 均进入 lifecycle 来源证明后调用 `ApplyInteractionSelection`；selected/focused/anchor/revision 只来自 transaction snapshot | PR CI 通过 |
+| UIA 查询与事件 | `GetSelection`、`GetFocus`、`IsSelected`、`SelectionContainer` 读取同一 snapshot；选择变化发送 IsSelected property 与 SelectionItem 事件 | PR CI 通过 |
+| 可见反馈 | 选中高亮与焦点框分别绘制，刷新由事务成功路径统一触发 | PR CI 通过 |
+| 取消与失效 | Escape 调用既有 cancellation adapter；系统隐藏、投影释放和关闭恢复 `NOACTIVATE`、撤销 Pattern/焦点并清空选择 | PR CI 通过 |
+| 安全边界 | 无全局 Hook、Raw Input、`SendInput`、`RegisterHotKey`、Explorer/WorkerW 集成或文件操作 | PR CI 通过 |
 
 ## 3. 审计修正与兼容性
 
@@ -33,12 +33,12 @@ E2b2 的本地工程实现已闭合，当前判定为 **Local Engineering Pass /
 
 本地 Release build 为 0 warning / 0 error；907/907 测试通过；最终本地覆盖率 line 90.75%（12800/14105）、branch 79.40%（4140/5214），门禁通过。新增证据覆盖键盘命令映射、pointer hit-test 纯适配器、pointer/keyboard/UIA 同项目结果一致、Space/Ctrl+Space、surface/source 绑定路径、Escape 恢复，以及原生 UIA 项目的 SelectionItem/Invoke/GetSelection/GetFocus 同源状态。三项原生 DesktopHost probe、143 项 UI automation id 合同、依赖漏洞门禁和人工 launcher 合同通过；人工会话 runbook 已扩展到 E2B2-01～05，但尚无执行者结果。
 
-PR CI、合并 SHA、main CI 与覆盖率在远端完成后回填。
+PR #187 首轮 run `31768930804` 在远端合并双目标覆盖率后以 line 89.52% 失败；没有降低门槛，而是将 pointer hit-test 与有限键盘映射拆成纯适配器并补齐原生 UIA/失效分支。修复后的 PR run `31769835644` 全绿：907/907，远端 line 90.19%（25444/28210）、branch 79.13%（8252/10428），全部 34 个步骤通过。合并 SHA 与 main CI 待合并后回填。
 
 ## 5. 下一步
 
-1. 完成本切片 PR CI、合并与 main CI，并回填远端覆盖率和提交证据；
-2. 若远端全绿，裁决 E2/M2 Engineering Pass，但明确保留 Manual Evidence Pending；
+1. 合并 PR #187，等待 main CI 并回填 merge SHA；
+2. 若 main CI 全绿，裁决 E2/M2 Engineering Pass，但明确保留 Manual Evidence Pending；
 3. 进入 M3 集成差距审计：只补 DesktopHost 交互与既有配置、恢复、保存链的缺口，不重建工作区，不开启真实文件移动；
 4. M3 后执行正式核心旅程、500 项规模、故障恢复和资源长稳预检，推进到 M4-ready；
 5. 到达 ReadyForExternalValidation 后停止功能扩张，按 X1～X5 汇合外部证据。
