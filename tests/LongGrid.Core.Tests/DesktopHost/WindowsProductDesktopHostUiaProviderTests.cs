@@ -137,6 +137,77 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         Assert.True(adapter.Capture().Evidence!.IsHiddenContract);
     }
 
+    [Fact]
+    public void NativeActivationSourceExposesFiniteInvokeAndHideRestoreContract()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary",
+                new(100, 200, 1920, 1040),
+                96,
+                [CreateContainer(
+                    "container-1",
+                    "工作",
+                    ["需求文档.docx"],
+                    false,
+                    24,
+                    36)]);
+        ProductDesktopInteractionForwardedInput? forwarded = null;
+        using WindowsProductDesktopInteractionActivationSource source =
+            WindowsProductDesktopInteractionActivationSource.Create(
+                display,
+                new nint(903),
+                input =>
+                {
+                    forwarded = input;
+                    return true;
+                });
+
+        AutomationElement root = AutomationElement.FromHandle(source.Handle);
+        Assert.Equal(
+            "LongGrid.DesktopHost.Activation.display-primary",
+            root.Current.AutomationId);
+        Assert.Equal("桌面方格交互入口", root.Current.Name);
+        Assert.Equal(ControlType.Pane, root.Current.ControlType);
+        AutomationElement button = root.FindFirst(
+            TreeScope.Children,
+            new PropertyCondition(
+                AutomationElement.ControlTypeProperty,
+                ControlType.Button));
+        Assert.NotNull(button);
+        Assert.Equal("进入桌面方格交互", button.Current.Name);
+        Assert.Equal(
+            "LongGrid.DesktopHost.ActivationButton.1",
+            button.Current.AutomationId);
+        Assert.False(button.Current.IsKeyboardFocusable);
+        Assert.Equal(new System.Windows.Rect(454, 236, 30, 30),
+            button.Current.BoundingRectangle);
+        Assert.True(button.TryGetCurrentPattern(
+            InvokePattern.Pattern,
+            out object? pattern));
+        ((InvokePattern)pattern!).Invoke();
+
+        Assert.NotNull(forwarded);
+        Assert.Equal(
+            ProductDesktopInteractionForwardedInputKind
+                .AssistiveTechnologyActivation,
+            forwarded.Kind);
+        Assert.Equal("display-primary", forwarded.DisplayId);
+        Assert.True(forwarded.SourceAttested);
+        Assert.False(forwarded.IsInjected);
+        Assert.False(forwarded.IsAutoRepeat);
+        Assert.True(source.ContractAttested);
+        Assert.True(source.ApplyHidden());
+        Assert.False(source.IsVisible);
+        Assert.True(source.ApplyVisible());
+        Assert.True(source.ContractAttested);
+    }
+
     private static ProductDesktopHostReadOnlyProjection CreateContainer(
         string id,
         string title,
