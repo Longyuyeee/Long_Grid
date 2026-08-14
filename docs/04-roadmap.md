@@ -301,4 +301,6 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 
 2026-08-14 M4b2/M4b 远端收口：PR #201 与合并后 `main@8d04e2f` 的完整流水线均为 923/923、lines 90.68%、branches 78.34%；M4b2 5 场景、M4a/M4b1、安全探针、依赖门和内部 unsigned RC 交付集审计全部通过。M4b2 与 M4b 判定 Engineering Pass；M4-ready、M4c 24 小时长稳和真实设备/人工证据仍 Pending。
 
-2026-08-14 M4c1 加速资源长稳预检：200 轮 DesktopHost/UIA 生命周期、200 轮目录控制器和 200 轮系统表面恢复状态机必须确定收敛；共 600 个合成 Surface 全部释放、600 次目录刷新产生精确 1200 次通知，既有缩略图 worker Job/Profile/孤儿清理门继续独立执行。结果固定为 `AcceleratedPass` 且声明真实 App 24 小时证据未采集；本地已通过，PR/main 待汇合，详见 [Stage 144](144-accelerated-resource-stability-preflight-audit.md)。
+2026-08-14 M4c1 加速资源长稳预检：200 轮 DesktopHost/UIA 生命周期、200 轮目录控制器和 200 轮系统表面恢复状态机必须确定收敛；共 600 个合成 Surface 全部释放、600 次目录刷新产生精确 1200 次通知，既有缩略图 worker Job/Profile/孤儿清理门继续独立执行。结果固定为 `AcceleratedPass` 且声明真实 App 24 小时证据未采集，详见 [Stage 144](144-accelerated-resource-stability-preflight-audit.md)。
+
+2026-08-14 M4c1 远端收口：PR #203 run `31815841350` 为 924/924、lines 90.81%、branches 78.20%；squash 合并 `main@484e8cc` 后 main run `31816415351` 为 924/924、lines 90.83%、branches 78.22%。两次均通过加速预检、缩略图 worker 隔离门、安全探针、依赖门和内部 unsigned RC 交付集审计。M4c1 判定 Accelerated Engineering Pass；M4c2 正式 App 24 小时趋势、M4-ready 与外部证据仍 Pending。

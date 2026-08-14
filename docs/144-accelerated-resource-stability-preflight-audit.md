@@ -3,7 +3,7 @@
 - 审计日期：2026-08-14
 - 开发基线：`main@5b23198f1a1574f5500be017b723120417723de2`
 - 切片：M4c1
-- 当前判定：**Accelerated Engineering Pass（本地）/ 远端证据 Pending / 24 小时实机 Pending**
+- 当前判定：**M4c1 Accelerated Engineering Pass / M4c2 24 小时实机 Pending**
 
 ## 1. 需求对齐与拆分
 
@@ -50,7 +50,8 @@ M4c2 必须在正式 App、真实 HWND、UIA provider、目录来源和 worker �
 
 ## 6. 远端轨迹与下一步
 
-- 实现 PR / head SHA：Pending；
-- PR CI / 合并 commit / main CI：Pending；
-- 合并前判定：M4c1 本地 Accelerated Engineering Pass；M4c、M4-ready 与 RC 均保持 Pending；
-- 下一步：完成 PR/main 双重门禁并关闭 M4c1，再冻结 M4c2 24 小时正式 App 采样入口、预算、证据格式和停止条件。
+- 实现 PR：[#203](https://github.com/Longyuyeee/Long_Grid/pull/203)，head `0d7c44f2f0156315fc75719dcbaeebe1cfdf74cb`；
+- PR CI：run `31815841350`，924/924，lines 90.81%、branches 78.20%；加速预检输出 `AcceleratedPass`，600/600 Surface 释放、600 refreshes/1200 notifications，缩略图 worker 隔离门与完整交付集审计通过；
+- squash 合并：`main@484e8cc976a7886d1652044b22535b9ecc841822`；合并后 main run `31816415351` 为 924/924，lines 90.83%、branches 78.22%，相同加速预检和完整门禁通过；
+- 判定：M4c1 Accelerated Engineering Pass；该结果明确包含 `real24HourEvidenceCollected=false`，所以 M4c、M4-ready 与 RC 均保持 Pending；
+- 下一步：冻结 M4c2 24 小时正式 App 采样入口、预算、证据格式和停止条件，再实现可审计的长稳会话入口。
