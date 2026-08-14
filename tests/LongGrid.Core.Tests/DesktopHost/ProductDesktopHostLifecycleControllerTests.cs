@@ -689,6 +689,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             forwarding,
             consumption,
             new RecordingActivationSourceFactory());
+        var observed = new List<ProductDesktopHostLifecycleSnapshot>();
+        controller.SnapshotChanged += (_, value) => observed.Add(value);
         DateTimeOffset now = DateTimeOffset.UtcNow;
         _ = controller.ApplyProjectionBatch(CreateBatch());
         ProductDesktopInteractionInputForwardingResult prepared =
@@ -711,6 +713,12 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             controller.ConsumePreparedInteractionIntent(
                 prepared.PreparedIntent!,
                 now);
+        ProductDesktopHostLifecycleSnapshot lifecycleEntered =
+            controller.Snapshot;
+        ProductDesktopInteractionIntentConsumptionResult replay =
+            controller.ConsumePreparedInteractionIntent(
+                prepared.PreparedIntent!,
+                now.AddMilliseconds(1));
         ProductDesktopInteractionInputForwardingResult blockedWhileExplicit =
             controller.ForwardInteractionInput(
                 new(
@@ -724,7 +732,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                     SourceAttested: true,
                     IsInjected: false,
                     IsAutoRepeat: false),
-                now.AddMilliseconds(1));
+                now.AddMilliseconds(2));
         Assert.True(Assert.Single(factory.Surfaces).ApplyBoundSelection(
             "container-1",
             new(
@@ -732,16 +740,20 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                 ItemId: "item:2")));
         ProductDesktopInteractionIntentConsumptionResult selected =
             new(consumption.Snapshot);
-        ProductDesktopInteractionIntentConsumptionResult replay =
-            controller.ConsumePreparedInteractionIntent(
-                prepared.PreparedIntent!,
-                now.AddMilliseconds(3));
+        ProductDesktopHostLifecycleSnapshot lifecycleSelected =
+            controller.Snapshot;
         _ = controller.ApplySystemSurfaceEvent(new(
             ProductDesktopInteractionSystemSurfaceEventKind.FocusLost,
             1,
-            now.AddMilliseconds(4)));
+            now.AddMilliseconds(3)));
+        ProductDesktopHostLifecycleSnapshot lifecycleCancelled =
+            controller.Snapshot;
 
         Assert.True(entered.IsExplicit);
+        Assert.True(lifecycleEntered.ExplicitInteractionActive);
+        Assert.Equal(0, lifecycleEntered.SelectedItemCount);
+        Assert.False(lifecycleEntered.FocusedItemAvailable);
+        Assert.Equal(0, lifecycleEntered.SelectionRevision);
         Assert.Equal(
             ProductDesktopInteractionInputForwardingStatus.AwaitingPassiveSurface,
             blockedWhileExplicit.Snapshot.Status);
@@ -751,6 +763,12 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.Equal(
             ["item:2"],
             selected.Snapshot.Transaction!.Selection!.SelectedItemIds);
+        Assert.True(lifecycleSelected.ExplicitInteractionActive);
+        Assert.Equal(1, lifecycleSelected.SelectedItemCount);
+        Assert.True(lifecycleSelected.FocusedItemAvailable);
+        Assert.Equal(1, lifecycleSelected.SelectionRevision);
+        Assert.DoesNotContain("container-1", lifecycleSelected.ToString());
+        Assert.DoesNotContain("item:2", lifecycleSelected.ToString());
         Assert.Equal(
             ProductDesktopInteractionIntentConsumptionStatus.AwaitingSurface,
             replay.Snapshot.Status);
@@ -759,6 +777,14 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             ProductDesktopInteractionIntentConsumptionStatus.Cancelled,
             consumption.Snapshot.Status);
         Assert.False(consumption.Snapshot.PreparedIntentConsumed);
+        Assert.False(lifecycleCancelled.ExplicitInteractionActive);
+        Assert.Equal(0, lifecycleCancelled.SelectedItemCount);
+        Assert.False(lifecycleCancelled.FocusedItemAvailable);
+        Assert.Equal(0, lifecycleCancelled.SelectionRevision);
+        Assert.Contains(observed, value =>
+            value.ExplicitInteractionActive
+            && value.SelectedItemCount == 1
+            && value.SelectionRevision == 1);
 
         await controller.DisposeAsync();
         Assert.Equal(

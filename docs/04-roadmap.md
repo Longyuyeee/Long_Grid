@@ -282,3 +282,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-14 E2/M2 工程收口：E2b1 产品自有有限 activation HWND 与 E2b2 主 surface pointer、有限键盘代理、UIA SelectionItem/Invoke 已统一进入既有 selection transaction；选中、焦点、锚点、修订和 UIA 事件同源，Escape/系统事件/投影释放恢复安全态。PR #186/#187 与合并后 main CI 通过，E2/M2 判定 Engineering Pass；物理输入、Narrator、高对比、文本缩放和动态系统表面仍 Pending，下一阶段固定为 M3 集成差距审计。
 
 2026-08-14 M3a 目录—投影修订集成：正式配置加载后，目录 `Refreshing`、终态或 generation 变化会先推进既有工作区外部修订并清除过期令牌，再重建工作区和 DesktopHost 投影；重复快照幂等，低代次拒绝，配置重载只重设基线。该切片不修改配置文档或桌面文件，M3 仍需闭合选择可观察性、保存/恢复组合旅程与匿名证据清理，详见 [Stage 136](136-catalog-projection-revision-integration-audit.md)。
+
+2026-08-14 M3b 匿名桌面交互观察链：唯一 selection transaction 派生 Explicit、选中数量、焦点存在性和选择修订，并通过既有 lifecycle 快照进入正式 App 状态卡；进入、选择、Escape、系统失效与投影释放同步收敛。摘要不含容器/项目 ID、名称、路径或内容，不能提交配置或文件操作；M3 下一步为保存/重试/恢复组合旅程，详见 [Stage 137](137-anonymous-desktop-interaction-observation-audit.md)。

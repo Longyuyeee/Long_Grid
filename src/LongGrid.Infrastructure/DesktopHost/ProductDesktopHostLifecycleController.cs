@@ -26,7 +26,11 @@ public sealed record ProductDesktopHostLifecycleSnapshot(
     int RenderedContainerCount = 0,
     bool ReadOnlyAccessibilityAvailable = false,
     bool PassiveWindowContractAttested = false,
-    ProductDesktopInteractionSystemSurfaceEventKind? LastSystemSurfaceEvent = null)
+    ProductDesktopInteractionSystemSurfaceEventKind? LastSystemSurfaceEvent = null,
+    bool ExplicitInteractionActive = false,
+    int SelectedItemCount = 0,
+    bool FocusedItemAvailable = false,
+    long SelectionRevision = 0)
 {
     public bool FeatureEnabled =>
         Status is ProductDesktopHostLifecycleStatus.AwaitingHost
@@ -692,6 +696,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             DateTimeOffset nowUtc)
     {
         ArgumentNullException.ThrowIfNull(preparedIntent);
+        ProductDesktopInteractionIntentConsumptionResult result;
+        ProductDesktopHostLifecycleSnapshot? published = null;
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
@@ -707,26 +713,34 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
 
             if (!TryCreatePassiveInteractionEvidenceUnsafe(out var evidence))
             {
-                return intentConsumption.AwaitPassiveSurface();
+                result = intentConsumption.AwaitPassiveSurface();
+                published = RefreshInteractionObservationUnsafe();
             }
-
-            ProductDesktopHostReadOnlyProjection? target = currentBatch.Displays
-                .SelectMany(display => display.Containers)
-                .SingleOrDefault(container => string.Equals(
-                    container.ContainerId,
-                    preparedIntent.Intent.TargetContainerId,
-                    StringComparison.Ordinal));
-            if (target is null)
+            else
             {
-                return intentConsumption.RejectUnavailableTarget();
+                ProductDesktopHostReadOnlyProjection? target =
+                    currentBatch.Displays
+                        .SelectMany(display => display.Containers)
+                        .SingleOrDefault(container => string.Equals(
+                            container.ContainerId,
+                            preparedIntent.Intent.TargetContainerId,
+                            StringComparison.Ordinal));
+                result = target is null
+                    ? intentConsumption.RejectUnavailableTarget()
+                    : intentConsumption.Consume(
+                        preparedIntent,
+                        evidence,
+                        target.ItemIds,
+                        nowUtc);
+                published = RefreshInteractionObservationUnsafe();
             }
-
-            return intentConsumption.Consume(
-                preparedIntent,
-                evidence,
-                target.ItemIds,
-                nowUtc);
         }
+
+        if (published is not null)
+        {
+            Publish(published);
+        }
+        return result;
     }
 
     public ProductDesktopInteractionIntentConsumptionResult
@@ -735,6 +749,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             DateTimeOffset nowUtc)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ProductDesktopInteractionIntentConsumptionResult result;
+        ProductDesktopHostLifecycleSnapshot? published = null;
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
@@ -752,10 +768,17 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     container.ContainerId,
                     targetId,
                     StringComparison.Ordinal));
-            return target is null
+            result = target is null
                 ? intentConsumption.RejectUnavailableTarget()
                 : intentConsumption.ApplySelection(request, target.ItemIds, nowUtc);
+            published = RefreshInteractionObservationUnsafe();
         }
+
+        if (published is not null)
+        {
+            Publish(published);
+        }
+        return result;
     }
 
     private ProductDesktopHostLifecycleSnapshot ApplyNewUpdateUnsafe(
@@ -1121,6 +1144,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     private bool CancelInteractionFromActivationSource(
         IProductDesktopInteractionActivationSource source)
     {
+        ProductDesktopHostLifecycleSnapshot? published;
+        bool succeeded;
         lock (gate)
         {
             if (disposed || !activationSources.Contains(source)
@@ -1144,9 +1169,15 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             {
                 surface.RefreshSelection();
             }
-
-            return visible && !cancelled.IsExplicit;
+            published = RefreshInteractionObservationUnsafe();
+            succeeded = visible && !cancelled.IsExplicit;
         }
+
+        if (published is not null)
+        {
+            Publish(published);
+        }
+        return succeeded;
     }
 
     private void InvalidatePreparedInputUnsafe()
@@ -1259,6 +1290,10 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         ProductDesktopInteractionSystemSurfaceEventKind?
             lastSystemSurfaceEvent = null)
     {
+        ProductDesktopSelectionSnapshot? selection =
+            intentConsumption?.Snapshot.IsExplicit == true
+                ? intentConsumption.Snapshot.Transaction?.Selection
+                : null;
         snapshot = new(
             status,
             checked(snapshot.Generation + 1),
@@ -1269,7 +1304,41 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             renderedContainerCount,
             readOnlyAccessibilityAvailable,
             passiveWindowContractAttested,
-            lastSystemSurfaceEvent);
+            lastSystemSurfaceEvent,
+            ExplicitInteractionActive: selection is not null,
+            SelectedItemCount: selection?.SelectedItemIds.Count ?? 0,
+            FocusedItemAvailable: selection?.FocusedItemId is not null,
+            SelectionRevision: selection?.SelectionRevision ?? 0);
+        return snapshot;
+    }
+
+    private ProductDesktopHostLifecycleSnapshot?
+        RefreshInteractionObservationUnsafe()
+    {
+        ProductDesktopSelectionSnapshot? selection =
+            intentConsumption?.Snapshot.IsExplicit == true
+                ? intentConsumption.Snapshot.Transaction?.Selection
+                : null;
+        bool explicitInteractionActive = selection is not null;
+        int selectedItemCount = selection?.SelectedItemIds.Count ?? 0;
+        bool focusedItemAvailable = selection?.FocusedItemId is not null;
+        long selectionRevision = selection?.SelectionRevision ?? 0;
+        if (snapshot.ExplicitInteractionActive == explicitInteractionActive
+            && snapshot.SelectedItemCount == selectedItemCount
+            && snapshot.FocusedItemAvailable == focusedItemAvailable
+            && snapshot.SelectionRevision == selectionRevision)
+        {
+            return null;
+        }
+
+        snapshot = snapshot with
+        {
+            Generation = checked(snapshot.Generation + 1),
+            ExplicitInteractionActive = explicitInteractionActive,
+            SelectedItemCount = selectedItemCount,
+            FocusedItemAvailable = focusedItemAvailable,
+            SelectionRevision = selectionRevision,
+        };
         return snapshot;
     }
 
