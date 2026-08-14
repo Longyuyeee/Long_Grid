@@ -92,7 +92,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 
 1. **M4a：500 项规模预检**——已由 PR #197 合并到 `main@91ff6fd`，PR/main 完整门禁均通过；
 2. **M4b1：持久化与目录恢复预检**——PR #199 与 `main@a47a19d` 的 5 场景和完整门禁均通过；
-3. **M4b2：原生生命周期故障矩阵**——覆盖 Explorer/session、显示器变化和 DesktopHost Surface 释放/重建；
+3. **M4b2：原生生命周期故障矩阵**——5 场景本地已通过，等待 PR/main 远端门禁；
 4. **M4c：资源长稳预检**——DesktopHost Surface、UIA、目录观察器、缩略图 worker 与 App 至少 24 小时无持续增长、残留窗口或状态漂移；
 5. **外部证据汇合**——按 C1 → C2/C3 → C4 → C5b → C6 完成五人测试、输入/无障碍/系统表面、显示硬件、专用卷和 ADR/Issue 收口；
 6. **内部 RC**——许可证、签名、安装/升级/卸载/回滚、正式品牌确认完成后，才允许把内部工程产物提升为可分发候选；

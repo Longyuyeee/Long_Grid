@@ -228,6 +228,13 @@ jobs:
           --configuration Release
           --no-build
 
+      - name: DesktopHost lifecycle recovery preflight
+        run: >-
+          dotnet run
+          --project tools/LongGrid.Tools.DesktopHostRecoveryPreflight
+          --configuration Release
+          --no-build
+
       - name: File operation safety probe
         run: >-
           dotnet run
