@@ -46,7 +46,8 @@ M3d 判定为 **Engineering Pass / Manual Evidence Pending**，M3 工程链闭�
 - 该复跑覆盖率 line 90.55%（25994/28708）、branch 79.05%（8392/10616），门禁通过；
 - 144 项 UI automation 源码合同、clean-session 与 batch-accessibility `-ValidateOnly` 入口、依赖漏洞门、启动链、100 次配置持久化/故障注入和临时沙箱文件操作安全探针通过；
 - 自动化覆盖精确 11 字段、篡改匿名状态拒绝、未确认零写入、写租约竞争、现有清单识别、JSON 导出、原件保持和单条清理；
-- PR Windows runner、合并后 main runner 与最终文档证据将在远端运行完成后回填；
+- 实现 PR #195 run `31785742249` 为 920/920，line 90.23%（25902/28708）、branch 79.05%（8392/10616），完整 34 步通过；本机前台许可异常未在独立 runner 复现；
+- squash 合并为 `main@43b40243cd686298d655eb925ef2f851390f99c1`；合并后 main run `31786827386` 为 920/920，line 90.20%（25896/28708）、branch 79.01%（8388/10616），完整流水线再次通过；
 - 真实 Narrator、高对比、文本缩放、物理输入和动态 Explorer/系统表面证据继续 Pending，不得用源码合同冒充。
 
 ## 5. M3 收口与下一步
@@ -62,6 +63,6 @@ M3a～M3d 的工程链已经覆盖目录—投影修订、匿名选择观察、�
 
 ## 6. 远端轨迹
 
-- 实现 PR / merge SHA：等待本切片远端运行；
-- PR CI / main CI：等待本切片远端运行；
+- 实现 PR / merge SHA：PR #195 / `43b40243cd686298d655eb925ef2f851390f99c1`；
+- PR CI / main CI：`31785742249` / `31786827386`，均成功；
 - 当前结论：M3 Engineering Pass / Manual Evidence Pending；M4-ready、Phase 0、内部 RC 与公开分发均未完成。

@@ -437,6 +437,7 @@ E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输�
 - **交互边界**：新增“保存匿名交互快照”二次确认；取消零写入，成功后清单仍只显示类型、角色、大小和时间，导出与永久清理继续要求明确单选和独立确认；
 - **自动化**：Release 0 warning/0 error；匿名证据/配置导出专项 35/35；首次完整测试 920/920，覆盖率复跑 919/920，唯一失败为 Stage 137/138 已记录的本机 Windows 前台许可安全拒绝；line 90.55%、branch 79.05%；144 项 UI contract、clean-session/batch-accessibility 预检、依赖、启动、持久化和文件安全探针通过；远端复验见 [Stage 139](139-anonymous-interaction-evidence-audit.md)；
 - **安全边界**：不含 container/item ID、名称、路径、内容、按键、坐标或输入来源；不持续采样，不读取/移动桌面文件；
+- **PR CI / main CI**：PR #195 run `31785742249` 与 main run `31786827386` 均为 920/920，line 90.23%/90.20%、branch 79.05%/79.01%，全部 34 步成功；squash 合并 `main@43b40243cd686298d655eb925ef2f851390f99c1`；
 - **结论**：M3 Engineering Pass / Manual Evidence Pending；M4-ready、Phase 0 外部证据、内部 RC 和公开分发状态不变；
 - **下一步**：进入 500 项规模、故障恢复和资源长稳自动预检，按独立切片推进 M4-ready。
 
