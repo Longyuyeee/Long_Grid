@@ -429,6 +429,17 @@ E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输�
 - **结论**：M3c Engineering Pass / Manual Evidence Pending；M3 与 M4-ready 状态不因本切片单独改变；
 - **下一步**：M3d 最小匿名交互证据导出与确认清理，复用既有证据库并保持零项目身份。详见 [Stage 138](138-save-recovery-desktop-host-journey-audit.md)。
 
+### M3d：按需匿名交互证据（工程完成）
+
+- **审计基线**：`main@78384d724339d2df41535b955fea1648438d3e17`；
+- **需求对齐**：只允许用户确认后冻结一条当前交互的最小匿名快照，复用既有证据清单、逐条导出和单条确认清理；不持续记录、不建立第二个日志目录、不写项目身份或输入明细；
+- **实现摘要**：快照固定为 11 个白名单字段，含有限 Host 状态、四类修订/代次、选中数量和三个安全布尔值；`Anonymous=true` 与 `RealFileOperationsAllowed=false` 不可被调用者改写。精确文件名进入既有 256 项/4096 扫描上限、重解析点拒绝、变更复核、64 MiB 导出与写租约清理链；
+- **交互边界**：新增“保存匿名交互快照”二次确认；取消零写入，成功后清单仍只显示类型、角色、大小和时间，导出与永久清理继续要求明确单选和独立确认；
+- **自动化**：Release 0 warning/0 error；匿名证据/配置导出专项 35/35；首次完整测试 920/920，覆盖率复跑 919/920，唯一失败为 Stage 137/138 已记录的本机 Windows 前台许可安全拒绝；line 90.55%、branch 79.05%；144 项 UI contract、clean-session/batch-accessibility 预检、依赖、启动、持久化和文件安全探针通过；远端复验见 [Stage 139](139-anonymous-interaction-evidence-audit.md)；
+- **安全边界**：不含 container/item ID、名称、路径、内容、按键、坐标或输入来源；不持续采样，不读取/移动桌面文件；
+- **结论**：M3 Engineering Pass / Manual Evidence Pending；M4-ready、Phase 0 外部证据、内部 RC 和公开分发状态不变；
+- **下一步**：进入 500 项规模、故障恢复和资源长稳自动预检，按独立切片推进 M4-ready。
+
 ### C1：工程就绪复审（结果尚未执行）
 
 - **审计基线**：`main@508528b`；

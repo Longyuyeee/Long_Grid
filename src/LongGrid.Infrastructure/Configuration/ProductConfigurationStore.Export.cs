@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using LongGrid.Core.Configuration;
 
@@ -9,6 +11,12 @@ public sealed partial class ProductConfigurationStore
     private const int MaximumEvidenceItems = 256;
     private const int MaximumEvidenceScanEntries = 4096;
     private const long MaximumEvidenceExportBytes = 64L * 1024 * 1024;
+    private static readonly JsonSerializerOptions AnonymousEvidenceJsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new JsonStringEnumConverter() },
+    };
     public async Task<ProductConfigurationExportPlan> PrepareExportAsync(
         CancellationToken cancellationToken = default)
     {
@@ -132,6 +140,87 @@ public sealed partial class ProductConfigurationStore
         }
     }
 
+    public async Task<ProductAnonymousInteractionEvidenceCaptureResult>
+        CaptureAnonymousInteractionEvidenceAsync(
+            ProductAnonymousInteractionEvidence evidence,
+            bool userConfirmed,
+            CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(evidence);
+        if (!userConfirmed)
+        {
+            throw new ProductConfigurationExportException(
+                ProductConfigurationExportError.ConfirmationRequired);
+        }
+
+        ValidateAnonymousInteractionEvidence(evidence);
+        byte[] payload = JsonSerializer.SerializeToUtf8Bytes(
+            evidence,
+            AnonymousEvidenceJsonOptions);
+        string identifier = Guid.NewGuid().ToString("N");
+        string finalPath = Path.Combine(
+            DirectoryPath,
+            $"interaction-evidence.{identifier}.snapshot.json");
+        string temporaryPath = finalPath + ".new";
+        try
+        {
+            Directory.CreateDirectory(DirectoryPath);
+            await using FileStream writeLease =
+                await AcquireWriteLeaseAsync(cancellationToken).ConfigureAwait(false);
+            await using (FileStream stream = new(
+                temporaryPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 4096,
+                FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                await stream.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                stream.Flush(flushToDisk: true);
+            }
+
+            byte[] staged = await File.ReadAllBytesAsync(
+                temporaryPath,
+                cancellationToken).ConfigureAwait(false);
+            if (!CryptographicOperations.FixedTimeEquals(
+                    SHA256.HashData(payload),
+                    SHA256.HashData(staged)))
+            {
+                throw new ProductConfigurationExportException(
+                    ProductConfigurationExportError.EvidenceVerificationFailed);
+            }
+
+            File.Move(temporaryPath, finalPath);
+            FileInfo published = new(finalPath);
+            return new(published.Length, published.LastWriteTimeUtc);
+        }
+        catch (ProductConfigurationExportException)
+        {
+            TryDeleteExportTemporaryFile(temporaryPath);
+            throw;
+        }
+        catch (ProductConfigurationSaveException exception) when (
+            exception.Error is ProductConfigurationSaveError.WriteLeaseUnavailable)
+        {
+            TryDeleteExportTemporaryFile(temporaryPath);
+            throw new ProductConfigurationExportException(
+                ProductConfigurationExportError.WriteLeaseUnavailable);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            TryDeleteExportTemporaryFile(temporaryPath);
+            throw;
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            TryDeleteExportTemporaryFile(temporaryPath);
+            throw new ProductConfigurationExportException(
+                ProductConfigurationExportError.IoFailure);
+        }
+    }
+
     public Task<ProductConfigurationEvidenceInventory> GetEvidenceInventoryAsync(
         CancellationToken cancellationToken = default)
     {
@@ -166,8 +255,8 @@ public sealed partial class ProductConfigurationStore
                 }
 
                 scannedEntries++;
-                Match match = MatchEvidenceFile(path);
-                if (!match.Success)
+                if (!TryDescribeEvidenceFile(path, out ProductConfigurationEvidenceOrigin origin,
+                        out ProductConfigurationEvidenceRole role))
                 {
                     continue;
                 }
@@ -196,16 +285,7 @@ public sealed partial class ProductConfigurationStore
                     continue;
                 }
 
-                items.Add(new(
-                    match.Groups[1].Value == "damaged"
-                        ? ProductConfigurationEvidenceOrigin.DamagedRecovery
-                        : ProductConfigurationEvidenceOrigin.ImportPrevious,
-                    match.Groups[2].Value == "primary"
-                        ? ProductConfigurationEvidenceRole.Primary
-                        : ProductConfigurationEvidenceRole.Backup,
-                    info.Length,
-                    archivedUtc,
-                    path));
+                items.Add(new(origin, role, info.Length, archivedUtc, path));
             }
 
             return Task.FromResult(new ProductConfigurationEvidenceInventory(
@@ -247,13 +327,26 @@ public sealed partial class ProductConfigurationStore
             destinationDirectory,
             destination);
         RequireUnchangedEvidence(item);
-        string origin = item.Origin is ProductConfigurationEvidenceOrigin.DamagedRecovery
-            ? "Recovery"
-            : "Import";
-        string role = item.Role is ProductConfigurationEvidenceRole.Primary
-            ? "Primary"
-            : "Backup";
-        string fileName = $"LongGrid-Configuration-Evidence-{origin}-{role}-{DateTime.UtcNow:yyyyMMddTHHmmssfffZ}-{Guid.NewGuid():N}.bin";
+        string origin = item.Origin switch
+        {
+            ProductConfigurationEvidenceOrigin.DamagedRecovery => "Recovery",
+            ProductConfigurationEvidenceOrigin.ImportPrevious => "Import",
+            ProductConfigurationEvidenceOrigin.AnonymousInteraction => "Interaction",
+            _ => throw new ProductConfigurationExportException(
+                ProductConfigurationExportError.EvidenceNotAvailable),
+        };
+        string role = item.Role switch
+        {
+            ProductConfigurationEvidenceRole.Primary => "Primary",
+            ProductConfigurationEvidenceRole.Backup => "Backup",
+            ProductConfigurationEvidenceRole.Snapshot => "Snapshot",
+            _ => throw new ProductConfigurationExportException(
+                ProductConfigurationExportError.EvidenceNotAvailable),
+        };
+        string fileName = item.Origin ==
+            ProductConfigurationEvidenceOrigin.AnonymousInteraction
+                ? $"LongGrid-Interaction-Evidence-{role}-{DateTime.UtcNow:yyyyMMddTHHmmssfffZ}-{Guid.NewGuid():N}.json"
+                : $"LongGrid-Configuration-Evidence-{origin}-{role}-{DateTime.UtcNow:yyyyMMddTHHmmssfffZ}-{Guid.NewGuid():N}.bin";
         string finalPath = Path.Combine(validatedDirectory, fileName);
         string temporaryPath = finalPath + ".new";
         try
@@ -410,7 +503,7 @@ public sealed partial class ProductConfigurationStore
                 Path.GetDirectoryName(fullPath),
                 DirectoryPath,
                 StringComparison.OrdinalIgnoreCase)
-            || !MatchEvidenceFile(fullPath).Success)
+            || !TryDescribeEvidenceFile(fullPath, out _, out _))
         {
             throw new ProductConfigurationExportException(
                 ProductConfigurationExportError.EvidenceNotAvailable);
@@ -468,11 +561,67 @@ public sealed partial class ProductConfigurationStore
         }
     }
 
-    private Match MatchEvidenceFile(string path) => Regex.Match(
-        Path.GetFileName(path),
-        "^" + Regex.Escape(Path.GetFileName(PrimaryPath))
-            + "\\.(damaged|import)\\.[0-9a-f]{32}\\.(primary|backup)$",
-        RegexOptions.CultureInvariant);
+    private bool TryDescribeEvidenceFile(
+        string path,
+        out ProductConfigurationEvidenceOrigin origin,
+        out ProductConfigurationEvidenceRole role)
+    {
+        string fileName = Path.GetFileName(path);
+        Match configuration = Regex.Match(
+            fileName,
+            "^" + Regex.Escape(Path.GetFileName(PrimaryPath))
+                + "\\.(damaged|import)\\.[0-9a-f]{32}\\.(primary|backup)$",
+            RegexOptions.CultureInvariant);
+        if (configuration.Success)
+        {
+            origin = configuration.Groups[1].Value == "damaged"
+                ? ProductConfigurationEvidenceOrigin.DamagedRecovery
+                : ProductConfigurationEvidenceOrigin.ImportPrevious;
+            role = configuration.Groups[2].Value == "primary"
+                ? ProductConfigurationEvidenceRole.Primary
+                : ProductConfigurationEvidenceRole.Backup;
+            return true;
+        }
+
+        if (Regex.IsMatch(
+                fileName,
+                "^interaction-evidence\\.[0-9a-f]{32}\\.snapshot\\.json$",
+                RegexOptions.CultureInvariant))
+        {
+            origin = ProductConfigurationEvidenceOrigin.AnonymousInteraction;
+            role = ProductConfigurationEvidenceRole.Snapshot;
+            return true;
+        }
+
+        origin = default;
+        role = default;
+        return false;
+    }
+
+    private static void ValidateAnonymousInteractionEvidence(
+        ProductAnonymousInteractionEvidence evidence)
+    {
+        if (evidence.SchemaVersion !=
+                ProductAnonymousInteractionEvidence.CurrentSchemaVersion
+            || !evidence.Anonymous
+            || evidence.RealFileOperationsAllowed
+            || !Enum.IsDefined(evidence.HostStatus)
+            || evidence.LifecycleGeneration < 0
+            || evidence.WorkspaceRevision < 0
+            || evidence.TopologyGeneration < 0
+            || evidence.SelectionRevision < 0
+            || evidence.SelectedItemCount < 0
+            || evidence.SelectedItemCount >
+                ProductAnonymousInteractionEvidence.MaximumSelectedItemCount
+            || (evidence.SelectedItemCount > 0
+                && !evidence.ExplicitInteractionActive)
+            || (evidence.FocusedItemAvailable
+                && !evidence.ExplicitInteractionActive))
+        {
+            throw new ProductConfigurationExportException(
+                ProductConfigurationExportError.AnonymousEvidenceInvalid);
+        }
+    }
 
     private static async Task<byte[]> ComputeFileHashAsync(
         string path,

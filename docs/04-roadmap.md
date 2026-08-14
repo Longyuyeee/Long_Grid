@@ -286,3 +286,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-14 M3b 匿名桌面交互观察链：唯一 selection transaction 派生 Explicit、选中数量、焦点存在性和选择修订，并通过既有 lifecycle 快照进入正式 App 状态卡；进入、选择、Escape、系统失效与投影释放同步收敛。摘要不含容器/项目 ID、名称、路径或内容，不能提交配置或文件操作；M3 下一步为保存/重试/恢复组合旅程，详见 [Stage 137](137-anonymous-desktop-interaction-observation-audit.md)。
 
 2026-08-14 M3c 保存/恢复组合旅程：配置恢复或导入加载新权威基线时，正式 App 只对已失败保存执行外部基线替换，原子清除工作流捕获的旧文档与 UI 重试能力，避免旧重试覆盖恢复结果；其余保存状态不被打断。目录失败/取消继续通过 `AwaitingCatalog` 生成空投影、释放 DesktopHost Surface，权威目录恢复后按既有单调修订链重建。没有新增桌面文件读写、移动或身份采集；下一阶段为 M3d 匿名证据导出与确认清理，详见 [Stage 138](138-save-recovery-desktop-host-journey-audit.md)。
+
+2026-08-14 M3d 按需匿名交互证据：用户经默认取消的确认对话框批准后，正式 App 才从当前 lifecycle 快照生成一条 11 字段白名单 JSON；快照固定声明匿名与零文件操作，不含项目身份、名称、路径、内容、坐标或输入明细，也不持续采样。文件复用配置证据库的有限清单、重解析点拒绝、逐条导出、变更复核、写租约和单条确认清理。M3 工程链至此闭合，外部人工证据仍 Pending；下一阶段为 500 项规模、故障恢复与资源长稳预检，详见 [Stage 139](139-anonymous-interaction-evidence-audit.md)。

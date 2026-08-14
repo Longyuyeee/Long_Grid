@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using LongGrid.Core.Configuration;
 using LongGrid.Infrastructure.Configuration;
 
@@ -6,6 +7,21 @@ namespace LongGrid.Core.Tests.Configuration;
 
 public sealed class ProductConfigurationExportTests
 {
+    private static readonly string[] AnonymousInteractionEvidencePropertyNames =
+    [
+        "anonymous",
+        "explicitInteractionActive",
+        "focusedItemAvailable",
+        "hostStatus",
+        "lifecycleGeneration",
+        "realFileOperationsAllowed",
+        "schemaVersion",
+        "selectedItemCount",
+        "selectionRevision",
+        "topologyGeneration",
+        "workspaceRevision",
+    ];
+
     [Fact]
     public async Task MissingStoreCannotPrepareExportAndCreatesNothing()
     {
@@ -285,6 +301,177 @@ public sealed class ProductConfigurationExportTests
         Assert.NotNull(inventory.OldestObservedArchivedUtc);
         Assert.DoesNotContain("0123456789abcdef", inventory.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain(directory.Path, inventory.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ConfirmedAnonymousInteractionCaptureUsesExistingEvidenceInventory()
+    {
+        using TemporaryDirectory directory = new(create: false);
+        ProductConfigurationStore store = new(directory.Path);
+        var evidence = new ProductAnonymousInteractionEvidence(
+            ProductAnonymousInteractionHostStatus.ReadyReadOnly,
+            LifecycleGeneration: 12,
+            WorkspaceRevision: 7,
+            TopologyGeneration: 4,
+            ExplicitInteractionActive: true,
+            SelectedItemCount: 2,
+            FocusedItemAvailable: true,
+            SelectionRevision: 9);
+
+        ProductAnonymousInteractionEvidenceCaptureResult captured =
+            await store.CaptureAnonymousInteractionEvidenceAsync(
+                evidence,
+                userConfirmed: true);
+        ProductConfigurationEvidenceItem item = Assert.Single(
+            (await store.GetEvidenceInventoryAsync()).Items);
+        string path = Assert.Single(
+            Directory.GetFiles(directory.Path, "interaction-evidence.*.snapshot.json"));
+        string payload = await File.ReadAllTextAsync(path);
+        using JsonDocument parsed = JsonDocument.Parse(payload);
+        string[] propertyNames = parsed.RootElement.EnumerateObject()
+            .Select(property => property.Name)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(ProductConfigurationEvidenceOrigin.AnonymousInteraction, item.Origin);
+        Assert.Equal(ProductConfigurationEvidenceRole.Snapshot, item.Role);
+        Assert.Equal(captured.SizeBytes, item.SizeBytes);
+        Assert.Contains("\"schemaVersion\": 1", payload, StringComparison.Ordinal);
+        Assert.Contains("\"hostStatus\": \"ReadyReadOnly\"", payload, StringComparison.Ordinal);
+        Assert.Contains("\"selectedItemCount\": 2", payload, StringComparison.Ordinal);
+        Assert.Contains("\"anonymous\": true", payload, StringComparison.Ordinal);
+        Assert.Contains(
+            "\"realFileOperationsAllowed\": false",
+            payload,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("container", payload, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("itemId", payload, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("path", payload, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("name", payload, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(directory.Path, item.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(
+            AnonymousInteractionEvidencePropertyNames,
+            propertyNames);
+    }
+
+    [Fact]
+    public async Task AnonymousInteractionCaptureRequiresConfirmationAndConsistentState()
+    {
+        using TemporaryDirectory directory = new(create: false);
+        ProductConfigurationStore store = new(directory.Path);
+        var valid = new ProductAnonymousInteractionEvidence(
+            ProductAnonymousInteractionHostStatus.AwaitingWorkspace,
+            1,
+            0,
+            1,
+            false,
+            0,
+            false,
+            0);
+        ProductConfigurationExportException unconfirmed =
+            await Assert.ThrowsAsync<ProductConfigurationExportException>(() =>
+                store.CaptureAnonymousInteractionEvidenceAsync(valid, false));
+        var inconsistent = valid with
+        {
+            SelectedItemCount = 1,
+            ExplicitInteractionActive = false,
+        };
+        var nonAnonymous = valid with { Anonymous = false };
+
+        ProductConfigurationExportException inconsistentException =
+            await Assert.ThrowsAsync<ProductConfigurationExportException>(() =>
+            store.CaptureAnonymousInteractionEvidenceAsync(
+                inconsistent,
+                true));
+        ProductConfigurationExportException nonAnonymousException =
+            await Assert.ThrowsAsync<ProductConfigurationExportException>(() =>
+            store.CaptureAnonymousInteractionEvidenceAsync(
+                nonAnonymous,
+                true));
+        Assert.Equal(
+            ProductConfigurationExportError.ConfirmationRequired,
+            unconfirmed.Error);
+        Assert.Equal(
+            ProductConfigurationExportError.AnonymousEvidenceInvalid,
+            inconsistentException.Error);
+        Assert.Equal(
+            ProductConfigurationExportError.AnonymousEvidenceInvalid,
+            nonAnonymousException.Error);
+        Assert.False(Directory.Exists(directory.Path));
+    }
+
+    [Fact]
+    public async Task AnonymousInteractionCaptureHonorsBoundedWriteLease()
+    {
+        using TemporaryDirectory directory = new();
+        ProductConfigurationStore store = new(
+            directory.Path,
+            writeLeaseTimeout: TimeSpan.FromMilliseconds(40),
+            writeLeaseRetryDelay: TimeSpan.FromMilliseconds(5));
+        await using FileStream lease = new(
+            store.WriteLeasePath,
+            FileMode.OpenOrCreate,
+            FileAccess.ReadWrite,
+            FileShare.None);
+
+        ProductConfigurationExportException exception =
+            await Assert.ThrowsAsync<ProductConfigurationExportException>(() =>
+                store.CaptureAnonymousInteractionEvidenceAsync(
+                    new(
+                        ProductAnonymousInteractionHostStatus.Disabled,
+                        0,
+                        0,
+                        0,
+                        false,
+                        0,
+                        false,
+                        0),
+                    true));
+
+        Assert.Equal(
+            ProductConfigurationExportError.WriteLeaseUnavailable,
+            exception.Error);
+        Assert.Empty(
+            Directory.GetFiles(directory.Path, "interaction-evidence.*"));
+    }
+
+    [Fact]
+    public async Task AnonymousInteractionEvidenceExportsJsonAndSupportsSingleRemoval()
+    {
+        using TemporaryDirectory storeDirectory = new(create: false);
+        using TemporaryDirectory destination = new();
+        ProductConfigurationStore store = new(storeDirectory.Path);
+        await store.CaptureAnonymousInteractionEvidenceAsync(
+            new(
+                ProductAnonymousInteractionHostStatus.Disabled,
+                0,
+                0,
+                0,
+                false,
+                0,
+                false,
+                0),
+            true);
+        ProductConfigurationEvidenceItem item = Assert.Single(
+            (await store.GetEvidenceInventoryAsync()).Items);
+
+        ProductConfigurationExportResult exported = await store.ExportEvidenceAsync(
+            item,
+            destination.Path,
+            LocalDestination(),
+            true);
+        ProductConfigurationEvidenceRemovalResult removed =
+            await store.RemoveEvidenceAsync(item, true);
+
+        Assert.Contains(
+            "LongGrid-Interaction-Evidence-Snapshot-",
+            exported.FileName,
+            StringComparison.Ordinal);
+        Assert.EndsWith(".json", exported.FileName, StringComparison.OrdinalIgnoreCase);
+        Assert.True(File.Exists(Path.Combine(destination.Path, exported.FileName)));
+        Assert.Equal(ProductConfigurationEvidenceOrigin.AnonymousInteraction, removed.Origin);
+        Assert.Equal(ProductConfigurationEvidenceRole.Snapshot, removed.Role);
+        Assert.Empty((await store.GetEvidenceInventoryAsync()).Items);
     }
 
     [Fact]

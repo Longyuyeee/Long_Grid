@@ -48,6 +48,8 @@ public sealed partial class MainWindow : Window
         Task<ProductConfigurationExportResult?>> _exportConfiguration;
     private readonly Func<Task<ProductConfigurationEvidenceInventory>>
         _loadConfigurationEvidence;
+    private readonly Func<Task<ProductAnonymousInteractionEvidenceCaptureResult>>
+        _captureAnonymousInteractionEvidence;
     private readonly Func<
         ProductConfigurationEvidenceItem,
         Task<ProductConfigurationExportResult?>> _exportConfigurationEvidence;
@@ -162,6 +164,8 @@ public sealed partial class MainWindow : Window
             ProductConfigurationExportPlan,
             Task<ProductConfigurationExportResult?>> exportConfiguration,
         Func<Task<ProductConfigurationEvidenceInventory>> loadConfigurationEvidence,
+        Func<Task<ProductAnonymousInteractionEvidenceCaptureResult>>
+            captureAnonymousInteractionEvidence,
         Func<
             ProductConfigurationEvidenceItem,
             Task<ProductConfigurationExportResult?>> exportConfigurationEvidence,
@@ -242,6 +246,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(prepareConfigurationExport);
         ArgumentNullException.ThrowIfNull(exportConfiguration);
         ArgumentNullException.ThrowIfNull(loadConfigurationEvidence);
+        ArgumentNullException.ThrowIfNull(captureAnonymousInteractionEvidence);
         ArgumentNullException.ThrowIfNull(exportConfigurationEvidence);
         ArgumentNullException.ThrowIfNull(removeConfigurationEvidence);
         ArgumentNullException.ThrowIfNull(retryProductWorkspaceSave);
@@ -268,6 +273,7 @@ public sealed partial class MainWindow : Window
         _prepareConfigurationExport = prepareConfigurationExport;
         _exportConfiguration = exportConfiguration;
         _loadConfigurationEvidence = loadConfigurationEvidence;
+        _captureAnonymousInteractionEvidence = captureAnonymousInteractionEvidence;
         _exportConfigurationEvidence = exportConfigurationEvidence;
         _removeConfigurationEvidence = removeConfigurationEvidence;
         _retryProductWorkspaceSave = retryProductWorkspaceSave;
@@ -3437,6 +3443,60 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async void CaptureAnonymousInteractionEvidenceButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ContentDialog confirmation = new()
+        {
+            XamlRoot = RootLayout.XamlRoot,
+            Title = "保存当前匿名交互快照？",
+            Content =
+                "快照只包含有限 Host 状态、生命周期/工作区/拓扑/选择修订、是否处于显式交互、选中数量和焦点存在性。" +
+                "它固定声明 Anonymous=true、RealFileOperationsAllowed=false，不包含方格或项目 ID、名称、路径、内容及输入明细。" +
+                "Long方格不会持续记录；确认后只在现有证据库新增这一条，可稍后单独导出或永久清理。",
+            PrimaryButtonText = "确认保存匿名快照",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        ContentDialogResult confirmationResult = await confirmation.ShowAsync();
+        if (confirmationResult is not ContentDialogResult.Primary)
+        {
+            SetEvidenceStatus(
+                "已取消保存，没有创建交互证据。",
+                "AnonymousEvidenceCaptureCancelled");
+            return;
+        }
+
+        CaptureAnonymousInteractionEvidenceButton.IsEnabled = false;
+        try
+        {
+            SetEvidenceStatus(
+                "正在冻结并验证当前匿名交互快照……",
+                "AnonymousEvidenceCaptureInProgress");
+            ProductAnonymousInteractionEvidenceCaptureResult capture =
+                await _captureAnonymousInteractionEvidence();
+            ProductConfigurationEvidenceInventory inventory =
+                await _loadConfigurationEvidence();
+            ApplyConfigurationEvidenceInventory(inventory);
+            SetEvidenceStatus(
+                $"已保存 1 条匿名交互快照（{FormatEvidenceSize(capture.SizeBytes)}）；" +
+                "未记录项目身份、路径、内容或输入明细。请选择该条目后导出或清理。",
+                "AnonymousEvidenceCaptureCommitted:Anonymous=True:" +
+                "RealFileOperationsAllowed=False:ContinuousLogging=False");
+        }
+        catch (ProductConfigurationExportException exception)
+        {
+            SetEvidenceStatus(
+                DescribeExportFailure(exception.Error),
+                $"AnonymousEvidenceCaptureFailed:{exception.Error}");
+        }
+        finally
+        {
+            CaptureAnonymousInteractionEvidenceButton.IsEnabled = true;
+        }
+    }
+
     private async void RefreshConfigurationEvidenceButton_Click(
         object sender,
         RoutedEventArgs e)
@@ -3447,34 +3507,7 @@ public sealed partial class MainWindow : Window
             SetEvidenceStatus("正在读取归档证据的有限元数据……", "EvidenceLoading");
             ProductConfigurationEvidenceInventory inventory =
                 await _loadConfigurationEvidence();
-            _configurationEvidenceInventory = inventory;
-            ConfigurationEvidenceList.ItemsSource = inventory.Items.Select(item =>
-                $"{DescribeEvidenceOrigin(item.Origin)} · {DescribeEvidenceRole(item.Role)} · " +
-                $"{FormatEvidenceSize(item.SizeBytes)} · {item.ArchivedUtc.ToLocalTime():yyyy-MM-dd HH:mm}")
-                .ToArray();
-            ConfigurationEvidenceList.SelectedIndex = -1;
-            ExportConfigurationEvidenceButton.IsEnabled = false;
-            RemoveConfigurationEvidenceButton.IsEnabled = false;
-            string suffix = inventory.Truncated
-                ? "；扫描已达到安全上限，数量与容量为至少值"
-                : string.Empty;
-            if (inventory.SkippedUnsafeCount > 0)
-            {
-                suffix += $"；已跳过 {inventory.SkippedUnsafeCount} 个重解析点";
-            }
-
-            string observed =
-                $"观察到 {inventory.ObservedItemCount} 条、合计 " +
-                $"{FormatEvidenceSize(inventory.ObservedSizeBytes)}";
-            if (inventory.OldestObservedArchivedUtc is DateTimeOffset oldest)
-            {
-                observed += $"，最早归档于 {oldest.ToLocalTime():yyyy-MM-dd HH:mm}";
-            }
-            SetEvidenceStatus(
-                inventory.ObservedItemCount == 0
-                    ? "没有发现由 Long方格生成的配置归档证据。"
-                    : $"{observed}；已列出 {inventory.Items.Count} 条匿名元数据{suffix}。",
-                inventory.Truncated ? "EvidenceLoaded:Truncated" : "EvidenceLoaded");
+            ApplyConfigurationEvidenceInventory(inventory);
         }
         catch (ProductConfigurationExportException exception)
         {
@@ -3490,6 +3523,40 @@ public sealed partial class MainWindow : Window
         {
             RefreshConfigurationEvidenceButton.IsEnabled = true;
         }
+    }
+
+    private void ApplyConfigurationEvidenceInventory(
+        ProductConfigurationEvidenceInventory inventory)
+    {
+        _configurationEvidenceInventory = inventory;
+        ConfigurationEvidenceList.ItemsSource = inventory.Items.Select(item =>
+            $"{DescribeEvidenceOrigin(item.Origin)} · {DescribeEvidenceRole(item.Role)} · " +
+            $"{FormatEvidenceSize(item.SizeBytes)} · {item.ArchivedUtc.ToLocalTime():yyyy-MM-dd HH:mm}")
+            .ToArray();
+        ConfigurationEvidenceList.SelectedIndex = -1;
+        ExportConfigurationEvidenceButton.IsEnabled = false;
+        RemoveConfigurationEvidenceButton.IsEnabled = false;
+        string suffix = inventory.Truncated
+            ? "；扫描已达到安全上限，数量与容量为至少值"
+            : string.Empty;
+        if (inventory.SkippedUnsafeCount > 0)
+        {
+            suffix += $"；已跳过 {inventory.SkippedUnsafeCount} 个重解析点";
+        }
+
+        string observed =
+            $"观察到 {inventory.ObservedItemCount} 条、合计 " +
+            $"{FormatEvidenceSize(inventory.ObservedSizeBytes)}";
+        if (inventory.OldestObservedArchivedUtc is DateTimeOffset oldest)
+        {
+            observed += $"，最早归档于 {oldest.ToLocalTime():yyyy-MM-dd HH:mm}";
+        }
+
+        SetEvidenceStatus(
+            inventory.ObservedItemCount == 0
+                ? "没有发现由 Long方格生成的证据。"
+                : $"{observed}；已列出 {inventory.Items.Count} 条匿名元数据{suffix}。",
+            inventory.Truncated ? "EvidenceLoaded:Truncated" : "EvidenceLoaded");
     }
 
     private void ConfigurationEvidenceList_SelectionChanged(
@@ -3532,7 +3599,7 @@ public sealed partial class MainWindow : Window
             ContentDialog confirmation = new()
             {
                 XamlRoot = RootLayout.XamlRoot,
-                Title = "永久清理这条配置证据？",
+                Title = "永久清理这条证据？",
                 Content =
                     $"所选条目为 {DescribeEvidenceOrigin(item.Origin)} / " +
                     $"{DescribeEvidenceRole(item.Role)}，大小 {FormatEvidenceSize(item.SizeBytes)}。" +
@@ -3603,12 +3670,12 @@ public sealed partial class MainWindow : Window
             ContentDialog confirmation = new()
             {
                 XamlRoot = RootLayout.XamlRoot,
-                Title = "导出这条原始配置证据？",
+                Title = "导出这条证据？",
                 Content =
                     $"所选条目为 {DescribeEvidenceOrigin(item.Origin)} / " +
                     $"{DescribeEvidenceRole(item.Role)}，大小 {FormatEvidenceSize(item.SizeBytes)}。" +
-                    "原始证据可能损坏，也可能包含保存过的文件路径、名称或其他私人配置。" +
-                    "确认后才会请求选择本地文件夹；Long方格会创建独立 .bin 副本，原证据不会删除或修改。",
+                    DescribeEvidenceSensitivity(item.Origin) +
+                    "确认后才会请求选择本地文件夹；Long方格会创建独立副本，原证据不会删除或修改。",
                 PrimaryButtonText = "确认并选择文件夹",
                 CloseButtonText = "取消",
                 DefaultButton = ContentDialogButton.Close,
@@ -3690,6 +3757,8 @@ public sealed partial class MainWindow : Window
                 "所选证据超过 64 MiB 单次导出上限，没有写入目标文件。",
             ProductConfigurationExportError.EvidenceVerificationFailed =>
                 "证据副本未通过逐字节完整性验证，没有发布目标文件。",
+            ProductConfigurationExportError.AnonymousEvidenceInvalid =>
+                "当前交互摘要未通过匿名白名单校验，没有创建证据。",
             ProductConfigurationExportError.WriteLeaseUnavailable =>
                 "配置存储正被另一项操作使用；没有清理证据，请稍后重试。",
             ProductConfigurationExportError.DestinationUnavailable =>
@@ -3704,6 +3773,8 @@ public sealed partial class MainWindow : Window
         {
             ProductConfigurationEvidenceOrigin.DamagedRecovery => "恢复归档",
             ProductConfigurationEvidenceOrigin.ImportPrevious => "导入前归档",
+            ProductConfigurationEvidenceOrigin.AnonymousInteraction =>
+                "匿名交互快照",
             _ => "配置归档",
         };
 
@@ -3712,8 +3783,15 @@ public sealed partial class MainWindow : Window
         {
             ProductConfigurationEvidenceRole.Primary => "主配置",
             ProductConfigurationEvidenceRole.Backup => "备份",
+            ProductConfigurationEvidenceRole.Snapshot => "只读快照",
             _ => "未知角色",
         };
+
+    private static string DescribeEvidenceSensitivity(
+        ProductConfigurationEvidenceOrigin origin) => origin ==
+            ProductConfigurationEvidenceOrigin.AnonymousInteraction
+                ? "该快照只含有限状态、计数和修订，固定为匿名且不含项目身份、路径或内容。"
+                : "原始配置证据可能损坏，也可能包含保存过的文件路径、名称或其他私人配置。";
 
     private static string FormatEvidenceSize(long sizeBytes) => sizeBytes < 1024
         ? $"{sizeBytes} B"
