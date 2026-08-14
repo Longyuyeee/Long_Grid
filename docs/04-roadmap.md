@@ -278,3 +278,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-14 E2a/M2 原子消费补充：Prepared Intent 现在只能在桥锁内按候选、代次、序号、证据和时限原子消费一次，再进入既有 admission / Explicit / selection 事务；每次准备、转发和消费都重新复读 Passive，Explicit 期间不能准备第二个 Intent。投影增加每容器局部匿名 `item:N` 身份，系统事件、投影释放和关闭统一取消。App 尚未接入正式 HWND 输入源且文件操作恒关闭，因此 E2/M2 未完成；下一切片固定为 E2b pointer/keyboard/UIA 来源。
 
 2026-08-14 E2b 输入源设计补充：M1 Passive 整窗穿透无法可靠收到首次 pointer/keyboard，因此不得直接添加不可达消息处理冒充接线。正式方案采用每显示器一个、仅覆盖有限方格激活按钮 Region 的产品自有 ToolWindow；初始 pointer/Enter/Space/UIA Invoke 统一进入 E2a，Explicit 后主 surface pointer/UIA 与来源键盘代理统一调用现有 selection transaction。禁止全局 Hook、Raw Input、SendInput、Explorer 嵌入和文件操作；实现按 E2b1 来源闭环、E2b2 选择/UIA 闭环推进。
+
+2026-08-14 E2/M2 工程收口：E2b1 产品自有有限 activation HWND 与 E2b2 主 surface pointer、有限键盘代理、UIA SelectionItem/Invoke 已统一进入既有 selection transaction；选中、焦点、锚点、修订和 UIA 事件同源，Escape/系统事件/投影释放恢复安全态。PR #186/#187 与合并后 main CI 通过，E2/M2 判定 Engineering Pass；物理输入、Narrator、高对比、文本缩放和动态系统表面仍 Pending，下一阶段固定为 M3 集成差距审计。

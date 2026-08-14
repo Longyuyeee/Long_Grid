@@ -4,7 +4,7 @@
 
 审计基线：`main@272dad6288c5d92d1f76e6f810afe45609c5cb9a`（PR #184；main CI 31727572596 成功）
 
-> Stage 134 已完成 E2b1 正式产品激活源工程切片；本文关于“E2b1 未实现”的描述保留为当时基线，当前状态与下一步以 Stage 134 为准。
+> Stage 135 已完成 E2b2 并在 PR/main CI 后裁决 E2/M2 Engineering Pass；本文关于“E2b1/E2b2 未实现”的描述保留为当时基线，当前状态与 M3 下一步以 Stage 135 为准。
 
 ## 1. 总体结论
 
