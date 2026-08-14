@@ -425,6 +425,7 @@ E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输�
 - **实现摘要**：配置恢复/导入成功加载新基线时，仅在保存控制器处于有限失败态时同步清除工作流捕获文档和 UI 重试能力；Clean/Waiting/Saving/Saved 不被该入口打断。目录不可用继续令含引用会话进入 `AwaitingCatalog`、投影进入空工作区并释放 Surface，后续权威目录快照按既有修订链恢复；
 - **本地专项**：Release 0 warning/0 error；保存、会话加载与 DesktopHost lifecycle 组合专项 86/86；完整测试 914/915，唯一失败为 Stage 137 已记录的本机 Windows 前台许可安全拒绝；line 90.64%、branch 79.41%，其余本地门禁通过，远端复验见 [Stage 138](138-save-recovery-desktop-host-journey-audit.md)；
 - **安全边界**：重置入口只清除内存重试快照和有限状态，不读取/移动桌面文件，不记录配置内容、项目身份或路径；
+- **PR CI / main CI**：PR #193 run `31779220650` 与 main run `31780154798` 均为 916/916，line 90.25%/90.26%、branch 79.09%/79.11%，全部 34 步成功；squash 合并 `main@109521212672c0de50b8dad79a530a8b79afdbe4`；
 - **结论**：M3c Engineering Pass / Manual Evidence Pending；M3 与 M4-ready 状态不因本切片单独改变；
 - **下一步**：M3d 最小匿名交互证据导出与确认清理，复用既有证据库并保持零项目身份。详见 [Stage 138](138-save-recovery-desktop-host-journey-audit.md)。
 
