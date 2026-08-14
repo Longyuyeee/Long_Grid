@@ -57,6 +57,7 @@ M4c2b2 因此只关闭以下缺口：
 - 新生命周期单测覆盖关闭策略不创建 runtime、证明完整时 `1/1`、证明失败时 fail closed、运行中退出转移和 dispose 后 `0/0`；
 - 匿名 named-pipe 测试改为要求正式 worker `true/1/1`，继续验证 schema/sequence、未知请求拒绝和敏感内容缺失；
 - 既有 worker matrix 新增 `FormalProductRuntimeReused=true` 硬门，500 请求、故障恢复、父退出、AppContainer、Profile/ACL、共享内存与预算全部继续执行；
+- worker 中迁入的 Windows 原生隔离路径不计入 XPlat 单元覆盖率汇总，避免把原 probe 代码改变所属程序集后虚假拉低 Core/Infrastructure 门；覆盖阈值不降低，且 CI 必须继续通过上述真实 500 请求产品程序集矩阵；
 - 本地复验：生命周期/遥测专项 11/11、Core 全量 935/935；产品 worker、Infrastructure 与 probe Release build 均为 0 warning / 0 error；真实隔离矩阵 500/500、`FormalProductRuntimeReused=true`、`ConditionalPass`；M4c2b2 `ValidateOnly` 通过；远端正式 App/交付门待本切片收尾复验。
 - 本机正式 App Release build 仍被既有 NuGet 缓存不一致阻断：Windows App SDK 要求 `Microsoft.Windows.SDK.NET.Ref 10.0.19041.38`，本机解析到 `.34`；本次改动文件格式验证通过，全仓格式门只命中 3 个未触碰的既有文件。两项均不冒充通过，正式 App 与全量交付集以干净 Windows runner 为权威门禁。
 
