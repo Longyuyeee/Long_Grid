@@ -185,6 +185,16 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
     bool ApplyPassive();
 
     bool ApplyHidden();
+
+    void BindSelection(
+        Func<ProductDesktopInteractionSurfaceTransactionSnapshot?> snapshot,
+        Func<string, ProductDesktopSelectionRequest, bool> apply)
+    {
+    }
+
+    void RefreshSelection()
+    {
+    }
 }
 
 internal interface IProductDesktopHostReadOnlySurfaceFactory
@@ -820,6 +830,13 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                         NextInstanceMarker(),
                         startHidden: controlledSurfaceLifecycle);
                 surfaces.Add(created);
+                created.BindSelection(
+                    CaptureInteractionTransaction,
+                    (containerId, request) => ApplySelectionFromSurface(
+                        created,
+                        display,
+                        containerId,
+                        request));
                 if (!created.ReadOnlyAccessibilityAttested
                     || (controlledSurfaceLifecycle
                         ? !created.HiddenWindowContractAttested
@@ -918,6 +935,13 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                                 NextInstanceMarker(),
                                 HandleActivationInput);
                         activationSources.Add(source);
+                        source.BindSelection(
+                            CaptureInteractionTransaction,
+                            request => ApplySelectionFromActivationSource(
+                                source,
+                                display,
+                                request),
+                            () => CancelInteractionFromActivationSource(source));
                         if (!source.IsVisible || !source.ContractAttested)
                         {
                             ReleaseSurfaceUnsafe();
@@ -1001,10 +1025,128 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     {
         ProductDesktopInteractionInputForwardingResult forwarded =
             ForwardInteractionInput(input, DateTimeOffset.UtcNow);
-        return forwarded.IsPrepared
+        bool entered = forwarded.IsPrepared
             && ConsumePreparedInteractionIntent(
                 forwarded.PreparedIntent!,
                 DateTimeOffset.UtcNow).IsExplicit;
+        if (entered)
+        {
+            lock (gate)
+            {
+                foreach (IProductDesktopHostReadOnlySurface surface in surfaces)
+                {
+                    surface.RefreshSelection();
+                }
+            }
+        }
+        return entered;
+    }
+
+    private ProductDesktopInteractionSurfaceTransactionSnapshot?
+        CaptureInteractionTransaction()
+    {
+        lock (gate)
+        {
+            return disposed ? null : intentConsumption?.Snapshot.Transaction;
+        }
+    }
+
+    private bool ApplySelectionFromSurface(
+        IProductDesktopHostReadOnlySurface source,
+        ProductDesktopHostDisplayProjection display,
+        string containerId,
+        ProductDesktopSelectionRequest request)
+    {
+        lock (gate)
+        {
+            string? targetId = intentConsumption?.Snapshot.Transaction
+                ?.Selection?.ContainerId;
+            if (disposed
+                || !surfaces.Contains(source)
+                || !string.Equals(targetId, containerId,
+                    StringComparison.Ordinal)
+                || !display.Containers.Any(container => string.Equals(
+                    container.ContainerId,
+                    containerId,
+                    StringComparison.Ordinal)))
+            {
+                return false;
+            }
+
+            return ApplySelectionAndRefreshUnsafe(request);
+        }
+    }
+
+    private bool ApplySelectionFromActivationSource(
+        IProductDesktopInteractionActivationSource source,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopSelectionRequest request)
+    {
+        lock (gate)
+        {
+            ProductDesktopInteractionSurfaceTransactionSnapshot? transaction =
+                intentConsumption?.Snapshot.Transaction;
+            string? targetId = transaction?.Selection?.ContainerId;
+            if (disposed
+                || !activationSources.Contains(source)
+                || !string.Equals(source.DisplayId, display.DisplayId,
+                    StringComparison.Ordinal)
+                || !display.Containers.Any(container => string.Equals(
+                    container.ContainerId,
+                    targetId,
+                    StringComparison.Ordinal)))
+            {
+                return false;
+            }
+
+            return ApplySelectionAndRefreshUnsafe(request);
+        }
+    }
+
+    private bool ApplySelectionAndRefreshUnsafe(
+        ProductDesktopSelectionRequest request)
+    {
+        ProductDesktopInteractionIntentConsumptionResult result =
+            ApplyInteractionSelection(request, DateTimeOffset.UtcNow);
+        foreach (IProductDesktopHostReadOnlySurface surface in surfaces)
+        {
+            surface.RefreshSelection();
+        }
+
+        return result.IsExplicit
+            && result.Snapshot.Transaction?.Selection?.Status
+                == ProductDesktopSelectionStatus.Applied;
+    }
+
+    private bool CancelInteractionFromActivationSource(
+        IProductDesktopInteractionActivationSource source)
+    {
+        lock (gate)
+        {
+            if (disposed || !activationSources.Contains(source)
+                || intentConsumption is null)
+            {
+                return false;
+            }
+
+            ProductDesktopInteractionIntentConsumptionResult cancelled =
+                intentConsumption.Cancel(
+                    ProductDesktopInteractionCancellationSignal.EscapePressed,
+                    DateTimeOffset.UtcNow);
+            bool hidden = TryApplyActivationSourcesUnsafe(visible: false);
+            bool visible = hidden
+                && TryApplyActivationSourcesUnsafe(visible: true);
+            if (!visible)
+            {
+                _ = TryApplyActivationSourcesUnsafe(visible: false);
+            }
+            foreach (IProductDesktopHostReadOnlySurface surface in surfaces)
+            {
+                surface.RefreshSelection();
+            }
+
+            return visible && !cancelled.IsExplicit;
+        }
     }
 
     private void InvalidatePreparedInputUnsafe()
@@ -1039,21 +1181,27 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
 
     private bool TryApplyActivationSourcesUnsafe(bool visible)
     {
-        try
+        bool succeeded = true;
+        foreach (IProductDesktopInteractionActivationSource source
+            in activationSources)
         {
-            return activationSources.All(source => visible
-                ? source.ApplyVisible()
-                : source.ApplyHidden());
+            try
+            {
+                succeeded &= visible
+                    ? source.ApplyVisible()
+                    : source.ApplyHidden();
+            }
+            catch (Exception exception) when (
+                exception is Win32Exception
+                    or ArgumentException
+                    or InvalidOperationException
+                    or PlatformNotSupportedException
+                    or OverflowException)
+            {
+                succeeded = false;
+            }
         }
-        catch (Exception exception) when (
-            exception is Win32Exception
-                or ArgumentException
-                or InvalidOperationException
-                or PlatformNotSupportedException
-                or OverflowException)
-        {
-            return false;
-        }
+        return succeeded;
     }
 
     private bool TryCreatePassiveInteractionEvidenceUnsafe(

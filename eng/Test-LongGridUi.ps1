@@ -1237,11 +1237,17 @@ function Test-SourceContract {
         $windowsDesktopHostUiaProviderCode -match `
             'ExplicitSelectionAvailable[\s\S]*SelectionPatternIdentifiers\.Pattern\.Id' -and
         $windowsDesktopHostUiaProviderCode -match `
-            'GetSelection\(\) => \[\]' -and
+            'GetSelection\(\)' -and
+        $windowsDesktopHostUiaProviderCode -match `
+            'ISelectionItemProvider' -and
+        $windowsDesktopHostUiaProviderCode -match 'IInvokeProvider' -and
+        $windowsDesktopHostUiaProviderCode -match `
+            'ProductDesktopInteractionSelectionAccessibilityAdapter' -and
+        $windowsDesktopHostUiaProviderCode -match 'IsInteractiveItem' -and
         -not ($windowsDesktopHostUiaProviderCode -match `
-            'ProductDesktopInteractionSelectionController|ProductDesktopInteractionSelectionAccessibilityAdapter|ISelectionItemProvider')
+            'ProductDesktopInteractionSelectionController')
     ) `
-        'B3/M1 selection must be bounded, lease and generation bound, expose stable Ctrl/Shift anchor semantics, keep Passive UIA nonfocusable and pattern-free, and expose only an empty lease-gated root Selection provider until App consumption is connected.'
+        'B3/M2 selection must remain lease and generation bound, keep Passive UIA nonfocusable and pattern-free, and expose Explicit SelectionItem/Invoke through the shared accessibility snapshot without a second selection controller.'
     Assert-Condition (
         $desktopInteractionSurfaceModeCode -match `
             'IProductDesktopInteractionSurfaceModeAdapter' -and
@@ -1761,10 +1767,12 @@ function Test-SourceContract {
         $windowsDesktopHostUiaProviderCode -match 'IsKeyboardFocusableProperty' -and
         $windowsDesktopHostUiaProviderCode -match `
             'ExplicitSelectionAvailable[\s\S]*SelectionPatternIdentifiers\.Pattern\.Id' -and
-        -not ($windowsDesktopHostUiaProviderCode -match `
-            'ISelectionItemProvider|IInvokeProvider')
+        $windowsDesktopHostUiaProviderCode -match `
+            'ISelectionItemProvider' -and
+        $windowsDesktopHostUiaProviderCode -match 'IInvokeProvider' -and
+        $windowsDesktopHostUiaProviderCode -match 'IsInteractiveItem'
     ) `
-        'The A5/M1 product surface must expose bounded UIA Fragments, keep Passive pattern-free, gate the empty root Selection provider to Explicit, and attest non-topmost behavior.'
+        'The A5/M2 product surface must expose bounded UIA Fragments, keep Passive item patterns unavailable, gate root/item selection to Explicit, and attest non-topmost behavior.'
     Assert-Condition (
         ([regex]::Matches(
             $appCode,
@@ -2784,7 +2792,7 @@ function Test-SourceContract {
         productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'
-                    productDesktopActivation = 'finite-region-pointer-app-keyboard-uia-invoke-no-file-operations'
+                    productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-invoke-no-file-operations'
                     readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'
     }
 }

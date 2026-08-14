@@ -349,6 +349,84 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         Assert.Throws<ElementNotEnabledException>(first.Invoke);
     }
 
+    [Fact]
+    public void ExplicitItemProviderUsesSharedSelectionSnapshotAndPatterns()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        ProductDesktopHostReadOnlyProjection container = CreateContainer(
+            "container-1", "Work", ["Plan.docx"], false, 24, 36);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(100, 200, 1920, 1040), 96, [container]);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(display, new nint(910));
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var lease = new ProductDesktopInteractionLease(
+            Guid.NewGuid(), "container-1", 7, 9, 11, now.AddSeconds(5));
+        ProductDesktopInteractionSelectionController selection =
+            ProductDesktopInteractionSelectionController.TryCreate(
+                lease, container.ItemIds, now).Controller!;
+        ProductDesktopInteractionSurfaceTransactionSnapshot current =
+            Transaction(selection.Snapshot);
+        var provider = new WindowsProductDesktopHostUiaRootProvider(
+            surface.Handle, display, new nint(911), () => true, () => current,
+            (_, request) =>
+            {
+                ProductDesktopSelectionSnapshot updated = selection.Apply(
+                    lease, container.ItemIds, request, now);
+                current = Transaction(updated);
+                return updated.Status == ProductDesktopSelectionStatus.Applied;
+            });
+        WindowsProductDesktopHostUiaItemProvider item =
+            Assert.Single(Assert.Single(provider.Containers).Items);
+
+        Assert.Same(item, item.GetPatternProvider(
+            SelectionItemPatternIdentifiers.Pattern.Id));
+        Assert.Same(item, item.GetPatternProvider(
+            InvokePatternIdentifiers.Pattern.Id));
+        Assert.False(item.IsSelected);
+        item.Invoke();
+        provider.PublishSelectionChanges();
+
+        Assert.True(item.IsSelected);
+        Assert.Same(item, provider.GetFocus());
+        Assert.Same(item, Assert.Single(provider.GetSelection()));
+        Assert.Equal(ControlType.ListItem.Id, item.GetPropertyValue(
+            AutomationElementIdentifiers.ControlTypeProperty.Id));
+        item.RemoveFromSelection();
+        provider.PublishSelectionChanges();
+        Assert.False(item.IsSelected);
+        item.AddToSelection();
+        provider.PublishSelectionChanges();
+        Assert.True(item.IsSelected);
+
+        ProductDesktopInteractionSurfaceTransactionSnapshot Transaction(
+            ProductDesktopSelectionSnapshot selected) => new(
+                ProductDesktopInteractionSurfaceTransactionStatus.Explicit,
+                new(
+                    ProductDesktopInteractionMode.ExplicitInteraction,
+                    ProductDesktopInteractionAdmissionStatus.Admitted,
+                    ProductDesktopInteractionCancellationReason.None,
+                    lease),
+                new(
+                    ProductDesktopInteractionSurfaceMode.Explicit,
+                    11,
+                    Visible: true,
+                    HitTestTransparent: false,
+                    IsKeyboardFocusable: true,
+                    SelectionPatternAvailable: true,
+                    ToolWindow: true,
+                    NoActivate: true,
+                    Topmost: false,
+                    HasOwner: false,
+                    OwnsForeground: false),
+                selected,
+                ProductDesktopInteractionSelectionAccessibilityAdapter
+                    .CreateExplicit(selected),
+                selected.SelectionRevision + 1);
+    }
+
     private static ProductDesktopHostReadOnlyProjection CreateContainer(
         string id,
         string title,
