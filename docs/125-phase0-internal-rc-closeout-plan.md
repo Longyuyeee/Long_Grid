@@ -453,6 +453,16 @@ E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输�
 - **结论**：M4a Engineering Pass；不据此宣称真实设备性能、M4-ready 或 RC；
 - **下一步**：进入 M4b 故障恢复矩阵。详见 [Stage 141](141-product-500-item-scale-preflight-audit.md)。
 
+### M4b1：配置、目录、取消/重试与跨实例恢复（实现待远端复验）
+
+- **审计基线**：`main@7a60ab4e0d18f3fad876f82dd30d5ed50ad96726`；
+- **范围**：备份接管、安全模式重置、目录暂不可用后恢复、显式重试、取消后无含糊重试；前两项以新 store 实例验证跨实例恢复；
+- **自动化**：正式恢复预检、同入口测试和独立 CI 步骤；随机临时沙箱，不读真实桌面、不执行真实文件操作；
+- **本地结果**：5/5 场景通过，专项 1/1，目标工具 Release 0 warning / 0 error，沙箱已清理；
+- **远端证据**：PR CI、合并 commit 和 main CI Pending；
+- **结论**：本地 Engineering Pass / 远端证据 Pending；M4b、M4-ready 与 RC 状态不因本切片提前改变；
+- **下一步**：远端双重门禁关闭 M4b1 后进入 M4b2 Explorer、显示器与 DesktopHost 生命周期。详见 [Stage 142](142-product-recovery-preflight-audit.md)。
+
 ### C1：工程就绪复审（结果尚未执行）
 
 - **审计基线**：`main@508528b`；
