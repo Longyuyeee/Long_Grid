@@ -3,7 +3,7 @@
 - 审计日期：2026-08-15
 - 开发基线：`main@243c2f33401d24dfdf66322ecbfedb0660fb6a18`
 - 切片：M4c2b1
-- 当前判定：**Engineering Pass（本地）/ 远端证据 Pending / 正式 worker Pending**
+- 当前判定：**M4c2b1 Engineering Pass / 正式 worker Pending / 真实 24 小时证据 Pending**
 
 ## 1. 需求对齐与拆分
 
@@ -60,7 +60,13 @@ M4c2a 已冻结 24 小时资源预算，但正式 App 缺少匿名状态修订�
 
 本地复验结果：遥测定向测试 5/5、Core 全量 929/929、PowerShell 解析、`ValidateOnly`、定向 whitespace format 与 `git diff --check` 均通过。正式 App 本机构建仍被已记录的 Windows SDK 引用包缓存差异阻断（项目要求 `Microsoft.Windows.SDK.NET.Ref 10.0.19041.38`，本机离线缓存解析为 `.34`）；这不是本切片代码失败，App 编译与完整门禁必须由干净的 GitHub Windows runner 给出权威结果。
 
-## 6. 非目标与下一步
+## 6. 远端证据与判定
+
+- PR [#207](https://github.com/Longyuyeee/Long_Grid/pull/207) run `31822678611`：929/929，lines 90.85%（28320/31172），branches 77.97%（8758/11232）；格式、正式 App Build、匿名遥测合同、全部安全/worker 隔离与 unsigned RC 交付集门通过；
+- squash 合并：`main@5f4a5c20653af18715ed30fc6d5a4f77cd99840c`；合并后 main run `31823246761` 再次为 929/929、lines 90.85%、branches 77.97%，完整门禁通过；
+- 因此 M4c2b1 判定 Engineering Pass；这只关闭匿名 revision telemetry 缺口，不关闭 `FormalThumbnailWorkerNotIntegrated` 或 `Real24HourEvidenceNotCollected`，也不改变 M4c/M4-ready/RC 的 Pending 状态。
+
+## 7. 非目标与下一步
 
 - 本切片不读取文件内容、不启动 worker、不创建 Profile、不显示缩略图、不开放 Explicit 或文件操作；
 - 本切片不把同用户匿名遥测提升为诊断 API、远程接口、持续日志或公开产品功能；
