@@ -5,6 +5,76 @@ using LongGrid.Core.DesktopHost;
 
 namespace LongGrid.Infrastructure.DesktopHost;
 
+internal sealed record ProductDesktopPointerSelectionCommand(
+    string ContainerId,
+    ProductDesktopSelectionRequest Request);
+
+internal static class ProductDesktopPointerSelectionAdapter
+{
+    internal static ProductDesktopPointerSelectionCommand? Map(
+        ProductDesktopHostDisplayProjection projection,
+        ProductDesktopInteractionSurfaceTransactionSnapshot? transaction,
+        int x,
+        int y,
+        bool control,
+        bool shift)
+    {
+        ArgumentNullException.ThrowIfNull(projection);
+        if (transaction?.IsExplicit != true)
+        {
+            return null;
+        }
+
+        string? targetId = transaction.Selection?.ContainerId;
+        ProductDesktopHostReadOnlyProjection? container = projection.Containers
+            .SingleOrDefault(candidate => string.Equals(
+                candidate.ContainerId,
+                targetId,
+                StringComparison.Ordinal));
+        if (container is null || container.IsCollapsed)
+        {
+            return null;
+        }
+
+        PixelRect bounds = ProductDesktopHostSurfaceLayout.GetContainerBounds(
+            projection,
+            container);
+        double scale = projection.EffectiveDpi / 96d;
+        int headerHeight = ProductDesktopHostSurfaceLayout.ToPixels(
+            ProductDesktopHostSurfaceLayout.HeaderHeightDip,
+            scale);
+        int itemHeight = ProductDesktopHostSurfaceLayout.ToPixels(
+            ProductDesktopHostSurfaceLayout.ItemHeightDip,
+            scale);
+        int index = (y - bounds.Top - headerHeight) / itemHeight;
+        if (x < bounds.Left || x >= bounds.Right
+            || y < bounds.Top + headerHeight
+            || y >= bounds.Bottom
+            || index < 0
+            || index >= container.ItemIds.Count)
+        {
+            return null;
+        }
+
+        ProductDesktopSelectionModifiers modifiers =
+            ProductDesktopSelectionModifiers.None;
+        if (control)
+        {
+            modifiers |= ProductDesktopSelectionModifiers.Control;
+        }
+        if (shift)
+        {
+            modifiers |= ProductDesktopSelectionModifiers.Shift;
+        }
+        return new(
+            container.ContainerId,
+            new(
+                ProductDesktopSelectionAction.SelectItem,
+                modifiers,
+                container.ItemIds[index]));
+    }
+}
+
 internal sealed class WindowsProductDesktopHostReadOnlySurfaceFactory
     : IProductDesktopHostReadOnlySurfaceFactory
 {
@@ -296,56 +366,18 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             return;
         }
 
-        int x = SignedLowWord(longParameter);
-        int y = SignedHighWord(longParameter);
-        ProductDesktopInteractionSurfaceTransactionSnapshot? transaction =
-            selectionSnapshot();
-        string? targetId = transaction?.Selection?.ContainerId;
-        foreach (ProductDesktopHostReadOnlyProjection container
-            in projection.Containers)
+        long flags = wordParameter.ToInt64();
+        ProductDesktopPointerSelectionCommand? command =
+            ProductDesktopPointerSelectionAdapter.Map(
+                projection,
+                selectionSnapshot(),
+                SignedLowWord(longParameter),
+                SignedHighWord(longParameter),
+                control: (flags & NativeMethods.MkControl) != 0,
+                shift: (flags & NativeMethods.MkShift) != 0);
+        if (command is not null)
         {
-            if (!string.Equals(container.ContainerId, targetId,
-                    StringComparison.Ordinal)
-                || container.IsCollapsed)
-            {
-                continue;
-            }
-
-            NativeRect bounds = GetContainerBounds(container);
-            double scale = projection.EffectiveDpi / 96d;
-            int headerHeight = ToPixels(
-                ProductDesktopHostSurfaceLayout.HeaderHeightDip,
-                scale);
-            int itemHeight = ToPixels(
-                ProductDesktopHostSurfaceLayout.ItemHeightDip,
-                scale);
-            int index = (y - bounds.Top - headerHeight) / itemHeight;
-            if (x < bounds.Left || x >= bounds.Right
-                || y < bounds.Top + headerHeight || y >= bounds.Bottom
-                || index < 0 || index >= container.ItemIds.Count)
-            {
-                continue;
-            }
-
-            ProductDesktopSelectionModifiers modifiers =
-                ProductDesktopSelectionModifiers.None;
-            long flags = wordParameter.ToInt64();
-            if ((flags & NativeMethods.MkControl) != 0)
-            {
-                modifiers |= ProductDesktopSelectionModifiers.Control;
-            }
-            if ((flags & NativeMethods.MkShift) != 0)
-            {
-                modifiers |= ProductDesktopSelectionModifiers.Shift;
-            }
-
-            _ = applySelection(
-                container.ContainerId,
-                new(
-                    ProductDesktopSelectionAction.SelectItem,
-                    modifiers,
-                    container.ItemIds[index]));
-            return;
+            _ = applySelection(command.ContainerId, command.Request);
         }
     }
 

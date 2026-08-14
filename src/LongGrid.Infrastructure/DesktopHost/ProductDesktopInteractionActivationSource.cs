@@ -9,6 +9,56 @@ using System.Windows.Automation.Provider;
 
 namespace LongGrid.Infrastructure.DesktopHost;
 
+internal sealed record ProductDesktopKeyboardSelectionDecision(
+    bool Cancel,
+    ProductDesktopSelectionRequest? Request);
+
+internal static class ProductDesktopKeyboardSelectionAdapter
+{
+    internal static ProductDesktopKeyboardSelectionDecision Map(
+        ProductDesktopSelectionSnapshot? selection,
+        int virtualKey,
+        bool control,
+        bool shift)
+    {
+        if (virtualKey == 0x1B)
+        {
+            return new(Cancel: true, Request: null);
+        }
+
+        ProductDesktopSelectionCommand? command = virtualKey switch
+        {
+            0x25 or 0x26 => ProductDesktopSelectionCommand.Previous,
+            0x27 or 0x28 => ProductDesktopSelectionCommand.Next,
+            0x24 => ProductDesktopSelectionCommand.First,
+            0x23 => ProductDesktopSelectionCommand.Last,
+            0x20 => ProductDesktopSelectionCommand.ActivateFocused,
+            _ => null,
+        };
+        if (selection is null || command is null)
+        {
+            return new(Cancel: false, Request: null);
+        }
+
+        ProductDesktopSelectionModifiers modifiers =
+            ProductDesktopSelectionModifiers.None;
+        if (control)
+        {
+            modifiers |= ProductDesktopSelectionModifiers.Control;
+        }
+        if (shift)
+        {
+            modifiers |= ProductDesktopSelectionModifiers.Shift;
+        }
+        return new(
+            Cancel: false,
+            ProductDesktopInteractionSelectionCommandAdapter.Map(
+                selection,
+                command.Value,
+                modifiers));
+    }
+}
+
 internal interface IProductDesktopInteractionActivationSource : IDisposable
 {
     nint Handle { get; }
@@ -501,49 +551,24 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             return;
         }
 
-        if (wordParameter.ToInt64() == NativeMethods.VkEscape)
+        bool control =
+            (NativeMethods.GetKeyState(NativeMethods.VkControl) & 0x8000) != 0;
+        bool shift =
+            (NativeMethods.GetKeyState(NativeMethods.VkShift) & 0x8000) != 0;
+        ProductDesktopKeyboardSelectionDecision decision =
+            ProductDesktopKeyboardSelectionAdapter.Map(
+                selectionSnapshot()?.Selection,
+                checked((int)wordParameter.ToInt64()),
+                control,
+                shift);
+        if (decision.Cancel)
         {
             _ = cancelSelection();
             return;
         }
-
-        ProductDesktopSelectionCommand? command = wordParameter.ToInt64() switch
+        if (decision.Request is not null)
         {
-            NativeMethods.VkLeft or NativeMethods.VkUp =>
-                ProductDesktopSelectionCommand.Previous,
-            NativeMethods.VkRight or NativeMethods.VkDown =>
-                ProductDesktopSelectionCommand.Next,
-            NativeMethods.VkHome => ProductDesktopSelectionCommand.First,
-            NativeMethods.VkEnd => ProductDesktopSelectionCommand.Last,
-            NativeMethods.VkSpace =>
-                ProductDesktopSelectionCommand.ActivateFocused,
-            _ => null,
-        };
-        ProductDesktopSelectionSnapshot? selection =
-            selectionSnapshot()?.Selection;
-        if (command is null || selection is null)
-        {
-            return;
-        }
-
-        ProductDesktopSelectionModifiers modifiers =
-            ProductDesktopSelectionModifiers.None;
-        if ((NativeMethods.GetKeyState(NativeMethods.VkControl) & 0x8000) != 0)
-        {
-            modifiers |= ProductDesktopSelectionModifiers.Control;
-        }
-        if ((NativeMethods.GetKeyState(NativeMethods.VkShift) & 0x8000) != 0)
-        {
-            modifiers |= ProductDesktopSelectionModifiers.Shift;
-        }
-        ProductDesktopSelectionRequest? request =
-            ProductDesktopInteractionSelectionCommandAdapter.Map(
-                selection,
-                command.Value,
-                modifiers);
-        if (request is not null)
-        {
-            _ = applySelection(request);
+            _ = applySelection(decision.Request);
         }
     }
 

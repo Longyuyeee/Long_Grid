@@ -31,7 +31,7 @@ E2b2 的本地工程实现已闭合，当前判定为 **Local Engineering Pass /
 
 ## 4. 自动化与人工证据
 
-本地 Release build 为 0 warning / 0 error；899/899 测试通过；最终本地覆盖率 line 90.06%（12677/14076）、branch 78.17%（4074/5212），门禁通过。新增证据覆盖键盘命令映射、pointer/keyboard/UIA 同项目结果一致、Space/Ctrl+Space、surface/source 绑定路径、Escape 恢复，以及原生 UIA 项目的 SelectionItem/Invoke/GetSelection/GetFocus 同源状态。三项原生 DesktopHost probe、143 项 UI automation id 合同、依赖漏洞门禁和人工 launcher 合同通过；人工会话 runbook 已扩展到 E2B2-01～05，但尚无执行者结果。
+本地 Release build 为 0 warning / 0 error；907/907 测试通过；最终本地覆盖率 line 90.75%（12800/14105）、branch 79.40%（4140/5214），门禁通过。新增证据覆盖键盘命令映射、pointer hit-test 纯适配器、pointer/keyboard/UIA 同项目结果一致、Space/Ctrl+Space、surface/source 绑定路径、Escape 恢复，以及原生 UIA 项目的 SelectionItem/Invoke/GetSelection/GetFocus 同源状态。三项原生 DesktopHost probe、143 项 UI automation id 合同、依赖漏洞门禁和人工 launcher 合同通过；人工会话 runbook 已扩展到 E2B2-01～05，但尚无执行者结果。
 
 PR CI、合并 SHA、main CI 与覆盖率在远端完成后回填。
 
