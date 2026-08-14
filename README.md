@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1、E2/M2 与 M3 工程链已完成：目录—投影修订、匿名选择观察、保存/恢复组合，以及按需匿名交互证据的捕获、导出和单条确认清理均已闭合。下一步进入 500 项规模、故障恢复和资源长稳自动预检，推进 M4-ready。桌面文件内容读取、写入和移动继续关闭，物理输入/Narrator/高对比/动态系统表面证据仍 Pending。#19、#20、#23、#24、ADR-0001、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，最新实现与下一步见 [Stage 139](docs/139-anonymous-interaction-evidence-audit.md)。
+> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1、E2/M2 与 M3 工程链已完成：目录—投影修订、匿名选择观察、保存/恢复组合，以及按需匿名交互证据的捕获、导出和单条确认清理均已闭合。下一步进入 500 项规模、故障恢复和资源长稳自动预检，推进 M4-ready。桌面文件内容读取、写入和移动继续关闭，物理输入/Narrator/高对比/动态系统表面证据仍 Pending。#19、#20、#23、#24、ADR-0001、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，最新实现见 [Stage 139](docs/139-anonymous-interaction-evidence-audit.md)，换机恢复与当前需求对齐见 [Stage 140](docs/140-development-handoff-current-status-audit.md)。
 
 ## 产品原则
 
