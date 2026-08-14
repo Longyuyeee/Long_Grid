@@ -5,6 +5,76 @@ using LongGrid.Core.DesktopHost;
 
 namespace LongGrid.Infrastructure.DesktopHost;
 
+internal sealed record ProductDesktopPointerSelectionCommand(
+    string ContainerId,
+    ProductDesktopSelectionRequest Request);
+
+internal static class ProductDesktopPointerSelectionAdapter
+{
+    internal static ProductDesktopPointerSelectionCommand? Map(
+        ProductDesktopHostDisplayProjection projection,
+        ProductDesktopInteractionSurfaceTransactionSnapshot? transaction,
+        int x,
+        int y,
+        bool control,
+        bool shift)
+    {
+        ArgumentNullException.ThrowIfNull(projection);
+        if (transaction?.IsExplicit != true)
+        {
+            return null;
+        }
+
+        string? targetId = transaction.Selection?.ContainerId;
+        ProductDesktopHostReadOnlyProjection? container = projection.Containers
+            .SingleOrDefault(candidate => string.Equals(
+                candidate.ContainerId,
+                targetId,
+                StringComparison.Ordinal));
+        if (container is null || container.IsCollapsed)
+        {
+            return null;
+        }
+
+        PixelRect bounds = ProductDesktopHostSurfaceLayout.GetContainerBounds(
+            projection,
+            container);
+        double scale = projection.EffectiveDpi / 96d;
+        int headerHeight = ProductDesktopHostSurfaceLayout.ToPixels(
+            ProductDesktopHostSurfaceLayout.HeaderHeightDip,
+            scale);
+        int itemHeight = ProductDesktopHostSurfaceLayout.ToPixels(
+            ProductDesktopHostSurfaceLayout.ItemHeightDip,
+            scale);
+        int index = (y - bounds.Top - headerHeight) / itemHeight;
+        if (x < bounds.Left || x >= bounds.Right
+            || y < bounds.Top + headerHeight
+            || y >= bounds.Bottom
+            || index < 0
+            || index >= container.ItemIds.Count)
+        {
+            return null;
+        }
+
+        ProductDesktopSelectionModifiers modifiers =
+            ProductDesktopSelectionModifiers.None;
+        if (control)
+        {
+            modifiers |= ProductDesktopSelectionModifiers.Control;
+        }
+        if (shift)
+        {
+            modifiers |= ProductDesktopSelectionModifiers.Shift;
+        }
+        return new(
+            container.ContainerId,
+            new(
+                ProductDesktopSelectionAction.SelectItem,
+                modifiers,
+                container.ItemIds[index]));
+    }
+}
+
 internal sealed class WindowsProductDesktopHostReadOnlySurfaceFactory
     : IProductDesktopHostReadOnlySurfaceFactory
 {
@@ -26,6 +96,10 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     private readonly WindowProcedure windowProcedure;
     private readonly ProductDesktopHostDisplayProjection projection;
     private readonly bool startHidden;
+    private Func<ProductDesktopInteractionSurfaceTransactionSnapshot?>
+        selectionSnapshot = static () => null;
+    private Func<string, ProductDesktopSelectionRequest, bool>
+        applySelection = static (_, _) => false;
     private volatile ProductDesktopInteractionSurfaceMode mode;
 #if WINDOWS
     private WindowsProductDesktopHostUiaRootProvider? uiaProvider;
@@ -86,7 +160,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         && NativeMethods.IsWindowVisible(Handle)
         && AttestStableWindowPolicy()
         && AttestWindowRegion(expectEmpty: false)
-        && uiaProvider?.ExplicitSelectionAvailable == true;
+        && uiaProvider is not null;
 
     public bool HiddenWindowContractAttested =>
         !disposed
@@ -163,7 +237,17 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             Handle,
             projection,
             InstanceMarker,
-            () => mode == ProductDesktopInteractionSurfaceMode.Explicit);
+            () => mode == ProductDesktopInteractionSurfaceMode.Explicit,
+            () => selectionSnapshot(),
+            (containerId, request) =>
+            {
+                bool applied = applySelection(containerId, request);
+                if (applied)
+                {
+                    RefreshSelection();
+                }
+                return applied;
+            });
 #endif
 
         ThreadId = NativeMethods.GetWindowThreadProcessId(
@@ -232,6 +316,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                         : NativeMethods.HtTransparent);
             case NativeMethods.WmMouseActivate:
                 return new nint(NativeMethods.MaNoActivate);
+            case NativeMethods.WmLButtonDown:
+                HandlePrimaryPointerPress(wordParameter, longParameter);
+                return nint.Zero;
             case NativeMethods.WmPaint:
                 Paint(window);
                 return nint.Zero;
@@ -243,6 +330,62 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                     longParameter);
         }
     }
+
+    public void BindSelection(
+        Func<ProductDesktopInteractionSurfaceTransactionSnapshot?> snapshot,
+        Func<string, ProductDesktopSelectionRequest, bool> apply)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(apply);
+        selectionSnapshot = snapshot;
+        applySelection = apply;
+    }
+
+    public void RefreshSelection()
+    {
+        if (!disposed && Handle != nint.Zero)
+        {
+            _ = NativeMethods.InvalidateRect(Handle, nint.Zero, erase: false);
+#if WINDOWS
+            uiaProvider?.PublishSelectionChanges();
+#endif
+        }
+    }
+
+    private void HandlePrimaryPointerPress(nint wordParameter, nint longParameter)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Explicit)
+        {
+            return;
+        }
+
+        InputMessageSource source = default;
+        if (!NativeMethods.GetCurrentInputMessageSource(ref source)
+            || source.OriginId == NativeMethods.ImoInjected)
+        {
+            return;
+        }
+
+        long flags = wordParameter.ToInt64();
+        ProductDesktopPointerSelectionCommand? command =
+            ProductDesktopPointerSelectionAdapter.Map(
+                projection,
+                selectionSnapshot(),
+                SignedLowWord(longParameter),
+                SignedHighWord(longParameter),
+                control: (flags & NativeMethods.MkControl) != 0,
+                shift: (flags & NativeMethods.MkShift) != 0);
+        if (command is not null)
+        {
+            _ = applySelection(command.ContainerId, command.Request);
+        }
+    }
+
+    private static int SignedLowWord(nint value) =>
+        unchecked((short)(value.ToInt64() & 0xFFFF));
+
+    private static int SignedHighWord(nint value) =>
+        unchecked((short)((value.ToInt64() >> 16) & 0xFFFF));
 
     private void Paint(nint window)
     {
@@ -352,7 +495,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         }
     }
 
-    private static void DrawItems(
+    private void DrawItems(
         nint deviceContext,
         ProductDesktopHostReadOnlyProjection container,
         NativeRect bounds,
@@ -367,11 +510,54 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             scale);
         int horizontalPadding = ToPixels(18, scale);
         int top = bounds.Top + headerHeight;
-        foreach (string item in items)
+        ProductDesktopInteractionSurfaceTransactionSnapshot? transaction =
+            selectionSnapshot();
+        var selected = transaction?.Accessibility.SelectedItemIds.ToHashSet(
+            StringComparer.Ordinal) ?? [];
+        bool activeContainer = transaction?.IsExplicit == true
+            && string.Equals(
+                transaction.Selection?.ContainerId,
+                container.ContainerId,
+                StringComparison.Ordinal);
+        for (int index = 0; index < items.Count; index++)
         {
             if (top + itemHeight > bounds.Bottom)
             {
                 break;
+            }
+
+            string item = items[index];
+            string? itemId = index < container.ItemIds.Count
+                ? container.ItemIds[index]
+                : null;
+            NativeRect itemBounds = new(
+                bounds.Left + ToPixels(6, scale),
+                top,
+                bounds.Right - ToPixels(6, scale),
+                top + itemHeight);
+            if (activeContainer && itemId is not null
+                && selected.Contains(itemId))
+            {
+                nint selectionBrush = NativeMethods.CreateSolidBrush(0x00D67524);
+                try
+                {
+                    _ = NativeMethods.FillRect(
+                        deviceContext,
+                        ref itemBounds,
+                        selectionBrush);
+                }
+                finally
+                {
+                    _ = NativeMethods.DeleteObject(selectionBrush);
+                }
+            }
+            if (activeContainer && itemId is not null
+                && string.Equals(
+                    transaction?.Selection?.FocusedItemId,
+                    itemId,
+                    StringComparison.Ordinal))
+            {
+                _ = NativeMethods.DrawFocusRect(deviceContext, ref itemBounds);
             }
 
             DrawText(
@@ -703,6 +889,13 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal byte[] Reserved;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct InputMessageSource
+    {
+        internal uint DeviceType;
+        internal uint OriginId;
+    }
+
     private static class NativeMethods
     {
         internal const uint WsPopup = 0x80000000;
@@ -719,6 +912,10 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint WmNcHitTest = 0x0084;
         internal const uint WmMouseActivate = 0x0021;
         internal const uint WmGetObject = 0x003D;
+        internal const uint WmLButtonDown = 0x0201;
+        internal const long MkShift = 0x0004;
+        internal const long MkControl = 0x0008;
+        internal const uint ImoInjected = 2;
         internal const int HtTransparent = -1;
         internal const int HtClient = 1;
         internal const int MaNoActivate = 3;
@@ -821,6 +1018,18 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool UpdateWindow(nint window);
 
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool InvalidateRect(
+            nint window,
+            nint rectangle,
+            [MarshalAs(UnmanagedType.Bool)] bool erase);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool GetCurrentInputMessageSource(
+            ref InputMessageSource inputMessageSource);
+
         [DllImport("gdi32.dll")]
         internal static extern nint CreateRectRgn(
             int left,
@@ -899,6 +1108,18 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             int characterCount,
             ref NativeRect rectangle,
             uint format);
+
+        [DllImport("user32.dll")]
+        internal static extern int FillRect(
+            nint deviceContext,
+            ref NativeRect bounds,
+            nint brush);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool DrawFocusRect(
+            nint deviceContext,
+            ref NativeRect bounds);
 
         [DllImport("dwmapi.dll")]
         internal static extern int DwmSetWindowAttribute(

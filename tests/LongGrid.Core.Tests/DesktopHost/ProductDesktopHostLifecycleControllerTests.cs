@@ -725,12 +725,13 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                     IsInjected: false,
                     IsAutoRepeat: false),
                 now.AddMilliseconds(1));
+        Assert.True(Assert.Single(factory.Surfaces).ApplyBoundSelection(
+            "container-1",
+            new(
+                ProductDesktopSelectionAction.SelectItem,
+                ItemId: "item:2")));
         ProductDesktopInteractionIntentConsumptionResult selected =
-            controller.ApplyInteractionSelection(
-                new(
-                    ProductDesktopSelectionAction.SelectItem,
-                    ItemId: "item:2"),
-                now.AddMilliseconds(2));
+            new(consumption.Snapshot);
         ProductDesktopInteractionIntentConsumptionResult replay =
             controller.ConsumePreparedInteractionIntent(
                 prepared.PreparedIntent!,
@@ -825,6 +826,14 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.False(source.LastInput.IsAutoRepeat);
         Assert.True(consumption.Snapshot.IsExplicit);
         Assert.False(controller.CanRequestKeyboardInteraction);
+        Assert.True(source.ApplyBoundSelection(new(
+            ProductDesktopSelectionAction.MoveNext)));
+        Assert.Equal(
+            ["item:1"],
+            consumption.Snapshot.Transaction!.Selection!.SelectedItemIds);
+        Assert.True(source.CancelBoundSelection());
+        Assert.False(consumption.Snapshot.IsExplicit);
+        Assert.True(source.IsVisible);
 
         _ = controller.ApplySystemSurfaceEvent(new(
             ProductDesktopInteractionSystemSurfaceEventKind.FocusLost,
@@ -1216,6 +1225,9 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         : IProductDesktopInteractionActivationSource
     {
         private long sequence;
+        private Func<ProductDesktopSelectionRequest, bool> applySelection =
+            static _ => false;
+        private Func<bool> cancelSelection = static () => false;
 
         public nint Handle { get; } = new(700);
 
@@ -1266,6 +1278,20 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             return IsVisible && forwardAndConsume(LastInput);
         }
 
+        public void BindSelection(
+            Func<ProductDesktopInteractionSurfaceTransactionSnapshot?> snapshot,
+            Func<ProductDesktopSelectionRequest, bool> apply,
+            Func<bool> cancel)
+        {
+            applySelection = apply;
+            cancelSelection = cancel;
+        }
+
+        internal bool ApplyBoundSelection(
+            ProductDesktopSelectionRequest request) => applySelection(request);
+
+        internal bool CancelBoundSelection() => cancelSelection();
+
         public void Dispose()
         {
             IsVisible = false;
@@ -1284,6 +1310,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         private ProductDesktopInteractionSurfaceMode mode = startHidden
             ? ProductDesktopInteractionSurfaceMode.Hidden
             : ProductDesktopInteractionSurfaceMode.Passive;
+        private Func<string, ProductDesktopSelectionRequest, bool>
+            applySelection = static (_, _) => false;
 
         internal bool WasCreatedHidden { get; } = startHidden;
 
@@ -1343,6 +1371,16 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             HiddenApplied?.Invoke();
             return true;
         }
+
+        public void BindSelection(
+            Func<ProductDesktopInteractionSurfaceTransactionSnapshot?> snapshot,
+            Func<string, ProductDesktopSelectionRequest, bool> apply) =>
+            applySelection = apply;
+
+        internal bool ApplyBoundSelection(
+            string containerId,
+            ProductDesktopSelectionRequest request) =>
+            applySelection(containerId, request);
 
         public void Dispose() => IsDisposed = true;
     }

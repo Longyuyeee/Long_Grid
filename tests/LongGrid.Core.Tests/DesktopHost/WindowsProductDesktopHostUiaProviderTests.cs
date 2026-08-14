@@ -203,10 +203,34 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         Assert.False(forwarded.IsInjected);
         Assert.False(forwarded.IsAutoRepeat);
         Assert.True(source.ContractAttested);
+        Assert.False(source.RequestKeyboardInteraction());
+        source.BindSelection(() => null, _ => false, () => false);
+        Assert.Throws<ArgumentNullException>(() =>
+            source.BindSelection(null!, _ => false, () => false));
+        Assert.Throws<ArgumentNullException>(() =>
+            source.BindSelection(() => null, null!, () => false));
+        Assert.Throws<ArgumentNullException>(() =>
+            source.BindSelection(() => null, _ => false, null!));
         Assert.True(source.ApplyHidden());
         Assert.False(source.IsVisible);
         Assert.True(source.ApplyVisible());
         Assert.True(source.ContractAttested);
+        Assert.True(source.RequestKeyboardInteraction());
+
+        source.Dispose();
+        source.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => source.ApplyVisible());
+        Assert.Throws<ObjectDisposedException>(() => source.ApplyHidden());
+        Assert.Throws<ObjectDisposedException>(() =>
+            source.RequestKeyboardInteraction());
+
+        using WindowsProductDesktopInteractionActivationSource rejected =
+            WindowsProductDesktopInteractionActivationSource.Create(
+                display,
+                new nint(904),
+                _ => false);
+        Assert.False(rejected.RequestKeyboardInteraction());
+        Assert.True(rejected.CanActivate);
     }
 
     [Fact]
@@ -347,6 +371,240 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         available = true;
         invokeResult = false;
         Assert.Throws<ElementNotEnabledException>(first.Invoke);
+    }
+
+    [Fact]
+    public void ExplicitItemProviderUsesSharedSelectionSnapshotAndPatterns()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        ProductDesktopHostReadOnlyProjection container = CreateContainer(
+            "container-1", "Work", ["Plan.docx"], false, 24, 36);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(100, 200, 1920, 1040), 96, [container]);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(display, new nint(910));
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var lease = new ProductDesktopInteractionLease(
+            Guid.NewGuid(), "container-1", 7, 9, 11, now.AddSeconds(5));
+        ProductDesktopInteractionSelectionController selection =
+            ProductDesktopInteractionSelectionController.TryCreate(
+                lease, container.ItemIds, now).Controller!;
+        ProductDesktopInteractionSurfaceTransactionSnapshot current =
+            Transaction(selection.Snapshot);
+        var provider = new WindowsProductDesktopHostUiaRootProvider(
+            surface.Handle, display, new nint(911), () => true, () => current,
+            (_, request) =>
+            {
+                ProductDesktopSelectionSnapshot updated = selection.Apply(
+                    lease, container.ItemIds, request, now);
+                current = Transaction(updated);
+                return updated.Status == ProductDesktopSelectionStatus.Applied;
+            });
+        WindowsProductDesktopHostUiaContainerProvider uiaContainer =
+            Assert.Single(provider.Containers);
+        WindowsProductDesktopHostUiaItemProvider item =
+            Assert.Single(uiaContainer.Items);
+
+        Assert.True(provider.ExplicitSelectionAvailable);
+        Assert.True(provider.CanSelectMultiple);
+        Assert.False(provider.IsSelectionRequired);
+        Assert.NotNull(provider.HostRawElementProvider);
+        Assert.Equal(new System.Windows.Rect(124, 236, 360, 240),
+            provider.BoundingRectangle);
+        Assert.Same(provider, provider.FragmentRoot);
+        Assert.Same(provider, provider.GetPatternProvider(
+            SelectionPatternIdentifiers.Pattern.Id));
+        Assert.Null(provider.GetPatternProvider(-1));
+        Assert.Equal("Long\u65b9\u683c\u684c\u9762\u53ea\u8bfb\u533a\u57df",
+            provider.GetPropertyValue(AutomationElementIdentifiers.NameProperty.Id));
+        Assert.Equal("LongGrid.DesktopHost.Root", provider.GetPropertyValue(
+            AutomationElementIdentifiers.AutomationIdProperty.Id));
+        Assert.Equal(ControlType.Pane.Id, provider.GetPropertyValue(
+            AutomationElementIdentifiers.ControlTypeProperty.Id));
+        Assert.True((bool)provider.GetPropertyValue(
+            AutomationElementIdentifiers.IsKeyboardFocusableProperty.Id)!);
+        Assert.True((bool)provider.GetPropertyValue(
+            AutomationElementIdentifiers.IsControlElementProperty.Id)!);
+        Assert.True((bool)provider.GetPropertyValue(
+            AutomationElementIdentifiers.IsContentElementProperty.Id)!);
+        Assert.True((bool)provider.GetPropertyValue(
+            AutomationElementIdentifiers.IsEnabledProperty.Id)!);
+        Assert.NotNull(provider.GetPropertyValue(
+            AutomationElementIdentifiers.ItemStatusProperty.Id));
+        Assert.Null(provider.GetPropertyValue(-1));
+        Assert.Same(uiaContainer, provider.Navigate(NavigateDirection.FirstChild));
+        Assert.Same(uiaContainer, provider.Navigate(NavigateDirection.LastChild));
+        Assert.Null(provider.Navigate(NavigateDirection.Parent));
+        Assert.Null(provider.GetRuntimeId());
+        Assert.Null(provider.GetEmbeddedFragmentRoots());
+        Assert.Same(item, provider.ElementProviderFromPoint(130, 300));
+        Assert.Same(uiaContainer, provider.ElementProviderFromPoint(130, 245));
+        Assert.Null(provider.ElementProviderFromPoint(10, 10));
+        provider.SetFocus();
+
+        Assert.Null(uiaContainer.HostRawElementProvider);
+        Assert.Equal(uiaContainer.BoundingRectangle, provider.BoundingRectangle);
+        Assert.Same(provider, uiaContainer.FragmentRoot);
+        Assert.Null(uiaContainer.GetPatternProvider(-1));
+        Assert.Equal(ControlType.Group.Id, uiaContainer.GetPropertyValue(
+            AutomationElementIdentifiers.ControlTypeProperty.Id));
+        Assert.NotNull(uiaContainer.GetPropertyValue(
+            AutomationElementIdentifiers.NameProperty.Id));
+        Assert.NotNull(uiaContainer.GetPropertyValue(
+            AutomationElementIdentifiers.AutomationIdProperty.Id));
+        Assert.True((bool)uiaContainer.GetPropertyValue(
+            AutomationElementIdentifiers.IsEnabledProperty.Id)!);
+        Assert.False((bool)uiaContainer.GetPropertyValue(
+            AutomationElementIdentifiers.IsKeyboardFocusableProperty.Id)!);
+        Assert.NotNull(uiaContainer.GetPropertyValue(
+            AutomationElementIdentifiers.ItemStatusProperty.Id));
+        Assert.Null(uiaContainer.GetPropertyValue(-1));
+        Assert.Same(provider, uiaContainer.Navigate(NavigateDirection.Parent));
+        Assert.Same(item, uiaContainer.Navigate(NavigateDirection.FirstChild));
+        Assert.Same(item, uiaContainer.Navigate(NavigateDirection.LastChild));
+        Assert.Equal(3, uiaContainer.GetRuntimeId().Length);
+        Assert.Null(uiaContainer.GetEmbeddedFragmentRoots());
+        uiaContainer.SetFocus();
+
+        Assert.Null(item.HostRawElementProvider);
+        Assert.Same(provider, item.FragmentRoot);
+        Assert.Same(uiaContainer, item.Navigate(NavigateDirection.Parent));
+        Assert.Null(item.Navigate(NavigateDirection.PreviousSibling));
+        Assert.Null(item.Navigate(NavigateDirection.NextSibling));
+        Assert.Equal(3, item.GetRuntimeId().Length);
+        Assert.Null(item.GetEmbeddedFragmentRoots());
+        Assert.Equal("Plan.docx", item.GetPropertyValue(
+            AutomationElementIdentifiers.NameProperty.Id));
+        Assert.NotNull(item.GetPropertyValue(
+            AutomationElementIdentifiers.AutomationIdProperty.Id));
+        Assert.True((bool)item.GetPropertyValue(
+            AutomationElementIdentifiers.IsEnabledProperty.Id)!);
+        Assert.True((bool)item.GetPropertyValue(
+            AutomationElementIdentifiers.IsKeyboardFocusableProperty.Id)!);
+        Assert.NotNull(item.GetPropertyValue(
+            AutomationElementIdentifiers.ItemStatusProperty.Id));
+        Assert.Null(item.GetPropertyValue(-1));
+        Assert.Same(item, item.GetPatternProvider(
+            SelectionItemPatternIdentifiers.Pattern.Id));
+        Assert.Same(item, item.GetPatternProvider(
+            InvokePatternIdentifiers.Pattern.Id));
+        Assert.False(item.IsSelected);
+        item.Invoke();
+        provider.PublishSelectionChanges();
+
+        Assert.True(item.IsSelected);
+        item.SetFocus();
+        Assert.Same(item, provider.GetFocus());
+        Assert.Same(item, Assert.Single(provider.GetSelection()));
+        Assert.Equal(ControlType.ListItem.Id, item.GetPropertyValue(
+            AutomationElementIdentifiers.ControlTypeProperty.Id));
+        item.RemoveFromSelection();
+        provider.PublishSelectionChanges();
+        Assert.False(item.IsSelected);
+        item.AddToSelection();
+        provider.PublishSelectionChanges();
+        Assert.True(item.IsSelected);
+
+        ProductDesktopPointerSelectionCommand hit = Assert.IsType<
+            ProductDesktopPointerSelectionCommand>(
+                ProductDesktopPointerSelectionAdapter.Map(
+                    display, current, 30, 95, control: true, shift: true));
+        Assert.Equal("container-1", hit.ContainerId);
+        Assert.Equal("item:1", hit.Request.ItemId);
+        Assert.Equal(
+            ProductDesktopSelectionModifiers.Control
+                | ProductDesktopSelectionModifiers.Shift,
+            hit.Request.Modifiers);
+        Assert.Null(ProductDesktopPointerSelectionAdapter.Map(
+            display, current, 30, 40, control: false, shift: false));
+        Assert.Null(ProductDesktopPointerSelectionAdapter.Map(
+            display, current, 0, 95, control: false, shift: false));
+        Assert.Null(ProductDesktopPointerSelectionAdapter.Map(
+            display, null, 30, 95, control: false, shift: false));
+        ProductDesktopHostDisplayProjection collapsed =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(100, 200, 1920, 1040), 96,
+                [CreateContainer("container-1", "Work", ["Plan.docx"],
+                    true, 24, 36)]);
+        Assert.Null(ProductDesktopPointerSelectionAdapter.Map(
+            collapsed, current, 30, 95, control: false, shift: false));
+        ProductDesktopHostDisplayProjection missingTarget =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(100, 200, 1920, 1040), 96,
+                [CreateContainer("container-2", "Other", ["Other.docx"],
+                    false, 24, 36)]);
+        Assert.Null(ProductDesktopPointerSelectionAdapter.Map(
+            missingTarget, current, 30, 95, control: false, shift: false));
+
+        ProductDesktopInteractionSurfaceTransactionSnapshot Transaction(
+            ProductDesktopSelectionSnapshot selected) => new(
+                ProductDesktopInteractionSurfaceTransactionStatus.Explicit,
+                new(
+                    ProductDesktopInteractionMode.ExplicitInteraction,
+                    ProductDesktopInteractionAdmissionStatus.Admitted,
+                    ProductDesktopInteractionCancellationReason.None,
+                    lease),
+                new(
+                    ProductDesktopInteractionSurfaceMode.Explicit,
+                    11,
+                    Visible: true,
+                    HitTestTransparent: false,
+                    IsKeyboardFocusable: true,
+                    SelectionPatternAvailable: true,
+                    ToolWindow: true,
+                    NoActivate: true,
+                    Topmost: false,
+                    HasOwner: false,
+                    OwnsForeground: false),
+                selected,
+                ProductDesktopInteractionSelectionAccessibilityAdapter
+                    .CreateExplicit(selected),
+                selected.SelectionRevision + 1);
+    }
+
+    [Theory]
+    [InlineData(0x25, ProductDesktopSelectionAction.MovePrevious)]
+    [InlineData(0x26, ProductDesktopSelectionAction.MovePrevious)]
+    [InlineData(0x27, ProductDesktopSelectionAction.MoveNext)]
+    [InlineData(0x28, ProductDesktopSelectionAction.MoveNext)]
+    [InlineData(0x24, ProductDesktopSelectionAction.MoveFirst)]
+    [InlineData(0x23, ProductDesktopSelectionAction.MoveLast)]
+    [InlineData(0x20, ProductDesktopSelectionAction.MoveNext)]
+    public void KeyboardProxyAdapterMapsOnlyFiniteCommands(
+        int virtualKey,
+        ProductDesktopSelectionAction expected)
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var lease = new ProductDesktopInteractionLease(
+            Guid.NewGuid(), "container-1", 7, 9, 11, now.AddSeconds(5));
+        ProductDesktopSelectionSnapshot selection =
+            ProductDesktopInteractionSelectionController.TryCreate(
+                lease, ["item:1"], now).Controller!.Snapshot;
+
+        ProductDesktopKeyboardSelectionDecision decision =
+            ProductDesktopKeyboardSelectionAdapter.Map(
+                selection, virtualKey, control: true, shift: true);
+
+        Assert.False(decision.Cancel);
+        Assert.Equal(expected, decision.Request!.Action);
+    }
+
+    [Fact]
+    public void KeyboardProxyAdapterCancelsEscapeAndIgnoresUnknownState()
+    {
+        ProductDesktopKeyboardSelectionDecision escape =
+            ProductDesktopKeyboardSelectionAdapter.Map(
+                null, 0x1B, control: false, shift: false);
+        ProductDesktopKeyboardSelectionDecision unknown =
+            ProductDesktopKeyboardSelectionAdapter.Map(
+                null, 0x41, control: false, shift: false);
+
+        Assert.True(escape.Cancel);
+        Assert.Null(escape.Request);
+        Assert.False(unknown.Cancel);
+        Assert.Null(unknown.Request);
     }
 
     private static ProductDesktopHostReadOnlyProjection CreateContainer(

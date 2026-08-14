@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('E2B1-01', 'E2B1-02', 'E2B1-03', 'E2B1-04', 'E2B1-05')]
+    [ValidateSet('E2B1-01', 'E2B1-02', 'E2B1-03', 'E2B1-04', 'E2B1-05',
+        'E2B2-01', 'E2B2-02', 'E2B2-03', 'E2B2-04', 'E2B2-05')]
     [string] $Scenario,
 
     [ValidateSet('O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7', 'O8', 'O9')]
@@ -51,7 +52,7 @@ if (-not $ValidateOnly) {
 $contract = [ordered]@{
     schemaVersion = 1
     purpose = 'DesktopInteractionProductActivationManualSession'
-    scenarios = 'E2B1-01-through-E2B1-05'
+    scenarios = 'E2B1-01-through-E2B2-05'
     scenario = if ($ValidateOnly) { 'RequiredAtRuntime' } else { $Scenario }
     operatorId = if ($ValidateOnly) { 'O1-O9-required-at-runtime' } else { $OperatorId }
     operatorIdentifierPolicy = 'AnonymousLabelsOnly'
@@ -60,7 +61,7 @@ $contract = [ordered]@{
     ownsPerDisplayFiniteActivationWindows = $true
     acceptsPhysicalPointerAppKeyboardAndUia = $true
     entersExplicitInteraction = $true
-    exposesItemSelection = $false
+    exposesItemSelectionOnlyWhileExplicit = $true
     capturesGlobalInput = $false
     sendsSyntheticInput = $false
     installsGlobalHooks = $false
@@ -77,7 +78,7 @@ if ($contract.finalResultStatus -ne 'PendingManualEvidence' -or
     -not $contract.ownsPerDisplayFiniteActivationWindows -or
     -not $contract.acceptsPhysicalPointerAppKeyboardAndUia -or
     -not $contract.entersExplicitInteraction -or
-    $contract.exposesItemSelection -or
+    -not $contract.exposesItemSelectionOnlyWhileExplicit -or
     $contract.capturesGlobalInput -or
     $contract.sendsSyntheticInput -or
     $contract.installsGlobalHooks -or
@@ -98,7 +99,7 @@ if ($ValidateOnly) {
 
 Write-Warning (
     "Execute only $Scenario from the runbook. This session can enter Explicit " +
-    'interaction but cannot select desktop items or mutate desktop files.'
+    'interaction and anonymous item selection but cannot mutate desktop files.'
 )
 
 $flagNames = @(

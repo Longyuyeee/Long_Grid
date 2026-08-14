@@ -593,6 +593,122 @@ public sealed class ProductDesktopInteractionSelectionTests
         Assert.Null(result.Request);
     }
 
+    [Theory]
+    [InlineData(ProductDesktopSelectionCommand.Previous,
+        ProductDesktopSelectionAction.MovePrevious)]
+    [InlineData(ProductDesktopSelectionCommand.Next,
+        ProductDesktopSelectionAction.MoveNext)]
+    [InlineData(ProductDesktopSelectionCommand.First,
+        ProductDesktopSelectionAction.MoveFirst)]
+    [InlineData(ProductDesktopSelectionCommand.Last,
+        ProductDesktopSelectionAction.MoveLast)]
+    public void KeyboardNavigationMapsToExistingSelectionActions(
+        ProductDesktopSelectionCommand command,
+        ProductDesktopSelectionAction expected)
+    {
+        ProductDesktopSelectionRequest? request =
+            ProductDesktopInteractionSelectionCommandAdapter.Map(
+                Controller().Snapshot,
+                command,
+                ProductDesktopSelectionModifiers.Shift);
+
+        Assert.NotNull(request);
+        Assert.Equal(expected, request.Action);
+        Assert.Equal(ProductDesktopSelectionModifiers.Shift, request.Modifiers);
+        Assert.Null(request.ItemId);
+    }
+
+    [Fact]
+    public void PointerKeyboardAndUiaConvergeOnOneSelectionSnapshot()
+    {
+        ProductDesktopInteractionSelectionController pointer = Controller();
+        ProductDesktopSelectionSnapshot pointerResult = Apply(
+            pointer,
+            Select("a"));
+
+        ProductDesktopInteractionSelectionController keyboard = Controller();
+        ProductDesktopSelectionRequest keyboardRequest =
+            ProductDesktopInteractionSelectionCommandAdapter.Map(
+                keyboard.Snapshot,
+                ProductDesktopSelectionCommand.Next,
+                ProductDesktopSelectionModifiers.None)!;
+        ProductDesktopSelectionSnapshot keyboardResult = Apply(
+            keyboard,
+            keyboardRequest);
+
+        ProductDesktopInteractionSelectionController uia = Controller();
+        ProductDesktopSelectionAccessibilityActionResult mapped =
+            ProductDesktopInteractionSelectionAccessibilityAdapter.MapAction(
+                ProductDesktopInteractionSelectionAccessibilityAdapter
+                    .CreateExplicit(uia.Snapshot),
+                ProductDesktopSelectionAccessibilityAction.Select,
+                "a");
+        ProductDesktopSelectionSnapshot uiaResult = Apply(uia, mapped.Request!);
+
+        Assert.Equal(pointerResult.SelectionRevision,
+            keyboardResult.SelectionRevision);
+        Assert.Equal(pointerResult.SelectionRevision, uiaResult.SelectionRevision);
+        Assert.Equal(pointerResult.SelectedItemIds, keyboardResult.SelectedItemIds);
+        Assert.Equal(pointerResult.SelectedItemIds, uiaResult.SelectedItemIds);
+        Assert.Equal(pointerResult.FocusedItemId, keyboardResult.FocusedItemId);
+        Assert.Equal(pointerResult.FocusedItemId, uiaResult.FocusedItemId);
+        Assert.Equal(pointerResult.AnchorItemId, keyboardResult.AnchorItemId);
+        Assert.Equal(pointerResult.AnchorItemId, uiaResult.AnchorItemId);
+    }
+
+    [Fact]
+    public void SpaceActivatesFocusAndControlSpaceTogglesIt()
+    {
+        ProductDesktopInteractionSelectionController controller = Controller();
+        ProductDesktopSelectionSnapshot focused = Apply(
+            controller,
+            new(ProductDesktopSelectionAction.MoveNext,
+                ProductDesktopSelectionModifiers.Control));
+
+        ProductDesktopSelectionRequest select =
+            ProductDesktopInteractionSelectionCommandAdapter.Map(
+                focused,
+                ProductDesktopSelectionCommand.ActivateFocused,
+                ProductDesktopSelectionModifiers.None)!;
+        ProductDesktopSelectionSnapshot selected = Apply(controller, select);
+        ProductDesktopSelectionRequest toggle =
+            ProductDesktopInteractionSelectionCommandAdapter.Map(
+                selected,
+                ProductDesktopSelectionCommand.ActivateFocused,
+                ProductDesktopSelectionModifiers.Control)!;
+        ProductDesktopSelectionSnapshot cleared = Apply(controller, toggle);
+
+        Assert.Equal(["a"], selected.SelectedItemIds);
+        Assert.Empty(cleared.SelectedItemIds);
+        Assert.Equal("a", cleared.FocusedItemId);
+    }
+
+    [Fact]
+    public void KeyboardCommandAdapterFailsClosedForInvalidInputs()
+    {
+        ProductDesktopSelectionRequest? invalidCommand =
+            ProductDesktopInteractionSelectionCommandAdapter.Map(
+                Controller().Snapshot,
+                (ProductDesktopSelectionCommand)999,
+                ProductDesktopSelectionModifiers.None);
+        ProductDesktopSelectionRequest? invalidModifiers =
+            ProductDesktopInteractionSelectionCommandAdapter.Map(
+                Controller().Snapshot,
+                ProductDesktopSelectionCommand.Next,
+                (ProductDesktopSelectionModifiers)8);
+        ProductDesktopSelectionRequest? noFocusSpace =
+            ProductDesktopInteractionSelectionCommandAdapter.Map(
+                Controller().Snapshot,
+                ProductDesktopSelectionCommand.ActivateFocused,
+                ProductDesktopSelectionModifiers.Control);
+
+        Assert.Null(invalidCommand);
+        Assert.Null(invalidModifiers);
+        Assert.Equal(ProductDesktopSelectionAction.MoveNext, noFocusSpace!.Action);
+        Assert.Equal(ProductDesktopSelectionModifiers.None,
+            noFocusSpace.Modifiers);
+    }
+
     private static ProductDesktopInteractionSelectionController Controller() =>
         ProductDesktopInteractionSelectionController.TryCreate(
             Lease(),

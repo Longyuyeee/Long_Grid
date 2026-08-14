@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1、E2a 与 E2b1 正式产品激活源工程切片已完成；E2b2 项目级 pointer/keyboard/UIA SelectionItem/Invoke 仍未实现，因此 M2 未完成。桌面文件内容读取、写入和移动继续关闭。#19、#20、#23、#24、ADR-0001、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，最新实现与下一步见 [Stage 134](docs/134-formal-product-activation-source-audit.md)。
+> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1、E2a 与 E2b1 已完成；E2b2 项目级 pointer/keyboard/UIA SelectionItem/Invoke 已通过 PR CI，等待合并后 main CI 裁决 M2 Engineering Pass。桌面文件内容读取、写入和移动继续关闭。#19、#20、#23、#24、ADR-0001、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，最新实现与下一步见 [Stage 135](docs/135-formal-item-selection-and-accessibility-audit.md)。
 
 ## 产品原则
 
@@ -24,6 +24,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)
 - [当前开发状态与收尾方向审计（Stage 133）](docs/133-current-development-status-and-closeout-audit.md)
 - [正式产品激活源与交互入口审计（Stage 134）](docs/134-formal-product-activation-source-audit.md)
+- [正式项目选择与可访问交互审计（Stage 135）](docs/135-formal-item-selection-and-accessibility-audit.md)
 - [质量、安全与隐私基线](docs/05-quality-security.md)
 - [桌面管理与任务栏美化深度审计](docs/06-desktop-taskbar-audit.md)
 - [核心 Windows 能力实现审计](docs/08-core-windows-implementation-audit.md)

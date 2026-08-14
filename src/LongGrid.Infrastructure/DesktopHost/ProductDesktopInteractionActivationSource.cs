@@ -9,6 +9,56 @@ using System.Windows.Automation.Provider;
 
 namespace LongGrid.Infrastructure.DesktopHost;
 
+internal sealed record ProductDesktopKeyboardSelectionDecision(
+    bool Cancel,
+    ProductDesktopSelectionRequest? Request);
+
+internal static class ProductDesktopKeyboardSelectionAdapter
+{
+    internal static ProductDesktopKeyboardSelectionDecision Map(
+        ProductDesktopSelectionSnapshot? selection,
+        int virtualKey,
+        bool control,
+        bool shift)
+    {
+        if (virtualKey == 0x1B)
+        {
+            return new(Cancel: true, Request: null);
+        }
+
+        ProductDesktopSelectionCommand? command = virtualKey switch
+        {
+            0x25 or 0x26 => ProductDesktopSelectionCommand.Previous,
+            0x27 or 0x28 => ProductDesktopSelectionCommand.Next,
+            0x24 => ProductDesktopSelectionCommand.First,
+            0x23 => ProductDesktopSelectionCommand.Last,
+            0x20 => ProductDesktopSelectionCommand.ActivateFocused,
+            _ => null,
+        };
+        if (selection is null || command is null)
+        {
+            return new(Cancel: false, Request: null);
+        }
+
+        ProductDesktopSelectionModifiers modifiers =
+            ProductDesktopSelectionModifiers.None;
+        if (control)
+        {
+            modifiers |= ProductDesktopSelectionModifiers.Control;
+        }
+        if (shift)
+        {
+            modifiers |= ProductDesktopSelectionModifiers.Shift;
+        }
+        return new(
+            Cancel: false,
+            ProductDesktopInteractionSelectionCommandAdapter.Map(
+                selection,
+                command.Value,
+                modifiers));
+    }
+}
+
 internal interface IProductDesktopInteractionActivationSource : IDisposable
 {
     nint Handle { get; }
@@ -28,6 +78,13 @@ internal interface IProductDesktopInteractionActivationSource : IDisposable
     bool ApplyHidden();
 
     bool RequestKeyboardInteraction();
+
+    void BindSelection(
+        Func<ProductDesktopInteractionSurfaceTransactionSnapshot?> snapshot,
+        Func<ProductDesktopSelectionRequest, bool> apply,
+        Func<bool> cancel)
+    {
+    }
 }
 
 internal interface IProductDesktopInteractionActivationSourceFactory
@@ -69,6 +126,12 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         forwardAndConsume;
     private readonly ActivationRegion[] regions;
     private bool activationAvailable = true;
+    private bool keyboardProxy;
+    private Func<ProductDesktopInteractionSurfaceTransactionSnapshot?>
+        selectionSnapshot = static () => null;
+    private Func<ProductDesktopSelectionRequest, bool> applySelection =
+        static _ => false;
+    private Func<bool> cancelSelection = static () => false;
 #if WINDOWS
     private ActivationUiaProvider? uiaProvider;
 #endif
@@ -118,7 +181,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         !disposed && Handle != nint.Zero && NativeMethods.IsWindowVisible(Handle);
 
     public bool CanActivate =>
-        activationAvailable && IsVisible && ContractAttested;
+        activationAvailable && !keyboardProxy && IsVisible && ContractAttested;
 
     public bool OwnsForegroundWindow =>
         !disposed
@@ -137,10 +200,16 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             long style = NativeMethods.GetWindowLongPtr(
                 Handle,
                 NativeMethods.GwlExStyle).ToInt64();
-            const long required = NativeMethods.WsExToolWindow
-                | NativeMethods.WsExLayered
-                | NativeMethods.WsExNoActivate;
-            return (style & required) == required
+            const long stable = NativeMethods.WsExToolWindow
+                | NativeMethods.WsExLayered;
+            bool activationContract = !keyboardProxy
+                && (style & NativeMethods.WsExNoActivate) != 0
+                && NativeMethods.GetForegroundWindow() != Handle;
+            bool proxyContract = keyboardProxy
+                && (style & NativeMethods.WsExNoActivate) == 0
+                && NativeMethods.GetForegroundWindow() == Handle
+                && NativeMethods.GetFocus() == Handle;
+            return (style & stable) == stable
                 && (style & NativeMethods.WsExTopmost) == 0
                 && NativeMethods.GetWindow(Handle, NativeMethods.GwOwner)
                     == nint.Zero
@@ -152,7 +221,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
 #if WINDOWS
                 && uiaProvider is not null
 #endif
-                ;
+                && (activationContract || proxyContract);
         }
     }
 
@@ -182,6 +251,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
     public bool ApplyVisible()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        RestoreActivationWindowPolicy();
         activationAvailable = true;
         ApplyFiniteRegion();
         _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwShowNoActivate);
@@ -192,6 +262,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
     public bool ApplyHidden()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        RestoreActivationWindowPolicy();
         activationAvailable = false;
         ApplyEmptyRegion();
         _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwHide);
@@ -208,6 +279,19 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                     .KeyboardActivation,
                 isInjected: false,
                 isAutoRepeat: false);
+    }
+
+    public void BindSelection(
+        Func<ProductDesktopInteractionSurfaceTransactionSnapshot?> snapshot,
+        Func<ProductDesktopSelectionRequest, bool> apply,
+        Func<bool> cancel)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(apply);
+        ArgumentNullException.ThrowIfNull(cancel);
+        selectionSnapshot = snapshot;
+        applySelection = apply;
+        cancelSelection = cancel;
     }
 
     public void Dispose()
@@ -326,7 +410,9 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                     uiaProvider);
 #endif
             case NativeMethods.WmMouseActivate:
-                return new nint(NativeMethods.MaNoActivate);
+                return new nint(keyboardProxy
+                    ? NativeMethods.MaActivate
+                    : NativeMethods.MaNoActivate);
             case NativeMethods.WmNcHitTest:
                 return new nint(NativeMethods.HtClient);
             case NativeMethods.WmLButtonDown:
@@ -348,6 +434,11 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                 }
                 return nint.Zero;
             case NativeMethods.WmKeyDown:
+                if (keyboardProxy)
+                {
+                    HandleSelectionKey(wordParameter);
+                    return nint.Zero;
+                }
                 if (wordParameter.ToInt64() is NativeMethods.VkReturn
                     or NativeMethods.VkSpace)
                 {
@@ -443,7 +534,74 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         {
             activationAvailable = true;
         }
+        else if (!EnterKeyboardProxy())
+        {
+            _ = cancelSelection();
+            consumed = false;
+        }
         return consumed;
+    }
+
+    private void HandleSelectionKey(nint wordParameter)
+    {
+        InputMessageSource inputSource = default;
+        if (!NativeMethods.GetCurrentInputMessageSource(ref inputSource)
+            || inputSource.OriginId == NativeMethods.ImoInjected)
+        {
+            return;
+        }
+
+        bool control =
+            (NativeMethods.GetKeyState(NativeMethods.VkControl) & 0x8000) != 0;
+        bool shift =
+            (NativeMethods.GetKeyState(NativeMethods.VkShift) & 0x8000) != 0;
+        ProductDesktopKeyboardSelectionDecision decision =
+            ProductDesktopKeyboardSelectionAdapter.Map(
+                selectionSnapshot()?.Selection,
+                checked((int)wordParameter.ToInt64()),
+                control,
+                shift);
+        if (decision.Cancel)
+        {
+            _ = cancelSelection();
+            return;
+        }
+        if (decision.Request is not null)
+        {
+            _ = applySelection(decision.Request);
+        }
+    }
+
+    private bool EnterKeyboardProxy()
+    {
+        long style = NativeMethods.GetWindowLongPtr(
+            Handle,
+            NativeMethods.GwlExStyle).ToInt64();
+        _ = NativeMethods.SetWindowLongPtr(
+            Handle,
+            NativeMethods.GwlExStyle,
+            new nint(style & ~NativeMethods.WsExNoActivate));
+        keyboardProxy = true;
+        _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwShow);
+        _ = NativeMethods.SetForegroundWindow(Handle);
+        _ = NativeMethods.SetFocus(Handle);
+        return ContractAttested;
+    }
+
+    private void RestoreActivationWindowPolicy()
+    {
+        if (Handle == nint.Zero)
+        {
+            return;
+        }
+        long style = NativeMethods.GetWindowLongPtr(
+            Handle,
+            NativeMethods.GwlExStyle).ToInt64();
+        _ = NativeMethods.SetWindowLongPtr(
+            Handle,
+            NativeMethods.GwlExStyle,
+            new nint(style | NativeMethods.WsExNoActivate));
+        keyboardProxy = false;
     }
 
     private ActivationRegion? FindRegion(int x, int y) => regions
@@ -672,6 +830,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         internal const uint WmMouseActivate = 0x0021;
         internal const int HtClient = 1;
         internal const int MaNoActivate = 3;
+        internal const int MaActivate = 1;
         internal const long WsPopup = unchecked((long)0x80000000);
         internal const long WsExTopmost = 0x00000008;
         internal const long WsExToolWindow = 0x00000080;
@@ -680,8 +839,18 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         internal const uint LwaAlpha = 0x00000002;
         internal const int SwHide = 0;
         internal const int SwShowNoActivate = 4;
+        internal const int SwShow = 5;
         internal const int VkReturn = 0x0D;
         internal const int VkSpace = 0x20;
+        internal const int VkEscape = 0x1B;
+        internal const int VkLeft = 0x25;
+        internal const int VkUp = 0x26;
+        internal const int VkRight = 0x27;
+        internal const int VkDown = 0x28;
+        internal const int VkHome = 0x24;
+        internal const int VkEnd = 0x23;
+        internal const int VkShift = 0x10;
+        internal const int VkControl = 0x11;
         internal const uint ImoInjected = 2;
         internal const int Transparent = 1;
         internal const uint DtCenter = 0x00000001;
@@ -743,6 +912,25 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
 
         [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
         internal static extern nint GetWindowLongPtr(nint window, int index);
+
+        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
+        internal static extern nint SetWindowLongPtr(
+            nint window,
+            int index,
+            nint value);
+
+        [DllImport("user32.dll")]
+        internal static extern nint SetFocus(nint window);
+
+        [DllImport("user32.dll")]
+        internal static extern nint GetFocus();
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SetForegroundWindow(nint window);
+
+        [DllImport("user32.dll")]
+        internal static extern short GetKeyState(int virtualKey);
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern bool SetProp(
