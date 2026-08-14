@@ -3,7 +3,7 @@
 - 审计日期：2026-08-14
 - 开发基线：`main@7a60ab4e0d18f3fad876f82dd30d5ed50ad96726`
 - 切片：M4b1
-- 当前判定：**本地 Engineering Pass / 远端证据 Pending**
+- 当前判定：**M4b1 Engineering Pass**
 
 ## 1. 需求对齐与切片边界
 
@@ -39,7 +39,7 @@ M4b 的原始目标是覆盖配置损坏、目录不可用、Explorer 生命周�
 - 新增专项测试：1/1；
 - 独立工具：`Passed`，5/5 场景全部为 true；
 - `temporarySandboxCleaned=true`、`readsRealDesktop=false`、`realFileOperationsAllowed=false`；
-- 全量测试、覆盖率、包审计、内部 unsigned RC 集与干净 Windows 构建以 PR runner 为最终权威。
+- PR 与 main 干净 Windows runner 均完成全量测试、覆盖率、包审计和内部 unsigned RC 集复验。
 
 ## 5. 风险与未完成项
 
@@ -50,7 +50,9 @@ M4b 的原始目标是覆盖配置损坏、目录不可用、Explorer 生命周�
 
 ## 6. 远端轨迹与下一步
 
-- 实现 PR / head SHA：Pending；
-- PR CI / 合并 commit / main CI：Pending；
-- 合并前判定：本地 Engineering Pass / 远端证据 Pending；
-- 下一步：完成 PR 与 main 双重流水线复验后关闭 M4b1，再从最新 `main` 进入 M4b2 原生生命周期故障矩阵。
+- 实现 PR / head SHA：PR #199 / `9215b07f0a40e5235992fbc46e420909f3158ca5`；
+- PR CI：run `31809749693` 成功，922/922，lines 90.51%（26934/29758），branches 78.60%（8504/10820）；恢复预检 5/5 且安全边界全部通过；
+- squash 合并：`main@a47a19df9b848f5df6ab8c214c0a6d14ad9e07c9`；
+- main CI：run `31810369292` 成功，922/922，lines 90.51%（26934/29758），branches 78.60%（8504/10820）；恢复预检 5/5，完整门禁与内部 unsigned RC 交付集审计通过；
+- 最终判定：M4b1 Engineering Pass；M4b 整体、M4-ready、内部 RC 和公开分发状态不变；
+- 下一步：从最新 `main` 进入 M4b2 Explorer、显示器与 DesktopHost 原生生命周期故障矩阵。
