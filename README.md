@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1、E2/M2、M3 与 M4a 工程链已完成；100 方格/500 个不同安全引用的正式配置、解析、投影、搜索/排序、选择和保存/恢复自动预检已由 PR 与 main 完整门禁复验。下一步按独立切片进入 M4b 故障恢复矩阵，再进行 M4c 资源长稳预检，推进 M4-ready。桌面文件内容读取、写入和移动继续关闭，物理输入/Narrator/高对比/动态系统表面证据仍 Pending。#19、#20、#23、#24、ADR-0001、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，M3 收口见 [Stage 139](docs/139-anonymous-interaction-evidence-audit.md)，M4a 见 [Stage 141](docs/141-product-500-item-scale-preflight-audit.md)。
+> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1、E2/M2、M3 与 M4a 工程链已完成；M4b 已拆为持久化/目录恢复（M4b1）和原生生命周期（M4b2），M4b1 的 5 场景正式预检已在本地通过，正在等待 PR 与 main 远端门禁。下一步关闭 M4b1 后进入 Explorer/显示器/DesktopHost 生命周期，再进行 M4c 资源长稳预检。桌面文件内容读取、写入和移动继续关闭，物理输入/Narrator/高对比/动态系统表面证据仍 Pending。#19、#20、#23、#24、ADR-0001、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，M4a 见 [Stage 141](docs/141-product-500-item-scale-preflight-audit.md)，M4b1 见 [Stage 142](docs/142-product-recovery-preflight-audit.md)。
 
 ## 产品原则
 
@@ -26,6 +26,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [正式产品激活源与交互入口审计（Stage 134）](docs/134-formal-product-activation-source-audit.md)
 - [正式项目选择与可访问交互审计（Stage 135）](docs/135-formal-item-selection-and-accessibility-audit.md)
 - [正式产品 500 项规模预检审计（Stage 141）](docs/141-product-500-item-scale-preflight-audit.md)
+- [正式产品故障恢复预检审计（Stage 142）](docs/142-product-recovery-preflight-audit.md)
 - [质量、安全与隐私基线](docs/05-quality-security.md)
 - [桌面管理与任务栏美化深度审计](docs/06-desktop-taskbar-audit.md)
 - [核心 Windows 能力实现审计](docs/08-core-windows-implementation-audit.md)

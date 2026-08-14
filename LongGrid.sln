@@ -41,6 +41,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LongGrid.Tools.PersistenceB
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LongGrid.Tools.ProductScalePreflight", "tools\LongGrid.Tools.ProductScalePreflight\LongGrid.Tools.ProductScalePreflight.csproj", "{1939D7A7-3B46-4B01-B214-72CA06D870C1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LongGrid.Tools.ProductRecoveryPreflight", "tools\LongGrid.Tools.ProductRecoveryPreflight\LongGrid.Tools.ProductRecoveryPreflight.csproj", "{205DBB77-3420-41CD-B887-E76EDCDEEBAD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -110,6 +112,10 @@ Global
 		{1939D7A7-3B46-4B01-B214-72CA06D870C1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1939D7A7-3B46-4B01-B214-72CA06D870C1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1939D7A7-3B46-4B01-B214-72CA06D870C1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{205DBB77-3420-41CD-B887-E76EDCDEEBAD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{205DBB77-3420-41CD-B887-E76EDCDEEBAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{205DBB77-3420-41CD-B887-E76EDCDEEBAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{205DBB77-3420-41CD-B887-E76EDCDEEBAD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{6FBD98BA-F87F-42CA-AE3B-7D232352B5AB} = {503E6675-B70F-49E3-A811-13C1BBDB95E2}
@@ -127,5 +133,6 @@ Global
 		{8CF9334D-50DD-40A2-A9D7-33BD65318185} = {503E6675-B70F-49E3-A811-13C1BBDB95E2}
 		{77DF85ED-4E70-4310-8C0E-8C90D1B3C7BD} = {E3398E20-37AA-4979-A5CA-7B10293EAE4E}
 		{1939D7A7-3B46-4B01-B214-72CA06D870C1} = {E3398E20-37AA-4979-A5CA-7B10293EAE4E}
+		{205DBB77-3420-41CD-B887-E76EDCDEEBAD} = {E3398E20-37AA-4979-A5CA-7B10293EAE4E}
 	EndGlobalSection
 EndGlobal

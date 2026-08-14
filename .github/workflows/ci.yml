@@ -221,6 +221,13 @@ jobs:
           --configuration Release
           --no-build
 
+      - name: Product recovery fault preflight
+        run: >-
+          dotnet run
+          --project tools/LongGrid.Tools.ProductRecoveryPreflight
+          --configuration Release
+          --no-build
+
       - name: File operation safety probe
         run: >-
           dotnet run
