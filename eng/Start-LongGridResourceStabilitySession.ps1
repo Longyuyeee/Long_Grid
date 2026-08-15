@@ -11,6 +11,8 @@ param(
     [switch] $DedicatedTestAccountConfirmed,
     [switch] $PreparedAnonymousWorkspaceConfirmed,
     [switch] $RecoveryPlanConfirmed,
+    [switch] $ContinuousPowerConfirmed,
+    [switch] $NoAutomaticRestartConfirmed,
     [switch] $DesktopHostOptInConfirmed,
     [switch] $NoRestore,
     [switch] $NoBuild,
@@ -21,6 +23,8 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
 $startScript = Join-Path $PSScriptRoot 'Start-LongGrid.ps1'
+$environmentPreflightScript = Join-Path $PSScriptRoot `
+    'Test-LongGridResourceStabilityEnvironment.ps1'
 $runbook = Join-Path $projectRoot `
     'docs\manual-testing\m4c2-resource-stability-runbook.md'
 $targetFramework = 'net8.0-windows10.0.19041.0'
@@ -232,7 +236,11 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     throw 'dotnet was not found. Install the .NET SDK selected by global.json.'
 }
 
-foreach ($requiredPath in @($projectPath, $startScript, $runbook)) {
+foreach ($requiredPath in @(
+    $projectPath,
+    $startScript,
+    $environmentPreflightScript,
+    $runbook)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Resource-stability session dependency was not found: $requiredPath"
     }
@@ -299,6 +307,7 @@ $sessionContract = [ordered]@{
     changesSystemSettings = $false
     recordsPathsNamesContentHandlesOrProcessIds = $false
     writesEvidenceOnlyToExplicitDirectory = -not $ValidateOnly
+    requiresEnvironmentPreflight = $true
     formalThumbnailWorkerIntegrated = $true
     formalStateRevisionTelemetryAvailable = $true
     canProduceM4cPass = $false
@@ -334,6 +343,7 @@ Assert-Condition (
     -not $sessionContract.changesDesktopFiles -and
     -not $sessionContract.changesSystemSettings -and
     -not $sessionContract.recordsPathsNamesContentHandlesOrProcessIds -and
+    $sessionContract.requiresEnvironmentPreflight -and
     $sessionContract.formalThumbnailWorkerIntegrated -and
     $sessionContract.formalStateRevisionTelemetryAvailable -and
     -not $sessionContract.canProduceM4cPass -and
@@ -411,6 +421,14 @@ foreach ($confirmation in @(
         message = 'RecoveryPlanConfirmed is required.'
     },
     [pscustomobject]@{
+        accepted = $ContinuousPowerConfirmed
+        message = 'ContinuousPowerConfirmed is required.'
+    },
+    [pscustomobject]@{
+        accepted = $NoAutomaticRestartConfirmed
+        message = 'NoAutomaticRestartConfirmed is required.'
+    },
+    [pscustomobject]@{
         accepted = $DesktopHostOptInConfirmed
         message = 'DesktopHostOptInConfirmed is required.'
     })) {
@@ -424,6 +442,16 @@ Assert-Condition (Test-Path -LiteralPath $EvidenceDirectory -PathType Container)
 $existingEvidence = @(Get-ChildItem -LiteralPath $EvidenceDirectory -Force)
 Assert-Condition ($existingEvidence.Count -eq 0) `
     'EvidenceDirectory must be empty before the session starts.'
+
+& $environmentPreflightScript `
+    -EvidenceDirectory $EvidenceDirectory `
+    -DedicatedTestAccountConfirmed:$DedicatedTestAccountConfirmed `
+    -PreparedAnonymousWorkspaceConfirmed:$PreparedAnonymousWorkspaceConfirmed `
+    -RecoveryPlanConfirmed:$RecoveryPlanConfirmed `
+    -ContinuousPowerConfirmed:$ContinuousPowerConfirmed `
+    -NoAutomaticRestartConfirmed:$NoAutomaticRestartConfirmed
+Assert-Condition ($LASTEXITCODE -eq 0) `
+    'M4c2c environment preflight rejected the live session.'
 
 Assert-CleanSession 'M4c2b2 resource-stability preflight'
 
