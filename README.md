@@ -35,6 +35,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [M4c2c 资源长稳证据复审门禁审计（Stage 148）](docs/148-m4c2c-resource-evidence-review-gate-audit.md)
 - [竞品差距逐项关闭与验收总计划（Stage 150）](docs/150-competitive-parity-gap-closure-plan.md)
 - [M4c2c 只读环境预检门禁审计（Stage 151）](docs/151-m4c2c-environment-preflight-gate-audit.md)
+- [当前开发状态、需求对齐与收尾顺序审计（Stage 152）](docs/152-current-development-status-audit.md)
 - [质量、安全与隐私基线](docs/05-quality-security.md)
 - [桌面管理与任务栏美化深度审计](docs/06-desktop-taskbar-audit.md)
 - [核心 Windows 能力实现审计](docs/08-core-windows-implementation-audit.md)
