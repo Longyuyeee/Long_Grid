@@ -491,6 +491,8 @@ $sessionStartedUtc = $null
 $workerProcessId = $null
 $workerExitOrRestartCount = 0
 $orphanWorkerCountAtEnd = 0
+$ownedProfileCountAtEnd = $null
+$cleanupTelemetry = $null
 $sessionId = [Guid]::NewGuid().ToString('N')
 $telemetryPipeName = "LongGrid.ResourceTelemetry.$sessionId"
 $lastTelemetrySequence = 0
@@ -559,7 +561,8 @@ try {
             -not $telemetry.ContainsPathsNamesContentHandlesOrProcessIds -and
             $telemetry.FormalThumbnailWorkerIntegrated -and
             $telemetry.WorkerProcessCount -eq 1 -and
-            $telemetry.ActiveOwnedProfileCount -eq 1
+            $telemetry.ActiveOwnedProfileCount -eq 1 -and
+            -not $telemetry.OwnedProfileDeletionConfirmed
         ) 'Formal App resource telemetry violated its restricted worker contract.'
         $lastTelemetrySequence = $telemetry.Sequence
 
@@ -607,8 +610,30 @@ finally {
     if ($null -ne $telemetryWriter) {
         try {
             $telemetryWriter.WriteLine('complete')
+            $cleanupReadTask = $telemetryReader.ReadLineAsync()
+            if ($cleanupReadTask.Wait(15000)) {
+                $cleanupJson = $cleanupReadTask.GetAwaiter().GetResult()
+                if (-not [string]::IsNullOrWhiteSpace($cleanupJson)) {
+                    $candidateCleanupTelemetry =
+                        $cleanupJson | ConvertFrom-Json
+                    if ($candidateCleanupTelemetry.SchemaVersion -eq 1 -and
+                        $candidateCleanupTelemetry.Sequence -eq
+                            ($lastTelemetrySequence + 1) -and
+                        -not $candidateCleanupTelemetry.ContainsPathsNamesContentHandlesOrProcessIds -and
+                        -not $candidateCleanupTelemetry.FormalThumbnailWorkerIntegrated -and
+                        $candidateCleanupTelemetry.WorkerProcessCount -eq 0 -and
+                        $candidateCleanupTelemetry.ActiveOwnedProfileCount -eq 0 -and
+                        $candidateCleanupTelemetry.OwnedProfileDeletionConfirmed) {
+                        $cleanupTelemetry = $candidateCleanupTelemetry
+                        $ownedProfileCountAtEnd = [int]
+                            $cleanupTelemetry.ActiveOwnedProfileCount
+                    }
+                }
+            }
         }
-        catch [System.IO.IOException] {
+        catch {
+            $cleanupTelemetry = $null
+            $ownedProfileCountAtEnd = $null
         }
         $telemetryWriter.Dispose()
     }
@@ -751,6 +776,7 @@ if ($firstWindow.Count -gt 0 -and $lastWindow.Count -gt 0) {
         workerThreadSlopePerHour = $workerThreadSlope
         workerExitOrRestartCount = $workerExitOrRestartCount
         orphanWorkerCountAtEnd = $orphanWorkerCountAtEnd
+        ownedProfileCountAtEnd = $ownedProfileCountAtEnd
         topLevelWindowFinalMedianDelta = $windowDelta
         topLevelWindowMaximum = $maximumWindowCount
         uiAutomationMisses = @(
@@ -777,6 +803,7 @@ if ($firstWindow.Count -gt 0 -and $lastWindow.Count -gt 0) {
             $workerThreadSlope -le $threadSlopeLimitPerHour -and
             $workerExitOrRestartCount -eq 0 -and
             $orphanWorkerCountAtEnd -eq 0 -and
+            $ownedProfileCountAtEnd -eq 0 -and
             $windowDelta -le $windowMedianDeltaLimit -and
             ($maximumWindowCount - $firstWindowMedian) -le `
                 $windowTransientIncreaseLimit -and
@@ -802,6 +829,7 @@ $evidence = [ordered]@{
     sampleCount = $samples.Count
     samples = $samples
     summary = $summary
+    cleanupTelemetry = $cleanupTelemetry
     blockers = @(
         'Real24HourEvidenceNotReviewed'
     )

@@ -51,11 +51,13 @@ public sealed class ProductResourceTelemetryTests
                 new(ProductDesktopHostFeatureStatus.EnabledForDevelopment),
                 pipeName,
                 "1");
+        bool completed = false;
         await using ProductResourceTelemetryServer server = Assert.IsType<
             ProductResourceTelemetryServer>(
                 ProductResourceTelemetryServer.TryStart(
                     decision,
-                    sequence => Snapshot(sequence)));
+                    sequence => Snapshot(sequence, completed),
+                    () => completed = true));
         await using var client = new NamedPipeClientStream(
             ".",
             pipeName,
@@ -97,14 +99,31 @@ public sealed class ProductResourceTelemetryTests
         Assert.Equal(1, root.GetProperty("WorkerProcessCount").GetInt32());
         Assert.Equal(1, root.GetProperty("ActiveOwnedProfileCount").GetInt32());
         Assert.False(root.GetProperty(
+            "OwnedProfileDeletionConfirmed").GetBoolean());
+        Assert.False(root.GetProperty(
             "ContainsPathsNamesContentHandlesOrProcessIds").GetBoolean());
         Assert.DoesNotContain("secret-container", json, StringComparison.Ordinal);
         Assert.DoesNotContain("C:\\", json, StringComparison.Ordinal);
 
         await writer.WriteLineAsync("complete");
+        string finalJson = Assert.IsType<string>(
+            await reader.ReadLineAsync(timeout.Token));
+        using JsonDocument finalDocument = JsonDocument.Parse(finalJson);
+        JsonElement finalRoot = finalDocument.RootElement;
+        Assert.True(completed);
+        Assert.Equal(2, finalRoot.GetProperty("Sequence").GetInt64());
+        Assert.False(finalRoot.GetProperty(
+            "FormalThumbnailWorkerIntegrated").GetBoolean());
+        Assert.Equal(0, finalRoot.GetProperty("WorkerProcessCount").GetInt32());
+        Assert.Equal(0, finalRoot.GetProperty(
+            "ActiveOwnedProfileCount").GetInt32());
+        Assert.True(finalRoot.GetProperty(
+            "OwnedProfileDeletionConfirmed").GetBoolean());
     }
 
-    private static ProductResourceTelemetrySnapshot Snapshot(long sequence) =>
+    private static ProductResourceTelemetrySnapshot Snapshot(
+        long sequence,
+        bool completed) =>
         new(
             1,
             sequence,
@@ -130,8 +149,9 @@ public sealed class ProductResourceTelemetryTests
             SelectionRevision: 0,
             ProductDesktopInteractionDevelopmentStatus.Passive,
             InteractionRevision: 6,
-            FormalThumbnailWorkerIntegrated: true,
-            WorkerProcessCount: 1,
-            ActiveOwnedProfileCount: 1,
+            FormalThumbnailWorkerIntegrated: !completed,
+            WorkerProcessCount: completed ? 0 : 1,
+            ActiveOwnedProfileCount: completed ? 0 : 1,
+            OwnedProfileDeletionConfirmed: completed,
             ContainsPathsNamesContentHandlesOrProcessIds: false);
 }

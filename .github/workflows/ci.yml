@@ -249,6 +249,13 @@ jobs:
           -File ./eng/Start-LongGridResourceStabilitySession.ps1
           -ValidateOnly
 
+      - name: Validate resource stability evidence review contract
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Review-LongGridResourceStabilityEvidence.ps1
+          -ValidateOnly
+
       - name: File operation safety probe
         run: >-
           dotnet run

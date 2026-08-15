@@ -83,6 +83,7 @@ public sealed class ProductThumbnailWorkerLifecycleTests
                 () => runtime);
 
         Assert.True(runtime.Disposed);
+        Assert.True(controller.OwnedProfileDeletionConfirmed);
         Assert.Equal(
             new ProductThumbnailWorkerLifecycleSnapshot(
                 ProductThumbnailWorkerLifecycleStatus.FailedClosed,
@@ -173,6 +174,8 @@ public sealed class ProductThumbnailWorkerLifecycleTests
             = snapshot;
 
         public RestrictedThumbnailWorkerRuntimeSnapshot Snapshot => CurrentSnapshot;
+
+        public bool OwnedProfileDeletionConfirmed => Disposed;
 
         public void Dispose() => Disposed = true;
     }

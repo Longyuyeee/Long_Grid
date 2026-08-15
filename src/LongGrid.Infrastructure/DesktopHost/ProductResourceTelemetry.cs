@@ -110,6 +110,7 @@ public sealed record ProductResourceTelemetrySnapshot(
     bool FormalThumbnailWorkerIntegrated,
     int WorkerProcessCount,
     int ActiveOwnedProfileCount,
+    bool OwnedProfileDeletionConfirmed,
     bool ContainsPathsNamesContentHandlesOrProcessIds);
 
 internal sealed class ProductResourceTelemetryServer : IAsyncDisposable
@@ -122,6 +123,7 @@ internal sealed class ProductResourceTelemetryServer : IAsyncDisposable
     };
 
     private readonly Func<long, ProductResourceTelemetrySnapshot> capture;
+    private readonly Action complete;
     private readonly NamedPipeServerStream pipe;
     private readonly CancellationTokenSource lifetime = new();
     private readonly Task worker;
@@ -130,9 +132,11 @@ internal sealed class ProductResourceTelemetryServer : IAsyncDisposable
 
     private ProductResourceTelemetryServer(
         string pipeName,
-        Func<long, ProductResourceTelemetrySnapshot> capture)
+        Func<long, ProductResourceTelemetrySnapshot> capture,
+        Action complete)
     {
         this.capture = capture;
+        this.complete = complete;
         pipe = new(
             pipeName,
             PipeDirection.InOut,
@@ -144,12 +148,14 @@ internal sealed class ProductResourceTelemetryServer : IAsyncDisposable
 
     internal static ProductResourceTelemetryServer? TryStart(
         ProductResourceTelemetryFeatureDecision decision,
-        Func<long, ProductResourceTelemetrySnapshot> capture)
+        Func<long, ProductResourceTelemetrySnapshot> capture,
+        Action complete)
     {
         ArgumentNullException.ThrowIfNull(decision);
         ArgumentNullException.ThrowIfNull(capture);
+        ArgumentNullException.ThrowIfNull(complete);
         return decision is { IsEnabled: true, PipeName: not null }
-            ? new(decision.PipeName, capture)
+            ? new(decision.PipeName, capture, complete)
             : null;
     }
 
@@ -200,11 +206,24 @@ internal sealed class ProductResourceTelemetryServer : IAsyncDisposable
         {
             string? request = await reader.ReadLineAsync(lifetime.Token)
                 .ConfigureAwait(false);
-            if (request is null || string.Equals(
-                    request,
-                    CompleteRequest,
-                    StringComparison.Ordinal))
+            if (request is null)
             {
+                return;
+            }
+
+            if (string.Equals(request, CompleteRequest, StringComparison.Ordinal))
+            {
+                complete();
+                long finalSequence = Interlocked.Increment(ref sequence);
+                ProductResourceTelemetrySnapshot finalSnapshot =
+                    capture(finalSequence);
+                Validate(finalSnapshot, finalSequence);
+                string finalJson = JsonSerializer.Serialize(
+                    finalSnapshot,
+                    JsonOptions);
+                await writer.WriteLineAsync(
+                    finalJson.AsMemory(),
+                    lifetime.Token).ConfigureAwait(false);
                 return;
             }
 
@@ -253,6 +272,9 @@ internal sealed class ProductResourceTelemetryServer : IAsyncDisposable
             || snapshot.ContainsPathsNamesContentHandlesOrProcessIds
             || snapshot.WorkerProcessCount > 1
             || snapshot.ActiveOwnedProfileCount > 1
+            || snapshot.OwnedProfileDeletionConfirmed
+                && (snapshot.WorkerProcessCount != 0
+                    || snapshot.ActiveOwnedProfileCount != 0)
             || snapshot.FormalThumbnailWorkerIntegrated
                 != (snapshot.WorkerProcessCount == 1
                     && snapshot.ActiveOwnedProfileCount == 1))

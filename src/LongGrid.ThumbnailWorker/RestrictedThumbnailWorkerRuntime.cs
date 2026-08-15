@@ -21,6 +21,8 @@ public sealed class RestrictedThumbnailWorkerRuntime : IDisposable
     private readonly ThumbnailWorkerClient client;
     private bool disposed;
 
+    public bool OwnedProfileDeletionConfirmed { get; private set; }
+
     private RestrictedThumbnailWorkerRuntime(ThumbnailWorkerClient client)
     {
         this.client = client;
@@ -87,6 +89,7 @@ public sealed class RestrictedThumbnailWorkerRuntime : IDisposable
         }
 
         client.Dispose();
+        OwnedProfileDeletionConfirmed = client.AppContainerProfileDeleted;
         disposed = true;
         GC.SuppressFinalize(this);
     }
