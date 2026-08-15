@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1、E2/M2、M3、M4a、M4b、M4c1、M4c2a、M4c2b1 与 M4c2b2 工程链已完成；M4c2c 独立复审门禁和 worker/Profile `0/0` 结束证明已通过 PR/main 双重远端门禁。受控会话运行中证明 worker/Profile `1/1`，结束时证明 `0/0` 和临时 Profile 删除，但入口与复审器都固定 `canProduceM4cPass=false`。下一步必须从 `main@faafe2d` 执行并复审真实 24 小时会话。M4c、M4-ready 与 RC 仍 Pending。桌面文件内容读取、写入和移动继续关闭，正式缩略图 UI、物理输入/Narrator/高对比/动态系统表面证据仍 Pending。#19、#20、#23、#24、ADR-0001/0002、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，最新审计见 [Stage 148](docs/148-m4c2c-resource-evidence-review-gate-audit.md)。
+> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1、E2/M2、M3、M4a、M4b、M4c1、M4c2a、M4c2b1 与 M4c2b2 工程链已完成；M4c2c 独立复审门禁和 worker/Profile `0/0` 结束证明已通过 PR/main 双重远端门禁。受控会话运行中证明 worker/Profile `1/1`，结束时证明 `0/0` 和临时 Profile 删除，但入口与复审器都固定 `canProduceM4cPass=false`。下一步必须从 `main@faafe2d` 执行并复审真实 24 小时会话。M4c、M4-ready 与 RC 仍 Pending。桌面文件内容读取、写入和移动继续关闭，正式缩略图 UI、物理输入/Narrator/高对比/动态系统表面证据仍 Pending。#19、#20、#23、#24、ADR-0001/0002、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威收尾顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，专用环境状态见 [Stage 149](docs/149-m4c2c-dedicated-environment-preflight-audit.md)，竞品差距与后续逐项验收见 [Stage 150](docs/150-competitive-parity-gap-closure-plan.md)。
 
 ## 产品原则
 
@@ -33,6 +33,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [正式 App 匿名资源遥测审计（Stage 146）](docs/146-formal-app-anonymous-resource-telemetry-audit.md)
 - [正式受限缩略图 worker 接线审计（Stage 147）](docs/147-formal-restricted-thumbnail-worker-integration-audit.md)
 - [M4c2c 资源长稳证据复审门禁审计（Stage 148）](docs/148-m4c2c-resource-evidence-review-gate-audit.md)
+- [竞品差距逐项关闭与验收总计划（Stage 150）](docs/150-competitive-parity-gap-closure-plan.md)
 - [质量、安全与隐私基线](docs/05-quality-security.md)
 - [桌面管理与任务栏美化深度审计](docs/06-desktop-taskbar-audit.md)
 - [核心 Windows 能力实现审计](docs/08-core-windows-implementation-audit.md)

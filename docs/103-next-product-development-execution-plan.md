@@ -6,7 +6,7 @@
 
 计划范围：产品阶段设计与历史执行计划。当前 Phase 0 退出、桌面 MVP、内部 RC 和正式分发的固定顺序与验收门槛以 Stage 125 为准。
 
-> 当前权威入口：[`125-phase0-internal-rc-closeout-plan.md`](125-phase0-internal-rc-closeout-plan.md)。本文继续提供桌面管理 MVP、任务栏、小组件和 Long助手插件的产品阶段背景；与 Stage 125 冲突时以 Stage 125 为准。
+> 当前收尾权威入口：[`125-phase0-internal-rc-closeout-plan.md`](125-phase0-internal-rc-closeout-plan.md)。竞品差距、后续逐项开发顺序和量化验收以 [Stage 150](150-competitive-parity-gap-closure-plan.md) 为准。本文继续提供桌面管理 MVP、任务栏、小组件和 Long助手插件的历史产品阶段背景；发生冲突时，当前冻结顺序以 Stage 125/129 为准。
 
 ## 1. 当前阶段判定
 

@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前状态、证据等级、集成风险和建议顺序以 [Stage 133 当前开发状态与收尾方向审计](133-current-development-status-and-closeout-audit.md)为准；历史演进见[开发状态与后续方向审计](11-development-status-and-direction-audit.md)，与 2026-07-30 初始计划的逐项对比见[初始计划对齐与偏移审计](13-original-plan-alignment-audit.md)。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前收尾状态和证据门禁以 [Stage 149 专用环境预检](149-m4c2c-dedicated-environment-preflight-audit.md)为准；竞品差距、逐项开发顺序和验收目标以 [Stage 150 竞品差距关闭总计划](150-competitive-parity-gap-closure-plan.md)为准；历史状态见 [Stage 133 当前开发状态与收尾方向审计](133-current-development-status-and-closeout-audit.md)与[开发状态与后续方向审计](11-development-status-and-direction-audit.md)，与 2026-07-30 初始计划的逐项对比见[初始计划对齐与偏移审计](13-original-plan-alignment-audit.md)。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 ## Phase 0：立项与技术验证
 
