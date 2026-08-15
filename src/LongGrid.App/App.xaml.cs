@@ -126,7 +126,8 @@ public partial class App : Application
             ProductThumbnailWorkerLifecycleController.Start(telemetryFeature);
         productResourceTelemetry = ProductResourceTelemetryServer.TryStart(
             telemetryFeature,
-            CaptureProductResourceTelemetry);
+            CaptureProductResourceTelemetry,
+            productThumbnailWorker.Dispose);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -1394,6 +1395,7 @@ public partial class App : Application
             worker.FormalIntegrationAvailable,
             worker.WorkerProcessCount,
             worker.ActiveOwnedProfileCount,
+            productThumbnailWorker.OwnedProfileDeletionConfirmed,
             ContainsPathsNamesContentHandlesOrProcessIds: false);
     }
 }

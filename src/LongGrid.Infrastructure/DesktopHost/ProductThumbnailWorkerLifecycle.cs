@@ -34,6 +34,8 @@ public sealed record ProductThumbnailWorkerLifecycleSnapshot(
 internal interface IProductThumbnailWorkerRuntime : IDisposable
 {
     RestrictedThumbnailWorkerRuntimeSnapshot Snapshot { get; }
+
+    bool OwnedProfileDeletionConfirmed { get; }
 }
 
 internal sealed class ProductThumbnailWorkerRuntimeAdapter :
@@ -48,6 +50,9 @@ internal sealed class ProductThumbnailWorkerRuntimeAdapter :
 
     public RestrictedThumbnailWorkerRuntimeSnapshot Snapshot => runtime.Snapshot;
 
+    public bool OwnedProfileDeletionConfirmed =>
+        runtime.OwnedProfileDeletionConfirmed;
+
     public void Dispose() => runtime.Dispose();
 }
 
@@ -57,6 +62,7 @@ public sealed class ProductThumbnailWorkerLifecycleController : IDisposable
     private IProductThumbnailWorkerRuntime? runtime;
     private ProductThumbnailWorkerLifecycleSnapshot snapshot;
     private bool disposed;
+    private bool ownedProfileDeletionConfirmed;
 
     private ProductThumbnailWorkerLifecycleController(
         ProductResourceTelemetryFeatureDecision telemetryFeature,
@@ -96,6 +102,8 @@ public sealed class ProductThumbnailWorkerLifecycleController : IDisposable
         catch
         {
             candidate?.Dispose();
+            ownedProfileDeletionConfirmed =
+                candidate?.OwnedProfileDeletionConfirmed ?? false;
             snapshot = new(
                 ProductThumbnailWorkerLifecycleStatus.FailedClosed,
                 Generation: 1,
@@ -123,6 +131,17 @@ public sealed class ProductThumbnailWorkerLifecycleController : IDisposable
         ProductResourceTelemetryFeatureDecision telemetryFeature) =>
         new(telemetryFeature, () => new ProductThumbnailWorkerRuntimeAdapter());
 
+    public bool OwnedProfileDeletionConfirmed
+    {
+        get
+        {
+            lock (gate)
+            {
+                return ownedProfileDeletionConfirmed;
+            }
+        }
+    }
+
     internal static ProductThumbnailWorkerLifecycleController Start(
         ProductResourceTelemetryFeatureDecision telemetryFeature,
         Func<IProductThumbnailWorkerRuntime> runtimeFactory) =>
@@ -137,7 +156,12 @@ public sealed class ProductThumbnailWorkerLifecycleController : IDisposable
                 return;
             }
 
-            runtime?.Dispose();
+            if (runtime is not null)
+            {
+                runtime.Dispose();
+                ownedProfileDeletionConfirmed =
+                    runtime.OwnedProfileDeletionConfirmed;
+            }
             runtime = null;
             snapshot = new(
                 ProductThumbnailWorkerLifecycleStatus.Disposed,
@@ -183,6 +207,8 @@ public sealed class ProductThumbnailWorkerLifecycleController : IDisposable
         }
 
         runtime.Dispose();
+        ownedProfileDeletionConfirmed =
+            runtime.OwnedProfileDeletionConfirmed;
         runtime = null;
         snapshot = new(
             ProductThumbnailWorkerLifecycleStatus.FailedClosed,
