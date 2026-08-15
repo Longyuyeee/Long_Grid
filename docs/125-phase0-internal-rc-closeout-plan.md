@@ -518,8 +518,9 @@ E2b 实现前设计审计确认：M1 Passive 整窗穿透不能作为首次输�
 - **实现范围**：受控 `complete` 握手先释放正式 worker/Profile 并返回匿名终态；采集脚本记录 cleanup telemetry；独立复审器锁定 commit、时长、覆盖、顺序、固定预算、状态漂移与零残留；
 - **安全边界**：只在资源会话双 opt-in 生效；普通启动无 telemetry server；不读文件内容、不改桌面文件/系统设置、不进入 Explicit；复审只读来源证据且不能覆盖；
 - **本地结果**：telemetry 5/5；采集与复审两个 `-ValidateOnly` 通过；真实 24 小时未执行；
+- **远端结果**：PR #211 run `31872087854` 与 squash 合并 `main@faafe2d` 后 main run `31872392176` 均为 935/935；lines 分别 90.88%/90.87%，branches 均 78.04%；相同完整门禁通过；
 - **结论**：Review Gate Engineering Pass；`EligibleForM4cDecision` 仍需人工裁决且不是 M4c Pass，M4c/M4-ready/RC 继续 Pending；
-- **下一步**：从本切片合并后的同一 `main` commit 执行 24 小时会话并独立复审。详见 [Stage 148](148-m4c2c-resource-evidence-review-gate-audit.md)。
+- **下一步**：从 `main@faafe2d` 执行 24 小时会话并独立复审。详见 [Stage 148](148-m4c2c-resource-evidence-review-gate-audit.md)。
 
 ### C1：工程就绪复审（结果尚未执行）
 

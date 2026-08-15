@@ -318,3 +318,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-15 M4c2b2 远端收口：PR #209 首两次运行分别暴露并修复 worker 缺少 `win-x64` RID 资产、原 probe 原生路径迁入产品程序集后被重复计入单元覆盖率的问题；最终 PR run `31827595353` 与 squash 合并 `main@1689446` 后 main run `31828145653` 均为 935/935，覆盖率分别为 lines 90.87% / branches 78.06% 与 lines 90.86% / branches 78.04%。正式 App、产品 worker 500 矩阵、依赖门及 800 文件内部 unsigned RC 交付集审计全部通过。M4c2b2 判定 Engineering Pass；下一步固定 M4c2c 真实 24 小时会话，M4c 继续 Pending。
 
 2026-08-15 M4c2c 复审门禁准备：审计发现原会话只证明运行中 worker/Profile `1/1` 与退出后零 worker 孤儿，缺少 Profile `0/0` 终态和独立趋势复算。受控 telemetry `complete` 现先释放正式 worker/Profile，再返回匿名 `0/0` 终态；采集入口把该快照纳入预算。新增只读复审器锁定 commit、24 小时/覆盖/间隔、固定预算、sequence、状态漂移和零残留，并且只能输出 `EligibleForM4cDecision` 或 `RejectedEvidence`，不能产生 M4c Pass。真实 24 小时仍 Pending，详见 [Stage 148](148-m4c2c-resource-evidence-review-gate-audit.md)。
+
+2026-08-15 M4c2c 复审门禁远端收口：PR #211 run `31872087854` 与 squash 合并 `main@faafe2d` 后 main run `31872392176` 均为 935/935；lines 分别 90.88%/90.87%，branches 均 78.04%。新增 review contract、正式 worker 产品程序集复用矩阵和 800 文件 unsigned 交付集审计均通过；制品仍未签名、不可安装、未批准分发。下一步从 `main@faafe2d` 执行真实 24 小时会话，M4c 继续 Pending。

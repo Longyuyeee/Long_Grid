@@ -53,6 +53,14 @@ Stage 147 已让正式 App 在受控资源会话中持续证明 worker/Profile `
 - 真实 24 小时会话尚未执行，M4c、M4-ready、RC、外部 Issue 和 ADR 状态全部不变；
 - 不读取桌面文件内容，不写入、移动、重命名或删除桌面文件，不接入缩略图 UI，不扩大 AppContainer Capability。
 
-## 5. 下一步
+## 5. 远端门禁与合并结果
 
-从本切片合并后的同一 `main` commit，在专用测试账户执行完整 24 小时会话；不得在运行中修改代码、预算或配置。完成后用独立复审器核对同一 commit。只有输出 `EligibleForM4cDecision` 且人工复核来源环境与异常记录后，才能另开文档切片决定 M4c；否则保留原始失败事实并从修复后的新 commit 重新运行。
+- PR #211 run `31872087854`：935/935，lines 90.88%（28586/31456），branches 78.04%（8818/11300）；格式、完整 Build、启动链、人工入口合同、恢复/资源预检、新增复审合同、文件操作安全、正式产品 worker 500 请求隔离矩阵、依赖门和 800 文件交付集审计全部通过；
+- PR #211 squash 合并为 `main@faafe2dcdd6ee45e5ed295295dcec46d0f3dc1b4`；
+- main run `31872392176`：935/935，lines 90.87%（28584/31456），branches 78.04%（8818/11300），同一完整门禁再次通过；正式 worker 矩阵继续证明 `FormalProductRuntimeReused=true`；
+- 交付集继续明确 `signed=false`、`installable=false`、`distributionApproved=false`，远端工程通过不改变发布状态；
+- M4c2c review gate 判定 Engineering Pass；真实 24 小时仍未采集，不能写 M4c Pass。
+
+## 6. 下一步
+
+从 `main@faafe2d` 在专用测试账户执行完整 24 小时会话；不得在运行中修改代码、预算或配置。完成后用独立复审器核对同一 commit。只有输出 `EligibleForM4cDecision` 且人工复核来源环境与异常记录后，才能另开文档切片决定 M4c；否则保留原始失败事实并从修复后的新 commit 重新运行。
