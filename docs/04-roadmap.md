@@ -320,3 +320,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-15 M4c2c 复审门禁准备：审计发现原会话只证明运行中 worker/Profile `1/1` 与退出后零 worker 孤儿，缺少 Profile `0/0` 终态和独立趋势复算。受控 telemetry `complete` 现先释放正式 worker/Profile，再返回匿名 `0/0` 终态；采集入口把该快照纳入预算。新增只读复审器锁定 commit、24 小时/覆盖/间隔、固定预算、sequence、状态漂移和零残留，并且只能输出 `EligibleForM4cDecision` 或 `RejectedEvidence`，不能产生 M4c Pass。真实 24 小时仍 Pending，详见 [Stage 148](148-m4c2c-resource-evidence-review-gate-audit.md)。
 
 2026-08-15 M4c2c 复审门禁远端收口：PR #211 run `31872087854` 与 squash 合并 `main@faafe2d` 后 main run `31872392176` 均为 935/935；lines 分别 90.88%/90.87%，branches 均 78.04%。新增 review contract、正式 worker 产品程序集复用矩阵和 800 文件 unsigned 交付集审计均通过；制品仍未签名、不可安装、未批准分发。下一步从 `main@faafe2d` 执行真实 24 小时会话，M4c 继续 Pending。
+
+2026-08-15 M4c2c 专用环境预检：当前机器的仓库、进程、重启信号和磁盘条件通过，但当前交互账户含既有桌面内容，Windows Sandbox/Hyper-V/VM 能力不可用，终端未提升，且交流/直流睡眠策略不足 24 小时。为避免暴露桌面元数据或产生已知无效证据，本轮未启动 App、worker、采样或计时，也未修改账户、虚拟化和电源设置。M4c 继续 Pending；下一步必须先提供合规专用账户/可抛弃 VM，或明确授权在提升会话中准备可恢复的临时环境，详见 [Stage 149](149-m4c2c-dedicated-environment-preflight-audit.md)。
