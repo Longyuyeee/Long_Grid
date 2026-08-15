@@ -4,7 +4,7 @@
 
 ## 运行前
 
-1. 使用无个人桌面内容的专用 Windows 测试账户；
+1. 使用无个人桌面内容的专用 Windows 测试账户，并确认用户与 Public Desktop 均为空；
 2. 准备匿名 Long方格工作区并确认可恢复；
 3. 关闭所有既有 `LongGrid.App`；
 4. 创建一个专用于本轮、现有且为空的证据目录；
@@ -15,6 +15,10 @@
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\eng\Test-LongGridResourceStabilityEnvironment.ps1 `
+  -ValidateOnly
+
+powershell -NoProfile -ExecutionPolicy Bypass `
   -File .\eng\Start-LongGridResourceStabilitySession.ps1 `
   -ValidateOnly
 
@@ -22,6 +26,21 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -File .\eng\Review-LongGridResourceStabilityEvidence.ps1 `
   -ValidateOnly
 ```
+
+创建空白专用证据目录后，先执行只读环境预检。它不会创建账户、改变电源/更新设置、清理桌面、启动 VM 或产品进程，也不输出路径、名称、内容、PID 或身份：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\eng\Test-LongGridResourceStabilityEnvironment.ps1 `
+  -EvidenceDirectory C:\LongGrid-M4c2-Evidence\Run-001 `
+  -DedicatedTestAccountConfirmed `
+  -PreparedAnonymousWorkspaceConfirmed `
+  -RecoveryPlanConfirmed `
+  -ContinuousPowerConfirmed `
+  -NoAutomaticRestartConfirmed
+```
+
+只有输出 `ReadyForM4c2cSession` 才能启动正式会话。`RejectedEnvironment` 会返回有限失败码；操作者必须在会话外修复环境并重新预检，不得通过编辑脚本、隐藏桌面条目或放宽判定继续。
 
 在 M4c2c 正式复审之前，如需采集待审趋势：
 
@@ -33,6 +52,8 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -DedicatedTestAccountConfirmed `
   -PreparedAnonymousWorkspaceConfirmed `
   -RecoveryPlanConfirmed `
+  -ContinuousPowerConfirmed `
+  -NoAutomaticRestartConfirmed `
   -DesktopHostOptInConfirmed
 ```
 
