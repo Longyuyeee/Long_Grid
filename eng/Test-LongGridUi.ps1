@@ -2533,10 +2533,9 @@ function Test-SourceContract {
         $appCode -match 'ProductConfigurationDefaults\.CreateEmpty' -and
         $appCode -match 'CreateDefaultContainer' -and
         $appCode -match 'CommitProductWorkspaceContainerRemovalUndo' -and
-        $appCode -match `
-            'DisplayKey\s*=\s*string\.IsNullOrWhiteSpace\(displayId\)' -and
-        $appCode -match '"display-unassigned"\s*:\s*displayId'
-    ) 'App must support first-container creation through the shared audited coordinator.'
+        $appCode -match 'ProductWorkspaceContainerCreationDefaults\.Evaluate' -and
+        $appCode -match 'display\?\.StableId\s*\?\?\s*"display-unassigned"'
+    ) 'App must support deterministic first/subsequent container creation through the shared audited coordinator and creation-default policy.'
     foreach ($stateAction in @(
             'SetLocked',
             'SetCollapsed',

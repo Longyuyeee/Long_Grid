@@ -955,7 +955,8 @@ public partial class App : Application
             positionPreset,
             sizePreset,
             confirmed,
-            createDisplayId: null);
+            createDisplayId: null,
+            useDefaultName: false);
 
     private ProductWorkspaceContainerCommitResult
         CommitProductWorkspaceContainerActionCore(
@@ -969,7 +970,8 @@ public partial class App : Application
             ProductWorkspaceContainerPositionPreset? positionPreset,
             ProductWorkspaceContainerSizePreset? sizePreset,
             bool confirmed,
-            string? createDisplayId)
+            string? createDisplayId,
+            bool useDefaultName)
     {
         ProductWorkspaceState? state = productWorkspaceSession.State;
         bool creatingFirstConfiguration =
@@ -1002,14 +1004,18 @@ public partial class App : Application
                 null);
         }
 
-        string normalizedName = name.Trim();
+        string normalizedName = useDefaultName ? string.Empty : name.Trim();
         ProductContainerState? newContainer = action ==
             ProductWorkspaceContainerCommitAction.Create
             ? CreateDefaultContainer(
-                normalizedName,
-                state.Containers.Count,
+                state,
+                useDefaultName ? null : normalizedName,
                 createDisplayId)
             : null;
+        if (newContainer is not null)
+        {
+            normalizedName = newContainer.Name;
+        }
         ProductWorkspaceContainerCommitResult result =
             workspaceCommits.CommitContainer(
                 state,
@@ -1068,14 +1074,15 @@ public partial class App : Application
                     ProductWorkspaceContainerCommitAction.Create,
                     workspaceCommits.CurrentEditRevision,
                     containerOrdinal: 0,
-                    name: "新方格",
+                    name: string.Empty,
                     stateValue: null,
                     colorPreset: null,
                     opacityPreset: null,
                     positionPreset: null,
                     sizePreset: null,
                     confirmed: false,
-                    createDisplayId: displayId);
+                    createDisplayId: displayId,
+                    useDefaultName: true);
             currentWindow.ApplyDesktopEmptyWorkspaceCreateResult(
                 result.IsAccepted);
         });
@@ -1217,32 +1224,61 @@ public partial class App : Application
         return result;
     }
 
-    private static ProductContainerState CreateDefaultContainer(
-        string name,
-        int existingContainerCount,
-        string? displayId = null)
+    private ProductContainerState? CreateDefaultContainer(
+        ProductWorkspaceState state,
+        string? requestedName,
+        string? requestedDisplayId)
     {
-        int offset = existingContainerCount % 8;
+        ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
+        DisplayTopologyNode? display = topology.IsAuthoritative
+            ? string.IsNullOrWhiteSpace(requestedDisplayId)
+                ? topology.Displays.FirstOrDefault(candidate => candidate.IsPrimary)
+                    ?? (topology.Displays.Count > 0
+                        ? topology.Displays[0]
+                        : null)
+                : topology.Displays.FirstOrDefault(candidate => string.Equals(
+                    candidate.StableId,
+                    requestedDisplayId,
+                    StringComparison.Ordinal))
+            : null;
+        if (!string.IsNullOrWhiteSpace(requestedDisplayId) && display is null)
+        {
+            return null;
+        }
+
+        ProductWorkspaceContainerCreationDefaultsDecision decision =
+            ProductWorkspaceContainerCreationDefaults.Evaluate(
+                state.Containers,
+                requestedName,
+                display?.StableId ?? "display-unassigned",
+                display?.WorkArea ?? new(0, 0, 1920, 1040),
+                display?.EffectiveDpi ?? 96);
+        if (!decision.CanCreate)
+        {
+            return null;
+        }
+
+        string id;
+        do
+        {
+            id = $"container-{Guid.NewGuid():N}";
+        }
+        while (state.Containers.Any(container => string.Equals(
+            container.Id,
+            id,
+            StringComparison.Ordinal)));
+
         return new()
         {
-            Id = $"container-{Guid.NewGuid():N}",
-            Name = name,
+            Id = id,
+            Name = decision.Name!,
             Appearance = new()
             {
                 Color = "#2563EB",
                 Opacity = 0.88,
                 Collapsed = false,
             },
-            Placement = new()
-            {
-                DisplayKey = string.IsNullOrWhiteSpace(displayId)
-                    ? "display-unassigned"
-                    : displayId,
-                XDip = 32 + (offset * 24),
-                YDip = 48 + (offset * 24),
-                WidthDip = 360,
-                HeightDip = 240,
-            },
+            Placement = decision.Placement!,
             Items = Array.Empty<ProductItemReferenceState>(),
         };
     }
