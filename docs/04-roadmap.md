@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准，PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，PF-002 当前实现证据见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)；外部证据和发布门禁仍以 [Stage 149 专用环境预检](149-m4c2c-dedicated-environment-preflight-audit.md)为准。历史状态见 [Stage 133](133-current-development-status-and-closeout-audit.md)与[开发状态审计](11-development-status-and-direction-audit.md)。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准，PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，PF-002 空态入口与统一创建默认值证据分别见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)和 [Stage 156](156-pf002b-deterministic-create-defaults-audit.md)；外部证据和发布门禁仍以 [Stage 149 专用环境预检](149-m4c2c-dedicated-environment-preflight-audit.md)为准。历史状态见 [Stage 133](133-current-development-status-and-closeout-audit.md)与[开发状态审计](11-development-status-and-direction-audit.md)。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 ## Phase 0：立项与技术验证
 
@@ -332,3 +332,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-16 PF-001 总开关主闭环：DesktopHost 默认进入正式产品能力，不再要求开发 opt-in；用户级 `BoxesEnabled` 使用独立原子设置与备份，控制中心提供无障碍 ToggleSwitch，保存失败回滚，关闭释放宿主/输入/UIA 表面，关闭期间缓存最新布局，重新开启恢复；紧急禁用始终优先。PF-001 仍为 `InProgress`，桌面空工作区创建入口和桌面优先启动最终呈现不得伪报完成，详见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)。
 
 2026-08-16 PF-002A 桌面空状态入口：权威空工作区现在在主显示器建立有限 DesktopHost 卡片，卡片之外及非按钮区域保持桌面穿透；非注入主点击和标准 UIA Invoke 调度到同一回调，并复用唯一配置提交协调器直接创建默认“新方格”。全量 945/945 和 Release 构建通过。PF-002 仍为 `InProgress`：右键、键盘、就地命名/预览、连续创建和保存失败窗口补偿未完成，详见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)。
+
+2026-08-16 PF-002B 统一创建默认值：桌面空态和控制中心共用名称/布局决策，自动名称稳定生成为“新方格”“新方格 2”……，显式名称对空白、超长、控制字符与重名失败关闭；位置按权威显示器 work area/DPI 有限级联并避免完全重叠。全量 956/956、Release 构建和 UI 合同通过。PF-002 仍为 `InProgress`：右键、键盘、就地预览/命名、正式 UI 连续创建/焦点及保存失败补偿未完成，详见 [Stage 156](156-pf002b-deterministic-create-defaults-audit.md)。

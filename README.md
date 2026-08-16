@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-001 总开关主闭环已完成；PF-002 已提供 DesktopHost 空状态“创建第一个方格”入口，但右键、键盘、就地命名和保存失败补偿仍待开发，详细证据见 [Stage 154](docs/154-pf001-boxes-enabled-implementation-audit.md)与 [Stage 155](docs/155-pf002-desktop-empty-create-entry-audit.md)。真实文件写入、完整桌面交互、签名、安装与外部证据仍由各自安全门控制，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-001 总开关主闭环已完成；PF-002 已提供 DesktopHost 空状态入口，并完成“新方格 / 新方格 N”、显示器内有限布局和 20 次 Core 连续创建合同，但右键、键盘、就地预览/命名、正式 UI 焦点和保存失败补偿仍待开发，详细证据见 [Stage 154](docs/154-pf001-boxes-enabled-implementation-audit.md)、[Stage 155](docs/155-pf002-desktop-empty-create-entry-audit.md)与 [Stage 156](docs/156-pf002b-deterministic-create-defaults-audit.md)。真实文件写入、完整桌面交互、签名、安装与外部证据仍由各自安全门控制，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -39,6 +39,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [对标产品功能逐项开发与验收总文档（Stage 153）](docs/153-product-feature-parity-development-plan.md)
 - [PF-001 桌面方格总开关实现与验收审计（Stage 154）](docs/154-pf001-boxes-enabled-implementation-audit.md)
 - [PF-002 桌面空状态创建入口实现与验收审计（Stage 155）](docs/155-pf002-desktop-empty-create-entry-audit.md)
+- [PF-002B 统一创建默认值与连续创建审计（Stage 156）](docs/156-pf002b-deterministic-create-defaults-audit.md)
 - [质量、安全与隐私基线](docs/05-quality-security.md)
 - [桌面管理与任务栏美化深度审计](docs/06-desktop-taskbar-audit.md)
 - [核心 Windows 能力实现审计](docs/08-core-windows-implementation-audit.md)
