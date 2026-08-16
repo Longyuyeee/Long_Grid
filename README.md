@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-001 总开关主闭环已完成；PF-002 的空态与非空态按钮、产品自有右键菜单、`Ctrl+Alt+N` 和 UIA 已统一到同一安全创建请求，并完成“新方格 / 新方格 N”、多显示器有限布局、20 次 Core 连续创建及 20 次最新 Surface/revision 合同。Explorer 任意桌面空白区集成、创建前就地预览/命名、物理 UI 连续焦点和保存失败补偿仍待开发，详细证据见 [Stage 154](docs/154-pf001-boxes-enabled-implementation-audit.md)至 [Stage 158](docs/158-pf002c2-persistent-desktop-create-audit.md)。真实文件写入、完整桌面交互、签名、安装与外部证据仍由各自安全门控制，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-001 总开关主闭环已完成；PF-002 的空态与非空态按钮、产品自有右键菜单、`Ctrl+Alt+N` 和 UIA 已统一到同一安全创建请求，并完成“新方格 / 新方格 N”、多显示器有限布局、20 次 Core 连续创建及 20 次最新 Surface/revision 合同。PF-001/PF-002 均仍为 `InProgress`：桌面优先启动、提交前就地预览/命名、保存失败补偿、拖画矩形、使用已选引用创建和正式物理证据仍待完成；严格现状与后续验收顺序见 [Stage 159](docs/159-current-development-status-and-next-plan-audit.md)。真实文件写入、完整桌面交互、签名、安装与外部证据仍由各自安全门控制，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -19,6 +19,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [产品需求文档（PRD）](docs/02-product-requirements.md)
 - [技术架构与数据设计](docs/03-architecture.md)
 - [路线图与验收门槛](docs/04-roadmap.md)
+- [当前开发状态、计划对齐与后续验收审计（Stage 159）](docs/159-current-development-status-and-next-plan-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)

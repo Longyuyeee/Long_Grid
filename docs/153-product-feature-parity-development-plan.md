@@ -6,6 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-002 桌面直接创建方格**
+- 最新状态审计：[Stage 159](159-current-development-status-and-next-plan-audit.md)；下一切片固定为 **PF-002D 提交前就地预览与命名**，PF-002 完成前不进入 PF-003
 
 ## 1. 本文解决什么问题
 
