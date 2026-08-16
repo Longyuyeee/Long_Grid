@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准，PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，PF-002 空态入口、统一创建默认值及空态多输入安全请求证据分别见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)、[Stage 156](156-pf002b-deterministic-create-defaults-audit.md)和 [Stage 157](157-pf002c-desktop-context-keyboard-create-audit.md)；外部证据和发布门禁仍以 [Stage 149 专用环境预检](149-m4c2c-dedicated-environment-preflight-audit.md)为准。历史状态见 [Stage 133](133-current-development-status-and-closeout-audit.md)与[开发状态审计](11-development-status-and-direction-audit.md)。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准，PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，PF-002 空态入口、统一创建默认值、空态多输入和非空持续入口证据分别见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)至 [Stage 158](158-pf002c2-persistent-desktop-create-audit.md)；外部证据和发布门禁仍以 [Stage 149 专用环境预检](149-m4c2c-dedicated-environment-preflight-audit.md)为准。历史状态见 [Stage 133](133-current-development-status-and-closeout-audit.md)与[开发状态审计](11-development-status-and-direction-audit.md)。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 ## Phase 0：立项与技术验证
 
@@ -336,3 +336,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-16 PF-002B 统一创建默认值：桌面空态和控制中心共用名称/布局决策，自动名称稳定生成为“新方格”“新方格 2”……，显式名称对空白、超长、控制字符与重名失败关闭；位置按权威显示器 work area/DPI 有限级联并避免完全重叠。全量 956/956、Release 构建和 UI 合同通过。PF-002 仍为 `InProgress`：右键、键盘、就地预览/命名、正式 UI 连续创建/焦点及保存失败补偿未完成，详见 [Stage 156](156-pf002b-deterministic-create-defaults-audit.md)。
 
 2026-08-16 PF-002C1 空态多输入创建：主点击、创建卡片真实右键菜单、空态 `Ctrl+Alt+N` 与 UIA Invoke 统一为带显示器、工作区 revision、拓扑 generation 和来源事实的请求；App 入队前与执行时双重复核，拒绝未证明、注入、自动重复和陈旧状态。快捷键随 Passive/Hidden/Dispose 注册释放，冲突时安全降级；菜单取消和前台变化零提交。全量 966/966、Release 构建、格式与 146-ID UI 合同通过。该能力不等于 Explorer 任意桌面空白区右键，首个方格后仍无持续桌面创建入口；下一步固定 PF-002C2，详见 [Stage 157](157-pf002c-desktop-context-keyboard-create-audit.md)。
+
+2026-08-16 PF-002C2 非空持续创建：非空工作区为全部权威显示器保留 Surface，并在不与现有方格相交的有限空位显示“新建方格”；鼠标/UIA绑定所在显示器，主显示器唯一注册 `Ctrl+Alt+N`。进入 Explicit 时入口、UIA导航和快捷键同步关闭，Passive 恢复；无空位时隐藏而不覆盖。全量 972/972、Release 构建、格式和 146-ID UI 合同通过。PF-002 仍为 `InProgress`，下一步固定 PF-002D 就地预览与命名，详见 [Stage 158](158-pf002c2-persistent-desktop-create-audit.md)。

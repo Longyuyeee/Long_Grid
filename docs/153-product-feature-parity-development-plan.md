@@ -58,7 +58,7 @@
 | 顺序 | ID | 用户功能 | 当前状态 | 对标目标 |
 | ---: | --- | --- | --- | --- |
 | 1 | PF-001 | 桌面方格总开关与桌面优先启动 | `InProgress`：总开关和桌面空状态已完成，桌面优先最终呈现待收口 | iTop Enable Boxes |
-| 2 | PF-002 | 桌面直接创建方格 | `InProgress`：空态多输入入口与统一命名/布局已完成，非空持续创建待开发 | iTop/Fences 多入口创建 |
+| 2 | PF-002 | 桌面直接创建方格 | `InProgress`：空态/非空态多输入持续入口与统一命名/布局已完成，预览和补偿待开发 | iTop/Fences 多入口创建 |
 | 3 | PF-003 | 桌面拖动、缩放、吸附 | 预设位置/尺寸 | Fences/Nimi 直接布局 |
 | 4 | PF-004 | 方格标题栏与就近操作 | 部分 Core | Fences 标题栏操作 |
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | worker 有、UI 无 | Fences/Nimi 项目呈现 |
@@ -145,7 +145,7 @@
 - 创建过程不读取文件内容、不移动真实文件；
 - 完成后用户无需进入控制中心即可建立第一个方格。
 
-**2026-08-16 实施状态**：`InProgress`。空工作区现在会在权威主显示器创建有限 DesktopHost 卡片；主点击、卡片右键产品菜单、空态 `Ctrl+Alt+N` 和标准 UIA Invoke 均构造同一种带 revision/topology/source 事实的请求，经 App 入队前和执行时双重准入后复用确定性名称/布局策略与唯一提交协调器。自动名称为“新方格”“新方格 2”……，20 次 Core/reducer 连续创建的 ID、名称和位置合同已通过。该右键不是 Explorer 任意桌面空白区集成；首个方格出现后产品自有持续创建入口、就地预览/命名、正式 UI 连续创建/焦点以及保存失败窗口补偿仍未完成。入口证据见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)，统一默认值证据见 [Stage 156](156-pf002b-deterministic-create-defaults-audit.md)，多输入与安全准入证据见 [Stage 157](157-pf002c-desktop-context-keyboard-create-audit.md)。
+**2026-08-16 实施状态**：`InProgress`。空工作区在权威主显示器显示首建卡片；工作区非空后，每个权威显示器在不覆盖方格的安全空位继续显示“新建方格”。主点击、产品菜单、主显示器 `Ctrl+Alt+N` 和标准 UIA Invoke 均构造同一种带 revision/topology/source 事实的请求，经 App 入队前和执行时双重准入后复用确定性名称/布局策略与唯一提交协调器；Explicit 选择期间入口和快捷键关闭。自动名称为“新方格”“新方格 2”……，20 次 Core/reducer 与 20 次最新 Surface/revision 合同通过。该入口不是 Explorer 任意桌面空白区集成；就地预览/命名、物理 UI 连续创建/焦点及保存失败窗口补偿仍未完成。证据见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)、[Stage 156](156-pf002b-deterministic-create-defaults-audit.md)、[Stage 157](157-pf002c-desktop-context-keyboard-create-audit.md)与 [Stage 158](158-pf002c2-persistent-desktop-create-audit.md)。
 
 ### PF-003：桌面拖动、缩放与吸附
 
