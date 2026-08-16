@@ -5,6 +5,8 @@
 - 决策人：ProjectOwner
 - 状态：**Approved engineering-sequence change / External evidence remains Pending**
 
+> 2026-08-16 产品负责人追加顺序修正：外部证据、M4、签名和安装继续作为发布硬门禁，但不再冻结安全边界内的产品功能开发。后续用户功能顺序以 [Stage 153 对标产品功能开发总文档](153-product-feature-parity-development-plan.md)为准。本修正不把任何 Pending 证据改成 Pass，也不授权真实文件移动、公开分发或降低安全门槛。
+
 ## 1. 决策原因
 
 Stage 125 原顺序要求先完成 C1 五人可用性测试，再执行 C2/C3/C4 人工、硬件和会话矩阵。当前负责人明确确认无法安排真实参与者，因此继续把 C1 作为工程开发入口会让项目无限停留在“会话已就绪、无结果”的状态。
