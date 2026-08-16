@@ -1236,9 +1236,11 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             factory,
             new FactoryBackedInspector(factory));
         int requests = 0;
-        controller.BindEmptyWorkspaceCreate(displayId =>
+        controller.BindEmptyWorkspaceCreate(request =>
         {
-            Assert.Equal("display-primary", displayId);
+            Assert.Equal("display-primary", request.DisplayId);
+            Assert.Equal(3, request.WorkspaceRevision);
+            Assert.Equal(4, request.TopologyGeneration);
             requests++;
             return true;
         });
@@ -1442,7 +1444,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             : ProductDesktopInteractionSurfaceMode.Passive;
         private Func<string, ProductDesktopSelectionRequest, bool>
             applySelection = static (_, _) => false;
-        private Func<string, bool> requestEmptyCreate = static _ => false;
+        private Func<ProductDesktopWorkspaceCreateInput, bool>
+            requestEmptyCreate = static _ => false;
 
         internal bool WasCreatedHidden { get; } = startHidden;
 
@@ -1511,11 +1514,16 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             Func<string, ProductDesktopSelectionRequest, bool> apply) =>
             applySelection = apply;
 
-        public void BindEmptyWorkspaceCreate(Func<string, bool> requestCreate) =>
+        public void BindEmptyWorkspaceCreate(
+            Func<ProductDesktopWorkspaceCreateInput, bool> requestCreate) =>
             requestEmptyCreate = requestCreate;
 
         internal bool RequestBoundEmptyCreate() =>
-            requestEmptyCreate(Projection?.DisplayId ?? string.Empty);
+            requestEmptyCreate(new(
+                ProductDesktopWorkspaceCreateInputKind.PrimaryPointer,
+                SourceAttested: true,
+                IsInjected: false,
+                IsAutoRepeat: false));
 
         internal bool ApplyBoundSelection(
             string containerId,

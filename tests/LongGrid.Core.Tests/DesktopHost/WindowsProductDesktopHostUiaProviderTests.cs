@@ -9,6 +9,63 @@ namespace LongGrid.Core.Tests.DesktopHost;
 public sealed class WindowsProductDesktopHostUiaProviderTests
 {
     [Fact]
+    public void EmptyNativeSurfaceNormalizesContextAndKeyboardCreateInputs()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary",
+                new(100, 200, 1920, 1040),
+                96,
+                Array.Empty<ProductDesktopHostReadOnlyProjection>());
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                display,
+                new nint(899));
+        var inputs = new List<ProductDesktopWorkspaceCreateInput>();
+        surface.BindEmptyWorkspaceCreate(input =>
+        {
+            inputs.Add(input);
+            return true;
+        });
+
+        Assert.True(surface.SubmitEmptyWorkspaceCreateInput(
+            ProductDesktopWorkspaceCreateInputKind.ContextMenu,
+            sourceAttested: true,
+            isInjected: false,
+            isAutoRepeat: false));
+        Assert.True(surface.SubmitEmptyWorkspaceCreateInput(
+            ProductDesktopWorkspaceCreateInputKind.KeyboardShortcut,
+            sourceAttested: true,
+            isInjected: false,
+            isAutoRepeat: false));
+
+        Assert.Equal(
+            [
+                ProductDesktopWorkspaceCreateInputKind.ContextMenu,
+                ProductDesktopWorkspaceCreateInputKind.KeyboardShortcut,
+            ],
+            inputs.Select(input => input.Kind));
+        Assert.All(inputs, input =>
+        {
+            Assert.True(input.SourceAttested);
+            Assert.False(input.IsInjected);
+            Assert.False(input.IsAutoRepeat);
+        });
+        Assert.NotEqual(surface.Handle, GetForegroundWindow());
+        Assert.True(surface.PassiveWindowContractAttested);
+
+        Assert.True(surface.ApplyHidden());
+        Assert.False(surface.EmptyWorkspaceKeyboardCreateAvailable);
+        Assert.True(surface.ApplyPassive());
+        Assert.True(surface.PassiveWindowContractAttested);
+    }
+
+    [Fact]
     public void EmptyNativeSurfaceExposesInvokableCreateEntryWithoutForeground()
     {
         if (!OperatingSystem.IsWindows())
@@ -27,9 +84,13 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
                 display,
                 new nint(900));
         int requests = 0;
-        surface.BindEmptyWorkspaceCreate(requestedDisplayId =>
+        surface.BindEmptyWorkspaceCreate(input =>
         {
-            Assert.Equal(display.DisplayId, requestedDisplayId);
+            Assert.Equal(
+                ProductDesktopWorkspaceCreateInputKind.AssistiveInvoke,
+                input.Kind);
+            Assert.True(input.SourceAttested);
+            Assert.False(input.IsInjected);
             requests++;
             return true;
         });
@@ -48,6 +109,11 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
             "不读取或移动",
             button.Current.ItemStatus,
             StringComparison.Ordinal);
+        Assert.Equal(
+            surface.EmptyWorkspaceKeyboardCreateAvailable
+                ? "Ctrl+Alt+N"
+                : string.Empty,
+            button.Current.AccessKey);
         Assert.True(button.TryGetCurrentPattern(
             InvokePattern.Pattern,
             out object pattern));
