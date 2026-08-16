@@ -10,8 +10,8 @@ public sealed class ProductDesktopInteractionDevelopmentControllerTests
     [Theory]
     [InlineData(null, null)]
     [InlineData("1", null)]
-    [InlineData(null, "1")]
-    public void IndependentOptInsAreBothRequired(
+    [InlineData("0", "1")]
+    public void ProductHostAndInteractionSafetyPoliciesRemainIndependent(
         string? hostValue,
         string? interactionValue)
     {

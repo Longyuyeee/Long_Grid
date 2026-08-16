@@ -29,8 +29,10 @@ public sealed partial class MainWindow : Window
     private bool _desktopCatalogConnected;
     private bool _desktopHostFeatureEnabled;
     private bool _desktopHostConnected;
+    private bool _suppressBoxesEnabledChange;
 
     internal event EventHandler? DesktopKeyboardInteractionRequested;
+    internal event Action<bool>? BoxesEnabledChangeRequested;
     private string _organizationStartChoice = "suggested";
     private bool _practiceItemsAdded;
     private ProductConfigurationStartupMode _configurationStartupMode;
@@ -439,6 +441,43 @@ public sealed partial class MainWindow : Window
                 snapshot.SelectedItemCount,
                 snapshot.FocusedItemAvailable,
                 snapshot.SelectionRevision));
+    }
+
+    internal void ApplyBoxesEnabledState(
+        bool boxesEnabled,
+        bool canChange,
+        string status)
+    {
+        _suppressBoxesEnabledChange = true;
+        try
+        {
+            BoxesEnabledToggle.IsOn = boxesEnabled;
+            BoxesEnabledToggle.IsEnabled = canChange;
+            BoxesEnabledStatus.Text = status;
+            AutomationProperties.SetItemStatus(
+                BoxesEnabledToggle,
+                $"BoxesEnabled={boxesEnabled}:CanChange={canChange}");
+        }
+        finally
+        {
+            _suppressBoxesEnabledChange = false;
+        }
+    }
+
+    internal void ApplyBoxesEnabledChangePending(bool requestedValue)
+    {
+        BoxesEnabledToggle.IsEnabled = false;
+        BoxesEnabledStatus.Text = requestedValue
+            ? "正在保存并开启桌面方格…"
+            : "正在保存并关闭桌面方格…";
+    }
+
+    private void BoxesEnabledToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (!_suppressBoxesEnabledChange)
+        {
+            BoxesEnabledChangeRequested?.Invoke(BoxesEnabledToggle.IsOn);
+        }
     }
 
     private void DesktopKeyboardInteractionButton_Click(

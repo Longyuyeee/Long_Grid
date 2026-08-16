@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前收尾状态和证据门禁以 [Stage 149 专用环境预检](149-m4c2c-dedicated-environment-preflight-audit.md)为准；竞品差距、逐项开发顺序和验收目标以 [Stage 150 竞品差距关闭总计划](150-competitive-parity-gap-closure-plan.md)为准；历史状态见 [Stage 133 当前开发状态与收尾方向审计](133-current-development-status-and-closeout-audit.md)与[开发状态与后续方向审计](11-development-status-and-direction-audit.md)，与 2026-07-30 初始计划的逐项对比见[初始计划对齐与偏移审计](13-original-plan-alignment-audit.md)。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准，PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)；外部证据和发布门禁仍以 [Stage 149 专用环境预检](149-m4c2c-dedicated-environment-preflight-audit.md)为准。历史状态见 [Stage 133](133-current-development-status-and-closeout-audit.md)与[开发状态审计](11-development-status-and-direction-audit.md)。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 ## Phase 0：立项与技术验证
 
@@ -328,3 +328,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-16 当前状态复审：`main@7c53736` 与远端对齐、无开放 PR，main CI `31893906416` 为 935/935，lines 90.86%、branches 78.02%，20 项环境预检合同和 800/800 交付文件审计通过；制品仍未签名、不可安装、未批准分发。现场 live 预检再次以用户/Public Desktop 非空、AC/DC 睡眠未关闭和待重启信号拒绝，证据目录保持为空且未改变系统。需求顺序无偏移，当前仍只允许关闭 G0-01，不进入 CP1～CP3，详见 [Stage 152](152-current-development-status-audit.md)。
 
 2026-08-16 对标功能主线纠偏：产品负责人明确要求后续开发围绕对标软件的用户功能，而不是继续把环境/验证任务当作产品路线。新增 30 项 PF 功能总表，逐项冻结用户故事、竞品行为、当前差距、开发范围、异常边界和量化验收；首项为 PF-001 桌面方格总开关与桌面优先启动。G0/ADR/签名/安装继续阻止 RC 和分发，但不再阻止安全范围内的功能工程开发，详见 [Stage 153](153-product-feature-parity-development-plan.md)。
+
+2026-08-16 PF-001 总开关主闭环：DesktopHost 默认进入正式产品能力，不再要求开发 opt-in；用户级 `BoxesEnabled` 使用独立原子设置与备份，控制中心提供无障碍 ToggleSwitch，保存失败回滚，关闭释放宿主/输入/UIA 表面，关闭期间缓存最新布局，重新开启恢复；紧急禁用始终优先。PF-001 仍为 `InProgress`，桌面空工作区创建入口和桌面优先启动最终呈现不得伪报完成，详见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)。

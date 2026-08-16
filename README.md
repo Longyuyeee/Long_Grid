@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：处于 Phase 0 外部证据待汇合、桌面 MVP 工程轨道推进中。M1、E2/M2、M3、M4a、M4b、M4c1、M4c2a、M4c2b1 与 M4c2b2 工程链已完成；M4c2c 独立复审门禁和 worker/Profile `0/0` 结束证明已通过 PR/main 双重远端门禁。受控会话运行中证明 worker/Profile `1/1`，结束时证明 `0/0` 和临时 Profile 删除，但入口与复审器都固定 `canProduceM4cPass=false`。下一步必须从 `main@faafe2d` 执行并复审真实 24 小时会话。M4c、M4-ready 与 RC 仍 Pending。桌面文件内容读取、写入和移动继续关闭，正式缩略图 UI、物理输入/Narrator/高对比/动态系统表面证据仍 Pending。#19、#20、#23、#24、ADR-0001/0002、许可证、签名与安装生命周期仍未完成，所有产物不可公开分发。权威收尾顺序见 [Stage 125](docs/125-phase0-internal-rc-closeout-plan.md)，专用环境状态见 [Stage 149](docs/149-m4c2c-dedicated-environment-preflight-audit.md)，竞品差距与后续逐项验收见 [Stage 150](docs/150-competitive-parity-gap-closure-plan.md)。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进，PF-001 桌面方格总开关主闭环已完成并处于 `InProgress`，详细证据见 [Stage 154](docs/154-pf001-boxes-enabled-implementation-audit.md)。DesktopHost 普通启动不再要求开发 opt-in；真实文件写入、显式桌面交互、输入转发、签名、安装与外部证据仍由各自安全门控制，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -37,6 +37,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [M4c2c 只读环境预检门禁审计（Stage 151）](docs/151-m4c2c-environment-preflight-gate-audit.md)
 - [当前开发状态、需求对齐与收尾顺序审计（Stage 152）](docs/152-current-development-status-audit.md)
 - [对标产品功能逐项开发与验收总文档（Stage 153）](docs/153-product-feature-parity-development-plan.md)
+- [PF-001 桌面方格总开关实现与验收审计（Stage 154）](docs/154-pf001-boxes-enabled-implementation-audit.md)
 - [质量、安全与隐私基线](docs/05-quality-security.md)
 - [桌面管理与任务栏美化深度审计](docs/06-desktop-taskbar-audit.md)
 - [核心 Windows 能力实现审计](docs/08-core-windows-implementation-audit.md)
@@ -182,7 +183,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -File ./eng/Start-LongGrid.ps1
 ```
 
-该入口默认执行锁定依赖恢复、必要构建和启动；不提权，默认不创建 DesktopHost 窗口。App 只读枚举用户桌面与公共桌面第一层元数据，不读取文件内容，也不执行桌面文件写入/移动。开发者可显式设置 `LONGGRID_ENABLE_DESKTOP_HOST=1` 验证带只读 UIA 与被动窗口复读的每显示器批次；受控宿主矩阵使用 `eng/Start-DesktopHostProductSessionMatrix.ps1`。Hidden/Passive 产品 Surface 还要求 Interaction 精确 opt-in；Intent 准备则只能使用 `eng/Start-DesktopInteractionIntentSession.ps1` 同时建立第三重桥接值和人工会话确认。所有开发值都不是用户许可或发布默认值。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见[Stage 117](docs/117-product-hidden-passive-surface-lifecycle-audit.md)、[Stage 118](docs/118-system-surface-event-fail-closed-bridge-audit.md)与[Stage 119](docs/119-product-intent-preparation-manual-session-gate-audit.md)。
+该入口默认执行锁定依赖恢复、必要构建和启动；不提权。DesktopHost 按用户级“显示桌面方格”设置启动，首次默认开启；可用 `LONGGRID_DISABLE_DESKTOP_HOST=1` 紧急安全禁用。App 只读枚举用户桌面与公共桌面第一层元数据，不读取文件内容，也不执行桌面文件写入/移动。受控宿主矩阵使用 `eng/Start-DesktopHostProductSessionMatrix.ps1`。显式 Interaction、Intent Bridge 和原生输入转发仍要求各自精确 opt-in 与人工会话确认。当前依赖 Windows App Runtime 2.3.1 x64，缺失或启动失败时返回非零退出码。详细边界见 [Stage 154](docs/154-pf001-boxes-enabled-implementation-audit.md)、[Stage 118](docs/118-system-surface-event-fail-closed-bridge-audit.md)与[Stage 119](docs/119-product-intent-preparation-manual-session-gate-audit.md)。
 
 从干净、已提交的工作树一键生成并交叉验证完整内部 RC 交付集合：
 

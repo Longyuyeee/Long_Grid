@@ -47,7 +47,7 @@ public sealed class ProductDesktopInteractionIntentPreparationBridgeTests
     {
         ProductDesktopInteractionFeatureDecision interaction =
             ProductDesktopInteractionFeaturePolicy.Evaluate(
-                ProductDesktopHostFeaturePolicy.Evaluate(null),
+                ProductDesktopHostFeaturePolicy.Evaluate("0"),
                 "1");
 
         ProductDesktopInteractionIntentBridgeFeatureDecision decision =

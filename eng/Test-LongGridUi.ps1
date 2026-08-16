@@ -530,6 +530,8 @@ function Test-SourceContract {
         'CurrentModeCard',
         'FileOperationCard',
         'DesktopHostCard',
+        'BoxesEnabledToggle',
+        'BoxesEnabledStatus',
         'CurrentModeValue',
         'FileOperationValue',
         'DesktopHostValue',
@@ -1152,10 +1154,33 @@ function Test-SourceContract {
     Assert-Condition ($codeBehind -match 'RuntimeStatusSnapshot\.CreateDevelopmentReadOnly') `
         'The UI must obtain its capability state from the audited Core snapshot.'
     Assert-Condition (
-        $desktopHostFeaturePolicyCode -match 'LONGGRID_ENABLE_DESKTOP_HOST' -and
-        $desktopHostFeaturePolicyCode -match 'string\.Equals\(value,\s*"1",\s*StringComparison\.Ordinal\)'
+        $desktopHostFeaturePolicyCode -match 'EnabledForProduct' -and
+        $desktopHostFeaturePolicyCode -match 'LONGGRID_DISABLE_DESKTOP_HOST' -and
+        $desktopHostFeaturePolicyCode -match 'DisabledByEmergencyPolicy' -and
+        $desktopHostFeaturePolicyCode -match `
+            'string\.Equals\(emergencyDisableValue,\s*"1",\s*StringComparison\.Ordinal\)'
     ) `
-        'DesktopHost must remain disabled unless the exact audited development opt-in is present.'
+        'DesktopHost must default to the product path while preserving exact emergency disable priority.'
+    $boxesEnabledToggleNode = Get-XamlNodeByAutomationId `
+        $document `
+        'BoxesEnabledToggle'
+    Assert-Condition (
+        $boxesEnabledToggleNode.GetAttribute('AutomationProperties.Name').Length -gt 0 -and
+        $boxesEnabledToggleNode.GetAttribute('Toggled') -eq `
+            'BoxesEnabledToggle_Toggled'
+    ) 'The product boxes switch must remain named and bound to one audited handler.'
+    $boxesEnabledStatusNode = Get-XamlNodeByAutomationId `
+        $document `
+        'BoxesEnabledStatus'
+    Assert-Condition (
+        $boxesEnabledStatusNode.GetAttribute(
+            'AutomationProperties.LiveSetting') -eq 'Polite'
+    ) 'Boxes settings changes and failures must be politely announced.'
+    Assert-Condition (
+        $appCode -match 'ProductBoxesSettingsController' -and
+        $appCode -match 'SetUserEnabled' -and
+        $codeBehind -match '_suppressBoxesEnabledChange'
+    ) 'The product boxes switch must use one persisted controller and suppress programmatic toggles.'
     Assert-Condition (
         $desktopInteractionAdmissionCode -match `
             'LONGGRID_ENABLE_DESKTOP_INTERACTION' -and
@@ -1355,7 +1380,7 @@ function Test-SourceContract {
         -not ($appCode -match `
             'ProductDesktopInteractionSurfaceModeTransaction|ProductDesktopInteractionHitTestAdapter|ProductDesktopInteractionIntentFactory') -and
         $appCode -match `
-            'productDesktopHostLifecycle\s*=\s*new\(\s*desktopHostFeature,\s*productDesktopInteraction,\s*productDesktopIntentPreparation,\s*productDesktopInputForwarding,\s*productDesktopIntentConsumption\)' -and
+            'productDesktopHostLifecycle\s*=\s*new\(\s*desktopHostFeature,\s*productDesktopInteraction,\s*productDesktopIntentPreparation,\s*productDesktopInputForwarding,\s*productDesktopIntentConsumption,\s*userEnabled:\s*false\)' -and
         $desktopHostLifecycleControllerCode -match `
             'startHidden:\s*controlledSurfaceLifecycle' -and
         $desktopHostLifecycleControllerCode -match `
@@ -1382,7 +1407,7 @@ function Test-SourceContract {
         $windowsDesktopHostReadOnlySurfaceCode -match `
             'mode == ProductDesktopInteractionSurfaceMode\.Explicit[\s\S]*NativeMethods\.HtClient[\s\S]*NativeMethods\.HtTransparent'
     ) `
-        'B6b/M1 must create product HWNDs hidden behind both opt-ins, attach only after registry evidence, publish verified Passive, admit only generation-bound Explicit surface changes, hide before detach/shutdown, reject stale generations, forbid file operations, and keep Passive WM_NCHITTEST transparent.'
+        'B6b/M1 must create product HWNDs behind the persisted user switch and interaction safety policy, attach only after registry evidence, publish verified Passive, admit only generation-bound Explicit surface changes, hide before detach/shutdown, reject stale generations, forbid file operations, and keep Passive WM_NCHITTEST transparent.'
     Assert-Condition (
         $desktopInteractionSystemSurfaceEventCode -match `
             'ProductDesktopInteractionSystemSurfaceEventKind' -and
@@ -2785,7 +2810,7 @@ function Test-SourceContract {
         responsiveBreakpoints = 1
         compactWidth = 720
         dpiAwareInitialSize = 'pass'
-        coreRuntimeStatus = 'desktop-read-only-config-edit-host-default-off-uia-session-attested'
+        coreRuntimeStatus = 'desktop-read-only-config-edit-host-user-switch-uia-session-attested'
         firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
@@ -3108,12 +3133,11 @@ public static class LongGridWindowNative
             'The UI did not expose the Core development read-only mode.'
         Assert-Condition ($fileOperationCard.Current.ItemStatus -eq 'DisabledBySafetyPolicy') `
             'The UI did not expose the file-operation safety policy.'
-        $expectedDesktopHostStatuses = if ($DesktopHostDevelopmentOptIn) {
-            @('Disconnected', 'ConnectedReadOnly')
-        }
-        else {
-            @('DisabledBySafetyPolicy')
-        }
+        $expectedDesktopHostStatuses = @(
+            'Disconnected',
+            'ConnectedReadOnly',
+            'DisabledBySafetyPolicy'
+        )
         Assert-Condition (
             $expectedDesktopHostStatuses -contains $desktopHostCard.Current.ItemStatus
         ) 'The UI did not expose the audited DesktopHost feature boundary.'
@@ -3348,7 +3372,7 @@ public static class LongGridWindowNative
             responsiveItemStatus = $layoutRoot.Current.ItemStatus
             compactCards = 3
             compactOrganizationModes = 2
-            coreRuntimeStatus = 'development-read-only-host-default-off'
+            coreRuntimeStatus = 'development-read-only-host-user-switch'
             desktopHost = $desktopHostCard.Current.ItemStatus
             firstOrganizationPrototype = 'blank-suggested-safe-preview-items-drop-semantics-two-step-undo'
             layoutRecoveryPrototype = 'review-expired-review-acknowledged-blocked-automatic-cancelled'
