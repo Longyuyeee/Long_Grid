@@ -337,9 +337,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 }
                 return nint.Zero;
             case NativeMethods.WmRButtonUp:
-                _ = HandleEmptyCreateAlternative(
-                    longParameter,
-                    ProductDesktopWorkspaceCreateInputKind.ContextMenu);
+                _ = HandleEmptyCreateContextMenu(window, longParameter);
                 return nint.Zero;
             case NativeMethods.WmHotKey
                 when wordParameter.ToInt64() == EmptyCreateHotKeyId:
@@ -461,16 +459,73 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             isAutoRepeat: false);
     }
 
-    private bool HandleEmptyCreateAlternative(
-        nint longParameter,
-        ProductDesktopWorkspaceCreateInputKind kind) =>
-        mode == ProductDesktopInteractionSurfaceMode.Passive
-        && projection.Containers.Count == 0
-        && Contains(
-            ProductDesktopHostSurfaceLayout.GetEmptyCreateButtonBounds(projection),
-            SignedLowWord(longParameter),
-            SignedHighWord(longParameter))
-        && SubmitEmptyWorkspaceCreateInput(kind, isAutoRepeat: false);
+    private bool HandleEmptyCreateContextMenu(
+        nint window,
+        nint longParameter)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Passive
+            || projection.Containers.Count != 0
+            || !Contains(
+                ProductDesktopHostSurfaceLayout.GetEmptyCreateButtonBounds(
+                    projection),
+                SignedLowWord(longParameter),
+                SignedHighWord(longParameter)))
+        {
+            return false;
+        }
+
+        InputMessageSource source = default;
+        bool observed = NativeMethods.GetCurrentInputMessageSource(ref source);
+        nint foreground = NativeMethods.GetForegroundWindow();
+        nint menu = NativeMethods.CreatePopupMenu();
+        if (menu == nint.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            if (!NativeMethods.AppendMenu(
+                    menu,
+                    NativeMethods.MfString,
+                    NativeMethods.EmptyCreateMenuCommand,
+                    "创建第一个方格"))
+            {
+                return false;
+            }
+
+            NativePoint point = new(
+                SignedLowWord(longParameter),
+                SignedHighWord(longParameter));
+            if (!NativeMethods.ClientToScreen(window, ref point))
+            {
+                return false;
+            }
+
+            uint command = NativeMethods.TrackPopupMenuEx(
+                menu,
+                NativeMethods.TpmRightButton
+                    | NativeMethods.TpmNoNotify
+                    | NativeMethods.TpmReturnCommand,
+                point.X,
+                point.Y,
+                window,
+                nint.Zero);
+            return command == NativeMethods.EmptyCreateMenuCommand
+                && NativeMethods.GetForegroundWindow() == foreground
+                && foreground != window
+                && SubmitEmptyWorkspaceCreateInput(
+                    ProductDesktopWorkspaceCreateInputKind.ContextMenu,
+                    sourceAttested: observed,
+                    isInjected: !observed
+                        || source.OriginId == NativeMethods.ImoInjected,
+                    isAutoRepeat: false);
+        }
+        finally
+        {
+            _ = NativeMethods.DestroyMenu(menu);
+        }
+    }
 
     internal bool SubmitEmptyWorkspaceCreateInput(
         ProductDesktopWorkspaceCreateInputKind kind,
@@ -1163,6 +1218,19 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal uint OriginId;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint
+    {
+        internal NativePoint(int x, int y)
+        {
+            X = x;
+            Y = y;
+        }
+
+        internal int X;
+        internal int Y;
+    }
+
     private static class NativeMethods
     {
         internal const uint WsPopup = 0x80000000;
@@ -1186,6 +1254,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint ModControl = 0x0002;
         internal const uint ModNoRepeat = 0x4000;
         internal const uint VkN = 0x4E;
+        internal const uint MfString = 0x0000;
+        internal const uint TpmRightButton = 0x0002;
+        internal const uint TpmNoNotify = 0x0080;
+        internal const uint TpmReturnCommand = 0x0100;
+        internal const uint EmptyCreateMenuCommand = 1;
         internal const long MkShift = 0x0004;
         internal const long MkControl = 0x0008;
         internal const uint ImoInjected = 2;
@@ -1315,6 +1388,36 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool UnregisterHotKey(nint window, int id);
+
+        [DllImport("user32.dll")]
+        internal static extern nint CreatePopupMenu();
+
+        [DllImport("user32.dll", EntryPoint = "AppendMenuW", CharSet = CharSet.Unicode)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool AppendMenu(
+            nint menu,
+            uint flags,
+            uint identifier,
+            string text);
+
+        [DllImport("user32.dll")]
+        internal static extern uint TrackPopupMenuEx(
+            nint menu,
+            uint flags,
+            int x,
+            int y,
+            nint window,
+            nint parameters);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool DestroyMenu(nint menu);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool ClientToScreen(
+            nint window,
+            ref NativePoint point);
 
         [DllImport("gdi32.dll")]
         internal static extern nint CreateRectRgn(

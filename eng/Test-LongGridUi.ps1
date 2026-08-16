@@ -2214,6 +2214,9 @@ function Test-SourceContract {
         $windowsDesktopHostReadOnlySurfaceCode -match `
             'GetCurrentInputMessageSource' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'WmRButtonUp' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'CreatePopupMenu' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'TrackPopupMenuEx' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'DestroyMenu' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'WmHotKey' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'RegisterHotKey' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'UnregisterHotKey' -and
