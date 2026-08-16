@@ -91,6 +91,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurfaceFactory
 internal sealed class WindowsProductDesktopHostReadOnlySurface
     : IProductDesktopHostReadOnlySurface
 {
+    private const int EmptyCreateHotKeyId = 0x4C47;
     private readonly string className;
     private readonly nint module;
     private readonly WindowProcedure windowProcedure;
@@ -103,6 +104,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     private Func<ProductDesktopWorkspaceCreateInput, bool>
         requestEmptyWorkspaceCreate = static _ => false;
     private volatile ProductDesktopInteractionSurfaceMode mode;
+    private bool emptyCreateHotKeyRegistered;
 #if WINDOWS
     private WindowsProductDesktopHostUiaRootProvider? uiaProvider;
 #endif
@@ -146,6 +148,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     public uint ThreadId { get; private set; }
 
     public bool ReadOnlyAccessibilityAttested => uiaProvider is not null;
+
+    internal bool EmptyWorkspaceKeyboardCreateAvailable =>
+        emptyCreateHotKeyRegistered;
 
     public bool PassiveWindowContractAttested =>
         !disposed
@@ -258,7 +263,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 ProductDesktopWorkspaceCreateInputKind.AssistiveInvoke,
                 SourceAttested: true,
                 IsInjected: false,
-                IsAutoRepeat: false)));
+                IsAutoRepeat: false)),
+            () => emptyCreateHotKeyRegistered);
 #endif
 
         ThreadId = NativeMethods.GetWindowThreadProcessId(
@@ -329,6 +335,17 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 {
                     HandlePrimaryPointerPress(wordParameter, longParameter);
                 }
+                return nint.Zero;
+            case NativeMethods.WmRButtonUp:
+                _ = HandleEmptyCreateAlternative(
+                    longParameter,
+                    ProductDesktopWorkspaceCreateInputKind.ContextMenu);
+                return nint.Zero;
+            case NativeMethods.WmHotKey
+                when wordParameter.ToInt64() == EmptyCreateHotKeyId:
+                _ = SubmitEmptyWorkspaceCreateInput(
+                    ProductDesktopWorkspaceCreateInputKind.KeyboardShortcut,
+                    isAutoRepeat: false);
                 return nint.Zero;
             case NativeMethods.WmPaint:
                 Paint(window);
@@ -439,14 +456,67 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             return false;
         }
 
+        return SubmitEmptyWorkspaceCreateInput(
+            ProductDesktopWorkspaceCreateInputKind.PrimaryPointer,
+            isAutoRepeat: false);
+    }
+
+    private bool HandleEmptyCreateAlternative(
+        nint longParameter,
+        ProductDesktopWorkspaceCreateInputKind kind) =>
+        mode == ProductDesktopInteractionSurfaceMode.Passive
+        && projection.Containers.Count == 0
+        && Contains(
+            ProductDesktopHostSurfaceLayout.GetEmptyCreateButtonBounds(projection),
+            SignedLowWord(longParameter),
+            SignedHighWord(longParameter))
+        && SubmitEmptyWorkspaceCreateInput(kind, isAutoRepeat: false);
+
+    internal bool SubmitEmptyWorkspaceCreateInput(
+        ProductDesktopWorkspaceCreateInputKind kind,
+        bool isAutoRepeat)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Passive
+            || projection.Containers.Count != 0
+            || kind is not (
+                ProductDesktopWorkspaceCreateInputKind.PrimaryPointer
+                or ProductDesktopWorkspaceCreateInputKind.ContextMenu
+                or ProductDesktopWorkspaceCreateInputKind.KeyboardShortcut))
+        {
+            return false;
+        }
+
         InputMessageSource source = default;
         bool observed = NativeMethods.GetCurrentInputMessageSource(ref source);
-        return requestEmptyWorkspaceCreate(new(
-            ProductDesktopWorkspaceCreateInputKind.PrimaryPointer,
-            SourceAttested: observed,
-            IsInjected: !observed
+        return SubmitEmptyWorkspaceCreateInput(
+            kind,
+            sourceAttested: observed,
+            isInjected: !observed
                 || source.OriginId == NativeMethods.ImoInjected,
-            IsAutoRepeat: false));
+            isAutoRepeat);
+    }
+
+    internal bool SubmitEmptyWorkspaceCreateInput(
+        ProductDesktopWorkspaceCreateInputKind kind,
+        bool sourceAttested,
+        bool isInjected,
+        bool isAutoRepeat)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Passive
+            || projection.Containers.Count != 0
+            || kind is not (
+                ProductDesktopWorkspaceCreateInputKind.PrimaryPointer
+                or ProductDesktopWorkspaceCreateInputKind.ContextMenu
+                or ProductDesktopWorkspaceCreateInputKind.KeyboardShortcut))
+        {
+            return false;
+        }
+
+        return requestEmptyWorkspaceCreate(new(
+            kind,
+            sourceAttested,
+            isInjected,
+            isAutoRepeat));
     }
 
     private static bool Contains(PixelRect bounds, int x, int y) =>
@@ -543,14 +613,16 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                     | NativeMethods.DtSingleLine);
             DrawText(
                 deviceContext,
-                "创建只保存 Long方格布局，不会移动桌面文件",
+                emptyCreateHotKeyRegistered
+                    ? "右键按钮或按 Ctrl+Alt+N；不会移动桌面文件"
+                    : "快捷键冲突时仍可点击或右键；不会移动桌面文件",
                 new(card.Left + padding, card.Top + padding + 38,
                     card.Right - padding, button.Top - 8),
                 NativeMethods.DtCenter | NativeMethods.DtVCenter
                     | NativeMethods.DtSingleLine | NativeMethods.DtEndEllipsis);
             DrawText(
                 deviceContext,
-                "创建第一个方格",
+                "创建第一个方格 · 可右键",
                 buttonBounds,
                 NativeMethods.DtCenter | NativeMethods.DtVCenter
                     | NativeMethods.DtSingleLine);
@@ -738,6 +810,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         disposed = true;
         if (Handle != nint.Zero)
         {
+            ReleaseEmptyCreateHotKey();
 #if WINDOWS
             _ = NativeMethods.UiaReturnRawElementProvider(
                 Handle,
@@ -761,6 +834,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         mode = ProductDesktopInteractionSurfaceMode.Passive;
+        TryRegisterEmptyCreateHotKey();
         ApplyWindowRegion();
         _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwShowNoActivate);
         _ = NativeMethods.UpdateWindow(Handle);
@@ -781,9 +855,35 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         mode = ProductDesktopInteractionSurfaceMode.Hidden;
+        ReleaseEmptyCreateHotKey();
         ApplyEmptyWindowRegion();
         _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwHide);
         return HiddenWindowContractAttested;
+    }
+
+    private void TryRegisterEmptyCreateHotKey()
+    {
+        if (Handle != nint.Zero
+            && projection.Containers.Count == 0
+            && !emptyCreateHotKeyRegistered)
+        {
+            emptyCreateHotKeyRegistered = NativeMethods.RegisterHotKey(
+                Handle,
+                EmptyCreateHotKeyId,
+                NativeMethods.ModAlt
+                    | NativeMethods.ModControl
+                    | NativeMethods.ModNoRepeat,
+                NativeMethods.VkN);
+        }
+    }
+
+    private void ReleaseEmptyCreateHotKey()
+    {
+        if (Handle != nint.Zero && emptyCreateHotKeyRegistered)
+        {
+            _ = NativeMethods.UnregisterHotKey(Handle, EmptyCreateHotKeyId);
+            emptyCreateHotKeyRegistered = false;
+        }
     }
 
     private void ApplyWindowRegion()
@@ -1080,6 +1180,12 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint WmMouseActivate = 0x0021;
         internal const uint WmGetObject = 0x003D;
         internal const uint WmLButtonDown = 0x0201;
+        internal const uint WmRButtonUp = 0x0205;
+        internal const uint WmHotKey = 0x0312;
+        internal const uint ModAlt = 0x0001;
+        internal const uint ModControl = 0x0002;
+        internal const uint ModNoRepeat = 0x4000;
+        internal const uint VkN = 0x4E;
         internal const long MkShift = 0x0004;
         internal const long MkControl = 0x0008;
         internal const uint ImoInjected = 2;
@@ -1197,6 +1303,18 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool GetCurrentInputMessageSource(
             ref InputMessageSource inputMessageSource);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool RegisterHotKey(
+            nint window,
+            int id,
+            uint modifiers,
+            uint virtualKey);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool UnregisterHotKey(nint window, int id);
 
         [DllImport("gdi32.dll")]
         internal static extern nint CreateRectRgn(

@@ -29,7 +29,8 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
         Func<ProductDesktopInteractionSurfaceTransactionSnapshot?>?
             selectionSnapshot = null,
         Func<string, ProductDesktopSelectionRequest, bool>? applySelection = null,
-        Func<bool>? requestEmptyWorkspaceCreate = null)
+        Func<bool>? requestEmptyWorkspaceCreate = null,
+        Func<bool>? emptyWorkspaceKeyboardCreateAvailable = null)
     {
         this.window = window != nint.Zero
             ? window
@@ -44,7 +45,11 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
             new WindowsProductDesktopHostUiaContainerProvider(
                 this, container, index, marker)).ToArray();
         emptyCreate = containers.Length == 0
-            ? new(this, marker, requestEmptyWorkspaceCreate ?? (() => false))
+            ? new(
+                this,
+                marker,
+                requestEmptyWorkspaceCreate ?? (() => false),
+                emptyWorkspaceKeyboardCreateAvailable ?? (() => false))
             : null;
     }
 
@@ -247,15 +252,18 @@ internal sealed class WindowsProductDesktopHostUiaEmptyCreateProvider
     private readonly WindowsProductDesktopHostUiaRootProvider root;
     private readonly int marker;
     private readonly Func<bool> requestCreate;
+    private readonly Func<bool> keyboardCreateAvailable;
 
     internal WindowsProductDesktopHostUiaEmptyCreateProvider(
         WindowsProductDesktopHostUiaRootProvider root,
         int marker,
-        Func<bool> requestCreate)
+        Func<bool> requestCreate,
+        Func<bool> keyboardCreateAvailable)
     {
         this.root = root;
         this.marker = marker;
         this.requestCreate = requestCreate;
+        this.keyboardCreateAvailable = keyboardCreateAvailable;
     }
 
     public ProviderOptions ProviderOptions => root.ProviderOptions;
@@ -279,8 +287,12 @@ internal sealed class WindowsProductDesktopHostUiaEmptyCreateProvider
         var id when id == AutomationElementIdentifiers.IsEnabledProperty.Id => true,
         var id when id == AutomationElementIdentifiers.IsKeyboardFocusableProperty.Id =>
             true,
+        var id when id == AutomationElementIdentifiers.AccessKeyProperty.Id =>
+            keyboardCreateAvailable() ? "Ctrl+Alt+N" : string.Empty,
         var id when id == AutomationElementIdentifiers.ItemStatusProperty.Id =>
-            "\u521b\u5efa\u9ed8\u8ba4\u7a7a\u65b9\u683c\uff1b\u4e0d\u8bfb\u53d6\u6216\u79fb\u52a8\u684c\u9762\u6587\u4ef6",
+            keyboardCreateAvailable()
+                ? "\u521b\u5efa\u9ed8\u8ba4\u7a7a\u65b9\u683c\uff1b\u53ef\u4f7f\u7528 Ctrl+Alt+N\uff1b\u4e0d\u8bfb\u53d6\u6216\u79fb\u52a8\u684c\u9762\u6587\u4ef6"
+                : "\u521b\u5efa\u9ed8\u8ba4\u7a7a\u65b9\u683c\uff1b\u5feb\u6377\u952e\u5f53\u524d\u4e0d\u53ef\u7528\uff1b\u4e0d\u8bfb\u53d6\u6216\u79fb\u52a8\u684c\u9762\u6587\u4ef6",
         _ => null,
     };
     public IRawElementProviderFragment? Navigate(NavigateDirection direction) =>

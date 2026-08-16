@@ -138,6 +138,8 @@ $windowsDesktopHostWindowInspectorCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostWindowInspector.cs'
 $windowsDesktopHostReadOnlySurfaceCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostReadOnlySurface.cs'
+$desktopWorkspaceCreateAdmissionCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopWorkspaceCreateAdmission.cs'
 $windowsDesktopHostUiaProviderCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostUiaProvider.cs'
 $verifiedWindowBatchAdapterCodePath = Join-Path $projectRoot `
@@ -432,6 +434,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $windowsDesktopHostReadOnlySurfaceCode = Get-Content `
         -LiteralPath $windowsDesktopHostReadOnlySurfaceCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopWorkspaceCreateAdmissionCode = Get-Content `
+        -LiteralPath $desktopWorkspaceCreateAdmissionCodePath `
         -Raw `
         -Encoding UTF8
     $windowsDesktopHostUiaProviderCode = Get-Content `
@@ -2207,8 +2213,17 @@ function Test-SourceContract {
             'GetEmptyCreateButtonBounds' -and
         $windowsDesktopHostReadOnlySurfaceCode -match `
             'GetCurrentInputMessageSource' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'WmRButtonUp' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'WmHotKey' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'RegisterHotKey' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'UnregisterHotKey' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'HtTransparent' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'WsExNoActivate' -and
+        $desktopWorkspaceCreateAdmissionCode -match 'UntrustedSource' -and
+        $desktopWorkspaceCreateAdmissionCode -match 'Injected' -and
+        $desktopWorkspaceCreateAdmissionCode -match 'AutoRepeat' -and
+        $desktopWorkspaceCreateAdmissionCode -match 'StaleWorkspace' -and
+        $desktopWorkspaceCreateAdmissionCode -match 'StaleTopology' -and
         $windowsDesktopHostUiaProviderCode -match `
             'LongGrid\.DesktopHost\.EmptyCreateButton' -and
         $windowsDesktopHostUiaProviderCode -match `
@@ -2217,7 +2232,7 @@ function Test-SourceContract {
             'BindEmptyWorkspaceCreate\(\s*RequestDesktopEmptyWorkspaceCreate\)' -and
         $appCode -match `
             'RequestDesktopEmptyWorkspaceCreate[\s\S]{0,2400}CommitProductWorkspaceContainerActionCore'
-    ) 'DesktopHost empty-create entry must use a bounded non-activating surface, trusted input/UIA invoke, and the unified configuration commit path.'
+    ) 'DesktopHost empty-create entries must keep a bounded non-activating surface, normalize pointer/context-menu/hotkey/UIA input, reject unsafe or stale requests, and use the unified configuration commit path.'
     $workspaceOpenReviewNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceOpenReviewButton'
@@ -2839,7 +2854,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-zero-results-recovery-empty-create-shortcut-review-shortcut-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
