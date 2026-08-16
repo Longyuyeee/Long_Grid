@@ -203,7 +203,7 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
     {
     }
 
-    void BindEmptyWorkspaceCreate(
+    void BindWorkspaceCreate(
         Func<ProductDesktopWorkspaceCreateInput, bool> requestCreate)
     {
     }
@@ -255,7 +255,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     private ProductDesktopHostPassiveSurfaceModeAdapter? interactionSurface;
     private bool disposed;
     private Func<ProductDesktopWorkspaceCreateRequest, bool>
-        requestEmptyWorkspaceCreate = static _ => false;
+        requestWorkspaceCreate = static _ => false;
 
     public ProductDesktopHostLifecycleController(
         ProductDesktopHostFeatureDecision featureDecision)
@@ -370,14 +370,14 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
 
     public event EventHandler<ProductDesktopHostLifecycleSnapshot>? SnapshotChanged;
 
-    public void BindEmptyWorkspaceCreate(
+    public void BindWorkspaceCreate(
         Func<ProductDesktopWorkspaceCreateRequest, bool> requestCreate)
     {
         ArgumentNullException.ThrowIfNull(requestCreate);
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            requestEmptyWorkspaceCreate = requestCreate;
+            requestWorkspaceCreate = requestCreate;
         }
     }
 
@@ -983,8 +983,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                         display,
                         containerId,
                         request));
-                created.BindEmptyWorkspaceCreate(input =>
-                    requestEmptyWorkspaceCreate(new(
+                created.BindWorkspaceCreate(input =>
+                    requestWorkspaceCreate(new(
                         input.Kind,
                         display.DisplayId,
                         batch.WorkspaceRevision,

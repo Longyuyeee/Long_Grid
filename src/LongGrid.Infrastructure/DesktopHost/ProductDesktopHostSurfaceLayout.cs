@@ -10,6 +10,10 @@ internal static class ProductDesktopHostSurfaceLayout
     internal const int EmptyCardHeightDip = 184;
     internal const int EmptyCreateButtonWidthDip = 248;
     internal const int EmptyCreateButtonHeightDip = 48;
+    internal const int ContinuedCreateButtonWidthDip = 144;
+    internal const int ContinuedCreateButtonHeightDip = 40;
+    internal const int ContinuedCreateButtonMarginDip = 16;
+    internal const int ContinuedCreateButtonGapDip = 8;
 
     internal static PixelRect GetEmptyCardBounds(
         ProductDesktopHostDisplayProjection display)
@@ -45,6 +49,58 @@ internal static class ProductDesktopHostSurfaceLayout
             card.Bottom - height - ToPixels(20, scale),
             width,
             height);
+    }
+
+    internal static PixelRect? GetWorkspaceCreateButtonBounds(
+        ProductDesktopHostDisplayProjection display) =>
+        display.WorkspaceIsEmpty
+            ? GetEmptyCreateButtonBounds(display)
+            : GetContinuedCreateButtonBounds(display);
+
+    internal static PixelRect? GetContinuedCreateButtonBounds(
+        ProductDesktopHostDisplayProjection display)
+    {
+        ArgumentNullException.ThrowIfNull(display);
+        double scale = display.EffectiveDpi / 96d;
+        int margin = ToPixels(ContinuedCreateButtonMarginDip, scale);
+        int gap = ToPixels(ContinuedCreateButtonGapDip, scale);
+        int width = Math.Min(
+            ToPixels(ContinuedCreateButtonWidthDip, scale),
+            Math.Max(0, display.WorkArea.Width - (margin * 2)));
+        int height = Math.Min(
+            ToPixels(ContinuedCreateButtonHeightDip, scale),
+            Math.Max(0, display.WorkArea.Height - (margin * 2)));
+        if (width <= 0 || height <= 0)
+        {
+            return null;
+        }
+
+        PixelRect[] occupied = display.Containers
+            .Select(container => GetContainerBounds(display, container))
+            .ToArray();
+        int horizontalStep = width + gap;
+        int verticalStep = height + gap;
+        for (int top = margin;
+            top + height <= display.WorkArea.Height - margin;
+            top += verticalStep)
+        {
+            for (int right = display.WorkArea.Width - margin;
+                right - width >= margin;
+                right -= horizontalStep)
+            {
+                var candidate = new PixelRect(
+                    right - width,
+                    top,
+                    width,
+                    height);
+                if (occupied.All(bounds => !candidate.Intersect(bounds).HasArea))
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        return null;
     }
 
     internal static PixelRect GetContainerBounds(

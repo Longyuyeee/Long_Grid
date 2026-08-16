@@ -169,8 +169,8 @@ public partial class App : Application
             ProductDisplayTopology_SnapshotChanged;
         productDesktopHostLifecycle.SnapshotChanged +=
             ProductDesktopHostLifecycle_SnapshotChanged;
-        productDesktopHostLifecycle.BindEmptyWorkspaceCreate(
-            RequestDesktopEmptyWorkspaceCreate);
+        productDesktopHostLifecycle.BindWorkspaceCreate(
+            RequestDesktopWorkspaceCreate);
         window.DesktopKeyboardInteractionRequested +=
             MainWindow_DesktopKeyboardInteractionRequested;
         window.BoxesEnabledChangeRequested +=
@@ -1042,7 +1042,7 @@ public partial class App : Application
         return result;
     }
 
-    private bool RequestDesktopEmptyWorkspaceCreate(
+    private bool RequestDesktopWorkspaceCreate(
         ProductDesktopWorkspaceCreateRequest request)
     {
         MainWindow? currentWindow = window;
@@ -1074,10 +1074,11 @@ public partial class App : Application
                     StringComparison.Ordinal));
             if (!requestIsCurrent
                 || !displayIsAuthoritative
-                || productDesktopHostLifecycle.Snapshot.Status !=
-                    ProductDesktopHostLifecycleStatus.AwaitingWorkspace)
+                || productDesktopHostLifecycle.Snapshot.Status is not (
+                    ProductDesktopHostLifecycleStatus.AwaitingWorkspace
+                    or ProductDesktopHostLifecycleStatus.ReadyReadOnly))
             {
-                currentWindow.ApplyDesktopEmptyWorkspaceCreateResult(false);
+                currentWindow.ApplyDesktopWorkspaceCreateResult(false);
                 return;
             }
 
@@ -1095,7 +1096,7 @@ public partial class App : Application
                     confirmed: false,
                     createDisplayId: request.DisplayId,
                     useDefaultName: true);
-            currentWindow.ApplyDesktopEmptyWorkspaceCreateResult(
+            currentWindow.ApplyDesktopWorkspaceCreateResult(
                 result.IsAccepted);
         });
     }

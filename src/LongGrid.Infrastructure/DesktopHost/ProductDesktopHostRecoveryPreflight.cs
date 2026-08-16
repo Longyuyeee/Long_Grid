@@ -220,7 +220,9 @@ public static class ProductDesktopHostRecoveryPreflight
                     ? new PixelRect(0, 0, 1920, 1040)
                     : new PixelRect(-1280 * index, 0, 1280, 984),
                 index == 0 ? 96u : 120u,
-                [Projection($"container-{index + 1}")]))
+                [Projection($"container-{index + 1}")],
+                isPrimary: index == 0,
+                workspaceIsEmpty: false))
             .ToArray();
         ProductDesktopHostProjectionBatch batch =
             ProductDesktopHostProjectionBatch.Create(

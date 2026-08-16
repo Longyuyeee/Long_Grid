@@ -2212,6 +2212,8 @@ function Test-SourceContract {
         $windowsDesktopHostReadOnlySurfaceCode -match `
             'GetEmptyCreateButtonBounds' -and
         $windowsDesktopHostReadOnlySurfaceCode -match `
+            'GetContinuedCreateButtonBounds' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
             'GetCurrentInputMessageSource' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'WmRButtonUp' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'CreatePopupMenu' -and
@@ -2230,12 +2232,16 @@ function Test-SourceContract {
         $windowsDesktopHostUiaProviderCode -match `
             'LongGrid\.DesktopHost\.EmptyCreateButton' -and
         $windowsDesktopHostUiaProviderCode -match `
+            'LongGrid\.DesktopHost\.WorkspaceCreateButton' -and
+        $windowsDesktopHostUiaProviderCode -match `
             'InvokePatternIdentifiers\.Pattern' -and
         $appCode -match `
-            'BindEmptyWorkspaceCreate\(\s*RequestDesktopEmptyWorkspaceCreate\)' -and
+            'BindWorkspaceCreate\(\s*RequestDesktopWorkspaceCreate\)' -and
         $appCode -match `
-            'RequestDesktopEmptyWorkspaceCreate[\s\S]{0,2400}CommitProductWorkspaceContainerActionCore'
-    ) 'DesktopHost empty-create entries must keep a bounded non-activating surface, normalize pointer/context-menu/hotkey/UIA input, reject unsafe or stale requests, and use the unified configuration commit path.'
+            'RequestDesktopWorkspaceCreate[\s\S]{0,2400}ProductDesktopHostLifecycleStatus\.ReadyReadOnly' -and
+        $appCode -match `
+            'RequestDesktopWorkspaceCreate[\s\S]{0,2800}CommitProductWorkspaceContainerActionCore'
+    ) 'DesktopHost workspace-create entries must keep bounded non-activating surfaces before and after the first box, normalize pointer/context-menu/hotkey/UIA input, reject unsafe or stale requests, and use the unified configuration commit path.'
     $workspaceOpenReviewNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceOpenReviewButton'

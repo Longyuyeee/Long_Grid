@@ -102,9 +102,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     private Func<string, ProductDesktopSelectionRequest, bool>
         applySelection = static (_, _) => false;
     private Func<ProductDesktopWorkspaceCreateInput, bool>
-        requestEmptyWorkspaceCreate = static _ => false;
+        requestWorkspaceCreate = static _ => false;
     private volatile ProductDesktopInteractionSurfaceMode mode;
-    private bool emptyCreateHotKeyRegistered;
+    private bool workspaceCreateHotKeyRegistered;
 #if WINDOWS
     private WindowsProductDesktopHostUiaRootProvider? uiaProvider;
 #endif
@@ -149,8 +149,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
 
     public bool ReadOnlyAccessibilityAttested => uiaProvider is not null;
 
-    internal bool EmptyWorkspaceKeyboardCreateAvailable =>
-        emptyCreateHotKeyRegistered;
+    internal bool WorkspaceKeyboardCreateAvailable =>
+        workspaceCreateHotKeyRegistered;
 
     public bool PassiveWindowContractAttested =>
         !disposed
@@ -259,12 +259,12 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 }
                 return applied;
             },
-            () => requestEmptyWorkspaceCreate(new(
+            () => requestWorkspaceCreate(new(
                 ProductDesktopWorkspaceCreateInputKind.AssistiveInvoke,
                 SourceAttested: true,
                 IsInjected: false,
                 IsAutoRepeat: false)),
-            () => emptyCreateHotKeyRegistered);
+            () => workspaceCreateHotKeyRegistered);
 #endif
 
         ThreadId = NativeMethods.GetWindowThreadProcessId(
@@ -331,17 +331,17 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             case NativeMethods.WmMouseActivate:
                 return new nint(NativeMethods.MaNoActivate);
             case NativeMethods.WmLButtonDown:
-                if (!HandleEmptyCreatePress(longParameter))
+                if (!HandleWorkspaceCreatePress(longParameter))
                 {
                     HandlePrimaryPointerPress(wordParameter, longParameter);
                 }
                 return nint.Zero;
             case NativeMethods.WmRButtonUp:
-                _ = HandleEmptyCreateContextMenu(window, longParameter);
+                _ = HandleWorkspaceCreateContextMenu(window, longParameter);
                 return nint.Zero;
             case NativeMethods.WmHotKey
                 when wordParameter.ToInt64() == EmptyCreateHotKeyId:
-                _ = SubmitEmptyWorkspaceCreateInput(
+                _ = SubmitWorkspaceCreateInput(
                     ProductDesktopWorkspaceCreateInputKind.KeyboardShortcut,
                     isAutoRepeat: false);
                 return nint.Zero;
@@ -367,11 +367,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         applySelection = apply;
     }
 
-    public void BindEmptyWorkspaceCreate(
+    public void BindWorkspaceCreate(
         Func<ProductDesktopWorkspaceCreateInput, bool> requestCreate)
     {
         ArgumentNullException.ThrowIfNull(requestCreate);
-        requestEmptyWorkspaceCreate = requestCreate;
+        requestWorkspaceCreate = requestCreate;
     }
 
     public void RefreshSelection()
@@ -426,48 +426,52 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         {
             return NativeMethods.HtClient;
         }
-        if (mode != ProductDesktopInteractionSurfaceMode.Passive
-            || projection.Containers.Count != 0)
+        if (mode != ProductDesktopInteractionSurfaceMode.Passive)
         {
             return NativeMethods.HtTransparent;
         }
 
         int x = SignedLowWord(longParameter) - projection.WorkArea.Left;
         int y = SignedHighWord(longParameter) - projection.WorkArea.Top;
-        return Contains(
-            ProductDesktopHostSurfaceLayout.GetEmptyCreateButtonBounds(projection),
-            x,
-            y)
+        PixelRect? create =
+            ProductDesktopHostSurfaceLayout.GetWorkspaceCreateButtonBounds(
+                projection);
+        return create is not null && Contains(create.Value, x, y)
                 ? NativeMethods.HtClient
                 : NativeMethods.HtTransparent;
     }
 
-    private bool HandleEmptyCreatePress(nint longParameter)
+    private bool HandleWorkspaceCreatePress(nint longParameter)
     {
+        PixelRect? create =
+            ProductDesktopHostSurfaceLayout.GetWorkspaceCreateButtonBounds(
+                projection);
         if (mode != ProductDesktopInteractionSurfaceMode.Passive
-            || projection.Containers.Count != 0
+            || create is null
             || !Contains(
-                ProductDesktopHostSurfaceLayout.GetEmptyCreateButtonBounds(projection),
+                create.Value,
                 SignedLowWord(longParameter),
                 SignedHighWord(longParameter)))
         {
             return false;
         }
 
-        return SubmitEmptyWorkspaceCreateInput(
+        return SubmitWorkspaceCreateInput(
             ProductDesktopWorkspaceCreateInputKind.PrimaryPointer,
             isAutoRepeat: false);
     }
 
-    private bool HandleEmptyCreateContextMenu(
+    private bool HandleWorkspaceCreateContextMenu(
         nint window,
         nint longParameter)
     {
+        PixelRect? create =
+            ProductDesktopHostSurfaceLayout.GetWorkspaceCreateButtonBounds(
+                projection);
         if (mode != ProductDesktopInteractionSurfaceMode.Passive
-            || projection.Containers.Count != 0
+            || create is null
             || !Contains(
-                ProductDesktopHostSurfaceLayout.GetEmptyCreateButtonBounds(
-                    projection),
+                create.Value,
                 SignedLowWord(longParameter),
                 SignedHighWord(longParameter)))
         {
@@ -489,7 +493,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                     menu,
                     NativeMethods.MfString,
                     NativeMethods.EmptyCreateMenuCommand,
-                    "创建第一个方格"))
+                    projection.WorkspaceIsEmpty
+                        ? "创建第一个方格"
+                        : "新建方格"))
             {
                 return false;
             }
@@ -514,7 +520,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             return command == NativeMethods.EmptyCreateMenuCommand
                 && NativeMethods.GetForegroundWindow() == foreground
                 && foreground != window
-                && SubmitEmptyWorkspaceCreateInput(
+                && SubmitWorkspaceCreateInput(
                     ProductDesktopWorkspaceCreateInputKind.ContextMenu,
                     sourceAttested: observed,
                     isInjected: !observed
@@ -527,12 +533,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         }
     }
 
-    internal bool SubmitEmptyWorkspaceCreateInput(
+    internal bool SubmitWorkspaceCreateInput(
         ProductDesktopWorkspaceCreateInputKind kind,
         bool isAutoRepeat)
     {
         if (mode != ProductDesktopInteractionSurfaceMode.Passive
-            || projection.Containers.Count != 0
             || kind is not (
                 ProductDesktopWorkspaceCreateInputKind.PrimaryPointer
                 or ProductDesktopWorkspaceCreateInputKind.ContextMenu
@@ -543,7 +548,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
 
         InputMessageSource source = default;
         bool observed = NativeMethods.GetCurrentInputMessageSource(ref source);
-        return SubmitEmptyWorkspaceCreateInput(
+        return SubmitWorkspaceCreateInput(
             kind,
             sourceAttested: observed,
             isInjected: !observed
@@ -551,14 +556,13 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             isAutoRepeat);
     }
 
-    internal bool SubmitEmptyWorkspaceCreateInput(
+    internal bool SubmitWorkspaceCreateInput(
         ProductDesktopWorkspaceCreateInputKind kind,
         bool sourceAttested,
         bool isInjected,
         bool isAutoRepeat)
     {
         if (mode != ProductDesktopInteractionSurfaceMode.Passive
-            || projection.Containers.Count != 0
             || kind is not (
                 ProductDesktopWorkspaceCreateInputKind.PrimaryPointer
                 or ProductDesktopWorkspaceCreateInputKind.ContextMenu
@@ -567,7 +571,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             return false;
         }
 
-        return requestEmptyWorkspaceCreate(new(
+        return requestWorkspaceCreate(new(
             kind,
             sourceAttested,
             isInjected,
@@ -599,7 +603,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 NativeMethods.GetStockObject(NativeMethods.DefaultGuiFont));
             try
             {
-                if (projection.Containers.Count == 0)
+                if (projection.WorkspaceIsEmpty)
                 {
                     DrawEmptyWorkspace(deviceContext);
                     return;
@@ -609,6 +613,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 {
                     DrawContainer(deviceContext, container);
                 }
+                DrawContinuedWorkspaceCreate(deviceContext);
             }
             finally
             {
@@ -668,7 +673,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                     | NativeMethods.DtSingleLine);
             DrawText(
                 deviceContext,
-                emptyCreateHotKeyRegistered
+                workspaceCreateHotKeyRegistered
                     ? "右键按钮或按 Ctrl+Alt+N；不会移动桌面文件"
                     : "快捷键冲突时仍可点击或右键；不会移动桌面文件",
                 new(card.Left + padding, card.Top + padding + 38,
@@ -687,6 +692,56 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             _ = NativeMethods.DeleteObject(borderPen);
             _ = NativeMethods.DeleteObject(buttonBrush);
             _ = NativeMethods.DeleteObject(cardBrush);
+        }
+    }
+
+    private void DrawContinuedWorkspaceCreate(nint deviceContext)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Passive)
+        {
+            return;
+        }
+
+        PixelRect? button =
+            ProductDesktopHostSurfaceLayout.GetContinuedCreateButtonBounds(
+                projection);
+        if (button is null)
+        {
+            return;
+        }
+
+        NativeRect bounds = new(
+            button.Value.Left,
+            button.Value.Top,
+            button.Value.Right,
+            button.Value.Bottom);
+        nint brush = NativeMethods.CreateSolidBrush(0x00D67524);
+        nint pen = NativeMethods.CreatePen(NativeMethods.PsSolid, 1, 0x006F6259);
+        try
+        {
+            nint previousBrush = NativeMethods.SelectObject(deviceContext, brush);
+            nint previousPen = NativeMethods.SelectObject(deviceContext, pen);
+            _ = NativeMethods.Rectangle(
+                deviceContext,
+                bounds.Left,
+                bounds.Top,
+                bounds.Right,
+                bounds.Bottom);
+            _ = NativeMethods.SelectObject(deviceContext, previousPen);
+            _ = NativeMethods.SelectObject(deviceContext, previousBrush);
+            _ = NativeMethods.DrawText(
+                deviceContext,
+                "+ 新建方格",
+                -1,
+                ref bounds,
+                NativeMethods.DtCenter
+                    | NativeMethods.DtVCenter
+                    | NativeMethods.DtSingleLine);
+        }
+        finally
+        {
+            _ = NativeMethods.DeleteObject(pen);
+            _ = NativeMethods.DeleteObject(brush);
         }
     }
 
@@ -865,7 +920,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         disposed = true;
         if (Handle != nint.Zero)
         {
-            ReleaseEmptyCreateHotKey();
+            ReleaseWorkspaceCreateHotKey();
 #if WINDOWS
             _ = NativeMethods.UiaReturnRawElementProvider(
                 Handle,
@@ -889,9 +944,10 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         mode = ProductDesktopInteractionSurfaceMode.Passive;
-        TryRegisterEmptyCreateHotKey();
+        TryRegisterWorkspaceCreateHotKey();
         ApplyWindowRegion();
         _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwShowNoActivate);
+        _ = NativeMethods.InvalidateRect(Handle, nint.Zero, erase: false);
         _ = NativeMethods.UpdateWindow(Handle);
         return PassiveWindowContractAttested;
     }
@@ -900,8 +956,10 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         mode = ProductDesktopInteractionSurfaceMode.Explicit;
+        ReleaseWorkspaceCreateHotKey();
         ApplyWindowRegion();
         _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwShowNoActivate);
+        _ = NativeMethods.InvalidateRect(Handle, nint.Zero, erase: false);
         _ = NativeMethods.UpdateWindow(Handle);
         return ExplicitWindowContractAttested;
     }
@@ -910,19 +968,19 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         mode = ProductDesktopInteractionSurfaceMode.Hidden;
-        ReleaseEmptyCreateHotKey();
+        ReleaseWorkspaceCreateHotKey();
         ApplyEmptyWindowRegion();
         _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwHide);
         return HiddenWindowContractAttested;
     }
 
-    private void TryRegisterEmptyCreateHotKey()
+    private void TryRegisterWorkspaceCreateHotKey()
     {
         if (Handle != nint.Zero
-            && projection.Containers.Count == 0
-            && !emptyCreateHotKeyRegistered)
+            && projection.IsPrimary
+            && !workspaceCreateHotKeyRegistered)
         {
-            emptyCreateHotKeyRegistered = NativeMethods.RegisterHotKey(
+            workspaceCreateHotKeyRegistered = NativeMethods.RegisterHotKey(
                 Handle,
                 EmptyCreateHotKeyId,
                 NativeMethods.ModAlt
@@ -932,12 +990,12 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         }
     }
 
-    private void ReleaseEmptyCreateHotKey()
+    private void ReleaseWorkspaceCreateHotKey()
     {
-        if (Handle != nint.Zero && emptyCreateHotKeyRegistered)
+        if (Handle != nint.Zero && workspaceCreateHotKeyRegistered)
         {
             _ = NativeMethods.UnregisterHotKey(Handle, EmptyCreateHotKeyId);
-            emptyCreateHotKeyRegistered = false;
+            workspaceCreateHotKeyRegistered = false;
         }
     }
 
@@ -952,7 +1010,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         bool transferred = false;
         try
         {
-            if (projection.Containers.Count == 0)
+            if (projection.WorkspaceIsEmpty)
             {
                 PixelRect emptyCard =
                     ProductDesktopHostSurfaceLayout.GetEmptyCardBounds(projection);
@@ -975,6 +1033,36 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                     throw new Win32Exception(Marshal.GetLastWin32Error());
                 }
                 _ = NativeMethods.DeleteObject(card);
+            }
+            else if (mode == ProductDesktopInteractionSurfaceMode.Passive
+                && ProductDesktopHostSurfaceLayout
+                .GetContinuedCreateButtonBounds(projection) is { } create)
+            {
+                nint button = NativeMethods.CreateRectRgn(
+                    create.Left,
+                    create.Top,
+                    create.Right,
+                    create.Bottom);
+                if (button == nint.Zero)
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+
+                try
+                {
+                    if (NativeMethods.CombineRgn(
+                            combined,
+                            combined,
+                            button,
+                            NativeMethods.RgnOr) == NativeMethods.Error)
+                    {
+                        throw new Win32Exception(Marshal.GetLastWin32Error());
+                    }
+                }
+                finally
+                {
+                    _ = NativeMethods.DeleteObject(button);
+                }
             }
             foreach (ProductDesktopHostReadOnlyProjection container
                 in projection.Containers)
