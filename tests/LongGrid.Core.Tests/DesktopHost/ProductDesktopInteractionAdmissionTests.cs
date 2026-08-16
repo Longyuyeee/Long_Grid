@@ -33,7 +33,7 @@ public sealed class ProductDesktopInteractionAdmissionTests
     {
         ProductDesktopInteractionFeatureDecision decision =
             ProductDesktopInteractionFeaturePolicy.Evaluate(
-                ProductDesktopHostFeaturePolicy.Evaluate(null),
+                ProductDesktopHostFeaturePolicy.Evaluate("0"),
                 "1");
 
         Assert.False(decision.IsEnabled);

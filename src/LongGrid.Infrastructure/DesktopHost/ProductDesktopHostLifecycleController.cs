@@ -7,6 +7,7 @@ namespace LongGrid.Infrastructure.DesktopHost;
 public enum ProductDesktopHostLifecycleStatus
 {
     DisabledBySafetyPolicy,
+    DisabledByUser,
     AwaitingHost,
     AwaitingWorkspace,
     SuspendedUnsafeTopology,
@@ -214,6 +215,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     private static long nextInstanceMarker;
     private readonly object gate = new();
     private readonly bool enabled;
+    private bool userEnabled;
     private readonly IProductDesktopHostReadOnlySurfaceFactory? surfaceFactory;
     private readonly ProductDesktopHostWindowBridge? windowBridge;
     private readonly ProductDesktopInteractionDevelopmentController?
@@ -287,7 +289,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         ProductDesktopInteractionDevelopmentController? interactionDevelopment,
         ProductDesktopInteractionIntentPreparationBridge? intentPreparation,
         ProductDesktopInteractionInputForwardingAdapter? inputForwarding,
-        ProductDesktopInteractionIntentConsumptionController? intentConsumption)
+        ProductDesktopInteractionIntentConsumptionController? intentConsumption,
+        bool userEnabled = true)
         : this(
             featureDecision,
             featureDecision?.IsEnabled == true
@@ -302,7 +305,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             intentConsumption,
             featureDecision?.IsEnabled == true
                 ? new WindowsProductDesktopInteractionActivationSourceFactory()
-                : null)
+                : null,
+            userEnabled)
     {
     }
 
@@ -319,10 +323,12 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         ProductDesktopInteractionIntentConsumptionController?
             intentConsumption = null,
         IProductDesktopInteractionActivationSourceFactory?
-            activationSourceFactory = null)
+            activationSourceFactory = null,
+        bool userEnabled = true)
     {
         ArgumentNullException.ThrowIfNull(featureDecision);
         enabled = featureDecision.IsEnabled;
+        this.userEnabled = enabled && userEnabled;
         if (enabled && (surfaceFactory is null || windowInspector is null))
         {
             throw new ArgumentException(
@@ -339,9 +345,11 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             ? null
             : new(windowInspector);
         snapshot = new(
-            enabled
-                ? ProductDesktopHostLifecycleStatus.AwaitingHost
-                : ProductDesktopHostLifecycleStatus.DisabledBySafetyPolicy,
+            !enabled
+                ? ProductDesktopHostLifecycleStatus.DisabledBySafetyPolicy
+                : this.userEnabled
+                    ? ProductDesktopHostLifecycleStatus.AwaitingHost
+                    : ProductDesktopHostLifecycleStatus.DisabledByUser,
             0,
             NativeHostConnected: false,
             OwnedWindowCount: 0);
@@ -408,6 +416,33 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         }
     }
 
+    public ProductDesktopHostLifecycleSnapshot SetUserEnabled(bool value)
+    {
+        ProductDesktopHostLifecycleSnapshot? published = null;
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (!enabled || userEnabled == value)
+            {
+                return snapshot;
+            }
+
+            userEnabled = value;
+            ReleaseSurfaceUnsafe();
+            published = !value
+                ? UpdateSnapshotUnsafe(
+                    ProductDesktopHostLifecycleStatus.DisabledByUser,
+                    connected: false,
+                    ownedWindowCount: 0,
+                    workspaceRevision: currentUpdate?.WorkspaceRevision ?? 0,
+                    topologyGeneration: currentUpdate?.TopologyGeneration ?? 0)
+                : RestoreCurrentUpdateUnsafe();
+        }
+
+        Publish(published);
+        return published;
+    }
+
     public ProductDesktopHostLifecycleSnapshot ApplyProjectionBatch(
         ProductDesktopHostProjectionBatch? batch)
     {
@@ -417,6 +452,12 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             ObjectDisposedException.ThrowIf(disposed, this);
             if (!enabled)
             {
+                return snapshot;
+            }
+
+            if (!userEnabled)
+            {
+                currentBatch = batch;
                 return snapshot;
             }
 
@@ -455,6 +496,21 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             ObjectDisposedException.ThrowIf(disposed, this);
             if (!enabled)
             {
+                return snapshot;
+            }
+
+            if (!userEnabled)
+            {
+                if (update.WorkspaceRevision < lastWorkspaceRevision
+                    || update.TopologyGeneration < lastTopologyGeneration)
+                {
+                    return snapshot;
+                }
+
+                lastWorkspaceRevision = update.WorkspaceRevision;
+                lastTopologyGeneration = update.TopologyGeneration;
+                currentUpdate = update;
+                currentBatch = update.Batch;
                 return snapshot;
             }
 
@@ -508,6 +564,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             if (!enabled
+                || !userEnabled
                 || interactionDevelopment is null
                 || !systemEvent.IsValid
                 || systemEvent.Sequence <= lastSystemSurfaceSequence)
@@ -803,6 +860,34 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             ownedWindowCount: 0,
             workspaceRevision: update.WorkspaceRevision,
             topologyGeneration: update.TopologyGeneration);
+    }
+
+    private ProductDesktopHostLifecycleSnapshot RestoreCurrentUpdateUnsafe()
+    {
+        if (currentUpdate is null)
+        {
+            return UpdateSnapshotUnsafe(
+                ProductDesktopHostLifecycleStatus.AwaitingHost,
+                connected: false,
+                ownedWindowCount: 0);
+        }
+
+        if (currentUpdate.Disposition ==
+            ProductDesktopHostProjectionDisposition.Ready)
+        {
+            return CreateSurfacesUnsafe(currentUpdate.Batch!);
+        }
+
+        ProductDesktopHostLifecycleStatus status = currentUpdate.Disposition ==
+            ProductDesktopHostProjectionDisposition.EmptyWorkspace
+                ? ProductDesktopHostLifecycleStatus.AwaitingWorkspace
+                : ProductDesktopHostLifecycleStatus.SuspendedUnsafeTopology;
+        return UpdateSnapshotUnsafe(
+            status,
+            connected: false,
+            ownedWindowCount: 0,
+            workspaceRevision: currentUpdate.WorkspaceRevision,
+            topologyGeneration: currentUpdate.TopologyGeneration);
     }
 
     public ValueTask DisposeAsync()

@@ -199,6 +199,22 @@
                                     Style="{StaticResource LongGridCardStyle}">
                                     <StackPanel Spacing="8">
                                         <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="桌面宿主" />
+                                        <ToggleSwitch
+                                            x:Name="BoxesEnabledToggle"
+                                            AutomationProperties.AutomationId="BoxesEnabledToggle"
+                                            AutomationProperties.Name="显示桌面方格"
+                                            Header="显示桌面方格"
+                                            IsEnabled="False"
+                                            OffContent="已关闭"
+                                            OnContent="已开启"
+                                            Toggled="BoxesEnabledToggle_Toggled" />
+                                        <TextBlock
+                                            x:Name="BoxesEnabledStatus"
+                                            AutomationProperties.AutomationId="BoxesEnabledStatus"
+                                            AutomationProperties.LiveSetting="Polite"
+                                            Style="{StaticResource LongGridSubtitleTextStyle}"
+                                            Text="正在读取桌面方格设置…"
+                                            TextWrapping="Wrap" />
                                         <TextBlock x:Name="DesktopHostValue" AutomationProperties.AutomationId="DesktopHostValue" FontSize="22" FontWeight="SemiBold" />
                                         <TextBlock x:Name="DesktopHostDetail" Style="{StaticResource LongGridSubtitleTextStyle}" />
                                         <Button

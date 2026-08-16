@@ -48,7 +48,7 @@ public sealed class ProductDesktopInteractionInputForwardingAdapterTests
         ProductDesktopInteractionIntentBridgeFeatureDecision intent =
             ProductDesktopInteractionIntentBridgePolicy.Evaluate(
                 ProductDesktopInteractionFeaturePolicy.Evaluate(
-                    ProductDesktopHostFeaturePolicy.Evaluate(null),
+                    ProductDesktopHostFeaturePolicy.Evaluate("0"),
                     "1"),
                 "1",
                 "1");

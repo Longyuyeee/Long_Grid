@@ -7,14 +7,24 @@ public sealed class ProductDesktopHostFeaturePolicyTests
     [Theory]
     [InlineData(null)]
     [InlineData("")]
-    [InlineData("0")]
+    [InlineData("1")]
     [InlineData("true")]
-    [InlineData(" 1")]
-    [InlineData("1 ")]
-    public void AnythingExceptExactOptInRemainsDisabled(string? value)
+    public void ProductHostIsEnabledWithoutDevelopmentOptIn(string? value)
     {
         ProductDesktopHostFeatureDecision decision =
             ProductDesktopHostFeaturePolicy.Evaluate(value);
+
+        Assert.True(decision.IsEnabled);
+        Assert.Equal(
+            ProductDesktopHostFeatureStatus.EnabledForProduct,
+            decision.Status);
+    }
+
+    [Fact]
+    public void ExplicitLegacyDisableStillFailsClosed()
+    {
+        ProductDesktopHostFeatureDecision decision =
+            ProductDesktopHostFeaturePolicy.Evaluate("0");
 
         Assert.False(decision.IsEnabled);
         Assert.Equal(
@@ -23,14 +33,14 @@ public sealed class ProductDesktopHostFeaturePolicyTests
     }
 
     [Fact]
-    public void ExactDevelopmentOptInEnablesOnlyTheFeatureDecision()
+    public void EmergencyDisableOverridesProductAndLegacyEnablement()
     {
         ProductDesktopHostFeatureDecision decision =
-            ProductDesktopHostFeaturePolicy.Evaluate("1");
+            ProductDesktopHostFeaturePolicy.Evaluate("1", "1");
 
-        Assert.True(decision.IsEnabled);
+        Assert.False(decision.IsEnabled);
         Assert.Equal(
-            ProductDesktopHostFeatureStatus.EnabledForDevelopment,
+            ProductDesktopHostFeatureStatus.DisabledByEmergencyPolicy,
             decision.Status);
     }
 }

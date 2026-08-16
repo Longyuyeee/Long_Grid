@@ -21,6 +21,8 @@ public partial class App : Application
 {
     private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(5);
     private readonly ProductConfigurationStore configurationStore;
+    private readonly ProductBoxesSettingsStore boxesSettingsStore;
+    private readonly ProductBoxesSettingsController boxesSettingsController;
     private readonly ProductWorkspaceSaveController productWorkspaceSaves;
     private readonly ProductWorkspaceCommitCoordinator workspaceCommits;
     private readonly ProductWorkspaceCatalogRevisionSynchronizer
@@ -50,6 +52,8 @@ public partial class App : Application
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LongGrid");
         configurationStore = new ProductConfigurationStore(configurationDirectory);
+        boxesSettingsStore = new(configurationDirectory);
+        boxesSettingsController = new(boxesSettingsStore);
         var saveWorkflow = new ProductConfigurationSaveWorkflow(
             new ProductConfigurationSaveCoordinator(configurationStore));
         productWorkspaceSaves = new(saveWorkflow);
@@ -62,7 +66,10 @@ public partial class App : Application
         ProductDesktopHostFeatureDecision desktopHostFeature =
             ProductDesktopHostFeaturePolicy.Evaluate(
                 Environment.GetEnvironmentVariable(
-                    ProductDesktopHostFeaturePolicy.EnvironmentVariableName));
+                    ProductDesktopHostFeaturePolicy.EnvironmentVariableName),
+                Environment.GetEnvironmentVariable(
+                    ProductDesktopHostFeaturePolicy
+                        .EmergencyDisableEnvironmentVariableName));
         ProductDesktopInteractionFeatureDecision interactionFeature =
             ProductDesktopInteractionFeaturePolicy.Evaluate(
                 desktopHostFeature,
@@ -112,7 +119,8 @@ public partial class App : Application
             productDesktopInteraction,
             productDesktopIntentPreparation,
             productDesktopInputForwarding,
-            productDesktopIntentConsumption);
+            productDesktopIntentConsumption,
+            userEnabled: false);
         ProductResourceTelemetryFeatureDecision telemetryFeature =
             ProductResourceTelemetryFeaturePolicy.Evaluate(
                 desktopHostFeature,
@@ -163,6 +171,8 @@ public partial class App : Application
             ProductDesktopHostLifecycle_SnapshotChanged;
         window.DesktopKeyboardInteractionRequested +=
             MainWindow_DesktopKeyboardInteractionRequested;
+        window.BoxesEnabledChangeRequested +=
+            MainWindow_BoxesEnabledChangeRequested;
         if (productDesktopSystemSurfaceEvents is not null)
         {
             productDesktopSystemSurfaceEvents.SurfaceChanged +=
@@ -179,6 +189,7 @@ public partial class App : Application
         ApplyProductWorkspaceSessionViews();
         window.AppWindow.Closing += AppWindow_Closing;
         window.Activate();
+        _ = LoadBoxesSettingsAsync();
         _ = LoadConfigurationStartupStateAsync();
         _ = RefreshProductDesktopCatalogAsync();
         _ = RefreshProductDisplayTopologyAsync();
@@ -196,6 +207,78 @@ public partial class App : Application
         ProductConfigurationLoadResult loadResult =
             await configurationStore.LoadAsync();
         ApplyProductConfigurationLoadResult(loadResult);
+    }
+
+    private async Task LoadBoxesSettingsAsync()
+    {
+        ProductBoxesSettingsLoadResult result =
+            await boxesSettingsStore.LoadAsync();
+        boxesSettingsController.Initialize(result.Settings);
+        ProductDesktopHostLifecycleSnapshot snapshot =
+            productDesktopHostLifecycle.SetUserEnabled(
+                result.Settings.BoxesEnabled);
+        bool canChange = snapshot.Status !=
+            ProductDesktopHostLifecycleStatus.DisabledBySafetyPolicy;
+        string status = result.Status switch
+        {
+            ProductBoxesSettingsLoadStatus.MissingDefaulted =>
+                "桌面方格默认开启；关闭后仍会保留全部布局配置。",
+            ProductBoxesSettingsLoadStatus.LoadedPrimary =>
+                "已恢复上次的桌面方格开关状态。",
+            ProductBoxesSettingsLoadStatus.RecoveredBackup =>
+                "主设置不可用，已恢复上次有效开关状态。",
+            ProductBoxesSettingsLoadStatus.CorruptSafeDisabled =>
+                "设置文件和备份均不可用，已安全关闭桌面方格；可重新开启并保存。",
+            _ => throw new InvalidOperationException(
+                "Boxes settings load status must be finite."),
+        };
+        if (!canChange)
+        {
+            status =
+                "桌面方格被紧急安全策略关闭；用户开关值已保留，当前不能从界面覆盖。";
+        }
+        window?.ApplyBoxesEnabledState(
+            result.Settings.BoxesEnabled,
+            canChange,
+            status);
+    }
+
+    private async void MainWindow_BoxesEnabledChangeRequested(bool requestedValue)
+    {
+        MainWindow? currentWindow = window;
+        if (currentWindow is null || closingDrainInProgress)
+        {
+            return;
+        }
+
+        currentWindow.ApplyBoxesEnabledChangePending(requestedValue);
+        ProductBoxesSettingsChangeResult result =
+            await boxesSettingsController.ChangeAsync(requestedValue);
+        bool applied = result.Status is
+            ProductBoxesSettingsChangeStatus.Saved
+            or ProductBoxesSettingsChangeStatus.Unchanged;
+        ProductDesktopHostLifecycleSnapshot snapshot = applied
+            ? productDesktopHostLifecycle.SetUserEnabled(
+                result.Settings.BoxesEnabled)
+            : productDesktopHostLifecycle.Snapshot;
+        string status = result.Status switch
+        {
+            ProductBoxesSettingsChangeStatus.Saved =>
+                result.Settings.BoxesEnabled
+                    ? "桌面方格已开启并保存；正在恢复上次布局。"
+                    : "桌面方格已关闭并保存；布局配置保持不变。",
+            ProductBoxesSettingsChangeStatus.Unchanged =>
+                "桌面方格状态未变化，没有重复写入设置。",
+            ProductBoxesSettingsChangeStatus.Failed =>
+                "设置保存失败，已恢复原开关状态；桌面方格状态未改变。",
+            _ => throw new InvalidOperationException(
+                "Boxes settings change status must be finite."),
+        };
+        currentWindow.ApplyBoxesEnabledState(
+            result.Settings.BoxesEnabled,
+            snapshot.Status !=
+                ProductDesktopHostLifecycleStatus.DisabledBySafetyPolicy,
+            status);
     }
 
     private async Task<ProductConfigurationStartupState> RecoverConfigurationAsync(
@@ -1141,6 +1224,8 @@ public partial class App : Application
         {
             ProductDesktopHostLifecycleStatus.DisabledBySafetyPolicy =>
                 ProductAnonymousInteractionHostStatus.Disabled,
+            ProductDesktopHostLifecycleStatus.DisabledByUser =>
+                ProductAnonymousInteractionHostStatus.Disabled,
             ProductDesktopHostLifecycleStatus.AwaitingHost =>
                 ProductAnonymousInteractionHostStatus.AwaitingHost,
             ProductDesktopHostLifecycleStatus.AwaitingWorkspace =>
@@ -1334,6 +1419,8 @@ public partial class App : Application
             window.Activated -= MainWindow_Activated;
             window.DesktopKeyboardInteractionRequested -=
                 MainWindow_DesktopKeyboardInteractionRequested;
+            window.BoxesEnabledChangeRequested -=
+                MainWindow_BoxesEnabledChangeRequested;
         }
 
         _ = productDesktopInteraction.Complete(DateTimeOffset.UtcNow);
@@ -1342,6 +1429,8 @@ public partial class App : Application
             await productResourceTelemetry.DisposeAsync();
         }
         productThumbnailWorker.Dispose();
+        boxesSettingsController.Dispose();
+        boxesSettingsStore.Dispose();
         await productDesktopHostLifecycle.DisposeAsync();
         await productDisplayTopology.DisposeAsync();
         await productDesktopCatalog.DisposeAsync();

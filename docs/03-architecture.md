@@ -148,7 +148,7 @@ P0-02 已验证 Shell 会强烈合并高频变化：1,100 次沙箱操作每轮�
 
 只读物理 Desktop Catalog 层把 P0-01a 的用户桌面/公共桌面第一层枚举晋升为 Infrastructure reader，并用 controller 提供递增 generation、并发 latest-wins、有限取消和关闭排空。只有两个来源都完整 Ready 才发布 Authoritative Catalog；Partial/Missing/AccessDenied/IoFailure 收集项只作匿名诊断，转换到产品会话时仍为 Unavailable。App 自动首刷并提供显式刷新，配置加载与目录刷新任意顺序汇合；Core 只在 Ready 时报告 ConnectedReadOnly，文件操作仍 DisabledBySafetyPolicy。Shell COM 虚拟项继续留在 Spike，详见[只读物理桌面目录与刷新代次审计](50-readonly-physical-desktop-catalog-audit.md)。
 
-DesktopHost 产品接线从 Stage 106 起由 App composition root 唯一持有 `ProductDesktopHostLifecycleController`。Core 只判定严格默认关闭的开发 Feature Policy，Infrastructure 只向 App 报告 `DisabledBySafetyPolicy`、`AwaitingHost`、`Completed`、generation、连接布尔值和窗口数量；presentation 不接收 HWND、进程/线程 ID 或路径。A1 尚不创建原生宿主或方格窗口；`LONGGRID_ENABLE_DESKTOP_HOST=1` 只把状态推进到等待宿主。Catalog 刷新与生命周期更新合并进同一 Runtime snapshot，互不覆盖。关闭时 App 先退订并释放生命周期控制器，再释放显示拓扑、Catalog 与保存控制器。详见[DesktopHost 生命周期与默认关闭开关审计](106-desktop-host-lifecycle-feature-flag-audit.md)。
+DesktopHost 产品接线由 App composition root 唯一持有 `ProductDesktopHostLifecycleController`。Stage 154 起，Core 默认判定为 `EnabledForProduct`，用户级 `BoxesEnabled` 决定是否创建表面，`LONGGRID_DISABLE_DESKTOP_HOST=1` 紧急禁用始终优先；`DisabledByUser` 与 `DisabledBySafetyPolicy` 是不同状态。关闭用户开关会失效输入并释放窗口/UIA 表面，但保留最新投影和工作区配置，重新开启按最新修订恢复。Catalog 刷新与生命周期更新合并进同一 Runtime snapshot，互不覆盖。关闭应用时先排空保存，再释放设置 controller、生命周期、显示拓扑和 Catalog。Stage 106 的默认关闭设计保留为历史审计；当前权威边界见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)。
 
 Stage 116 / B6a 又让 App composition root 唯一持有 `ProductDesktopInteractionDevelopmentController`。它只有在 DesktopHost 与 Interaction 两个精确开发 opt-in 同时成立时进入 Passive；精确的进程级 emergency-disable 优先于两个开启值。控制器把失焦、Win+D、全屏、锁屏/断开、RDP、Explorer 重启与 shutdown 收敛为 fail-closed 暂停/完成，并只在 NativeHost、只读 UIA、Passive window contract 与三类正 generation 完整复核后恢复 Passive。B6a 没有显式交互入口、没有构造原生 Surface adapter，也没有文件 API；正式 HWND 仍保持只读穿透。详见[受控开发态交互 Composition Root 基础审计](116-controlled-development-interaction-composition-root-audit.md)。
 
@@ -360,7 +360,7 @@ App 使用抑制标志把清空搜索、恢复全部筛选、恢复配置顺序�
 
 ## Stage 107：单显示器只读 DesktopHost 产品表面
 
-在严格默认关闭的 `LONGGRID_ENABLE_DESKTOP_HOST=1` 开发边界内，App 只把第一正式方格投影成有限的 `ProductDesktopHostReadOnlyProjection`。Infrastructure 创建产品自有的无激活、分层、点击穿透 ToolWindow，设置唯一实例标记，并在显示前后由既有窗口桥复读进程、线程、标记与 Bounds；任一不一致即销毁窗口并进入有限 `Faulted` 状态。
+App 把正式方格投影成有限的 `ProductDesktopHostReadOnlyProjection`；Stage 154 起该被动表面按用户级 `BoxesEnabled` 默认开启，不再要求 Host 开发 opt-in。Infrastructure 创建产品自有的无激活、分层、点击穿透 ToolWindow，设置唯一实例标记，并在显示前后由既有窗口桥复读进程、线程、标记与 Bounds；任一不一致即销毁窗口并进入有限 `Faulted` 状态。显式 Interaction、Intent Bridge 和输入转发仍各自保持默认关闭及独立授权。
 
 该表面只用主工作区、静态 GDI 文本与最多 12 个可见显示名，不读取文件内容、不接收输入、不修改配置或桌面文件，也不访问 `Progman`、`WorkerW` 或 Explorer 内部结构。A3 应迁移到“每显示器一个 HWND + 多容器渲染批次”并绑定配置/拓扑/registry generation；在此之前不得把单 HWND 验证解释为多显示器、UIA、Win+D 或交互完成。
 
