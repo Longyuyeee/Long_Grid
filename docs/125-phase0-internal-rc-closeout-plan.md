@@ -15,7 +15,7 @@
 
 专项文档仍负责场景细节，本文负责验收目标。2026-08-13 起，执行顺序由 [Stage 129 外部证据延期决策](129-external-evidence-deferment-decision.md)补充：工程轨道可以继续，但外部证据仍阻塞 M4 完成、内部 RC 和分发。若旧文档与 Stage 129 冲突，以 Stage 129 为准；旧审计快照保留作历史记录。
 
-2026-08-15 起，iTop/Fences/Nimi/Portals/PowerToys 对标差距、G0→CP1→CP2→CP3 的后续逐项顺序和每项量化验收统一见 [Stage 150 竞品差距关闭总计划](150-competitive-parity-gap-closure-plan.md)。Stage 150 不解除本计划与 Stage 129 的冻结门禁：G0 外部验证和 RC 汇合完成前，不得进入 CP1～CP3 新功能。
+2026-08-15 起，iTop/Fences/Nimi/Portals/PowerToys 对标差距见 [Stage 150 竞品差距关闭总计划](150-competitive-parity-gap-closure-plan.md)。2026-08-16 产品负责人进一步将具体功能开发顺序切换为 [Stage 153 的 PF-001→PF-090](153-product-feature-parity-development-plan.md)：G0 外部验证和 RC 汇合继续阻止 RC、签名安装与分发，但不再阻止安全边界内的产品功能工程开发。
 
 ## 2. 当前基线审计
 
