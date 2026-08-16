@@ -1042,12 +1042,18 @@ public partial class App : Application
         return result;
     }
 
-    private bool RequestDesktopEmptyWorkspaceCreate(string displayId)
+    private bool RequestDesktopEmptyWorkspaceCreate(
+        ProductDesktopWorkspaceCreateRequest request)
     {
         MainWindow? currentWindow = window;
+        ProductDisplayTopologySnapshot currentTopology =
+            productDisplayTopology.Snapshot;
         if (currentWindow is null
             || closingDrainInProgress
-            || string.IsNullOrWhiteSpace(displayId))
+            || !ProductDesktopWorkspaceCreateAdmission.Evaluate(
+                request,
+                workspaceCommits.CurrentEditRevision,
+                currentTopology.Generation).CanCreate)
         {
             return false;
         }
@@ -1056,12 +1062,18 @@ public partial class App : Application
         {
             ProductDisplayTopologySnapshot topology =
                 productDisplayTopology.Snapshot;
+            bool requestIsCurrent =
+                ProductDesktopWorkspaceCreateAdmission.Evaluate(
+                    request,
+                    workspaceCommits.CurrentEditRevision,
+                    topology.Generation).CanCreate;
             bool displayIsAuthoritative = topology.IsAuthoritative
                 && topology.Displays.Any(display => string.Equals(
                     display.StableId,
-                    displayId,
+                    request.DisplayId,
                     StringComparison.Ordinal));
-            if (!displayIsAuthoritative
+            if (!requestIsCurrent
+                || !displayIsAuthoritative
                 || productDesktopHostLifecycle.Snapshot.Status !=
                     ProductDesktopHostLifecycleStatus.AwaitingWorkspace)
             {
@@ -1081,7 +1093,7 @@ public partial class App : Application
                     positionPreset: null,
                     sizePreset: null,
                     confirmed: false,
-                    createDisplayId: displayId,
+                    createDisplayId: request.DisplayId,
                     useDefaultName: true);
             currentWindow.ApplyDesktopEmptyWorkspaceCreateResult(
                 result.IsAccepted);

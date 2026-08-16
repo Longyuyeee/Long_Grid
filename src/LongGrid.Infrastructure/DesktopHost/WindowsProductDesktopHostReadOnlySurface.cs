@@ -100,7 +100,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         selectionSnapshot = static () => null;
     private Func<string, ProductDesktopSelectionRequest, bool>
         applySelection = static (_, _) => false;
-    private Func<string, bool> requestEmptyWorkspaceCreate = static _ => false;
+    private Func<ProductDesktopWorkspaceCreateInput, bool>
+        requestEmptyWorkspaceCreate = static _ => false;
     private volatile ProductDesktopInteractionSurfaceMode mode;
 #if WINDOWS
     private WindowsProductDesktopHostUiaRootProvider? uiaProvider;
@@ -253,7 +254,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 }
                 return applied;
             },
-            () => requestEmptyWorkspaceCreate(projection.DisplayId));
+            () => requestEmptyWorkspaceCreate(new(
+                ProductDesktopWorkspaceCreateInputKind.AssistiveInvoke,
+                SourceAttested: true,
+                IsInjected: false,
+                IsAutoRepeat: false)));
 #endif
 
         ThreadId = NativeMethods.GetWindowThreadProcessId(
@@ -347,7 +352,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         applySelection = apply;
     }
 
-    public void BindEmptyWorkspaceCreate(Func<string, bool> requestCreate)
+    public void BindEmptyWorkspaceCreate(
+        Func<ProductDesktopWorkspaceCreateInput, bool> requestCreate)
     {
         ArgumentNullException.ThrowIfNull(requestCreate);
         requestEmptyWorkspaceCreate = requestCreate;
@@ -434,9 +440,13 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         }
 
         InputMessageSource source = default;
-        return NativeMethods.GetCurrentInputMessageSource(ref source)
-            && source.OriginId != NativeMethods.ImoInjected
-            && requestEmptyWorkspaceCreate(projection.DisplayId);
+        bool observed = NativeMethods.GetCurrentInputMessageSource(ref source);
+        return requestEmptyWorkspaceCreate(new(
+            ProductDesktopWorkspaceCreateInputKind.PrimaryPointer,
+            SourceAttested: observed,
+            IsInjected: !observed
+                || source.OriginId == NativeMethods.ImoInjected,
+            IsAutoRepeat: false));
     }
 
     private static bool Contains(PixelRect bounds, int x, int y) =>

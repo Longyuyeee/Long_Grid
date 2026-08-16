@@ -4,6 +4,12 @@ using LongGrid.Core.DesktopHost;
 
 namespace LongGrid.Infrastructure.DesktopHost;
 
+internal sealed record ProductDesktopWorkspaceCreateInput(
+    ProductDesktopWorkspaceCreateInputKind Kind,
+    bool SourceAttested,
+    bool IsInjected,
+    bool IsAutoRepeat);
+
 public enum ProductDesktopHostLifecycleStatus
 {
     DisabledBySafetyPolicy,
@@ -197,7 +203,8 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
     {
     }
 
-    void BindEmptyWorkspaceCreate(Func<string, bool> requestCreate)
+    void BindEmptyWorkspaceCreate(
+        Func<ProductDesktopWorkspaceCreateInput, bool> requestCreate)
     {
     }
 
@@ -247,7 +254,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     private long windowGeneration;
     private ProductDesktopHostPassiveSurfaceModeAdapter? interactionSurface;
     private bool disposed;
-    private Func<string, bool> requestEmptyWorkspaceCreate = static _ => false;
+    private Func<ProductDesktopWorkspaceCreateRequest, bool>
+        requestEmptyWorkspaceCreate = static _ => false;
 
     public ProductDesktopHostLifecycleController(
         ProductDesktopHostFeatureDecision featureDecision)
@@ -362,17 +370,14 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
 
     public event EventHandler<ProductDesktopHostLifecycleSnapshot>? SnapshotChanged;
 
-    public void BindEmptyWorkspaceCreate(Func<string, bool> requestCreate)
+    public void BindEmptyWorkspaceCreate(
+        Func<ProductDesktopWorkspaceCreateRequest, bool> requestCreate)
     {
         ArgumentNullException.ThrowIfNull(requestCreate);
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             requestEmptyWorkspaceCreate = requestCreate;
-            foreach (IProductDesktopHostReadOnlySurface surface in surfaces)
-            {
-                surface.BindEmptyWorkspaceCreate(requestCreate);
-            }
         }
     }
 
@@ -978,7 +983,15 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                         display,
                         containerId,
                         request));
-                created.BindEmptyWorkspaceCreate(requestEmptyWorkspaceCreate);
+                created.BindEmptyWorkspaceCreate(input =>
+                    requestEmptyWorkspaceCreate(new(
+                        input.Kind,
+                        display.DisplayId,
+                        batch.WorkspaceRevision,
+                        batch.TopologyGeneration,
+                        input.SourceAttested,
+                        input.IsInjected,
+                        input.IsAutoRepeat)));
                 if (!created.ReadOnlyAccessibilityAttested
                     || (controlledSurfaceLifecycle
                         ? !created.HiddenWindowContractAttested

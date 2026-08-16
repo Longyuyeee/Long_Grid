@@ -27,9 +27,13 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
                 display,
                 new nint(900));
         int requests = 0;
-        surface.BindEmptyWorkspaceCreate(requestedDisplayId =>
+        surface.BindEmptyWorkspaceCreate(input =>
         {
-            Assert.Equal(display.DisplayId, requestedDisplayId);
+            Assert.Equal(
+                ProductDesktopWorkspaceCreateInputKind.AssistiveInvoke,
+                input.Kind);
+            Assert.True(input.SourceAttested);
+            Assert.False(input.IsInjected);
             requests++;
             return true;
         });
