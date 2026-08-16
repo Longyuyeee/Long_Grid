@@ -1284,6 +1284,34 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         await controller.DisposeAsync();
     }
 
+    [Fact]
+    public async Task TwentyReadyRevisionsKeepOnlyLatestCreateRequestCurrent()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        var revisions = new List<long>();
+        controller.BindWorkspaceCreate(request =>
+        {
+            revisions.Add(request.WorkspaceRevision);
+            return true;
+        });
+
+        for (int revision = 1; revision <= 20; revision++)
+        {
+            _ = controller.ApplyProjectionUpdate(ReadyUpdate(revision, 12));
+            Assert.True(factory.Surfaces[^1].RequestBoundWorkspaceCreate());
+        }
+
+        Assert.Equal(Enumerable.Range(1, 20).Select(value => (long)value), revisions);
+        Assert.Equal(19, factory.Surfaces.Count(surface => surface.IsDisposed));
+        Assert.False(factory.Surfaces[^1].IsDisposed);
+        await controller.DisposeAsync();
+        Assert.True(factory.Surfaces[^1].IsDisposed);
+    }
+
     private static ProductDesktopHostProjectionUpdate EmptyUpdate(
         long workspaceRevision,
         long topologyGeneration)
