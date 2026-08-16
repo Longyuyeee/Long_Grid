@@ -69,10 +69,10 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
-    public void DefaultPolicyCreatesNoNativeHostOrOwnedWindows()
+    public void ExplicitSafetyDisableCreatesNoNativeHostOrOwnedWindows()
     {
         var controller = new ProductDesktopHostLifecycleController(
-            ProductDesktopHostFeaturePolicy.Evaluate(null));
+            ProductDesktopHostFeaturePolicy.Evaluate("0"));
 
         ProductDesktopHostLifecycleSnapshot snapshot = controller.Snapshot;
 
@@ -86,10 +86,10 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
-    public void ExplicitOptInOnlyWaitsForFutureHost()
+    public void ProductDefaultWaitsForFutureHost()
     {
         var controller = new ProductDesktopHostLifecycleController(
-            ProductDesktopHostFeaturePolicy.Evaluate("1"));
+            ProductDesktopHostFeaturePolicy.Evaluate(null));
 
         ProductDesktopHostLifecycleSnapshot snapshot = controller.Snapshot;
 
@@ -157,7 +157,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     {
         var factory = new RecordingSurfaceFactory();
         var controller = new ProductDesktopHostLifecycleController(
-            ProductDesktopHostFeaturePolicy.Evaluate(null),
+            ProductDesktopHostFeaturePolicy.Evaluate("0"),
             factory,
             new FactoryBackedInspector(factory));
 
@@ -168,6 +168,58 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             ProductDesktopHostLifecycleStatus.DisabledBySafetyPolicy,
             snapshot.Status);
         Assert.Empty(factory.Surfaces);
+    }
+
+    [Fact]
+    public async Task UserDisableReleasesSurfaceAndEnableRestoresLatestProjection()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate(null),
+            factory,
+            new FactoryBackedInspector(factory));
+        _ = controller.ApplyProjectionUpdate(ReadyUpdate(1, 2, "初始"));
+        RecordingSurface first = Assert.Single(factory.Surfaces);
+
+        ProductDesktopHostLifecycleSnapshot disabled =
+            controller.SetUserEnabled(false);
+        _ = controller.ApplyProjectionUpdate(ReadyUpdate(2, 2, "关闭期间更新"));
+
+        Assert.Equal(ProductDesktopHostLifecycleStatus.DisabledByUser, disabled.Status);
+        Assert.False(disabled.NativeHostConnected);
+        Assert.Equal(0, disabled.OwnedWindowCount);
+        Assert.True(first.IsDisposed);
+        Assert.Single(factory.Surfaces);
+
+        ProductDesktopHostLifecycleSnapshot restored =
+            controller.SetUserEnabled(true);
+
+        Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, restored.Status);
+        Assert.Equal(2, restored.WorkspaceRevision);
+        Assert.Equal(1, restored.OwnedWindowCount);
+        Assert.Equal(2, factory.Surfaces.Count);
+        Assert.False(factory.Surfaces[^1].IsDisposed);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task SafetyPolicyCannotBeOverriddenByUserEnable()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("0"),
+            factory,
+            new FactoryBackedInspector(factory));
+
+        ProductDesktopHostLifecycleSnapshot snapshot =
+            controller.SetUserEnabled(true);
+        _ = controller.ApplyProjectionUpdate(ReadyUpdate(1, 2));
+
+        Assert.Equal(
+            ProductDesktopHostLifecycleStatus.DisabledBySafetyPolicy,
+            snapshot.Status);
+        Assert.Empty(factory.Surfaces);
+        await controller.DisposeAsync();
     }
 
     [Fact]

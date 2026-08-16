@@ -371,6 +371,15 @@ public sealed partial class MainWindow : Window
                 DesktopHostValue,
                 snapshot.Status.ToString());
         }
+        else if (snapshot.Status ==
+            ProductDesktopHostLifecycleStatus.DisabledByUser)
+        {
+            DesktopHostValue.Text = "桌面方格已关闭";
+            DesktopHostDetail.Text = "配置与布局仍然保留，可随时重新开启";
+            AutomationProperties.SetItemStatus(
+                DesktopHostValue,
+                snapshot.Status.ToString());
+        }
         else if (snapshot.Status == ProductDesktopHostLifecycleStatus.ReadyReadOnly)
         {
             DesktopHostValue.Text = snapshot.ExplicitInteractionActive

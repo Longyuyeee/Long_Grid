@@ -28,7 +28,7 @@ public sealed class ProductResourceTelemetryTests
         ProductResourceTelemetryFeatureDecision decision =
             ProductResourceTelemetryFeaturePolicy.Evaluate(
                 new(desktopHostEnabled
-                    ? ProductDesktopHostFeatureStatus.EnabledForDevelopment
+                    ? ProductDesktopHostFeatureStatus.EnabledForProduct
                     : ProductDesktopHostFeatureStatus.DisabledBySafetyPolicy),
                 pipeName,
                 acknowledgement);
@@ -48,7 +48,7 @@ public sealed class ProductResourceTelemetryTests
             + Guid.NewGuid().ToString("N");
         ProductResourceTelemetryFeatureDecision decision =
             ProductResourceTelemetryFeaturePolicy.Evaluate(
-                new(ProductDesktopHostFeatureStatus.EnabledForDevelopment),
+                new(ProductDesktopHostFeatureStatus.EnabledForProduct),
                 pipeName,
                 "1");
         bool completed = false;

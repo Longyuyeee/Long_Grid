@@ -62,7 +62,10 @@ public partial class App : Application
         ProductDesktopHostFeatureDecision desktopHostFeature =
             ProductDesktopHostFeaturePolicy.Evaluate(
                 Environment.GetEnvironmentVariable(
-                    ProductDesktopHostFeaturePolicy.EnvironmentVariableName));
+                    ProductDesktopHostFeaturePolicy.EnvironmentVariableName),
+                Environment.GetEnvironmentVariable(
+                    ProductDesktopHostFeaturePolicy
+                        .EmergencyDisableEnvironmentVariableName));
         ProductDesktopInteractionFeatureDecision interactionFeature =
             ProductDesktopInteractionFeaturePolicy.Evaluate(
                 desktopHostFeature,
@@ -112,7 +115,8 @@ public partial class App : Application
             productDesktopInteraction,
             productDesktopIntentPreparation,
             productDesktopInputForwarding,
-            productDesktopIntentConsumption);
+            productDesktopIntentConsumption,
+            userEnabled: false);
         ProductResourceTelemetryFeatureDecision telemetryFeature =
             ProductResourceTelemetryFeaturePolicy.Evaluate(
                 desktopHostFeature,
@@ -1140,6 +1144,8 @@ public partial class App : Application
         ProductAnonymousInteractionHostStatus hostStatus = snapshot.Status switch
         {
             ProductDesktopHostLifecycleStatus.DisabledBySafetyPolicy =>
+                ProductAnonymousInteractionHostStatus.Disabled,
+            ProductDesktopHostLifecycleStatus.DisabledByUser =>
                 ProductAnonymousInteractionHostStatus.Disabled,
             ProductDesktopHostLifecycleStatus.AwaitingHost =>
                 ProductAnonymousInteractionHostStatus.AwaitingHost,
