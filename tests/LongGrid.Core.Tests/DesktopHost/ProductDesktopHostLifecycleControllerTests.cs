@@ -339,7 +339,9 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                 "display-primary",
                 new(0, 0, 1920, 1040),
                 96,
-                [CreateProjection(), CreateProjection("第二方格", "container-3")]);
+                [CreateProjection(), CreateProjection("第二方格", "container-3")],
+                isPrimary: true,
+                workspaceIsEmpty: false);
         ProductDesktopHostDisplayProjection secondary =
             ProductDesktopHostDisplayProjection.Create(
                 "display-secondary",
@@ -355,7 +357,9 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                     20,
                     20,
                     300,
-                    220)]);
+                    220)],
+                isPrimary: false,
+                workspaceIsEmpty: false);
 
         ProductDesktopHostLifecycleSnapshot snapshot =
             controller.ApplyProjectionBatch(CreateBatch(primary, secondary));
@@ -383,13 +387,17 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                 "display-primary",
                 new(0, 0, 1920, 1040),
                 96,
-                [CreateProjection()]);
+                [CreateProjection()],
+                isPrimary: true,
+                workspaceIsEmpty: false);
         ProductDesktopHostDisplayProjection second =
             ProductDesktopHostDisplayProjection.Create(
                 "display-secondary",
                 new(-1280, 0, 1280, 984),
                 120,
-                [CreateProjection("副屏", "container-2")]);
+                [CreateProjection("副屏", "container-2")],
+                isPrimary: false,
+                workspaceIsEmpty: false);
 
         ProductDesktopHostLifecycleSnapshot snapshot =
             controller.ApplyProjectionBatch(CreateBatch(first, second));
@@ -1236,7 +1244,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             factory,
             new FactoryBackedInspector(factory));
         int requests = 0;
-        controller.BindEmptyWorkspaceCreate(request =>
+        controller.BindWorkspaceCreate(request =>
         {
             Assert.Equal("display-primary", request.DisplayId);
             Assert.Equal(3, request.WorkspaceRevision);
@@ -1247,9 +1255,61 @@ public sealed class ProductDesktopHostLifecycleControllerTests
 
         _ = controller.ApplyProjectionUpdate(EmptyUpdate(3, 4));
 
-        Assert.True(factory.Surfaces[0].RequestBoundEmptyCreate());
+        Assert.True(factory.Surfaces[0].RequestBoundWorkspaceCreate());
         Assert.Equal(1, requests);
         await controller.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ReadyWorkspaceSurfaceKeepsRevisionedCreateCallback()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        ProductDesktopWorkspaceCreateRequest? captured = null;
+        controller.BindWorkspaceCreate(request =>
+        {
+            captured = request;
+            return true;
+        });
+
+        _ = controller.ApplyProjectionUpdate(ReadyUpdate(8, 12));
+
+        Assert.True(factory.Surfaces[0].RequestBoundWorkspaceCreate());
+        Assert.Equal("display-primary", captured!.DisplayId);
+        Assert.Equal(8, captured.WorkspaceRevision);
+        Assert.Equal(12, captured.TopologyGeneration);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task TwentyReadyRevisionsKeepOnlyLatestCreateRequestCurrent()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        var revisions = new List<long>();
+        controller.BindWorkspaceCreate(request =>
+        {
+            revisions.Add(request.WorkspaceRevision);
+            return true;
+        });
+
+        for (int revision = 1; revision <= 20; revision++)
+        {
+            _ = controller.ApplyProjectionUpdate(ReadyUpdate(revision, 12));
+            Assert.True(factory.Surfaces[^1].RequestBoundWorkspaceCreate());
+        }
+
+        Assert.Equal(Enumerable.Range(1, 20).Select(value => (long)value), revisions);
+        Assert.Equal(19, factory.Surfaces.Count(surface => surface.IsDisposed));
+        Assert.False(factory.Surfaces[^1].IsDisposed);
+        await controller.DisposeAsync();
+        Assert.True(factory.Surfaces[^1].IsDisposed);
     }
 
     private static ProductDesktopHostProjectionUpdate EmptyUpdate(
@@ -1445,7 +1505,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         private Func<string, ProductDesktopSelectionRequest, bool>
             applySelection = static (_, _) => false;
         private Func<ProductDesktopWorkspaceCreateInput, bool>
-            requestEmptyCreate = static _ => false;
+            requestWorkspaceCreate = static _ => false;
 
         internal bool WasCreatedHidden { get; } = startHidden;
 
@@ -1514,12 +1574,12 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             Func<string, ProductDesktopSelectionRequest, bool> apply) =>
             applySelection = apply;
 
-        public void BindEmptyWorkspaceCreate(
+        public void BindWorkspaceCreate(
             Func<ProductDesktopWorkspaceCreateInput, bool> requestCreate) =>
-            requestEmptyCreate = requestCreate;
+            requestWorkspaceCreate = requestCreate;
 
-        internal bool RequestBoundEmptyCreate() =>
-            requestEmptyCreate(new(
+        internal bool RequestBoundWorkspaceCreate() =>
+            requestWorkspaceCreate(new(
                 ProductDesktopWorkspaceCreateInputKind.PrimaryPointer,
                 SourceAttested: true,
                 IsInjected: false,

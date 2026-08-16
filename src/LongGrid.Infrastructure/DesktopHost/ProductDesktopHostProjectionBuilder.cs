@@ -49,7 +49,9 @@ public static class ProductDesktopHostProjectionBuilder
                     primary.StableId,
                     primary.WorkArea,
                     primary.EffectiveDpi,
-                    Array.Empty<ProductDesktopHostReadOnlyProjection>());
+                    Array.Empty<ProductDesktopHostReadOnlyProjection>(),
+                    isPrimary: true,
+                    workspaceIsEmpty: true);
             ProductDesktopHostProjectionBatch emptyBatch =
                 ProductDesktopHostProjectionBatch.Create(
                     workspaceRevision,
@@ -136,12 +138,13 @@ public static class ProductDesktopHostProjectionBuilder
         }
 
         ProductDesktopHostDisplayProjection[] displays = topology.Displays
-            .Where(display => byDisplay[display.StableId].Count > 0)
             .Select(display => ProductDesktopHostDisplayProjection.Create(
                 display.StableId,
                 display.WorkArea,
                 display.EffectiveDpi,
-                byDisplay[display.StableId]))
+                byDisplay[display.StableId],
+                display.IsPrimary,
+                workspaceIsEmpty: false))
             .ToArray();
         return ProductDesktopHostProjectionBatch.Create(
             workspaceRevision,

@@ -9,12 +9,16 @@ public sealed record ProductDesktopHostDisplayProjection
         string displayId,
         PixelRect workArea,
         uint effectiveDpi,
-        IReadOnlyList<ProductDesktopHostReadOnlyProjection> containers)
+        IReadOnlyList<ProductDesktopHostReadOnlyProjection> containers,
+        bool isPrimary,
+        bool workspaceIsEmpty)
     {
         DisplayId = displayId;
         WorkArea = workArea;
         EffectiveDpi = effectiveDpi;
         Containers = containers;
+        IsPrimary = isPrimary;
+        WorkspaceIsEmpty = workspaceIsEmpty;
     }
 
     public string DisplayId { get; }
@@ -25,11 +29,34 @@ public sealed record ProductDesktopHostDisplayProjection
 
     public IReadOnlyList<ProductDesktopHostReadOnlyProjection> Containers { get; }
 
+    public bool IsPrimary { get; }
+
+    public bool WorkspaceIsEmpty { get; }
+
     public static ProductDesktopHostDisplayProjection Create(
         string displayId,
         PixelRect workArea,
         uint effectiveDpi,
         IEnumerable<ProductDesktopHostReadOnlyProjection> containers)
+    {
+        ArgumentNullException.ThrowIfNull(containers);
+        ProductDesktopHostReadOnlyProjection[] copied = containers.ToArray();
+        return Create(
+            displayId,
+            workArea,
+            effectiveDpi,
+            copied,
+            isPrimary: true,
+            workspaceIsEmpty: copied.Length == 0);
+    }
+
+    public static ProductDesktopHostDisplayProjection Create(
+        string displayId,
+        PixelRect workArea,
+        uint effectiveDpi,
+        IEnumerable<ProductDesktopHostReadOnlyProjection> containers,
+        bool isPrimary,
+        bool workspaceIsEmpty)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(displayId);
         ArgumentNullException.ThrowIfNull(containers);
@@ -38,6 +65,7 @@ public sealed record ProductDesktopHostDisplayProjection
             || displayId.Length > ProductConfigurationLimits.MaximumDisplayKeyLength
             || effectiveDpi is < 48 or > 768
             || copied.Length > ProductConfigurationLimits.MaximumContainers
+            || (workspaceIsEmpty && copied.Length != 0)
             || copied.Any(container => container is null)
             || copied.Select(container => container.ContainerId)
                 .Distinct(StringComparer.Ordinal).Count() != copied.Length)
@@ -50,7 +78,9 @@ public sealed record ProductDesktopHostDisplayProjection
             displayId,
             workArea,
             effectiveDpi,
-            Array.AsReadOnly(copied));
+            Array.AsReadOnly(copied),
+            isPrimary,
+            workspaceIsEmpty);
     }
 }
 
@@ -107,6 +137,9 @@ public sealed record ProductDesktopHostProjectionBatch
             || copied.Length is 0 or > MaximumDisplays
             || copied.Select(display => display.DisplayId)
                 .Distinct(StringComparer.Ordinal).Count() != copied.Length
+            || copied.Count(display => display.IsPrimary) != 1
+            || copied.Select(display => display.WorkspaceIsEmpty)
+                .Distinct().Count() != 1
             || containerIds.Length > ProductConfigurationLimits.MaximumContainers
             || containerIds.Distinct(StringComparer.Ordinal).Count()
                 != containerIds.Length)

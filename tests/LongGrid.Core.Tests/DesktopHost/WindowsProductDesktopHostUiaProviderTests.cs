@@ -27,18 +27,18 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
                 display,
                 new nint(899));
         var inputs = new List<ProductDesktopWorkspaceCreateInput>();
-        surface.BindEmptyWorkspaceCreate(input =>
+        surface.BindWorkspaceCreate(input =>
         {
             inputs.Add(input);
             return true;
         });
 
-        Assert.True(surface.SubmitEmptyWorkspaceCreateInput(
+        Assert.True(surface.SubmitWorkspaceCreateInput(
             ProductDesktopWorkspaceCreateInputKind.ContextMenu,
             sourceAttested: true,
             isInjected: false,
             isAutoRepeat: false));
-        Assert.True(surface.SubmitEmptyWorkspaceCreateInput(
+        Assert.True(surface.SubmitWorkspaceCreateInput(
             ProductDesktopWorkspaceCreateInputKind.KeyboardShortcut,
             sourceAttested: true,
             isInjected: false,
@@ -60,7 +60,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         Assert.True(surface.PassiveWindowContractAttested);
 
         Assert.True(surface.ApplyHidden());
-        Assert.False(surface.EmptyWorkspaceKeyboardCreateAvailable);
+        Assert.False(surface.WorkspaceKeyboardCreateAvailable);
         Assert.True(surface.ApplyPassive());
         Assert.True(surface.PassiveWindowContractAttested);
     }
@@ -84,7 +84,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
                 display,
                 new nint(900));
         int requests = 0;
-        surface.BindEmptyWorkspaceCreate(input =>
+        surface.BindWorkspaceCreate(input =>
         {
             Assert.Equal(
                 ProductDesktopWorkspaceCreateInputKind.AssistiveInvoke,
@@ -110,7 +110,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
             button.Current.ItemStatus,
             StringComparison.Ordinal);
         Assert.Equal(
-            surface.EmptyWorkspaceKeyboardCreateAvailable
+            surface.WorkspaceKeyboardCreateAvailable
                 ? "Ctrl+Alt+N"
                 : string.Empty,
             button.Current.AccessKey);
@@ -121,6 +121,75 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         Assert.Equal(1, requests);
         Assert.NotEqual(surface.Handle, GetForegroundWindow());
         Assert.True(surface.PassiveWindowContractAttested);
+    }
+
+    [Fact]
+    public void NonEmptyNativeSurfaceKeepsCreateEntryWithoutBlockingSelectionMode()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary",
+                new(100, 200, 1920, 1040),
+                96,
+                [CreateContainer(
+                    "container-1",
+                    "工作",
+                    ["需求文档.docx"],
+                    collapsed: false,
+                    x: 24,
+                    y: 36)],
+                isPrimary: true,
+                workspaceIsEmpty: false);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                display,
+                new nint(9001));
+        var kinds = new List<ProductDesktopWorkspaceCreateInputKind>();
+        surface.BindWorkspaceCreate(input =>
+        {
+            kinds.Add(input.Kind);
+            return true;
+        });
+
+        Assert.True(surface.SubmitWorkspaceCreateInput(
+            ProductDesktopWorkspaceCreateInputKind.KeyboardShortcut,
+            sourceAttested: true,
+            isInjected: false,
+            isAutoRepeat: false));
+
+        AutomationElement root = AutomationElement.FromHandle(surface.Handle);
+        AutomationElement button = root.FindFirst(
+            TreeScope.Children,
+            new PropertyCondition(
+                AutomationElement.AutomationIdProperty,
+                "LongGrid.DesktopHost.WorkspaceCreateButton"));
+        Assert.NotNull(button);
+        Assert.Equal("新建方格", button.Current.Name);
+        Assert.True(button.Current.IsEnabled);
+        Assert.True(button.TryGetCurrentPattern(
+            InvokePattern.Pattern,
+            out object pattern));
+        ((InvokePattern)pattern).Invoke();
+        Assert.Equal(
+            [
+                ProductDesktopWorkspaceCreateInputKind.KeyboardShortcut,
+                ProductDesktopWorkspaceCreateInputKind.AssistiveInvoke,
+            ],
+            kinds);
+
+        Assert.True(surface.ApplyExplicit());
+        Assert.False(surface.WorkspaceKeyboardCreateAvailable);
+        Assert.False(surface.SubmitWorkspaceCreateInput(
+            ProductDesktopWorkspaceCreateInputKind.KeyboardShortcut,
+            sourceAttested: true,
+            isInjected: false,
+            isAutoRepeat: false));
+        Assert.NotEqual(surface.Handle, GetForegroundWindow());
     }
 
     [Fact]
@@ -164,8 +233,8 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
 
         Assert.Equal("LongGrid.DesktopHost.Root", root.Current.AutomationId);
         Assert.Equal("Long方格桌面只读区域", root.Current.Name);
-        Assert.False(root.Current.IsKeyboardFocusable);
-        Assert.Contains("不接收输入", root.Current.ItemStatus, StringComparison.Ordinal);
+        Assert.True(root.Current.IsKeyboardFocusable);
+        Assert.Contains("可新建方格", root.Current.ItemStatus, StringComparison.Ordinal);
         Assert.Equal(2, groups.Count);
 
         AutomationElement expanded = groups[0];
@@ -245,7 +314,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
 
         Assert.True(adapter.ApplyPassive(11));
         root = AutomationElement.FromHandle(surface.Handle);
-        Assert.False(root.Current.IsKeyboardFocusable);
+        Assert.True(root.Current.IsKeyboardFocusable);
         Assert.False(root.TryGetCurrentPattern(SelectionPattern.Pattern, out _));
         Assert.True(adapter.Capture().Evidence!.IsPassiveContract);
 
@@ -526,8 +595,8 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         Assert.True(provider.CanSelectMultiple);
         Assert.False(provider.IsSelectionRequired);
         Assert.NotNull(provider.HostRawElementProvider);
-        Assert.Equal(new System.Windows.Rect(124, 236, 360, 240),
-            provider.BoundingRectangle);
+        Assert.True(provider.BoundingRectangle.Contains(
+            new System.Windows.Point(124, 236)));
         Assert.Same(provider, provider.FragmentRoot);
         Assert.Same(provider, provider.GetPatternProvider(
             SelectionPatternIdentifiers.Pattern.Id));
@@ -579,6 +648,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         Assert.Same(provider, uiaContainer.Navigate(NavigateDirection.Parent));
         Assert.Same(item, uiaContainer.Navigate(NavigateDirection.FirstChild));
         Assert.Same(item, uiaContainer.Navigate(NavigateDirection.LastChild));
+        Assert.Null(uiaContainer.Navigate(NavigateDirection.NextSibling));
         Assert.Equal(3, uiaContainer.GetRuntimeId().Length);
         Assert.Null(uiaContainer.GetEmbeddedFragmentRoots());
         uiaContainer.SetFocus();

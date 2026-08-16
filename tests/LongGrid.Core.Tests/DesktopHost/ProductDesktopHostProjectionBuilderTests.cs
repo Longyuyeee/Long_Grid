@@ -66,6 +66,42 @@ public sealed class ProductDesktopHostProjectionBuilderTests
     }
 
     [Fact]
+    public void BuildKeepsAuthoritativeDisplaysWithoutContainersForCreateEntry()
+    {
+        ProductWorkspaceState state = CreateState() with
+        {
+            Containers = [CreateContainer(
+                "container-secondary",
+                Secondary.StableId,
+                48)],
+        };
+        ProductWorkspaceReadSnapshot read =
+            ProductWorkspaceReadModel.Create(state).Snapshot!;
+        var topology = new ProductDisplayTopologySnapshot(
+            ProductDisplayTopologyStatus.Ready,
+            9,
+            [Primary, Secondary],
+            2,
+            2,
+            1);
+
+        ProductDesktopHostProjectionBatch batch = Assert.IsType<
+            ProductDesktopHostProjectionBatch>(
+                ProductDesktopHostProjectionBuilder.Build(
+                    state,
+                    read,
+                    topology,
+                    workspaceRevision: 14));
+
+        Assert.Equal(2, batch.Displays.Count);
+        Assert.True(batch.Displays[0].IsPrimary);
+        Assert.Empty(batch.Displays[0].Containers);
+        Assert.False(batch.Displays[0].WorkspaceIsEmpty);
+        Assert.False(batch.Displays[1].IsPrimary);
+        Assert.Single(batch.Displays[1].Containers);
+    }
+
+    [Fact]
     public void BuildRejectsNonAuthoritativeTopologyWithoutCreatingBatch()
     {
         ProductWorkspaceState state = CreateState();
