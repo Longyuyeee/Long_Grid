@@ -197,6 +197,10 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
     {
     }
 
+    void BindEmptyWorkspaceCreate(Func<string, bool> requestCreate)
+    {
+    }
+
     void RefreshSelection()
     {
     }
@@ -243,6 +247,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     private long windowGeneration;
     private ProductDesktopHostPassiveSurfaceModeAdapter? interactionSurface;
     private bool disposed;
+    private Func<string, bool> requestEmptyWorkspaceCreate = static _ => false;
 
     public ProductDesktopHostLifecycleController(
         ProductDesktopHostFeatureDecision featureDecision)
@@ -356,6 +361,20 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     }
 
     public event EventHandler<ProductDesktopHostLifecycleSnapshot>? SnapshotChanged;
+
+    public void BindEmptyWorkspaceCreate(Func<string, bool> requestCreate)
+    {
+        ArgumentNullException.ThrowIfNull(requestCreate);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            requestEmptyWorkspaceCreate = requestCreate;
+            foreach (IProductDesktopHostReadOnlySurface surface in surfaces)
+            {
+                surface.BindEmptyWorkspaceCreate(requestCreate);
+            }
+        }
+    }
 
     public bool CanRequestKeyboardInteraction
     {
@@ -959,6 +978,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                         display,
                         containerId,
                         request));
+                created.BindEmptyWorkspaceCreate(requestEmptyWorkspaceCreate);
                 if (!created.ReadOnlyAccessibilityAttested
                     || (controlledSurfaceLifecycle
                         ? !created.HiddenWindowContractAttested

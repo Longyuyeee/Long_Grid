@@ -1227,6 +1227,29 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             controller.ApplyProjectionUpdate(ReadyUpdate(4, 4)));
     }
 
+    [Fact]
+    public async Task EmptyWorkspaceSurfaceUsesLatestBoundCreateCallback()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        int requests = 0;
+        controller.BindEmptyWorkspaceCreate(displayId =>
+        {
+            Assert.Equal("display-primary", displayId);
+            requests++;
+            return true;
+        });
+
+        _ = controller.ApplyProjectionUpdate(EmptyUpdate(3, 4));
+
+        Assert.True(factory.Surfaces[0].RequestBoundEmptyCreate());
+        Assert.Equal(1, requests);
+        await controller.DisposeAsync();
+    }
+
     private static ProductDesktopHostProjectionUpdate EmptyUpdate(
         long workspaceRevision,
         long topologyGeneration)
@@ -1419,6 +1442,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             : ProductDesktopInteractionSurfaceMode.Passive;
         private Func<string, ProductDesktopSelectionRequest, bool>
             applySelection = static (_, _) => false;
+        private Func<string, bool> requestEmptyCreate = static _ => false;
 
         internal bool WasCreatedHidden { get; } = startHidden;
 
@@ -1486,6 +1510,12 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             Func<ProductDesktopInteractionSurfaceTransactionSnapshot?> snapshot,
             Func<string, ProductDesktopSelectionRequest, bool> apply) =>
             applySelection = apply;
+
+        public void BindEmptyWorkspaceCreate(Func<string, bool> requestCreate) =>
+            requestEmptyCreate = requestCreate;
+
+        internal bool RequestBoundEmptyCreate() =>
+            requestEmptyCreate(Projection?.DisplayId ?? string.Empty);
 
         internal bool ApplyBoundSelection(
             string containerId,

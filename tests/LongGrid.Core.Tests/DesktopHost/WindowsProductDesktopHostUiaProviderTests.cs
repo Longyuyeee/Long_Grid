@@ -9,6 +9,55 @@ namespace LongGrid.Core.Tests.DesktopHost;
 public sealed class WindowsProductDesktopHostUiaProviderTests
 {
     [Fact]
+    public void EmptyNativeSurfaceExposesInvokableCreateEntryWithoutForeground()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary",
+                new(100, 200, 1920, 1040),
+                96,
+                Array.Empty<ProductDesktopHostReadOnlyProjection>());
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                display,
+                new nint(900));
+        int requests = 0;
+        surface.BindEmptyWorkspaceCreate(requestedDisplayId =>
+        {
+            Assert.Equal(display.DisplayId, requestedDisplayId);
+            requests++;
+            return true;
+        });
+
+        AutomationElement root = AutomationElement.FromHandle(surface.Handle);
+        AutomationElement button = root.FindFirst(
+            TreeScope.Children,
+            new PropertyCondition(
+                AutomationElement.AutomationIdProperty,
+                "LongGrid.DesktopHost.EmptyCreateButton"));
+
+        Assert.NotNull(button);
+        Assert.Equal(ControlType.Button, button.Current.ControlType);
+        Assert.Equal("创建第一个方格", button.Current.Name);
+        Assert.Contains(
+            "不读取或移动",
+            button.Current.ItemStatus,
+            StringComparison.Ordinal);
+        Assert.True(button.TryGetCurrentPattern(
+            InvokePattern.Pattern,
+            out object pattern));
+        ((InvokePattern)pattern).Invoke();
+        Assert.Equal(1, requests);
+        Assert.NotEqual(surface.Handle, GetForegroundWindow());
+        Assert.True(surface.PassiveWindowContractAttested);
+    }
+
+    [Fact]
     public void NativeSurfaceExposesReadOnlyNonFocusableProjectionTree()
     {
         if (!OperatingSystem.IsWindows())
@@ -625,4 +674,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
             y,
             360,
             240);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern nint GetForegroundWindow();
 }
