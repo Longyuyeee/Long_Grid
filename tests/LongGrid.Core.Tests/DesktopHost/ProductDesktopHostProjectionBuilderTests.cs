@@ -153,6 +153,42 @@ public sealed class ProductDesktopHostProjectionBuilderTests
         Assert.Equal(10, update.TopologyGeneration);
     }
 
+    [Fact]
+    public void BuildUpdateCreatesPrimaryDisplaySurfaceForKnownEmptyWorkspace()
+    {
+        ProductWorkspaceState state = CreateState() with
+        {
+            Containers = Array.Empty<ProductContainerState>(),
+        };
+        ProductWorkspaceReadSnapshot read =
+            ProductWorkspaceReadModel.Create(state).Snapshot!;
+        var topology = new ProductDisplayTopologySnapshot(
+            ProductDisplayTopologyStatus.Ready,
+            10,
+            [Primary, Secondary],
+            2,
+            2,
+            1);
+
+        ProductDesktopHostProjectionUpdate update =
+            ProductDesktopHostProjectionBuilder.BuildUpdate(
+                state,
+                read,
+                topology,
+                workspaceRevision: 15);
+
+        Assert.Equal(
+            ProductDesktopHostProjectionDisposition.EmptyWorkspace,
+            update.Disposition);
+        ProductDesktopHostProjectionBatch batch = Assert.IsType<
+            ProductDesktopHostProjectionBatch>(update.Batch);
+        Assert.Equal(0, batch.ContainerCount);
+        ProductDesktopHostDisplayProjection display = Assert.Single(batch.Displays);
+        Assert.Equal(Primary.StableId, display.DisplayId);
+        Assert.Empty(display.Containers);
+        Assert.Equal(Primary.WorkArea, display.WorkArea);
+    }
+
     private static ProductWorkspaceState CreateState() => new()
     {
         ProfileId = "profile",

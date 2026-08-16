@@ -42,10 +42,25 @@ public static class ProductDesktopHostProjectionBuilder
 
         if (state.Containers.Count == 0)
         {
+            DisplayTopologyNode primary = topology.Displays.Single(display =>
+                display.IsPrimary);
+            ProductDesktopHostDisplayProjection emptyDisplay =
+                ProductDesktopHostDisplayProjection.Create(
+                    primary.StableId,
+                    primary.WorkArea,
+                    primary.EffectiveDpi,
+                    Array.Empty<ProductDesktopHostReadOnlyProjection>());
+            ProductDesktopHostProjectionBatch emptyBatch =
+                ProductDesktopHostProjectionBatch.Create(
+                    workspaceRevision,
+                    topology.Generation,
+                    DisplayTopologyFingerprint.Compute(topology.Displays),
+                    [emptyDisplay]);
             return ProductDesktopHostProjectionUpdate.Create(
                 workspaceRevision,
                 topology.Generation,
-                ProductDesktopHostProjectionDisposition.EmptyWorkspace);
+                ProductDesktopHostProjectionDisposition.EmptyWorkspace,
+                emptyBatch);
         }
 
         ProductDesktopHostProjectionBatch? batch = Build(

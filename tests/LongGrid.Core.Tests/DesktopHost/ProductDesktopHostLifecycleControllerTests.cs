@@ -1202,7 +1202,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
-    public async Task EmptyWorkspaceOwnsNoSurfaceAndDisposedControllerRejectsUpdates()
+    public async Task EmptyWorkspaceOwnsPrimaryEntrySurfaceAndDisposedControllerRejectsUpdates()
     {
         var factory = new RecordingSurfaceFactory();
         var controller = new ProductDesktopHostLifecycleController(
@@ -1212,16 +1212,42 @@ public sealed class ProductDesktopHostLifecycleControllerTests
 
         ProductDesktopHostLifecycleSnapshot empty =
             controller.ApplyProjectionUpdate(
-                ProductDesktopHostProjectionUpdate.Create(
-                    3,
-                    4,
-                    ProductDesktopHostProjectionDisposition.EmptyWorkspace));
+                EmptyUpdate(3, 4));
 
         Assert.Equal(ProductDesktopHostLifecycleStatus.AwaitingWorkspace, empty.Status);
-        Assert.Empty(factory.Surfaces);
+        Assert.True(empty.NativeHostConnected);
+        Assert.Equal(1, empty.OwnedWindowCount);
+        Assert.Equal(0, empty.RenderedContainerCount);
+        Assert.Single(factory.Surfaces);
+        ProductDesktopHostDisplayProjection projection = Assert.IsType<
+            ProductDesktopHostDisplayProjection>(factory.Surfaces[0].Projection);
+        Assert.Empty(projection.Containers);
         await controller.DisposeAsync();
         Assert.Throws<ObjectDisposedException>(() =>
             controller.ApplyProjectionUpdate(ReadyUpdate(4, 4)));
+    }
+
+    private static ProductDesktopHostProjectionUpdate EmptyUpdate(
+        long workspaceRevision,
+        long topologyGeneration)
+    {
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary",
+                new(0, 0, 1920, 1040),
+                96,
+                Array.Empty<ProductDesktopHostReadOnlyProjection>());
+        ProductDesktopHostProjectionBatch batch =
+            ProductDesktopHostProjectionBatch.Create(
+                workspaceRevision,
+                topologyGeneration,
+                new string('A', 64),
+                [display]);
+        return ProductDesktopHostProjectionUpdate.Create(
+            workspaceRevision,
+            topologyGeneration,
+            ProductDesktopHostProjectionDisposition.EmptyWorkspace,
+            batch);
     }
 
     [Fact]
@@ -1268,7 +1294,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                 instanceMarker,
                 (uint)Environment.ProcessId,
                 42,
-                startHidden)
+                startHidden,
+                projection)
             {
                 ReadOnlyAccessibilityAttested = AccessibilityAttested,
                 PassiveWindowContractAttested = PassiveWindowAttested,
@@ -1383,7 +1410,9 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         nint instanceMarker,
         uint processId,
         uint threadId,
-        bool startHidden) : IProductDesktopHostReadOnlySurface
+        bool startHidden,
+        ProductDesktopHostDisplayProjection? projection = null)
+        : IProductDesktopHostReadOnlySurface
     {
         private ProductDesktopInteractionSurfaceMode mode = startHidden
             ? ProductDesktopInteractionSurfaceMode.Hidden
@@ -1392,6 +1421,9 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             applySelection = static (_, _) => false;
 
         internal bool WasCreatedHidden { get; } = startHidden;
+
+        internal ProductDesktopHostDisplayProjection? Projection { get; } =
+            projection;
 
         internal int ApplyPassiveCalls { get; private set; }
 

@@ -845,9 +845,15 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         lastTopologyGeneration = update.TopologyGeneration;
         ReleaseSurfaceUnsafe();
         currentUpdate = update;
-        if (update.Disposition == ProductDesktopHostProjectionDisposition.Ready)
+        if (update.Disposition is ProductDesktopHostProjectionDisposition.Ready
+            or ProductDesktopHostProjectionDisposition.EmptyWorkspace)
         {
-            return CreateSurfacesUnsafe(update.Batch!);
+            return CreateSurfacesUnsafe(
+                update.Batch!,
+                update.Disposition ==
+                    ProductDesktopHostProjectionDisposition.EmptyWorkspace
+                    ? ProductDesktopHostLifecycleStatus.AwaitingWorkspace
+                    : ProductDesktopHostLifecycleStatus.ReadyReadOnly);
         }
 
         ProductDesktopHostLifecycleStatus status = update.Disposition ==
@@ -872,10 +878,16 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                 ownedWindowCount: 0);
         }
 
-        if (currentUpdate.Disposition ==
-            ProductDesktopHostProjectionDisposition.Ready)
+        if (currentUpdate.Disposition is
+            ProductDesktopHostProjectionDisposition.Ready
+            or ProductDesktopHostProjectionDisposition.EmptyWorkspace)
         {
-            return CreateSurfacesUnsafe(currentUpdate.Batch!);
+            return CreateSurfacesUnsafe(
+                currentUpdate.Batch!,
+                currentUpdate.Disposition ==
+                    ProductDesktopHostProjectionDisposition.EmptyWorkspace
+                    ? ProductDesktopHostLifecycleStatus.AwaitingWorkspace
+                    : ProductDesktopHostLifecycleStatus.ReadyReadOnly);
         }
 
         ProductDesktopHostLifecycleStatus status = currentUpdate.Disposition ==
@@ -922,7 +934,9 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     }
 
     private ProductDesktopHostLifecycleSnapshot CreateSurfacesUnsafe(
-        ProductDesktopHostProjectionBatch batch)
+        ProductDesktopHostProjectionBatch batch,
+        ProductDesktopHostLifecycleStatus readyStatus =
+            ProductDesktopHostLifecycleStatus.ReadyReadOnly)
     {
         try
         {
@@ -1063,7 +1077,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             }
 
             return UpdateSnapshotUnsafe(
-                ProductDesktopHostLifecycleStatus.ReadyReadOnly,
+                readyStatus,
                 connected: true,
                 ownedWindowCount: registration!.Snapshot.VerifiedWindowCount,
                 workspaceRevision: batch.WorkspaceRevision,

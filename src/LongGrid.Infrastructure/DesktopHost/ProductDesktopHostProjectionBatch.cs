@@ -37,7 +37,6 @@ public sealed record ProductDesktopHostDisplayProjection
         if (!workArea.HasArea
             || displayId.Length > ProductConfigurationLimits.MaximumDisplayKeyLength
             || effectiveDpi is < 48 or > 768
-            || copied.Length == 0
             || copied.Length > ProductConfigurationLimits.MaximumContainers
             || copied.Any(container => container is null)
             || copied.Select(container => container.ContainerId)
