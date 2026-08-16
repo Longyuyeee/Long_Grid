@@ -40,7 +40,8 @@ public sealed record ProductDesktopHostProjectionUpdate
         ArgumentOutOfRangeException.ThrowIfNegative(workspaceRevision);
         ArgumentOutOfRangeException.ThrowIfNegative(topologyGeneration);
 
-        if (disposition == ProductDesktopHostProjectionDisposition.Ready)
+        if (disposition is ProductDesktopHostProjectionDisposition.Ready
+            or ProductDesktopHostProjectionDisposition.EmptyWorkspace)
         {
             ArgumentNullException.ThrowIfNull(batch);
             if (batch.WorkspaceRevision != workspaceRevision
@@ -50,11 +51,23 @@ public sealed record ProductDesktopHostProjectionUpdate
                     "Ready projection update metadata must match its batch.",
                     nameof(batch));
             }
+
+            bool batchIsEmpty = batch.ContainerCount == 0;
+            if ((disposition == ProductDesktopHostProjectionDisposition.Ready
+                    && batchIsEmpty)
+                || (disposition ==
+                        ProductDesktopHostProjectionDisposition.EmptyWorkspace
+                    && !batchIsEmpty))
+            {
+                throw new ArgumentException(
+                    "Projection disposition must match the batch container count.",
+                    nameof(batch));
+            }
         }
         else if (batch is not null)
         {
             throw new ArgumentException(
-                "Only ready projection updates may carry a batch.",
+                "Only ready or empty-workspace projection updates may carry a batch.",
                 nameof(batch));
         }
 

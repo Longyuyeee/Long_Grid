@@ -197,6 +197,10 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
     {
     }
 
+    void BindEmptyWorkspaceCreate(Func<string, bool> requestCreate)
+    {
+    }
+
     void RefreshSelection()
     {
     }
@@ -243,6 +247,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     private long windowGeneration;
     private ProductDesktopHostPassiveSurfaceModeAdapter? interactionSurface;
     private bool disposed;
+    private Func<string, bool> requestEmptyWorkspaceCreate = static _ => false;
 
     public ProductDesktopHostLifecycleController(
         ProductDesktopHostFeatureDecision featureDecision)
@@ -356,6 +361,20 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     }
 
     public event EventHandler<ProductDesktopHostLifecycleSnapshot>? SnapshotChanged;
+
+    public void BindEmptyWorkspaceCreate(Func<string, bool> requestCreate)
+    {
+        ArgumentNullException.ThrowIfNull(requestCreate);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            requestEmptyWorkspaceCreate = requestCreate;
+            foreach (IProductDesktopHostReadOnlySurface surface in surfaces)
+            {
+                surface.BindEmptyWorkspaceCreate(requestCreate);
+            }
+        }
+    }
 
     public bool CanRequestKeyboardInteraction
     {
@@ -845,9 +864,15 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         lastTopologyGeneration = update.TopologyGeneration;
         ReleaseSurfaceUnsafe();
         currentUpdate = update;
-        if (update.Disposition == ProductDesktopHostProjectionDisposition.Ready)
+        if (update.Disposition is ProductDesktopHostProjectionDisposition.Ready
+            or ProductDesktopHostProjectionDisposition.EmptyWorkspace)
         {
-            return CreateSurfacesUnsafe(update.Batch!);
+            return CreateSurfacesUnsafe(
+                update.Batch!,
+                update.Disposition ==
+                    ProductDesktopHostProjectionDisposition.EmptyWorkspace
+                    ? ProductDesktopHostLifecycleStatus.AwaitingWorkspace
+                    : ProductDesktopHostLifecycleStatus.ReadyReadOnly);
         }
 
         ProductDesktopHostLifecycleStatus status = update.Disposition ==
@@ -872,10 +897,16 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                 ownedWindowCount: 0);
         }
 
-        if (currentUpdate.Disposition ==
-            ProductDesktopHostProjectionDisposition.Ready)
+        if (currentUpdate.Disposition is
+            ProductDesktopHostProjectionDisposition.Ready
+            or ProductDesktopHostProjectionDisposition.EmptyWorkspace)
         {
-            return CreateSurfacesUnsafe(currentUpdate.Batch!);
+            return CreateSurfacesUnsafe(
+                currentUpdate.Batch!,
+                currentUpdate.Disposition ==
+                    ProductDesktopHostProjectionDisposition.EmptyWorkspace
+                    ? ProductDesktopHostLifecycleStatus.AwaitingWorkspace
+                    : ProductDesktopHostLifecycleStatus.ReadyReadOnly);
         }
 
         ProductDesktopHostLifecycleStatus status = currentUpdate.Disposition ==
@@ -922,7 +953,9 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     }
 
     private ProductDesktopHostLifecycleSnapshot CreateSurfacesUnsafe(
-        ProductDesktopHostProjectionBatch batch)
+        ProductDesktopHostProjectionBatch batch,
+        ProductDesktopHostLifecycleStatus readyStatus =
+            ProductDesktopHostLifecycleStatus.ReadyReadOnly)
     {
         try
         {
@@ -945,6 +978,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                         display,
                         containerId,
                         request));
+                created.BindEmptyWorkspaceCreate(requestEmptyWorkspaceCreate);
                 if (!created.ReadOnlyAccessibilityAttested
                     || (controlledSurfaceLifecycle
                         ? !created.HiddenWindowContractAttested
@@ -1063,7 +1097,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             }
 
             return UpdateSnapshotUnsafe(
-                ProductDesktopHostLifecycleStatus.ReadyReadOnly,
+                readyStatus,
                 connected: true,
                 ownedWindowCount: registration!.Snapshot.VerifiedWindowCount,
                 workspaceRevision: batch.WorkspaceRevision,

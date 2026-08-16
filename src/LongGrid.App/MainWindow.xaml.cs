@@ -776,6 +776,18 @@ public sealed partial class MainWindow : Window
                 "Changed=False:DesktopFilesChanged=False");
     }
 
+    public void ApplyDesktopEmptyWorkspaceCreateResult(bool created)
+    {
+        ProductWorkspaceViewStatus.Text = created
+            ? "已从桌面创建“新方格”并提交保存；没有移动或读取桌面文件。"
+            : "桌面创建请求已失效或未能提交；没有留下方格或修改桌面文件。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceViewStatus,
+            created
+                ? "DesktopEmptyWorkspaceCreateCommitted:DesktopFilesChanged=False"
+                : "DesktopEmptyWorkspaceCreateRejected:DesktopFilesChanged=False");
+    }
+
     private void ProductWorkspaceResetViewButton_Click(
         object sender,
         RoutedEventArgs e)

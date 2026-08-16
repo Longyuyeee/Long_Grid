@@ -1202,7 +1202,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
-    public async Task EmptyWorkspaceOwnsNoSurfaceAndDisposedControllerRejectsUpdates()
+    public async Task EmptyWorkspaceOwnsPrimaryEntrySurfaceAndDisposedControllerRejectsUpdates()
     {
         var factory = new RecordingSurfaceFactory();
         var controller = new ProductDesktopHostLifecycleController(
@@ -1212,16 +1212,65 @@ public sealed class ProductDesktopHostLifecycleControllerTests
 
         ProductDesktopHostLifecycleSnapshot empty =
             controller.ApplyProjectionUpdate(
-                ProductDesktopHostProjectionUpdate.Create(
-                    3,
-                    4,
-                    ProductDesktopHostProjectionDisposition.EmptyWorkspace));
+                EmptyUpdate(3, 4));
 
         Assert.Equal(ProductDesktopHostLifecycleStatus.AwaitingWorkspace, empty.Status);
-        Assert.Empty(factory.Surfaces);
+        Assert.True(empty.NativeHostConnected);
+        Assert.Equal(1, empty.OwnedWindowCount);
+        Assert.Equal(0, empty.RenderedContainerCount);
+        Assert.Single(factory.Surfaces);
+        ProductDesktopHostDisplayProjection projection = Assert.IsType<
+            ProductDesktopHostDisplayProjection>(factory.Surfaces[0].Projection);
+        Assert.Empty(projection.Containers);
         await controller.DisposeAsync();
         Assert.Throws<ObjectDisposedException>(() =>
             controller.ApplyProjectionUpdate(ReadyUpdate(4, 4)));
+    }
+
+    [Fact]
+    public async Task EmptyWorkspaceSurfaceUsesLatestBoundCreateCallback()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        int requests = 0;
+        controller.BindEmptyWorkspaceCreate(displayId =>
+        {
+            Assert.Equal("display-primary", displayId);
+            requests++;
+            return true;
+        });
+
+        _ = controller.ApplyProjectionUpdate(EmptyUpdate(3, 4));
+
+        Assert.True(factory.Surfaces[0].RequestBoundEmptyCreate());
+        Assert.Equal(1, requests);
+        await controller.DisposeAsync();
+    }
+
+    private static ProductDesktopHostProjectionUpdate EmptyUpdate(
+        long workspaceRevision,
+        long topologyGeneration)
+    {
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary",
+                new(0, 0, 1920, 1040),
+                96,
+                Array.Empty<ProductDesktopHostReadOnlyProjection>());
+        ProductDesktopHostProjectionBatch batch =
+            ProductDesktopHostProjectionBatch.Create(
+                workspaceRevision,
+                topologyGeneration,
+                new string('A', 64),
+                [display]);
+        return ProductDesktopHostProjectionUpdate.Create(
+            workspaceRevision,
+            topologyGeneration,
+            ProductDesktopHostProjectionDisposition.EmptyWorkspace,
+            batch);
     }
 
     [Fact]
@@ -1268,7 +1317,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                 instanceMarker,
                 (uint)Environment.ProcessId,
                 42,
-                startHidden)
+                startHidden,
+                projection)
             {
                 ReadOnlyAccessibilityAttested = AccessibilityAttested,
                 PassiveWindowContractAttested = PassiveWindowAttested,
@@ -1383,15 +1433,21 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         nint instanceMarker,
         uint processId,
         uint threadId,
-        bool startHidden) : IProductDesktopHostReadOnlySurface
+        bool startHidden,
+        ProductDesktopHostDisplayProjection? projection = null)
+        : IProductDesktopHostReadOnlySurface
     {
         private ProductDesktopInteractionSurfaceMode mode = startHidden
             ? ProductDesktopInteractionSurfaceMode.Hidden
             : ProductDesktopInteractionSurfaceMode.Passive;
         private Func<string, ProductDesktopSelectionRequest, bool>
             applySelection = static (_, _) => false;
+        private Func<string, bool> requestEmptyCreate = static _ => false;
 
         internal bool WasCreatedHidden { get; } = startHidden;
+
+        internal ProductDesktopHostDisplayProjection? Projection { get; } =
+            projection;
 
         internal int ApplyPassiveCalls { get; private set; }
 
@@ -1454,6 +1510,12 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             Func<ProductDesktopInteractionSurfaceTransactionSnapshot?> snapshot,
             Func<string, ProductDesktopSelectionRequest, bool> apply) =>
             applySelection = apply;
+
+        public void BindEmptyWorkspaceCreate(Func<string, bool> requestCreate) =>
+            requestEmptyCreate = requestCreate;
+
+        internal bool RequestBoundEmptyCreate() =>
+            requestEmptyCreate(Projection?.DisplayId ?? string.Empty);
 
         internal bool ApplyBoundSelection(
             string containerId,

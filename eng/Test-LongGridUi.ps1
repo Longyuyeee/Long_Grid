@@ -2198,8 +2198,26 @@ function Test-SourceContract {
         -not ($workspaceEmptyCreateShortcutPolicyCode -match `
             'Catalog|PersistedTarget|CanonicalTarget|DesktopHost|File\.|Directory\.|Save|Telemetry') -and
         -not ($codeBehind -match `
-            'ProductWorkspaceEmptyCreateButton_Click[\s\S]{0,1800}(ProductWorkspaceContainerNameEditor\.Text\s*=|Submit|Commit|Save|DesktopHost|ProductWorkspaceContainerCreateButton_Click)')
+            'ProductWorkspaceEmptyCreateButton_Click[\s\S]{0,1400}(ProductWorkspaceContainerNameEditor\.Text\s*=|Submit|Commit|Save|DesktopHost|ProductWorkspaceContainerCreateButton_Click)')
     ) 'Workspace empty-create shortcut must only focus the existing editor and must not fill, create, save, or execute desktop operations.'
+    Assert-Condition (
+        $desktopHostProjectionBuilderCode -match `
+            'EmptyWorkspace[\s\S]{0,500}emptyBatch' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'GetEmptyCreateButtonBounds' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'GetCurrentInputMessageSource' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'HtTransparent' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'WsExNoActivate' -and
+        $windowsDesktopHostUiaProviderCode -match `
+            'LongGrid\.DesktopHost\.EmptyCreateButton' -and
+        $windowsDesktopHostUiaProviderCode -match `
+            'InvokePatternIdentifiers\.Pattern' -and
+        $appCode -match `
+            'BindEmptyWorkspaceCreate\(\s*RequestDesktopEmptyWorkspaceCreate\)' -and
+        $appCode -match `
+            'RequestDesktopEmptyWorkspaceCreate[\s\S]{0,2400}CommitProductWorkspaceContainerActionCore'
+    ) 'DesktopHost empty-create entry must use a bounded non-activating surface, trusted input/UIA invoke, and the unified configuration commit path.'
     $workspaceOpenReviewNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceOpenReviewButton'
@@ -2515,7 +2533,9 @@ function Test-SourceContract {
         $appCode -match 'ProductConfigurationDefaults\.CreateEmpty' -and
         $appCode -match 'CreateDefaultContainer' -and
         $appCode -match 'CommitProductWorkspaceContainerRemovalUndo' -and
-        $appCode -match 'DisplayKey\s*=\s*"display-unassigned"'
+        $appCode -match `
+            'DisplayKey\s*=\s*string\.IsNullOrWhiteSpace\(displayId\)' -and
+        $appCode -match '"display-unassigned"\s*:\s*displayId'
     ) 'App must support first-container creation through the shared audited coordinator.'
     foreach ($stateAction in @(
             'SetLocked',

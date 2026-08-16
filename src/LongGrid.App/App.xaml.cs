@@ -169,6 +169,8 @@ public partial class App : Application
             ProductDisplayTopology_SnapshotChanged;
         productDesktopHostLifecycle.SnapshotChanged +=
             ProductDesktopHostLifecycle_SnapshotChanged;
+        productDesktopHostLifecycle.BindEmptyWorkspaceCreate(
+            RequestDesktopEmptyWorkspaceCreate);
         window.DesktopKeyboardInteractionRequested +=
             MainWindow_DesktopKeyboardInteractionRequested;
         window.BoxesEnabledChangeRequested +=
@@ -941,7 +943,33 @@ public partial class App : Application
         ProductWorkspaceContainerOpacityPreset? opacityPreset,
         ProductWorkspaceContainerPositionPreset? positionPreset,
         ProductWorkspaceContainerSizePreset? sizePreset,
-        bool confirmed)
+        bool confirmed) =>
+        CommitProductWorkspaceContainerActionCore(
+            action,
+            expectedEditRevision,
+            containerOrdinal,
+            name,
+            stateValue,
+            colorPreset,
+            opacityPreset,
+            positionPreset,
+            sizePreset,
+            confirmed,
+            createDisplayId: null);
+
+    private ProductWorkspaceContainerCommitResult
+        CommitProductWorkspaceContainerActionCore(
+            ProductWorkspaceContainerCommitAction action,
+            long expectedEditRevision,
+            int containerOrdinal,
+            string name,
+            bool? stateValue,
+            ProductWorkspaceContainerColorPreset? colorPreset,
+            ProductWorkspaceContainerOpacityPreset? opacityPreset,
+            ProductWorkspaceContainerPositionPreset? positionPreset,
+            ProductWorkspaceContainerSizePreset? sizePreset,
+            bool confirmed,
+            string? createDisplayId)
     {
         ProductWorkspaceState? state = productWorkspaceSession.State;
         bool creatingFirstConfiguration =
@@ -977,7 +1005,10 @@ public partial class App : Application
         string normalizedName = name.Trim();
         ProductContainerState? newContainer = action ==
             ProductWorkspaceContainerCommitAction.Create
-            ? CreateDefaultContainer(normalizedName, state.Containers.Count)
+            ? CreateDefaultContainer(
+                normalizedName,
+                state.Containers.Count,
+                createDisplayId)
             : null;
         ProductWorkspaceContainerCommitResult result =
             workspaceCommits.CommitContainer(
@@ -1003,6 +1034,51 @@ public partial class App : Application
             result.Document!,
             productDesktopCatalog.Snapshot);
         return result;
+    }
+
+    private bool RequestDesktopEmptyWorkspaceCreate(string displayId)
+    {
+        MainWindow? currentWindow = window;
+        if (currentWindow is null
+            || closingDrainInProgress
+            || string.IsNullOrWhiteSpace(displayId))
+        {
+            return false;
+        }
+
+        return currentWindow.DispatcherQueue.TryEnqueue(() =>
+        {
+            ProductDisplayTopologySnapshot topology =
+                productDisplayTopology.Snapshot;
+            bool displayIsAuthoritative = topology.IsAuthoritative
+                && topology.Displays.Any(display => string.Equals(
+                    display.StableId,
+                    displayId,
+                    StringComparison.Ordinal));
+            if (!displayIsAuthoritative
+                || productDesktopHostLifecycle.Snapshot.Status !=
+                    ProductDesktopHostLifecycleStatus.AwaitingWorkspace)
+            {
+                currentWindow.ApplyDesktopEmptyWorkspaceCreateResult(false);
+                return;
+            }
+
+            ProductWorkspaceContainerCommitResult result =
+                CommitProductWorkspaceContainerActionCore(
+                    ProductWorkspaceContainerCommitAction.Create,
+                    workspaceCommits.CurrentEditRevision,
+                    containerOrdinal: 0,
+                    name: "新方格",
+                    stateValue: null,
+                    colorPreset: null,
+                    opacityPreset: null,
+                    positionPreset: null,
+                    sizePreset: null,
+                    confirmed: false,
+                    createDisplayId: displayId);
+            currentWindow.ApplyDesktopEmptyWorkspaceCreateResult(
+                result.IsAccepted);
+        });
     }
 
     private ProductWorkspaceContainerRemovalUndoCommitResult
@@ -1143,7 +1219,8 @@ public partial class App : Application
 
     private static ProductContainerState CreateDefaultContainer(
         string name,
-        int existingContainerCount)
+        int existingContainerCount,
+        string? displayId = null)
     {
         int offset = existingContainerCount % 8;
         return new()
@@ -1158,7 +1235,9 @@ public partial class App : Application
             },
             Placement = new()
             {
-                DisplayKey = "display-unassigned",
+                DisplayKey = string.IsNullOrWhiteSpace(displayId)
+                    ? "display-unassigned"
+                    : displayId,
                 XDip = 32 + (offset * 24),
                 YDip = 48 + (offset * 24),
                 WidthDip = 360,

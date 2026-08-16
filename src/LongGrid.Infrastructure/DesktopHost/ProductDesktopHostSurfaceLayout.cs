@@ -6,6 +6,46 @@ internal static class ProductDesktopHostSurfaceLayout
 {
     internal const int HeaderHeightDip = 54;
     internal const int ItemHeightDip = 28;
+    internal const int EmptyCardWidthDip = 360;
+    internal const int EmptyCardHeightDip = 184;
+    internal const int EmptyCreateButtonWidthDip = 248;
+    internal const int EmptyCreateButtonHeightDip = 48;
+
+    internal static PixelRect GetEmptyCardBounds(
+        ProductDesktopHostDisplayProjection display)
+    {
+        ArgumentNullException.ThrowIfNull(display);
+        double scale = display.EffectiveDpi / 96d;
+        int width = Math.Min(
+            ToPixels(EmptyCardWidthDip, scale),
+            display.WorkArea.Width);
+        int height = Math.Min(
+            ToPixels(EmptyCardHeightDip, scale),
+            display.WorkArea.Height);
+        return new(
+            Math.Max(0, (display.WorkArea.Width - width) / 2),
+            Math.Max(0, (display.WorkArea.Height - height) / 2),
+            width,
+            height);
+    }
+
+    internal static PixelRect GetEmptyCreateButtonBounds(
+        ProductDesktopHostDisplayProjection display)
+    {
+        PixelRect card = GetEmptyCardBounds(display);
+        double scale = display.EffectiveDpi / 96d;
+        int width = Math.Min(
+            ToPixels(EmptyCreateButtonWidthDip, scale),
+            card.Width);
+        int height = Math.Min(
+            ToPixels(EmptyCreateButtonHeightDip, scale),
+            card.Height);
+        return new(
+            card.Left + ((card.Width - width) / 2),
+            card.Bottom - height - ToPixels(20, scale),
+            width,
+            height);
+    }
 
     internal static PixelRect GetContainerBounds(
         ProductDesktopHostDisplayProjection display,

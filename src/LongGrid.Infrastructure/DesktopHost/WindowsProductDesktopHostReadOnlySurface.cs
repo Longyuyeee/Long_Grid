@@ -100,6 +100,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         selectionSnapshot = static () => null;
     private Func<string, ProductDesktopSelectionRequest, bool>
         applySelection = static (_, _) => false;
+    private Func<string, bool> requestEmptyWorkspaceCreate = static _ => false;
     private volatile ProductDesktopInteractionSurfaceMode mode;
 #if WINDOWS
     private WindowsProductDesktopHostUiaRootProvider? uiaProvider;
@@ -211,11 +212,15 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
 
         PixelRect workArea = projection.WorkArea;
 
-        Handle = NativeMethods.CreateWindowEx(
-            NativeMethods.WsExToolWindow
+        uint extendedStyle = NativeMethods.WsExToolWindow
                 | NativeMethods.WsExLayered
-                | NativeMethods.WsExNoActivate
-                | NativeMethods.WsExTransparent,
+                | NativeMethods.WsExNoActivate;
+        if (projection.Containers.Count > 0)
+        {
+            extendedStyle |= NativeMethods.WsExTransparent;
+        }
+        Handle = NativeMethods.CreateWindowEx(
+            extendedStyle,
             className,
             "Long方格桌面只读宿主",
             NativeMethods.WsPopup,
@@ -247,7 +252,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                     RefreshSelection();
                 }
                 return applied;
-            });
+            },
+            () => requestEmptyWorkspaceCreate(projection.DisplayId));
 #endif
 
         ThreadId = NativeMethods.GetWindowThreadProcessId(
@@ -310,14 +316,14 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             case NativeMethods.WmEraseBackground:
                 return new nint(1);
             case NativeMethods.WmNcHitTest:
-                return new nint(
-                    mode == ProductDesktopInteractionSurfaceMode.Explicit
-                        ? NativeMethods.HtClient
-                        : NativeMethods.HtTransparent);
+                return new nint(ResolveHitTest(longParameter));
             case NativeMethods.WmMouseActivate:
                 return new nint(NativeMethods.MaNoActivate);
             case NativeMethods.WmLButtonDown:
-                HandlePrimaryPointerPress(wordParameter, longParameter);
+                if (!HandleEmptyCreatePress(longParameter))
+                {
+                    HandlePrimaryPointerPress(wordParameter, longParameter);
+                }
                 return nint.Zero;
             case NativeMethods.WmPaint:
                 Paint(window);
@@ -339,6 +345,12 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         ArgumentNullException.ThrowIfNull(apply);
         selectionSnapshot = snapshot;
         applySelection = apply;
+    }
+
+    public void BindEmptyWorkspaceCreate(Func<string, bool> requestCreate)
+    {
+        ArgumentNullException.ThrowIfNull(requestCreate);
+        requestEmptyWorkspaceCreate = requestCreate;
     }
 
     public void RefreshSelection()
@@ -387,6 +399,50 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     private static int SignedHighWord(nint value) =>
         unchecked((short)((value.ToInt64() >> 16) & 0xFFFF));
 
+    private int ResolveHitTest(nint longParameter)
+    {
+        if (mode == ProductDesktopInteractionSurfaceMode.Explicit)
+        {
+            return NativeMethods.HtClient;
+        }
+        if (mode != ProductDesktopInteractionSurfaceMode.Passive
+            || projection.Containers.Count != 0)
+        {
+            return NativeMethods.HtTransparent;
+        }
+
+        int x = SignedLowWord(longParameter) - projection.WorkArea.Left;
+        int y = SignedHighWord(longParameter) - projection.WorkArea.Top;
+        return Contains(
+            ProductDesktopHostSurfaceLayout.GetEmptyCreateButtonBounds(projection),
+            x,
+            y)
+                ? NativeMethods.HtClient
+                : NativeMethods.HtTransparent;
+    }
+
+    private bool HandleEmptyCreatePress(nint longParameter)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Passive
+            || projection.Containers.Count != 0
+            || !Contains(
+                ProductDesktopHostSurfaceLayout.GetEmptyCreateButtonBounds(projection),
+                SignedLowWord(longParameter),
+                SignedHighWord(longParameter)))
+        {
+            return false;
+        }
+
+        InputMessageSource source = default;
+        return NativeMethods.GetCurrentInputMessageSource(ref source)
+            && source.OriginId != NativeMethods.ImoInjected
+            && requestEmptyWorkspaceCreate(projection.DisplayId);
+    }
+
+    private static bool Contains(PixelRect bounds, int x, int y) =>
+        x >= bounds.Left && x < bounds.Right
+        && y >= bounds.Top && y < bounds.Bottom;
+
     private void Paint(nint window)
     {
         nint deviceContext = NativeMethods.BeginPaint(
@@ -408,6 +464,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 NativeMethods.GetStockObject(NativeMethods.DefaultGuiFont));
             try
             {
+                if (projection.Containers.Count == 0)
+                {
+                    DrawEmptyWorkspace(deviceContext);
+                    return;
+                }
                 foreach (ProductDesktopHostReadOnlyProjection container
                     in projection.Containers)
                 {
@@ -422,6 +483,73 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         finally
         {
             _ = NativeMethods.EndPaint(window, ref paint);
+        }
+    }
+
+    private void DrawEmptyWorkspace(nint deviceContext)
+    {
+        PixelRect card = ProductDesktopHostSurfaceLayout.GetEmptyCardBounds(
+            projection);
+        PixelRect button =
+            ProductDesktopHostSurfaceLayout.GetEmptyCreateButtonBounds(projection);
+        NativeRect cardBounds = new(card.Left, card.Top, card.Right, card.Bottom);
+        NativeRect buttonBounds = new(
+            button.Left,
+            button.Top,
+            button.Right,
+            button.Bottom);
+        nint cardBrush = NativeMethods.CreateSolidBrush(0x003B3028);
+        nint buttonBrush = NativeMethods.CreateSolidBrush(0x00D67524);
+        nint borderPen = NativeMethods.CreatePen(NativeMethods.PsSolid, 1, 0x006F6259);
+        try
+        {
+            nint previousBrush = NativeMethods.SelectObject(deviceContext, cardBrush);
+            nint previousPen = NativeMethods.SelectObject(deviceContext, borderPen);
+            _ = NativeMethods.Rectangle(
+                deviceContext,
+                cardBounds.Left,
+                cardBounds.Top,
+                cardBounds.Right,
+                cardBounds.Bottom);
+            _ = NativeMethods.SelectObject(deviceContext, buttonBrush);
+            _ = NativeMethods.Rectangle(
+                deviceContext,
+                buttonBounds.Left,
+                buttonBounds.Top,
+                buttonBounds.Right,
+                buttonBounds.Bottom);
+            _ = NativeMethods.SelectObject(deviceContext, previousPen);
+            _ = NativeMethods.SelectObject(deviceContext, previousBrush);
+
+            _ = NativeMethods.SetTextColor(deviceContext, 0x00FFFFFF);
+            double scale = projection.EffectiveDpi / 96d;
+            int padding = ProductDesktopHostSurfaceLayout.ToPixels(20, scale);
+            DrawText(
+                deviceContext,
+                "桌面还没有方格",
+                new(card.Left + padding, card.Top + padding,
+                    card.Right - padding, card.Top + padding + 36),
+                NativeMethods.DtCenter | NativeMethods.DtVCenter
+                    | NativeMethods.DtSingleLine);
+            DrawText(
+                deviceContext,
+                "创建只保存 Long方格布局，不会移动桌面文件",
+                new(card.Left + padding, card.Top + padding + 38,
+                    card.Right - padding, button.Top - 8),
+                NativeMethods.DtCenter | NativeMethods.DtVCenter
+                    | NativeMethods.DtSingleLine | NativeMethods.DtEndEllipsis);
+            DrawText(
+                deviceContext,
+                "创建第一个方格",
+                buttonBounds,
+                NativeMethods.DtCenter | NativeMethods.DtVCenter
+                    | NativeMethods.DtSingleLine);
+        }
+        finally
+        {
+            _ = NativeMethods.DeleteObject(borderPen);
+            _ = NativeMethods.DeleteObject(buttonBrush);
+            _ = NativeMethods.DeleteObject(cardBrush);
         }
     }
 
@@ -659,6 +787,30 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         bool transferred = false;
         try
         {
+            if (projection.Containers.Count == 0)
+            {
+                PixelRect emptyCard =
+                    ProductDesktopHostSurfaceLayout.GetEmptyCardBounds(projection);
+                nint card = NativeMethods.CreateRectRgn(
+                    emptyCard.Left,
+                    emptyCard.Top,
+                    emptyCard.Right,
+                    emptyCard.Bottom);
+                if (card == nint.Zero
+                    || NativeMethods.CombineRgn(
+                        combined,
+                        combined,
+                        card,
+                        NativeMethods.RgnOr) == NativeMethods.Error)
+                {
+                    if (card != nint.Zero)
+                    {
+                        _ = NativeMethods.DeleteObject(card);
+                    }
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+                _ = NativeMethods.DeleteObject(card);
+            }
             foreach (ProductDesktopHostReadOnlyProjection container
                 in projection.Containers)
             {
@@ -739,11 +891,16 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             Handle,
             NativeMethods.GwlExStyle);
         long style = extendedStyle.ToInt64();
-        const long required = NativeMethods.WsExToolWindow
+        long required = NativeMethods.WsExToolWindow
             | NativeMethods.WsExLayered
-            | NativeMethods.WsExNoActivate
-            | NativeMethods.WsExTransparent;
+            | NativeMethods.WsExNoActivate;
+        if (projection.Containers.Count > 0)
+        {
+            required |= NativeMethods.WsExTransparent;
+        }
         return (style & required) == required
+            && (projection.Containers.Count == 0
+                || (style & NativeMethods.WsExTransparent) != 0)
             && (style & NativeMethods.WsExTopmost) == 0
             && NativeMethods.GetWindow(Handle, NativeMethods.GwOwner) == nint.Zero
             && NativeMethods.GetForegroundWindow() != Handle;
@@ -926,6 +1083,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint DtVCenter = 0x0004;
         internal const uint DtSingleLine = 0x0020;
         internal const uint DtEndEllipsis = 0x8000;
+        internal const uint DtCenter = 0x0001;
         internal const int RgnOr = 2;
         internal const int NullRegion = 1;
         internal const int Error = 0;

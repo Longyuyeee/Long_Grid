@@ -17,6 +17,8 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
         selectionSnapshot;
     private readonly Func<string, ProductDesktopSelectionRequest, bool>
         applySelection;
+    private readonly WindowsProductDesktopHostUiaEmptyCreateProvider?
+        emptyCreate;
     private ProductDesktopInteractionSurfaceTransactionSnapshot? lastPublished;
 
     internal WindowsProductDesktopHostUiaRootProvider(
@@ -26,7 +28,8 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
         Func<bool>? isExplicit = null,
         Func<ProductDesktopInteractionSurfaceTransactionSnapshot?>?
             selectionSnapshot = null,
-        Func<string, ProductDesktopSelectionRequest, bool>? applySelection = null)
+        Func<string, ProductDesktopSelectionRequest, bool>? applySelection = null,
+        Func<bool>? requestEmptyWorkspaceCreate = null)
     {
         this.window = window != nint.Zero
             ? window
@@ -40,6 +43,9 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
         containers = projection.Containers.Select((container, index) =>
             new WindowsProductDesktopHostUiaContainerProvider(
                 this, container, index, marker)).ToArray();
+        emptyCreate = containers.Length == 0
+            ? new(this, marker, requestEmptyWorkspaceCreate ?? (() => false))
+            : null;
     }
 
     internal IReadOnlyList<WindowsProductDesktopHostUiaContainerProvider>
@@ -57,6 +63,14 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
     {
         get
         {
+            if (containers.Length == 0)
+            {
+                return new(
+                    projection.WorkArea.Left,
+                    projection.WorkArea.Top,
+                    projection.WorkArea.Width,
+                    projection.WorkArea.Height);
+            }
             Rect bounds = containers[0].BoundingRectangle;
             foreach (var container in containers.Skip(1))
             {
@@ -72,7 +86,9 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
     public object? GetPropertyValue(int propertyId) => propertyId switch
     {
         var id when id == AutomationElementIdentifiers.NameProperty.Id =>
-            "Long\u65b9\u683c\u684c\u9762\u53ea\u8bfb\u533a\u57df",
+            containers.Length == 0
+                ? "Long\u65b9\u683c\u684c\u9762\u7a7a\u72b6\u6001"
+                : "Long\u65b9\u683c\u684c\u9762\u53ea\u8bfb\u533a\u57df",
         var id when id == AutomationElementIdentifiers.AutomationIdProperty.Id =>
             "LongGrid.DesktopHost.Root",
         var id when id == AutomationElementIdentifiers.ControlTypeProperty.Id =>
@@ -81,9 +97,11 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
             || id == AutomationElementIdentifiers.IsContentElementProperty.Id => true,
         var id when id == AutomationElementIdentifiers.IsEnabledProperty.Id => true,
         var id when id == AutomationElementIdentifiers.IsKeyboardFocusableProperty.Id =>
-            ExplicitSelectionAvailable,
+            containers.Length == 0 || ExplicitSelectionAvailable,
         var id when id == AutomationElementIdentifiers.ItemStatusProperty.Id =>
-            ExplicitSelectionAvailable
+            containers.Length == 0
+                ? "空工作区；可以创建第一个方格；不修改桌面文件"
+                : ExplicitSelectionAvailable
                 ? $"\u663e\u5f0f\u4ea4\u4e92\uff1b{containers.Length} \u4e2a\u65b9\u683c\uff1b\u7b49\u5f85\u8f93\u5165\u6d88\u8d39\u63a5\u7ebf"
                 : $"\u53ea\u8bfb\u9884\u89c8\uff1b{containers.Length} \u4e2a\u65b9\u683c\uff1b\u4e0d\u63a5\u6536\u8f93\u5165",
         _ => null,
@@ -91,6 +109,8 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
     public IRawElementProviderFragment? Navigate(NavigateDirection direction) =>
         direction switch
         {
+            NavigateDirection.FirstChild when emptyCreate is not null => emptyCreate,
+            NavigateDirection.LastChild when emptyCreate is not null => emptyCreate,
             NavigateDirection.FirstChild when containers.Length > 0 => containers[0],
             NavigateDirection.LastChild when containers.Length > 0 => containers[^1],
             _ => null,
@@ -101,6 +121,10 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
     public IRawElementProviderFragment? ElementProviderFromPoint(double x, double y)
     {
         Point point = new(x, y);
+        if (emptyCreate?.BoundingRectangle.Contains(point) == true)
+        {
+            return emptyCreate;
+        }
         foreach (var container in containers)
         {
             var item = container.Items.FirstOrDefault(candidate =>
@@ -215,6 +239,59 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
         .Where(container => string.Equals(container.ContainerId, containerId,
             StringComparison.Ordinal))
         .SelectMany(container => container.Items);
+}
+
+internal sealed class WindowsProductDesktopHostUiaEmptyCreateProvider
+    : IRawElementProviderFragment, IInvokeProvider
+{
+    private readonly WindowsProductDesktopHostUiaRootProvider root;
+    private readonly int marker;
+    private readonly Func<bool> requestCreate;
+
+    internal WindowsProductDesktopHostUiaEmptyCreateProvider(
+        WindowsProductDesktopHostUiaRootProvider root,
+        int marker,
+        Func<bool> requestCreate)
+    {
+        this.root = root;
+        this.marker = marker;
+        this.requestCreate = requestCreate;
+    }
+
+    public ProviderOptions ProviderOptions => root.ProviderOptions;
+    public IRawElementProviderSimple? HostRawElementProvider => null;
+    public Rect BoundingRectangle => root.ScreenBounds(
+        ProductDesktopHostSurfaceLayout.GetEmptyCreateButtonBounds(
+            root.Projection));
+    public IRawElementProviderFragmentRoot FragmentRoot => root;
+    public object? GetPatternProvider(int patternId) =>
+        patternId == InvokePatternIdentifiers.Pattern.Id ? this : null;
+    public object? GetPropertyValue(int propertyId) => propertyId switch
+    {
+        var id when id == AutomationElementIdentifiers.NameProperty.Id =>
+            "\u521b\u5efa\u7b2c\u4e00\u4e2a\u65b9\u683c",
+        var id when id == AutomationElementIdentifiers.AutomationIdProperty.Id =>
+            "LongGrid.DesktopHost.EmptyCreateButton",
+        var id when id == AutomationElementIdentifiers.ControlTypeProperty.Id =>
+            ControlType.Button.Id,
+        var id when id == AutomationElementIdentifiers.IsControlElementProperty.Id
+            || id == AutomationElementIdentifiers.IsContentElementProperty.Id => true,
+        var id when id == AutomationElementIdentifiers.IsEnabledProperty.Id => true,
+        var id when id == AutomationElementIdentifiers.IsKeyboardFocusableProperty.Id =>
+            true,
+        var id when id == AutomationElementIdentifiers.ItemStatusProperty.Id =>
+            "\u521b\u5efa\u9ed8\u8ba4\u7a7a\u65b9\u683c\uff1b\u4e0d\u8bfb\u53d6\u6216\u79fb\u52a8\u684c\u9762\u6587\u4ef6",
+        _ => null,
+    };
+    public IRawElementProviderFragment? Navigate(NavigateDirection direction) =>
+        direction == NavigateDirection.Parent ? root : null;
+    public int[] GetRuntimeId() =>
+        [AutomationInteropProvider.AppendRuntimeId, marker, 900];
+    public IRawElementProviderSimple[]? GetEmbeddedFragmentRoots() => null;
+    public void SetFocus()
+    {
+    }
+    public void Invoke() => _ = requestCreate();
 }
 
 internal sealed class WindowsProductDesktopHostUiaContainerProvider
