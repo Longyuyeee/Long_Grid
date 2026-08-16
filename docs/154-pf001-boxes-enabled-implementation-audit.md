@@ -156,6 +156,7 @@ DesktopHost 状态卡新增标准 WinUI `ToggleSwitch`：
 - 全量测试：`942/942`；
 - Release App 构建：`0` warning、`0` error；
 - `dotnet format --verify-no-changes`：通过；
+- UI 源码合同与批量选择无障碍入口：`146` 个 AutomationId，通过；
 - `git diff --check`：提交前必须再次通过；
 - PR CI 和合并后 main CI：推送后补充远端证据。
 
@@ -167,4 +168,3 @@ DesktopHost 状态卡新增标准 WinUI `ToggleSwitch`：
 4. PF-033 增加托盘时必须调用同一个 `ProductBoxesSettingsController`，不得增加第二份开关；
 5. PF-005～PF-007 完成真实项目呈现和打开后，清理控制中心遗留的开发期/只读文案；
 6. 在真人环境补充 Narrator、UIA 树归零和 1 秒呈现证据后，再评估 PF-001 是否达到 `EngineeringComplete / ProductEvidencePending`。
-
