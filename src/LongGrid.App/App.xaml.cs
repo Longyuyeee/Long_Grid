@@ -1258,15 +1258,12 @@ public partial class App : Application
             return null;
         }
 
-        string id;
-        do
+        string? id = ProductWorkspaceContainerCreationDefaults.CreateUniqueId(
+            state.Containers);
+        if (id is null)
         {
-            id = $"container-{Guid.NewGuid():N}";
+            return null;
         }
-        while (state.Containers.Any(container => string.Equals(
-            container.Id,
-            id,
-            StringComparison.Ordinal)));
 
         return new()
         {

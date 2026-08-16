@@ -31,6 +31,34 @@ public static class ProductWorkspaceContainerCreationDefaults
     private const double InitialYDip = 48;
     private const double CascadeStepDip = 24;
     private const int CascadeColumns = 8;
+    private const int MaximumIdentityAttempts = 16;
+
+    public static string? CreateUniqueId(
+        IReadOnlyList<ProductContainerState>? existingContainers)
+    {
+        if (existingContainers is null
+            || existingContainers.Count >=
+                ProductConfigurationLimits.MaximumContainers
+            || existingContainers.Any(container => container is null
+                || string.IsNullOrWhiteSpace(container.Id)))
+        {
+            return null;
+        }
+
+        for (int attempt = 0; attempt < MaximumIdentityAttempts; attempt++)
+        {
+            string candidate = $"container-{Guid.NewGuid():N}";
+            if (!existingContainers.Any(container => string.Equals(
+                container.Id,
+                candidate,
+                StringComparison.Ordinal)))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
 
     public static ProductWorkspaceContainerCreationDefaultsDecision Evaluate(
         IReadOnlyList<ProductContainerState>? existingContainers,

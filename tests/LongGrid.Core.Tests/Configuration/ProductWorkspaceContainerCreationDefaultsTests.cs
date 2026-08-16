@@ -92,9 +92,12 @@ public sealed class ProductWorkspaceContainerCreationDefaultsTests
             ProductWorkspaceContainerCreationDefaultsDecision decision =
                 Evaluate(state.Containers);
             Assert.True(decision.CanCreate);
+            string? id = ProductWorkspaceContainerCreationDefaults.CreateUniqueId(
+                state.Containers);
+            Assert.NotNull(id);
             ProductContainerState container = new()
             {
-                Id = $"container-{index + 1}",
+                Id = id,
                 Name = decision.Name!,
                 Appearance = new()
                 {
@@ -163,6 +166,45 @@ public sealed class ProductWorkspaceContainerCreationDefaultsTests
                 string.Empty,
                 WorkArea,
                 96).Status);
+        Assert.Null(ProductWorkspaceContainerCreationDefaults.CreateUniqueId(full));
+        Assert.Equal(
+            ProductWorkspaceContainerCreationDefaultsStatus.Invalid,
+            Evaluate(requestedName: new string(
+                'x',
+                ProductConfigurationLimits.MaximumNameLength + 1)).Status);
+    }
+
+    [Fact]
+    public void HighDpiPlacementUsesDipBoundsAndSkipsExactOverlap()
+    {
+        PixelRect highDpiWorkArea = new(0, 0, 1000, 700);
+        ProductWorkspaceContainerCreationDefaultsDecision first =
+            ProductWorkspaceContainerCreationDefaults.Evaluate(
+                [],
+                null,
+                "display-primary",
+                highDpiWorkArea,
+                192);
+        Assert.True(first.CanCreate);
+        Assert.Equal(360, first.Placement!.WidthDip);
+        Assert.Equal(240, first.Placement.HeightDip);
+
+        ProductWorkspaceContainerCreationDefaultsDecision second =
+            ProductWorkspaceContainerCreationDefaults.Evaluate(
+                [Container(
+                    "first",
+                    first.Name!,
+                    first.Placement.XDip,
+                    first.Placement.YDip)],
+                null,
+                "display-primary",
+                highDpiWorkArea,
+                192);
+
+        Assert.True(second.CanCreate);
+        Assert.NotEqual(first.Placement.XDip, second.Placement!.XDip);
+        Assert.InRange(second.Placement.XDip, 0, 140);
+        Assert.InRange(second.Placement.YDip, 0, 110);
     }
 
     private static ProductWorkspaceContainerCreationDefaultsDecision Evaluate(
