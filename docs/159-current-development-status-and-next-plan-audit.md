@@ -338,4 +338,4 @@ Stage 167 已增加正式“使用选择创建新方格”入口，并把同一�
 
 真实测试创建 257 个文本文件：257 项请求拒绝后磁盘仍为旧 257 项，随后 256 项请求真实保存并重载为来源 1 项、新方格 256 项，所有文件内容逐项不变。Release 全量为 1010/1010，147-ID 静态合同通过。首次合同因旧的 live-region 全文件次数硬编码失败，修成新入口专项合同后通过。
 
-正式 App 结果必须分开记录：Windows 捕获获得完整控制中心截图，说明 Release 界面真实渲染；但 UIA 连续两次找不到首元素，整树读取导致 `Microsoft.UI.Xaml.dll` 崩溃。对 `fff20f2` 建立独立 worktree、重新构建并执行相同操作，得到相同截图成功和相同 UIA 崩溃，证明不是本切片回归，但也证明正式 UIA/Narrator 证据仍未取得。因此 PF-002H 记 `EngineeringComplete / ProductEvidencePending`，PF-002、PF-001 与顶层完成口径不变。下一步优先修复/隔离 Windows App Runtime UIA 会话，再收口 PF-002D 拖画物理输入和 PF-002F 设备/无障碍矩阵，详见 [Stage 167](167-pf002h-selected-reference-app-integration-audit.md)。
+正式 App 结果必须分开记录：Windows 捕获获得完整控制中心截图，说明 Release 界面真实渲染；但 UIA 连续两次找不到首元素，整树读取导致 `Microsoft.UI.Xaml.dll` 崩溃。对 `fff20f2` 建立独立 worktree、重新构建并执行相同操作，得到相同截图成功和相同 UIA 崩溃，证明不是本切片回归，但也证明正式 UIA/Narrator 证据仍未取得。Stage 168 又把事件的 `0xc000027b / 8001010e` 与 WinUI 官方 `#11139` 跨进程 UIA 缺陷精确对齐，并新增真实 Release 窗口启动、响应和正常退出测试。因此 PF-002H 仍记 `EngineeringComplete / ProductEvidencePending`，PF-002、PF-001 与顶层完成口径不变；下一步先收口不查询 UIA 的 PF-002D/PF-002H 真实输入矩阵，上游修复后再补 PF-002F UIA/Narrator，详见 [Stage 168](168-winui-cross-process-uia-blocker-and-window-smoke-audit.md)。

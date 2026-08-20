@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-002H“使用 Long方格已选引用创建”已接入正式选择列表、唯一 Preview、原子提交、完整保存失败补偿和专用最近撤销。257 个真实文件的 257 拒绝/256 成功边界、真实磁盘重载、写租约故障恢复及文件内容不变均通过；全量 1010/1010、Release 构建零警告零错误、147-ID 静态 UI 合同通过。正式 App 可实际渲染截图，但当前 Windows App Runtime 2.4 的 UIA 树读取会在本版本和上一步隔离基线中同样触发 `Microsoft.UI.Xaml.dll` 崩溃，因此 PF-002H 仅为 `EngineeringComplete / ProductEvidencePending`，PF-001/PF-002 仍为 `InProgress`，详见 [Stage 167](docs/167-pf002h-selected-reference-app-integration-audit.md)。所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-002H“使用 Long方格已选引用创建”已完成正式工程链、257 个真实文件边界、全量 1010/1010 和 Release/静态 UI 合同；Stage 168 又建立了不查询 UIA 的真实 Release 窗口启动、持续响应、关闭排空和退出码证据。跨进程 UIA 崩溃已与 WinUI 官方 `#11139` 的 `RPC_E_WRONG_THREAD / 0xc000027b` 上游缺陷精确对齐，不能通过删除无障碍语义规避，因此 PF-002H 保持 `EngineeringComplete / ProductEvidencePending`，PF-001/PF-002 仍为 `InProgress`，详见 [Stage 168](docs/168-winui-cross-process-uia-blocker-and-window-smoke-audit.md)。所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -28,6 +28,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-002 桌面拖画矩形创建工程审计（Stage 165）](docs/165-pf002-drag-rectangle-create-engineering-audit.md)
 - [PF-002H 已选引用创建方格原子事务基础审计（Stage 166）](docs/166-pf002h-selected-reference-atomic-transaction-audit.md)
 - [PF-002H 已选引用创建方格正式 App 接线审计（Stage 167）](docs/167-pf002h-selected-reference-app-integration-audit.md)
+- [WinUI 跨进程 UIA 阻断与真实窗口冒烟审计（Stage 168）](docs/168-winui-cross-process-uia-blocker-and-window-smoke-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)
