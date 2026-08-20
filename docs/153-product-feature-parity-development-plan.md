@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-002 桌面直接创建方格**
-- 最新实机审计：[Stage 163](163-pf002d-real-app-interaction-attempt-audit.md)；PF-002D2a 工程实现保持 989/989，外部控制器激活触发 WinUI `0x8001010e` 且输入矩阵未执行；PF-002D 证据继续 Pending，同时进入可独立真实故障注入的 PF-002E，PF-002 完成前不进入 PF-003
+- 最新工程审计：[Stage 164](164-pf002e-create-save-publication-compensation-audit.md)；PF-002E 已用真实文件系统 I/O 故障证明并修复创建幽灵方格，994/994 与静态 UI 合同通过；PF-002D 实机交互证据仍 Pending，PF-002 完成前不进入 PF-003
 
 ## 1. 本文解决什么问题
 
@@ -146,7 +146,7 @@
 - 创建过程不读取文件内容、不移动真实文件；
 - 完成后用户无需进入控制中心即可建立第一个方格。
 
-**2026-08-20 实施状态**：`InProgress`。空态/非空态主点击、产品菜单、主显示器 `Ctrl+Alt+N` 和标准 UIA Invoke 均进入带 revision/topology/source 事实的同一请求。请求建立唯一 Preview Session；正式 App 优先在目标显示器候选方格位置创建无标题栏、无任务切换项的原生 WinUI 编辑窗口，显示默认名称与候选位置/尺寸，非法名称禁用确认，Enter/Escape/失焦、workspace/topology/display/host 变化均零提交，确认后二次复核再进入唯一提交协调器；窗口创建失败才回退控制中心。UIA activation 不抢前台，键盘代理被 Windows 拒绝后恢复 Passive。全量测试为 989/989，Release 构建与正式 App 启动通过；完整 App 打开—编辑—取消—确认证据仍因窗口会话冲突 Pending。因此 PF-002D 与 PF-002 均不得标记完成；保存失败窗口补偿、拖画矩形、已选引用创建及物理 UI/无障碍/DPI 证据仍未完成。证据见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)至 [Stage 162](162-pf002d2-native-inline-preview-audit.md)。
+**2026-08-20 实施状态**：`InProgress`。空态/非空态主点击、产品菜单、主显示器 `Ctrl+Alt+N` 和标准 UIA Invoke 均进入带 revision/topology/source 事实的同一请求。请求建立唯一 Preview Session；正式 App 优先在目标显示器候选方格位置创建无标题栏、无任务切换项的原生 WinUI 编辑窗口，确认后二次复核再进入唯一提交协调器。PF-002E 进一步以创建容器 ID、工作区修订和保存修订绑定可见发布；同次保存失败且没有后续编辑时，经现有唯一提交/保存链删除该创建并立即重投影，后续编辑存在时补偿失败关闭，避免覆盖用户新状态。真实文件系统故障测试观测到修正前 1 个幽灵方格、补偿后 0 个方格、解除故障并重试后磁盘重载仍为 0；全量为 994/994，Release 构建和 146-ID 静态 UI 合同通过。完整 App 打开—编辑—取消—确认证据仍因外部激活崩溃 Pending，因此 PF-002D/PF-002 不得标记完成；拖画矩形、已选引用创建及物理 UI/无障碍/DPI 证据仍未完成。证据见 [Stage 164](164-pf002e-create-save-publication-compensation-audit.md)。
 
 ### PF-003：桌面拖动、缩放与吸附
 
@@ -879,6 +879,6 @@
 
 ## 15. 当前立即执行项
 
-当前开发项为 **PF-002：桌面直接创建方格**。PF-002A/B/C/D1 与 PF-002D2a 已完成空态/非空态多输入、统一名称/布局、Preview Session 和候选位置原生编辑窗口；下一门禁固定为无并发输入 Windows 会话中的真实打开—编辑—取消—确认证据。所有入口继续复用唯一 Preview Session、创建策略和协调器，不得建立第二套保存链。
+当前开发项为 **PF-002：桌面直接创建方格**。PF-002A/B/C/D1、PF-002D2a 与 PF-002E 已完成空态/非空态多输入、统一名称/布局、Preview Session、候选位置原生编辑窗口及保存失败可见补偿；下一门禁固定为无并发输入 Windows 会话中的真实打开—编辑—取消—确认证据。所有入口继续复用唯一 Preview Session、创建策略和协调器，不得建立第二套保存链。
 
-随后依次完成 PF-002E 保存失败可见补偿、桌面拖画矩形、使用 Long方格已选引用创建和 PF-002F 正式设备/无障碍证据。PF-002 全部验收关闭后才进入 PF-003。G0 外部证据并行保留，任何版本在 G0/签名/安装未完成前不得分发，但不再用这些门禁替代产品功能开发。
+随后依次完成桌面拖画矩形、使用 Long方格已选引用创建和 PF-002F 正式设备/无障碍证据。PF-002 全部验收关闭后才进入 PF-003。G0 外部证据并行保留，任何版本在 G0/签名/安装未完成前不得分发，但不再用这些门禁替代产品功能开发。

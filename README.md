@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-001 总开关主闭环已完成；PF-002 的多输入创建、确定性名称/布局和提交前 Preview Session 已统一。最新 PF-002D2a 会在目标显示器候选方格位置打开现代原生 WinUI 编辑窗口，支持即时校验、Enter/Escape、失焦取消和 UIA，失败时安全回退控制中心；全量 989/989、Release 构建和正式 App 启动通过。PF-001/PF-002 均仍为 `InProgress`：原生预览真实交互证据、保存失败补偿、拖画矩形、使用已选引用创建和正式物理证据仍待完成，详见 [Stage 162](docs/162-pf002d2-native-inline-preview-audit.md)。真实文件写入、完整桌面交互、签名、安装与外部证据仍由各自安全门控制，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-002 的多输入创建、确定性名称/布局、候选位置原生 Preview 和保存失败补偿已形成工程闭环。PF-002E 使用工作区修订、保存修订和创建容器 ID 精确绑定发布事务；同次真实 I/O 保存失败且无后续编辑时立即撤回桌面投影，后续编辑存在时拒绝覆盖。全量 994/994、Release 构建零警告零错误、146-ID 静态 UI 合同通过。PF-001/PF-002 仍为 `InProgress`：PF-002D 原生预览真实交互证据、拖画矩形、使用已选引用创建和正式物理/无障碍证据仍待完成，详见 [Stage 164](docs/164-pf002e-create-save-publication-compensation-audit.md)。真实文件写入、签名、安装与外部证据仍由各自安全门控制，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -24,6 +24,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [原生 UIA 激活与前台拒绝恢复审计（Stage 161）](docs/161-native-uia-activation-recovery-audit.md)
 - [PF-002D2 桌面候选位置原生预览审计（Stage 162）](docs/162-pf002d2-native-inline-preview-audit.md)
 - [PF-002D 正式 App 实机交互尝试审计（Stage 163）](docs/163-pf002d-real-app-interaction-attempt-audit.md)
+- [PF-002E 创建保存与可见发布补偿审计（Stage 164）](docs/164-pf002e-create-save-publication-compensation-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)

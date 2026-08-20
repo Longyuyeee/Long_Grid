@@ -3038,6 +3038,23 @@ public sealed partial class MainWindow : Window
             automationStatus);
     }
 
+    internal void ApplyProductWorkspaceCreateSaveRollbackState(
+        ProductWorkspaceSaveFailure failure,
+        long rollbackRevision)
+    {
+        ProductSaveStatusTitle.Text = "新方格未保存，已撤回";
+        ProductSaveStatusDetail.Text =
+            "创建结果未能安全写入配置，桌面投影已撤回；正在保存撤回后的安全状态。";
+        ProductSaveStatusIcon.Symbol = Symbol.Important;
+        ProductSaveRetryButton.Visibility = Visibility.Collapsed;
+        ProductSaveRetryButton.IsEnabled = false;
+        ImportConfigurationButton.IsEnabled = false;
+        ExportConfigurationButton.IsEnabled = false;
+        AutomationProperties.SetItemStatus(
+            ProductSaveStatusDetail,
+            $"WorkspaceCreateRolledBack:{failure}:Revision={rollbackRevision}:Motion=Static");
+    }
+
     private static (
         string Title,
         string Detail,

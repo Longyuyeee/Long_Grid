@@ -48,6 +48,8 @@ public partial class App : Application
         desktopWorkspaceCreatePreview;
     private DesktopWorkspaceCreatePreviewWindow?
         desktopWorkspaceCreatePreviewWindow;
+    private ProductDesktopWorkspaceCreatePublicationToken?
+        desktopWorkspaceCreatePublication;
 
     public App()
     {
@@ -1274,6 +1276,14 @@ public partial class App : Application
                 confirmed: false,
                 createDisplayId: request.DisplayId,
                 useDefaultName: false);
+        if (result.IsAccepted)
+        {
+            ProductContainerState created = result.State!.Containers[^1];
+            desktopWorkspaceCreatePublication = new(
+                created.Id,
+                result.EditRevision,
+                productWorkspaceSaves.Snapshot.CurrentRevision);
+        }
         desktopWorkspaceCreatePreview = null;
         currentWindow.ApplyDesktopWorkspaceCreatePreviewResult(
             submitting,
@@ -1760,12 +1770,71 @@ public partial class App : Application
 
         if (currentWindow.DispatcherQueue.HasThreadAccess)
         {
-            currentWindow.ApplyProductWorkspaceSaveState(snapshot);
+            ApplyProductWorkspaceSaveSnapshot(currentWindow, snapshot);
             return;
         }
 
         _ = currentWindow.DispatcherQueue.TryEnqueue(
-            () => currentWindow.ApplyProductWorkspaceSaveState(snapshot));
+            () => ApplyProductWorkspaceSaveSnapshot(currentWindow, snapshot));
+    }
+
+    private void ApplyProductWorkspaceSaveSnapshot(
+        MainWindow currentWindow,
+        ProductWorkspaceSaveSnapshot snapshot)
+    {
+        ProductDesktopWorkspaceCreatePublicationToken? publication =
+            desktopWorkspaceCreatePublication;
+        ProductWorkspaceState? state = productWorkspaceSession.State;
+        if (publication is not null)
+        {
+            int createdOrdinal = state?.Containers
+                .Select((container, index) => new { container.Id, Ordinal = index + 1 })
+                .Where(candidate => string.Equals(
+                    candidate.Id,
+                    publication.ContainerId,
+                    StringComparison.Ordinal))
+                .Select(candidate => candidate.Ordinal)
+                .FirstOrDefault() ?? 0;
+            ProductDesktopWorkspaceCreatePublicationDecision decision =
+                ProductDesktopWorkspaceCreatePublication.Evaluate(
+                    publication,
+                    snapshot,
+                    workspaceCommits.CurrentEditRevision,
+                    createdOrdinal > 0);
+            if (decision is ProductDesktopWorkspaceCreatePublicationDecision.Published
+                or ProductDesktopWorkspaceCreatePublicationDecision.Superseded)
+            {
+                desktopWorkspaceCreatePublication = null;
+            }
+            else if (decision ==
+                ProductDesktopWorkspaceCreatePublicationDecision.RollbackRequired)
+            {
+                desktopWorkspaceCreatePublication = null;
+                ProductWorkspaceContainerCommitResult rollback =
+                    CommitProductWorkspaceContainerActionCore(
+                        ProductWorkspaceContainerCommitAction.Remove,
+                        publication.WorkspaceRevision,
+                        createdOrdinal,
+                        name: string.Empty,
+                        stateValue: null,
+                        colorPreset: null,
+                        opacityPreset: null,
+                        positionPreset: null,
+                        sizePreset: null,
+                        confirmed: true,
+                        createDisplayId: null,
+                        useDefaultName: false);
+                if (rollback.IsAccepted)
+                {
+                    currentWindow.ApplyProductWorkspaceCreateSaveRollbackState(
+                        snapshot.Failure,
+                        productWorkspaceSaves.Snapshot.CurrentRevision);
+                    return;
+                }
+            }
+        }
+
+        currentWindow.ApplyProductWorkspaceSaveState(snapshot);
     }
 
     private async void AppWindow_Closing(

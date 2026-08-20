@@ -144,6 +144,8 @@ $desktopWorkspaceCreatePreviewCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductDesktopWorkspaceCreatePreview.cs'
 $desktopWorkspaceCreatePreviewPlacementCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductDesktopWorkspaceCreatePreviewPlacement.cs'
+$desktopWorkspaceCreatePublicationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductDesktopWorkspaceCreatePublication.cs'
 $desktopWorkspaceCreateInlinePreviewCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\DesktopWorkspaceCreatePreviewWindow.cs'
 $windowsDesktopHostUiaProviderCodePath = Join-Path $projectRoot `
@@ -260,6 +262,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $workspaceContainerNameIntentPolicyCode = Get-Content `
         -LiteralPath $workspaceContainerNameIntentPolicyCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopWorkspaceCreatePublicationCode = Get-Content `
+        -LiteralPath $desktopWorkspaceCreatePublicationCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceReadPresentationCode = Get-Content `
@@ -913,6 +919,17 @@ function Test-SourceContract {
         -not ($workspaceContainerNameIntentPolicyCode -match `
             'Catalog|PersistedTarget|CanonicalTarget|DesktopHost|File\.|Directory\.|Save|Telemetry')
     ) 'Formal container name intent must remain a pure UI admission policy without persistence, catalog, telemetry, or desktop authority.'
+    Assert-Condition (
+        $desktopWorkspaceCreatePublicationCode.Contains(
+            'ProductDesktopWorkspaceCreatePublicationDecision.RollbackRequired') -and
+        $desktopWorkspaceCreatePublicationCode.Contains(
+            'currentWorkspaceRevision != token.WorkspaceRevision') -and
+        $desktopWorkspaceCreatePublicationCode.Contains(
+            'save.CurrentRevision != token.SaveRevision') -and
+        $appCode.Contains('desktopWorkspaceCreatePublication = new(') -and
+        $appCode.Contains('ApplyProductWorkspaceCreateSaveRollbackState(') -and
+        $codeBehind.Contains('WorkspaceCreateRolledBack:')
+    ) 'Desktop create publication must bind workspace/save revisions, compensate matching failures, and expose a finite rollback state.'
     foreach ($buttonId in @(
             'ProductWorkspaceContainerCreateButton',
             'ProductWorkspaceContainerRenameButton',
@@ -2920,7 +2937,7 @@ function Test-SourceContract {
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
         productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-single-undo'
-        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-config-only'
+        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-create-save-compensation-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'
                     productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-invoke-no-file-operations'
