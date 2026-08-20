@@ -23,6 +23,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-002D1 可编辑创建预览工程审计（Stage 160）](docs/160-pf002d1-editable-create-preview-audit.md)
 - [原生 UIA 激活与前台拒绝恢复审计（Stage 161）](docs/161-native-uia-activation-recovery-audit.md)
 - [PF-002D2 桌面候选位置原生预览审计（Stage 162）](docs/162-pf002d2-native-inline-preview-audit.md)
+- [PF-002D 正式 App 实机交互尝试审计（Stage 163）](docs/163-pf002d-real-app-interaction-attempt-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)

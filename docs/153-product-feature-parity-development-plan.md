@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-002 桌面直接创建方格**
-- 最新实现审计：[Stage 162](162-pf002d2-native-inline-preview-audit.md)；PF-002D2a 已完成候选位置原生 WinUI 编辑窗口与安全回退，下一门禁为 **PF-002D 完整 App 真实交互证据**，随后进入 PF-002E，PF-002 完成前不进入 PF-003
+- 最新实机审计：[Stage 163](163-pf002d-real-app-interaction-attempt-audit.md)；PF-002D2a 工程实现保持 989/989，外部控制器激活触发 WinUI `0x8001010e` 且输入矩阵未执行；PF-002D 证据继续 Pending，同时进入可独立真实故障注入的 PF-002E，PF-002 完成前不进入 PF-003
 
 ## 1. 本文解决什么问题
 
