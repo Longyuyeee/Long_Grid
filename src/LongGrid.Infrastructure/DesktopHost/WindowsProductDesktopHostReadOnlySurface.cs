@@ -103,6 +103,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         applySelection = static (_, _) => false;
     private Func<ProductDesktopWorkspaceCreateInput, bool>
         requestWorkspaceCreate = static _ => false;
+    private NativePoint workspaceCreateDragStart;
+    private NativePoint workspaceCreateDragCurrent;
+    private bool workspaceCreateDragActive;
     private volatile ProductDesktopInteractionSurfaceMode mode;
     private bool workspaceCreateHotKeyRegistered;
 #if WINDOWS
@@ -333,8 +336,24 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             case NativeMethods.WmLButtonDown:
                 if (!HandleWorkspaceCreatePress(longParameter))
                 {
-                    HandlePrimaryPointerPress(wordParameter, longParameter);
+                    if (!TryStartWorkspaceCreateDrag(
+                            window,
+                            wordParameter,
+                            longParameter))
+                    {
+                        HandlePrimaryPointerPress(wordParameter, longParameter);
+                    }
                 }
+                return nint.Zero;
+            case NativeMethods.WmMouseMove:
+                UpdateWorkspaceCreateDrag(longParameter);
+                return nint.Zero;
+            case NativeMethods.WmLButtonUp:
+                CompleteWorkspaceCreateDrag(window, longParameter);
+                return nint.Zero;
+            case NativeMethods.WmCaptureChanged:
+            case NativeMethods.WmCancelMode:
+                CancelWorkspaceCreateDrag(window);
                 return nint.Zero;
             case NativeMethods.WmRButtonUp:
                 _ = HandleWorkspaceCreateContextMenu(window, longParameter);
@@ -412,6 +431,116 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         {
             _ = applySelection(command.ContainerId, command.Request);
         }
+    }
+
+    private bool TryStartWorkspaceCreateDrag(
+        nint window,
+        nint wordParameter,
+        nint longParameter)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Explicit
+            || workspaceCreateDragActive
+            || (wordParameter.ToInt64()
+                & (NativeMethods.MkControl | NativeMethods.MkShift)) != 0)
+        {
+            return false;
+        }
+
+        int x = SignedLowWord(longParameter);
+        int y = SignedHighWord(longParameter);
+        if (projection.Containers.Any(container => Contains(
+            ProductDesktopHostSurfaceLayout.GetContainerBounds(
+                projection,
+                container),
+            x,
+            y)))
+        {
+            return false;
+        }
+
+        InputMessageSource source = default;
+        if (!NativeMethods.GetCurrentInputMessageSource(ref source)
+            || source.OriginId == NativeMethods.ImoInjected)
+        {
+            return false;
+        }
+
+        workspaceCreateDragStart = new(x, y);
+        workspaceCreateDragCurrent = workspaceCreateDragStart;
+        workspaceCreateDragActive = true;
+        _ = NativeMethods.SetCapture(window);
+        if (NativeMethods.GetCapture() != window)
+        {
+            workspaceCreateDragActive = false;
+            return false;
+        }
+        _ = NativeMethods.InvalidateRect(window, nint.Zero, erase: false);
+        return true;
+    }
+
+    private void UpdateWorkspaceCreateDrag(nint longParameter)
+    {
+        if (!workspaceCreateDragActive)
+        {
+            return;
+        }
+
+        workspaceCreateDragCurrent = new(
+            Math.Clamp(SignedLowWord(longParameter), 0, projection.WorkArea.Width),
+            Math.Clamp(SignedHighWord(longParameter), 0, projection.WorkArea.Height));
+        _ = NativeMethods.InvalidateRect(Handle, nint.Zero, erase: false);
+    }
+
+    private void CompleteWorkspaceCreateDrag(nint window, nint longParameter)
+    {
+        if (!workspaceCreateDragActive)
+        {
+            return;
+        }
+
+        UpdateWorkspaceCreateDrag(longParameter);
+        PixelRect clientBounds = CurrentWorkspaceCreateDragBounds();
+        workspaceCreateDragActive = false;
+        if (NativeMethods.GetCapture() == window)
+        {
+            _ = NativeMethods.ReleaseCapture();
+        }
+        _ = NativeMethods.InvalidateRect(window, nint.Zero, erase: false);
+        if (!clientBounds.HasArea)
+        {
+            return;
+        }
+
+        _ = SubmitWorkspaceCreateDragInput(
+            clientBounds.OffsetBy(
+                projection.WorkArea.Left,
+                projection.WorkArea.Top),
+            sourceAttested: true,
+            isInjected: false);
+    }
+
+    private void CancelWorkspaceCreateDrag(nint window)
+    {
+        if (!workspaceCreateDragActive)
+        {
+            return;
+        }
+
+        workspaceCreateDragActive = false;
+        if (NativeMethods.GetCapture() == window)
+        {
+            _ = NativeMethods.ReleaseCapture();
+        }
+        _ = NativeMethods.InvalidateRect(window, nint.Zero, erase: false);
+    }
+
+    private PixelRect CurrentWorkspaceCreateDragBounds()
+    {
+        int left = Math.Min(workspaceCreateDragStart.X, workspaceCreateDragCurrent.X);
+        int top = Math.Min(workspaceCreateDragStart.Y, workspaceCreateDragCurrent.Y);
+        int right = Math.Max(workspaceCreateDragStart.X, workspaceCreateDragCurrent.X);
+        int bottom = Math.Max(workspaceCreateDragStart.Y, workspaceCreateDragCurrent.Y);
+        return new(left, top, right - left, bottom - top);
     }
 
     private static int SignedLowWord(nint value) =>
@@ -578,6 +707,25 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             isAutoRepeat));
     }
 
+    internal bool SubmitWorkspaceCreateDragInput(
+        PixelRect requestedBoundsPixels,
+        bool sourceAttested,
+        bool isInjected)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Explicit
+            || !requestedBoundsPixels.HasArea)
+        {
+            return false;
+        }
+
+        return requestWorkspaceCreate(new(
+            ProductDesktopWorkspaceCreateInputKind.PointerDrag,
+            sourceAttested,
+            isInjected,
+            IsAutoRepeat: false,
+            requestedBoundsPixels));
+    }
+
     private static bool Contains(PixelRect bounds, int x, int y) =>
         x >= bounds.Left && x < bounds.Right
         && y >= bounds.Top && y < bounds.Bottom;
@@ -606,14 +754,26 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 if (projection.WorkspaceIsEmpty)
                 {
                     DrawEmptyWorkspace(deviceContext);
-                    return;
                 }
-                foreach (ProductDesktopHostReadOnlyProjection container
-                    in projection.Containers)
+                else
                 {
-                    DrawContainer(deviceContext, container);
+                    foreach (ProductDesktopHostReadOnlyProjection container
+                        in projection.Containers)
+                    {
+                        DrawContainer(deviceContext, container);
+                    }
+                    DrawContinuedWorkspaceCreate(deviceContext);
                 }
-                DrawContinuedWorkspaceCreate(deviceContext);
+                if (workspaceCreateDragActive)
+                {
+                    PixelRect bounds = CurrentWorkspaceCreateDragBounds();
+                    NativeRect outline = new(
+                        bounds.Left,
+                        bounds.Top,
+                        bounds.Right,
+                        bounds.Bottom);
+                    _ = NativeMethods.DrawFocusRect(deviceContext, ref outline);
+                }
             }
             finally
             {
@@ -943,6 +1103,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     public bool ApplyPassive()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        CancelWorkspaceCreateDrag(Handle);
         mode = ProductDesktopInteractionSurfaceMode.Passive;
         TryRegisterWorkspaceCreateHotKey();
         ApplyWindowRegion();
@@ -967,6 +1128,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     public bool ApplyHidden()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        CancelWorkspaceCreateDrag(Handle);
         mode = ProductDesktopInteractionSurfaceMode.Hidden;
         ReleaseWorkspaceCreateHotKey();
         ApplyEmptyWindowRegion();
@@ -1010,6 +1172,28 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         bool transferred = false;
         try
         {
+            if (mode == ProductDesktopInteractionSurfaceMode.Explicit)
+            {
+                nint full = NativeMethods.CreateRectRgn(
+                    0,
+                    0,
+                    projection.WorkArea.Width,
+                    projection.WorkArea.Height);
+                if (full == nint.Zero
+                    || NativeMethods.CombineRgn(
+                        combined,
+                        combined,
+                        full,
+                        NativeMethods.RgnOr) == NativeMethods.Error)
+                {
+                    if (full != nint.Zero)
+                    {
+                        _ = NativeMethods.DeleteObject(full);
+                    }
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+                _ = NativeMethods.DeleteObject(full);
+            }
             if (projection.WorkspaceIsEmpty)
             {
                 PixelRect emptyCard =
@@ -1336,7 +1520,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint WmMouseActivate = 0x0021;
         internal const uint WmGetObject = 0x003D;
         internal const uint WmLButtonDown = 0x0201;
+        internal const uint WmLButtonUp = 0x0202;
+        internal const uint WmMouseMove = 0x0200;
         internal const uint WmRButtonUp = 0x0205;
+        internal const uint WmCaptureChanged = 0x0215;
+        internal const uint WmCancelMode = 0x001F;
         internal const uint WmHotKey = 0x0312;
         internal const uint ModAlt = 0x0001;
         internal const uint ModControl = 0x0002;
@@ -1381,6 +1569,16 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
 
         [DllImport("user32.dll")]
         internal static extern nint GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        internal static extern nint SetCapture(nint window);
+
+        [DllImport("user32.dll")]
+        internal static extern nint GetCapture();
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool ReleaseCapture();
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern ushort RegisterClassEx(ref WindowClass windowClass);

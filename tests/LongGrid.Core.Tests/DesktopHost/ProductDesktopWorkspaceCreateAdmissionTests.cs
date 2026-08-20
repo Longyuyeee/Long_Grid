@@ -6,6 +6,7 @@ public sealed class ProductDesktopWorkspaceCreateAdmissionTests
 {
     [Theory]
     [InlineData(ProductDesktopWorkspaceCreateInputKind.PrimaryPointer)]
+    [InlineData(ProductDesktopWorkspaceCreateInputKind.PointerDrag)]
     [InlineData(ProductDesktopWorkspaceCreateInputKind.ContextMenu)]
     [InlineData(ProductDesktopWorkspaceCreateInputKind.KeyboardShortcut)]
     [InlineData(ProductDesktopWorkspaceCreateInputKind.AssistiveInvoke)]
@@ -79,9 +80,40 @@ public sealed class ProductDesktopWorkspaceCreateAdmissionTests
         Assert.Equal(
             ProductDesktopWorkspaceCreateAdmissionStatus.Invalid,
             ProductDesktopWorkspaceCreateAdmission.Evaluate(
+                Request(ProductDesktopWorkspaceCreateInputKind.PointerDrag) with
+                {
+                    RequestedBoundsPixels = new(
+                        int.MaxValue,
+                        int.MaxValue,
+                        2,
+                        2),
+                },
+                7,
+                11).Status);
+        Assert.Equal(
+            ProductDesktopWorkspaceCreateAdmissionStatus.Invalid,
+            ProductDesktopWorkspaceCreateAdmission.Evaluate(
                 Request() with
                 {
                     Kind = (ProductDesktopWorkspaceCreateInputKind)int.MaxValue,
+                },
+                7,
+                11).Status);
+        Assert.Equal(
+            ProductDesktopWorkspaceCreateAdmissionStatus.Invalid,
+            ProductDesktopWorkspaceCreateAdmission.Evaluate(
+                Request(ProductDesktopWorkspaceCreateInputKind.PointerDrag) with
+                {
+                    RequestedBoundsPixels = null,
+                },
+                7,
+                11).Status);
+        Assert.Equal(
+            ProductDesktopWorkspaceCreateAdmissionStatus.Invalid,
+            ProductDesktopWorkspaceCreateAdmission.Evaluate(
+                Request() with
+                {
+                    RequestedBoundsPixels = new(100, 200, 400, 300),
                 },
                 7,
                 11).Status);
@@ -97,5 +129,8 @@ public sealed class ProductDesktopWorkspaceCreateAdmissionTests
             TopologyGeneration: 11,
             SourceAttested: true,
             IsInjected: false,
-            IsAutoRepeat: false);
+            IsAutoRepeat: false,
+            kind == ProductDesktopWorkspaceCreateInputKind.PointerDrag
+                ? new(100, 200, 400, 300)
+                : null);
 }

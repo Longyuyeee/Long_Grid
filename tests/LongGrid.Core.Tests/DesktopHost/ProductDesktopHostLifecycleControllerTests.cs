@@ -1285,6 +1285,32 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
+    public async Task DragCreateKeepsExactDisplayRevisionAndPixelBounds()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        ProductDesktopWorkspaceCreateRequest? captured = null;
+        controller.BindWorkspaceCreate(request =>
+        {
+            captured = request;
+            return true;
+        });
+        _ = controller.ApplyProjectionUpdate(ReadyUpdate(8, 12));
+        PixelRect requested = new(220, 180, 480, 320);
+
+        Assert.True(factory.Surfaces[0].RequestBoundWorkspaceDrag(requested));
+        Assert.Equal(ProductDesktopWorkspaceCreateInputKind.PointerDrag, captured!.Kind);
+        Assert.Equal("display-primary", captured.DisplayId);
+        Assert.Equal(8, captured.WorkspaceRevision);
+        Assert.Equal(12, captured.TopologyGeneration);
+        Assert.Equal(requested, captured.RequestedBoundsPixels);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
     public async Task TwentyReadyRevisionsKeepOnlyLatestCreateRequestCurrent()
     {
         var factory = new RecordingSurfaceFactory();
@@ -1584,6 +1610,14 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                 SourceAttested: true,
                 IsInjected: false,
                 IsAutoRepeat: false));
+
+        internal bool RequestBoundWorkspaceDrag(PixelRect bounds) =>
+            requestWorkspaceCreate(new(
+                ProductDesktopWorkspaceCreateInputKind.PointerDrag,
+                SourceAttested: true,
+                IsInjected: false,
+                IsAutoRepeat: false,
+                bounds));
 
         internal bool ApplyBoundSelection(
             string containerId,

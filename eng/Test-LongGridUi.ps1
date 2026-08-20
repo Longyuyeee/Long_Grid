@@ -140,6 +140,8 @@ $windowsDesktopHostReadOnlySurfaceCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostReadOnlySurface.cs'
 $desktopWorkspaceCreateAdmissionCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopWorkspaceCreateAdmission.cs'
+$workspaceContainerCreationDefaultsCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceContainerCreationDefaults.cs'
 $desktopWorkspaceCreatePreviewCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductDesktopWorkspaceCreatePreview.cs'
 $desktopWorkspaceCreatePreviewPlacementCodePath = Join-Path $projectRoot `
@@ -450,6 +452,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopWorkspaceCreateAdmissionCode = Get-Content `
         -LiteralPath $desktopWorkspaceCreateAdmissionCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceContainerCreationDefaultsCode = Get-Content `
+        -LiteralPath $workspaceContainerCreationDefaultsCodePath `
         -Raw `
         -Encoding UTF8
     $desktopWorkspaceCreatePreviewCode = Get-Content `
@@ -2264,6 +2270,20 @@ function Test-SourceContract {
         $desktopWorkspaceCreateAdmissionCode -match 'AutoRepeat' -and
         $desktopWorkspaceCreateAdmissionCode -match 'StaleWorkspace' -and
         $desktopWorkspaceCreateAdmissionCode -match 'StaleTopology' -and
+        $desktopWorkspaceCreateAdmissionCode -match 'PointerDrag' -and
+        $desktopWorkspaceCreateAdmissionCode -match 'RequestedBoundsPixels' -and
+        $workspaceContainerCreationDefaultsCode -match `
+            'MinimumDraggedWidthDip\s*=\s*160' -and
+        $workspaceContainerCreationDefaultsCode -match `
+            'MinimumDraggedHeightDip\s*=\s*120' -and
+        $workspaceContainerCreationDefaultsCode -match `
+            'requested\.Intersect\(workArea\)' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'WmMouseMove' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'WmLButtonUp' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'SetCapture' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'ReleaseCapture' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'SubmitWorkspaceCreateDragInput' -and
         $windowsDesktopHostUiaProviderCode -match `
             'LongGrid\.DesktopHost\.EmptyCreateButton' -and
         $windowsDesktopHostUiaProviderCode -match `
@@ -2280,6 +2300,10 @@ function Test-SourceContract {
             'RunDesktopWorkspaceCreatePreviewAsync[\s\S]{0,12000}DesktopWorkspaceCreatePreviewWindow[\s\S]{0,12000}ShowDesktopWorkspaceCreatePreviewAsync[\s\S]{0,12000}CommitProductWorkspaceContainerActionCore' -and
         $appCode -match `
             'ProductDesktopWorkspaceCreatePreviewPlacement\.ResolveWindowBounds' -and
+        $appCode -match `
+            'request\.RequestedBoundsPixels' -and
+        $appCode -match `
+            'createBoundsPixels:\s*request\.RequestedBoundsPixels' -and
         $desktopWorkspaceCreatePreviewPlacementCode -match `
             'workArea\.Left\s*\+\s*relativeLeft' -and
         $desktopWorkspaceCreatePreviewPlacementCode -match `
@@ -2931,7 +2955,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-inline-preview-fallback-review-shortcut-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-drag-bounds-inline-preview-fallback-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'

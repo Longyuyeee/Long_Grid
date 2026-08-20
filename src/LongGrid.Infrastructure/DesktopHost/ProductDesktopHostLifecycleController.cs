@@ -8,7 +8,8 @@ internal sealed record ProductDesktopWorkspaceCreateInput(
     ProductDesktopWorkspaceCreateInputKind Kind,
     bool SourceAttested,
     bool IsInjected,
-    bool IsAutoRepeat);
+    bool IsAutoRepeat,
+    PixelRect? RequestedBoundsPixels = null);
 
 public enum ProductDesktopHostLifecycleStatus
 {
@@ -991,7 +992,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                         batch.TopologyGeneration,
                         input.SourceAttested,
                         input.IsInjected,
-                        input.IsAutoRepeat)));
+                        input.IsAutoRepeat,
+                        input.RequestedBoundsPixels)));
                 if (!created.ReadOnlyAccessibilityAttested
                     || (controlledSurfaceLifecycle
                         ? !created.HiddenWindowContractAttested

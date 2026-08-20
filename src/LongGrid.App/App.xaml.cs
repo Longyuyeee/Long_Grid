@@ -982,6 +982,7 @@ public partial class App : Application
             sizePreset,
             confirmed,
             createDisplayId: null,
+            createBoundsPixels: null,
             useDefaultName: false);
 
     private ProductWorkspaceContainerCommitResult
@@ -997,6 +998,7 @@ public partial class App : Application
             ProductWorkspaceContainerSizePreset? sizePreset,
             bool confirmed,
             string? createDisplayId,
+            PixelRect? createBoundsPixels,
             bool useDefaultName)
     {
         ProductWorkspaceState? state = productWorkspaceSession.State;
@@ -1036,7 +1038,8 @@ public partial class App : Application
             ? CreateDefaultContainer(
                 state,
                 useDefaultName ? null : normalizedName,
-                createDisplayId)
+                createDisplayId,
+                createBoundsPixels)
             : null;
         if (newContainer is not null)
         {
@@ -1138,7 +1141,8 @@ public partial class App : Application
                 requestedName: null,
                 display.StableId,
                 display.WorkArea,
-                display.EffectiveDpi);
+                display.EffectiveDpi,
+                request.RequestedBoundsPixels);
         ProductDesktopWorkspaceCreatePreviewSession session =
             ProductDesktopWorkspaceCreatePreviewSession.Start(request, defaults);
         if (!session.Snapshot.CanSubmit)
@@ -1235,7 +1239,9 @@ public partial class App : Application
             || host.Status is not (
                 ProductDesktopHostLifecycleStatus.AwaitingWorkspace
                 or ProductDesktopHostLifecycleStatus.ReadyReadOnly)
-            || host.ExplicitInteractionActive)
+            || (host.ExplicitInteractionActive
+                && request.Kind !=
+                    ProductDesktopWorkspaceCreateInputKind.PointerDrag))
         {
             ProductDesktopWorkspaceCreatePreviewSnapshot cancelled =
                 session.Cancel(displayStillAvailable
@@ -1275,6 +1281,7 @@ public partial class App : Application
                 sizePreset: null,
                 confirmed: false,
                 createDisplayId: request.DisplayId,
+                createBoundsPixels: request.RequestedBoundsPixels,
                 useDefaultName: false);
         if (result.IsAccepted)
         {
@@ -1332,7 +1339,8 @@ public partial class App : Application
                 enteredName,
                 display.StableId,
                 display.WorkArea,
-                display.EffectiveDpi);
+                display.EffectiveDpi,
+                session.Snapshot.Request.RequestedBoundsPixels);
         return session.UpdateName(enteredName, decision);
     }
 
@@ -1526,7 +1534,8 @@ public partial class App : Application
     private ProductContainerState? CreateDefaultContainer(
         ProductWorkspaceState state,
         string? requestedName,
-        string? requestedDisplayId)
+        string? requestedDisplayId,
+        PixelRect? requestedBoundsPixels)
     {
         ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
         DisplayTopologyNode? display = topology.IsAuthoritative
@@ -1551,7 +1560,8 @@ public partial class App : Application
                 requestedName,
                 display?.StableId ?? "display-unassigned",
                 display?.WorkArea ?? new(0, 0, 1920, 1040),
-                display?.EffectiveDpi ?? 96);
+                display?.EffectiveDpi ?? 96,
+                requestedBoundsPixels);
         if (!decision.CanCreate)
         {
             return null;
@@ -1823,6 +1833,7 @@ public partial class App : Application
                         sizePreset: null,
                         confirmed: true,
                         createDisplayId: null,
+                        createBoundsPixels: null,
                         useDefaultName: false);
                 if (rollback.IsAccepted)
                 {

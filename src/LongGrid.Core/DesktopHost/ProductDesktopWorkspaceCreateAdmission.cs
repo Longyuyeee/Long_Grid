@@ -5,6 +5,7 @@ namespace LongGrid.Core.DesktopHost;
 public enum ProductDesktopWorkspaceCreateInputKind
 {
     PrimaryPointer,
+    PointerDrag,
     ContextMenu,
     KeyboardShortcut,
     AssistiveInvoke,
@@ -17,7 +18,8 @@ public sealed record ProductDesktopWorkspaceCreateRequest(
     long TopologyGeneration,
     bool SourceAttested,
     bool IsInjected,
-    bool IsAutoRepeat);
+    bool IsAutoRepeat,
+    PixelRect? RequestedBoundsPixels = null);
 
 public enum ProductDesktopWorkspaceCreateAdmissionStatus
 {
@@ -52,7 +54,11 @@ public static class ProductDesktopWorkspaceCreateAdmission
             || request.WorkspaceRevision < 0
             || request.TopologyGeneration <= 0
             || currentWorkspaceRevision < 0
-            || currentTopologyGeneration <= 0)
+            || currentTopologyGeneration <= 0
+            || (request.Kind == ProductDesktopWorkspaceCreateInputKind.PointerDrag
+                ? request.RequestedBoundsPixels is not PixelRect requested
+                    || !HasSafeArea(requested)
+                : request.RequestedBoundsPixels is not null))
         {
             return new(ProductDesktopWorkspaceCreateAdmissionStatus.Invalid);
         }
@@ -82,4 +88,9 @@ public static class ProductDesktopWorkspaceCreateAdmission
 
         return new(ProductDesktopWorkspaceCreateAdmissionStatus.Ready);
     }
+
+    private static bool HasSafeArea(PixelRect bounds) =>
+        bounds.HasArea
+        && (long)bounds.Left + bounds.Width <= int.MaxValue
+        && (long)bounds.Top + bounds.Height <= int.MaxValue;
 }

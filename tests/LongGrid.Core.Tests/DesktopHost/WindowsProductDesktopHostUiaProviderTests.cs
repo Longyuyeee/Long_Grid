@@ -193,6 +193,48 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
     }
 
     [Fact]
+    public void RealNativeExplicitSurfaceCarriesDraggedBoundsWithoutForeground()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-secondary",
+                new(1920, -100, 1600, 1000),
+                192,
+                [CreateContainer("container-1", "工作", [], false, 24, 36)]);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(display, new nint(9002));
+        ProductDesktopWorkspaceCreateInput? captured = null;
+        surface.BindWorkspaceCreate(input =>
+        {
+            captured = input;
+            return true;
+        });
+        PixelRect requested = new(2120, 100, 640, 400);
+
+        Assert.False(surface.SubmitWorkspaceCreateDragInput(
+            requested,
+            sourceAttested: true,
+            isInjected: false));
+        Assert.True(surface.ApplyExplicit());
+        Assert.True(surface.SubmitWorkspaceCreateDragInput(
+            requested,
+            sourceAttested: true,
+            isInjected: false));
+
+        Assert.Equal(ProductDesktopWorkspaceCreateInputKind.PointerDrag, captured!.Kind);
+        Assert.Equal(requested, captured.RequestedBoundsPixels);
+        Assert.True(captured.SourceAttested);
+        Assert.False(captured.IsInjected);
+        Assert.True(surface.ExplicitWindowContractAttested);
+        Assert.NotEqual(surface.Handle, GetForegroundWindow());
+    }
+
+    [Fact]
     public void NativeSurfaceExposesReadOnlyNonFocusableProjectionTree()
     {
         if (!OperatingSystem.IsWindows())

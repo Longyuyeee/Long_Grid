@@ -317,3 +317,9 @@ Stage 161 已恢复 UIA 无前台激活与键盘代理受拒后的 Passive，Rel
 Stage 164 已把桌面创建的可见结果绑定到创建容器 ID、工作区修订和保存修订。真实文件系统故障注入先确认旧链在保存失败后仍保留 1 个内存方格，再确认新链只在同次保存失败且没有后续编辑时经唯一提交协调器撤回；解除故障并重试后，真实磁盘重载为 0 个方格。若修订、保存代次或容器事实已变化，补偿判定为 `Superseded`，不会覆盖后续用户编辑。
 
 PF-002E 记为 Engineering Complete；PF-002D 的真实打开—编辑—取消—确认证据仍 Pending，PF-002/PF-001 和顶层完成口径不变。下一产品切片为 PF-002 的桌面拖画矩形创建，随后是使用已选引用创建和 PF-002F 正式物理/无障碍证据。
+
+## 14. 2026-08-20 拖画矩形增量复审
+
+Stage 165 已让 `PointerDrag` 请求携带绝对像素矩形，真实 Win32 Surface 在 Explicit 模式使用 capture、move、button-up 和 capture-cancel 生命周期绘制内存 outline；App 在同一 admission、Preview、提交和 PF-002E 补偿链中保留该矩形。显示器工作区、负坐标、DPI、最小尺寸和越界均由正式创建策略验证。真实 Win32 Surface 没有取得前台，真实配置文件重载保留精确 DIP 几何。
+
+本切片记 Engineering Pass，不记物理交互 Pass：当前会话没有执行真实鼠标 down/move/up 到正式 App 的全链，因此 PF-002 继续 `InProgress`。下一开发项为“使用 Long方格已选引用创建”；物理拖画与 PF-002D 预览输入矩阵在合规 Windows 会话并行补证。
