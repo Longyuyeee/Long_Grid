@@ -810,6 +810,23 @@ public sealed partial class MainWindow : Window
                 "DesktopFilesChanged=False");
     }
 
+    public void ApplyDesktopWorkspaceCreatePreviewOpened(
+        ProductDesktopWorkspaceCreatePreviewSnapshot snapshot,
+        bool inline)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ProductWorkspaceViewStatus.Text = inline
+            ? "正在桌面候选位置预览新方格；确认前配置和桌面文件均未改变。"
+            : "桌面就地预览不可用，已安全回退到控制中心预览。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceViewStatus,
+            inline
+                ? "DesktopWorkspaceCreateInlinePreviewEditing:" +
+                    "Changed=False:DesktopFilesChanged=False"
+                : "DesktopWorkspaceCreatePreviewFallbackEditing:" +
+                    "Changed=False:DesktopFilesChanged=False");
+    }
+
     public async Task<string?> ShowDesktopWorkspaceCreatePreviewAsync(
         ProductDesktopWorkspaceCreatePreviewSnapshot initial,
         Func<

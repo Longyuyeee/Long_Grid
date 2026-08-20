@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-001 总开关主闭环已完成；PF-002 的空态与非空态按钮、产品自有右键菜单、`Ctrl+Alt+N` 和 UIA 已统一到同一安全创建请求，并完成确定性名称/布局与创建前可编辑确认。PF-001/PF-002 均仍为 `InProgress`：当前预览由控制中心对话框承载，DesktopHost 原生就地编辑、保存失败补偿、拖画矩形、使用已选引用创建和正式物理证据仍待完成。Stage 160 暴露的 UIA activation 失败已按真实 Windows 前台拒绝行为修正，全量恢复为 983/983；完整 App 预览交互证据仍 Pending，详见 [Stage 161](docs/161-native-uia-activation-recovery-audit.md)。真实文件写入、完整桌面交互、签名、安装与外部证据仍由各自安全门控制，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-001 总开关主闭环已完成；PF-002 的多输入创建、确定性名称/布局和提交前 Preview Session 已统一。最新 PF-002D2a 会在目标显示器候选方格位置打开现代原生 WinUI 编辑窗口，支持即时校验、Enter/Escape、失焦取消和 UIA，失败时安全回退控制中心；全量 989/989、Release 构建和正式 App 启动通过。PF-001/PF-002 均仍为 `InProgress`：原生预览真实交互证据、保存失败补偿、拖画矩形、使用已选引用创建和正式物理证据仍待完成，详见 [Stage 162](docs/162-pf002d2-native-inline-preview-audit.md)。真实文件写入、完整桌面交互、签名、安装与外部证据仍由各自安全门控制，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -22,6 +22,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [当前开发状态、计划对齐与后续验收审计（Stage 159）](docs/159-current-development-status-and-next-plan-audit.md)
 - [PF-002D1 可编辑创建预览工程审计（Stage 160）](docs/160-pf002d1-editable-create-preview-audit.md)
 - [原生 UIA 激活与前台拒绝恢复审计（Stage 161）](docs/161-native-uia-activation-recovery-audit.md)
+- [PF-002D2 桌面候选位置原生预览审计（Stage 162）](docs/162-pf002d2-native-inline-preview-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)

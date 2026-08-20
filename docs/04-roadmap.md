@@ -214,6 +214,8 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 
 2026-08-20 原生 UIA 恢复补充：Stage 160 的 982/983 差异已定位为 UIA Invoke 错误依赖键盘代理前台切换，以及切换受拒后未恢复 Passive。辅助技术激活现保持 NoActivate；pointer/keyboard 代理受 Windows 拒绝时恢复窗口策略和再次激活能力。真实 HWND/UIA 聚焦测试与全量 983/983 通过；完整 App 预览旅程仍 Pending，PF-002D2 顺序不变，详见 [Stage 161](161-native-uia-activation-recovery-audit.md)。
 
+2026-08-20 PF-002D2a 补充：正式 App 优先在目标显示器候选方格的绝对像素位置创建无标题栏、无任务切换项的现代 WinUI 编辑窗口，支持名称即时校验、Enter/Escape、失焦取消、六个动态 UIA 标识和控制中心安全回退。负坐标/DPI/越界几何、17 项聚焦、全量 989/989、Release 构建及正式 App 8 秒启动通过；真实打开—编辑—取消仍因窗口会话并发输入阻断而 Pending。下一步先补实机证据，再进入 PF-002E，详见 [Stage 162](162-pf002d2-native-inline-preview-audit.md)。
+
 ## 决策节奏
 
 - 每个高风险技术选择写 ADR。

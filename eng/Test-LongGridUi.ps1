@@ -142,6 +142,10 @@ $desktopWorkspaceCreateAdmissionCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopWorkspaceCreateAdmission.cs'
 $desktopWorkspaceCreatePreviewCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductDesktopWorkspaceCreatePreview.cs'
+$desktopWorkspaceCreatePreviewPlacementCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductDesktopWorkspaceCreatePreviewPlacement.cs'
+$desktopWorkspaceCreateInlinePreviewCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\DesktopWorkspaceCreatePreviewWindow.cs'
 $windowsDesktopHostUiaProviderCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostUiaProvider.cs'
 $verifiedWindowBatchAdapterCodePath = Join-Path $projectRoot `
@@ -444,6 +448,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopWorkspaceCreatePreviewCode = Get-Content `
         -LiteralPath $desktopWorkspaceCreatePreviewCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopWorkspaceCreatePreviewPlacementCode = Get-Content `
+        -LiteralPath $desktopWorkspaceCreatePreviewPlacementCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopWorkspaceCreateInlinePreviewCode = Get-Content `
+        -LiteralPath $desktopWorkspaceCreateInlinePreviewCodePath `
         -Raw `
         -Encoding UTF8
     $windowsDesktopHostUiaProviderCode = Get-Content `
@@ -2248,7 +2260,27 @@ function Test-SourceContract {
         $appCode -match `
             'RequestDesktopWorkspaceCreate[\s\S]{0,2200}RunDesktopWorkspaceCreatePreviewAsync' -and
         $appCode -match `
-            'RunDesktopWorkspaceCreatePreviewAsync[\s\S]{0,9000}ShowDesktopWorkspaceCreatePreviewAsync[\s\S]{0,9000}CommitProductWorkspaceContainerActionCore' -and
+            'RunDesktopWorkspaceCreatePreviewAsync[\s\S]{0,12000}DesktopWorkspaceCreatePreviewWindow[\s\S]{0,12000}ShowDesktopWorkspaceCreatePreviewAsync[\s\S]{0,12000}CommitProductWorkspaceContainerActionCore' -and
+        $appCode -match `
+            'ProductDesktopWorkspaceCreatePreviewPlacement\.ResolveWindowBounds' -and
+        $desktopWorkspaceCreatePreviewPlacementCode -match `
+            'workArea\.Left\s*\+\s*relativeLeft' -and
+        $desktopWorkspaceCreatePreviewPlacementCode -match `
+            'workArea\.Top\s*\+\s*relativeTop' -and
+        $desktopWorkspaceCreateInlinePreviewCode -match `
+            'DesktopWorkspaceCreateInlinePreviewRoot' -and
+        $desktopWorkspaceCreateInlinePreviewCode -match `
+            'DesktopWorkspaceCreateInlinePreviewNameEditor' -and
+        $desktopWorkspaceCreateInlinePreviewCode -match `
+            'DesktopWorkspaceCreateInlinePreviewConfirmButton' -and
+        $desktopWorkspaceCreateInlinePreviewCode -match `
+            'DesktopWorkspaceCreateInlinePreviewCancelButton' -and
+        $desktopWorkspaceCreateInlinePreviewCode -match `
+            'IsShownInSwitchers\s*=\s*false' -and
+        $desktopWorkspaceCreateInlinePreviewCode -match `
+            'SetBorderAndTitleBar\(false,\s*false\)' -and
+        $desktopWorkspaceCreateInlinePreviewCode -match `
+            'WindowActivationState\.Deactivated' -and
         $codeBehind -match 'DesktopWorkspaceCreatePreviewDialog' -and
         $codeBehind -match 'DesktopWorkspaceCreatePreviewNameEditor' -and
         $codeBehind -match 'DesktopWorkspaceCreatePreviewPlacementSummary' -and
@@ -2882,7 +2914,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-editable-preview-review-shortcut-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-inline-preview-fallback-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'

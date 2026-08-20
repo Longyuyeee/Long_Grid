@@ -46,6 +46,8 @@ public partial class App : Application
     private bool activationPending;
     private ProductDesktopWorkspaceCreatePreviewSession?
         desktopWorkspaceCreatePreview;
+    private DesktopWorkspaceCreatePreviewWindow?
+        desktopWorkspaceCreatePreviewWindow;
 
     public App()
     {
@@ -1148,13 +1150,60 @@ public partial class App : Application
         CancelDesktopWorkspaceCreatePreview(
             ProductDesktopWorkspaceCreatePreviewFailure.Replaced);
         desktopWorkspaceCreatePreview = session;
-        currentWindow.Activate();
-        string? confirmedName =
-            await currentWindow.ShowDesktopWorkspaceCreatePreviewAsync(
+        PixelRect? previewBounds =
+            ProductDesktopWorkspaceCreatePreviewPlacement.ResolveWindowBounds(
+                session.Snapshot.CandidatePlacement,
+                display.WorkArea,
+                display.EffectiveDpi);
+        if (previewBounds is null)
+        {
+            ProductDesktopWorkspaceCreatePreviewSnapshot rejected =
+                session.Cancel(
+                    ProductDesktopWorkspaceCreatePreviewFailure
+                        .PlacementUnavailable);
+            desktopWorkspaceCreatePreview = null;
+            currentWindow.ApplyDesktopWorkspaceCreatePreviewResult(
+                rejected,
+                created: false);
+            return;
+        }
+
+        string? confirmedName;
+        try
+        {
+            var previewWindow = new DesktopWorkspaceCreatePreviewWindow(
                 session.Snapshot,
+                previewBounds.Value,
                 enteredName => EvaluateDesktopWorkspaceCreatePreviewName(
                     session,
                     enteredName));
+            desktopWorkspaceCreatePreviewWindow = previewWindow;
+            currentWindow.ApplyDesktopWorkspaceCreatePreviewOpened(
+                session.Snapshot,
+                inline: true);
+            confirmedName = await previewWindow.ShowAsync();
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException
+                or ArgumentException
+                or System.Runtime.InteropServices.COMException)
+        {
+            desktopWorkspaceCreatePreviewWindow = null;
+            currentWindow.Activate();
+            currentWindow.ApplyDesktopWorkspaceCreatePreviewOpened(
+                session.Snapshot,
+                inline: false);
+            confirmedName =
+                await currentWindow.ShowDesktopWorkspaceCreatePreviewAsync(
+                    session.Snapshot,
+                    enteredName => EvaluateDesktopWorkspaceCreatePreviewName(
+                        session,
+                        enteredName));
+        }
+        finally
+        {
+            desktopWorkspaceCreatePreviewWindow = null;
+        }
         if (!ReferenceEquals(desktopWorkspaceCreatePreview, session))
         {
             return;
@@ -1323,6 +1372,8 @@ public partial class App : Application
         }
         _ = session.Cancel(failure);
         desktopWorkspaceCreatePreview = null;
+        desktopWorkspaceCreatePreviewWindow?.Cancel();
+        desktopWorkspaceCreatePreviewWindow = null;
         window?.CancelDesktopWorkspaceCreatePreview();
     }
 

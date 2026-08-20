@@ -305,3 +305,9 @@ PF-002D 的最小交付不是视觉稿，也不是新增验证脚本，而是可
 严格结论没有升级为 PF-002D 完成：当前预览会激活控制中心，并非 Stage 159 D2 要求的候选 DesktopHost 区域原生就地表面；Windows 自动化窗口枚举连续超时，正式 App 虽真实启动但没有取得打开—编辑—取消的可复核实机证据；全量测试实际为 `982/983`，既有 activation UIA Invoke 的 `ElementNotEnabledException` 独立重跑仍失败。详细预期—实际差异、零副作用矩阵和后续门禁见 [Stage 160](160-pf002d1-editable-create-preview-audit.md)。
 
 因此下一顺序细化为：先恢复全量测试和真实预览证据，再完成 PF-002D2 原生就地表面，然后进入 PF-002E。PF-002、PF-001 和顶层 `0/30 Complete` 口径保持不变。
+
+## 12. 2026-08-20 PF-002D2 增量复审
+
+Stage 161 已恢复 UIA 无前台激活与键盘代理受拒后的 Passive，Release 全量回到 983/983。Stage 162 随后增加候选 DIP 到目标显示器绝对像素的有限映射，并让正式 App 优先创建位于候选方格位置的现代 WinUI 原生编辑窗口；窗口支持名称即时校验、Enter/Escape、失焦取消、六个动态 UIA 标识和控制中心安全回退。新增几何测试后全量为 989/989，Release 构建和正式 App 8 秒启动通过。
+
+严格口径仍不变化：实机控制器在窗口状态抓取时检测到最小化/并发用户输入，按安全流程停止，未取得原生窗口打开—编辑—取消—确认证据。因此 PF-002D2a 只记 Engineering Pass，PF-002D、PF-002、PF-001 和顶层 `0/30 Complete` 均保持不变。下一门禁先补完整 App 真实交互，再进入 PF-002E 保存与可见发布补偿，详见 [Stage 162](162-pf002d2-native-inline-preview-audit.md)。
