@@ -622,6 +622,7 @@ function Test-SourceContract {
         'ProductWorkspaceResolvedReferenceRemovalSelector',
         'ProductWorkspaceResolvedReferenceSelectContainerBatchButton',
         'ProductWorkspaceResolvedReferenceRemovalClearSelectionButton',
+        'ProductWorkspaceSelectedReferenceCreateButton',
         'ProductWorkspaceResolvedReferenceReassignmentTargetSelector',
         'ProductWorkspaceResolvedReferenceRemovalButton',
         'ProductWorkspaceResolvedReferenceReassignmentButton',
@@ -955,8 +956,14 @@ function Test-SourceContract {
             'itemIds.Length > MaximumResolvedReferenceBatchSize') -and
         $referenceCommitCode.Contains(
             'ProductWorkspaceReferenceBatchAdditionUndo.Prepare(') -and
-        $referenceCommitCode.Contains('saves.Submit(edit)')
-    ) 'Selected-reference container creation must atomically move bounded resolved references, submit once, and retain a fingerprint-gated restore token.'
+        $referenceCommitCode.Contains('saves.Submit(edit)') -and
+        $appCode.Contains('RequestProductWorkspaceSelectedReferenceCreate(') -and
+        $appCode.Contains('SelectedReferenceCreateStillCurrent(') -and
+        $appCode.Contains('publication.RestoreToken is { } restoreToken') -and
+        $appCode.Contains('CommitProductWorkspaceReferenceBatchAdditionUndo(') -and
+        $codeBehind.Contains(
+            'ProductWorkspaceSelectedReferenceCreateButton_Click(')
+    ) 'Selected-reference container creation must capture one bounded Long Grid selection, reuse preview, atomically move references, and restore the whole prior state on matching save failure.'
     foreach ($buttonId in @(
             'ProductWorkspaceContainerCreateButton',
             'ProductWorkspaceContainerRenameButton',
@@ -1081,6 +1088,8 @@ function Test-SourceContract {
                 'ProductWorkspaceResolvedReferenceSelectContainerBatchButton_Click'
             ProductWorkspaceResolvedReferenceRemovalClearSelectionButton =
                 'ProductWorkspaceResolvedReferenceRemovalClearSelectionButton_Click'
+            ProductWorkspaceSelectedReferenceCreateButton =
+                'ProductWorkspaceSelectedReferenceCreateButton_Click'
         }.GetEnumerator()) {
         $node = Get-XamlNodeByAutomationId $document $entry.Key
         Assert-Condition (
@@ -2613,7 +2622,7 @@ function Test-SourceContract {
         $codeBehind -match 'AutomationEvents\.LiveRegionChanged' -and
         ([regex]::Matches(
                 $codeBehind,
-                'RaiseLiveRegionChanged\(ProductWorkspaceResolvedReference(Add|Removal)Status\)').Count -eq 2) -and
+                'RaiseLiveRegionChanged\(ProductWorkspaceResolvedReference(Add|Removal)Status\)').Count -ge 2) -and
         $codeBehind -match 'ResolvedReferenceBatchAddSelection:Count=0' -and
         $codeBehind -match 'ResolvedReferenceBatchRemovalSelection:Count=0'
     ) 'Batch selection changes must publish one explicit live-region event and clear stale empty-selection state.'
@@ -3004,7 +3013,7 @@ function Test-SourceContract {
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
         productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-single-undo'
-        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-create-save-compensation-selected-reference-atomic-move-config-only'
+        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-create-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'
                     productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-invoke-no-file-operations'

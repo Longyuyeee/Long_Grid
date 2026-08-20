@@ -331,3 +331,11 @@ Stage 166 已把“建新方格”和“已选引用从来源改归属到新方�
 真实临时目录中创建的两个文本文件经正式配置保存、重载和一次撤销后内容保持不变；实际独占 `.lock` 文件令保存进入 `Failed/WriteLeaseUnavailable`，磁盘重载仍为旧状态，解除租约后完整状态恢复成功。首次静态合同因旧的全协调器提交次数硬编码真实失败，已改为检查新方法范围内恰好一次提交并重新通过。全量测试为 1005/1005。
 
 严格结论是 PF-002H 的**原子事务基础通过**，不是用户闭环完成。下一切片须从正式 Long方格选择捕获带 revision/topology/source/fingerprint 的有限快照，复用唯一 Preview Session，并将完整恢复令牌接入 PF-002E 同次保存失败自动补偿；同时补 256/257、选择变化、取消、连续编辑和 UIA/Narrator。PF-002H、PF-002、PF-001 与顶层完成口径均保持不变，详见 [Stage 166](166-pf002h-selected-reference-atomic-transaction-audit.md)。
+
+## 16. 2026-08-20 PF-002H 正式 App 接线增量复审
+
+Stage 167 已增加正式“使用选择创建新方格”入口，并把同一方格 1–256 项选择快照接入已有 admission、候选显示器、原生/fallback Preview、原子提交、PF-002E 发布事务和最近撤销。快照绑定配置指纹，选择、revision 或 topology 变化均取消；保存失败使用完整旧状态恢复令牌，不能只删除新方格。最近撤销也已从错误的“撤销批量加入”区分为“撤销使用选择创建方格”。
+
+真实测试创建 257 个文本文件：257 项请求拒绝后磁盘仍为旧 257 项，随后 256 项请求真实保存并重载为来源 1 项、新方格 256 项，所有文件内容逐项不变。Release 全量为 1010/1010，147-ID 静态合同通过。首次合同因旧的 live-region 全文件次数硬编码失败，修成新入口专项合同后通过。
+
+正式 App 结果必须分开记录：Windows 捕获获得完整控制中心截图，说明 Release 界面真实渲染；但 UIA 连续两次找不到首元素，整树读取导致 `Microsoft.UI.Xaml.dll` 崩溃。对 `fff20f2` 建立独立 worktree、重新构建并执行相同操作，得到相同截图成功和相同 UIA 崩溃，证明不是本切片回归，但也证明正式 UIA/Narrator 证据仍未取得。因此 PF-002H 记 `EngineeringComplete / ProductEvidencePending`，PF-002、PF-001 与顶层完成口径不变。下一步优先修复/隔离 Windows App Runtime UIA 会话，再收口 PF-002D 拖画物理输入和 PF-002F 设备/无障碍矩阵，详见 [Stage 167](167-pf002h-selected-reference-app-integration-audit.md)。

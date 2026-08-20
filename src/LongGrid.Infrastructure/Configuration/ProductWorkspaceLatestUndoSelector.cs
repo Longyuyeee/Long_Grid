@@ -9,6 +9,7 @@ public enum ProductWorkspaceLatestUndoKind
     LayoutRecovery,
     ContainerRemoval,
     ReferenceBatchAddition,
+    SelectedReferenceContainer,
     ReferenceRemoval,
     ReferenceReassignment,
 }
@@ -27,6 +28,7 @@ public static class ProductWorkspaceLatestUndoSelector
         ProductWorkspaceLayoutRecoveryUndoToken? layoutRecovery,
         ProductWorkspaceContainerRemovalUndoToken? containerRemoval,
         ProductWorkspaceReferenceBatchAdditionUndoToken? referenceBatchAddition,
+        ProductWorkspaceReferenceBatchAdditionUndoToken? selectedReferenceContainer,
         ProductWorkspaceReferenceRemovalUndoToken? referenceRemoval,
         ProductWorkspaceReferenceReassignmentUndoToken? referenceReassignment)
     {
@@ -46,6 +48,10 @@ public static class ProductWorkspaceLatestUndoSelector
                     ProductWorkspaceLatestUndoKind.ReferenceBatchAddition,
                     referenceBatchAddition?.OperationId,
                     referenceBatchAddition?.AdditionEditRevision),
+                Candidate(
+                    ProductWorkspaceLatestUndoKind.SelectedReferenceContainer,
+                    selectedReferenceContainer?.OperationId,
+                    selectedReferenceContainer?.AdditionEditRevision),
                 Candidate(
                     ProductWorkspaceLatestUndoKind.ReferenceRemoval,
                     referenceRemoval?.OperationId,

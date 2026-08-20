@@ -84,6 +84,10 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceResolvedReferenceBatchRemovalCommitResult>
         _commitProductWorkspaceResolvedReferenceBatchRemoval;
     private readonly Func<
+        long,
+        IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>,
+        bool> _requestProductWorkspaceSelectedReferenceCreate;
+    private readonly Func<
         ProductWorkspaceReferenceRemovalUndoToken,
         bool,
         ProductWorkspaceReferenceRemovalUndoCommitResult>
@@ -200,6 +204,10 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceResolvedReferenceBatchRemovalCommitResult>
             commitProductWorkspaceResolvedReferenceBatchRemoval,
         Func<
+            long,
+            IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>,
+            bool> requestProductWorkspaceSelectedReferenceCreate,
+        Func<
             ProductWorkspaceReferenceRemovalUndoToken,
             bool,
             ProductWorkspaceReferenceRemovalUndoCommitResult>
@@ -260,6 +268,8 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceReferenceBatchAdditionUndo);
         ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceResolvedReferenceBatchRemoval);
+        ArgumentNullException.ThrowIfNull(
+            requestProductWorkspaceSelectedReferenceCreate);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceReferenceRemovalUndo);
         ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceResolvedReferenceReassignment);
@@ -289,6 +299,8 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceReferenceBatchAdditionUndo;
         _commitProductWorkspaceResolvedReferenceBatchRemoval =
             commitProductWorkspaceResolvedReferenceBatchRemoval;
+        _requestProductWorkspaceSelectedReferenceCreate =
+            requestProductWorkspaceSelectedReferenceCreate;
         _commitProductWorkspaceReferenceRemovalUndo =
             commitProductWorkspaceReferenceRemovalUndo;
         _commitProductWorkspaceResolvedReferenceReassignment =
@@ -816,7 +828,7 @@ public sealed partial class MainWindow : Window
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ProductWorkspaceViewStatus.Text = inline
-            ? "正在桌面候选位置预览新方格；确认前配置和桌面文件均未改变。"
+            ? $"正在桌面候选位置预览新方格{DescribeSelectedReferenceCount(snapshot)}；确认前配置和桌面文件均未改变。"
             : "桌面就地预览不可用，已安全回退到控制中心预览。";
         AutomationProperties.SetItemStatus(
             ProductWorkspaceViewStatus,
@@ -880,7 +892,7 @@ public sealed partial class MainWindow : Window
             {
                 new TextBlock
                 {
-                    Text = "检查名称和候选位置后再创建。取消不会留下方格，也不会读取、移动或修改桌面文件。",
+                    Text = $"检查名称和候选位置后再创建{DescribeSelectedReferenceCount(initial)}。取消不会留下方格，也不会读取、移动或修改桌面文件。",
                     TextWrapping = TextWrapping.Wrap,
                 },
                 nameEditor,
@@ -989,12 +1001,20 @@ public sealed partial class MainWindow : Window
                 "工作区已变化，本次预览已失效。",
             ProductDesktopWorkspaceCreatePreviewFailure.StaleTopology =>
                 "显示器状态已变化，本次预览已失效。",
+            ProductDesktopWorkspaceCreatePreviewFailure.StaleSelection =>
+                "所选引用已变化，本次预览已取消；配置和桌面文件未改变。",
             ProductDesktopWorkspaceCreatePreviewFailure.DisplayUnavailable =>
                 "目标显示器已不可用，本次预览已失效。",
             ProductDesktopWorkspaceCreatePreviewFailure.HostUnavailable =>
                 "桌面方格当前不可用，本次预览已取消。",
             _ => "本次预览不可提交；配置和桌面文件均未改变。",
         };
+
+    private static string DescribeSelectedReferenceCount(
+        ProductDesktopWorkspaceCreatePreviewSnapshot snapshot) =>
+        snapshot.Request.SelectedReferences is { } selected
+            ? $"，包含 {selected.ItemIds.Count} 个 Long方格引用"
+            : string.Empty;
 
     private void ProductWorkspaceResetViewButton_Click(
         object sender,
@@ -1262,7 +1282,11 @@ public sealed partial class MainWindow : Window
                 break;
             case ProductWorkspaceLatestUndoKind.ReferenceBatchAddition
                 when _latestUndo.ReferenceBatchAdditionToken is { } token:
-                UndoLatestReferenceBatchAddition(token);
+                UndoLatestReferenceBatchAddition(token, selectedCreate: false);
+                break;
+            case ProductWorkspaceLatestUndoKind.SelectedReferenceContainer
+                when _latestUndo.SelectedReferenceContainerToken is { } token:
+                UndoLatestReferenceBatchAddition(token, selectedCreate: true);
                 break;
             case ProductWorkspaceLatestUndoKind.ReferenceRemoval
                 when _latestUndo.ReferenceRemovalToken is { } token:
@@ -1307,16 +1331,20 @@ public sealed partial class MainWindow : Window
     }
 
     private void UndoLatestReferenceBatchAddition(
-        ProductWorkspaceReferenceBatchAdditionUndoToken token)
+        ProductWorkspaceReferenceBatchAdditionUndoToken token,
+        bool selectedCreate)
     {
         ProductWorkspaceReferenceBatchAdditionUndoCommitResult result =
             _commitProductWorkspaceReferenceBatchAdditionUndo(token, true);
         ProductWorkspaceResolvedReferenceAddStatus.Text = result.IsAccepted
-            ? "最近一次批量加入已即时整体撤销并保存；桌面文件未改变。"
+            ? selectedCreate
+                ? "最近一次使用选择创建的方格及引用改归属已整体撤销并保存；桌面文件未改变。"
+                : "最近一次批量加入已即时整体撤销并保存；桌面文件未改变。"
             : "批量加入撤销令牌已失效或保存不可用；配置与桌面文件均未改变。";
         AutomationProperties.SetItemStatus(
             ProductWorkspaceResolvedReferenceAddStatus,
-            $"LatestWorkspaceEditUndo:{result.Status}:Kind=ReferenceBatchAddition:" +
+            $"LatestWorkspaceEditUndo:{result.Status}:Kind=" +
+                $"{(selectedCreate ? "SelectedReferenceContainer" : "ReferenceBatchAddition")}:" +
                 $"Gate={result.UndoStatus}:Revision={result.EditRevision}:" +
                 $"Changed={result.IsAccepted}:DesktopFilesChanged=False:" +
                 "DesktopWindowsChanged=False");
@@ -2410,6 +2438,11 @@ public sealed partial class MainWindow : Window
             && sources.Length <=
                 ProductWorkspaceCommitCoordinator
                     .MaximumResolvedReferenceRemovalBatchSize;
+        ProductWorkspaceSelectedReferenceCreateButton.IsEnabled =
+            _resolvedReferenceRemoval.CanRemove
+            && sameContainer
+            && sources.Length <=
+                ProductWorkspaceSelectedReferenceCreateSnapshot.MaximumItemCount;
         ProductWorkspaceResolvedReferenceSelectContainerBatchButton.IsEnabled =
             _resolvedReferenceRemoval.CanRemove && sameContainer;
         ProductWorkspaceResolvedReferenceRemovalClearSelectionButton.IsEnabled =
@@ -2432,6 +2465,12 @@ public sealed partial class MainWindow : Window
                 : sources.Length > 0
                     ? $"批量移除 {sources.Length} 项并保存"
                     : "选择项目后批量移除";
+        ProductWorkspaceSelectedReferenceCreateButton.Content = !sameContainer
+            && sources.Length > 0
+                ? "跨方格不可创建"
+                : sources.Length > 0
+                    ? $"使用 {sources.Length} 项创建新方格"
+                    : "使用选择创建新方格";
         ProductWorkspaceResolvedReferenceReassignmentButton.Content = !sameContainer
             && sources.Length > 0
                 ? "跨方格不可批量改归属"
@@ -2441,6 +2480,36 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceResolvedReferenceRemovalUndoButton.IsEnabled =
             _resolvedReferenceRemoval.UndoToken is not null
             || _resolvedReferenceReassignment.UndoToken is not null;
+    }
+
+    internal IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>
+        CaptureProductWorkspaceSelectedReferences() =>
+        ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems
+            .OfType<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>()
+            .ToArray();
+
+    private void ProductWorkspaceSelectedReferenceCreateButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>
+            selected = CaptureProductWorkspaceSelectedReferences();
+        bool requested = selected.Count is > 0 and <=
+                ProductWorkspaceSelectedReferenceCreateSnapshot.MaximumItemCount
+            && selected.Select(candidate => candidate.ContainerOrdinal)
+                .Distinct()
+                .Count() == 1
+            && _requestProductWorkspaceSelectedReferenceCreate(
+                _resolvedReferenceRemoval.EditRevision,
+                selected);
+        ProductWorkspaceResolvedReferenceRemovalStatus.Text = requested
+            ? $"已为 {selected.Count} 个所选引用打开新方格预览；确认前配置和桌面文件均未改变。"
+            : "所选引用已变化或当前无法创建；没有修改配置和桌面文件。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceResolvedReferenceRemovalStatus,
+            $"SelectedReferenceCreateRequested={requested}:Count={selected.Count}:" +
+                "Changed=False:DesktopFilesChanged=False");
+        RaiseLiveRegionChanged(ProductWorkspaceResolvedReferenceRemovalStatus);
     }
 
     private void PublishResolvedReferenceRemovalSelectionStatus()

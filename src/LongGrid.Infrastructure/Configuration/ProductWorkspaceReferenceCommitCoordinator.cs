@@ -528,7 +528,23 @@ public sealed class ProductWorkspaceCommitCoordinator
         {
             lock (gate)
             {
-                return pendingReferenceBatchAdditionUndo?.Token;
+                return pendingReferenceBatchAdditionUndo is { CreatesContainer: false }
+                    ? pendingReferenceBatchAdditionUndo.Token
+                    : null;
+            }
+        }
+    }
+
+    public ProductWorkspaceReferenceBatchAdditionUndoToken?
+        CurrentSelectedReferenceContainerUndoToken
+    {
+        get
+        {
+            lock (gate)
+            {
+                return pendingReferenceBatchAdditionUndo is { CreatesContainer: true }
+                    ? pendingReferenceBatchAdditionUndo.Token
+                    : null;
             }
         }
     }
@@ -999,7 +1015,10 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingReferenceRemovalUndo = null;
             pendingReferenceReassignmentUndo = null;
             pendingContainerRemovalUndo = null;
-            pendingReferenceBatchAdditionUndo = new(undoToken, state);
+            pendingReferenceBatchAdditionUndo = new(
+                undoToken,
+                state,
+                CreatesContainer: true);
             return new(
                 ProductWorkspaceSelectedReferenceContainerCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -1217,7 +1236,10 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingReferenceRemovalUndo = null;
             pendingReferenceReassignmentUndo = null;
             pendingContainerRemovalUndo = null;
-            pendingReferenceBatchAdditionUndo = new(undoToken, state);
+            pendingReferenceBatchAdditionUndo = new(
+                undoToken,
+                state,
+                CreatesContainer: false);
             return new(
                 ProductWorkspaceResolvedReferenceBatchCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -1939,7 +1961,8 @@ public sealed class ProductWorkspaceCommitCoordinator
 
     private sealed record PendingReferenceBatchAdditionUndo(
         ProductWorkspaceReferenceBatchAdditionUndoToken Token,
-        ProductWorkspaceState RestoreState);
+        ProductWorkspaceState RestoreState,
+        bool CreatesContainer);
 
     public static string ResolveColor(ProductWorkspaceContainerColorPreset preset) =>
         preset switch

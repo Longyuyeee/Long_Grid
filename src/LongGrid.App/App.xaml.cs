@@ -162,6 +162,7 @@ public partial class App : Application
             CommitProductWorkspaceResolvedReferenceBatch,
             CommitProductWorkspaceReferenceBatchAdditionUndo,
             CommitProductWorkspaceResolvedReferenceBatchRemoval,
+            RequestProductWorkspaceSelectedReferenceCreate,
             CommitProductWorkspaceReferenceRemovalUndo,
             CommitProductWorkspaceResolvedReferenceReassignment,
             CommitProductWorkspaceReferenceReassignmentUndo,
@@ -656,6 +657,7 @@ public partial class App : Application
                 workspaceCommits.CurrentLayoutRecoveryUndoToken,
                 workspaceCommits.CurrentContainerRemovalUndoToken,
                 workspaceCommits.CurrentReferenceBatchAdditionUndoToken,
+                workspaceCommits.CurrentSelectedReferenceContainerUndoToken,
                 workspaceCommits.CurrentReferenceRemovalUndoToken,
                 workspaceCommits.CurrentReferenceReassignmentUndoToken));
         ApplyProductWorkspaceReferenceReview();
@@ -1107,6 +1109,56 @@ public partial class App : Application
         });
     }
 
+    private bool RequestProductWorkspaceSelectedReferenceCreate(
+        long expectedEditRevision,
+        IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>
+            candidates)
+    {
+        ProductWorkspaceState? state = ResolveDesktopWorkspaceCreateState();
+        ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
+        if (state is null
+            || expectedEditRevision != workspaceCommits.CurrentEditRevision
+            || candidates.Count is <= 0 or >
+                ProductWorkspaceSelectedReferenceCreateSnapshot.MaximumItemCount
+            || candidates.Select(candidate => candidate.ContainerOrdinal)
+                .Distinct()
+                .Count() != 1
+            || !topology.IsAuthoritative)
+        {
+            return false;
+        }
+
+        int sourceOrdinal = candidates[0].ContainerOrdinal;
+        ProductWorkspaceSelectedReferenceCreateSnapshotResult captured =
+            ProductWorkspaceSelectedReferenceCreateSnapshots.Capture(
+                state,
+                sourceOrdinal,
+                candidates.Select(candidate => candidate.ItemOrdinal).ToArray());
+        if (!captured.IsReady)
+        {
+            return false;
+        }
+
+        ProductContainerState source = state.Containers[sourceOrdinal - 1];
+        DisplayTopologyNode? display = topology.Displays.FirstOrDefault(candidate =>
+            string.Equals(
+                candidate.StableId,
+                source.Placement.DisplayKey,
+                StringComparison.Ordinal))
+            ?? topology.Displays.FirstOrDefault(candidate => candidate.IsPrimary)
+            ?? (topology.Displays.Count > 0 ? topology.Displays[0] : null);
+        return display is not null && RequestDesktopWorkspaceCreate(new(
+            ProductDesktopWorkspaceCreateInputKind.SelectedReferences,
+            display.StableId,
+            expectedEditRevision,
+            topology.Generation,
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: false,
+            RequestedBoundsPixels: null,
+            SelectedReferences: captured.Snapshot));
+    }
+
     private async Task RunDesktopWorkspaceCreatePreviewAsync(
         MainWindow currentWindow,
         ProductDesktopWorkspaceCreateRequest request)
@@ -1126,6 +1178,10 @@ public partial class App : Application
                 topology.Generation).CanCreate;
         if (!requestIsCurrent
             || state is null
+            || !SelectedReferenceCreateStillCurrent(
+                currentWindow,
+                request.SelectedReferences,
+                state)
             || display is null
             || productDesktopHostLifecycle.Snapshot.Status is not (
                 ProductDesktopHostLifecycleStatus.AwaitingWorkspace
@@ -1254,6 +1310,23 @@ public partial class App : Application
             return;
         }
 
+        state = ResolveDesktopWorkspaceCreateState();
+        if (state is null
+            || !SelectedReferenceCreateStillCurrent(
+                currentWindow,
+                request.SelectedReferences,
+                state))
+        {
+            ProductDesktopWorkspaceCreatePreviewSnapshot cancelled =
+                session.Cancel(
+                    ProductDesktopWorkspaceCreatePreviewFailure.StaleSelection);
+            desktopWorkspaceCreatePreview = null;
+            currentWindow.ApplyDesktopWorkspaceCreatePreviewResult(
+                cancelled,
+                created: false);
+            return;
+        }
+
         ProductDesktopWorkspaceCreatePreviewSnapshot submitting =
             session.PrepareSubmit(
                 workspaceCommits.CurrentEditRevision,
@@ -1268,33 +1341,118 @@ public partial class App : Application
             return;
         }
 
-        ProductWorkspaceContainerCommitResult result =
-            CommitProductWorkspaceContainerActionCore(
-                ProductWorkspaceContainerCommitAction.Create,
-                workspaceCommits.CurrentEditRevision,
-                containerOrdinal: 0,
-                name: submitting.Name,
-                stateValue: null,
-                colorPreset: null,
-                opacityPreset: null,
-                positionPreset: null,
-                sizePreset: null,
-                confirmed: false,
-                createDisplayId: request.DisplayId,
-                createBoundsPixels: request.RequestedBoundsPixels,
-                useDefaultName: false);
-        if (result.IsAccepted)
+        bool createdSuccessfully;
+        if (request.SelectedReferences is { } selection)
         {
-            ProductContainerState created = result.State!.Containers[^1];
-            desktopWorkspaceCreatePublication = new(
-                created.Id,
-                result.EditRevision,
-                productWorkspaceSaves.Snapshot.CurrentRevision);
+            ProductContainerState? newContainer = CreateDefaultContainer(
+                state,
+                submitting.Name,
+                request.DisplayId,
+                request.RequestedBoundsPixels);
+            ProductWorkspaceSelectedReferenceContainerCommitResult selectedResult =
+                newContainer is null
+                    ? new(
+                        ProductWorkspaceSelectedReferenceContainerCommitStatus
+                            .InvalidRequest,
+                        ProductWorkspaceEditError.InvalidState,
+                        null,
+                        workspaceCommits.CurrentEditRevision,
+                        null,
+                        null,
+                        null)
+                    : workspaceCommits.CommitSelectedReferenceContainer(
+                        state,
+                        new(
+                            workspaceCommits.CurrentEditRevision,
+                            selection.SourceContainerOrdinal,
+                            selection.ItemIds,
+                            newContainer));
+            createdSuccessfully = selectedResult.IsAccepted;
+            if (createdSuccessfully)
+            {
+                ApplyAcceptedProductWorkspaceDocument(
+                    selectedResult.Document!,
+                    productDesktopCatalog.Snapshot);
+                ProductContainerState created =
+                    selectedResult.State!.Containers[^1];
+                desktopWorkspaceCreatePublication = new(
+                    created.Id,
+                    selectedResult.EditRevision,
+                    productWorkspaceSaves.Snapshot.CurrentRevision,
+                    selectedResult.UndoToken);
+            }
+        }
+        else
+        {
+            ProductWorkspaceContainerCommitResult result =
+                CommitProductWorkspaceContainerActionCore(
+                    ProductWorkspaceContainerCommitAction.Create,
+                    workspaceCommits.CurrentEditRevision,
+                    containerOrdinal: 0,
+                    name: submitting.Name,
+                    stateValue: null,
+                    colorPreset: null,
+                    opacityPreset: null,
+                    positionPreset: null,
+                    sizePreset: null,
+                    confirmed: false,
+                    createDisplayId: request.DisplayId,
+                    createBoundsPixels: request.RequestedBoundsPixels,
+                    useDefaultName: false);
+            createdSuccessfully = result.IsAccepted;
+            if (createdSuccessfully)
+            {
+                ProductContainerState created = result.State!.Containers[^1];
+                desktopWorkspaceCreatePublication = new(
+                    created.Id,
+                    result.EditRevision,
+                    productWorkspaceSaves.Snapshot.CurrentRevision);
+            }
         }
         desktopWorkspaceCreatePreview = null;
         currentWindow.ApplyDesktopWorkspaceCreatePreviewResult(
             submitting,
-            result.IsAccepted);
+            createdSuccessfully);
+    }
+
+    private static bool SelectedReferenceCreateStillCurrent(
+        MainWindow currentWindow,
+        ProductWorkspaceSelectedReferenceCreateSnapshot? expected,
+        ProductWorkspaceState state)
+    {
+        if (expected is null)
+        {
+            return true;
+        }
+        if (ProductWorkspaceSelectedReferenceCreateSnapshots.Evaluate(
+                expected,
+                state) != ProductWorkspaceSelectedReferenceCreateSnapshotStatus.Ready)
+        {
+            return false;
+        }
+
+        IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>
+            current = currentWindow.CaptureProductWorkspaceSelectedReferences();
+        if (current.Count != expected.ItemIds.Count
+            || current.Select(candidate => candidate.ContainerOrdinal)
+                .Distinct()
+                .SingleOrDefault() != expected.SourceContainerOrdinal)
+        {
+            return false;
+        }
+
+        ProductWorkspaceSelectedReferenceCreateSnapshotResult captured =
+            ProductWorkspaceSelectedReferenceCreateSnapshots.Capture(
+                state,
+                expected.SourceContainerOrdinal,
+                current.Select(candidate => candidate.ItemOrdinal).ToArray());
+        return captured.Snapshot is { } actual
+            && actual.ItemIds.ToHashSet(StringComparer.Ordinal).SetEquals(
+                expected.ItemIds)
+            && string.Equals(
+                actual.ConfigurationFingerprint,
+                expected.ConfigurationFingerprint,
+                StringComparison.Ordinal);
     }
 
     private ProductDesktopWorkspaceCreatePreviewSnapshot
@@ -1331,6 +1489,15 @@ public partial class App : Application
         {
             return session.Cancel(
                 ProductDesktopWorkspaceCreatePreviewFailure.StaleTopology);
+        }
+        if (window is not { } currentWindow
+            || !SelectedReferenceCreateStillCurrent(
+                currentWindow,
+                session.Snapshot.Request.SelectedReferences,
+                state))
+        {
+            return session.Cancel(
+                ProductDesktopWorkspaceCreatePreviewFailure.StaleSelection);
         }
 
         ProductWorkspaceContainerCreationDefaultsDecision decision =
@@ -1820,6 +1987,22 @@ public partial class App : Application
                 ProductDesktopWorkspaceCreatePublicationDecision.RollbackRequired)
             {
                 desktopWorkspaceCreatePublication = null;
+                if (publication.RestoreToken is { } restoreToken)
+                {
+                    ProductWorkspaceReferenceBatchAdditionUndoCommitResult restore =
+                        CommitProductWorkspaceReferenceBatchAdditionUndo(
+                            restoreToken,
+                            confirmed: true);
+                    if (restore.IsAccepted)
+                    {
+                        currentWindow.ApplyProductWorkspaceCreateSaveRollbackState(
+                            snapshot.Failure,
+                            productWorkspaceSaves.Snapshot.CurrentRevision);
+                        return;
+                    }
+                    currentWindow.ApplyProductWorkspaceSaveState(snapshot);
+                    return;
+                }
                 ProductWorkspaceContainerCommitResult rollback =
                     CommitProductWorkspaceContainerActionCore(
                         ProductWorkspaceContainerCommitAction.Remove,

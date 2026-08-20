@@ -641,6 +641,14 @@
                                                 Grid.Column="1"
                                                 IsEnabled="False" />
                                         </Grid>
+                                        <Button
+                                            x:Name="ProductWorkspaceSelectedReferenceCreateButton"
+                                            AutomationProperties.AutomationId="ProductWorkspaceSelectedReferenceCreateButton"
+                                            AutomationProperties.Name="使用同一方格内所选引用创建新方格"
+                                            Click="ProductWorkspaceSelectedReferenceCreateButton_Click"
+                                            Content="使用选择创建新方格"
+                                            HorizontalAlignment="Stretch"
+                                            IsEnabled="False" />
                                         <ComboBox
                                             x:Name="ProductWorkspaceResolvedReferenceReassignmentTargetSelector"
                                             AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceReassignmentTargetSelector"

@@ -8,11 +8,12 @@ internal sealed record ProductWorkspaceLatestUndoPresentation(
     ProductWorkspaceLayoutRecoveryUndoToken? LayoutRecoveryToken,
     ProductWorkspaceContainerRemovalUndoToken? ContainerRemovalToken,
     ProductWorkspaceReferenceBatchAdditionUndoToken? ReferenceBatchAdditionToken,
+    ProductWorkspaceReferenceBatchAdditionUndoToken? SelectedReferenceContainerToken,
     ProductWorkspaceReferenceRemovalUndoToken? ReferenceRemovalToken,
     ProductWorkspaceReferenceReassignmentUndoToken? ReferenceReassignmentToken)
 {
     public static ProductWorkspaceLatestUndoPresentation Unavailable { get; } =
-        Create(null, null, null, null, null);
+        Create(null, null, null, null, null, null);
 
     public bool CanUndo => Selection.CanUndo;
 
@@ -21,6 +22,8 @@ internal sealed record ProductWorkspaceLatestUndoPresentation(
         ProductWorkspaceLatestUndoKind.LayoutRecovery => "撤销布局恢复",
         ProductWorkspaceLatestUndoKind.ContainerRemoval => "撤销删除方格",
         ProductWorkspaceLatestUndoKind.ReferenceBatchAddition => "撤销批量加入",
+        ProductWorkspaceLatestUndoKind.SelectedReferenceContainer =>
+            "撤销使用选择创建方格",
         ProductWorkspaceLatestUndoKind.ReferenceRemoval => "撤销批量移除",
         ProductWorkspaceLatestUndoKind.ReferenceReassignment => "撤销批量改归属",
         _ => "没有可撤销的配置编辑",
@@ -38,6 +41,7 @@ internal sealed record ProductWorkspaceLatestUndoPresentation(
         ProductWorkspaceLayoutRecoveryUndoToken? layoutRecovery,
         ProductWorkspaceContainerRemovalUndoToken? containerRemoval,
         ProductWorkspaceReferenceBatchAdditionUndoToken? referenceBatchAddition,
+        ProductWorkspaceReferenceBatchAdditionUndoToken? selectedReferenceContainer,
         ProductWorkspaceReferenceRemovalUndoToken? referenceRemoval,
         ProductWorkspaceReferenceReassignmentUndoToken? referenceReassignment) =>
         new(
@@ -45,11 +49,13 @@ internal sealed record ProductWorkspaceLatestUndoPresentation(
                 layoutRecovery,
                 containerRemoval,
                 referenceBatchAddition,
+                selectedReferenceContainer,
                 referenceRemoval,
                 referenceReassignment),
             layoutRecovery,
             containerRemoval,
             referenceBatchAddition,
+            selectedReferenceContainer,
             referenceRemoval,
             referenceReassignment);
 }

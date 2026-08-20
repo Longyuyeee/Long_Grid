@@ -128,7 +128,9 @@ internal sealed class DesktopWorkspaceCreatePreviewWindow : Window
                 },
                 new TextBlock
                 {
-                    Text = "在桌面候选位置确认名称。取消不会创建方格，也不会修改桌面文件。",
+                    Text = initial.Request.SelectedReferences is { } selected
+                        ? $"在桌面候选位置确认名称；新方格将包含 {selected.ItemIds.Count} 个 Long方格引用。取消不会修改配置或桌面文件。"
+                        : "在桌面候选位置确认名称。取消不会创建方格，也不会修改桌面文件。",
                     TextWrapping = TextWrapping.Wrap,
                     Opacity = 0.82,
                 },
@@ -296,6 +298,8 @@ internal sealed class DesktopWorkspaceCreatePreviewWindow : Window
                 "工作区已变化，本次预览已失效。",
             ProductDesktopWorkspaceCreatePreviewFailure.StaleTopology =>
                 "显示器状态已变化，本次预览已失效。",
+            ProductDesktopWorkspaceCreatePreviewFailure.StaleSelection =>
+                "所选引用已变化，本次预览已取消。",
             ProductDesktopWorkspaceCreatePreviewFailure.DisplayUnavailable =>
                 "目标显示器已不可用。",
             ProductDesktopWorkspaceCreatePreviewFailure.HostUnavailable =>

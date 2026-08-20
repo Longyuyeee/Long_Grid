@@ -9,6 +9,7 @@ public enum ProductDesktopWorkspaceCreateInputKind
     ContextMenu,
     KeyboardShortcut,
     AssistiveInvoke,
+    SelectedReferences,
 }
 
 public sealed record ProductDesktopWorkspaceCreateRequest(
@@ -19,7 +20,8 @@ public sealed record ProductDesktopWorkspaceCreateRequest(
     bool SourceAttested,
     bool IsInjected,
     bool IsAutoRepeat,
-    PixelRect? RequestedBoundsPixels = null);
+    PixelRect? RequestedBoundsPixels = null,
+    ProductWorkspaceSelectedReferenceCreateSnapshot? SelectedReferences = null);
 
 public enum ProductDesktopWorkspaceCreateAdmissionStatus
 {
@@ -58,7 +60,12 @@ public static class ProductDesktopWorkspaceCreateAdmission
             || (request.Kind == ProductDesktopWorkspaceCreateInputKind.PointerDrag
                 ? request.RequestedBoundsPixels is not PixelRect requested
                     || !HasSafeArea(requested)
-                : request.RequestedBoundsPixels is not null))
+                : request.RequestedBoundsPixels is not null)
+            || (request.Kind ==
+                    ProductDesktopWorkspaceCreateInputKind.SelectedReferences
+                ? !ProductWorkspaceSelectedReferenceCreateSnapshots.HasValidShape(
+                    request.SelectedReferences)
+                : request.SelectedReferences is not null))
         {
             return new(ProductDesktopWorkspaceCreateAdmissionStatus.Invalid);
         }

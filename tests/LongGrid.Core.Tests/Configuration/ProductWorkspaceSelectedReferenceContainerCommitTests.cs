@@ -49,6 +49,10 @@ public sealed class ProductWorkspaceSelectedReferenceContainerCommitTests
             ProductConfigurationLoadResult loadedCreated = await store.LoadAsync();
 
             Assert.True(created.IsAccepted);
+            Assert.Null(commits.CurrentReferenceBatchAdditionUndoToken);
+            Assert.Equal(
+                created.UndoToken,
+                commits.CurrentSelectedReferenceContainerUndoToken);
             Assert.Empty(created.State!.Containers[0].Items);
             Assert.Equal(
                 ["item-1", "item-2"],
@@ -69,6 +73,7 @@ public sealed class ProductWorkspaceSelectedReferenceContainerCommitTests
             ProductConfigurationLoadResult loadedUndone = await store.LoadAsync();
 
             Assert.True(undone.IsAccepted);
+            Assert.Null(commits.CurrentSelectedReferenceContainerUndoToken);
             Assert.Single(undone.State!.Containers);
             Assert.Equal(2, undone.State.Containers[0].Items.Count);
             Assert.Single(loadedUndone.Document!.Containers);
@@ -202,6 +207,81 @@ public sealed class ProductWorkspaceSelectedReferenceContainerCommitTests
             Assert.Single(restored.Document!.Containers);
             Assert.Single(restored.Document.Containers[0].Items);
             Assert.Equal("keep-original", await File.ReadAllTextAsync(desktopFile));
+        }
+        finally
+        {
+            if (Directory.Exists(sandbox))
+            {
+                Directory.Delete(sandbox, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RealStoreAccepts256AndRejects257WithoutPartialWrite()
+    {
+        string sandbox = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid.SelectedCreate.RealBoundary",
+            Guid.NewGuid().ToString("N"));
+        string storeDirectory = Path.Combine(sandbox, "store");
+        Directory.CreateDirectory(sandbox);
+        try
+        {
+            var items = new List<ProductItemReferenceState>();
+            for (int index = 1; index <= 257; index++)
+            {
+                string path = Path.Combine(sandbox, $"item-{index}.txt");
+                await File.WriteAllTextAsync(path, $"original-{index}");
+                items.Add(Item($"item-{index}", path));
+            }
+
+            ProductWorkspaceState before = State(
+                Container("source", "Source") with { Items = items });
+            var store = new ProductConfigurationStore(storeDirectory);
+            await store.SaveAsync(
+                ProductWorkspaceConfigurationProjector.Project(before).Document!);
+            var workflow = new ProductConfigurationSaveWorkflow(
+                new ProductConfigurationSaveCoordinator(store));
+            await using var saves = new ProductWorkspaceSaveController(
+                workflow,
+                new ImmediateScheduler(),
+                TimeSpan.FromMilliseconds(1));
+            var commits = new ProductWorkspaceCommitCoordinator(saves);
+            long revision = commits.AdvanceExternalRevision();
+
+            ProductWorkspaceSelectedReferenceContainerCommitResult rejected =
+                Commit(
+                    commits,
+                    before,
+                    revision,
+                    items.Select(item => item.Id).ToArray());
+            ProductConfigurationLoadResult afterRejected = await store.LoadAsync();
+
+            Assert.Equal(
+                ProductWorkspaceSelectedReferenceContainerCommitStatus.InvalidRequest,
+                rejected.Status);
+            Assert.Equal(revision, commits.CurrentEditRevision);
+            Assert.Single(afterRejected.Document!.Containers);
+            Assert.Equal(257, afterRejected.Document.Containers[0].Items.Count);
+
+            ProductWorkspaceSelectedReferenceContainerCommitResult accepted =
+                Commit(
+                    commits,
+                    before,
+                    revision,
+                    items.Take(256).Select(item => item.Id).ToArray());
+            await WaitForStatusAsync(saves, ProductWorkspaceSaveStatus.Saved, 1);
+            ProductConfigurationLoadResult loaded = await store.LoadAsync();
+
+            Assert.True(accepted.IsAccepted);
+            Assert.Single(loaded.Document!.Containers[0].Items);
+            Assert.Equal(256, loaded.Document.Containers[1].Items.Count);
+            Assert.All(
+                Enumerable.Range(1, 257),
+                index => Assert.Equal(
+                    $"original-{index}",
+                    File.ReadAllText(Path.Combine(sandbox, $"item-{index}.txt"))));
         }
         finally
         {

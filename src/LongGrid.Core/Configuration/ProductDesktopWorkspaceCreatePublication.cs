@@ -11,7 +11,8 @@ public enum ProductDesktopWorkspaceCreatePublicationDecision
 public sealed record ProductDesktopWorkspaceCreatePublicationToken(
     string ContainerId,
     long WorkspaceRevision,
-    long SaveRevision);
+    long SaveRevision,
+    ProductWorkspaceReferenceBatchAdditionUndoToken? RestoreToken = null);
 
 public static class ProductDesktopWorkspaceCreatePublication
 {

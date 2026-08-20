@@ -20,6 +20,7 @@ public enum ProductDesktopWorkspaceCreatePreviewFailure
     PlacementUnavailable,
     StaleWorkspace,
     StaleTopology,
+    StaleSelection,
     DisplayUnavailable,
     HostUnavailable,
     Replaced,

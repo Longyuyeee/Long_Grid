@@ -1,3 +1,4 @@
+using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopHost;
 
 namespace LongGrid.Core.Tests.DesktopHost;
@@ -115,6 +116,37 @@ public sealed class ProductDesktopWorkspaceCreateAdmissionTests
                 {
                     RequestedBoundsPixels = new(100, 200, 400, 300),
                 },
+                7,
+                11).Status);
+    }
+
+    [Fact]
+    public void SelectedReferenceInputRequiresBoundedSnapshotAndRejectsPayloadElsewhere()
+    {
+        var selected = new ProductWorkspaceSelectedReferenceCreateSnapshot(
+            1,
+            ["item-1"],
+            new string('A', 64));
+        ProductDesktopWorkspaceCreateRequest request = Request(
+            ProductDesktopWorkspaceCreateInputKind.SelectedReferences) with
+        {
+            SelectedReferences = selected,
+        };
+
+        Assert.True(ProductDesktopWorkspaceCreateAdmission.Evaluate(
+            request,
+            7,
+            11).CanCreate);
+        Assert.Equal(
+            ProductDesktopWorkspaceCreateAdmissionStatus.Invalid,
+            ProductDesktopWorkspaceCreateAdmission.Evaluate(
+                request with { SelectedReferences = null },
+                7,
+                11).Status);
+        Assert.Equal(
+            ProductDesktopWorkspaceCreateAdmissionStatus.Invalid,
+            ProductDesktopWorkspaceCreateAdmission.Evaluate(
+                Request() with { SelectedReferences = selected },
                 7,
                 11).Status);
     }

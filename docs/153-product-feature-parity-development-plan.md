@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-002 桌面直接创建方格**
-- 最新工程审计：[Stage 166](166-pf002h-selected-reference-atomic-transaction-audit.md)；已选引用创建的原子改归属/建格配置事务通过真实磁盘重载、真实写租约失败和恢复验证，全量 1005/1005 与静态 UI 合同通过；正式 App/Preview/自动补偿接线及物理交互证据仍 Pending，PF-002 完成前不进入 PF-003
+- 最新工程审计：[Stage 167](167-pf002h-selected-reference-app-integration-audit.md)；已选引用创建已接入正式选择列表、唯一 Preview、完整保存补偿和专用撤销，257 个真实文件边界及全量 1010/1010 通过；正式截图可渲染，但 UIA 在本版本与 `fff20f2` 隔离基线均触发 Windows App Runtime 崩溃，产品证据仍 Pending，PF-002 完成前不进入 PF-003
 
 ## 1. 本文解决什么问题
 
@@ -146,7 +146,7 @@
 - 创建过程不读取文件内容、不移动真实文件；
 - 完成后用户无需进入控制中心即可建立第一个方格。
 
-**2026-08-20 实施状态**：`InProgress`。空态/非空态主点击、产品菜单、`Ctrl+Alt+N`、UIA Invoke 和 Explicit 桌面拖画均进入带 revision/topology/source 事实的同一请求；拖画的绝对像素矩形经工作区/DPI 校验后贯穿 Preview、提交和 PF-002E 补偿。已选引用创建新增最多 256 项的原子配置事务：只把 Long方格引用从未锁定来源改归属到新方格，不复制引用、不操作真实文件，任一无效项均整批拒绝。两个真实文件的配置保存/重载和一次撤销均保持文件内容不变；真实 `.lock` 写租约冲突进入 `WriteLeaseUnavailable`，磁盘维持旧状态，释放后完整恢复成功。全量 1005/1005，Release 构建和 146-ID 静态 UI 合同通过。该能力尚未接入正式 App 的选择快照、Preview 与保存失败自动补偿；完整 App 物理鼠标、打开—编辑—取消—确认及正式无障碍证据也仍 Pending，因此 PF-002 不得标记 Complete。证据见 [Stage 166](166-pf002h-selected-reference-atomic-transaction-audit.md)。
+**2026-08-20 实施状态**：`InProgress`。空态/非空态主点击、产品菜单、`Ctrl+Alt+N`、UIA Invoke、Explicit 桌面拖画和 Long方格已选引用均复用唯一创建 Preview。已选引用入口只接受同一未锁定方格内 1–256 项，捕获配置指纹并在名称编辑、确认和提交前复核；选择变化以 `StaleSelection` 取消。确认后建格与引用改归属一次提交，保存失败恢复完整旧状态，最近动作明确显示“撤销使用选择创建方格”。257 个真实文件实测 257 项整批拒绝、随后 256 项成功，磁盘为来源 1 项/新方格 256 项且所有文件内容不变；全量 1010/1010，Release 构建和 147-ID 静态合同通过。正式 App 截图实际渲染成功，但 UIA 树读取在本版本与 `fff20f2` 隔离基线均导致 `Microsoft.UI.Xaml.dll` 崩溃，因此 PF-002H 只记 `EngineeringComplete / ProductEvidencePending`；完整 App 物理鼠标、Preview 操作和正式无障碍证据仍 Pending，PF-002 不得标记 Complete。证据见 [Stage 167](167-pf002h-selected-reference-app-integration-audit.md)。
 
 ### PF-003：桌面拖动、缩放与吸附
 
@@ -879,6 +879,6 @@
 
 ## 15. 当前立即执行项
 
-当前开发项为 **PF-002：桌面直接创建方格**。PF-002A/B/C/D1、PF-002D2a、PF-002E、拖画矩形工程链及 PF-002H 原子配置事务底座已完成；下一编码切片是把 Long方格选择快照接入唯一 Preview Session 与 PF-002E 自动补偿，不得建立第二套保存链。
+当前开发项为 **PF-002：桌面直接创建方格**。PF-002A/B/C/D1、PF-002D2a、PF-002E、拖画矩形工程链及 PF-002H 正式 App 工程链已完成；下一门禁是修复或隔离当前 Windows App Runtime UIA 崩溃，并在正式 App 补齐按钮—Preview—取消—确认—保存失败—撤销证据。
 
 并行门禁是在无并发输入 Windows 会话验证真实鼠标拖画及打开—编辑—取消—确认；随后完成 PF-002F 正式设备/无障碍证据。PF-002 全部验收关闭后才进入 PF-003。G0 外部证据并行保留，任何版本在 G0/签名/安装未完成前不得分发，但不再用这些门禁替代产品功能开发。
