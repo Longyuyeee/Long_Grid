@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-002 桌面直接创建方格**
-- 最新工程审计：[Stage 168](168-winui-cross-process-uia-blocker-and-window-smoke-audit.md)；真实 Release 进程/窗口生命周期已建立 Expected/Actual/Difference 冒烟证据，跨进程 UIA 崩溃已与 WinUI 官方 `#11139` 的 `RPC_E_WRONG_THREAD / 0xc000027b` 上游缺陷精确对齐；PF-002 保持 `EngineeringComplete / ProductEvidencePending`，先补非 UIA 真实输入矩阵，上游修复后重跑 UIA/Narrator，PF-002 完成前不进入 PF-003
+- 最新工程审计：[Stage 169](169-winui-uia-fail-closed-preflight-audit.md)；当前 Windows 控制器的无文本截图路径也真实触发同一 WinUI fail-fast，live UIA 现会识别已验证的 `2.4.0.0 + 3.2.3.0` 组合并在启动 App 前失败关闭；PF-002 保持 `EngineeringComplete / ProductEvidencePending`，下一步建立默认关闭、专用临时配置的进程内 UI 证据会话，上游修复后重跑物理输入/UIA/Narrator，PF-002 完成前不进入 PF-003
 
 ## 1. 本文解决什么问题
 
@@ -879,6 +879,6 @@
 
 ## 15. 当前立即执行项
 
-当前开发项为 **PF-002：桌面直接创建方格**。PF-002A/B/C/D1、PF-002D2a、PF-002E、拖画矩形工程链及 PF-002H 正式 App 工程链已完成。Stage 168 已把 UIA 崩溃隔离为 WinUI 官方 `#11139` 上游缺陷，并增加不查询 UIA 的真实窗口生命周期测试；下一门禁是在正式 App 补齐真实鼠标/键盘或坐标截图驱动的按钮—Preview—取消—确认—保存失败—撤销证据，上游发布修复后再补 UIA/Narrator。
+当前开发项为 **PF-002：桌面直接创建方格**。PF-002A/B/C/D1、PF-002D2a、PF-002E、拖画矩形工程链及 PF-002H 正式 App 工程链已完成。Stage 169 已把当前已知有害运行时组合改为 App 启动前失败关闭；下一门禁是建立专用临时配置、默认关闭的产品进程内 UI 证据会话，真实执行按钮命令—Preview—取消—确认—保存—撤销并输出差异。物理输入与 UIA/Narrator 仍须在上游修复或独立人工机器收口。
 
 并行门禁是在无并发输入 Windows 会话验证真实鼠标拖画及打开—编辑—取消—确认；随后完成 PF-002F 正式设备/无障碍证据。PF-002 全部验收关闭后才进入 PF-003。G0 外部证据并行保留，任何版本在 G0/签名/安装未完成前不得分发，但不再用这些门禁替代产品功能开发。

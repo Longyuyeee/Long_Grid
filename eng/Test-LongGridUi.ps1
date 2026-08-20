@@ -8,7 +8,8 @@ param(
 
     [switch]$NoBuild,
     [switch]$ContractOnly,
-    [switch]$DesktopHostDevelopmentOptIn
+    [switch]$DesktopHostDevelopmentOptIn,
+    [switch]$AcknowledgeKnownUiaCrashRisk
 )
 
 $ErrorActionPreference = 'Stop'
@@ -3166,6 +3167,31 @@ function Wait-UiaElementOnscreen {
 function Test-LiveUi {
     if ($env:OS -ne 'Windows_NT') {
         throw 'The live Long Grid UI smoke requires Windows.'
+    }
+
+    $runtimePreflightPath = Join-Path $PSScriptRoot `
+        'Test-LongGridWinUiUiaRuntime.ps1'
+    $runtimePreflightJson = & powershell `
+        -NoProfile `
+        -ExecutionPolicy Bypass `
+        -File $runtimePreflightPath
+    Assert-Condition ($LASTEXITCODE -eq 0) `
+        'The WinUI cross-process UIA runtime preflight failed to execute.'
+    $runtimePreflight = $runtimePreflightJson | ConvertFrom-Json
+    if (
+        $runtimePreflight.outcome -eq 'BlockedByKnownUpstream' -and
+        -not $AcknowledgeKnownUiaCrashRisk)
+    {
+        throw (
+            'Live cross-process UIA was blocked before application launch: ' +
+            'WindowsAppRuntime ' +
+            $runtimePreflight.actual.runtimePackageVersion +
+            ' / Microsoft.UI.Xaml.dll ' +
+            $runtimePreflight.actual.xamlFileVersion +
+            ' matches the audited RPC_E_WRONG_THREAD fail-fast pair. ' +
+            'Use -ContractOnly, install an upstream-fixed stable runtime, or ' +
+            'explicitly pass -AcknowledgeKnownUiaCrashRisk in a disposable ' +
+            'diagnostic session.')
     }
 
     if (-not $NoBuild) {
