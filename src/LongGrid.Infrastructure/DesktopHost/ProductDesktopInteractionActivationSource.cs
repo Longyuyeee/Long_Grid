@@ -534,9 +534,15 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         {
             activationAvailable = true;
         }
-        else if (!EnterKeyboardProxy())
+        else if (kind != ProductDesktopInteractionForwardedInputKind
+                .AssistiveTechnologyActivation
+            && !EnterKeyboardProxy())
         {
             _ = cancelSelection();
+            RestoreActivationWindowPolicy();
+            activationAvailable = true;
+            _ = NativeMethods.ShowWindow(Handle, NativeMethods.SwShowNoActivate);
+            _ = NativeMethods.UpdateWindow(Handle);
             consumed = false;
         }
         return consumed;

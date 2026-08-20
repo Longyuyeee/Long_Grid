@@ -146,7 +146,7 @@
 - 创建过程不读取文件内容、不移动真实文件；
 - 完成后用户无需进入控制中心即可建立第一个方格。
 
-**2026-08-20 实施状态**：`InProgress`。空态/非空态主点击、产品菜单、主显示器 `Ctrl+Alt+N` 和标准 UIA Invoke 均进入带 revision/topology/source 事实的同一请求。请求不再立即创建，而是建立唯一可编辑 Preview Session；正式 App 对话框显示默认名称与候选位置/尺寸，非法名称禁用确认，取消或 workspace/topology/display/host 变化均零提交，确认后二次复核再进入唯一提交协调器。当前预览仍由控制中心 `ContentDialog` 承载，不是 DesktopHost 候选位置内原生就地表面；本轮实机交互证据因 Windows 自动化窗口枚举超时未取得，全量测试也保留一个既有 UIA activation 失败。因此 PF-002D 与 PF-002 均不得标记完成；保存失败窗口补偿、拖画矩形、已选引用创建及物理 UI/无障碍/DPI 证据仍未完成。证据见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)至 [Stage 160](160-pf002d1-editable-create-preview-audit.md)。
+**2026-08-20 实施状态**：`InProgress`。空态/非空态主点击、产品菜单、主显示器 `Ctrl+Alt+N` 和标准 UIA Invoke 均进入带 revision/topology/source 事实的同一请求。请求不再立即创建，而是建立唯一可编辑 Preview Session；正式 App 对话框显示默认名称与候选位置/尺寸，非法名称禁用确认，取消或 workspace/topology/display/host 变化均零提交，确认后二次复核再进入唯一提交协调器。Stage 160 的 UIA activation 实测失败已修正：辅助技术路径不再抢前台，键盘代理被 Windows 拒绝后恢复 Passive，全量测试恢复 983/983。当前预览仍由控制中心 `ContentDialog` 承载，不是 DesktopHost 候选位置内原生就地表面；完整 App 打开—编辑—取消证据仍因窗口会话冲突 Pending。因此 PF-002D 与 PF-002 均不得标记完成；保存失败窗口补偿、拖画矩形、已选引用创建及物理 UI/无障碍/DPI 证据仍未完成。证据见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)至 [Stage 161](161-native-uia-activation-recovery-audit.md)。
 
 ### PF-003：桌面拖动、缩放与吸附
 

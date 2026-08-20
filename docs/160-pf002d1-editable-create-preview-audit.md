@@ -76,6 +76,8 @@
 
 全量失败位于 `WindowsProductDesktopHostUiaProviderTests.NativeActivationSourceExposesFiniteInvokeAndHideRestoreContract`，不是新增 Preview 测试，但仓库整体因此不得标记为全绿。该真实差异保留为合入前质量阻断，不能用新增测试通过数覆盖。
 
+**2026-08-20 后续修正**：Stage 161 证明失败来自 UIA 激活被错误绑定到键盘代理前台切换，且前台切换失败后缺少 Passive 恢复。修正后 UIA 使用无前台依赖路径，键盘代理受拒时恢复 NoActivate/CanActivate；原失败聚焦测试和全量 `983/983` 均通过。原始 982/983 结果作为发现证据保留，当前质量状态以 [Stage 161](161-native-uia-activation-recovery-audit.md) 为准。
+
 ### 4.2 正式 App 实机交互
 
 Release App 已真实启动成功；预期继续验证：从 DesktopHost 创建入口打开预览、默认名称选中、非法名称禁用确认、合法名称恢复、取消零提交。实际 Windows 自动化控制器连续三次在枚举窗口时超时，按工具安全流程停止，没有取得可复核窗口树、点击或输入证据。

@@ -212,6 +212,8 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 
 2026-08-20 PF-002D1 补充：桌面创建请求已从“admission 后立即默认创建”改为唯一可编辑 Preview Session；正式 App 对话框显示名称和候选位置/尺寸，非法名称禁用确认，取消、revision/topology/display/host 变化均零提交，确认后二次复核才进入唯一提交器。当前仍不是 DesktopHost 候选位置内的原生就地编辑表面，实机打开—编辑—取消证据未取得，且全量测试保留一个既有 UIA activation 失败；因此 PF-002D/PF-002 继续 `InProgress`。下一顺序为恢复真实测试门、完成 PF-002D2 原生表面，再进入 PF-002E 保存与可见发布补偿，详见 [Stage 160](160-pf002d1-editable-create-preview-audit.md)。
 
+2026-08-20 原生 UIA 恢复补充：Stage 160 的 982/983 差异已定位为 UIA Invoke 错误依赖键盘代理前台切换，以及切换受拒后未恢复 Passive。辅助技术激活现保持 NoActivate；pointer/keyboard 代理受 Windows 拒绝时恢复窗口策略和再次激活能力。真实 HWND/UIA 聚焦测试与全量 983/983 通过；完整 App 预览旅程仍 Pending，PF-002D2 顺序不变，详见 [Stage 161](161-native-uia-activation-recovery-audit.md)。
+
 ## 决策节奏
 
 - 每个高风险技术选择写 ADR。

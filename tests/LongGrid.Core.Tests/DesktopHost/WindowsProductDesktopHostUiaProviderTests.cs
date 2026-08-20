@@ -387,6 +387,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         Assert.False(forwarded.IsInjected);
         Assert.False(forwarded.IsAutoRepeat);
         Assert.True(source.ContractAttested);
+        Assert.False(source.OwnsForegroundWindow);
         Assert.False(source.RequestKeyboardInteraction());
         source.BindSelection(() => null, _ => false, () => false);
         Assert.Throws<ArgumentNullException>(() =>
@@ -399,7 +400,17 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         Assert.False(source.IsVisible);
         Assert.True(source.ApplyVisible());
         Assert.True(source.ContractAttested);
-        Assert.True(source.RequestKeyboardInteraction());
+        bool keyboardProxyEntered = source.RequestKeyboardInteraction();
+        if (keyboardProxyEntered)
+        {
+            Assert.True(source.OwnsForegroundWindow);
+        }
+        else
+        {
+            Assert.False(source.OwnsForegroundWindow);
+            Assert.True(source.CanActivate);
+            Assert.True(source.ContractAttested);
+        }
 
         source.Dispose();
         source.Dispose();
