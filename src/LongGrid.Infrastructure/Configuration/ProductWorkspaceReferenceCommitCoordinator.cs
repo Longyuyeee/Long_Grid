@@ -109,6 +109,37 @@ public sealed record ProductWorkspaceContainerCommitResult(
         && Document is not null;
 }
 
+public enum ProductWorkspaceSelectedReferenceContainerCommitStatus
+{
+    Accepted,
+    StaleEditRevision,
+    ReducerRejected,
+    SaveRejected,
+    InvalidRequest,
+}
+
+public sealed record ProductWorkspaceSelectedReferenceContainerCommitRequest(
+    long ExpectedEditRevision,
+    int SourceContainerOrdinal,
+    IReadOnlyList<string> ItemIds,
+    ProductContainerState NewContainer);
+
+public sealed record ProductWorkspaceSelectedReferenceContainerCommitResult(
+    ProductWorkspaceSelectedReferenceContainerCommitStatus Status,
+    ProductWorkspaceEditError EditError,
+    ProductWorkspaceSaveSubmissionStatus? SubmissionStatus,
+    long EditRevision,
+    ProductWorkspaceState? State,
+    ProductConfigurationDocument? Document,
+    ProductWorkspaceReferenceBatchAdditionUndoToken? UndoToken)
+{
+    public bool IsAccepted =>
+        Status == ProductWorkspaceSelectedReferenceContainerCommitStatus.Accepted
+        && State is not null
+        && Document is not null
+        && UndoToken is not null;
+}
+
 public enum ProductWorkspaceContainerRemovalUndoCommitStatus
 {
     Accepted,
@@ -882,6 +913,101 @@ public sealed class ProductWorkspaceCommitCoordinator
                 editRevision,
                 undo.Edit.State,
                 projection.Document);
+        }
+    }
+
+    public ProductWorkspaceSelectedReferenceContainerCommitResult
+        CommitSelectedReferenceContainer(
+            ProductWorkspaceState state,
+            ProductWorkspaceSelectedReferenceContainerCommitRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.ItemIds);
+        ArgumentNullException.ThrowIfNull(request.NewContainer);
+
+        lock (gate)
+        {
+            if (request.ExpectedEditRevision != editRevision)
+            {
+                return SelectedReferenceContainerFailure(
+                    ProductWorkspaceSelectedReferenceContainerCommitStatus
+                        .StaleEditRevision);
+            }
+
+            string[] itemIds = request.ItemIds.ToArray();
+            if (request.SourceContainerOrdinal <= 0
+                || request.SourceContainerOrdinal > state.Containers.Count
+                || itemIds.Length == 0
+                || itemIds.Length > MaximumResolvedReferenceBatchSize
+                || itemIds.Any(string.IsNullOrWhiteSpace)
+                || itemIds.Distinct(StringComparer.Ordinal).Count() != itemIds.Length
+                || request.NewContainer.Items.Count != 0)
+            {
+                return SelectedReferenceContainerFailure(
+                    ProductWorkspaceSelectedReferenceContainerCommitStatus
+                        .InvalidRequest);
+            }
+
+            ProductContainerState source =
+                state.Containers[request.SourceContainerOrdinal - 1];
+            ProductWorkspaceEditResult edit =
+                ProductWorkspaceReducer.CreateContainerFromResolvedReferences(
+                    state,
+                    source.Id,
+                    itemIds,
+                    request.NewContainer);
+            if (!edit.IsSuccess)
+            {
+                return SelectedReferenceContainerFailure(
+                    ProductWorkspaceSelectedReferenceContainerCommitStatus
+                        .ReducerRejected,
+                    edit.Error);
+            }
+
+            ProductWorkspaceProjectionResult projection =
+                ProductWorkspaceConfigurationProjector.Project(edit.State!);
+            long nextEditRevision = checked(editRevision + 1);
+            ProductWorkspaceReferenceBatchAdditionUndoToken? undoToken =
+                projection.IsSuccess
+                    ? ProductWorkspaceReferenceBatchAdditionUndo.Prepare(
+                        state,
+                        edit.State!,
+                        nextEditRevision,
+                        Guid.NewGuid())
+                    : null;
+            if (!projection.IsSuccess || undoToken is null)
+            {
+                return SelectedReferenceContainerFailure(
+                    ProductWorkspaceSelectedReferenceContainerCommitStatus
+                        .ReducerRejected,
+                    ProductWorkspaceEditError.InvalidState,
+                    ProductWorkspaceSaveSubmissionStatus.InvalidState);
+            }
+
+            ProductWorkspaceSaveSubmissionResult submission = saves.Submit(edit);
+            if (!submission.IsAccepted)
+            {
+                return SelectedReferenceContainerFailure(
+                    ProductWorkspaceSelectedReferenceContainerCommitStatus.SaveRejected,
+                    submission.EditError,
+                    submission.Status);
+            }
+
+            editRevision = nextEditRevision;
+            pendingLayoutRecoveryUndo = null;
+            pendingReferenceRemovalUndo = null;
+            pendingReferenceReassignmentUndo = null;
+            pendingContainerRemovalUndo = null;
+            pendingReferenceBatchAdditionUndo = new(undoToken, state);
+            return new(
+                ProductWorkspaceSelectedReferenceContainerCommitStatus.Accepted,
+                ProductWorkspaceEditError.None,
+                submission.Status,
+                editRevision,
+                edit.State,
+                projection.Document,
+                undoToken);
         }
     }
 
@@ -1878,6 +2004,20 @@ public sealed class ProductWorkspaceCommitCoordinator
             undoStatus,
             submissionStatus,
             editRevision,
+            null,
+            null);
+
+    private ProductWorkspaceSelectedReferenceContainerCommitResult
+        SelectedReferenceContainerFailure(
+            ProductWorkspaceSelectedReferenceContainerCommitStatus status,
+            ProductWorkspaceEditError editError = ProductWorkspaceEditError.None,
+            ProductWorkspaceSaveSubmissionStatus? submissionStatus = null) =>
+        new(
+            status,
+            editError,
+            submissionStatus,
+            editRevision,
+            null,
             null,
             null);
 

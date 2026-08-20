@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-002 桌面直接创建方格**
-- 最新工程审计：[Stage 165](165-pf002-drag-rectangle-create-engineering-audit.md)；拖画矩形已贯通真实 Win32 Surface、DPI 几何、Preview、提交和真实磁盘重载，1002/1002 与静态 UI 合同通过；物理鼠标轨迹和 PF-002D 实机交互证据仍 Pending，PF-002 完成前不进入 PF-003
+- 最新工程审计：[Stage 166](166-pf002h-selected-reference-atomic-transaction-audit.md)；已选引用创建的原子改归属/建格配置事务通过真实磁盘重载、真实写租约失败和恢复验证，全量 1005/1005 与静态 UI 合同通过；正式 App/Preview/自动补偿接线及物理交互证据仍 Pending，PF-002 完成前不进入 PF-003
 
 ## 1. 本文解决什么问题
 
@@ -59,7 +59,7 @@
 | 顺序 | ID | 用户功能 | 当前状态 | 对标目标 |
 | ---: | --- | --- | --- | --- |
 | 1 | PF-001 | 桌面方格总开关与桌面优先启动 | `InProgress`：总开关和桌面空状态已完成，桌面优先最终呈现待收口 | iTop Enable Boxes |
-| 2 | PF-002 | 桌面直接创建方格 | `InProgress`：多输入、命名/布局和候选位置原生预览已实现；真实交互证据和保存补偿待完成 | iTop/Fences 多入口创建 |
+| 2 | PF-002 | 桌面直接创建方格 | `InProgress`：多输入、命名/布局、原生预览、保存补偿、拖画和已选引用原子事务底座已实现；已选引用 App 接线与正式证据待完成 | iTop/Fences 多入口创建 |
 | 3 | PF-003 | 桌面拖动、缩放、吸附 | 预设位置/尺寸 | Fences/Nimi 直接布局 |
 | 4 | PF-004 | 方格标题栏与就近操作 | 部分 Core | Fences 标题栏操作 |
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | worker 有、UI 无 | Fences/Nimi 项目呈现 |
@@ -146,7 +146,7 @@
 - 创建过程不读取文件内容、不移动真实文件；
 - 完成后用户无需进入控制中心即可建立第一个方格。
 
-**2026-08-20 实施状态**：`InProgress`。空态/非空态主点击、产品菜单、`Ctrl+Alt+N`、UIA Invoke 和 Explicit 桌面拖画均进入带 revision/topology/source 事实的同一请求。拖画只接受可信非注入的 Win32 down/move/up/capture 序列，在内存绘制 outline；释放后携带绝对像素矩形进入 admission。创建策略按显示器工作区和 48–768 DPI 转为相对 DIP，拒绝越界及小于 `160×120 DIP` 的矩形，Preview 改名也保留原矩形，最终创建不再重新回落默认布局。PF-002E 的保存失败补偿继续复用。真实 Win32 Surface 保持不取前台，负坐标 200% DPI 的 `640×400 px` 实际得到并从真实配置文件重载为 `320×200 DIP`；全量 1002/1002，Release 构建和 146-ID 静态 UI 合同通过。完整 App 物理鼠标 down/move/up、打开—编辑—取消—确认仍因当前外部激活证据问题 Pending；已选引用创建及正式无障碍证据也未完成，因此 PF-002 不得标记 Complete。证据见 [Stage 165](165-pf002-drag-rectangle-create-engineering-audit.md)。
+**2026-08-20 实施状态**：`InProgress`。空态/非空态主点击、产品菜单、`Ctrl+Alt+N`、UIA Invoke 和 Explicit 桌面拖画均进入带 revision/topology/source 事实的同一请求；拖画的绝对像素矩形经工作区/DPI 校验后贯穿 Preview、提交和 PF-002E 补偿。已选引用创建新增最多 256 项的原子配置事务：只把 Long方格引用从未锁定来源改归属到新方格，不复制引用、不操作真实文件，任一无效项均整批拒绝。两个真实文件的配置保存/重载和一次撤销均保持文件内容不变；真实 `.lock` 写租约冲突进入 `WriteLeaseUnavailable`，磁盘维持旧状态，释放后完整恢复成功。全量 1005/1005，Release 构建和 146-ID 静态 UI 合同通过。该能力尚未接入正式 App 的选择快照、Preview 与保存失败自动补偿；完整 App 物理鼠标、打开—编辑—取消—确认及正式无障碍证据也仍 Pending，因此 PF-002 不得标记 Complete。证据见 [Stage 166](166-pf002h-selected-reference-atomic-transaction-audit.md)。
 
 ### PF-003：桌面拖动、缩放与吸附
 
@@ -879,6 +879,6 @@
 
 ## 15. 当前立即执行项
 
-当前开发项为 **PF-002：桌面直接创建方格**。PF-002A/B/C/D1、PF-002D2a、PF-002E 与拖画矩形工程链已完成；下一门禁是在无并发输入 Windows 会话验证真实鼠标拖画及打开—编辑—取消—确认。所有入口继续复用唯一 Preview Session、创建策略、补偿和协调器，不得建立第二套保存链。
+当前开发项为 **PF-002：桌面直接创建方格**。PF-002A/B/C/D1、PF-002D2a、PF-002E、拖画矩形工程链及 PF-002H 原子配置事务底座已完成；下一编码切片是把 Long方格选择快照接入唯一 Preview Session 与 PF-002E 自动补偿，不得建立第二套保存链。
 
-随后完成使用 Long方格已选引用创建和 PF-002F 正式设备/无障碍证据。PF-002 全部验收关闭后才进入 PF-003。G0 外部证据并行保留，任何版本在 G0/签名/安装未完成前不得分发，但不再用这些门禁替代产品功能开发。
+并行门禁是在无并发输入 Windows 会话验证真实鼠标拖画及打开—编辑—取消—确认；随后完成 PF-002F 正式设备/无障碍证据。PF-002 全部验收关闭后才进入 PF-003。G0 外部证据并行保留，任何版本在 G0/签名/安装未完成前不得分发，但不再用这些门禁替代产品功能开发。

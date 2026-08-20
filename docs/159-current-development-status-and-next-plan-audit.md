@@ -323,3 +323,11 @@ PF-002E 记为 Engineering Complete；PF-002D 的真实打开—编辑—取消�
 Stage 165 已让 `PointerDrag` 请求携带绝对像素矩形，真实 Win32 Surface 在 Explicit 模式使用 capture、move、button-up 和 capture-cancel 生命周期绘制内存 outline；App 在同一 admission、Preview、提交和 PF-002E 补偿链中保留该矩形。显示器工作区、负坐标、DPI、最小尺寸和越界均由正式创建策略验证。真实 Win32 Surface 没有取得前台，真实配置文件重载保留精确 DIP 几何。
 
 本切片记 Engineering Pass，不记物理交互 Pass：当前会话没有执行真实鼠标 down/move/up 到正式 App 的全链，因此 PF-002 继续 `InProgress`。下一开发项为“使用 Long方格已选引用创建”；物理拖画与 PF-002D 预览输入矩阵在合规 Windows 会话并行补证。
+
+## 15. 2026-08-20 PF-002H 原子事务基础增量复审
+
+Stage 166 已把“建新方格”和“已选引用从来源改归属到新方格”收敛为一个 reducer 状态转换、一个配置投影和一次保存提交。请求最多 256 项，只接受非空、唯一、存在且已解析的 Long方格引用；来源锁定、陈旧修订或任一无效项均整批拒绝，零保存、零修订推进。该链不读取 Explorer 选择，也不移动真实文件。
+
+真实临时目录中创建的两个文本文件经正式配置保存、重载和一次撤销后内容保持不变；实际独占 `.lock` 文件令保存进入 `Failed/WriteLeaseUnavailable`，磁盘重载仍为旧状态，解除租约后完整状态恢复成功。首次静态合同因旧的全协调器提交次数硬编码真实失败，已改为检查新方法范围内恰好一次提交并重新通过。全量测试为 1005/1005。
+
+严格结论是 PF-002H 的**原子事务基础通过**，不是用户闭环完成。下一切片须从正式 Long方格选择捕获带 revision/topology/source/fingerprint 的有限快照，复用唯一 Preview Session，并将完整恢复令牌接入 PF-002E 同次保存失败自动补偿；同时补 256/257、选择变化、取消、连续编辑和 UIA/Narrator。PF-002H、PF-002、PF-001 与顶层完成口径均保持不变，详见 [Stage 166](166-pf002h-selected-reference-atomic-transaction-audit.md)。

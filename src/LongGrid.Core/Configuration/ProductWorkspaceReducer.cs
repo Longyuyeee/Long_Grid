@@ -334,6 +334,77 @@ public static class ProductWorkspaceReducer
         return Validate(working with { Containers = containers }, changed: true);
     }
 
+    public static ProductWorkspaceEditResult CreateContainerFromResolvedReferences(
+        ProductWorkspaceState state,
+        string sourceContainerId,
+        IReadOnlyList<string> itemIds,
+        ProductContainerState newContainer)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(itemIds);
+        ArgumentNullException.ThrowIfNull(newContainer);
+        if (itemIds.Count == 0
+            || itemIds.Any(string.IsNullOrWhiteSpace)
+            || itemIds.Distinct(StringComparer.Ordinal).Count() != itemIds.Count
+            || newContainer.Items.Count != 0)
+        {
+            return Failure(ProductWorkspaceEditError.InvalidState);
+        }
+
+        ProductWorkspaceEditResult? preparation =
+            Prepare(state, out ProductWorkspaceState? snapshot);
+        if (preparation is not null)
+        {
+            return preparation;
+        }
+
+        ProductWorkspaceState working = snapshot!;
+        int sourceIndex = FindContainer(working, sourceContainerId);
+        if (sourceIndex < 0)
+        {
+            return Failure(ProductWorkspaceEditError.ContainerNotFound);
+        }
+        if (FindContainer(working, newContainer.Id) >= 0)
+        {
+            return Failure(ProductWorkspaceEditError.InvalidState);
+        }
+
+        ProductContainerState source = working.Containers[sourceIndex];
+        if (source.IsLocked)
+        {
+            return Failure(ProductWorkspaceEditError.ContainerLocked);
+        }
+
+        var selectedIds = itemIds.ToHashSet(StringComparer.Ordinal);
+        ProductItemReferenceState[] selected = source.Items
+            .Where(item => selectedIds.Contains(item.Id))
+            .ToArray();
+        if (selected.Length != selectedIds.Count)
+        {
+            return Failure(ProductWorkspaceEditError.ItemNotFound);
+        }
+        if (selected.Any(item => item.Resolution !=
+            ProductItemReferenceResolution.Resolved))
+        {
+            return Failure(ProductWorkspaceEditError.InvalidState);
+        }
+
+        ProductContainerState[] containers = working.Containers.ToArray();
+        containers[sourceIndex] = source with
+        {
+            Items = source.Items
+                .Where(item => !selectedIds.Contains(item.Id))
+                .ToArray(),
+        };
+        ProductContainerState created = Clone(newContainer) with
+        {
+            Items = selected.Select(Clone).ToArray(),
+        };
+        return Validate(
+            working with { Containers = [.. containers, created] },
+            changed: true);
+    }
+
     private static ProductWorkspaceEditResult EditContainer(
         ProductWorkspaceState state,
         string containerId,

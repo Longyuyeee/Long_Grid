@@ -20,6 +20,8 @@ $referenceReviewCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReferenceReview.cs'
 $referenceCommitCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceReferenceCommitCoordinator.cs'
+$workspaceReducerCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceReducer.cs'
 $referencePresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReferenceReviewPresentation.cs'
 $resolvedReferenceAddPresentationCodePath = Join-Path $projectRoot `
@@ -208,6 +210,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $referenceCommitCode = Get-Content `
         -LiteralPath $referenceCommitCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceReducerCode = Get-Content `
+        -LiteralPath $workspaceReducerCodePath `
         -Raw `
         -Encoding UTF8
     $referencePresentationCode = Get-Content `
@@ -936,6 +942,21 @@ function Test-SourceContract {
         $appCode.Contains('ApplyProductWorkspaceCreateSaveRollbackState(') -and
         $codeBehind.Contains('WorkspaceCreateRolledBack:')
     ) 'Desktop create publication must bind workspace/save revisions, compensate matching failures, and expose a finite rollback state.'
+    Assert-Condition (
+        $workspaceReducerCode.Contains(
+            'CreateContainerFromResolvedReferences(') -and
+        $workspaceReducerCode.Contains(
+            'selected.Any(item => item.Resolution !=') -and
+        $workspaceReducerCode.Contains(
+            'Items = selected.Select(Clone).ToArray()') -and
+        $referenceCommitCode.Contains(
+            'CommitSelectedReferenceContainer(') -and
+        $referenceCommitCode.Contains(
+            'itemIds.Length > MaximumResolvedReferenceBatchSize') -and
+        $referenceCommitCode.Contains(
+            'ProductWorkspaceReferenceBatchAdditionUndo.Prepare(') -and
+        $referenceCommitCode.Contains('saves.Submit(edit)')
+    ) 'Selected-reference container creation must atomically move bounded resolved references, submit once, and retain a fingerprint-gated restore token.'
     foreach ($buttonId in @(
             'ProductWorkspaceContainerCreateButton',
             'ProductWorkspaceContainerRenameButton',
@@ -2491,8 +2512,30 @@ function Test-SourceContract {
         $codeBehind -match 'ProductWorkspaceHealthFilterSelector_SelectionChanged' -and
         -not ($codeBehind -match 'ProductWorkspaceRead.*(State|CatalogEntry|PersistedTarget|CanonicalTarget)')
     ) 'MainWindow must filter only the presentation contract, never workspace identity state.'
+    $selectedReferenceContainerCommitStart = $referenceCommitCode.IndexOf(
+        'public ProductWorkspaceSelectedReferenceContainerCommitResult',
+        [System.StringComparison]::Ordinal)
+    $selectedReferenceContainerCommitEnd = if ($selectedReferenceContainerCommitStart -ge 0) {
+        $referenceCommitCode.IndexOf(
+            '    public ',
+            $selectedReferenceContainerCommitStart + 1,
+            [System.StringComparison]::Ordinal)
+    }
+    else {
+        -1
+    }
+    $selectedReferenceContainerCommitCode = if (
+        $selectedReferenceContainerCommitStart -ge 0 -and
+        $selectedReferenceContainerCommitEnd -gt $selectedReferenceContainerCommitStart) {
+        $referenceCommitCode.Substring(
+            $selectedReferenceContainerCommitStart,
+            $selectedReferenceContainerCommitEnd - $selectedReferenceContainerCommitStart)
+    }
+    else {
+        ''
+    }
     Assert-Condition (
-        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 13) -and
+        ([regex]::Matches($selectedReferenceContainerCommitCode, 'saves\.Submit\(edit\)').Count -eq 1) -and
         $referenceCommitCode -match 'editRevision\s*=\s*checked\(editRevision\s*\+\s*1\)' -and
         $referenceCommitCode -match 'ProductWorkspaceReferenceGate\.Evaluate' -and
         $referenceCommitCode -match 'ProductWorkspaceConfigurationProjector\.Project' -and
@@ -2961,7 +3004,7 @@ function Test-SourceContract {
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
         productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-single-undo'
-        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-create-save-compensation-config-only'
+        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-create-save-compensation-selected-reference-atomic-move-config-only'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'
                     productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-invoke-no-file-operations'
