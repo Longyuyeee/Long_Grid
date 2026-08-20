@@ -44,6 +44,8 @@ public partial class App : Application
     private bool closeAfterDrain;
     private bool closingDrainInProgress;
     private bool activationPending;
+    private ProductDesktopWorkspaceCreatePreviewSession?
+        desktopWorkspaceCreatePreview;
 
     public App()
     {
@@ -455,12 +457,19 @@ public partial class App : Application
 
         if (currentWindow.DispatcherQueue.HasThreadAccess)
         {
+            CancelDesktopWorkspaceCreatePreview(
+                ProductDesktopWorkspaceCreatePreviewFailure.StaleTopology);
             ApplyProductWorkspaceSessionViews();
             return;
         }
 
         _ = currentWindow.DispatcherQueue.TryEnqueue(
-            ApplyProductWorkspaceSessionViews);
+            () =>
+            {
+                CancelDesktopWorkspaceCreatePreview(
+                    ProductDesktopWorkspaceCreatePreviewFailure.StaleTopology);
+                ApplyProductWorkspaceSessionViews();
+            });
     }
 
     private void ProductDesktopHostLifecycle_SnapshotChanged(
@@ -475,6 +484,7 @@ public partial class App : Application
 
         if (currentWindow.DispatcherQueue.HasThreadAccess)
         {
+            CancelDesktopWorkspaceCreatePreviewIfHostUnavailable(snapshot);
             currentWindow.ApplyProductDesktopHostLifecycleState(
                 snapshot,
                 productDesktopHostLifecycle.CanRequestKeyboardInteraction);
@@ -482,9 +492,13 @@ public partial class App : Application
         }
 
         _ = currentWindow.DispatcherQueue.TryEnqueue(
-            () => currentWindow.ApplyProductDesktopHostLifecycleState(
-                snapshot,
-                productDesktopHostLifecycle.CanRequestKeyboardInteraction));
+            () =>
+            {
+                CancelDesktopWorkspaceCreatePreviewIfHostUnavailable(snapshot);
+                currentWindow.ApplyProductDesktopHostLifecycleState(
+                    snapshot,
+                    productDesktopHostLifecycle.CanRequestKeyboardInteraction);
+            });
     }
 
     private void MainWindow_DesktopKeyboardInteractionRequested(
@@ -539,6 +553,14 @@ public partial class App : Application
         if (currentWindow is null)
         {
             return;
+        }
+
+        if (desktopWorkspaceCreatePreview?.Snapshot.Request.WorkspaceRevision
+            is long previewRevision
+            && previewRevision != workspaceCommits.CurrentEditRevision)
+        {
+            CancelDesktopWorkspaceCreatePreview(
+                ProductDesktopWorkspaceCreatePreviewFailure.StaleWorkspace);
         }
 
         currentWindow.ApplyProductWorkspaceSessionState(productWorkspaceSession);
@@ -1058,47 +1080,250 @@ public partial class App : Application
             return false;
         }
 
-        return currentWindow.DispatcherQueue.TryEnqueue(() =>
+        return currentWindow.DispatcherQueue.TryEnqueue(async () =>
         {
-            ProductDisplayTopologySnapshot topology =
-                productDisplayTopology.Snapshot;
-            bool requestIsCurrent =
-                ProductDesktopWorkspaceCreateAdmission.Evaluate(
-                    request,
-                    workspaceCommits.CurrentEditRevision,
-                    topology.Generation).CanCreate;
-            bool displayIsAuthoritative = topology.IsAuthoritative
-                && topology.Displays.Any(display => string.Equals(
-                    display.StableId,
-                    request.DisplayId,
-                    StringComparison.Ordinal));
-            if (!requestIsCurrent
-                || !displayIsAuthoritative
-                || productDesktopHostLifecycle.Snapshot.Status is not (
-                    ProductDesktopHostLifecycleStatus.AwaitingWorkspace
-                    or ProductDesktopHostLifecycleStatus.ReadyReadOnly))
+            try
             {
-                currentWindow.ApplyDesktopWorkspaceCreateResult(false);
-                return;
+                await RunDesktopWorkspaceCreatePreviewAsync(
+                    currentWindow,
+                    request);
             }
-
-            ProductWorkspaceContainerCommitResult result =
-                CommitProductWorkspaceContainerActionCore(
-                    ProductWorkspaceContainerCommitAction.Create,
-                    workspaceCommits.CurrentEditRevision,
-                    containerOrdinal: 0,
-                    name: string.Empty,
-                    stateValue: null,
-                    colorPreset: null,
-                    opacityPreset: null,
-                    positionPreset: null,
-                    sizePreset: null,
-                    confirmed: false,
-                    createDisplayId: request.DisplayId,
-                    useDefaultName: true);
-            currentWindow.ApplyDesktopWorkspaceCreateResult(
-                result.IsAccepted);
+            catch (Exception exception) when (
+                exception is InvalidOperationException
+                    or ArgumentException
+                    or System.Runtime.InteropServices.COMException)
+            {
+                CancelDesktopWorkspaceCreatePreview(
+                    ProductDesktopWorkspaceCreatePreviewFailure.HostUnavailable);
+                currentWindow.ApplyDesktopWorkspaceCreateResult(false);
+            }
         });
+    }
+
+    private async Task RunDesktopWorkspaceCreatePreviewAsync(
+        MainWindow currentWindow,
+        ProductDesktopWorkspaceCreateRequest request)
+    {
+        ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
+        ProductWorkspaceState? state = ResolveDesktopWorkspaceCreateState();
+        DisplayTopologyNode? display = topology.IsAuthoritative
+            ? topology.Displays.FirstOrDefault(candidate => string.Equals(
+                candidate.StableId,
+                request.DisplayId,
+                StringComparison.Ordinal))
+            : null;
+        bool requestIsCurrent =
+            ProductDesktopWorkspaceCreateAdmission.Evaluate(
+                request,
+                workspaceCommits.CurrentEditRevision,
+                topology.Generation).CanCreate;
+        if (!requestIsCurrent
+            || state is null
+            || display is null
+            || productDesktopHostLifecycle.Snapshot.Status is not (
+                ProductDesktopHostLifecycleStatus.AwaitingWorkspace
+                or ProductDesktopHostLifecycleStatus.ReadyReadOnly))
+        {
+            currentWindow.ApplyDesktopWorkspaceCreateResult(false);
+            return;
+        }
+
+        ProductWorkspaceContainerCreationDefaultsDecision defaults =
+            ProductWorkspaceContainerCreationDefaults.Evaluate(
+                state.Containers,
+                requestedName: null,
+                display.StableId,
+                display.WorkArea,
+                display.EffectiveDpi);
+        ProductDesktopWorkspaceCreatePreviewSession session =
+            ProductDesktopWorkspaceCreatePreviewSession.Start(request, defaults);
+        if (!session.Snapshot.CanSubmit)
+        {
+            currentWindow.ApplyDesktopWorkspaceCreatePreviewResult(
+                session.Snapshot,
+                created: false);
+            return;
+        }
+
+        CancelDesktopWorkspaceCreatePreview(
+            ProductDesktopWorkspaceCreatePreviewFailure.Replaced);
+        desktopWorkspaceCreatePreview = session;
+        currentWindow.Activate();
+        string? confirmedName =
+            await currentWindow.ShowDesktopWorkspaceCreatePreviewAsync(
+                session.Snapshot,
+                enteredName => EvaluateDesktopWorkspaceCreatePreviewName(
+                    session,
+                    enteredName));
+        if (!ReferenceEquals(desktopWorkspaceCreatePreview, session))
+        {
+            return;
+        }
+
+        if (confirmedName is null)
+        {
+            ProductDesktopWorkspaceCreatePreviewSnapshot cancelled =
+                session.Cancel(
+                    ProductDesktopWorkspaceCreatePreviewFailure.UserCancelled);
+            desktopWorkspaceCreatePreview = null;
+            currentWindow.ApplyDesktopWorkspaceCreatePreviewResult(
+                cancelled,
+                created: false);
+            return;
+        }
+
+        topology = productDisplayTopology.Snapshot;
+        bool displayStillAvailable = topology.IsAuthoritative
+            && topology.Displays.Any(candidate => string.Equals(
+                candidate.StableId,
+                request.DisplayId,
+                StringComparison.Ordinal));
+        ProductDesktopHostLifecycleSnapshot host =
+            productDesktopHostLifecycle.Snapshot;
+        if (!displayStillAvailable
+            || host.Status is not (
+                ProductDesktopHostLifecycleStatus.AwaitingWorkspace
+                or ProductDesktopHostLifecycleStatus.ReadyReadOnly)
+            || host.ExplicitInteractionActive)
+        {
+            ProductDesktopWorkspaceCreatePreviewSnapshot cancelled =
+                session.Cancel(displayStillAvailable
+                    ? ProductDesktopWorkspaceCreatePreviewFailure.HostUnavailable
+                    : ProductDesktopWorkspaceCreatePreviewFailure.DisplayUnavailable);
+            desktopWorkspaceCreatePreview = null;
+            currentWindow.ApplyDesktopWorkspaceCreatePreviewResult(
+                cancelled,
+                created: false);
+            return;
+        }
+
+        ProductDesktopWorkspaceCreatePreviewSnapshot submitting =
+            session.PrepareSubmit(
+                workspaceCommits.CurrentEditRevision,
+                topology.Generation);
+        if (submitting.Status !=
+            ProductDesktopWorkspaceCreatePreviewStatus.Submitting)
+        {
+            desktopWorkspaceCreatePreview = null;
+            currentWindow.ApplyDesktopWorkspaceCreatePreviewResult(
+                submitting,
+                created: false);
+            return;
+        }
+
+        ProductWorkspaceContainerCommitResult result =
+            CommitProductWorkspaceContainerActionCore(
+                ProductWorkspaceContainerCommitAction.Create,
+                workspaceCommits.CurrentEditRevision,
+                containerOrdinal: 0,
+                name: submitting.Name,
+                stateValue: null,
+                colorPreset: null,
+                opacityPreset: null,
+                positionPreset: null,
+                sizePreset: null,
+                confirmed: false,
+                createDisplayId: request.DisplayId,
+                useDefaultName: false);
+        desktopWorkspaceCreatePreview = null;
+        currentWindow.ApplyDesktopWorkspaceCreatePreviewResult(
+            submitting,
+            result.IsAccepted);
+    }
+
+    private ProductDesktopWorkspaceCreatePreviewSnapshot
+        EvaluateDesktopWorkspaceCreatePreviewName(
+            ProductDesktopWorkspaceCreatePreviewSession session,
+            string enteredName)
+    {
+        if (!ReferenceEquals(desktopWorkspaceCreatePreview, session))
+        {
+            return session.Snapshot;
+        }
+
+        ProductWorkspaceState? state = ResolveDesktopWorkspaceCreateState();
+        ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
+        DisplayTopologyNode? display = topology.IsAuthoritative
+            ? topology.Displays.FirstOrDefault(candidate => string.Equals(
+                candidate.StableId,
+                session.Snapshot.Request.DisplayId,
+                StringComparison.Ordinal))
+            : null;
+        if (state is null || display is null)
+        {
+            return session.Cancel(display is null
+                ? ProductDesktopWorkspaceCreatePreviewFailure.DisplayUnavailable
+                : ProductDesktopWorkspaceCreatePreviewFailure.HostUnavailable);
+        }
+        if (session.Snapshot.Request.WorkspaceRevision !=
+            workspaceCommits.CurrentEditRevision)
+        {
+            return session.Cancel(
+                ProductDesktopWorkspaceCreatePreviewFailure.StaleWorkspace);
+        }
+        if (session.Snapshot.Request.TopologyGeneration != topology.Generation)
+        {
+            return session.Cancel(
+                ProductDesktopWorkspaceCreatePreviewFailure.StaleTopology);
+        }
+
+        ProductWorkspaceContainerCreationDefaultsDecision decision =
+            ProductWorkspaceContainerCreationDefaults.Evaluate(
+                state.Containers,
+                enteredName,
+                display.StableId,
+                display.WorkArea,
+                display.EffectiveDpi);
+        return session.UpdateName(enteredName, decision);
+    }
+
+    private ProductWorkspaceState? ResolveDesktopWorkspaceCreateState()
+    {
+        ProductWorkspaceState? state = productWorkspaceSession.State;
+        bool creatingFirstConfiguration =
+            productWorkspaceSession.Status ==
+                ProductWorkspaceSessionStatus.NoSavedConfiguration
+            && currentConfigurationLoadResult?.Status ==
+                ProductConfigurationLoadStatus.Missing;
+        if (creatingFirstConfiguration)
+        {
+            state = ProductWorkspaceConfigurationResolver.Resolve(
+                ProductConfigurationDefaults.CreateEmpty(),
+                Array.Empty<DesktopCatalogEntry>()).State;
+        }
+        if (state is null
+            || (productWorkspaceSession.IsReadOnly && !creatingFirstConfiguration))
+        {
+            return null;
+        }
+        return StampAuthoritativeDisplayTopology(state);
+    }
+
+    private void CancelDesktopWorkspaceCreatePreviewIfHostUnavailable(
+        ProductDesktopHostLifecycleSnapshot snapshot)
+    {
+        if (snapshot.Status is not (
+                ProductDesktopHostLifecycleStatus.AwaitingWorkspace
+                or ProductDesktopHostLifecycleStatus.ReadyReadOnly)
+            || snapshot.ExplicitInteractionActive)
+        {
+            CancelDesktopWorkspaceCreatePreview(
+                ProductDesktopWorkspaceCreatePreviewFailure.HostUnavailable);
+        }
+    }
+
+    private void CancelDesktopWorkspaceCreatePreview(
+        ProductDesktopWorkspaceCreatePreviewFailure failure)
+    {
+        ProductDesktopWorkspaceCreatePreviewSession? session =
+            desktopWorkspaceCreatePreview;
+        if (session is null)
+        {
+            return;
+        }
+        _ = session.Cancel(failure);
+        desktopWorkspaceCreatePreview = null;
+        window?.CancelDesktopWorkspaceCreatePreview();
     }
 
     private ProductWorkspaceContainerRemovalUndoCommitResult
@@ -1502,6 +1727,8 @@ public partial class App : Application
         }
 
         args.Cancel = true;
+        CancelDesktopWorkspaceCreatePreview(
+            ProductDesktopWorkspaceCreatePreviewFailure.WindowClosing);
         if (closingDrainInProgress)
         {
             return;

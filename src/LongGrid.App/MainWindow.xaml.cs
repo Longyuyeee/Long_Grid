@@ -30,6 +30,7 @@ public sealed partial class MainWindow : Window
     private bool _desktopHostFeatureEnabled;
     private bool _desktopHostConnected;
     private bool _suppressBoxesEnabledChange;
+    private ContentDialog? _desktopWorkspaceCreatePreviewDialog;
 
     internal event EventHandler? DesktopKeyboardInteractionRequested;
     internal event Action<bool>? BoxesEnabledChangeRequested;
@@ -787,6 +788,196 @@ public sealed partial class MainWindow : Window
                 ? "DesktopWorkspaceCreateCommitted:DesktopFilesChanged=False"
                 : "DesktopWorkspaceCreateRejected:DesktopFilesChanged=False");
     }
+
+    public void ApplyDesktopWorkspaceCreatePreviewResult(
+        ProductDesktopWorkspaceCreatePreviewSnapshot snapshot,
+        bool created)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ProductWorkspaceViewStatus.Text = created
+            ? $"已创建“{snapshot.Name}”并提交保存；没有移动或读取桌面文件。"
+            : snapshot.Status ==
+                ProductDesktopWorkspaceCreatePreviewStatus.Cancelled
+                ? "已取消新方格预览；没有创建方格或修改桌面文件。"
+                : snapshot.Status ==
+                    ProductDesktopWorkspaceCreatePreviewStatus.Submitting
+                    ? "创建请求未能提交；没有留下新方格或修改桌面文件。"
+                : DescribeDesktopWorkspaceCreatePreviewFailure(snapshot.Failure);
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceViewStatus,
+            $"DesktopWorkspaceCreatePreview{snapshot.Status}:" +
+                $"Failure={snapshot.Failure}:Created={created}:" +
+                "DesktopFilesChanged=False");
+    }
+
+    public async Task<string?> ShowDesktopWorkspaceCreatePreviewAsync(
+        ProductDesktopWorkspaceCreatePreviewSnapshot initial,
+        Func<
+            string,
+            ProductDesktopWorkspaceCreatePreviewSnapshot> evaluateName)
+    {
+        ArgumentNullException.ThrowIfNull(initial);
+        ArgumentNullException.ThrowIfNull(evaluateName);
+        if (!initial.CanSubmit || _desktopWorkspaceCreatePreviewDialog is not null)
+        {
+            return null;
+        }
+
+        var nameEditor = new TextBox
+        {
+            Header = "方格名称",
+            Text = initial.Name,
+            MaxLength = ProductConfigurationLimits.MaximumNameLength,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            SelectionStart = 0,
+            SelectionLength = initial.Name.Length,
+        };
+        AutomationProperties.SetAutomationId(
+            nameEditor,
+            "DesktopWorkspaceCreatePreviewNameEditor");
+        AutomationProperties.SetName(nameEditor, "方格名称");
+
+        var placementSummary = new TextBlock
+        {
+            Text = DescribeDesktopWorkspaceCreatePlacement(initial),
+            TextWrapping = TextWrapping.Wrap,
+        };
+        AutomationProperties.SetAutomationId(
+            placementSummary,
+            "DesktopWorkspaceCreatePreviewPlacementSummary");
+
+        var validation = new TextBlock
+        {
+            Text = "名称可用；确认前不会创建方格或修改配置。",
+            TextWrapping = TextWrapping.Wrap,
+        };
+        AutomationProperties.SetAutomationId(
+            validation,
+            "DesktopWorkspaceCreatePreviewValidation");
+        AutomationProperties.SetLiveSetting(validation, AutomationLiveSetting.Polite);
+
+        var content = new StackPanel
+        {
+            Spacing = 12,
+            Children =
+            {
+                new TextBlock
+                {
+                    Text = "检查名称和候选位置后再创建。取消不会留下方格，也不会读取、移动或修改桌面文件。",
+                    TextWrapping = TextWrapping.Wrap,
+                },
+                nameEditor,
+                placementSummary,
+                validation,
+            },
+        };
+        var dialog = new ContentDialog
+        {
+            Title = "预览新方格",
+            Content = content,
+            PrimaryButtonText = "创建并保存",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary,
+            IsPrimaryButtonEnabled = true,
+            XamlRoot = RootLayout.XamlRoot,
+        };
+        AutomationProperties.SetAutomationId(
+            dialog,
+            "DesktopWorkspaceCreatePreviewDialog");
+
+        ProductDesktopWorkspaceCreatePreviewSnapshot current = initial;
+        void ApplyValidation()
+        {
+            current = evaluateName(nameEditor.Text);
+            dialog.IsPrimaryButtonEnabled = current.CanSubmit;
+            validation.Text = DescribeDesktopWorkspaceCreatePreviewFailure(
+                current.Failure);
+            placementSummary.Text = DescribeDesktopWorkspaceCreatePlacement(
+                current);
+            AutomationProperties.SetHelpText(nameEditor, validation.Text);
+            AutomationProperties.SetItemStatus(
+                validation,
+                $"DesktopWorkspaceCreatePreview:{current.Status}:" +
+                    $"Failure={current.Failure}:CanSubmit={current.CanSubmit}:" +
+                    "ConfigurationChanged=False:DesktopFilesChanged=False");
+        }
+
+        nameEditor.TextChanged += (_, _) => ApplyValidation();
+        dialog.Opened += (_, _) =>
+        {
+            _ = nameEditor.Focus(FocusState.Programmatic);
+            nameEditor.SelectAll();
+        };
+        dialog.PrimaryButtonClick += (_, args) =>
+        {
+            ApplyValidation();
+            args.Cancel = !current.CanSubmit;
+        };
+
+        _desktopWorkspaceCreatePreviewDialog = dialog;
+        ProductWorkspaceViewStatus.Text =
+            "正在预览新方格；确认前配置和桌面文件均未改变。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceViewStatus,
+            "DesktopWorkspaceCreatePreviewEditing:Changed=False:" +
+                "DesktopFilesChanged=False");
+        try
+        {
+            ApplyValidation();
+            ContentDialogResult result = await dialog.ShowAsync();
+            return result == ContentDialogResult.Primary && current.CanSubmit
+                ? current.Name
+                : null;
+        }
+        finally
+        {
+            if (ReferenceEquals(_desktopWorkspaceCreatePreviewDialog, dialog))
+            {
+                _desktopWorkspaceCreatePreviewDialog = null;
+            }
+        }
+    }
+
+    public void CancelDesktopWorkspaceCreatePreview()
+    {
+        ContentDialog? dialog = _desktopWorkspaceCreatePreviewDialog;
+        _desktopWorkspaceCreatePreviewDialog = null;
+        dialog?.Hide();
+    }
+
+    private static string DescribeDesktopWorkspaceCreatePlacement(
+        ProductDesktopWorkspaceCreatePreviewSnapshot snapshot)
+    {
+        ProductContainerPlacementState? placement = snapshot.CandidatePlacement;
+        return placement is null
+            ? "候选位置当前不可用；不会提交。"
+            : $"目标显示器上的候选位置：{placement.XDip:0}，{placement.YDip:0} DIP · " +
+                $"大小 {placement.WidthDip:0} × {placement.HeightDip:0} DIP";
+    }
+
+    private static string DescribeDesktopWorkspaceCreatePreviewFailure(
+        ProductDesktopWorkspaceCreatePreviewFailure failure) => failure switch
+        {
+            ProductDesktopWorkspaceCreatePreviewFailure.None =>
+                "名称可用；确认前不会创建方格或修改配置。",
+            ProductDesktopWorkspaceCreatePreviewFailure.InvalidName =>
+                "请输入非空、不过长且不含控制字符的名称。",
+            ProductDesktopWorkspaceCreatePreviewFailure.DuplicateName =>
+                "已有同名方格，请换一个名称。",
+            ProductDesktopWorkspaceCreatePreviewFailure.LimitReached =>
+                "方格数量已达到上限，无法继续创建。",
+            ProductDesktopWorkspaceCreatePreviewFailure.PlacementUnavailable =>
+                "当前显示器没有可用候选位置。",
+            ProductDesktopWorkspaceCreatePreviewFailure.StaleWorkspace =>
+                "工作区已变化，本次预览已失效。",
+            ProductDesktopWorkspaceCreatePreviewFailure.StaleTopology =>
+                "显示器状态已变化，本次预览已失效。",
+            ProductDesktopWorkspaceCreatePreviewFailure.DisplayUnavailable =>
+                "目标显示器已不可用，本次预览已失效。",
+            ProductDesktopWorkspaceCreatePreviewFailure.HostUnavailable =>
+                "桌面方格当前不可用，本次预览已取消。",
+            _ => "本次预览不可提交；配置和桌面文件均未改变。",
+        };
 
     private void ProductWorkspaceResetViewButton_Click(
         object sender,

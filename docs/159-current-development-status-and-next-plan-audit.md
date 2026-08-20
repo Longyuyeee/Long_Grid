@@ -297,3 +297,11 @@ PF-002D 的最小交付不是视觉稿，也不是新增验证脚本，而是可
 - 经批准的发布证书、可安装签名包和最终分发授权。
 
 这些门禁不应抢占 PF-002D/E 的产品开发主线，也不能被静默关闭；它们在具备合规环境时独立执行并如实记录。
+
+## 11. 2026-08-20 增量复审
+
+从最新 `main@b5af34c4` 建立的 PF-002D1 分支，已把 DesktopHost 请求后的“立即默认创建”改为唯一 Preview Session、实时名称校验、明确确认/取消和 submit 前 revision/topology/display/host 二次复核。正式 App 使用可访问的 WinUI 对话框承载该闭环，确认前不提交配置、不建立正式容器且不操作桌面文件。
+
+严格结论没有升级为 PF-002D 完成：当前预览会激活控制中心，并非 Stage 159 D2 要求的候选 DesktopHost 区域原生就地表面；Windows 自动化窗口枚举连续超时，正式 App 虽真实启动但没有取得打开—编辑—取消的可复核实机证据；全量测试实际为 `982/983`，既有 activation UIA Invoke 的 `ElementNotEnabledException` 独立重跑仍失败。详细预期—实际差异、零副作用矩阵和后续门禁见 [Stage 160](160-pf002d1-editable-create-preview-audit.md)。
+
+因此下一顺序细化为：先恢复全量测试和真实预览证据，再完成 PF-002D2 原生就地表面，然后进入 PF-002E。PF-002、PF-001 和顶层 `0/30 Complete` 口径保持不变。

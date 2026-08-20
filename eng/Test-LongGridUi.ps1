@@ -140,6 +140,8 @@ $windowsDesktopHostReadOnlySurfaceCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostReadOnlySurface.cs'
 $desktopWorkspaceCreateAdmissionCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopWorkspaceCreateAdmission.cs'
+$desktopWorkspaceCreatePreviewCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductDesktopWorkspaceCreatePreview.cs'
 $windowsDesktopHostUiaProviderCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostUiaProvider.cs'
 $verifiedWindowBatchAdapterCodePath = Join-Path $projectRoot `
@@ -438,6 +440,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopWorkspaceCreateAdmissionCode = Get-Content `
         -LiteralPath $desktopWorkspaceCreateAdmissionCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopWorkspaceCreatePreviewCode = Get-Content `
+        -LiteralPath $desktopWorkspaceCreatePreviewCodePath `
         -Raw `
         -Encoding UTF8
     $windowsDesktopHostUiaProviderCode = Get-Content `
@@ -2240,8 +2246,21 @@ function Test-SourceContract {
         $appCode -match `
             'RequestDesktopWorkspaceCreate[\s\S]{0,2400}ProductDesktopHostLifecycleStatus\.ReadyReadOnly' -and
         $appCode -match `
-            'RequestDesktopWorkspaceCreate[\s\S]{0,2800}CommitProductWorkspaceContainerActionCore'
-    ) 'DesktopHost workspace-create entries must keep bounded non-activating surfaces before and after the first box, normalize pointer/context-menu/hotkey/UIA input, reject unsafe or stale requests, and use the unified configuration commit path.'
+            'RequestDesktopWorkspaceCreate[\s\S]{0,2200}RunDesktopWorkspaceCreatePreviewAsync' -and
+        $appCode -match `
+            'RunDesktopWorkspaceCreatePreviewAsync[\s\S]{0,9000}ShowDesktopWorkspaceCreatePreviewAsync[\s\S]{0,9000}CommitProductWorkspaceContainerActionCore' -and
+        $codeBehind -match 'DesktopWorkspaceCreatePreviewDialog' -and
+        $codeBehind -match 'DesktopWorkspaceCreatePreviewNameEditor' -and
+        $codeBehind -match 'DesktopWorkspaceCreatePreviewPlacementSummary' -and
+        $codeBehind -match 'DesktopWorkspaceCreatePreviewValidation' -and
+        $codeBehind -match 'IsPrimaryButtonEnabled\s*=\s*current\.CanSubmit' -and
+        $desktopWorkspaceCreatePreviewCode -match 'Editing' -and
+        $desktopWorkspaceCreatePreviewCode -match 'Submitting' -and
+        $desktopWorkspaceCreatePreviewCode -match 'Cancelled' -and
+        $desktopWorkspaceCreatePreviewCode -match 'StaleWorkspace' -and
+        $desktopWorkspaceCreatePreviewCode -match 'StaleTopology' -and
+        $desktopWorkspaceCreatePreviewCode -match 'DuplicateName'
+    ) 'DesktopHost workspace-create entries must keep bounded non-activating inputs, open one editable preview before the unified commit, expose finite UIA validation, and reject unsafe, invalid, cancelled, or stale sessions.'
     $workspaceOpenReviewNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceOpenReviewButton'
@@ -2863,7 +2882,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-review-shortcut-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-editable-preview-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
