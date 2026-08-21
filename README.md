@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。Stage 170 已让正式 Release App 在专用临时配置、真实 XAML 和 UI 线程中连续两次通过 Preview 取消—确认—保存—重载证据，且桌面、用户配置和临时目录边界无差异。当前 `WindowsAppRuntime 2.4.0.0 + Microsoft.UI.Xaml.dll 3.2.3.0` 对动态可见 UIA 树仍会触发上游 fail-fast，因此可见 Preview/视图发布、物理输入、UIA/Narrator 与正式撤销证据继续 Pending。PF-002H 保持 `EngineeringComplete / ProductEvidencePending`，PF-001/PF-002 仍为 `InProgress`，详见 [Stage 170](docs/170-pf002-formal-app-inprocess-evidence-audit.md)。所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。Stage 171 已让正式 Release App 在专用临时配置、真实 XAML 和 UI 线程中连续两次通过 Preview 取消—确认—创建落盘—删除落盘—主窗口统一最近撤销—恢复落盘证据，且外部脚本逐项复核应用结果、桌面、用户配置、退出码和临时清理均无差异。当前 `WindowsAppRuntime 2.4.0.0 + Microsoft.UI.Xaml.dll 3.2.3.0` 对动态可见 UIA 树仍会触发上游 fail-fast，因此可见 Preview/视图发布、物理输入和 UIA/Narrator 继续 Pending。PF-002H 保持 `EngineeringComplete / ProductEvidencePending`，PF-001/PF-002 仍为 `InProgress`，详见 [Stage 171](docs/171-pf002-formal-app-latest-undo-evidence-audit.md)。所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -31,6 +31,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [WinUI 跨进程 UIA 阻断与真实窗口冒烟审计（Stage 168）](docs/168-winui-cross-process-uia-blocker-and-window-smoke-audit.md)
 - [WinUI UIA 已知崩溃运行时失败关闭审计（Stage 169）](docs/169-winui-uia-fail-closed-preflight-audit.md)
 - [PF-002 正式 App 进程内证据与 WinUI 安全预览审计（Stage 170）](docs/170-pf002-formal-app-inprocess-evidence-audit.md)
+- [PF-002 正式 App 最近撤销证据审计（Stage 171）](docs/171-pf002-formal-app-latest-undo-evidence-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)

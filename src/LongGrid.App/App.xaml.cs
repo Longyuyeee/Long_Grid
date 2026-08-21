@@ -338,38 +338,119 @@ public partial class App : Application
             ProductWorkspaceState afterCreateState = productWorkspaceSession.State
                 ?? throw new InvalidOperationException(
                     "PF-002 confirm evidence did not publish a workspace.");
-            stage = "CompletingFormalSave";
+            long createSaveRevision =
+                productWorkspaceSaves.Snapshot.CurrentRevision;
+            stage = "WaitingForFormalCreateSave";
             evidence.RecordStage(stage);
-            ProductWorkspaceSaveCompletionResult saveCompletion =
-                await productWorkspaceSaves.CompleteAsync();
-            stage = "ReloadingFormalStore";
+            ProductWorkspaceSaveSnapshot createSave =
+                await WaitForProductWorkspaceSaveAsync(createSaveRevision);
+            stage = "ReloadingFormalCreateStore";
             evidence.RecordStage(stage);
             ProductConfigurationLoadResult diskAfterCreate =
                 await configurationStore.LoadAsync();
 
+            stage = "RemovingCreatedContainerThroughFormalAppCommit";
+            evidence.RecordStage(stage);
+            long removalRevision = workspaceCommits.CurrentEditRevision;
+            ProductWorkspaceContainerCommitResult removal =
+                CommitProductWorkspaceContainerAction(
+                    ProductWorkspaceContainerCommitAction.Remove,
+                    removalRevision,
+                    containerOrdinal: 1,
+                    name: string.Empty,
+                    stateValue: null,
+                    colorPreset: null,
+                    opacityPreset: null,
+                    positionPreset: null,
+                    sizePreset: null,
+                    confirmed: true);
+            ProductWorkspaceState afterRemovalState = productWorkspaceSession.State
+                ?? throw new InvalidOperationException(
+                    "PF-002 removal evidence lost the writable workspace.");
+            long removalSaveRevision =
+                productWorkspaceSaves.Snapshot.CurrentRevision;
+            stage = "WaitingForFormalRemovalSave";
+            evidence.RecordStage(stage);
+            ProductWorkspaceSaveSnapshot removalSave =
+                await WaitForProductWorkspaceSaveAsync(removalSaveRevision);
+            stage = "ReloadingFormalRemovalStore";
+            evidence.RecordStage(stage);
+            ProductConfigurationLoadResult diskAfterRemoval =
+                await configurationStore.LoadAsync();
+
+            stage = "PublishingFormalLatestUndoSelection";
+            evidence.RecordStage(stage);
+            ProductWorkspaceLatestUndoPresentation latestUndo =
+                ProductWorkspaceLatestUndoPresentation.Create(
+                    workspaceCommits.CurrentLayoutRecoveryUndoToken,
+                    workspaceCommits.CurrentContainerRemovalUndoToken,
+                    workspaceCommits.CurrentReferenceBatchAdditionUndoToken,
+                    workspaceCommits.CurrentSelectedReferenceContainerUndoToken,
+                    workspaceCommits.CurrentReferenceRemovalUndoToken,
+                    workspaceCommits.CurrentReferenceReassignmentUndoToken);
+            currentWindow.ApplyProductWorkspaceLatestUndo(latestUndo);
+            stage = "ExecutingFormalLatestUndo";
+            evidence.RecordStage(stage);
+            ProductWorkspaceLatestUndoKind executedUndoKind =
+                currentWindow.ExecuteProductWorkspaceLatestUndoForEvidence();
+            ProductWorkspaceState afterUndoState = productWorkspaceSession.State
+                ?? throw new InvalidOperationException(
+                    "PF-002 latest undo evidence lost the writable workspace.");
+            stage = "CompletingFormalUndoSave";
+            evidence.RecordStage(stage);
+            ProductWorkspaceSaveCompletionResult saveCompletion =
+                await productWorkspaceSaves.CompleteAsync();
+            stage = "ReloadingFormalUndoStore";
+            evidence.RecordStage(stage);
+            ProductConfigurationLoadResult diskAfterUndo =
+                await configurationStore.LoadAsync();
+
             const string expectedName = "PF-002 证据方格";
-            string? actualName = diskAfterCreate.Document?.Containers
+            string? createdName = diskAfterCreate.Document?.Containers
+                .SingleOrDefault()?.Name;
+            string? restoredName = diskAfterUndo.Document?.Containers
                 .SingleOrDefault()?.Name;
             bool passed =
                 beforeState.Containers.Count == 0
                 && diskBefore.Status == ProductConfigurationLoadStatus.Missing
                 && afterCancelState.Containers.Count == 0
                 && diskAfterCancel.Status == ProductConfigurationLoadStatus.Missing
-                && workspaceCommits.CurrentEditRevision == createRevision + 1
+                && workspaceCommits.CurrentEditRevision == createRevision + 3
                 && afterCreateState.Containers.Count == 1
-                && saveCompletion.Status ==
-                    ProductWorkspaceSaveCompletionStatus.Completed
+                && createSaveRevision == 1
+                && createSave.Status == ProductWorkspaceSaveStatus.Saved
+                && createSave.SavedRevision == createSaveRevision
                 && diskAfterCreate.Status ==
                     ProductConfigurationLoadStatus.LoadedPrimary
                 && diskAfterCreate.Document?.Containers.Count == 1
-                && string.Equals(actualName, expectedName, StringComparison.Ordinal)
+                && string.Equals(createdName, expectedName, StringComparison.Ordinal)
+                && removal.IsAccepted
+                && afterRemovalState.Containers.Count == 0
+                && removalSaveRevision == 2
+                && removalSave.Status == ProductWorkspaceSaveStatus.Saved
+                && removalSave.SavedRevision == removalSaveRevision
+                && diskAfterRemoval.Status ==
+                    ProductConfigurationLoadStatus.LoadedPrimary
+                && diskAfterRemoval.Document?.Containers.Count == 0
+                && latestUndo.Selection.Kind ==
+                    ProductWorkspaceLatestUndoKind.ContainerRemoval
+                && executedUndoKind ==
+                    ProductWorkspaceLatestUndoKind.ContainerRemoval
+                && afterUndoState.Containers.Count == 1
+                && saveCompletion.Status ==
+                    ProductWorkspaceSaveCompletionStatus.Completed
+                && saveCompletion.Snapshot.SavedRevision == 3
+                && diskAfterUndo.Status ==
+                    ProductConfigurationLoadStatus.LoadedPrimary
+                && diskAfterUndo.Document?.Containers.Count == 1
+                && string.Equals(restoredName, expectedName, StringComparison.Ordinal)
                 && evidence.PreviewVisualTreeCount == 2
                 && evidence.PreviewActivatedCount == 0
                 && evidence.PreviewDrivenCount == 2;
             result = new
             {
                 SchemaVersion = 1,
-                Purpose = "Pf002FormalAppPreviewCancelConfirmPersistence",
+                Purpose = "Pf002FormalAppPreviewPersistenceLatestUndo",
                 Expected = new
                 {
                     InitialContainerCount = 0,
@@ -378,6 +459,11 @@ public partial class App : Application
                     ConfirmContainerCount = 1,
                     ConfirmedName = expectedName,
                     PersistedDiskStatus = "LoadedPrimary",
+                    RemovedContainerCount = 0,
+                    RemovedDiskStatus = "LoadedPrimary",
+                    LatestUndoKind = "ContainerRemoval",
+                    RestoredContainerCount = 1,
+                    RestoredName = expectedName,
                     PreviewVisualTreeCount = 2,
                     PreviewActivatedCount = 0,
                     PreviewDrivenCount = 2,
@@ -393,10 +479,25 @@ public partial class App : Application
                     CancelContainerCount = afterCancelState.Containers.Count,
                     CancelDiskStatus = diskAfterCancel.Status.ToString(),
                     ConfirmContainerCount = afterCreateState.Containers.Count,
-                    ConfirmedName = actualName,
+                    ConfirmedName = createdName,
                     PersistedContainerCount =
                         diskAfterCreate.Document?.Containers.Count ?? 0,
                     PersistedDiskStatus = diskAfterCreate.Status.ToString(),
+                    CreateSavedRevision = createSave.SavedRevision,
+                    RemovalCommit = removal.Status.ToString(),
+                    RemovedContainerCount = afterRemovalState.Containers.Count,
+                    RemovedPersistedContainerCount =
+                        diskAfterRemoval.Document?.Containers.Count ?? 0,
+                    RemovedDiskStatus = diskAfterRemoval.Status.ToString(),
+                    RemovalSavedRevision = removalSave.SavedRevision,
+                    LatestUndoSelection = latestUndo.Selection.Kind.ToString(),
+                    LatestUndoExecuted = executedUndoKind.ToString(),
+                    RestoredContainerCount = afterUndoState.Containers.Count,
+                    RestoredPersistedContainerCount =
+                        diskAfterUndo.Document?.Containers.Count ?? 0,
+                    RestoredName = restoredName,
+                    RestoredDiskStatus = diskAfterUndo.Status.ToString(),
+                    UndoSavedRevision = saveCompletion.Snapshot.SavedRevision,
                     SaveCompletion = saveCompletion.Status.ToString(),
                     PreviewVisualTreeCount = evidence.PreviewVisualTreeCount,
                     PreviewActivatedCount = evidence.PreviewActivatedCount,
@@ -418,12 +519,17 @@ public partial class App : Application
             result = new
             {
                 SchemaVersion = 1,
-                Purpose = "Pf002FormalAppPreviewCancelConfirmPersistence",
+                Purpose = "Pf002FormalAppPreviewPersistenceLatestUndo",
                 Expected = "Pass",
                 Actual = new
                 {
                     Stage = stage,
                     Error = exception.GetType().Name,
+                    ErrorDetail = exception.Message.StartsWith(
+                        "PF-002 App evidence",
+                        StringComparison.Ordinal)
+                            ? exception.Message
+                            : "RedactedNonEvidenceDetail",
                 },
                 Difference = "EvidenceSessionFailed",
                 Outcome = "Fail",
@@ -438,6 +544,31 @@ public partial class App : Application
         {
             window?.Close();
         }
+    }
+
+    private async Task<ProductWorkspaceSaveSnapshot>
+        WaitForProductWorkspaceSaveAsync(long minimumSavedRevision)
+    {
+        DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < deadline)
+        {
+            ProductWorkspaceSaveSnapshot snapshot = productWorkspaceSaves.Snapshot;
+            if (snapshot.Status == ProductWorkspaceSaveStatus.Failed)
+            {
+                throw new InvalidOperationException(
+                    $"PF-002 App evidence save failed at revision {snapshot.CurrentRevision}.");
+            }
+            if (snapshot.Status == ProductWorkspaceSaveStatus.Saved
+                && snapshot.SavedRevision >= minimumSavedRevision)
+            {
+                return snapshot;
+            }
+
+            await Task.Delay(50);
+        }
+
+        throw new InvalidOperationException(
+            $"PF-002 App evidence save did not reach revision {minimumSavedRevision}.");
     }
 
     private async Task LoadBoxesSettingsAsync()

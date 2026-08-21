@@ -345,3 +345,11 @@ Stage 167 已增加正式“使用选择创建新方格”入口，并把同一�
 Stage 170 新增默认关闭、GUID 限定、专用临时配置且拒绝重解析点的正式 App evidence session。真实 Release App 先加载 MainWindow/XAML、正式配置、显示拓扑和 DesktopHost，再在 UI 线程驱动取消与确认，通过正式保存控制器写入并由正式 store 重载。连续两次实际均为：初始/取消 `0 + Missing`，确认 `1 + PF-002 证据方格`，保存 `Completed`，重载 `1 + LoadedPrimary`；桌面元数据、用户配置元数据与临时清理均无差异。
 
 真实失败不能被忽略：当前 `WindowsAppRuntime 2.4.0.0 + Microsoft.UI.Xaml.dll 3.2.3.0` 下，第二顶层窗口、ContentDialog、可见持久 Preview 面板以及确认后的动态可访问列表都能触发同一 WinUI fail-fast。产品因此对该精确组合选择主窗口持久 Preview；证据进程在 XAML readiness 后隐藏窗口，并明确输出 `PreviewActivatedCount=0`、`VisibleInteractionStatus/VisibleViewPublication=BlockedByKnownUpstream`。这证明正式 App 的不可见 UI 线程接线、提交、保存和重载，不证明可见点击、UIA 或 Narrator。PF-002 保持 `EngineeringComplete / ProductEvidencePending`；下一门禁为上游修复/独立机器的可见与物理矩阵，以及最近撤销的正式 App 证据。详见 [Stage 170](170-pf002-formal-app-inprocess-evidence-audit.md)。
+
+## 18. 2026-08-21 PF-002 正式 App 最近撤销证据增量复审
+
+Stage 171 在同一正式 App evidence session 中补齐最近撤销工程证据。普通创建没有通用撤销令牌，因此没有伪造“撤销创建”；真实链先让创建保存修订 1 落盘，再通过 App 正式容器提交委托删除并让保存修订 2 落盘，随后由主窗口统一最近撤销选择器认定唯一种类为 `ContainerRemoval`，执行与真实按钮相同的分派与正式恢复委托，最终 `CompleteAsync` 排空保存并从正式 store 重载为原方格。
+
+两轮最终实际均为创建 `1/LoadedPrimary`、删除 `0/LoadedPrimary`、最近撤销选择与执行 `ContainerRemoval`、恢复 `1/LoadedPrimary`，名称仍为“PF-002 证据方格”；外部脚本对每一字段独立复核，桌面与用户配置元数据不变、临时目录删除、进程退出 0。开发中先真实发现工作区编辑修订与保存修订被混用，再发现 Windows PowerShell 5.1 对无 BOM UTF-8 中文常量解码不一致；分别改为读取保存控制器权威目标修订和以 Unicode 码点构造期望名称后重跑通过。
+
+此证据关闭“最近撤销的正式 App 工程证据”缺口，但仍是当前已知不安全 WinUI 组合下隐藏窗口的进程内 UI 线程驱动，不等同于可见按钮点击、物理输入、UIA 或 Narrator。PF-002 继续 `EngineeringComplete / ProductEvidencePending`；下一主门禁仍是上游修复或独立安全机器上的可见 Preview/发布、鼠标/键盘/触控和无障碍矩阵。详见 [Stage 171](171-pf002-formal-app-latest-undo-evidence-audit.md)。

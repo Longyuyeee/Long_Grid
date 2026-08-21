@@ -29,6 +29,8 @@ $desktopDirectory = [Environment]::GetFolderPath(
 $startedProcess = $null
 $finalResult = $null
 $pendingError = $null
+$expectedEvidenceName = 'PF-002 ' +
+    [char]0x8BC1 + [char]0x636E + [char]0x65B9 + [char]0x683C
 
 function Assert-Condition {
     param(
@@ -217,8 +219,52 @@ try {
     $desktopUnchanged = $desktopBefore -eq $desktopAfter
     $userConfigurationUnchanged =
         $userConfigurationBefore -eq $userConfigurationAfter
+    $appActual = $appResult.Actual
+    $appEvidenceChecks = [ordered]@{
+        InitialContainerCount = $appActual.InitialContainerCount -eq 0
+        InitialDiskStatus = $appActual.InitialDiskStatus -eq 'Missing'
+        CancelContainerCount = $appActual.CancelContainerCount -eq 0
+        CancelDiskStatus = $appActual.CancelDiskStatus -eq 'Missing'
+        ConfirmContainerCount = $appActual.ConfirmContainerCount -eq 1
+        ConfirmedName = $appActual.ConfirmedName -eq $expectedEvidenceName
+        PersistedContainerCount = $appActual.PersistedContainerCount -eq 1
+        PersistedDiskStatus = $appActual.PersistedDiskStatus -eq 'LoadedPrimary'
+        CreateSavedRevision = $appActual.CreateSavedRevision -eq 1
+        RemovalCommit = $appActual.RemovalCommit -eq 'Accepted'
+        RemovedContainerCount = $appActual.RemovedContainerCount -eq 0
+        RemovedPersistedContainerCount =
+            $appActual.RemovedPersistedContainerCount -eq 0
+        RemovedDiskStatus = $appActual.RemovedDiskStatus -eq 'LoadedPrimary'
+        RemovalSavedRevision = $appActual.RemovalSavedRevision -eq 2
+        LatestUndoSelection = $appActual.LatestUndoSelection -eq 'ContainerRemoval'
+        LatestUndoExecuted = $appActual.LatestUndoExecuted -eq 'ContainerRemoval'
+        RestoredContainerCount = $appActual.RestoredContainerCount -eq 1
+        RestoredPersistedContainerCount =
+            $appActual.RestoredPersistedContainerCount -eq 1
+        RestoredName = $appActual.RestoredName -eq $expectedEvidenceName
+        RestoredDiskStatus = $appActual.RestoredDiskStatus -eq 'LoadedPrimary'
+        UndoSavedRevision = $appActual.UndoSavedRevision -eq 3
+        SaveCompletion = $appActual.SaveCompletion -eq 'Completed'
+        PreviewVisualTreeCount = $appActual.PreviewVisualTreeCount -eq 2
+        PreviewActivatedCount = $appActual.PreviewActivatedCount -eq 0
+        PreviewDrivenCount = $appActual.PreviewDrivenCount -eq 2
+        VisibleInteractionStatus =
+            $appActual.VisibleInteractionStatus -eq 'BlockedByKnownUpstream'
+        VisibleViewPublication =
+            $appActual.VisibleViewPublication -eq 'BlockedByKnownUpstream'
+        DesktopFilesChanged = $appActual.DesktopFilesChanged -eq $false
+        UserConfigurationChanged =
+            $appActual.UserConfigurationChanged -eq $false
+    }
+    $failedAppEvidenceChecks = @(
+        $appEvidenceChecks.GetEnumerator() |
+            Where-Object { -not $_.Value } |
+            ForEach-Object { $_.Key }
+    )
+    $appEvidenceContractMatched = $failedAppEvidenceChecks.Count -eq 0
     $passed =
         $appResult.Outcome -eq 'Pass' -and
+        $appEvidenceContractMatched -and
         $desktopUnchanged -and
         $userConfigurationUnchanged
     $finalResult = [ordered]@{
@@ -226,6 +272,7 @@ try {
         Purpose = 'Pf002FormalAppEvidenceExternalVerification'
         Expected = [ordered]@{
             AppOutcome = 'Pass'
+            AppEvidenceContractMatched = $true
             DesktopMetadataUnchanged = $true
             UserConfigurationUnchanged = $true
             ExitCode = 0
@@ -235,6 +282,8 @@ try {
             AppOutcome = $appResult.Outcome
             AppDifference = $appResult.Difference
             AppActual = $appResult.Actual
+            AppEvidenceContractMatched = $appEvidenceContractMatched
+            FailedAppEvidenceChecks = $failedAppEvidenceChecks
             DesktopMetadataUnchanged = $desktopUnchanged
             UserConfigurationUnchanged = $userConfigurationUnchanged
             ExitCode = $startedProcess.ExitCode

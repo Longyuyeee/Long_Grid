@@ -22,6 +22,7 @@ $executablePath = Join-Path $outputDirectory 'LongGrid.App.exe'
 $startedProcess = $null
 $cleanExitObserved = $false
 $observedWindowHandle = [IntPtr]::Zero
+$expectedWindowTitle = 'Long' + [char]0x65B9 + [char]0x683C
 
 if (-not ('LongGridWindowSmokeNativeMethods' -as [type])) {
     Add-Type @'
@@ -100,8 +101,8 @@ try {
         'LongGrid.App exited before exposing its main window.'
     Assert-Condition ($startedProcess.MainWindowHandle -ne [IntPtr]::Zero) `
         "LongGrid.App did not expose a main window within $WindowTimeoutSeconds seconds."
-    Assert-Condition ($startedProcess.MainWindowTitle -eq 'Long方格') `
-        "Expected the real window title 'Long方格'; actual '$($startedProcess.MainWindowTitle)'."
+    Assert-Condition ($startedProcess.MainWindowTitle -eq $expectedWindowTitle) `
+        "Expected the real Long Grid window title; actual '$($startedProcess.MainWindowTitle)'."
     Assert-Condition $startedProcess.Responding `
         'LongGrid.App exposed a window but Windows reported it as not responding.'
 
@@ -138,7 +139,7 @@ try {
         Result = 'Pass'
         TestKind = 'RealProcessAndWindowLifecycle'
         Expected = [pscustomobject]@{
-            WindowTitle = 'Long方格'
+            WindowTitle = $expectedWindowTitle
             WindowReadyWithinSeconds = $WindowTimeoutSeconds
             ResponsiveForSeconds = $StabilitySeconds
             ExitCode = 0

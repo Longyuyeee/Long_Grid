@@ -690,6 +690,9 @@ function Test-SourceContract {
             'Directory.EnumerateFileSystemEntries(directoryPath).Any()') -and
         $appCode.Contains('RunPf002AppEvidenceSessionAsync') -and
         $appCode.Contains('HidingFormalWindowFromKnownUnsafeUiaRuntime') -and
+        $appCode.Contains('ExecutingFormalLatestUndo') -and
+        $codeBehind.Contains(
+            'ExecuteProductWorkspaceLatestUndoForEvidence') -and
         $appCode.Contains('VisibleViewPublication = "BlockedByKnownUpstream"')
     ) 'PF-002 App evidence must remain opt-in, temporary, non-reparse, UI-thread driven, and honest about blocked visible publication.'
     Assert-Condition (

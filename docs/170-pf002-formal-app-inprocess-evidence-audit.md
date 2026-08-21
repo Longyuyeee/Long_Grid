@@ -5,6 +5,8 @@
 - 对应目标：PF-002 正式 App 的 Preview 取消—确认—保存—重载证据
 - 结论：**正式 Release App 的进程内 UI 线程证据连续两次通过；可见 Preview、可见视图发布、物理输入、UIA 与 Narrator 仍被当前 WinUI 上游缺陷阻断，因此 PF-002 保持 `EngineeringComplete / ProductEvidencePending`**
 
+> 后续状态：本文件审计时尚未执行的“最近撤销正式 App 证据”已由 [Stage 171](171-pf002-formal-app-latest-undo-evidence-audit.md) 关闭；本文件记录的可见交互、物理输入与无障碍阻断仍然有效。
+
 ## 1. 本轮交付
 
 新增默认关闭的 `LONGGRID_PF002_APP_EVIDENCE_SESSION=<32 位 GUID>` 证据入口。它只接受已由外部测试创建、位于 `%TEMP%\LongGridEvidence\<guid>`、为空且不是重解析点的目录，并使用独立 AppInstance key。普通启动继续使用 `LongGrid.Main` 与 `%LOCALAPPDATA%\LongGrid`，不会进入证据链。

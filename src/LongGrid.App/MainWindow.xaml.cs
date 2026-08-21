@@ -1424,11 +1424,21 @@ public sealed partial class MainWindow : Window
         object sender,
         RoutedEventArgs e)
     {
+        _ = ExecuteProductWorkspaceLatestUndo();
+    }
+
+    internal ProductWorkspaceLatestUndoKind
+        ExecuteProductWorkspaceLatestUndoForEvidence() =>
+        ExecuteProductWorkspaceLatestUndo();
+
+    private ProductWorkspaceLatestUndoKind ExecuteProductWorkspaceLatestUndo()
+    {
         if (!_latestUndo.CanUndo)
         {
-            return;
+            return ProductWorkspaceLatestUndoKind.Unavailable;
         }
 
+        ProductWorkspaceLatestUndoKind executedKind = _latestUndo.Selection.Kind;
         switch (_latestUndo.Selection.Kind)
         {
             case ProductWorkspaceLatestUndoKind.LayoutRecovery
@@ -1455,7 +1465,11 @@ public sealed partial class MainWindow : Window
                 when _latestUndo.ReferenceReassignmentToken is { } token:
                 UndoLatestReferenceReassignment(token);
                 break;
+            default:
+                return ProductWorkspaceLatestUndoKind.Unavailable;
         }
+
+        return executedKind;
     }
 
     private void UndoLatestLayoutRecovery(
