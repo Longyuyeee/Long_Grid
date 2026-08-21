@@ -369,3 +369,11 @@ Stage 173 已把 Stage 172 的无状态预览收敛为一次 begin/update/cancel
 真实临时配置测试执行 1,000 次 update，实际保存 revision=0、配置 `Missing`；complete 首次接受后保存 revision=1，重复提交返回 `StaleEditRevision`，最终重载 X/Y 误差均为 0 DIP，桌面哨兵文件内容不变。陈旧 update、显式/重复取消、并发 placement 改变和 complete 后 topology 改变均返回有限状态并零保存。首次扩展字段合同编译暴露 `IDictionary`/`IReadOnlyDictionary` 类型差异；末轮审计又补齐 complete—commit 间的 topology 竞争窗口，修正后聚焦 24/24 通过。
 
 该结果关闭 PF-003B 工程门，不代表正式桌面可操作。PF-003 保持 `InProgress`；下一切片固定为 PF-003C 保存失败补偿，随后才接 DesktopHost 标题栏移动、八向缩放命中和键盘微调。跨显示器、视觉/物理输入和 UIA Bounds 仍为后续独立证据，详见 [Stage 173](173-pf003b-gesture-session-single-commit-audit.md)。
+
+## 21. 2026-08-21 PF-003C 布局保存失败补偿增量复审
+
+Stage 174 已为布局唯一提交增加发布凭据和有限 `AwaitingSave / Published / CompensationRequired / Superseded` 判定。同次保存失败只有在工作区 revision、保存 revision 和当前完整 placement 均匹配时才能恢复冻结原 placement；协调器直接读取权威保存快照，按自己签发的 token 对象身份验真，并用与公开 token 分离的私有 placement 深拷贝恢复。复制/伪造 token 返回 `InvalidRequest`，公开扩展字典变异不能污染恢复事实，后续编辑或重复补偿返回 `Superseded`。
+
+真实测试先落盘 100/100 旧布局，再独占正式 store 的 `.lock` 文件。布局提交后内存为 200/150，正式保存实际失败为 `WriteLeaseUnavailable`，磁盘仍为 100/100；补偿后内存恢复 100/100，锁占期间补偿保存仍有限失败，解除锁并重试后真实 store 重载误差 0 DIP，桌面哨兵文件未变化。首轮聚焦通过后安全复审发现公开字段 token 可伪造，补充内部对象身份核对、深拷贝和伪造测试后最终 30/30 通过。
+
+该结果关闭 PF-003C 工程门，但正式桌面还没有布局输入接线。PF-003 保持 `InProgress`；下一切片固定为 PF-003D DesktopHost 标题栏移动、八向缩放命中、取消和键盘微调，复用 Stage 172–174 的唯一事务链。跨显示器、真实物理输入和 UIA Bounds 继续作为后续独立门，详见 [Stage 174](174-pf003c-layout-save-failure-compensation-audit.md)。

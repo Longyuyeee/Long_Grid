@@ -126,10 +126,37 @@ public sealed record ProductWorkspaceContainerLayoutGestureCommitResult(
     ProductWorkspaceSaveSubmissionStatus? SubmissionStatus,
     long EditRevision,
     ProductWorkspaceState? State,
-    ProductConfigurationDocument? Document)
+    ProductConfigurationDocument? Document,
+    ProductWorkspaceContainerLayoutPublicationToken? PublicationToken = null)
 {
     public bool IsAccepted =>
         Status == ProductWorkspaceContainerLayoutGestureCommitStatus.Accepted
+        && State is not null
+        && Document is not null;
+}
+
+public enum ProductWorkspaceContainerLayoutCompensationCommitStatus
+{
+    Accepted,
+    AwaitingSave,
+    Published,
+    Superseded,
+    ReducerRejected,
+    SaveRejected,
+    InvalidRequest,
+}
+
+public sealed record ProductWorkspaceContainerLayoutCompensationCommitResult(
+    ProductWorkspaceContainerLayoutCompensationCommitStatus Status,
+    ProductWorkspaceEditError EditError,
+    ProductWorkspaceSaveSubmissionStatus? SubmissionStatus,
+    ProductWorkspaceSaveFailure SourceFailure,
+    long EditRevision,
+    ProductWorkspaceState? State,
+    ProductConfigurationDocument? Document)
+{
+    public bool IsAccepted =>
+        Status == ProductWorkspaceContainerLayoutCompensationCommitStatus.Accepted
         && State is not null
         && Document is not null;
 }
@@ -480,6 +507,8 @@ public sealed class ProductWorkspaceCommitCoordinator
     private PendingReferenceReassignmentUndo? pendingReferenceReassignmentUndo;
     private PendingContainerRemovalUndo? pendingContainerRemovalUndo;
     private PendingReferenceBatchAdditionUndo? pendingReferenceBatchAdditionUndo;
+    private PendingContainerLayoutPublication?
+        pendingContainerLayoutPublication;
 
     public ProductWorkspaceCommitCoordinator(
         ProductWorkspaceSaveController saves)
@@ -584,6 +613,7 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingReferenceReassignmentUndo = null;
             pendingContainerRemovalUndo = null;
             pendingReferenceBatchAdditionUndo = null;
+            pendingContainerLayoutPublication = null;
             return editRevision;
         }
     }
@@ -769,10 +799,167 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingReferenceReassignmentUndo = null;
             pendingContainerRemovalUndo = null;
             pendingReferenceBatchAdditionUndo = null;
+            var publicationToken =
+                new ProductWorkspaceContainerLayoutPublicationToken(
+                    completion.OperationId,
+                    completion.ContainerId,
+                    editRevision,
+                    submission.Snapshot.CurrentRevision,
+                    completion.ExpectedTopologyGeneration,
+                    ClonePlacement(completion.OriginalPlacement),
+                    ClonePlacement(completion.Placement));
+            pendingContainerLayoutPublication = new(
+                publicationToken,
+                ClonePlacement(completion.OriginalPlacement),
+                ClonePlacement(completion.Placement));
             return new(
                 ProductWorkspaceContainerLayoutGestureCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
                 submission.Status,
+                editRevision,
+                edit.State,
+                projection.Document,
+                publicationToken);
+        }
+    }
+
+    public ProductWorkspaceContainerLayoutCompensationCommitResult
+        CompensateContainerLayoutGesture(
+            ProductWorkspaceState state,
+            ProductWorkspaceContainerLayoutPublicationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(token);
+
+        lock (gate)
+        {
+            if (pendingContainerLayoutPublication is null)
+            {
+                return ContainerLayoutCompensationFailure(
+                    ProductWorkspaceContainerLayoutCompensationCommitStatus
+                        .Superseded);
+            }
+            if (!ReferenceEquals(
+                    token,
+                    pendingContainerLayoutPublication.PublicToken))
+            {
+                return ContainerLayoutCompensationFailure(
+                    ProductWorkspaceContainerLayoutCompensationCommitStatus
+                        .InvalidRequest);
+            }
+
+            ProductContainerState[] targets = state.Containers
+                .Where(candidate => candidate is not null && string.Equals(
+                    candidate.Id,
+                    token.ContainerId,
+                    StringComparison.Ordinal))
+                .ToArray();
+            if (token.OperationId == Guid.Empty
+                || string.IsNullOrWhiteSpace(token.ContainerId)
+                || token.WorkspaceRevision <= 0
+                || token.SaveRevision <= 0
+                || token.TopologyGeneration <= 0
+                || token.OriginalPlacement is null
+                || token.CommittedPlacement is null
+                || targets.Length > 1)
+            {
+                return ContainerLayoutCompensationFailure(
+                    ProductWorkspaceContainerLayoutCompensationCommitStatus
+                        .InvalidRequest);
+            }
+
+            ProductWorkspaceContainerLayoutPublicationToken trustedToken =
+                token with
+                {
+                    OriginalPlacement = ClonePlacement(
+                        pendingContainerLayoutPublication.OriginalPlacement),
+                    CommittedPlacement = ClonePlacement(
+                        pendingContainerLayoutPublication.CommittedPlacement),
+                };
+            ProductWorkspaceSaveSnapshot save = saves.Snapshot;
+            ProductWorkspaceContainerLayoutPublicationDecision decision =
+                ProductWorkspaceContainerLayoutPublication.Evaluate(
+                    trustedToken,
+                    save,
+                    editRevision,
+                    targets.SingleOrDefault()?.Placement);
+            if (decision !=
+                ProductWorkspaceContainerLayoutPublicationDecision
+                    .CompensationRequired)
+            {
+                if (decision is
+                    ProductWorkspaceContainerLayoutPublicationDecision.Published
+                    or ProductWorkspaceContainerLayoutPublicationDecision.Superseded)
+                {
+                    pendingContainerLayoutPublication = null;
+                }
+                return ContainerLayoutCompensationFailure(
+                    decision switch
+                    {
+                        ProductWorkspaceContainerLayoutPublicationDecision
+                            .AwaitingSave =>
+                            ProductWorkspaceContainerLayoutCompensationCommitStatus
+                                .AwaitingSave,
+                        ProductWorkspaceContainerLayoutPublicationDecision
+                            .Published =>
+                            ProductWorkspaceContainerLayoutCompensationCommitStatus
+                                .Published,
+                        _ =>
+                            ProductWorkspaceContainerLayoutCompensationCommitStatus
+                                .Superseded,
+                    },
+                    sourceFailure: save.Failure);
+            }
+
+            ProductWorkspaceEditResult edit =
+                ProductWorkspaceReducer.UpdatePlacement(
+                    state,
+                    token.ContainerId,
+                    trustedToken.OriginalPlacement);
+            if (!edit.IsSuccess || !edit.Changed)
+            {
+                return ContainerLayoutCompensationFailure(
+                    ProductWorkspaceContainerLayoutCompensationCommitStatus
+                        .ReducerRejected,
+                    edit.Error,
+                    sourceFailure: save.Failure);
+            }
+
+            ProductWorkspaceProjectionResult projection =
+                ProductWorkspaceConfigurationProjector.Project(edit.State!);
+            if (!projection.IsSuccess)
+            {
+                return ContainerLayoutCompensationFailure(
+                    ProductWorkspaceContainerLayoutCompensationCommitStatus
+                        .ReducerRejected,
+                    ProductWorkspaceEditError.InvalidState,
+                    ProductWorkspaceSaveSubmissionStatus.InvalidState,
+                    save.Failure);
+            }
+
+            ProductWorkspaceSaveSubmissionResult submission = saves.Submit(edit);
+            if (!submission.IsAccepted)
+            {
+                return ContainerLayoutCompensationFailure(
+                    ProductWorkspaceContainerLayoutCompensationCommitStatus
+                        .SaveRejected,
+                    submission.EditError,
+                    submission.Status,
+                    save.Failure);
+            }
+
+            editRevision = checked(editRevision + 1);
+            pendingLayoutRecoveryUndo = null;
+            pendingReferenceRemovalUndo = null;
+            pendingReferenceReassignmentUndo = null;
+            pendingContainerRemovalUndo = null;
+            pendingReferenceBatchAdditionUndo = null;
+            pendingContainerLayoutPublication = null;
+            return new(
+                ProductWorkspaceContainerLayoutCompensationCommitStatus.Accepted,
+                ProductWorkspaceEditError.None,
+                submission.Status,
+                save.Failure,
                 editRevision,
                 edit.State,
                 projection.Document);
@@ -2095,6 +2282,11 @@ public sealed class ProductWorkspaceCommitCoordinator
         ProductWorkspaceState RestoreState,
         bool CreatesContainer);
 
+    private sealed record PendingContainerLayoutPublication(
+        ProductWorkspaceContainerLayoutPublicationToken PublicToken,
+        ProductContainerPlacementState OriginalPlacement,
+        ProductContainerPlacementState CommittedPlacement);
+
     public static string ResolveColor(ProductWorkspaceContainerColorPreset preset) =>
         preset switch
         {
@@ -2149,6 +2341,22 @@ public sealed class ProductWorkspaceCommitCoordinator
             null,
             null);
 
+    private ProductWorkspaceContainerLayoutCompensationCommitResult
+        ContainerLayoutCompensationFailure(
+            ProductWorkspaceContainerLayoutCompensationCommitStatus status,
+            ProductWorkspaceEditError editError = ProductWorkspaceEditError.None,
+            ProductWorkspaceSaveSubmissionStatus? submissionStatus = null,
+            ProductWorkspaceSaveFailure sourceFailure =
+                ProductWorkspaceSaveFailure.None) =>
+        new(
+            status,
+            editError,
+            submissionStatus,
+            sourceFailure,
+            editRevision,
+            null,
+            null);
+
     private static bool PlacementMatches(
         ProductContainerPlacementState left,
         ProductContainerPlacementState right) =>
@@ -2163,6 +2371,17 @@ public sealed class ProductWorkspaceCommitCoordinator
         && Math.Abs(left.WidthDip - right.WidthDip) < 0.001
         && Math.Abs(left.HeightDip - right.HeightDip) < 0.001
         && ExtensionDataMatches(left.ExtensionData, right.ExtensionData);
+
+    private static ProductContainerPlacementState ClonePlacement(
+        ProductContainerPlacementState source) =>
+        source with
+        {
+            ExtensionData = source.ExtensionData is null
+                ? null
+                : new Dictionary<string, System.Text.Json.JsonElement>(
+                    source.ExtensionData,
+                    StringComparer.Ordinal),
+        };
 
     private static bool ExtensionDataMatches(
         IDictionary<string, System.Text.Json.JsonElement>? left,

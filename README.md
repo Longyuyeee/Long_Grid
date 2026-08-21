@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-002 正式 App 工程链已闭环，但可见物理输入与 UIA/Narrator 仍受当前 WinUI 上游缺陷阻断并保持 `ProductEvidencePending`。Stage 173 完成 PF-003B：手势 begin/update/cancel/complete 冻结 revision/topology/display，1,000 次真实连续预览零写盘，完成只提交一个保存修订，重复提交失败关闭，真实重载误差 0 DIP。保存失败补偿、正式 DesktopHost 输入、键盘微调、跨显示器和物理/UIA 证据尚未完成，详见 [Stage 173](docs/173-pf003b-gesture-session-single-commit-audit.md)。所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-002 正式 App 工程链已闭环，但可见物理输入与 UIA/Narrator 仍受当前 WinUI 上游缺陷阻断并保持 `ProductEvidencePending`。Stage 174 完成 PF-003C：真实写租约失败时，新布局只存在于内存、磁盘保持旧布局；同次失败补偿恢复原 placement，伪造/重复/陈旧补偿失败关闭，解除锁并重试后的真实重载误差为 0 DIP。正式 DesktopHost 输入、键盘微调、跨显示器和物理/UIA 证据尚未完成，详见 [Stage 174](docs/174-pf003c-layout-save-failure-compensation-audit.md)。所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -34,6 +34,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-002 正式 App 最近撤销证据审计（Stage 171）](docs/171-pf002-formal-app-latest-undo-evidence-audit.md)
 - [PF-003A 布局预览与吸附策略审计（Stage 172）](docs/172-pf003a-layout-preview-snap-policy-audit.md)
 - [PF-003B 手势会话与唯一完成提交审计（Stage 173）](docs/173-pf003b-gesture-session-single-commit-audit.md)
+- [PF-003C 布局保存失败补偿审计（Stage 174）](docs/174-pf003c-layout-save-failure-compensation-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)
