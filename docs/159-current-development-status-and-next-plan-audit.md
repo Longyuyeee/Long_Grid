@@ -377,3 +377,11 @@ Stage 174 已为布局唯一提交增加发布凭据和有限 `AwaitingSave / Pu
 真实测试先落盘 100/100 旧布局，再独占正式 store 的 `.lock` 文件。布局提交后内存为 200/150，正式保存实际失败为 `WriteLeaseUnavailable`，磁盘仍为 100/100；补偿后内存恢复 100/100，锁占期间补偿保存仍有限失败，解除锁并重试后真实 store 重载误差 0 DIP，桌面哨兵文件未变化。首轮聚焦通过后安全复审发现公开字段 token 可伪造，补充内部对象身份核对、深拷贝和伪造测试后最终 30/30 通过。
 
 该结果关闭 PF-003C 工程门，但正式桌面还没有布局输入接线。PF-003 保持 `InProgress`；下一切片固定为 PF-003D DesktopHost 标题栏移动、八向缩放命中、取消和键盘微调，复用 Stage 172–174 的唯一事务链。跨显示器、真实物理输入和 UIA Bounds 继续作为后续独立门，详见 [Stage 174](174-pf003c-layout-save-failure-compensation-audit.md)。
+
+## 22. 2026-08-21 PF-003D1 DesktopHost 布局输入合同增量复审
+
+Stage 175 已在正式每显示器 DesktopHost Surface 上增加标题栏 Move、四边四角 Resize 的九向命中和原生 capture 四阶段协议。锁定、重叠歧义、内容区和 Surface 外输入失败关闭；96/144/192/288/384 DPI 使用同一 8 DIP 边框语义。lifecycle 把 Surface 请求绑定到创建时的 display、workspace revision 和 topology generation，update 若被上层拒绝则立即 `HostInvalidated` cancel。
+
+专项测试实际创建原生 Surface，验证非零 HWND、Explicit window contract、Begin/Update/Complete 顺序和异常隔离；生产命中与 lifecycle 聚焦共 48/48。首次编译真实发现 `PixelRect` using 缺失和局部变量冲突，修复后通过；聚焦通过后的状态机复审又修正 rejected update 仍可能晚到 complete 的缺口；完整门禁发现并修正 19 行格式缩进差异。Release 全量为 1058/1058、solution build 为 0 warning / 0 error，100 方格、2,000 次生产布局预览 P95 为 `0.107 ms < 16.7 ms`；153-ID UI 合同、PF-002 正式 App Expected/Actual、两轮 20 秒真实窗口生命周期、漏洞与格式门禁均通过。
+
+该切片只关闭 Surface 工程合同。App 尚未绑定请求、Surface 尚未绘制动态候选，pointer-up 也尚未进入 Stage 173/174 提交和补偿，因此 PF-003 保持 `InProgress`。下一切片固定为 PF-003D2 App 消费、可见候选、唯一提交/补偿和键盘微调；物理鼠标与 UIA Bounds 仍不得伪报，详见 [Stage 175](175-pf003d1-desktop-host-layout-input-contract-audit.md)。

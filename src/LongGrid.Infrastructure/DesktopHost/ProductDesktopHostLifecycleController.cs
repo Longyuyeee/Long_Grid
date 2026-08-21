@@ -209,6 +209,11 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
     {
     }
 
+    void BindContainerLayout(
+        Func<ProductDesktopContainerLayoutSurfaceInput, bool> requestLayout)
+    {
+    }
+
     void RefreshSelection()
     {
     }
@@ -257,6 +262,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     private bool disposed;
     private Func<ProductDesktopWorkspaceCreateRequest, bool>
         requestWorkspaceCreate = static _ => false;
+    private Func<ProductDesktopContainerLayoutRequest, bool>
+        requestContainerLayout = static _ => false;
 
     public ProductDesktopHostLifecycleController(
         ProductDesktopHostFeatureDecision featureDecision)
@@ -379,6 +386,17 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             requestWorkspaceCreate = requestCreate;
+        }
+    }
+
+    public void BindContainerLayout(
+        Func<ProductDesktopContainerLayoutRequest, bool> requestLayout)
+    {
+        ArgumentNullException.ThrowIfNull(requestLayout);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            requestContainerLayout = requestLayout;
         }
     }
 
@@ -994,6 +1012,19 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                         input.IsInjected,
                         input.IsAutoRepeat,
                         input.RequestedBoundsPixels)));
+                created.BindContainerLayout(input =>
+                    requestContainerLayout(new(
+                        input.Phase,
+                        input.Kind,
+                        input.ContainerId,
+                        display.DisplayId,
+                        batch.WorkspaceRevision,
+                        batch.TopologyGeneration,
+                        input.CumulativeDeltaXDip,
+                        input.CumulativeDeltaYDip,
+                        input.SnapEnabled,
+                        input.ShiftPressed,
+                        input.CancellationReason)));
                 if (!created.ReadOnlyAccessibilityAttested
                     || (controlledSurfaceLifecycle
                         ? !created.HiddenWindowContractAttested

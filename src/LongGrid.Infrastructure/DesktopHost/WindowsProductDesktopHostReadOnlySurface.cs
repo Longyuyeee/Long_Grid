@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopHost;
 
 namespace LongGrid.Infrastructure.DesktopHost;
@@ -103,6 +104,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         applySelection = static (_, _) => false;
     private Func<ProductDesktopWorkspaceCreateInput, bool>
         requestWorkspaceCreate = static _ => false;
+    private Func<ProductDesktopContainerLayoutSurfaceInput, bool>
+        requestContainerLayout = static _ => false;
+    private ActiveContainerLayout? activeContainerLayout;
     private NativePoint workspaceCreateDragStart;
     private NativePoint workspaceCreateDragCurrent;
     private bool workspaceCreateDragActive;
@@ -334,7 +338,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             case NativeMethods.WmMouseActivate:
                 return new nint(NativeMethods.MaNoActivate);
             case NativeMethods.WmLButtonDown:
-                if (!HandleWorkspaceCreatePress(longParameter))
+                if (!TryStartContainerLayout(window, wordParameter, longParameter)
+                    && !HandleWorkspaceCreatePress(longParameter))
                 {
                     if (!TryStartWorkspaceCreateDrag(
                             window,
@@ -346,14 +351,42 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 }
                 return nint.Zero;
             case NativeMethods.WmMouseMove:
-                UpdateWorkspaceCreateDrag(longParameter);
+                if (activeContainerLayout is not null)
+                {
+                    UpdateContainerLayout(longParameter);
+                }
+                else
+                {
+                    UpdateWorkspaceCreateDrag(longParameter);
+                }
                 return nint.Zero;
             case NativeMethods.WmLButtonUp:
-                CompleteWorkspaceCreateDrag(window, longParameter);
+                if (activeContainerLayout is not null)
+                {
+                    CompleteContainerLayout(window, longParameter);
+                }
+                else
+                {
+                    CompleteWorkspaceCreateDrag(window, longParameter);
+                }
+                return nint.Zero;
+            case NativeMethods.WmCancelMode:
+                CancelContainerLayout(
+                    window,
+                    ProductDesktopContainerLayoutCancellationReason.CancelMode);
+                CancelWorkspaceCreateDrag(window);
                 return nint.Zero;
             case NativeMethods.WmCaptureChanged:
-            case NativeMethods.WmCancelMode:
+                CancelContainerLayout(
+                    window,
+                    ProductDesktopContainerLayoutCancellationReason.CaptureLost);
                 CancelWorkspaceCreateDrag(window);
+                return nint.Zero;
+            case NativeMethods.WmKeyDown
+                when wordParameter.ToInt64() == NativeMethods.VkEscape:
+                CancelContainerLayout(
+                    window,
+                    ProductDesktopContainerLayoutCancellationReason.EscapePressed);
                 return nint.Zero;
             case NativeMethods.WmRButtonUp:
                 _ = HandleWorkspaceCreateContextMenu(window, longParameter);
@@ -391,6 +424,169 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     {
         ArgumentNullException.ThrowIfNull(requestCreate);
         requestWorkspaceCreate = requestCreate;
+    }
+
+    public void BindContainerLayout(
+        Func<ProductDesktopContainerLayoutSurfaceInput, bool> requestLayout)
+    {
+        ArgumentNullException.ThrowIfNull(requestLayout);
+        requestContainerLayout = requestLayout;
+    }
+
+    internal bool SubmitContainerLayoutInput(
+        ProductDesktopContainerLayoutSurfaceInput input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        try
+        {
+            return requestContainerLayout(input);
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException
+                or InvalidOperationException
+                or OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private bool TryStartContainerLayout(
+        nint window,
+        nint wordParameter,
+        nint longParameter)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Explicit
+            || activeContainerLayout is not null
+            || workspaceCreateDragActive)
+        {
+            return false;
+        }
+
+        int x = SignedLowWord(longParameter);
+        int y = SignedHighWord(longParameter);
+        ProductDesktopContainerLayoutHitResult hit =
+            ProductDesktopContainerLayoutHitTestAdapter.HitTest(projection, x, y);
+        if (!hit.IsHit)
+        {
+            return false;
+        }
+
+        InputMessageSource source = default;
+        if (!NativeMethods.GetCurrentInputMessageSource(ref source)
+            || source.OriginId == NativeMethods.ImoInjected)
+        {
+            return false;
+        }
+
+        bool shift = (wordParameter.ToInt64() & NativeMethods.MkShift) != 0;
+        var active = new ActiveContainerLayout(
+            hit.ContainerId!,
+            hit.Kind!.Value,
+            new(x, y),
+            shift);
+        if (!SubmitContainerLayoutInput(new(
+                ProductDesktopContainerLayoutInputPhase.Begin,
+                active.Kind,
+                active.ContainerId,
+                0,
+                0,
+                SnapEnabled: true,
+                shift,
+                ProductDesktopContainerLayoutCancellationReason.None)))
+        {
+            return false;
+        }
+
+        activeContainerLayout = active;
+        _ = NativeMethods.SetCapture(window);
+        if (NativeMethods.GetCapture() == window)
+        {
+            return true;
+        }
+
+        CancelContainerLayout(
+            window,
+            ProductDesktopContainerLayoutCancellationReason.CaptureLost);
+        return false;
+    }
+
+    private bool UpdateContainerLayout(nint longParameter)
+    {
+        if (activeContainerLayout is not { } active)
+        {
+            return false;
+        }
+
+        double scale = projection.EffectiveDpi / 96d;
+        bool accepted = SubmitContainerLayoutInput(new(
+            ProductDesktopContainerLayoutInputPhase.Update,
+            active.Kind,
+            active.ContainerId,
+            (SignedLowWord(longParameter) - active.Start.X) / scale,
+            (SignedHighWord(longParameter) - active.Start.Y) / scale,
+            SnapEnabled: true,
+            active.ShiftPressed,
+            ProductDesktopContainerLayoutCancellationReason.None));
+        if (!accepted)
+        {
+            CancelContainerLayout(
+                Handle,
+                ProductDesktopContainerLayoutCancellationReason.HostInvalidated);
+        }
+        return accepted;
+    }
+
+    private void CompleteContainerLayout(nint window, nint longParameter)
+    {
+        if (activeContainerLayout is not { } active)
+        {
+            return;
+        }
+
+        if (!UpdateContainerLayout(longParameter))
+        {
+            return;
+        }
+        double scale = projection.EffectiveDpi / 96d;
+        activeContainerLayout = null;
+        if (NativeMethods.GetCapture() == window)
+        {
+            _ = NativeMethods.ReleaseCapture();
+        }
+        _ = SubmitContainerLayoutInput(new(
+            ProductDesktopContainerLayoutInputPhase.Complete,
+            active.Kind,
+            active.ContainerId,
+            (SignedLowWord(longParameter) - active.Start.X) / scale,
+            (SignedHighWord(longParameter) - active.Start.Y) / scale,
+            SnapEnabled: true,
+            active.ShiftPressed,
+            ProductDesktopContainerLayoutCancellationReason.None));
+    }
+
+    private void CancelContainerLayout(
+        nint window,
+        ProductDesktopContainerLayoutCancellationReason reason)
+    {
+        if (activeContainerLayout is not { } active)
+        {
+            return;
+        }
+
+        activeContainerLayout = null;
+        if (NativeMethods.GetCapture() == window)
+        {
+            _ = NativeMethods.ReleaseCapture();
+        }
+        _ = SubmitContainerLayoutInput(new(
+            ProductDesktopContainerLayoutInputPhase.Cancel,
+            active.Kind,
+            active.ContainerId,
+            0,
+            0,
+            SnapEnabled: true,
+            active.ShiftPressed,
+            reason));
     }
 
     public void RefreshSelection()
@@ -1077,6 +1273,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             return;
         }
 
+        CancelContainerLayout(
+            Handle,
+            ProductDesktopContainerLayoutCancellationReason.HostInvalidated);
         disposed = true;
         if (Handle != nint.Zero)
         {
@@ -1103,6 +1302,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     public bool ApplyPassive()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        CancelContainerLayout(
+            Handle,
+            ProductDesktopContainerLayoutCancellationReason.HostInvalidated);
         CancelWorkspaceCreateDrag(Handle);
         mode = ProductDesktopInteractionSurfaceMode.Passive;
         TryRegisterWorkspaceCreateHotKey();
@@ -1128,6 +1330,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     public bool ApplyHidden()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        CancelContainerLayout(
+            Handle,
+            ProductDesktopContainerLayoutCancellationReason.HostInvalidated);
         CancelWorkspaceCreateDrag(Handle);
         mode = ProductDesktopInteractionSurfaceMode.Hidden;
         ReleaseWorkspaceCreateHotKey();
@@ -1424,6 +1629,12 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             0,
             255);
 
+    private sealed record ActiveContainerLayout(
+        string ContainerId,
+        ProductWorkspaceContainerLayoutGestureKind Kind,
+        NativePoint Start,
+        bool ShiftPressed);
+
     private delegate nint WindowProcedure(
         nint window,
         uint message,
@@ -1519,9 +1730,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint WmNcHitTest = 0x0084;
         internal const uint WmMouseActivate = 0x0021;
         internal const uint WmGetObject = 0x003D;
+        internal const uint WmKeyDown = 0x0100;
         internal const uint WmLButtonDown = 0x0201;
         internal const uint WmLButtonUp = 0x0202;
         internal const uint WmMouseMove = 0x0200;
+        internal const int VkEscape = 0x1B;
         internal const uint WmRButtonUp = 0x0205;
         internal const uint WmCaptureChanged = 0x0215;
         internal const uint WmCancelMode = 0x001F;

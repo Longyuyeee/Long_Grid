@@ -1,3 +1,4 @@
+using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopHost;
 using LongGrid.Infrastructure.DesktopHost;
 
@@ -1285,6 +1286,31 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
+    public async Task ReadyWorkspaceLayoutInputKeepsDisplayRevisionAndTopology()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        ProductDesktopContainerLayoutRequest? captured = null;
+        controller.BindContainerLayout(request =>
+        {
+            captured = request;
+            return true;
+        });
+        _ = controller.ApplyProjectionUpdate(ReadyUpdate(8, 12));
+
+        Assert.True(factory.Surfaces[0].RequestBoundContainerLayout());
+        Assert.Equal("display-primary", captured!.DisplayId);
+        Assert.Equal("container-1", captured.ContainerId);
+        Assert.Equal(8, captured.ExpectedWorkspaceRevision);
+        Assert.Equal(12, captured.ExpectedTopologyGeneration);
+        Assert.Equal(ProductDesktopContainerLayoutInputPhase.Begin, captured.Phase);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
     public async Task DragCreateKeepsExactDisplayRevisionAndPixelBounds()
     {
         var factory = new RecordingSurfaceFactory();
@@ -1532,6 +1558,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             applySelection = static (_, _) => false;
         private Func<ProductDesktopWorkspaceCreateInput, bool>
             requestWorkspaceCreate = static _ => false;
+        private Func<ProductDesktopContainerLayoutSurfaceInput, bool>
+            requestContainerLayout = static _ => false;
 
         internal bool WasCreatedHidden { get; } = startHidden;
 
@@ -1604,6 +1632,10 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             Func<ProductDesktopWorkspaceCreateInput, bool> requestCreate) =>
             requestWorkspaceCreate = requestCreate;
 
+        public void BindContainerLayout(
+            Func<ProductDesktopContainerLayoutSurfaceInput, bool> requestLayout) =>
+            requestContainerLayout = requestLayout;
+
         internal bool RequestBoundWorkspaceCreate() =>
             requestWorkspaceCreate(new(
                 ProductDesktopWorkspaceCreateInputKind.PrimaryPointer,
@@ -1618,6 +1650,17 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                 IsInjected: false,
                 IsAutoRepeat: false,
                 bounds));
+
+        internal bool RequestBoundContainerLayout() =>
+            requestContainerLayout(new(
+                ProductDesktopContainerLayoutInputPhase.Begin,
+                ProductWorkspaceContainerLayoutGestureKind.Move,
+                "container-1",
+                0,
+                0,
+                SnapEnabled: true,
+                ShiftPressed: false,
+                ProductDesktopContainerLayoutCancellationReason.None));
 
         internal bool ApplyBoundSelection(
             string containerId,
