@@ -353,3 +353,11 @@ Stage 171 在同一正式 App evidence session 中补齐最近撤销工程证据
 两轮最终实际均为创建 `1/LoadedPrimary`、删除 `0/LoadedPrimary`、最近撤销选择与执行 `ContainerRemoval`、恢复 `1/LoadedPrimary`，名称仍为“PF-002 证据方格”；外部脚本对每一字段独立复核，桌面与用户配置元数据不变、临时目录删除、进程退出 0。开发中先真实发现工作区编辑修订与保存修订被混用，再发现 Windows PowerShell 5.1 对无 BOM UTF-8 中文常量解码不一致；分别改为读取保存控制器权威目标修订和以 Unicode 码点构造期望名称后重跑通过。
 
 此证据关闭“最近撤销的正式 App 工程证据”缺口，但仍是当前已知不安全 WinUI 组合下隐藏窗口的进程内 UI 线程驱动，不等同于可见按钮点击、物理输入、UIA 或 Narrator。PF-002 继续 `EngineeringComplete / ProductEvidencePending`；下一主门禁仍是上游修复或独立安全机器上的可见 Preview/发布、鼠标/键盘/触控和无障碍矩阵。详见 [Stage 171](171-pf002-formal-app-latest-undo-evidence-audit.md)。
+
+## 19. 2026-08-21 PF-003A 布局预览与吸附策略增量复审
+
+官方 WinUI 上游问题 #11139 仍为 Open/Backlog，且明确说明跨进程 UIA fail-fast 不能由应用代码捕获或规避；本机框架依赖 App 虽引用 Windows App SDK 2.3.1，实际选择已安装 Runtime 2.4.0.0。强制 UIA、删除辅助语义或猜测回退运行时都不能成为真实修正。PF-002 因此保持 `EngineeringComplete / ProductEvidencePending`，同时按本文“外部证据不阻断安全功能编码”的规则进入 PF-003A。
+
+PF-003A 新增正式 Core 的移动/四边四角缩放预览策略。每次请求绑定容器 ID、edit revision、topology generation 和显示器；锁定、陈旧、显示身份不唯一、跨显示器未准入、非有限或极端 delta 均零预览失败关闭。策略只计算 DIP 内存候选，支持 8 DIP 网格、工作区和同显示器方格边缘吸附，Shift 对默认吸附开关取反，最终候选约束在 DPI 换算后的工作区并保留最小 160×120 DIP。
+
+真实规模预检在正式 100 方格状态上预热 100 次后执行 2,000 次生产预览，首轮 P95 为 `0.067 ms`，预期 `<16.7 ms`，差异为无；工具同时证明不读取真实桌面、无真实文件操作且临时保存沙箱已清理。该结果只关闭 Core 计算和性能门，不证明视觉延迟、物理鼠标、UIA Bounds、一次保存或失败补偿。下一切片固定为 PF-003B 手势会话和唯一结束提交，详见 [Stage 172](172-pf003a-layout-preview-snap-policy-audit.md)。

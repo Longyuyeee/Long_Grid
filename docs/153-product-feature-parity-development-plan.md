@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
-- 当前开发项：**PF-002 桌面直接创建方格**
-- 最新工程审计：[Stage 169](169-winui-uia-fail-closed-preflight-audit.md)；当前 Windows 控制器的无文本截图路径也真实触发同一 WinUI fail-fast，live UIA 现会识别已验证的 `2.4.0.0 + 3.2.3.0` 组合并在启动 App 前失败关闭；PF-002 保持 `EngineeringComplete / ProductEvidencePending`，下一步建立默认关闭、专用临时配置的进程内 UI 证据会话，上游修复后重跑物理输入/UIA/Narrator，PF-002 完成前不进入 PF-003
+- 当前开发项：**PF-003 桌面拖动、缩放与吸附（PF-002F 产品证据并行 Pending）**
+- 最新工程审计：[Stage 172](172-pf003a-layout-preview-snap-policy-audit.md)；PF-003A 已建立不写盘的移动/八向缩放预览与有限吸附策略，并在 100 方格生产规模下执行真实延迟测试。它尚未接入正式 DesktopHost 输入、提交/补偿或跨显示器，不得标记 PF-003 完成；PF-002 可见物理输入和 UIA/Narrator 继续等待上游修复或独立安全机器
 
 ## 1. 本文解决什么问题
 
@@ -59,8 +59,8 @@
 | 顺序 | ID | 用户功能 | 当前状态 | 对标目标 |
 | ---: | --- | --- | --- | --- |
 | 1 | PF-001 | 桌面方格总开关与桌面优先启动 | `InProgress`：总开关和桌面空状态已完成，桌面优先最终呈现待收口 | iTop Enable Boxes |
-| 2 | PF-002 | 桌面直接创建方格 | `InProgress`：多输入、命名/布局、原生预览、保存补偿、拖画和已选引用原子事务底座已实现；已选引用 App 接线与正式证据待完成 | iTop/Fences 多入口创建 |
-| 3 | PF-003 | 桌面拖动、缩放、吸附 | 预设位置/尺寸 | Fences/Nimi 直接布局 |
+| 2 | PF-002 | 桌面直接创建方格 | `EngineeringComplete / ProductEvidencePending`：正式 App 创建、保存、补偿与最近撤销工程证据通过；可见物理输入和 UIA/Narrator 待补 | iTop/Fences 多入口创建 |
+| 3 | PF-003 | 桌面拖动、缩放、吸附 | `InProgress`：移动/八向缩放内存预览、有限吸附和 100 方格性能门已实现；正式输入、提交补偿与产品证据待完成 | Fences/Nimi 直接布局 |
 | 4 | PF-004 | 方格标题栏与就近操作 | 部分 Core | Fences 标题栏操作 |
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | worker 有、UI 无 | Fences/Nimi 项目呈现 |
 | 6 | PF-006 | 项目选择、键盘导航与打开 | 选择底座 | Fences/Portal 日常访问 |
@@ -172,6 +172,8 @@
 - 重启后位置与尺寸误差不超过 1 DIP；
 - 100 个方格布局操作不产生持续卡顿或窗口泄漏；
 - UIA Bounds 与最终视觉 Bounds 一致。
+
+**2026-08-21 实施状态**：`InProgress`。Stage 172 已实现正式 Core 预览策略：移动、四边/四角缩放，8 DIP 网格、工作区和同显示器其他方格边缘吸附，Shift 对配置吸附行为取反；请求绑定容器、edit revision、topology generation 和显示器，锁定、陈旧、重复显示身份、无效/极端 delta 均失败关闭。100/150/200/300/400% DPI 与负坐标工作区有确定性合同；100 方格、2,000 次生产预览的真实 P95 低于 16.7 ms，且该路径不写盘、不读桌面。尚未接入手势生命周期、DesktopHost 标题栏/八向命中、键盘微调、跨显示器、结束时一次提交、保存失败恢复、重启误差、物理输入和 UIA Bounds，因此 PF-003 不得升级为 `EngineeringComplete` 或 `Complete`。
 
 ### PF-004：方格标题栏与就近操作
 
@@ -879,6 +881,6 @@
 
 ## 15. 当前立即执行项
 
-当前开发项为 **PF-002：桌面直接创建方格**。PF-002A/B/C/D1、PF-002D2a、PF-002E、拖画矩形工程链及 PF-002H 正式 App 工程链已完成。Stage 171 的专用临时配置证据会话已在正式 Release App、真实 XAML 和 UI 线程中连续两次通过 Preview 取消—确认—创建落盘—删除落盘—统一最近撤销—恢复落盘，外部脚本逐项复核应用事实且零桌面/用户配置副作用。最近撤销的正式 App 工程证据已从 Pending 关闭；当前 WinUI 上游缺陷仍阻断可见 Preview、确认后视图发布、物理输入和 UIA/Narrator。上述门禁补齐前 PF-002 不能升级为 Complete。
+当前工程切片为 **PF-003：桌面拖动、缩放与吸附**。PF-002A～H 的正式工程链和 Stage 171 最近撤销证据已完成，PF-002 状态调整为 `EngineeringComplete / ProductEvidencePending`；当前 WinUI 上游缺陷仍阻断可见 Preview/视图发布、物理输入和 UIA/Narrator，因此 PF-002 不能标记 `Complete`。
 
-并行门禁是在无并发输入 Windows 会话验证真实鼠标拖画及打开—编辑—取消—确认；随后完成 PF-002F 正式设备/无障碍证据。PF-002 全部验收关闭后才进入 PF-003。G0 外部证据并行保留，任何版本在 G0/签名/安装未完成前不得分发，但不再用这些门禁替代产品功能开发。
+Stage 172 已完成 PF-003A 的纯内存预览/吸附策略与 100 方格真实性能门。下一切片是 PF-003B 手势会话和唯一结束提交：begin/update/cancel/complete 必须绑定同一 revision/topology/display，指针移动期间零保存，complete 只提交一次；随后补保存失败恢复，再接正式 DesktopHost 输入。PF-002F 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。

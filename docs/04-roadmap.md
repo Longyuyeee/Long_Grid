@@ -348,3 +348,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-16 PF-002C2 非空持续创建：非空工作区为全部权威显示器保留 Surface，并在不与现有方格相交的有限空位显示“新建方格”；鼠标/UIA绑定所在显示器，主显示器唯一注册 `Ctrl+Alt+N`。进入 Explicit 时入口、UIA导航和快捷键同步关闭，Passive 恢复；无空位时隐藏而不覆盖。全量 972/972、Release 构建、格式和 146-ID UI 合同通过。PF-002 仍为 `InProgress`，下一步固定 PF-002D 就地预览与命名，详见 [Stage 158](158-pf002c2-persistent-desktop-create-audit.md)。
 
 2026-08-16 当前开发状态与计划对齐审计：`main@1f2294d` 与远端一致、无开放 PR，主分支 CI `31951221413` 为 972/972，lines 90.45%、branches 77.30%，800/800 交付文件通过；制品仍未签名、不可安装、未批准分发。Stage 153 后五个功能实现 PR 均沿 PF-001/PF-002 推进，方向未偏移；严格顶层口径仍为 0/30 Complete、2/30 InProgress。PF-001 欠桌面优先呈现，PF-002 欠 D 预览命名、E 保存发布补偿、拖画矩形、已选引用创建与正式证据，禁止提前进入 PF-003。详细根因、逐步验收目标和统一推送门见 [Stage 159](159-current-development-status-and-next-plan-audit.md)。
+
+2026-08-21 PF-003A 布局预览与吸附策略：PF-002 正式 App 创建/保存/补偿/最近撤销工程证据完成后，将其调整为 `EngineeringComplete / ProductEvidencePending`；上游 WinUI UIA 缺陷继续阻止可见物理/无障碍完成证据，但不再冻结安全功能编码。PF-003A 新增移动/八向缩放纯内存预览、网格/工作区/同显示器方格边缘吸附、Shift 反转、锁定和 revision/topology 失败关闭；100 方格 2,000 次生产计算 P95 满足 16.7 ms 预算。正式 DesktopHost 输入、手势结束一次提交、保存失败恢复和跨显示器仍 Pending，详见 [Stage 172](172-pf003a-layout-preview-snap-policy-audit.md)。
