@@ -24,6 +24,7 @@ internal sealed class DesktopWorkspaceCreatePreviewWindow : Window
     private readonly TextBlock placementSummary;
     private readonly TextBlock validation;
     private readonly Button confirmButton;
+    private readonly PixelRect windowBounds;
     private ProductDesktopWorkspaceCreatePreviewSnapshot current;
     private bool activatedOnce;
     private bool completing;
@@ -43,6 +44,7 @@ internal sealed class DesktopWorkspaceCreatePreviewWindow : Window
 
         current = initial;
         this.evaluateName = evaluateName;
+        this.windowBounds = windowBounds;
         Title = "预览新方格 · Long方格";
         ExtendsContentIntoTitleBar = true;
         SystemBackdrop = new DesktopAcrylicBackdrop();
@@ -157,20 +159,6 @@ internal sealed class DesktopWorkspaceCreatePreviewWindow : Window
         AutomationProperties.SetName(root, "桌面新方格预览");
         Content = root;
 
-        if (AppWindow.Presenter is OverlappedPresenter presenter)
-        {
-            presenter.IsResizable = false;
-            presenter.IsMaximizable = false;
-            presenter.IsMinimizable = false;
-            presenter.SetBorderAndTitleBar(false, false);
-        }
-        AppWindow.IsShownInSwitchers = false;
-        AppWindow.MoveAndResize(new RectInt32(
-            windowBounds.Left,
-            windowBounds.Top,
-            windowBounds.Width,
-            windowBounds.Height));
-
         nameEditor.TextChanged += (_, _) => ApplyValidation();
         nameEditor.KeyDown += NameEditor_KeyDown;
         confirmButton.Click += (_, _) => Confirm();
@@ -181,11 +169,64 @@ internal sealed class DesktopWorkspaceCreatePreviewWindow : Window
         ApplyValidation();
     }
 
-    internal Task<string?> ShowAsync()
+    internal async Task<string?> ShowAsync()
     {
         Activate();
-        return completion.Task;
+        await Task.Delay(150);
+        ApplyWindowPresentation();
+        return await completion.Task;
     }
+
+    internal async Task<string?> ShowForEvidenceAsync(
+        string? submittedName,
+        Action<string>? recordStage = null)
+    {
+        Activate();
+        recordStage?.Invoke("InlinePreviewActivated");
+        await Task.Delay(150);
+        ApplyWindowPresentation(recordStage);
+        await Task.Delay(100);
+        if (submittedName is null)
+        {
+            Cancel();
+        }
+        else
+        {
+            nameEditor.Text = submittedName;
+            Confirm();
+        }
+        return await completion.Task;
+    }
+
+    private void ApplyWindowPresentation(Action<string>? recordStage = null)
+    {
+        recordStage?.Invoke("ConfiguringInlinePreviewPresenter");
+        if (AppWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.IsResizable = false;
+            presenter.IsMaximizable = false;
+            presenter.IsMinimizable = false;
+            presenter.SetBorderAndTitleBar(false, false);
+        }
+        recordStage?.Invoke("ConfiguringInlinePreviewSwitcher");
+        AppWindow.IsShownInSwitchers = false;
+        recordStage?.Invoke("PositioningInlinePreview");
+        AppWindow.MoveAndResize(new RectInt32(
+            windowBounds.Left,
+            windowBounds.Top,
+            windowBounds.Width,
+            windowBounds.Height));
+        recordStage?.Invoke("InlinePreviewPresentationReady");
+    }
+
+    internal bool HasEvidenceVisualTree =>
+        Content is FrameworkElement
+        && !string.IsNullOrWhiteSpace(
+            AutomationProperties.GetAutomationId(nameEditor))
+        && !string.IsNullOrWhiteSpace(
+            AutomationProperties.GetAutomationId(confirmButton));
+
+    internal bool WasActivated => activatedOnce;
 
     internal void Cancel() => Complete(null);
 
@@ -267,7 +308,7 @@ internal sealed class DesktopWorkspaceCreatePreviewWindow : Window
         _ = completion.TrySetResult(name);
         if (closeWindow)
         {
-            Close();
+            AppWindow.Destroy();
         }
     }
 

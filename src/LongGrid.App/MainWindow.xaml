@@ -1715,5 +1715,69 @@
                 </ScrollViewer>
             </Grid>
         </NavigationView>
+
+        <Grid
+            x:Name="DesktopWorkspaceCreateSafePreviewOverlay"
+            Grid.RowSpan="2"
+            Padding="24"
+            Background="#99000000"
+            Visibility="Collapsed"
+            AutomationProperties.AccessibilityView="Content"
+            AutomationProperties.AutomationId="DesktopWorkspaceCreateSafePreviewOverlay"
+            AutomationProperties.Name="桌面新方格安全预览">
+            <Border
+                Width="420"
+                Padding="24"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Center"
+                Background="{ThemeResource LongGridSurfaceBrush}"
+                BorderBrush="{ThemeResource LongGridBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="20">
+                <StackPanel Spacing="14">
+                    <TextBlock
+                        FontSize="22"
+                        FontWeight="SemiBold"
+                        Text="预览新方格" />
+                    <TextBlock
+                        Text="检查名称和候选位置后再创建。取消不会创建方格，也不会读取、移动或修改桌面文件。"
+                        TextWrapping="Wrap" />
+                    <TextBox
+                        x:Name="DesktopWorkspaceCreateSafePreviewNameEditor"
+                        Header="方格名称"
+                        MaxLength="80"
+                        TextChanged="DesktopWorkspaceCreateSafePreviewNameEditor_TextChanged"
+                        AutomationProperties.AutomationId="DesktopWorkspaceCreateSafePreviewNameEditor"
+                        AutomationProperties.Name="方格名称" />
+                    <TextBlock
+                        x:Name="DesktopWorkspaceCreateSafePreviewPlacementSummary"
+                        TextWrapping="Wrap"
+                        AutomationProperties.AutomationId="DesktopWorkspaceCreateSafePreviewPlacementSummary" />
+                    <TextBlock
+                        x:Name="DesktopWorkspaceCreateSafePreviewValidation"
+                        TextWrapping="Wrap"
+                        AutomationProperties.AutomationId="DesktopWorkspaceCreateSafePreviewValidation"
+                        AutomationProperties.LiveSetting="Polite" />
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button
+                            HorizontalAlignment="Stretch"
+                            Content="取消"
+                            Click="DesktopWorkspaceCreateSafePreviewCancelButton_Click"
+                            AutomationProperties.AutomationId="DesktopWorkspaceCreateSafePreviewCancelButton" />
+                        <Button
+                            x:Name="DesktopWorkspaceCreateSafePreviewConfirmButton"
+                            Grid.Column="1"
+                            HorizontalAlignment="Stretch"
+                            Content="创建并保存"
+                            Click="DesktopWorkspaceCreateSafePreviewConfirmButton_Click"
+                            AutomationProperties.AutomationId="DesktopWorkspaceCreateSafePreviewConfirmButton" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

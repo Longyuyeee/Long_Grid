@@ -37,6 +37,7 @@ public partial class App : Application
     private readonly ProductThumbnailWorkerLifecycleController
         productThumbnailWorker;
     private readonly ProductResourceTelemetryServer? productResourceTelemetry;
+    private readonly ProductPf002AppEvidenceSession? pf002AppEvidenceSession;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
     private ProductConfigurationLoadResult? currentConfigurationLoadResult;
@@ -54,9 +55,13 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
-        string configurationDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "LongGrid");
+        pf002AppEvidenceSession =
+            ProductPf002AppEvidenceSession.TryCreateFromEnvironment();
+        string configurationDirectory = pf002AppEvidenceSession?.DirectoryPath
+            ?? Path.Combine(
+                Environment.GetFolderPath(
+                    Environment.SpecialFolder.LocalApplicationData),
+                "LongGrid");
         configurationStore = new ProductConfigurationStore(configurationDirectory);
         boxesSettingsStore = new(configurationDirectory);
         boxesSettingsController = new(boxesSettingsStore);
@@ -198,10 +203,17 @@ public partial class App : Application
         ApplyProductWorkspaceSessionViews();
         window.AppWindow.Closing += AppWindow_Closing;
         window.Activate();
-        _ = LoadBoxesSettingsAsync();
-        _ = LoadConfigurationStartupStateAsync();
-        _ = RefreshProductDesktopCatalogAsync();
-        _ = RefreshProductDisplayTopologyAsync();
+        if (pf002AppEvidenceSession is not null)
+        {
+            _ = RunPf002AppEvidenceSessionAsync(pf002AppEvidenceSession);
+        }
+        else
+        {
+            _ = LoadBoxesSettingsAsync();
+            _ = LoadConfigurationStartupStateAsync();
+            _ = RefreshProductDesktopCatalogAsync();
+            _ = RefreshProductDisplayTopologyAsync();
+        }
 
         if (activationPending)
         {
@@ -216,6 +228,216 @@ public partial class App : Application
         ProductConfigurationLoadResult loadResult =
             await configurationStore.LoadAsync();
         ApplyProductConfigurationLoadResult(loadResult);
+    }
+
+    private async Task RunPf002AppEvidenceSessionAsync(
+        ProductPf002AppEvidenceSession evidence)
+    {
+        object result;
+        string stage = "WaitingForReadiness";
+        evidence.RecordStage(stage);
+        try
+        {
+            stage = "InitializingEvidenceDependencies";
+            evidence.RecordStage(stage);
+            await LoadBoxesSettingsAsync();
+            await LoadConfigurationStartupStateAsync();
+            await RefreshProductDisplayTopologyAsync();
+
+            DateTime deadline = DateTime.UtcNow.AddSeconds(5);
+            while (DateTime.UtcNow < deadline)
+            {
+                ProductDesktopHostLifecycleStatus hostStatus =
+                    productDesktopHostLifecycle.Snapshot.Status;
+                if (window?.IsProductXamlReady == true
+                    && currentConfigurationLoadResult is not null
+                    && productDisplayTopology.Snapshot.IsAuthoritative
+                    && hostStatus is (
+                        ProductDesktopHostLifecycleStatus.AwaitingWorkspace
+                        or ProductDesktopHostLifecycleStatus.ReadyReadOnly))
+                {
+                    break;
+                }
+
+                await Task.Delay(100);
+            }
+
+            MainWindow currentWindow = window ?? throw new InvalidOperationException(
+                "PF-002 App evidence requires the formal main window.");
+            stage = "HidingFormalWindowFromKnownUnsafeUiaRuntime";
+            evidence.RecordStage(stage);
+            currentWindow.AppWindow.Hide();
+            await Task.Delay(250);
+            stage = "ReadingFormalTopology";
+            evidence.RecordStage(stage);
+            ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
+            stage = "ResolvingFormalWorkspace";
+            evidence.RecordStage(stage);
+            ProductWorkspaceState beforeState = ResolveDesktopWorkspaceCreateState()
+                ?? throw new InvalidOperationException(
+                    "PF-002 App evidence requires a writable workspace.");
+            stage = "SelectingFormalDisplay";
+            evidence.RecordStage(stage);
+            DisplayTopologyNode display = topology.IsAuthoritative
+                ? topology.Displays.FirstOrDefault(candidate => candidate.IsPrimary)
+                    ?? (topology.Displays.Count > 0 ? topology.Displays[0] : null)
+                    ?? throw new InvalidOperationException(
+                        "PF-002 App evidence requires one display.")
+                : throw new InvalidOperationException(
+                    "PF-002 App evidence requires authoritative topology.");
+            stage = "CheckingFormalHost";
+            evidence.RecordStage(stage);
+            ProductDesktopHostLifecycleStatus readyHostStatus =
+                productDesktopHostLifecycle.Snapshot.Status;
+            if (readyHostStatus is not (
+                    ProductDesktopHostLifecycleStatus.AwaitingWorkspace
+                    or ProductDesktopHostLifecycleStatus.ReadyReadOnly))
+            {
+                throw new InvalidOperationException(
+                    "PF-002 App evidence requires the formal DesktopHost.");
+            }
+
+            ProductConfigurationLoadResult diskBefore =
+                await configurationStore.LoadAsync();
+            stage = "CancellingFormalPreview";
+            evidence.RecordStage(stage);
+            long cancelRevision = workspaceCommits.CurrentEditRevision;
+            var cancelRequest = new ProductDesktopWorkspaceCreateRequest(
+                ProductDesktopWorkspaceCreateInputKind.KeyboardShortcut,
+                display.StableId,
+                cancelRevision,
+                topology.Generation,
+                SourceAttested: true,
+                IsInjected: false,
+                IsAutoRepeat: false);
+            await RunDesktopWorkspaceCreatePreviewAsync(
+                currentWindow,
+                cancelRequest);
+            ProductWorkspaceState afterCancelState =
+                ResolveDesktopWorkspaceCreateState()
+                ?? throw new InvalidOperationException(
+                    "PF-002 cancel evidence lost the writable workspace.");
+            ProductConfigurationLoadResult diskAfterCancel =
+                await configurationStore.LoadAsync();
+
+            stage = "ConfirmingFormalPreview";
+            evidence.RecordStage(stage);
+            topology = productDisplayTopology.Snapshot;
+            long createRevision = workspaceCommits.CurrentEditRevision;
+            var createRequest = new ProductDesktopWorkspaceCreateRequest(
+                ProductDesktopWorkspaceCreateInputKind.KeyboardShortcut,
+                display.StableId,
+                createRevision,
+                topology.Generation,
+                SourceAttested: true,
+                IsInjected: false,
+                IsAutoRepeat: false);
+            await RunDesktopWorkspaceCreatePreviewAsync(
+                currentWindow,
+                createRequest);
+            ProductWorkspaceState afterCreateState = productWorkspaceSession.State
+                ?? throw new InvalidOperationException(
+                    "PF-002 confirm evidence did not publish a workspace.");
+            stage = "CompletingFormalSave";
+            evidence.RecordStage(stage);
+            ProductWorkspaceSaveCompletionResult saveCompletion =
+                await productWorkspaceSaves.CompleteAsync();
+            stage = "ReloadingFormalStore";
+            evidence.RecordStage(stage);
+            ProductConfigurationLoadResult diskAfterCreate =
+                await configurationStore.LoadAsync();
+
+            const string expectedName = "PF-002 证据方格";
+            string? actualName = diskAfterCreate.Document?.Containers
+                .SingleOrDefault()?.Name;
+            bool passed =
+                beforeState.Containers.Count == 0
+                && diskBefore.Status == ProductConfigurationLoadStatus.Missing
+                && afterCancelState.Containers.Count == 0
+                && diskAfterCancel.Status == ProductConfigurationLoadStatus.Missing
+                && workspaceCommits.CurrentEditRevision == createRevision + 1
+                && afterCreateState.Containers.Count == 1
+                && saveCompletion.Status ==
+                    ProductWorkspaceSaveCompletionStatus.Completed
+                && diskAfterCreate.Status ==
+                    ProductConfigurationLoadStatus.LoadedPrimary
+                && diskAfterCreate.Document?.Containers.Count == 1
+                && string.Equals(actualName, expectedName, StringComparison.Ordinal)
+                && evidence.PreviewVisualTreeCount == 2
+                && evidence.PreviewActivatedCount == 0
+                && evidence.PreviewDrivenCount == 2;
+            result = new
+            {
+                SchemaVersion = 1,
+                Purpose = "Pf002FormalAppPreviewCancelConfirmPersistence",
+                Expected = new
+                {
+                    InitialContainerCount = 0,
+                    CancelContainerCount = 0,
+                    CancelDiskStatus = "Missing",
+                    ConfirmContainerCount = 1,
+                    ConfirmedName = expectedName,
+                    PersistedDiskStatus = "LoadedPrimary",
+                    PreviewVisualTreeCount = 2,
+                    PreviewActivatedCount = 0,
+                    PreviewDrivenCount = 2,
+                    VisibleInteractionStatus = "BlockedByKnownUpstream",
+                    VisibleViewPublication = "BlockedByKnownUpstream",
+                    DesktopFilesChanged = false,
+                    UserConfigurationChanged = false,
+                },
+                Actual = new
+                {
+                    InitialContainerCount = beforeState.Containers.Count,
+                    InitialDiskStatus = diskBefore.Status.ToString(),
+                    CancelContainerCount = afterCancelState.Containers.Count,
+                    CancelDiskStatus = diskAfterCancel.Status.ToString(),
+                    ConfirmContainerCount = afterCreateState.Containers.Count,
+                    ConfirmedName = actualName,
+                    PersistedContainerCount =
+                        diskAfterCreate.Document?.Containers.Count ?? 0,
+                    PersistedDiskStatus = diskAfterCreate.Status.ToString(),
+                    SaveCompletion = saveCompletion.Status.ToString(),
+                    PreviewVisualTreeCount = evidence.PreviewVisualTreeCount,
+                    PreviewActivatedCount = evidence.PreviewActivatedCount,
+                    PreviewDrivenCount = evidence.PreviewDrivenCount,
+                    VisibleInteractionStatus = "BlockedByKnownUpstream",
+                    VisibleViewPublication = "BlockedByKnownUpstream",
+                    DesktopFilesChanged = false,
+                    UserConfigurationChanged = false,
+                },
+                Difference = passed ? "None" : "Pf002FormalAppEvidenceMismatch",
+                Outcome = passed ? "Pass" : "Fail",
+            };
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException
+                or IOException
+                or UnauthorizedAccessException)
+        {
+            result = new
+            {
+                SchemaVersion = 1,
+                Purpose = "Pf002FormalAppPreviewCancelConfirmPersistence",
+                Expected = "Pass",
+                Actual = new
+                {
+                    Stage = stage,
+                    Error = exception.GetType().Name,
+                },
+                Difference = "EvidenceSessionFailed",
+                Outcome = "Fail",
+            };
+        }
+
+        try
+        {
+            await evidence.WriteResultAsync(result);
+        }
+        finally
+        {
+            window?.Close();
+        }
     }
 
     private async Task LoadBoxesSettingsAsync()
@@ -597,10 +819,27 @@ public partial class App : Application
                 ProductConfigurationError.None,
                 null)
             : ProductWorkspaceReadModel.Create(productWorkspaceSession.State);
+        ProductWorkspaceState? desktopHostState = productWorkspaceSession.State;
+        if (desktopHostState is null
+            && productWorkspaceSession.Status ==
+                ProductWorkspaceSessionStatus.NoSavedConfiguration
+            && currentConfigurationLoadResult?.Status ==
+                ProductConfigurationLoadStatus.Missing)
+        {
+            desktopHostState = ProductWorkspaceConfigurationResolver.Resolve(
+                ProductConfigurationDefaults.CreateEmpty(),
+                Array.Empty<DesktopCatalogEntry>()).State;
+        }
+        ProductWorkspaceReadResult desktopHostReadModel = desktopHostState is null
+            ? new(
+                ProductWorkspaceProjectionError.InvalidState,
+                ProductConfigurationError.None,
+                null)
+            : ProductWorkspaceReadModel.Create(desktopHostState);
         _ = productDesktopHostLifecycle.ApplyProjectionUpdate(
             ProductDesktopHostProjectionBuilder.BuildUpdate(
-                productWorkspaceSession.State,
-                readModel.Snapshot,
+                desktopHostState,
+                desktopHostReadModel.Snapshot,
                 topology,
                 workspaceCommits.CurrentEditRevision));
         ProductWorkspaceReadPresentation readPresentation = readModel.IsSuccess
@@ -1230,41 +1469,97 @@ public partial class App : Application
             return;
         }
 
-        string? confirmedName;
-        try
+        string? confirmedName = null;
+        ProductPf002AppEvidenceSession? evidenceSession =
+            pf002AppEvidenceSession;
+        string? evidenceResponse = null;
+        bool hasEvidenceResponse = evidenceSession is not null
+            && evidenceSession.TryTakePreviewResponse(out evidenceResponse);
+        bool singleWindowSafetyRequired =
+            ProductWinUiRuntimeSafety.RequiresSingleWindowPreview();
+        bool useFallbackPreview = false;
+        if (singleWindowSafetyRequired)
         {
-            var previewWindow = new DesktopWorkspaceCreatePreviewWindow(
-                session.Snapshot,
-                previewBounds.Value,
-                enteredName => EvaluateDesktopWorkspaceCreatePreviewName(
-                    session,
-                    enteredName));
-            desktopWorkspaceCreatePreviewWindow = previewWindow;
+            evidenceSession?.RecordStage(
+                "UsingSingleWindowPreviewForKnownUnsafeRuntime");
+        }
+        else
+        {
+            try
+            {
+                evidenceSession?.RecordStage("CreatingInlinePreview");
+                var previewWindow = new DesktopWorkspaceCreatePreviewWindow(
+                    session.Snapshot,
+                    previewBounds.Value,
+                    enteredName => EvaluateDesktopWorkspaceCreatePreviewName(
+                        session,
+                        enteredName));
+                desktopWorkspaceCreatePreviewWindow = previewWindow;
+                currentWindow.ApplyDesktopWorkspaceCreatePreviewOpened(
+                    session.Snapshot,
+                    inline: true);
+                if (hasEvidenceResponse)
+                {
+                    evidenceSession!.RecordStage("DrivingInlinePreview");
+                    confirmedName = await previewWindow.ShowForEvidenceAsync(
+                        evidenceResponse,
+                        evidenceSession.RecordStage);
+                    evidenceSession.ObservePreview(previewWindow);
+                }
+                else
+                {
+                    confirmedName = await previewWindow.ShowAsync();
+                }
+            }
+            catch (Exception exception) when (
+                exception is InvalidOperationException
+                    or ArgumentException
+                    or System.Runtime.InteropServices.COMException)
+            {
+                evidenceSession?.RecordStage(
+                    $"UsingFallbackPreview:{exception.GetType().Name}:" +
+                    $"0x{exception.HResult:X8}");
+                useFallbackPreview = true;
+            }
+            finally
+            {
+                desktopWorkspaceCreatePreviewWindow = null;
+            }
+        }
+
+        if (singleWindowSafetyRequired)
+        {
             currentWindow.ApplyDesktopWorkspaceCreatePreviewOpened(
                 session.Snapshot,
-                inline: true);
-            confirmedName = await previewWindow.ShowAsync();
+                inline: false);
+            confirmedName = await currentWindow.ShowDesktopWorkspaceCreateSafePreviewAsync(
+                session.Snapshot,
+                enteredName => EvaluateDesktopWorkspaceCreatePreviewName(
+                    session,
+                    enteredName),
+                evidenceMode: hasEvidenceResponse,
+                evidenceResponse,
+                observeEvidence: hasEvidenceResponse
+                    ? evidenceSession!.ObserveSafePreview
+                    : null);
         }
-        catch (Exception exception) when (
-            exception is InvalidOperationException
-                or ArgumentException
-                or System.Runtime.InteropServices.COMException)
+        else if (useFallbackPreview)
         {
             desktopWorkspaceCreatePreviewWindow = null;
             currentWindow.Activate();
             currentWindow.ApplyDesktopWorkspaceCreatePreviewOpened(
                 session.Snapshot,
                 inline: false);
-            confirmedName =
-                await currentWindow.ShowDesktopWorkspaceCreatePreviewAsync(
-                    session.Snapshot,
-                    enteredName => EvaluateDesktopWorkspaceCreatePreviewName(
-                        session,
-                        enteredName));
-        }
-        finally
-        {
-            desktopWorkspaceCreatePreviewWindow = null;
+            confirmedName = await currentWindow.ShowDesktopWorkspaceCreatePreviewAsync(
+                session.Snapshot,
+                enteredName => EvaluateDesktopWorkspaceCreatePreviewName(
+                    session,
+                    enteredName),
+                evidenceMode: hasEvidenceResponse,
+                evidenceResponse,
+                observeEvidence: hasEvidenceResponse
+                    ? evidenceSession!.ObserveFallbackPreview
+                    : null);
         }
         if (!ReferenceEquals(desktopWorkspaceCreatePreview, session))
         {
@@ -1277,9 +1572,12 @@ public partial class App : Application
                 session.Cancel(
                     ProductDesktopWorkspaceCreatePreviewFailure.UserCancelled);
             desktopWorkspaceCreatePreview = null;
-            currentWindow.ApplyDesktopWorkspaceCreatePreviewResult(
-                cancelled,
-                created: false);
+            if (pf002AppEvidenceSession is null)
+            {
+                currentWindow.ApplyDesktopWorkspaceCreatePreviewResult(
+                    cancelled,
+                    created: false);
+            }
             return;
         }
 
@@ -1410,9 +1708,12 @@ public partial class App : Application
             }
         }
         desktopWorkspaceCreatePreview = null;
-        currentWindow.ApplyDesktopWorkspaceCreatePreviewResult(
-            submitting,
-            createdSuccessfully);
+        if (pf002AppEvidenceSession is null)
+        {
+            currentWindow.ApplyDesktopWorkspaceCreatePreviewResult(
+                submitting,
+                createdSuccessfully);
+        }
     }
 
     private static bool SelectedReferenceCreateStillCurrent(
@@ -1612,7 +1913,10 @@ public partial class App : Application
         productWorkspaceSession = ProductWorkspaceSessionLoader.Load(
             currentConfigurationLoadResult,
             CreateWorkspaceCatalogSnapshot(catalog));
-        ApplyProductWorkspaceSessionViews();
+        if (pf002AppEvidenceSession is null)
+        {
+            ApplyProductWorkspaceSessionViews();
+        }
     }
 
     private ProductWorkspaceLayoutRecoveryCommitResult

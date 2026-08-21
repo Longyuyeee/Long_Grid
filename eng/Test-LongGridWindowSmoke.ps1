@@ -21,6 +21,29 @@ $outputDirectory = Join-Path $projectRoot (
 $executablePath = Join-Path $outputDirectory 'LongGrid.App.exe'
 $startedProcess = $null
 $cleanExitObserved = $false
+$observedWindowHandle = [IntPtr]::Zero
+
+if (-not ('LongGridWindowSmokeNativeMethods' -as [type])) {
+    Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+
+public static class LongGridWindowSmokeNativeMethods
+{
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool PostMessage(
+        IntPtr hWnd,
+        uint message,
+        IntPtr wParam,
+        IntPtr lParam);
+}
+'@
+}
 
 function Assert-Condition {
     param(
@@ -83,6 +106,7 @@ try {
         'LongGrid.App exposed a window but Windows reported it as not responding.'
 
     $observedWindowTitle = $startedProcess.MainWindowTitle
+    $observedWindowHandle = $startedProcess.MainWindowHandle
     $windowReadyMilliseconds = [int]((Get-Date) - $startedAt).TotalMilliseconds
     $stabilityDeadline = (Get-Date).AddSeconds($StabilitySeconds)
     do {
@@ -92,9 +116,16 @@ try {
             "LongGrid.App exited during the $StabilitySeconds-second real-window stability interval."
         Assert-Condition $startedProcess.Responding `
             "LongGrid.App stopped responding during the $StabilitySeconds-second stability interval."
+        Assert-Condition (
+            [LongGridWindowSmokeNativeMethods]::IsWindow($observedWindowHandle)
+        ) 'The originally attested LongGrid main window disappeared during the stability interval.'
     } while ((Get-Date) -lt $stabilityDeadline)
 
-    $closeRequested = $startedProcess.CloseMainWindow()
+    $closeRequested = [LongGridWindowSmokeNativeMethods]::PostMessage(
+        $observedWindowHandle,
+        0x0010,
+        [IntPtr]::Zero,
+        [IntPtr]::Zero)
     Assert-Condition $closeRequested `
         'Windows did not accept WM_CLOSE for the LongGrid.App main window.'
     $cleanExitObserved = $startedProcess.WaitForExit(10000)
@@ -129,7 +160,13 @@ finally {
         -not $cleanExitObserved -and
         -not $startedProcess.HasExited)
     {
-        $null = $startedProcess.CloseMainWindow()
+        if ($observedWindowHandle -ne [IntPtr]::Zero) {
+            $null = [LongGridWindowSmokeNativeMethods]::PostMessage(
+                $observedWindowHandle,
+                0x0010,
+                [IntPtr]::Zero,
+                [IntPtr]::Zero)
+        }
         if (-not $startedProcess.WaitForExit(5000)) {
             Stop-Process -Id $startedProcess.Id -Force -ErrorAction SilentlyContinue
         }

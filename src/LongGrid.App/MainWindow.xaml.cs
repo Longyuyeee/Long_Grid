@@ -17,6 +17,9 @@ namespace LongGrid.App;
 
 public sealed partial class MainWindow : Window
 {
+    internal bool IsProductXamlReady =>
+        RootLayout.IsLoaded && RootLayout.XamlRoot is not null;
+
     private const double CompactBreakpoint = 760;
     private const double DefaultWidth = 1180;
     private const double DefaultHeight = 760;
@@ -31,6 +34,10 @@ public sealed partial class MainWindow : Window
     private bool _desktopHostConnected;
     private bool _suppressBoxesEnabledChange;
     private ContentDialog? _desktopWorkspaceCreatePreviewDialog;
+    private TaskCompletionSource<string?>? _safePreviewCompletion;
+    private Func<string, ProductDesktopWorkspaceCreatePreviewSnapshot>?
+        _evaluateSafePreviewName;
+    private ProductDesktopWorkspaceCreatePreviewSnapshot? _safePreviewSnapshot;
 
     internal event EventHandler? DesktopKeyboardInteractionRequested;
     internal event Action<bool>? BoxesEnabledChangeRequested;
@@ -839,11 +846,139 @@ public sealed partial class MainWindow : Window
                     "Changed=False:DesktopFilesChanged=False");
     }
 
-    public async Task<string?> ShowDesktopWorkspaceCreatePreviewAsync(
+    internal async Task<string?> ShowDesktopWorkspaceCreateSafePreviewAsync(
         ProductDesktopWorkspaceCreatePreviewSnapshot initial,
         Func<
             string,
-            ProductDesktopWorkspaceCreatePreviewSnapshot> evaluateName)
+            ProductDesktopWorkspaceCreatePreviewSnapshot> evaluateName,
+        bool evidenceMode = false,
+        string? evidenceResponse = null,
+        Action<bool>? observeEvidence = null)
+    {
+        ArgumentNullException.ThrowIfNull(initial);
+        ArgumentNullException.ThrowIfNull(evaluateName);
+        if (!initial.CanSubmit || _safePreviewCompletion is not null)
+        {
+            return null;
+        }
+
+        _evaluateSafePreviewName = evaluateName;
+        _safePreviewSnapshot = initial;
+        _safePreviewCompletion = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<string?> completion = _safePreviewCompletion;
+        DesktopWorkspaceCreateSafePreviewNameEditor.Text = initial.Name;
+        ApplyDesktopWorkspaceCreateSafePreviewValidation();
+        if (!evidenceMode)
+        {
+            DesktopWorkspaceCreateSafePreviewOverlay.Visibility =
+                Visibility.Visible;
+            ProductWorkspaceViewStatus.Text =
+                "正在安全预览新方格；确认前配置和桌面文件均未改变。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceViewStatus,
+                "DesktopWorkspaceCreateSafePreviewEditing:Changed=False:" +
+                    "DesktopFilesChanged=False");
+        }
+        observeEvidence?.Invoke(
+            DesktopWorkspaceCreateSafePreviewOverlay.IsLoaded
+            && !string.IsNullOrWhiteSpace(AutomationProperties.GetAutomationId(
+                DesktopWorkspaceCreateSafePreviewNameEditor))
+            && !string.IsNullOrWhiteSpace(AutomationProperties.GetAutomationId(
+                DesktopWorkspaceCreateSafePreviewConfirmButton)));
+
+        if (evidenceMode)
+        {
+            await Task.Yield();
+            if (evidenceResponse is null)
+            {
+                CompleteDesktopWorkspaceCreateSafePreview(null);
+            }
+            else
+            {
+                DesktopWorkspaceCreateSafePreviewNameEditor.Text = evidenceResponse;
+                ApplyDesktopWorkspaceCreateSafePreviewValidation();
+                CompleteDesktopWorkspaceCreateSafePreview(
+                    _safePreviewSnapshot?.CanSubmit == true
+                        ? _safePreviewSnapshot.Name
+                        : null);
+            }
+        }
+        else
+        {
+            _ = DesktopWorkspaceCreateSafePreviewNameEditor.Focus(
+                FocusState.Programmatic);
+            DesktopWorkspaceCreateSafePreviewNameEditor.SelectAll();
+        }
+
+        return await completion.Task;
+    }
+
+    private void DesktopWorkspaceCreateSafePreviewNameEditor_TextChanged(
+        object sender,
+        TextChangedEventArgs args) =>
+        ApplyDesktopWorkspaceCreateSafePreviewValidation();
+
+    private void DesktopWorkspaceCreateSafePreviewCancelButton_Click(
+        object sender,
+        RoutedEventArgs args) =>
+        CompleteDesktopWorkspaceCreateSafePreview(null);
+
+    private void DesktopWorkspaceCreateSafePreviewConfirmButton_Click(
+        object sender,
+        RoutedEventArgs args)
+    {
+        ApplyDesktopWorkspaceCreateSafePreviewValidation();
+        if (_safePreviewSnapshot?.CanSubmit == true)
+        {
+            CompleteDesktopWorkspaceCreateSafePreview(_safePreviewSnapshot.Name);
+        }
+    }
+
+    private void ApplyDesktopWorkspaceCreateSafePreviewValidation()
+    {
+        if (_evaluateSafePreviewName is null)
+        {
+            return;
+        }
+
+        _safePreviewSnapshot = _evaluateSafePreviewName(
+            DesktopWorkspaceCreateSafePreviewNameEditor.Text);
+        DesktopWorkspaceCreateSafePreviewConfirmButton.IsEnabled =
+            _safePreviewSnapshot.CanSubmit;
+        DesktopWorkspaceCreateSafePreviewValidation.Text =
+            DescribeDesktopWorkspaceCreatePreviewFailure(
+                _safePreviewSnapshot.Failure);
+        DesktopWorkspaceCreateSafePreviewPlacementSummary.Text =
+            DescribeDesktopWorkspaceCreatePlacement(_safePreviewSnapshot);
+        AutomationProperties.SetHelpText(
+            DesktopWorkspaceCreateSafePreviewNameEditor,
+            DesktopWorkspaceCreateSafePreviewValidation.Text);
+    }
+
+    private void CompleteDesktopWorkspaceCreateSafePreview(string? name)
+    {
+        TaskCompletionSource<string?>? completion = _safePreviewCompletion;
+        if (completion is null)
+        {
+            return;
+        }
+
+        DesktopWorkspaceCreateSafePreviewOverlay.Visibility = Visibility.Collapsed;
+        _safePreviewCompletion = null;
+        _evaluateSafePreviewName = null;
+        _safePreviewSnapshot = null;
+        _ = completion.TrySetResult(name);
+    }
+
+    internal async Task<string?> ShowDesktopWorkspaceCreatePreviewAsync(
+        ProductDesktopWorkspaceCreatePreviewSnapshot initial,
+        Func<
+            string,
+            ProductDesktopWorkspaceCreatePreviewSnapshot> evaluateName,
+        bool evidenceMode = false,
+        string? evidenceResponse = null,
+        Action<bool>? observeEvidence = null)
     {
         ArgumentNullException.ThrowIfNull(initial);
         ArgumentNullException.ThrowIfNull(evaluateName);
@@ -936,6 +1071,24 @@ public sealed partial class MainWindow : Window
         {
             _ = nameEditor.Focus(FocusState.Programmatic);
             nameEditor.SelectAll();
+            observeEvidence?.Invoke(
+                content.Children.Count == 4
+                && !string.IsNullOrWhiteSpace(
+                    AutomationProperties.GetAutomationId(nameEditor))
+                && !string.IsNullOrWhiteSpace(
+                    AutomationProperties.GetAutomationId(dialog)));
+            if (evidenceMode)
+            {
+                _ = DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (evidenceResponse is not null)
+                    {
+                        nameEditor.Text = evidenceResponse;
+                        ApplyValidation();
+                    }
+                    dialog.Hide();
+                });
+            }
         };
         dialog.PrimaryButtonClick += (_, args) =>
         {
@@ -954,6 +1107,12 @@ public sealed partial class MainWindow : Window
         {
             ApplyValidation();
             ContentDialogResult result = await dialog.ShowAsync();
+            if (evidenceMode)
+            {
+                return evidenceResponse is not null && current.CanSubmit
+                    ? current.Name
+                    : null;
+            }
             return result == ContentDialogResult.Primary && current.CanSubmit
                 ? current.Name
                 : null;

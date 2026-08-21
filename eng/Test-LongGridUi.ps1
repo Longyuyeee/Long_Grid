@@ -17,6 +17,10 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $xamlPath = Join-Path $projectRoot 'src\LongGrid.App\MainWindow.xaml'
 $codeBehindPath = Join-Path $projectRoot 'src\LongGrid.App\MainWindow.xaml.cs'
 $appCodePath = Join-Path $projectRoot 'src\LongGrid.App\App.xaml.cs'
+$pf002AppEvidenceCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\ProductPf002AppEvidenceSession.cs'
+$winUiRuntimeSafetyCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\ProductWinUiRuntimeSafety.cs'
 $referenceReviewCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReferenceReview.cs'
 $referenceCommitCodePath = Join-Path $projectRoot `
@@ -205,6 +209,14 @@ function Test-SourceContract {
     [xml]$document = Get-Content -LiteralPath $xamlPath -Raw -Encoding UTF8
     $codeBehind = Get-Content -LiteralPath $codeBehindPath -Raw -Encoding UTF8
     $appCode = Get-Content -LiteralPath $appCodePath -Raw -Encoding UTF8
+    $pf002AppEvidenceCode = Get-Content `
+        -LiteralPath $pf002AppEvidenceCodePath `
+        -Raw `
+        -Encoding UTF8
+    $winUiRuntimeSafetyCode = Get-Content `
+        -LiteralPath $winUiRuntimeSafetyCodePath `
+        -Raw `
+        -Encoding UTF8
     $referenceReviewCode = Get-Content `
         -LiteralPath $referenceReviewCodePath `
         -Raw `
@@ -638,6 +650,12 @@ function Test-SourceContract {
         'ProductWorkspaceOpenReviewButton',
         'ProductWorkspaceContainerList',
         'ProductWorkspaceViewStatus',
+        'DesktopWorkspaceCreateSafePreviewOverlay',
+        'DesktopWorkspaceCreateSafePreviewNameEditor',
+        'DesktopWorkspaceCreateSafePreviewPlacementSummary',
+        'DesktopWorkspaceCreateSafePreviewValidation',
+        'DesktopWorkspaceCreateSafePreviewCancelButton',
+        'DesktopWorkspaceCreateSafePreviewConfirmButton',
         'ProductWorkspaceReferenceReviewCard',
         'ProductWorkspaceReferenceReviewTitle',
         'ProductWorkspaceReferenceReviewDetail',
@@ -662,6 +680,26 @@ function Test-SourceContract {
     foreach ($automationId in $requiredIds) {
         $null = Get-XamlNodeByAutomationId $document $automationId
     }
+
+    Assert-Condition (
+        $pf002AppEvidenceCode.Contains(
+            'LONGGRID_PF002_APP_EVIDENCE_SESSION') -and
+        $pf002AppEvidenceCode.Contains('Path.GetTempPath()') -and
+        $pf002AppEvidenceCode.Contains('ReparsePoint') -and
+        $pf002AppEvidenceCode.Contains(
+            'Directory.EnumerateFileSystemEntries(directoryPath).Any()') -and
+        $appCode.Contains('RunPf002AppEvidenceSessionAsync') -and
+        $appCode.Contains('HidingFormalWindowFromKnownUnsafeUiaRuntime') -and
+        $appCode.Contains('VisibleViewPublication = "BlockedByKnownUpstream"')
+    ) 'PF-002 App evidence must remain opt-in, temporary, non-reparse, UI-thread driven, and honest about blocked visible publication.'
+    Assert-Condition (
+        $winUiRuntimeSafetyCode.Contains(
+            'Microsoft.WindowsAppRuntime.2_2.4.0.0_') -and
+        $winUiRuntimeSafetyCode.Contains('FileMajorPart == 3') -and
+        $winUiRuntimeSafetyCode.Contains('FileBuildPart == 3') -and
+        $appCode.Contains('RequiresSingleWindowPreview()') -and
+        $codeBehind.Contains('ShowDesktopWorkspaceCreateSafePreviewAsync')
+    ) 'The attested unsafe WinUI pair must fail closed to the persistent single-window preview surface.'
 
     $rootNode = Get-XamlNodeByAutomationId $document 'LongGridRoot'
     Assert-Condition ($rootNode.GetAttribute('AutomationProperties.Name').Length -gt 0) `

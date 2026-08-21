@@ -1,0 +1,302 @@
+[CmdletBinding()]
+param(
+    [ValidateSet('Debug', 'Release')]
+    [string]$Configuration = 'Release',
+
+    [switch]$NoBuild,
+
+    [string]$CleanupSessionId
+)
+
+$ErrorActionPreference = 'Stop'
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
+$targetFramework = 'net8.0-windows10.0.19041.0'
+$runtimeIdentifier = 'win-x64'
+$outputDirectory = Join-Path $projectRoot `
+    "src\LongGrid.App\bin\$Configuration\$targetFramework\$runtimeIdentifier"
+$appPath = Join-Path $outputDirectory 'LongGrid.App.exe'
+$sessionId = [Guid]::NewGuid().ToString('N')
+$evidenceRoot = [IO.Path]::GetFullPath((Join-Path `
+    ([IO.Path]::GetTempPath()) `
+    'LongGridEvidence'))
+$sessionDirectory = [IO.Path]::GetFullPath((Join-Path $evidenceRoot $sessionId))
+$resultPath = Join-Path $sessionDirectory 'result.json'
+$progressPath = Join-Path $sessionDirectory 'progress.txt'
+$userConfigurationDirectory = Join-Path $env:LOCALAPPDATA 'LongGrid'
+$desktopDirectory = [Environment]::GetFolderPath(
+    [Environment+SpecialFolder]::DesktopDirectory)
+$startedProcess = $null
+$finalResult = $null
+$pendingError = $null
+
+function Assert-Condition {
+    param(
+        [bool]$Condition,
+        [string]$Message
+    )
+
+    if (-not $Condition) {
+        throw $Message
+    }
+}
+
+function Get-DirectoryMetadataFingerprint {
+    param([string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
+        return 'MISSING'
+    }
+
+    $lines = @(
+        Get-ChildItem -LiteralPath $Path -Force -ErrorAction Stop |
+            Sort-Object -Property Name |
+            ForEach-Object {
+                $length = if ($_.PSIsContainer) { -1 } else { $_.Length }
+                '{0}|{1}|{2}|{3}' -f `
+                    $_.Name, `
+                    [int]$_.Attributes, `
+                    $length, `
+                    $_.LastWriteTimeUtc.Ticks
+            }
+    )
+    $payload = [Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString(
+            $sha.ComputeHash($payload))).Replace('-', '')
+    }
+    finally {
+        $sha.Dispose()
+    }
+}
+
+if ($env:OS -ne 'Windows_NT') {
+    throw 'The PF-002 formal App evidence test can only run on Windows.'
+}
+
+if (-not [string]::IsNullOrWhiteSpace($CleanupSessionId)) {
+    $cleanupGuid = [Guid]::Empty
+    Assert-Condition (
+        [Guid]::TryParseExact($CleanupSessionId, 'N', [ref]$cleanupGuid)
+    ) 'CleanupSessionId must be one exact 32-character GUID.'
+    $cleanupId = $cleanupGuid.ToString('N')
+    $cleanupPath = [IO.Path]::GetFullPath((Join-Path $evidenceRoot $cleanupId))
+    $cleanupPrefix = $evidenceRoot.TrimEnd(
+        [IO.Path]::DirectorySeparatorChar,
+        [IO.Path]::AltDirectorySeparatorChar) +
+        [IO.Path]::DirectorySeparatorChar
+    Assert-Condition (
+        $cleanupPath.StartsWith(
+            $cleanupPrefix,
+            [StringComparison]::OrdinalIgnoreCase) -and
+        (Split-Path -Leaf $cleanupPath) -eq $cleanupId
+    ) 'Refused to clean a path outside the dedicated evidence root.'
+    $removed = $false
+    if (Test-Path -LiteralPath $cleanupPath -PathType Container) {
+        $cleanupItem = Get-Item -LiteralPath $cleanupPath -Force
+        Assert-Condition (
+            -not (($cleanupItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
+        ) 'Refused to clean a reparse-point evidence directory.'
+        for ($attempt = 1; $attempt -le 20 -and -not $removed; $attempt++) {
+            try {
+                Remove-Item -LiteralPath $cleanupPath -Recurse -Force
+                $removed = $true
+            }
+            catch [IO.IOException] {
+                Start-Sleep -Milliseconds 250
+            }
+            catch [UnauthorizedAccessException] {
+                Start-Sleep -Milliseconds 250
+            }
+        }
+        Assert-Condition $removed `
+            'The exact evidence directory remained locked after cleanup retries.'
+    }
+    Assert-Condition (-not (Test-Path -LiteralPath $cleanupPath)) `
+        'The exact evidence directory still exists after cleanup.'
+    [ordered]@{
+        SchemaVersion = 1
+        Purpose = 'Pf002ExactEvidenceCleanup'
+        SessionId = $cleanupId
+        Removed = $removed
+        Outcome = 'Pass'
+    } | ConvertTo-Json -Depth 3
+    exit 0
+}
+
+$liveProcesses = @(
+    Get-Process -Name 'LongGrid.App' -ErrorAction SilentlyContinue |
+        Where-Object { $_.HandleCount -gt 0 }
+)
+Assert-Condition ($liveProcesses.Count -eq 0) `
+    "PF-002 App evidence requires a clean session; found PID(s): $($liveProcesses.Id -join ', ')."
+
+if (-not $NoBuild) {
+    & dotnet build $projectPath `
+        --configuration $Configuration `
+        --runtime $runtimeIdentifier
+    if ($LASTEXITCODE -ne 0) {
+        throw "LongGrid.App build failed with exit code $LASTEXITCODE."
+    }
+}
+Assert-Condition (Test-Path -LiteralPath $appPath -PathType Leaf) `
+    "LongGrid.App executable was not found: $appPath"
+
+$expectedPrefix = $evidenceRoot.TrimEnd(
+    [IO.Path]::DirectorySeparatorChar,
+    [IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+Assert-Condition (
+    $sessionDirectory.StartsWith(
+        $expectedPrefix,
+        [StringComparison]::OrdinalIgnoreCase) -and
+    (Split-Path -Leaf $sessionDirectory) -eq $sessionId
+) 'The temporary evidence directory escaped its dedicated root.'
+
+$desktopBefore = Get-DirectoryMetadataFingerprint $desktopDirectory
+$userConfigurationBefore = Get-DirectoryMetadataFingerprint `
+    $userConfigurationDirectory
+$sessionVariable = 'LONGGRID_PF002_APP_EVIDENCE_SESSION'
+$hostVariable = 'LONGGRID_ENABLE_DESKTOP_HOST'
+$previousSession = [Environment]::GetEnvironmentVariable(
+    $sessionVariable,
+    [EnvironmentVariableTarget]::Process)
+$previousHost = [Environment]::GetEnvironmentVariable(
+    $hostVariable,
+    [EnvironmentVariableTarget]::Process)
+
+try {
+    $null = New-Item -ItemType Directory -Path $sessionDirectory -Force
+    [Environment]::SetEnvironmentVariable(
+        $sessionVariable,
+        $sessionId,
+        [EnvironmentVariableTarget]::Process)
+    [Environment]::SetEnvironmentVariable(
+        $hostVariable,
+        '1',
+        [EnvironmentVariableTarget]::Process)
+    $startedProcess = Start-Process `
+        -FilePath $appPath `
+        -WorkingDirectory $outputDirectory `
+        -PassThru
+    [Environment]::SetEnvironmentVariable(
+        $sessionVariable,
+        $previousSession,
+        [EnvironmentVariableTarget]::Process)
+    [Environment]::SetEnvironmentVariable(
+        $hostVariable,
+        $previousHost,
+        [EnvironmentVariableTarget]::Process)
+
+    $deadline = (Get-Date).AddSeconds(70)
+    while ((-not (Test-Path -LiteralPath $resultPath -PathType Leaf)) -and
+        (-not $startedProcess.HasExited) -and ((Get-Date) -lt $deadline))
+    {
+        Start-Sleep -Milliseconds 100
+        $startedProcess.Refresh()
+    }
+
+    if (-not (Test-Path -LiteralPath $resultPath -PathType Leaf)) {
+        $lastStage = if (Test-Path -LiteralPath $progressPath -PathType Leaf) {
+            Get-Content -LiteralPath $progressPath -Raw
+        }
+        else {
+            'NoProgressPublished'
+        }
+        throw "PF-002 formal App evidence timed out at finite stage '$lastStage' after 70 seconds."
+    }
+    Assert-Condition ($startedProcess.WaitForExit(15000)) `
+        'PF-002 formal App evidence did not complete its normal shutdown drain.'
+    Assert-Condition ($startedProcess.ExitCode -eq 0) `
+        "Expected LongGrid.App exit code 0; actual $($startedProcess.ExitCode)."
+
+    $appResult = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+    $desktopAfter = Get-DirectoryMetadataFingerprint $desktopDirectory
+    $userConfigurationAfter = Get-DirectoryMetadataFingerprint `
+        $userConfigurationDirectory
+    $desktopUnchanged = $desktopBefore -eq $desktopAfter
+    $userConfigurationUnchanged =
+        $userConfigurationBefore -eq $userConfigurationAfter
+    $passed =
+        $appResult.Outcome -eq 'Pass' -and
+        $desktopUnchanged -and
+        $userConfigurationUnchanged
+    $finalResult = [ordered]@{
+        SchemaVersion = 1
+        Purpose = 'Pf002FormalAppEvidenceExternalVerification'
+        Expected = [ordered]@{
+            AppOutcome = 'Pass'
+            DesktopMetadataUnchanged = $true
+            UserConfigurationUnchanged = $true
+            ExitCode = 0
+            TemporaryEvidenceRemoved = $true
+        }
+        Actual = [ordered]@{
+            AppOutcome = $appResult.Outcome
+            AppDifference = $appResult.Difference
+            AppActual = $appResult.Actual
+            DesktopMetadataUnchanged = $desktopUnchanged
+            UserConfigurationUnchanged = $userConfigurationUnchanged
+            ExitCode = $startedProcess.ExitCode
+            TemporaryEvidenceRemoved = $true
+        }
+        Difference = if ($passed) { 'None' } else { 'ExternalEvidenceMismatch' }
+        Outcome = if ($passed) { 'Pass' } else { 'Fail' }
+    }
+}
+catch {
+    $pendingError = $_
+}
+finally {
+    [Environment]::SetEnvironmentVariable(
+        $sessionVariable,
+        $previousSession,
+        [EnvironmentVariableTarget]::Process)
+    [Environment]::SetEnvironmentVariable(
+        $hostVariable,
+        $previousHost,
+        [EnvironmentVariableTarget]::Process)
+    if ($null -ne $startedProcess -and -not $startedProcess.HasExited)
+    {
+        $null = $startedProcess.CloseMainWindow()
+        if (-not $startedProcess.WaitForExit(5000)) {
+            Stop-Process -Id $startedProcess.Id -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    if (Test-Path -LiteralPath $sessionDirectory -PathType Container)
+    {
+        $resolvedCleanup = (Resolve-Path -LiteralPath $sessionDirectory).Path
+        Assert-Condition (
+            $resolvedCleanup.StartsWith(
+                $expectedPrefix,
+                [StringComparison]::OrdinalIgnoreCase) -and
+            (Split-Path -Leaf $resolvedCleanup) -eq $sessionId
+        ) 'Refused to clean an unexpected evidence directory.'
+        $cleanupCompleted = $false
+        for ($attempt = 1; $attempt -le 20 -and -not $cleanupCompleted; $attempt++)
+        {
+            try {
+                Remove-Item -LiteralPath $resolvedCleanup -Recurse -Force
+                $cleanupCompleted = $true
+            }
+            catch [IO.IOException] {
+                Start-Sleep -Milliseconds 250
+            }
+            catch [UnauthorizedAccessException] {
+                Start-Sleep -Milliseconds 250
+            }
+        }
+        Assert-Condition $cleanupCompleted `
+            'The dedicated PF-002 evidence directory remained locked after cleanup retries.'
+    }
+}
+
+if ($null -ne $pendingError) {
+    throw $pendingError
+}
+
+$finalResult | ConvertTo-Json -Depth 8
+if ($finalResult.Outcome -ne 'Pass') {
+    exit 1
+}

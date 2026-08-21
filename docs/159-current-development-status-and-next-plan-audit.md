@@ -339,3 +339,9 @@ Stage 167 已增加正式“使用选择创建新方格”入口，并把同一�
 真实测试创建 257 个文本文件：257 项请求拒绝后磁盘仍为旧 257 项，随后 256 项请求真实保存并重载为来源 1 项、新方格 256 项，所有文件内容逐项不变。Release 全量为 1010/1010，147-ID 静态合同通过。首次合同因旧的 live-region 全文件次数硬编码失败，修成新入口专项合同后通过。
 
 正式 App 结果必须分开记录：Windows 捕获获得完整控制中心截图，说明 Release 界面真实渲染；但 UIA 连续两次找不到首元素，整树读取导致 `Microsoft.UI.Xaml.dll` 崩溃。对 `fff20f2` 建立独立 worktree、重新构建并执行相同操作，得到相同截图成功和相同 UIA 崩溃，证明不是本切片回归。Stage 168 完成上游缺陷对齐和真实窗口生命周期测试；Stage 169 又证明当前控制器的无文本截图路径也触发同一 fail-fast，并把已知 `2.4.0.0 + 3.2.3.0` 组合改为 App 启动前失败关闭。因此 PF-002H 仍为 `EngineeringComplete / ProductEvidencePending`；下一步以专用临时配置的进程内 UI evidence session 补正式 App 接线证据，上游修复后再补物理输入/UIA/Narrator，详见 [Stage 169](169-winui-uia-fail-closed-preflight-audit.md)。
+
+## 17. 2026-08-21 PF-002 正式 App 进程内证据增量复审
+
+Stage 170 新增默认关闭、GUID 限定、专用临时配置且拒绝重解析点的正式 App evidence session。真实 Release App 先加载 MainWindow/XAML、正式配置、显示拓扑和 DesktopHost，再在 UI 线程驱动取消与确认，通过正式保存控制器写入并由正式 store 重载。连续两次实际均为：初始/取消 `0 + Missing`，确认 `1 + PF-002 证据方格`，保存 `Completed`，重载 `1 + LoadedPrimary`；桌面元数据、用户配置元数据与临时清理均无差异。
+
+真实失败不能被忽略：当前 `WindowsAppRuntime 2.4.0.0 + Microsoft.UI.Xaml.dll 3.2.3.0` 下，第二顶层窗口、ContentDialog、可见持久 Preview 面板以及确认后的动态可访问列表都能触发同一 WinUI fail-fast。产品因此对该精确组合选择主窗口持久 Preview；证据进程在 XAML readiness 后隐藏窗口，并明确输出 `PreviewActivatedCount=0`、`VisibleInteractionStatus/VisibleViewPublication=BlockedByKnownUpstream`。这证明正式 App 的不可见 UI 线程接线、提交、保存和重载，不证明可见点击、UIA 或 Narrator。PF-002 保持 `EngineeringComplete / ProductEvidencePending`；下一门禁为上游修复/独立机器的可见与物理矩阵，以及最近撤销的正式 App 证据。详见 [Stage 170](170-pf002-formal-app-inprocess-evidence-audit.md)。
