@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准，PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，PF-002 空态入口、统一创建默认值、空态多输入和非空持续入口证据分别见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)至 [Stage 158](158-pf002c2-persistent-desktop-create-audit.md)；当前真实完成度、计划偏移审计和 PF-002D～PF-010 的严格验收顺序见 [Stage 159](159-current-development-status-and-next-plan-audit.md)。外部证据和发布门禁仍以 [Stage 149 专用环境预检](149-m4c2c-dedicated-environment-preflight-audit.md)为准。历史状态见 [Stage 133](133-current-development-status-and-closeout-audit.md)与[开发状态审计](11-development-status-and-direction-audit.md)。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准，PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，PF-002 空态入口、统一创建默认值、空态多输入和非空持续入口证据分别见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)至 [Stage 158](158-pf002c2-persistent-desktop-create-audit.md)；当前真实完成度、计划偏移审计和 PF-002D～PF-010 的严格验收顺序见 [Stage 159](159-current-development-status-and-next-plan-audit.md)，最新全量需求对齐快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁仍以 [Stage 149 专用环境预检](149-m4c2c-dedicated-environment-preflight-audit.md)为准。历史状态见 [Stage 133](133-current-development-status-and-closeout-audit.md)与[开发状态审计](11-development-status-and-direction-audit.md)。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 ## Phase 0：立项与技术验证
 

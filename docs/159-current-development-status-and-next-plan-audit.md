@@ -385,3 +385,11 @@ Stage 175 已在正式每显示器 DesktopHost Surface 上增加标题栏 Move�
 专项测试实际创建原生 Surface，验证非零 HWND、Explicit window contract、Begin/Update/Complete 顺序和异常隔离；生产命中与 lifecycle 聚焦共 48/48。首次编译真实发现 `PixelRect` using 缺失和局部变量冲突，修复后通过；聚焦通过后的状态机复审又修正 rejected update 仍可能晚到 complete 的缺口；完整门禁发现并修正 19 行格式缩进差异。Release 全量为 1058/1058、solution build 为 0 warning / 0 error，100 方格、2,000 次生产布局预览 P95 为 `0.107 ms < 16.7 ms`；153-ID UI 合同、PF-002 正式 App Expected/Actual、两轮 20 秒真实窗口生命周期、漏洞与格式门禁均通过。
 
 该切片只关闭 Surface 工程合同。App 尚未绑定请求、Surface 尚未绘制动态候选，pointer-up 也尚未进入 Stage 173/174 提交和补偿，因此 PF-003 保持 `InProgress`。下一切片固定为 PF-003D2 App 消费、可见候选、唯一提交/补偿和键盘微调；物理鼠标与 UIA Bounds 仍不得伪报，详见 [Stage 175](175-pf003d1-desktop-host-layout-input-contract-audit.md)。
+
+## 23. 2026-08-21 当前开发与最初需求全量对齐复审
+
+Stage 176 按 PRD、竞品功能计划、交互、任务栏、Widget/Long助手协议和品牌交付要求重新记账。30 个 PF 项中仍为 `0 Complete`：PF-002 为 `EngineeringComplete / ProductEvidencePending`，PF-001/PF-003 为 `InProgress`，16 项只有底座/原型，11 项尚未实现。配置安全、保存补偿和测试证据的工程深度不能替代正式桌面标题栏、项目呈现、拖放、规则、隐藏/托盘、快照和首次引导的用户可见宽度。
+
+当前 `f991d24` 基线重新实测为 Release 全量 `1058/1058`、build `0 warning / 0 error`；100 方格、500 项、2,000 次布局预览 P95 `0.090 ms < 16.7 ms`。PF-002 正式 App 外部 Expected/Actual 为 `Difference=None`，桌面与用户配置元数据不变；真实窗口 `1,175 ms` 就绪并稳定 20 秒。与此同时 App 明确输出 `VisibleInteractionStatus=BlockedByKnownUpstream` 和 `PreviewActivatedCount=0`，所以可见物理/UIA/Narrator 不得升级为通过。
+
+任务栏只有安全设计边界，Widget/Long助手只有协议与 Schema，均没有产品运行时。开发顺序保持 PF-003D2 → PF-003 跨显示器/物理证据 → PF-004–010 日常桌面操作 → 首次引导/规则 → 隐藏/托盘/快照 → 视觉/无障碍 → 发布门禁；P1/P2 扩展不抢占核心 MVP。详见 [Stage 176](176-current-development-requirement-alignment-audit.md)。

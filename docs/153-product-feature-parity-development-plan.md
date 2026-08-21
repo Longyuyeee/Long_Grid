@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-003 桌面拖动、缩放与吸附（PF-002F 产品证据并行 Pending）**
-- 最新工程审计：[Stage 175](175-pf003d1-desktop-host-layout-input-contract-audit.md)；PF-003D1 已让正式 DesktopHost Surface 具备标题栏移动、八向 resize 命中和 capture 四阶段输入合同，并绑定 display/revision/topology、执行真实 Win32 Surface 测试。App 会话消费、可见候选、提交/补偿接线、键盘微调和跨显示器仍待完成，不得标记 PF-003 完成；PF-002 可见物理输入和 UIA/Narrator 继续等待上游修复或独立安全机器
+- 最新工程与需求对齐审计：[Stage 176](176-current-development-requirement-alignment-audit.md)；30 个 PF 项仍为 `0 Complete`，其中 PF-002 为 `EngineeringComplete / ProductEvidencePending`、PF-001/PF-003 为 `InProgress`、16 项为底座/原型、11 项未实现。下一切片继续 PF-003D2 App 消费、可见候选、唯一提交/补偿与键盘微调；任务栏实验和 Widgets/Long助手宿主仍按 P1/P2 管理
 
 ## 1. 本文解决什么问题
 
