@@ -109,6 +109,31 @@ public sealed record ProductWorkspaceContainerCommitResult(
         && Document is not null;
 }
 
+public enum ProductWorkspaceContainerLayoutGestureCommitStatus
+{
+    Accepted,
+    StaleEditRevision,
+    StaleTopology,
+    StateChanged,
+    ReducerRejected,
+    SaveRejected,
+    InvalidRequest,
+}
+
+public sealed record ProductWorkspaceContainerLayoutGestureCommitResult(
+    ProductWorkspaceContainerLayoutGestureCommitStatus Status,
+    ProductWorkspaceEditError EditError,
+    ProductWorkspaceSaveSubmissionStatus? SubmissionStatus,
+    long EditRevision,
+    ProductWorkspaceState? State,
+    ProductConfigurationDocument? Document)
+{
+    public bool IsAccepted =>
+        Status == ProductWorkspaceContainerLayoutGestureCommitStatus.Accepted
+        && State is not null
+        && Document is not null;
+}
+
 public enum ProductWorkspaceSelectedReferenceContainerCommitStatus
 {
     Accepted,
@@ -644,6 +669,112 @@ public sealed class ProductWorkspaceCommitCoordinator
                 submission.Status,
                 editRevision,
                 review.Preview.State,
+                projection.Document);
+        }
+    }
+
+    public ProductWorkspaceContainerLayoutGestureCommitResult
+        CommitContainerLayoutGesture(
+            ProductWorkspaceState state,
+            long currentTopologyGeneration,
+            ProductWorkspaceContainerLayoutGestureCompletion completion)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(completion);
+
+        lock (gate)
+        {
+            if (completion.ExpectedEditRevision != editRevision)
+            {
+                return ContainerLayoutGestureFailure(
+                    ProductWorkspaceContainerLayoutGestureCommitStatus
+                        .StaleEditRevision);
+            }
+
+            if (completion.ExpectedTopologyGeneration
+                != currentTopologyGeneration)
+            {
+                return ContainerLayoutGestureFailure(
+                    ProductWorkspaceContainerLayoutGestureCommitStatus
+                        .StaleTopology);
+            }
+
+            ProductContainerState[] targets = state.Containers
+                .Where(candidate => candidate is not null && string.Equals(
+                    candidate.Id,
+                    completion.ContainerId,
+                    StringComparison.Ordinal))
+                .ToArray();
+            if (completion.OperationId == Guid.Empty
+                || completion.ExpectedTopologyGeneration <= 0
+                || completion.UpdateCount <= 0
+                || string.IsNullOrWhiteSpace(completion.DisplayId)
+                || targets.Length != 1
+                || !string.Equals(
+                    completion.DisplayId,
+                    completion.Placement.DisplayKey,
+                    StringComparison.Ordinal))
+            {
+                return ContainerLayoutGestureFailure(
+                    ProductWorkspaceContainerLayoutGestureCommitStatus
+                        .InvalidRequest);
+            }
+
+            ProductContainerState target = targets[0];
+            if (!PlacementMatches(
+                    target.Placement,
+                    completion.OriginalPlacement))
+            {
+                return ContainerLayoutGestureFailure(
+                    ProductWorkspaceContainerLayoutGestureCommitStatus
+                        .StateChanged);
+            }
+
+            ProductWorkspaceEditResult edit =
+                ProductWorkspaceReducer.UpdatePlacement(
+                    state,
+                    target.Id,
+                    completion.Placement);
+            if (!edit.IsSuccess || !edit.Changed)
+            {
+                return ContainerLayoutGestureFailure(
+                    ProductWorkspaceContainerLayoutGestureCommitStatus
+                        .ReducerRejected,
+                    edit.Error);
+            }
+
+            ProductWorkspaceProjectionResult projection =
+                ProductWorkspaceConfigurationProjector.Project(edit.State!);
+            if (!projection.IsSuccess)
+            {
+                return ContainerLayoutGestureFailure(
+                    ProductWorkspaceContainerLayoutGestureCommitStatus
+                        .ReducerRejected,
+                    ProductWorkspaceEditError.InvalidState,
+                    ProductWorkspaceSaveSubmissionStatus.InvalidState);
+            }
+
+            ProductWorkspaceSaveSubmissionResult submission = saves.Submit(edit);
+            if (!submission.IsAccepted)
+            {
+                return ContainerLayoutGestureFailure(
+                    ProductWorkspaceContainerLayoutGestureCommitStatus.SaveRejected,
+                    submission.EditError,
+                    submission.Status);
+            }
+
+            editRevision = checked(editRevision + 1);
+            pendingLayoutRecoveryUndo = null;
+            pendingReferenceRemovalUndo = null;
+            pendingReferenceReassignmentUndo = null;
+            pendingContainerRemovalUndo = null;
+            pendingReferenceBatchAdditionUndo = null;
+            return new(
+                ProductWorkspaceContainerLayoutGestureCommitStatus.Accepted,
+                ProductWorkspaceEditError.None,
+                submission.Status,
+                editRevision,
+                edit.State,
                 projection.Document);
         }
     }
@@ -2004,6 +2135,60 @@ public sealed class ProductWorkspaceCommitCoordinator
             ProductWorkspaceContainerSizePreset.Large => (560, 360),
             _ => throw new ArgumentOutOfRangeException(nameof(preset)),
         };
+
+    private ProductWorkspaceContainerLayoutGestureCommitResult
+        ContainerLayoutGestureFailure(
+            ProductWorkspaceContainerLayoutGestureCommitStatus status,
+            ProductWorkspaceEditError editError = ProductWorkspaceEditError.None,
+            ProductWorkspaceSaveSubmissionStatus? submissionStatus = null) =>
+        new(
+            status,
+            editError,
+            submissionStatus,
+            editRevision,
+            null,
+            null);
+
+    private static bool PlacementMatches(
+        ProductContainerPlacementState left,
+        ProductContainerPlacementState right) =>
+        left is not null
+        && right is not null
+        && string.Equals(
+            left.DisplayKey,
+            right.DisplayKey,
+            StringComparison.Ordinal)
+        && Math.Abs(left.XDip - right.XDip) < 0.001
+        && Math.Abs(left.YDip - right.YDip) < 0.001
+        && Math.Abs(left.WidthDip - right.WidthDip) < 0.001
+        && Math.Abs(left.HeightDip - right.HeightDip) < 0.001
+        && ExtensionDataMatches(left.ExtensionData, right.ExtensionData);
+
+    private static bool ExtensionDataMatches(
+        IDictionary<string, System.Text.Json.JsonElement>? left,
+        IDictionary<string, System.Text.Json.JsonElement>? right)
+    {
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+        if (left is null || right is null || left.Count != right.Count)
+        {
+            return false;
+        }
+        foreach ((string key, System.Text.Json.JsonElement value) in left)
+        {
+            if (!right.TryGetValue(key, out System.Text.Json.JsonElement candidate)
+                || !string.Equals(
+                    value.GetRawText(),
+                    candidate.GetRawText(),
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
 
     private ProductWorkspaceContainerCommitResult ContainerFailure(
         ProductWorkspaceContainerCommitStatus status,

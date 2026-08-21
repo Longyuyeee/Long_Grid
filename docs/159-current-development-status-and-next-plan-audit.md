@@ -361,3 +361,11 @@ Stage 171 在同一正式 App evidence session 中补齐最近撤销工程证据
 PF-003A 新增正式 Core 的移动/四边四角缩放预览策略。每次请求绑定容器 ID、edit revision、topology generation 和显示器；锁定、陈旧、显示身份不唯一、跨显示器未准入、非有限或极端 delta 均零预览失败关闭。策略只计算 DIP 内存候选，支持 8 DIP 网格、工作区和同显示器方格边缘吸附，Shift 对默认吸附开关取反，最终候选约束在 DPI 换算后的工作区并保留最小 160×120 DIP。
 
 真实规模预检在正式 100 方格状态上预热 100 次后执行 2,000 次生产预览，首轮 P95 为 `0.067 ms`，预期 `<16.7 ms`，差异为无；工具同时证明不读取真实桌面、无真实文件操作且临时保存沙箱已清理。该结果只关闭 Core 计算和性能门，不证明视觉延迟、物理鼠标、UIA Bounds、一次保存或失败补偿。下一切片固定为 PF-003B 手势会话和唯一结束提交，详见 [Stage 172](172-pf003a-layout-preview-snap-policy-audit.md)。
+
+## 20. 2026-08-21 PF-003B 手势会话与唯一提交增量复审
+
+Stage 173 已把 Stage 172 的无状态预览收敛为一次 begin/update/cancel/complete 会话。begin 冻结容器、原 placement、edit revision、topology generation 和 display；update 使用累计 delta 且不接触保存；陈旧事实自动取消并恢复；complete 再验证后只产生一个内部构造完成凭据。现有统一提交协调器检查当前原 placement（含扩展字段）未变，通过既有 reducer/projection/save controller 提交，并以权威 edit revision 阻止凭据重复消费。
+
+真实临时配置测试执行 1,000 次 update，实际保存 revision=0、配置 `Missing`；complete 首次接受后保存 revision=1，重复提交返回 `StaleEditRevision`，最终重载 X/Y 误差均为 0 DIP，桌面哨兵文件内容不变。陈旧 update、显式/重复取消、并发 placement 改变和 complete 后 topology 改变均返回有限状态并零保存。首次扩展字段合同编译暴露 `IDictionary`/`IReadOnlyDictionary` 类型差异；末轮审计又补齐 complete—commit 间的 topology 竞争窗口，修正后聚焦 24/24 通过。
+
+该结果关闭 PF-003B 工程门，不代表正式桌面可操作。PF-003 保持 `InProgress`；下一切片固定为 PF-003C 保存失败补偿，随后才接 DesktopHost 标题栏移动、八向缩放命中和键盘微调。跨显示器、视觉/物理输入和 UIA Bounds 仍为后续独立证据，详见 [Stage 173](173-pf003b-gesture-session-single-commit-audit.md)。

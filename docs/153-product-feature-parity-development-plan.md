@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-003 桌面拖动、缩放与吸附（PF-002F 产品证据并行 Pending）**
-- 最新工程审计：[Stage 172](172-pf003a-layout-preview-snap-policy-audit.md)；PF-003A 已建立不写盘的移动/八向缩放预览与有限吸附策略，并在 100 方格生产规模下执行真实延迟测试。它尚未接入正式 DesktopHost 输入、提交/补偿或跨显示器，不得标记 PF-003 完成；PF-002 可见物理输入和 UIA/Narrator 继续等待上游修复或独立安全机器
+- 最新工程审计：[Stage 173](173-pf003b-gesture-session-single-commit-audit.md)；PF-003B 已建立冻结 revision/topology/display 的手势会话与唯一结束提交。真实临时配置验证 1,000 次 update 零写盘、complete 后一个保存修订、重复提交拒绝且重载误差 0 DIP。它尚未接入保存失败补偿、正式 DesktopHost 输入、键盘微调或跨显示器，不得标记 PF-003 完成；PF-002 可见物理输入和 UIA/Narrator 继续等待上游修复或独立安全机器
 
 ## 1. 本文解决什么问题
 
@@ -60,7 +60,7 @@
 | ---: | --- | --- | --- | --- |
 | 1 | PF-001 | 桌面方格总开关与桌面优先启动 | `InProgress`：总开关和桌面空状态已完成，桌面优先最终呈现待收口 | iTop Enable Boxes |
 | 2 | PF-002 | 桌面直接创建方格 | `EngineeringComplete / ProductEvidencePending`：正式 App 创建、保存、补偿与最近撤销工程证据通过；可见物理输入和 UIA/Narrator 待补 | iTop/Fences 多入口创建 |
-| 3 | PF-003 | 桌面拖动、缩放、吸附 | `InProgress`：移动/八向缩放内存预览、有限吸附和 100 方格性能门已实现；正式输入、提交补偿与产品证据待完成 | Fences/Nimi 直接布局 |
+| 3 | PF-003 | 桌面拖动、缩放、吸附 | `InProgress`：移动/八向缩放预览、吸附、手势生命周期、唯一完成提交和真实重载已实现；保存失败补偿、正式输入与产品证据待完成 | Fences/Nimi 直接布局 |
 | 4 | PF-004 | 方格标题栏与就近操作 | 部分 Core | Fences 标题栏操作 |
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | worker 有、UI 无 | Fences/Nimi 项目呈现 |
 | 6 | PF-006 | 项目选择、键盘导航与打开 | 选择底座 | Fences/Portal 日常访问 |
@@ -173,7 +173,7 @@
 - 100 个方格布局操作不产生持续卡顿或窗口泄漏；
 - UIA Bounds 与最终视觉 Bounds 一致。
 
-**2026-08-21 实施状态**：`InProgress`。Stage 172 已实现正式 Core 预览策略：移动、四边/四角缩放，8 DIP 网格、工作区和同显示器其他方格边缘吸附，Shift 对配置吸附行为取反；请求绑定容器、edit revision、topology generation 和显示器，锁定、陈旧、重复显示身份、无效/极端 delta 均失败关闭。100/150/200/300/400% DPI 与负坐标工作区有确定性合同；100 方格、2,000 次生产预览的真实 P95 低于 16.7 ms，且该路径不写盘、不读桌面。尚未接入手势生命周期、DesktopHost 标题栏/八向命中、键盘微调、跨显示器、结束时一次提交、保存失败恢复、重启误差、物理输入和 UIA Bounds，因此 PF-003 不得升级为 `EngineeringComplete` 或 `Complete`。
+**2026-08-21 实施状态**：`InProgress`。Stage 172 已实现移动/八向缩放、8 DIP 网格与有限边缘吸附，100 方格、2,000 次生产预览 P95 低于 16.7 ms。Stage 173 进一步实现冻结容器、原 placement、edit revision、topology generation 和显示器的 begin/update/cancel/complete 会话；陈旧事实自动取消并恢复，完成凭据只能消费到同一权威协调器。真实临时配置执行 1,000 次 update 时保存 revision=0 且配置仍 Missing，complete 后只产生一个保存修订，重复提交拒绝，重载 X/Y 误差均为 0 DIP，桌面哨兵文件不变。尚未接入保存失败恢复、DesktopHost 标题栏/八向命中、键盘微调、跨显示器、视觉/物理输入和 UIA Bounds，因此 PF-003 不得升级为 `EngineeringComplete` 或 `Complete`。
 
 ### PF-004：方格标题栏与就近操作
 
@@ -883,4 +883,4 @@
 
 当前工程切片为 **PF-003：桌面拖动、缩放与吸附**。PF-002A～H 的正式工程链和 Stage 171 最近撤销证据已完成，PF-002 状态调整为 `EngineeringComplete / ProductEvidencePending`；当前 WinUI 上游缺陷仍阻断可见 Preview/视图发布、物理输入和 UIA/Narrator，因此 PF-002 不能标记 `Complete`。
 
-Stage 172 已完成 PF-003A 的纯内存预览/吸附策略与 100 方格真实性能门。下一切片是 PF-003B 手势会话和唯一结束提交：begin/update/cancel/complete 必须绑定同一 revision/topology/display，指针移动期间零保存，complete 只提交一次；随后补保存失败恢复，再接正式 DesktopHost 输入。PF-002F 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。
+Stage 172/173 已完成 PF-003A/B 的纯内存预览/吸附、手势生命周期、唯一结束提交、100 方格性能门和真实配置重载。下一切片是 PF-003C 保存失败补偿：只在同次失败且没有后续编辑时恢复原 placement，陈旧补偿不得覆盖新编辑；通过真实锁占/不可写配置路径后，再接正式 DesktopHost 输入和键盘微调。PF-002F 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。
