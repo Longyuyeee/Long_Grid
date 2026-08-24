@@ -11,7 +11,9 @@ public static class ProductDesktopHostProjectionBuilder
         ProductDisplayTopologySnapshot topology,
         long workspaceRevision,
         IReadOnlyDictionary<string, ProductDesktopThumbnailResult>?
-            thumbnailResults = null)
+            thumbnailResults = null,
+        IReadOnlyDictionary<string, int>? viewportStarts = null,
+        long presentationGeneration = 0)
     {
         ArgumentNullException.ThrowIfNull(topology);
         ArgumentOutOfRangeException.ThrowIfNegative(workspaceRevision);
@@ -25,7 +27,8 @@ public static class ProductDesktopHostProjectionBuilder
             return ProductDesktopHostProjectionUpdate.Create(
                 workspaceRevision,
                 topology.Generation,
-                unavailableDisposition);
+                unavailableDisposition,
+                presentationGeneration: presentationGeneration);
         }
 
         if (state is null
@@ -39,7 +42,8 @@ public static class ProductDesktopHostProjectionBuilder
             return ProductDesktopHostProjectionUpdate.Create(
                 workspaceRevision,
                 topology.Generation,
-                ProductDesktopHostProjectionDisposition.Invalid);
+                ProductDesktopHostProjectionDisposition.Invalid,
+                presentationGeneration: presentationGeneration);
         }
 
         if (state.Containers.Count == 0)
@@ -59,12 +63,14 @@ public static class ProductDesktopHostProjectionBuilder
                     workspaceRevision,
                     topology.Generation,
                     DisplayTopologyFingerprint.Compute(topology.Displays),
-                    [emptyDisplay]);
+                    [emptyDisplay],
+                    presentationGeneration);
             return ProductDesktopHostProjectionUpdate.Create(
                 workspaceRevision,
                 topology.Generation,
                 ProductDesktopHostProjectionDisposition.EmptyWorkspace,
-                emptyBatch);
+                emptyBatch,
+                presentationGeneration);
         }
 
         ProductDesktopHostProjectionBatch? batch = Build(
@@ -72,14 +78,17 @@ public static class ProductDesktopHostProjectionBuilder
             readSnapshot,
             topology,
             workspaceRevision,
-            thumbnailResults);
+            thumbnailResults,
+            viewportStarts,
+            presentationGeneration);
         return ProductDesktopHostProjectionUpdate.Create(
             workspaceRevision,
             topology.Generation,
             batch is null
                 ? ProductDesktopHostProjectionDisposition.Invalid
                 : ProductDesktopHostProjectionDisposition.Ready,
-            batch);
+            batch,
+            presentationGeneration);
     }
 
     public static ProductDesktopHostProjectionBatch? Build(
@@ -88,7 +97,9 @@ public static class ProductDesktopHostProjectionBuilder
         ProductDisplayTopologySnapshot topology,
         long workspaceRevision,
         IReadOnlyDictionary<string, ProductDesktopThumbnailResult>?
-            thumbnailResults = null)
+            thumbnailResults = null,
+        IReadOnlyDictionary<string, int>? viewportStarts = null,
+        long presentationGeneration = 0)
     {
         ArgumentNullException.ThrowIfNull(topology);
         if (state is null
@@ -111,7 +122,17 @@ public static class ProductDesktopHostProjectionBuilder
         {
             ProductContainerState source = state.Containers[index];
             ProductWorkspaceReadContainer visible = readSnapshot.Containers[index];
-            IEnumerable<string> itemNames = visible.Items.Select(item =>
+            int viewportStart = ProductDesktopItemViewportPolicy.ClampStart(
+                viewportStarts is not null
+                    && viewportStarts.TryGetValue(source.Id, out int requestedStart)
+                        ? requestedStart
+                        : 0,
+                visible.Items.Count);
+            ProductWorkspaceReadItem[] viewportItems = visible.Items
+                .Skip(viewportStart)
+                .Take(ProductDesktopHostReadOnlyProjection.MaximumVisibleItems)
+                .ToArray();
+            IEnumerable<string> itemNames = viewportItems.Select(item =>
             {
                 string name = item.UserVisibleName
                     ?? $"待审查项目 {item.Ordinal}";
@@ -120,10 +141,10 @@ public static class ProductDesktopHostProjectionBuilder
                     ? name
                     : name[..ProductDesktopHostReadOnlyProjection.MaximumVisibleNameLength];
             });
-            IEnumerable<string> itemIds = visible.Items.Select(item =>
+            IEnumerable<string> itemIds = viewportItems.Select(item =>
                 $"item:{item.Ordinal}");
             IEnumerable<ProductDesktopItemVisualPresentation> itemVisuals =
-                visible.Items.Select(item => ApplyThumbnailResult(
+                viewportItems.Select(item => ApplyThumbnailResult(
                     source.Id,
                     item,
                     thumbnailResults));
@@ -144,7 +165,8 @@ public static class ProductDesktopHostProjectionBuilder
                     visible.Items.Count,
                     itemVisuals,
                     source.Appearance.TitleVisibility,
-                    source.Appearance.TitleDoubleClickAction);
+                    source.Appearance.TitleDoubleClickAction,
+                    visible.Items.Count == 0 ? 0 : viewportStart + 1);
             string displayId = byDisplay.ContainsKey(source.Placement.DisplayKey)
                 ? source.Placement.DisplayKey
                 : primary.StableId;
@@ -164,7 +186,8 @@ public static class ProductDesktopHostProjectionBuilder
             workspaceRevision,
             topology.Generation,
             DisplayTopologyFingerprint.Compute(topology.Displays),
-            displays);
+            displays,
+            presentationGeneration);
     }
 
     private static ProductDesktopItemVisualPresentation ApplyThumbnailResult(

@@ -186,6 +186,59 @@ public sealed class ProductDesktopHostProjectionBuilderTests
     }
 
     [Fact]
+    public void FiveHundredItemViewportProjectsOnlyRequestedLastTwelveItems()
+    {
+        ProductItemReferenceState[] items = Enumerable.Range(1, 500)
+            .Select(index => CreateResolvedItem(
+                $"persisted-{index}",
+                $"项目 {index}"))
+            .ToArray();
+        ProductWorkspaceState state = CreateState() with
+        {
+            Containers =
+            [
+                CreateContainer(
+                    "container-fallback",
+                    "unknown-display",
+                    24,
+                    items: items),
+            ],
+        };
+        ProductWorkspaceReadSnapshot read =
+            ProductWorkspaceReadModel.Create(state).Snapshot!;
+        var topology = new ProductDisplayTopologySnapshot(
+            ProductDisplayTopologyStatus.Ready,
+            9,
+            [Primary],
+            1,
+            1,
+            1);
+        var viewports = new Dictionary<string, int>
+        {
+            ["container-fallback"] = 488,
+        };
+
+        ProductDesktopHostProjectionBatch batch = Assert.IsType<
+            ProductDesktopHostProjectionBatch>(
+                ProductDesktopHostProjectionBuilder.Build(
+                    state,
+                    read,
+                    topology,
+                    14,
+                    viewportStarts: viewports,
+                    presentationGeneration: 3));
+        ProductDesktopHostReadOnlyProjection actual =
+            Assert.Single(batch.Displays[0].Containers);
+
+        Assert.Equal(489, actual.VisibleItemStartOrdinal);
+        Assert.Equal(500, actual.TotalItemCount);
+        Assert.Equal(12, actual.ItemIds.Count);
+        Assert.Equal("item:489", actual.ItemIds[0]);
+        Assert.Equal("item:500", actual.ItemIds[^1]);
+        Assert.Equal(3, batch.PresentationGeneration);
+    }
+
+    [Fact]
     public void BuildFailsClosedWhenDisplayCountExceedsSurfaceBudget()
     {
         ProductWorkspaceState state = CreateState();

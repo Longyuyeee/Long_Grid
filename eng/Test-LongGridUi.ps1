@@ -93,6 +93,8 @@ $desktopItemVisualPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopItemVisualPresentation.cs'
 $desktopThumbnailRequestControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopThumbnailRequestController.cs'
+$desktopItemViewportCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopItemViewport.cs'
 $boxesSettingsCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductBoxesSettings.cs'
 $desktopInteractionAdmissionCodePath = Join-Path $projectRoot `
@@ -493,6 +495,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopThumbnailRequestControllerCode = Get-Content `
         -LiteralPath $desktopThumbnailRequestControllerCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopItemViewportCode = Get-Content `
+        -LiteralPath $desktopItemViewportCodePath `
         -Raw `
         -Encoding UTF8
     $boxesSettingsCode = Get-Content `
@@ -2065,7 +2071,7 @@ function Test-SourceContract {
         $desktopThumbnailRequestControllerCode -match `
             'MaximumCacheEntries\s*=\s*64' -and
         $desktopThumbnailRequestControllerCode -match `
-            'TimeSpan\.FromMilliseconds\(250\)' -and
+            'TimeSpan\.FromMilliseconds\(1500\)' -and
         $desktopThumbnailRequestControllerCode -match `
             'if \(!enabled\)[\s\S]{0,300}StopRuntime\(\)' -and
         $desktopThumbnailRequestControllerCode -match `
@@ -2085,7 +2091,7 @@ function Test-SourceContract {
         $desktopThumbnailRequestControllerCode -match `
             'UsesKillOnJobClose'
     ) `
-        'PF-005B1 must keep thumbnail work lazy, 12-request bounded, version/theme cached, 250 ms limited, isolation-attested, and finite-fallback safe.'
+        'PF-005B1/PF-005C must keep thumbnail work lazy, 12-request bounded, version/theme cached, 1500 ms limited, isolation-attested, and finite-fallback safe.'
     Assert-Condition (
         $boxesSettingsCode -match `
             'JsonPropertyName\("thumbnailsEnabled"\)' -and
@@ -2105,6 +2111,24 @@ function Test-SourceContract {
             'ProductDesktopThumbnailFrame'
     ) `
         'PF-005B2 must persist its switch, derive authoritative candidates, reject stale facts, project finite states, and draw bounded BGRA pixels on the HWND.'
+    Assert-Condition (
+        $desktopHostProjectionBatchCode -match 'PresentationGeneration' -and
+        $desktopHostLifecycleControllerCode -match `
+            'ApplyPresentationUpdateUnsafe' -and
+        $desktopHostLifecycleControllerCode -match `
+            'PresentationStructuresEqual' -and
+        $desktopItemViewportCode -match `
+            'ProductDesktopItemViewportPolicy' -and
+        $desktopItemViewportCode -match `
+            'MaximumVisibleItems' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'WmMouseWheel' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'BindItemViewport' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'ApplyPresentation' -and
+        $appCode -match 'desktopItemViewportStarts' -and
+        $appCode -match 'RequestDesktopItemViewport' -and
+        $appCode -match 'BindItemViewport'
+    ) `
+        'PF-005C must sequence presentation-only updates in place and page 13-500 items through an authority-stamped 12-item viewport.'
     Assert-Condition (
         $desktopContainerHeaderCommandCode -match 'ToggleCollapsed' -and
         $desktopContainerHeaderCommandCode -match 'ToggleLocked' -and
@@ -3314,8 +3338,8 @@ function Test-SourceContract {
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productDesktopItemVisuals = 'windows-shell-stock-icons-finite-resolution-status-privacy-safe-uia-500-first-surface-bounded-20dip-100-to-400-percent'
-        productDesktopThumbnailRequests = 'lazy-zero-disabled-12-visible-64-cache-version-size-theme-250ms-appcontainer-job-finite-fallback'
-        productDesktopThumbnailPresentation = 'persistent-switch-authoritative-candidates-loading-ready-fallback-stale-rejected-real-hwnd-bgra'
+        productDesktopThumbnailRequests = 'lazy-zero-disabled-12-visible-64-cache-version-size-theme-1500ms-circuit-breaker-appcontainer-job-finite-fallback'
+        productDesktopThumbnailPresentation = 'persistent-switch-authoritative-candidates-loading-ready-fallback-stale-rejected-real-hwnd-bgra-1500ms-success-inplace-generation-500-item-viewport'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'

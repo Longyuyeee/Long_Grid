@@ -49,7 +49,8 @@ public static class ProductDesktopThumbnailItemKey
 internal static class ProductDesktopThumbnailCandidateBuilder
 {
     internal static IReadOnlyList<ProductDesktopThumbnailCandidate> Build(
-        ProductWorkspaceState? state)
+        ProductWorkspaceState? state,
+        IReadOnlyDictionary<string, int>? viewportStarts = null)
     {
         if (state is null)
         {
@@ -58,9 +59,18 @@ internal static class ProductDesktopThumbnailCandidateBuilder
         var candidates = new List<ProductDesktopThumbnailCandidate>();
         foreach (ProductContainerState container in state.Containers)
         {
-            for (int index = 0;
-                index < container.Items.Count
-                    && index < ProductDesktopHostReadOnlyProjection.MaximumVisibleItems;
+            int viewportStart = ProductDesktopItemViewportPolicy.ClampStart(
+                viewportStarts is not null
+                    && viewportStarts.TryGetValue(container.Id, out int requestedStart)
+                        ? requestedStart
+                        : 0,
+                container.Items.Count);
+            int viewportEnd = Math.Min(
+                container.Items.Count,
+                viewportStart
+                    + ProductDesktopHostReadOnlyProjection.MaximumVisibleItems);
+            for (int index = viewportStart;
+                index < viewportEnd;
                 index++)
             {
                 ProductItemReferenceState item = container.Items[index];
@@ -142,7 +152,7 @@ internal sealed class ProductDesktopThumbnailRequestController : IDisposable
     internal const int MaximumVisibleRequests = 12;
     internal const int MaximumCacheEntries = 64;
     internal static readonly TimeSpan RequestTimeout =
-        TimeSpan.FromMilliseconds(250);
+        TimeSpan.FromMilliseconds(1500);
 
     private static readonly HashSet<string> ImageExtensions = new(
         StringComparer.OrdinalIgnoreCase)
@@ -205,9 +215,15 @@ internal sealed class ProductDesktopThumbnailRequestController : IDisposable
             int workerRequests = 0;
             int cacheHits = 0;
             bool workerStarted = false;
+            bool workerUnavailable = false;
             foreach (ProductDesktopThumbnailCandidate candidate in bounded)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (workerUnavailable)
+                {
+                    results.Add(Fallback(candidate.AnonymousItemKey));
+                    continue;
+                }
                 if (!TryCreateCacheKey(
                     candidate,
                     pixelSize,
@@ -263,6 +279,13 @@ internal sealed class ProductDesktopThumbnailRequestController : IDisposable
                     else
                     {
                         results.Add(Fallback(candidate.AnonymousItemKey));
+                        if (extracted.TimedOut
+                            || extracted.WorkerExited
+                            || extracted.ProtocolError)
+                        {
+                            workerUnavailable = true;
+                            StopRuntime();
+                        }
                     }
                 }
                 catch (Exception exception) when (
@@ -273,6 +296,8 @@ internal sealed class ProductDesktopThumbnailRequestController : IDisposable
                         or PlatformNotSupportedException)
                 {
                     results.Add(Fallback(candidate.AnonymousItemKey));
+                    workerUnavailable = true;
+                    StopRuntime();
                 }
             }
 

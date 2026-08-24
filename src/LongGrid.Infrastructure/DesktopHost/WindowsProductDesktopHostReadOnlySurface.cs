@@ -96,7 +96,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     private readonly string className;
     private readonly nint module;
     private readonly WindowProcedure windowProcedure;
-    private readonly ProductDesktopHostDisplayProjection projection;
+    private ProductDesktopHostDisplayProjection projection;
     private readonly bool startHidden;
     private Func<ProductDesktopInteractionSurfaceTransactionSnapshot?>
         selectionSnapshot = static () => null;
@@ -108,6 +108,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         requestContainerLayout = static _ => false;
     private Func<ProductDesktopContainerHeaderSurfaceInput, bool>
         requestContainerHeaderCommand = static _ => false;
+    private Func<ProductDesktopItemViewportSurfaceInput, bool>
+        requestItemViewport = static _ => false;
     private ActiveContainerLayout? activeContainerLayout;
     private ProductDesktopHostReadOnlyProjection? containerLayoutPreview;
     private string? containerLayoutKeyboardFocusId;
@@ -254,27 +256,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         }
 
 #if WINDOWS
-        uiaProvider = new(
-            Handle,
-            projection,
-            InstanceMarker,
-            () => mode == ProductDesktopInteractionSurfaceMode.Explicit,
-            () => selectionSnapshot(),
-            (containerId, request) =>
-            {
-                bool applied = applySelection(containerId, request);
-                if (applied)
-                {
-                    RefreshSelection();
-                }
-                return applied;
-            },
-            () => requestWorkspaceCreate(new(
-                ProductDesktopWorkspaceCreateInputKind.AssistiveInvoke,
-                SourceAttested: true,
-                IsInjected: false,
-                IsAutoRepeat: false)),
-            () => workspaceCreateHotKeyRegistered);
+        uiaProvider = CreateUiaProvider();
 #endif
 
         ThreadId = NativeMethods.GetWindowThreadProcessId(
@@ -375,6 +357,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                     _ = NativeMethods.InvalidateRect(window, nint.Zero, erase: false);
                 }
                 return nint.Zero;
+            case NativeMethods.WmMouseWheel:
+                _ = HandleItemViewportWheel(wordParameter, longParameter);
+                return nint.Zero;
             case NativeMethods.WmLButtonUp:
                 if (activeContainerLayout is not null)
                 {
@@ -454,6 +439,76 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         ArgumentNullException.ThrowIfNull(requestCommand);
         requestContainerHeaderCommand = requestCommand;
     }
+
+    public void BindItemViewport(
+        Func<ProductDesktopItemViewportSurfaceInput, bool> requestViewport)
+    {
+        ArgumentNullException.ThrowIfNull(requestViewport);
+        requestItemViewport = requestViewport;
+    }
+
+    public bool ApplyPresentation(
+        ProductDesktopHostDisplayProjection nextProjection)
+    {
+        ArgumentNullException.ThrowIfNull(nextProjection);
+        if (disposed
+            || Handle == nint.Zero
+            || !string.Equals(
+                projection.DisplayId,
+                nextProjection.DisplayId,
+                StringComparison.Ordinal)
+            || projection.WorkArea != nextProjection.WorkArea
+            || projection.EffectiveDpi != nextProjection.EffectiveDpi
+            || projection.Containers.Select(container => container.ContainerId)
+                .SequenceEqual(
+                    nextProjection.Containers.Select(container =>
+                        container.ContainerId),
+                    StringComparer.Ordinal) is false)
+        {
+            return false;
+        }
+        projection = nextProjection;
+#if WINDOWS
+        uiaProvider = CreateUiaProvider();
+#endif
+        _ = NativeMethods.InvalidateRect(Handle, nint.Zero, erase: false);
+        return true;
+    }
+
+#if WINDOWS
+    private WindowsProductDesktopHostUiaRootProvider CreateUiaProvider() => new(
+        Handle,
+        projection,
+        InstanceMarker,
+        () => mode == ProductDesktopInteractionSurfaceMode.Explicit,
+        () => selectionSnapshot(),
+        (containerId, request) =>
+        {
+            bool applied = applySelection(containerId, request);
+            if (applied)
+            {
+                RefreshSelection();
+            }
+            return applied;
+        },
+        () => requestWorkspaceCreate(new(
+            ProductDesktopWorkspaceCreateInputKind.AssistiveInvoke,
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: false)),
+        () => workspaceCreateHotKeyRegistered);
+#endif
+
+    internal bool SubmitItemViewportWheelForEvidence(
+        string containerId,
+        int wheelDelta,
+        bool sourceAttested = true,
+        bool isInjected = false) =>
+        requestItemViewport(new(
+            containerId,
+            wheelDelta,
+            sourceAttested,
+            isInjected));
 
     public bool ApplyContainerLayoutPreview(
         string containerId,
@@ -653,6 +708,37 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 0,
                 0,
                 Math.Max(1, GetSystemTypeIconSizeForEvidence()));
+        }
+        finally
+        {
+            _ = NativeMethods.ReleaseDC(Handle, deviceContext);
+        }
+    }
+
+    internal uint DrawThumbnailFrameAndReadCenterForEvidence(
+        ProductDesktopThumbnailFrame frame)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        nint deviceContext = NativeMethods.GetDC(Handle);
+        if (deviceContext == nint.Zero)
+        {
+            return uint.MaxValue;
+        }
+        try
+        {
+            int size = Math.Max(1, GetSystemTypeIconSizeForEvidence());
+            int lines = DrawThumbnailFrame(
+                deviceContext,
+                frame,
+                0,
+                0,
+                size);
+            return lines > 0
+                ? NativeMethods.GetPixel(
+                    deviceContext,
+                    Math.Max(0, size / 2),
+                    Math.Max(0, size / 2))
+                : uint.MaxValue;
         }
         finally
         {
@@ -988,6 +1074,52 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     private NativePoint ToScreenPoint(int clientX, int clientY) => new(
         checked(projection.WorkArea.Left + clientX),
         checked(projection.WorkArea.Top + clientY));
+
+    private bool HandleItemViewportWheel(
+        nint wordParameter,
+        nint longParameter)
+    {
+        if (mode == ProductDesktopInteractionSurfaceMode.Hidden)
+        {
+            return false;
+        }
+        int wheelDelta = SignedHighWord(wordParameter);
+        int x = SignedLowWord(longParameter) - projection.WorkArea.Left;
+        int y = SignedHighWord(longParameter) - projection.WorkArea.Top;
+        ProductDesktopHostReadOnlyProjection? container = projection.Containers
+            .SingleOrDefault(candidate =>
+                !candidate.IsCollapsed
+                && candidate.TotalItemCount >
+                    ProductDesktopHostReadOnlyProjection.MaximumVisibleItems
+                && Contains(
+                    ProductDesktopHostSurfaceLayout.GetContainerBounds(
+                        projection,
+                        candidate),
+                    x,
+                    y));
+        if (container is null || wheelDelta == 0)
+        {
+            return false;
+        }
+        InputMessageSource source = default;
+        bool observed = NativeMethods.GetCurrentInputMessageSource(ref source);
+        try
+        {
+            return requestItemViewport(new(
+                container.ContainerId,
+                wheelDelta,
+                SourceAttested: observed,
+                IsInjected: !observed
+                    || source.OriginId == NativeMethods.ImoInjected));
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException
+                or InvalidOperationException
+                or OverflowException)
+        {
+            return false;
+        }
+    }
 
     private int ResolveHitTest(nint longParameter)
     {
@@ -2333,6 +2465,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint WmLButtonDoubleClick = 0x0203;
         internal const uint WmLButtonUp = 0x0202;
         internal const uint WmMouseMove = 0x0200;
+        internal const uint WmMouseWheel = 0x020A;
         internal const uint WmMouseLeave = 0x02A3;
         internal const uint TmeLeave = 0x00000002;
         internal const int VkEscape = 0x1B;
@@ -2616,6 +2749,12 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             ref NativeBitmapInfoHeader bitmapInfo,
             uint usage,
             uint rasterOperation);
+
+        [DllImport("gdi32.dll")]
+        internal static extern uint GetPixel(
+            nint deviceContext,
+            int x,
+            int y);
 
         [DllImport("user32.dll")]
         internal static extern nint GetDC(nint window);

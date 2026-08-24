@@ -64,6 +64,9 @@ public partial class App : Application
         desktopWorkspaceCreatePublication;
     private CancellationTokenSource? desktopThumbnailRefreshCancellation;
     private long desktopThumbnailRefreshGeneration;
+    private long desktopHostPresentationGeneration;
+    private readonly Dictionary<string, int> desktopItemViewportStarts =
+        new(StringComparer.Ordinal);
 
     public App()
     {
@@ -221,6 +224,8 @@ public partial class App : Application
         productDesktopHostLifecycle.BindContainerMenu(
             GetDesktopContainerMenuAvailability,
             RequestDesktopContainerMenuNavigation);
+        productDesktopHostLifecycle.BindItemViewport(
+            RequestDesktopItemViewport);
         window.DesktopKeyboardInteractionRequested +=
             MainWindow_DesktopKeyboardInteractionRequested;
         window.BoxesEnabledChangeRequested +=
@@ -2205,6 +2210,76 @@ public partial class App : Application
         currentWindow.ApplyDesktopContainerDeleteCommitResult(commit);
     }
 
+    private bool RequestDesktopItemViewport(
+        ProductDesktopItemViewportRequest request)
+    {
+        MainWindow? currentWindow = window;
+        if (currentWindow is null
+            || closingDrainInProgress
+            || !request.SourceAttested
+            || request.IsInjected
+            || request.WheelDelta == 0)
+        {
+            return false;
+        }
+        return currentWindow.DispatcherQueue.TryEnqueue(() =>
+        {
+            ProductWorkspaceState? state = productWorkspaceSession.State;
+            ProductDisplayTopologySnapshot topology =
+                productDisplayTopology.Snapshot;
+            if (state is null
+                || !topology.IsAuthoritative
+                || request.WorkspaceRevision !=
+                    workspaceCommits.CurrentEditRevision
+                || request.TopologyGeneration != topology.Generation)
+            {
+                return;
+            }
+            ProductContainerState[] targets = state.Containers
+                .Where(container => string.Equals(
+                    container.Id,
+                    request.ContainerId,
+                    StringComparison.Ordinal))
+                .Take(2)
+                .ToArray();
+            if (targets.Length != 1
+                || targets[0].Items.Count <=
+                    ProductDesktopHostReadOnlyProjection.MaximumVisibleItems)
+            {
+                return;
+            }
+            string expectedDisplay = topology.Displays.Any(display =>
+                string.Equals(
+                    display.StableId,
+                    targets[0].Placement.DisplayKey,
+                    StringComparison.Ordinal))
+                ? targets[0].Placement.DisplayKey
+                : topology.Displays.Single(display => display.IsPrimary).StableId;
+            if (!string.Equals(
+                expectedDisplay,
+                request.DisplayId,
+                StringComparison.Ordinal))
+            {
+                return;
+            }
+            int currentStart = desktopItemViewportStarts.TryGetValue(
+                request.ContainerId,
+                out int storedStart)
+                    ? storedStart
+                    : 0;
+            int nextStart = ProductDesktopItemViewportPolicy.Move(
+                currentStart,
+                targets[0].Items.Count,
+                request.WheelDelta);
+            if (nextStart == currentStart)
+            {
+                return;
+            }
+            desktopItemViewportStarts[request.ContainerId] = nextStart;
+            ApplyProductDesktopHostProjection(topology);
+        });
+    }
+
     private bool RequestDesktopContainerLayout(
         ProductDesktopContainerLayoutRequest request)
     {
@@ -2900,9 +2975,12 @@ public partial class App : Application
                 ProductConfigurationError.None,
                 null)
             : ProductWorkspaceReadModel.Create(desktopHostState);
+        NormalizeDesktopItemViewports(desktopHostState);
         long workspaceRevision = workspaceCommits.CurrentEditRevision;
         IReadOnlyList<ProductDesktopThumbnailCandidate> candidates =
-            ProductDesktopThumbnailCandidateBuilder.Build(desktopHostState);
+            ProductDesktopThumbnailCandidateBuilder.Build(
+                desktopHostState,
+                desktopItemViewportStarts);
         bool thumbnailsEnabled =
             boxesSettingsController.Current.ThumbnailsEnabled
             && boxesSettingsController.Current.BoxesEnabled;
@@ -2940,6 +3018,32 @@ public partial class App : Application
             desktopThumbnailRefreshCancellation.Token);
     }
 
+    private void NormalizeDesktopItemViewports(ProductWorkspaceState? state)
+    {
+        if (state is null)
+        {
+            desktopItemViewportStarts.Clear();
+            return;
+        }
+        var valid = state.Containers.ToDictionary(
+            container => container.Id,
+            container => container.Items.Count,
+            StringComparer.Ordinal);
+        foreach (string stale in desktopItemViewportStarts.Keys
+            .Where(key => !valid.ContainsKey(key))
+            .ToArray())
+        {
+            _ = desktopItemViewportStarts.Remove(stale);
+        }
+        foreach (string key in desktopItemViewportStarts.Keys.ToArray())
+        {
+            desktopItemViewportStarts[key] =
+                ProductDesktopItemViewportPolicy.ClampStart(
+                    desktopItemViewportStarts[key],
+                    valid[key]);
+        }
+    }
+
     private void ApplyProductDesktopHostProjectionCore(
         ProductWorkspaceState? state,
         ProductWorkspaceReadSnapshot? readSnapshot,
@@ -2954,7 +3058,9 @@ public partial class App : Application
                 readSnapshot,
                 topology,
                 workspaceRevision,
-                thumbnails));
+                thumbnails,
+                desktopItemViewportStarts,
+                checked(++desktopHostPresentationGeneration)));
     }
 
     private async Task RunProductDesktopThumbnailRefreshAsync(

@@ -67,7 +67,7 @@ flowchart LR
 
 Shell COM 对象、PIDL、HWND 和原生句柄不得泄漏进 Core。
 
-PF-005B2 后，缩略图慢路径必须经过 `ProductDesktopThumbnailRequestController`：首个合法可见图片 cache miss 才启动经零 Capability AppContainer 与 Kill-on-Job-close 复核的 worker；每轮最多 12 请求，缓存最多 64 项并按 SHA-256 安全身份、文件长度/修改时间/尺寸/主题失效。App 从权威 workspace 建立匿名首屏候选，先投影 Loading，再把有限 BGRA32 帧用 top-down `StretchDIBits` 绘制到 DesktopHost；generation、workspace revision、topology generation、开关或状态实例变化的结果一律拒绝。关闭时取消刷新、停止 worker 且零新请求；超时、退出、协议或输入失败只进入 FailedFallback 并继续显示系统类型图标，不允许主进程改走 Shell 提取，也不允许路径进入缓存、DesktopHost 投影或 UIA。13～500 项视口调度和真实图片截图回归属于 PF-005C。
+PF-005C 后，缩略图慢路径必须经过 `ProductDesktopThumbnailRequestController`：首个合法可见图片 cache miss 才启动经零 Capability AppContainer 与 Kill-on-Job-close 复核的 worker；每轮最多 12 请求，缓存最多 64 项并按 SHA-256 安全身份、文件长度/修改时间/尺寸/主题失效。App 从权威 workspace 的当前 12 项视口建立匿名候选，先投影 Loading，再把有限 BGRA32 帧用 top-down `StretchDIBits` 绘制到 DesktopHost；独立 presentation generation 允许相同 workspace/topology 下原位更新真实 HWND，viewport/revision/topology/开关或状态实例变化的旧结果一律拒绝。提取异步上限为实测校准后的 1.5 秒，首个 timeout/exit/protocol/runtime 故障立即停止 worker 并让本轮剩余项有限回退，避免 12 倍串行放大。关闭时取消刷新、停止 worker 且零新请求；不允许主进程改走 Shell 提取，也不允许路径进入缓存、DesktopHost 投影或 UIA。
 
 P0-01a/P0-01b 已验证物理目录与 Desktop Namespace 的只读发现和对账：当前机器上 96 个物理项目全部在 Shell 枚举中匹配，Shell 另有 9 个文件系统命名空间项目和 11 个纯虚拟项目。因此生产发现链必须以 Shell 为完整视图、以 Known Folder 扫描作为对账与降级来源；虚拟项目不得误判为可移动文件。
 

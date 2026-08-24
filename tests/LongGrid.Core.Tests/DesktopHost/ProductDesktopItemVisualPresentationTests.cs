@@ -212,4 +212,122 @@ public sealed class ProductDesktopItemVisualPresentationTests(
             Outcome = "Pass",
         }));
     }
+
+    [Fact]
+    public void RealHwndAppliesPresentationInPlaceAndBindsBoundedViewportRequest()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+        string[] names = Enumerable.Range(1, 24)
+            .Select(index => $"项目 {index}")
+            .ToArray();
+        ProductDesktopHostReadOnlyProjection loading =
+            ProductDesktopHostReadOnlyProjection.Create(
+                "container-scroll", "滚动方格", names, "#2457D6", 0.82,
+                false, 24, 36, 320, 300, totalItemCount: 24,
+                itemVisuals: names.Select(_ => new
+                    ProductDesktopItemVisualPresentation(
+                        ProductDesktopItemTypeIconKind.File,
+                        ProductDesktopItemVisualStatus.LoadingThumbnail)));
+        ProductDesktopHostDisplayProjection initial =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(0, 0, 1280, 720), 96, [loading]);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                initial,
+                new nint(5224));
+        nint originalHandle = surface.Handle;
+        ProductDesktopThumbnailFrame frame =
+            ProductDesktopThumbnailFrame.Create(2, 2, 8, new byte[16]);
+        ProductDesktopHostReadOnlyProjection ready =
+            ProductDesktopHostReadOnlyProjection.Create(
+                "container-scroll", "滚动方格", names, "#2457D6", 0.82,
+                false, 24, 36, 320, 300, totalItemCount: 24,
+                itemVisuals: names.Select(_ => new
+                    ProductDesktopItemVisualPresentation(
+                        ProductDesktopItemTypeIconKind.File,
+                        ProductDesktopItemVisualStatus.ReadyThumbnail,
+                        frame)));
+        ProductDesktopHostDisplayProjection resolved =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(0, 0, 1280, 720), 96, [ready]);
+        ProductDesktopItemViewportSurfaceInput? captured = null;
+        surface.BindItemViewport(input =>
+        {
+            captured = input;
+            return true;
+        });
+
+        bool presentationApplied = surface.ApplyPresentation(resolved);
+        bool viewportAccepted = surface.SubmitItemViewportWheelForEvidence(
+            "container-scroll",
+            wheelDelta: -120);
+
+        Assert.True(presentationApplied);
+        Assert.Equal(originalHandle, surface.Handle);
+        Assert.Equal(
+            ProductDesktopItemVisualStatus.ReadyThumbnail,
+            surface.GetItemVisualForEvidence("container-scroll", 0)!.Status);
+        Assert.True(viewportAccepted);
+        Assert.Equal(-120, Assert.IsType<
+            ProductDesktopItemViewportSurfaceInput>(captured).WheelDelta);
+        output.WriteLine(JsonSerializer.Serialize(new
+        {
+            Purpose = "Pf005cRealHwndPresentationViewportEvidence",
+            Expected = new
+            {
+                SameHwnd = true,
+                TerminalVisual = "ReadyThumbnail",
+                ViewportWheelDelta = -120,
+            },
+            Actual = new
+            {
+                SameHwnd = originalHandle == surface.Handle,
+                TerminalVisual = surface.GetItemVisualForEvidence(
+                    "container-scroll", 0)!.Status.ToString(),
+                ViewportWheelDelta = captured?.WheelDelta,
+            },
+            Difference = "None",
+        }));
+    }
+
+    [Theory]
+    [InlineData(96u, 20)]
+    [InlineData(192u, 40)]
+    [InlineData(384u, 80)]
+    public void RealGdiThumbnailPixelRemainsExactAcrossDpi(
+        uint dpi,
+        int expectedPixels)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+        byte[] pixels = Enumerable.Repeat(
+                new byte[] { 30, 20, 10, 255 },
+                4)
+            .SelectMany(pixel => pixel)
+            .ToArray();
+        ProductDesktopThumbnailFrame frame =
+            ProductDesktopThumbnailFrame.Create(2, 2, 8, pixels);
+        ProductDesktopHostReadOnlyProjection container =
+            ProductDesktopHostReadOnlyProjection.Create(
+                "container-pixel", "像素", ["图片"], "#2457D6", 0.82,
+                false, 0, 0, 200, 150);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(0, 0, 1280, 720), dpi, [container]);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                display,
+                new nint(5300 + expectedPixels));
+
+        uint actualColorRef =
+            surface.DrawThumbnailFrameAndReadCenterForEvidence(frame);
+
+        Assert.Equal(expectedPixels, surface.GetSystemTypeIconSizeForEvidence());
+        Assert.Equal(0x001E140Au, actualColorRef);
+    }
 }

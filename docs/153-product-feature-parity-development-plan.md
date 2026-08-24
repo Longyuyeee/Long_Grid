@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
-- 当前开发项：**PF-005C 真实视觉回归、视口调度与 PF-005 总审（PF-001～PF-004 产品证据并行 Pending）**
-- 最新工程审计：[Stage 190](190-pf005b2-thumbnail-presentation-stale-result-audit.md)；PF-005B2 已接入持久化开关、权威首屏候选、Loading/Ready/FailedFallback、过期结果拒绝与真实 HWND BGRA 绘制。当前机器 worker 仍有限回退，成功图片端到端截图和 13～500 项视口调度未完成，PF-005 保持 `InProgress`；30 个 PF 项仍为 `0 Complete`
+- 当前开发项：**PF-006 项目选择、键盘导航与安全打开命令（PF-001～PF-005 产品证据并行 Pending）**
+- 最新工程审计：[Stage 191](191-pf005c-viewport-visual-engineering-closeout-audit.md)；PF-005 已完成系统类型图标、真实受限 worker→BGRA→真实 HWND、持久化开关、有限失败、原位呈现代次和 500 项/12 项视口工程闭环，状态为 `EngineeringComplete / ProductEvidencePending`。下一步进入 PF-006；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -227,7 +227,7 @@
 - 图片缩略图开关关闭时零 worker 请求；
 - 类型图标、缩略图与失败回退都有视觉回归样例。
 
-**2026-08-24 实施状态**：`InProgress`。Stage 188/PF-005A 已将 File/Folder/Shortcut/URL 和五类引用状态接入正式 DesktopHost 系统图标/UIA；Stage 189/PF-005B1 建立真实受限 worker 产品提取门面、关闭零启动、12 项队列与 64 项版本缓存；Stage 190/PF-005B2 已把持久化开关、权威首屏图片候选、Loading/Ready/FailedFallback、过期结果拒绝和 BGRA32 绘制接入正式 App。真实 Store 重启、真实文件变化、真实 worker 有限回退和确定性帧真实 HWND 绘制均有 Expected/Actual/Difference。当前机器的真实 BMP 仍未在 250 ms 内成功提取，且 13～500 项视口变化尚无滚入请求/滚出取消，不能作为完成证据。PF-005 不得提前升级；下一切片 PF-005C 必须完成成功真实图片端到端视觉回归、视口调度和 PF-005 总审。
+**2026-08-24 实施状态**：`EngineeringComplete / ProductEvidencePending`。Stage 188/PF-005A 已将 File/Folder/Shortcut/URL 和五类引用状态接入正式 DesktopHost 系统图标/UIA；Stage 189/PF-005B1 建立真实受限 worker 产品提取门面、关闭零启动、12 项队列与 64 项版本缓存；Stage 190/PF-005B2 接入持久化开关、Loading/Ready/FailedFallback、过期结果拒绝和 BGRA32 绘制；Stage 191/PF-005C 修复同 revision/topology 呈现误入 Faulted，新增原位 presentation generation 与 500 项/12 项视口。真实 BMP 经 worker 返回 16,384-byte BGRA 并由真实 HWND 接受 64/64 行，100%～400% DPI 像素一致。Release 全量发现 750 ms 仍回退后，按实测校准为 1.5 秒异步预算并增加首故障整轮熔断，最终 1135/1135。物理滚轮、真人浅/深截图和 Narrator/UIA Scroll 仍 Pending，因此不得标记 Complete；工程下一步转入 PF-006。
 
 ### PF-006：项目选择、键盘导航与打开
 
@@ -885,6 +885,6 @@
 
 ## 15. 当前立即执行项
 
-当前工程切片为 **PF-005C：真实视觉回归、视口调度与 PF-005 总审**。PF-005A 已完成真实系统类型图标，PF-005B1 已完成受限提取门面、懒启动队列、版本缓存与有限回退，PF-005B2 已完成正式 App 像素呈现、持久化开关和过期结果拒绝；PF-001～PF-004 均为 `EngineeringComplete / ProductEvidencePending`。
+当前工程切片为 **PF-006：项目选择、键盘导航与安全打开命令**。PF-005A/B1/B2/C 已完成系统图标、受限提取、正式像素呈现、持久化开关、过期拒绝、原位呈现代次与 500 项视口的工程闭环；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`。
 
-Stage 190 已让匿名 BGRA 帧进入真实 DesktopHost HWND，并用 generation、workspace revision、topology generation、开关和状态实例统一拒绝过期结果；但当前机器真实 worker 只得到有限回退，且正式 Surface 只投影首 12 项，没有 13～500 项滚入/滚出视口调度。PF-005C 必须在可成功提取环境使用真实 PNG/JPEG/BMP 建立 worker→投影→HWND→截图证据，覆盖浅/深主题、100%～400% DPI、Loading/Ready/FailedFallback；同时为视口变化建立最多 12 个活动请求、滚出取消、滚入请求和文件版本变化拒旧结果。完成后总审 PF-005，仍有物理/无障碍或视觉证据缺口则只能记 `EngineeringComplete / ProductEvidencePending`。PF-001～PF-004 与 G0 外部证据并行保留，任何版本在签名和安装门禁完成前不得分发。
+Stage 191 已证明真实 worker 成功像素可进入真实 HWND，并关闭 13～500 项滚入/滚出调度及同权威事实呈现冲突。PF-006 先复审已有 Explicit selection 是否使用当前视口 ItemIds，统一 pointer、keyboard 和 UIA 的单选/Ctrl/Shift/清除/焦点状态；随后增加 Enter、双击和 UIA Invoke 共用的安全打开命令，文件夹/文件走系统关联，URL/快捷方式必须对未知协议、目标变化、无权限和进程启动失败给出有限结果。所有打开动作不得改变方格归属或真实文件位置。PF-001～PF-005 与 G0 外部证据并行保留，任何版本在签名和安装门禁完成前不得分发。

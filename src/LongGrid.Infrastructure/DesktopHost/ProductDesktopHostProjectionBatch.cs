@@ -92,12 +92,14 @@ public sealed record ProductDesktopHostProjectionBatch
         long workspaceRevision,
         long topologyGeneration,
         string topologyFingerprint,
-        IReadOnlyList<ProductDesktopHostDisplayProjection> displays)
+        IReadOnlyList<ProductDesktopHostDisplayProjection> displays,
+        long presentationGeneration)
     {
         WorkspaceRevision = workspaceRevision;
         TopologyGeneration = topologyGeneration;
         TopologyFingerprint = topologyFingerprint;
         Displays = displays;
+        PresentationGeneration = presentationGeneration;
     }
 
     public long WorkspaceRevision { get; }
@@ -108,13 +110,16 @@ public sealed record ProductDesktopHostProjectionBatch
 
     public IReadOnlyList<ProductDesktopHostDisplayProjection> Displays { get; }
 
+    public long PresentationGeneration { get; }
+
     public int ContainerCount => Displays.Sum(display => display.Containers.Count);
 
     public static ProductDesktopHostProjectionBatch Create(
         long workspaceRevision,
         long topologyGeneration,
         string topologyFingerprint,
-        IEnumerable<ProductDesktopHostDisplayProjection> displays)
+        IEnumerable<ProductDesktopHostDisplayProjection> displays,
+        long presentationGeneration = 0)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(topologyFingerprint);
         ArgumentNullException.ThrowIfNull(displays);
@@ -132,6 +137,7 @@ public sealed record ProductDesktopHostProjectionBatch
             .ToArray();
         if (workspaceRevision < 0
             || topologyGeneration <= 0
+            || presentationGeneration < 0
             || topologyFingerprint.Length != 64
             || !topologyFingerprint.All(Uri.IsHexDigit)
             || copied.Length is 0 or > MaximumDisplays
@@ -152,6 +158,7 @@ public sealed record ProductDesktopHostProjectionBatch
             workspaceRevision,
             topologyGeneration,
             topologyFingerprint.ToUpperInvariant(),
-            Array.AsReadOnly(copied));
+            Array.AsReadOnly(copied),
+            presentationGeneration);
     }
 }

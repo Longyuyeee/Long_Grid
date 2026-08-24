@@ -1,5 +1,6 @@
 using System.Text.Json;
 using LongGrid.Core.Configuration;
+using LongGrid.Core.DesktopHost;
 using LongGrid.Core.DesktopItems;
 using LongGrid.Infrastructure.DesktopHost;
 using LongGrid.ThumbnailWorker;
@@ -60,6 +61,34 @@ public sealed class ProductDesktopThumbnailRequestControllerTests(
     }
 
     [Fact]
+    public async Task FirstWorkerTimeoutCircuitBreaksRemainingVisibleRequests()
+    {
+        using var sandbox = new TemporaryThumbnailSandbox();
+        ProductDesktopThumbnailCandidate[] candidates = Enumerable.Range(1, 12)
+            .Select(index => new ProductDesktopThumbnailCandidate(
+                $"item:{index}",
+                sandbox.WriteBitmap($"timeout-{index}.bmp", 2, 2)))
+            .ToArray();
+        var runtime = new TimeoutRuntime();
+        using var controller = new ProductDesktopThumbnailRequestController(
+            () => runtime);
+
+        ProductDesktopThumbnailRefreshResult actual = await controller.RefreshAsync(
+            true,
+            candidates,
+            64,
+            "light");
+
+        Assert.Equal(1, actual.WorkerRequestCount);
+        Assert.Equal(1, runtime.ExtractCalls);
+        Assert.Equal(12, actual.Results.Count);
+        Assert.All(actual.Results, result => Assert.Equal(
+            ProductDesktopThumbnailStatus.FailedFallback,
+            result.Status));
+        Assert.True(runtime.OwnedProfileDeletionConfirmed);
+    }
+
+    [Fact]
     public async Task RealFileVersionAndThemeInvalidateBoundedCache()
     {
         using var sandbox = new TemporaryThumbnailSandbox();
@@ -101,6 +130,7 @@ public sealed class ProductDesktopThumbnailRequestControllerTests(
         RestrictedThumbnailWorkerRuntime runtime =
             RestrictedThumbnailWorkerRuntime.Start();
         RestrictedThumbnailExtractionResult extracted;
+        RestrictedThumbnailExtractionResult extendedExtraction;
         RestrictedThumbnailExtractionResult timeout;
         RestrictedThumbnailExtractionResult exited;
         try
@@ -109,6 +139,12 @@ public sealed class ProductDesktopThumbnailRequestControllerTests(
                 path,
                 pixelSize: 64,
                 TimeSpan.FromMilliseconds(250));
+            extendedExtraction = extracted.Success
+                ? extracted
+                : await runtime.ExtractAsync(
+                    path,
+                    pixelSize: 64,
+                    TimeSpan.FromSeconds(2));
             timeout = await runtime.ExecuteEvidenceFaultAsync(
                 RestrictedThumbnailEvidenceFault.Hang,
                 TimeSpan.FromMilliseconds(100));
@@ -149,7 +185,12 @@ public sealed class ProductDesktopThumbnailRequestControllerTests(
                 Extraction = extracted.Success
                     ? "ReadyPixels"
                     : $"FiniteFallback:0x{extracted.HResult:X8}",
+                ExtendedExtraction = extendedExtraction.Success
+                    ? "ReadyPixels"
+                    : $"FiniteFallback:0x{extendedExtraction.HResult:X8}",
                 extractionPixels = extracted.Frame?.Bgra32Pixels.Length ?? 0,
+                ExtendedExtractionPixels =
+                    extendedExtraction.Frame?.Bgra32Pixels.Length ?? 0,
                 extracted.TimedOut,
                 extracted.WorkerExited,
                 extracted.ProtocolError,
@@ -194,13 +235,10 @@ public sealed class ProductDesktopThumbnailRequestControllerTests(
                 "light");
 
         ProductDesktopThumbnailResult result = Assert.Single(enabled.Results);
-        Assert.Contains(
-            result.Status,
-            new[]
-            {
-                ProductDesktopThumbnailStatus.ReadyThumbnail,
-                ProductDesktopThumbnailStatus.FailedFallback,
-            });
+        Assert.Equal(
+            ProductDesktopThumbnailStatus.ReadyThumbnail,
+            result.Status);
+        Assert.NotNull(result.Frame);
         Assert.Equal(1, enabled.WorkerRequestCount);
         Assert.Equal(0, disabled.WorkerRequestCount);
         Assert.False(disabled.WorkerStarted);
@@ -211,7 +249,7 @@ public sealed class ProductDesktopThumbnailRequestControllerTests(
             Expected = new
             {
                 VisibleRequests = 1,
-                TerminalState = "ReadyThumbnailOrFailedFallback",
+                TerminalState = "ReadyThumbnail",
                 DisabledRequests = 0,
                 OwnedProfileDeleted = true,
             },
@@ -222,6 +260,86 @@ public sealed class ProductDesktopThumbnailRequestControllerTests(
                 DisabledRequests = disabled.WorkerRequestCount,
                 OwnedProfileDeleted =
                     controller.OwnedProfileDeletionConfirmed,
+            },
+            Difference = "None",
+        }));
+    }
+
+    [Fact]
+    public async Task RealWorkerPixelsFlowIntoRealDesktopHostHwnd()
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(6, 2))
+        {
+            return;
+        }
+        using var sandbox = new TemporaryThumbnailSandbox();
+        string path = sandbox.WriteBitmap("real-end-to-end.bmp", 8, 8);
+        RestrictedThumbnailWorkerRuntime runtime =
+            RestrictedThumbnailWorkerRuntime.Start();
+        RestrictedThumbnailExtractionResult extracted;
+        int actualScanLines;
+        try
+        {
+            extracted = await runtime.ExtractAsync(
+                path,
+                64,
+                TimeSpan.FromSeconds(2));
+            Assert.True(extracted.Success);
+            RestrictedThumbnailPixelFrame workerFrame = Assert.IsType<
+                RestrictedThumbnailPixelFrame>(extracted.Frame);
+            ProductDesktopThumbnailFrame frame =
+                ProductDesktopThumbnailFrame.Create(
+                    workerFrame.Width,
+                    workerFrame.Height,
+                    workerFrame.Stride,
+                    workerFrame.Bgra32Pixels);
+            ProductDesktopHostReadOnlyProjection container =
+                ProductDesktopHostReadOnlyProjection.Create(
+                    "container-real-worker", "真实提取", ["BMP"],
+                    "#2457D6", 0.82, false, 0, 0, 220, 160,
+                    itemVisuals:
+                    [
+                        new ProductDesktopItemVisualPresentation(
+                            ProductDesktopItemTypeIconKind.File,
+                            ProductDesktopItemVisualStatus.ReadyThumbnail,
+                            frame),
+                    ]);
+            ProductDesktopHostDisplayProjection display =
+                ProductDesktopHostDisplayProjection.Create(
+                    "display-primary", new(0, 0, 1280, 720), 96,
+                    [container]);
+            using WindowsProductDesktopHostReadOnlySurface surface =
+                WindowsProductDesktopHostReadOnlySurface.Create(
+                    display,
+                    new nint(5408));
+            actualScanLines = surface.DrawThumbnailFrameForEvidence(frame);
+
+            Assert.Equal(frame.Height, actualScanLines);
+            Assert.NotEqual(nint.Zero, surface.Handle);
+        }
+        finally
+        {
+            runtime.Dispose();
+        }
+        Assert.True(runtime.OwnedProfileDeletionConfirmed);
+        output.WriteLine(JsonSerializer.Serialize(new
+        {
+            Purpose = "Pf005cRealWorkerToHwndEvidence",
+            Expected = new
+            {
+                WorkerSuccess = true,
+                PixelsGreaterThanZero = true,
+                HwndAcceptedAllScanLines = true,
+                OwnedProfileDeleted = true,
+            },
+            Actual = new
+            {
+                WorkerSuccess = extracted.Success,
+                Pixels = extracted.Frame?.Bgra32Pixels.Length ?? 0,
+                HwndScanLines = actualScanLines,
+                HwndAcceptedAllScanLines = actualScanLines ==
+                    extracted.Frame?.Height,
+                OwnedProfileDeleted = runtime.OwnedProfileDeletionConfirmed,
             },
             Difference = "None",
         }));
@@ -280,6 +398,20 @@ public sealed class ProductDesktopThumbnailRequestControllerTests(
             Assert.DoesNotContain("private", candidate.AnonymousItemKey,
                 StringComparison.OrdinalIgnoreCase);
         });
+        IReadOnlyList<ProductDesktopThumbnailCandidate> scrolled =
+            ProductDesktopThumbnailCandidateBuilder.Build(
+                state,
+                new Dictionary<string, int>
+                {
+                    ["container-a"] = 2,
+                });
+        Assert.Equal(12, scrolled.Count);
+        Assert.Equal(
+            ProductDesktopThumbnailItemKey.Create("container-a", 3),
+            scrolled[0].AnonymousItemKey);
+        Assert.Equal(
+            ProductDesktopThumbnailItemKey.Create("container-a", 14),
+            scrolled[^1].AnonymousItemKey);
     }
 
     [Theory]
@@ -339,6 +471,39 @@ public sealed class ProductDesktopThumbnailRequestControllerTests(
                 HResult: 0,
                 new RestrictedThumbnailPixelFrame(2, 2, 8, pixels),
                 RoundTripMilliseconds: 1));
+        }
+
+        public void Dispose() => OwnedProfileDeletionConfirmed = true;
+    }
+
+    private sealed class TimeoutRuntime : IProductRestrictedThumbnailRuntime
+    {
+        public int ExtractCalls { get; private set; }
+
+        public RestrictedThumbnailWorkerRuntimeSnapshot Snapshot { get; } = new(
+            IsStarted: true,
+            WorkerProcessCount: 1,
+            ActiveOwnedProfileCount: 1,
+            IsZeroCapabilityAppContainer: true,
+            UsesKillOnJobClose: true);
+
+        public bool OwnedProfileDeletionConfirmed { get; private set; }
+
+        public Task<RestrictedThumbnailExtractionResult> ExtractAsync(
+            string path,
+            int pixelSize,
+            TimeSpan timeout,
+            CancellationToken cancellationToken)
+        {
+            ExtractCalls++;
+            return Task.FromResult(new RestrictedThumbnailExtractionResult(
+                Success: false,
+                TimedOut: true,
+                WorkerExited: true,
+                ProtocolError: false,
+                HResult: 0,
+                Frame: null,
+                RoundTripMilliseconds: timeout.TotalMilliseconds));
         }
 
         public void Dispose() => OwnedProfileDeletionConfirmed = true;

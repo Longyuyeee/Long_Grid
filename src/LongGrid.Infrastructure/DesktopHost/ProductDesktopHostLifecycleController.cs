@@ -70,7 +70,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
         int totalItemCount,
         IReadOnlyList<ProductDesktopItemVisualPresentation> itemVisuals,
         ProductContainerTitleVisibilityPolicy titleVisibility,
-        ProductContainerTitleDoubleClickAction titleDoubleClickAction)
+        ProductContainerTitleDoubleClickAction titleDoubleClickAction,
+        int visibleItemStartOrdinal)
     {
         ContainerId = containerId;
         Title = title;
@@ -88,6 +89,7 @@ public sealed record ProductDesktopHostReadOnlyProjection
         ItemVisuals = itemVisuals;
         TitleVisibility = titleVisibility;
         TitleDoubleClickAction = titleDoubleClickAction;
+        VisibleItemStartOrdinal = visibleItemStartOrdinal;
     }
 
     public string ContainerId { get; }
@@ -122,6 +124,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
 
     public ProductContainerTitleDoubleClickAction TitleDoubleClickAction { get; }
 
+    public int VisibleItemStartOrdinal { get; }
+
     public ProductDesktopContainerHeaderPresentation Header =>
         ProductDesktopContainerHeaderPresentation.Create(
             Title,
@@ -149,7 +153,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
         ProductContainerTitleVisibilityPolicy titleVisibility =
             ProductContainerTitleVisibilityPolicy.Always,
         ProductContainerTitleDoubleClickAction titleDoubleClickAction =
-            ProductContainerTitleDoubleClickAction.ToggleCollapsed)
+            ProductContainerTitleDoubleClickAction.ToggleCollapsed,
+        int visibleItemStartOrdinal = 1)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(containerId);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
@@ -163,6 +168,9 @@ public sealed record ProductDesktopHostReadOnlyProjection
             .Take(MaximumVisibleItems)
             .ToArray();
         int boundedTotalItemCount = totalItemCount ?? visibleItems.Length;
+        int boundedVisibleItemStartOrdinal = boundedTotalItemCount == 0
+            ? 0
+            : visibleItemStartOrdinal;
         ProductDesktopItemVisualPresentation[] visibleItemVisuals =
             (itemVisuals ?? visibleItems.Select(_ =>
                 ProductDesktopItemVisualPresentation.Create(
@@ -183,6 +191,11 @@ public sealed record ProductDesktopHostReadOnlyProjection
                 != visibleItemIds.Length
             || boundedTotalItemCount < visibleItems.Length
             || boundedTotalItemCount > ProductConfigurationLimits.MaximumItems
+            || (boundedTotalItemCount > 0
+                && (boundedVisibleItemStartOrdinal < 1
+                    || boundedVisibleItemStartOrdinal > boundedTotalItemCount
+                    || boundedVisibleItemStartOrdinal - 1 + visibleItems.Length
+                        > boundedTotalItemCount))
             || color is null
             || color.Length != 7
             || color[0] != '#'
@@ -218,7 +231,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
             boundedTotalItemCount,
             Array.AsReadOnly(visibleItemVisuals),
             titleVisibility,
-            titleDoubleClickAction);
+            titleDoubleClickAction,
+            boundedVisibleItemStartOrdinal);
     }
 }
 
@@ -266,6 +280,14 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
         Func<ProductDesktopContainerHeaderSurfaceInput, bool> requestCommand)
     {
     }
+
+    void BindItemViewport(
+        Func<ProductDesktopItemViewportSurfaceInput, bool> requestViewport)
+    {
+    }
+
+    bool ApplyPresentation(ProductDesktopHostDisplayProjection projection) =>
+        false;
 
     bool ApplyContainerLayoutPreview(
         string containerId,
@@ -320,6 +342,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     private ProductDesktopHostProjectionUpdate? currentUpdate;
     private long lastWorkspaceRevision = -1;
     private long lastTopologyGeneration = -1;
+    private long lastPresentationGeneration = -1;
     private long lastSystemSurfaceSequence;
     private long windowGeneration;
     private ProductDesktopHostPassiveSurfaceModeAdapter? interactionSurface;
@@ -335,6 +358,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             ProductDesktopContainerMenuAvailability.Unavailable;
     private Func<ProductDesktopContainerMenuRequest, bool>
         requestContainerMenu = static _ => false;
+    private Func<ProductDesktopItemViewportRequest, bool>
+        requestItemViewport = static _ => false;
 
     public ProductDesktopHostLifecycleController(
         ProductDesktopHostFeatureDecision featureDecision)
@@ -494,6 +519,17 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             ObjectDisposedException.ThrowIf(disposed, this);
             containerMenuAvailability = availability;
             requestContainerMenu = requestMenu;
+        }
+    }
+
+    public void BindItemViewport(
+        Func<ProductDesktopItemViewportRequest, bool> requestViewport)
+    {
+        ArgumentNullException.ThrowIfNull(requestViewport);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            requestItemViewport = requestViewport;
         }
     }
 
@@ -716,13 +752,18 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             if (!userEnabled)
             {
                 if (update.WorkspaceRevision < lastWorkspaceRevision
-                    || update.TopologyGeneration < lastTopologyGeneration)
+                    || update.TopologyGeneration < lastTopologyGeneration
+                    || (update.WorkspaceRevision == lastWorkspaceRevision
+                        && update.TopologyGeneration == lastTopologyGeneration
+                        && update.PresentationGeneration
+                            < lastPresentationGeneration))
                 {
                     return snapshot;
                 }
 
                 lastWorkspaceRevision = update.WorkspaceRevision;
                 lastTopologyGeneration = update.TopologyGeneration;
+                lastPresentationGeneration = update.PresentationGeneration;
                 currentUpdate = update;
                 currentBatch = update.Batch;
                 return snapshot;
@@ -737,12 +778,17 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             if (update.WorkspaceRevision == lastWorkspaceRevision
                 && update.TopologyGeneration == lastTopologyGeneration)
             {
+                if (update.PresentationGeneration < lastPresentationGeneration)
+                {
+                    return snapshot;
+                }
                 if (UpdatesEqual(currentUpdate, update))
                 {
                     return snapshot;
                 }
 
-                if (currentUpdate?.Disposition !=
+                if (update.PresentationGeneration == lastPresentationGeneration
+                    && currentUpdate?.Disposition !=
                     ProductDesktopHostProjectionDisposition.TopologyRefreshing)
                 {
                     ReleaseSurfaceUnsafe();
@@ -756,7 +802,13 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                 }
                 else
                 {
-                    published = ApplyNewUpdateUnsafe(update);
+                    published = currentUpdate?.Batch is not null
+                        && update.Batch is not null
+                        && PresentationStructuresEqual(
+                            currentUpdate.Batch,
+                            update.Batch)
+                            ? ApplyPresentationUpdateUnsafe(update)
+                            : ApplyNewUpdateUnsafe(update);
                 }
             }
             else
@@ -1057,6 +1109,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     {
         lastWorkspaceRevision = update.WorkspaceRevision;
         lastTopologyGeneration = update.TopologyGeneration;
+        lastPresentationGeneration = update.PresentationGeneration;
         ReleaseSurfaceUnsafe();
         currentUpdate = update;
         if (update.Disposition is ProductDesktopHostProjectionDisposition.Ready
@@ -1080,6 +1133,41 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             ownedWindowCount: 0,
             workspaceRevision: update.WorkspaceRevision,
             topologyGeneration: update.TopologyGeneration);
+    }
+
+    private ProductDesktopHostLifecycleSnapshot ApplyPresentationUpdateUnsafe(
+        ProductDesktopHostProjectionUpdate update)
+    {
+        ProductDesktopHostProjectionBatch batch = update.Batch!;
+        if (surfaces.Count != batch.Displays.Count)
+        {
+            return ApplyNewUpdateUnsafe(update);
+        }
+        for (int index = 0; index < surfaces.Count; index++)
+        {
+            if (!surfaces[index].ApplyPresentation(batch.Displays[index]))
+            {
+                ReleaseSurfaceUnsafe();
+                currentUpdate = update;
+                return UpdateSnapshotUnsafe(
+                    ProductDesktopHostLifecycleStatus.Faulted,
+                    connected: false,
+                    ownedWindowCount: 0,
+                    workspaceRevision: update.WorkspaceRevision,
+                    topologyGeneration: update.TopologyGeneration);
+            }
+        }
+        lastPresentationGeneration = update.PresentationGeneration;
+        currentUpdate = update;
+        currentBatch = batch;
+        snapshot = snapshot with
+        {
+            Generation = checked(snapshot.Generation + 1),
+            WorkspaceRevision = update.WorkspaceRevision,
+            TopologyGeneration = update.TopologyGeneration,
+            RenderedContainerCount = batch.ContainerCount,
+        };
+        return snapshot;
     }
 
     private ProductDesktopHostLifecycleSnapshot RestoreCurrentUpdateUnsafe()
@@ -1200,6 +1288,11 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                         input.PointerScreenY)));
                 created.BindContainerHeaderCommand(input =>
                     ApplyContainerHeaderCommandFromSurface(
+                        created,
+                        display,
+                        input));
+                created.BindItemViewport(input =>
+                    ApplyItemViewportFromSurface(
                         created,
                         display,
                         input));
@@ -1616,6 +1709,53 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     input.SourceAttested,
                     input.IsInjected,
                     input.IsAutoRepeat));
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException
+                    or InvalidOperationException
+                    or OverflowException)
+            {
+                return false;
+            }
+        }
+    }
+
+    private bool ApplyItemViewportFromSurface(
+        IProductDesktopHostReadOnlySurface surface,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopItemViewportSurfaceInput input)
+    {
+        lock (gate)
+        {
+            ProductDesktopHostReadOnlyProjection[] targets = display.Containers
+                .Where(container => string.Equals(
+                    container.ContainerId,
+                    input.ContainerId,
+                    StringComparison.Ordinal))
+                .Take(2)
+                .ToArray();
+            if (disposed
+                || currentBatch is null
+                || !surfaces.Contains(surface)
+                || targets.Length != 1
+                || targets[0].TotalItemCount <=
+                    ProductDesktopHostReadOnlyProjection.MaximumVisibleItems
+                || input.WheelDelta == 0
+                || !input.SourceAttested
+                || input.IsInjected)
+            {
+                return false;
+            }
+            try
+            {
+                return requestItemViewport(new(
+                    input.ContainerId,
+                    display.DisplayId,
+                    currentBatch.WorkspaceRevision,
+                    currentBatch.TopologyGeneration,
+                    input.WheelDelta,
+                    input.SourceAttested,
+                    input.IsInjected));
             }
             catch (Exception exception) when (
                 exception is ArgumentException
@@ -2091,6 +2231,11 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         && left.YDip.Equals(right.YDip)
         && left.WidthDip.Equals(right.WidthDip)
         && left.HeightDip.Equals(right.HeightDip)
+        && left.IsLocked == right.IsLocked
+        && left.TotalItemCount == right.TotalItemCount
+        && left.VisibleItemStartOrdinal == right.VisibleItemStartOrdinal
+        && left.TitleVisibility == right.TitleVisibility
+        && left.TitleDoubleClickAction == right.TitleDoubleClickAction
         && left.ItemIds.SequenceEqual(
             right.ItemIds,
             StringComparer.Ordinal)
@@ -2104,15 +2249,60 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         ProductDesktopHostProjectionBatch right) =>
         left.WorkspaceRevision == right.WorkspaceRevision
         && left.TopologyGeneration == right.TopologyGeneration
+        && left.PresentationGeneration == right.PresentationGeneration
         && left.TopologyFingerprint == right.TopologyFingerprint
         && left.Displays.Count == right.Displays.Count
         && left.Displays.Zip(right.Displays).All(pair =>
             pair.First.DisplayId == pair.Second.DisplayId
             && pair.First.WorkArea == pair.Second.WorkArea
             && pair.First.EffectiveDpi == pair.Second.EffectiveDpi
+            && pair.First.IsPrimary == pair.Second.IsPrimary
+            && pair.First.WorkspaceIsEmpty == pair.Second.WorkspaceIsEmpty
             && pair.First.Containers.Count == pair.Second.Containers.Count
             && pair.First.Containers.Zip(pair.Second.Containers).All(container =>
                 ProjectionsEqual(container.First, container.Second)));
+
+    private static bool PresentationStructuresEqual(
+        ProductDesktopHostProjectionBatch left,
+        ProductDesktopHostProjectionBatch right) =>
+        left.WorkspaceRevision == right.WorkspaceRevision
+        && left.TopologyGeneration == right.TopologyGeneration
+        && left.TopologyFingerprint == right.TopologyFingerprint
+        && left.Displays.Count == right.Displays.Count
+        && left.Displays.Zip(right.Displays).All(pair =>
+            pair.First.DisplayId == pair.Second.DisplayId
+            && pair.First.WorkArea == pair.Second.WorkArea
+            && pair.First.EffectiveDpi == pair.Second.EffectiveDpi
+            && pair.First.IsPrimary == pair.Second.IsPrimary
+            && pair.First.WorkspaceIsEmpty == pair.Second.WorkspaceIsEmpty
+            && pair.First.Containers.Count == pair.Second.Containers.Count
+            && pair.First.Containers.Zip(pair.Second.Containers).All(container =>
+            {
+                ProductDesktopHostReadOnlyProjection first = container.First;
+                ProductDesktopHostReadOnlyProjection second = container.Second;
+                return first.ContainerId == second.ContainerId
+                    && first.Title == second.Title
+                    && first.Color == second.Color
+                    && first.Opacity.Equals(second.Opacity)
+                    && first.IsCollapsed == second.IsCollapsed
+                    && first.XDip.Equals(second.XDip)
+                    && first.YDip.Equals(second.YDip)
+                    && first.WidthDip.Equals(second.WidthDip)
+                    && first.HeightDip.Equals(second.HeightDip)
+                    && first.IsLocked == second.IsLocked
+                    && first.TotalItemCount == second.TotalItemCount
+                    && first.VisibleItemStartOrdinal ==
+                        second.VisibleItemStartOrdinal
+                    && first.TitleVisibility == second.TitleVisibility
+                    && first.TitleDoubleClickAction ==
+                        second.TitleDoubleClickAction
+                    && first.ItemIds.SequenceEqual(
+                        second.ItemIds,
+                        StringComparer.Ordinal)
+                    && first.ItemNames.SequenceEqual(
+                        second.ItemNames,
+                        StringComparer.Ordinal);
+            }));
 
     private static bool UpdatesEqual(
         ProductDesktopHostProjectionUpdate? left,
@@ -2120,6 +2310,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         left is not null
         && left.WorkspaceRevision == right.WorkspaceRevision
         && left.TopologyGeneration == right.TopologyGeneration
+        && left.PresentationGeneration == right.PresentationGeneration
         && left.Disposition == right.Disposition
         && (left.Batch is null
             ? right.Batch is null
