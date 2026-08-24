@@ -7,6 +7,7 @@ namespace LongGrid.Infrastructure.DesktopHost;
 public enum ProductDesktopItemOpenSource
 {
     KeyboardEnter,
+    PointerSingleClick,
     PointerDoubleClick,
     AssistiveInvoke,
 }

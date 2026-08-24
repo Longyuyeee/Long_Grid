@@ -121,6 +121,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     private Func<ProductDesktopItemOpenSurfaceInput, bool>
         requestItemOpen = static _ => false;
     private ProductDesktopItemOpenFeedback? itemOpenFeedback;
+    private bool openItemsWithSingleClick;
     private ActiveContainerLayout? activeContainerLayout;
     private ProductDesktopHostReadOnlyProjection? containerLayoutPreview;
     private string? containerLayoutKeyboardFocusId;
@@ -506,6 +507,16 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         return true;
     }
 
+    public bool ApplyItemOpenPolicy(bool singleClickEnabled)
+    {
+        if (disposed || Handle == nint.Zero)
+        {
+            return false;
+        }
+        openItemsWithSingleClick = singleClickEnabled;
+        return true;
+    }
+
     public bool ApplyPresentation(
         ProductDesktopHostDisplayProjection nextProjection)
     {
@@ -591,6 +602,20 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             wheelDelta,
             sourceAttested,
             isInjected));
+
+    internal bool SubmitPrimaryPointerForEvidence(
+        int x,
+        int y,
+        bool control = false,
+        bool shift = false,
+        bool sourceAttested = true,
+        bool isInjected = false) => HandlePrimaryPointerPressCore(
+            x,
+            y,
+            control,
+            shift,
+            sourceAttested,
+            isInjected);
 
     public bool ApplyContainerLayoutPreview(
         string containerId,
@@ -1023,18 +1048,60 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         }
 
         long flags = wordParameter.ToInt64();
+        _ = HandlePrimaryPointerPressCore(
+            SignedLowWord(longParameter),
+            SignedHighWord(longParameter),
+            control: (flags & NativeMethods.MkControl) != 0,
+            shift: (flags & NativeMethods.MkShift) != 0,
+            sourceAttested: true,
+            isInjected: false);
+    }
+
+    private bool HandlePrimaryPointerPressCore(
+        int x,
+        int y,
+        bool control,
+        bool shift,
+        bool sourceAttested,
+        bool isInjected)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Explicit
+            || !sourceAttested
+            || isInjected)
+        {
+            return false;
+        }
         ProductDesktopPointerSelectionCommand? command =
             ProductDesktopPointerSelectionAdapter.Map(
                 projection,
                 selectionSnapshot(),
-                SignedLowWord(longParameter),
-                SignedHighWord(longParameter),
-                control: (flags & NativeMethods.MkControl) != 0,
-                shift: (flags & NativeMethods.MkShift) != 0);
-        if (command is not null)
+                x,
+                y,
+                control,
+                shift);
+        if (command is null)
         {
-            _ = applySelection(command.ContainerId, command.Request);
+            return false;
         }
+        bool selected = applySelection(command.ContainerId, command.Request);
+        if (!openItemsWithSingleClick
+            || control
+            || shift
+            || command.Request is not
+            {
+                Action: ProductDesktopSelectionAction.SelectItem,
+                ItemId: { } itemId,
+            })
+        {
+            return selected;
+        }
+        return requestItemOpen(new(
+            command.ContainerId,
+            itemId,
+            ProductDesktopItemOpenSource.PointerSingleClick,
+            sourceAttested,
+            isInjected,
+            IsAutoRepeat: false));
     }
 
     private bool HandleItemDoubleClick(
@@ -1042,6 +1109,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         nint longParameter)
     {
         if (mode != ProductDesktopInteractionSurfaceMode.Explicit
+            || openItemsWithSingleClick
             || (wordParameter.ToInt64()
                 & (NativeMethods.MkControl | NativeMethods.MkShift)) != 0)
         {

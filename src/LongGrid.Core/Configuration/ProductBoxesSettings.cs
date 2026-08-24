@@ -15,10 +15,18 @@ public sealed record ProductBoxesSettings
     [JsonPropertyName("thumbnailsEnabled")]
     public bool ThumbnailsEnabled { get; init; } = true;
 
+    [JsonPropertyName("openItemsWithSingleClick")]
+    public bool OpenItemsWithSingleClick { get; init; }
+
     public static ProductBoxesSettings Default { get; } = new();
 
     public static ProductBoxesSettings SafeDisabled { get; } =
-        new() { BoxesEnabled = false, ThumbnailsEnabled = false };
+        new()
+        {
+            BoxesEnabled = false,
+            ThumbnailsEnabled = false,
+            OpenItemsWithSingleClick = false,
+        };
 
     public bool IsValid => SchemaVersion == CurrentSchemaVersion;
 }

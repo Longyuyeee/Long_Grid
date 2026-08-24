@@ -231,6 +231,22 @@
                                             Style="{StaticResource LongGridSubtitleTextStyle}"
                                             Text="正在读取缩略图设置…"
                                             TextWrapping="Wrap" />
+                                        <ToggleSwitch
+                                            x:Name="SingleClickOpenToggle"
+                                            AutomationProperties.AutomationId="SingleClickOpenToggle"
+                                            AutomationProperties.Name="单击打开桌面项目"
+                                            Header="单击打开桌面项目"
+                                            IsEnabled="False"
+                                            OffContent="双击打开（推荐）"
+                                            OnContent="单击打开"
+                                            Toggled="SingleClickOpenToggle_Toggled" />
+                                        <TextBlock
+                                            x:Name="SingleClickOpenStatus"
+                                            AutomationProperties.AutomationId="SingleClickOpenStatus"
+                                            AutomationProperties.LiveSetting="Polite"
+                                            Style="{StaticResource LongGridSubtitleTextStyle}"
+                                            Text="正在读取打开方式设置…"
+                                            TextWrapping="Wrap" />
                                         <TextBlock x:Name="DesktopHostValue" AutomationProperties.AutomationId="DesktopHostValue" FontSize="22" FontWeight="SemiBold" />
                                         <TextBlock x:Name="DesktopHostDetail" Style="{StaticResource LongGridSubtitleTextStyle}" />
                                         <Button

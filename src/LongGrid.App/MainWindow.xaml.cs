@@ -34,6 +34,7 @@ public sealed partial class MainWindow : Window
     private bool _desktopHostConnected;
     private bool _suppressBoxesEnabledChange;
     private bool _suppressThumbnailsEnabledChange;
+    private bool _suppressSingleClickOpenChange;
     private ContentDialog? _desktopWorkspaceCreatePreviewDialog;
     private ContentDialog? _desktopContainerDeleteConfirmationDialog;
     private TaskCompletionSource<string?>? _safePreviewCompletion;
@@ -44,6 +45,7 @@ public sealed partial class MainWindow : Window
     internal event EventHandler? DesktopKeyboardInteractionRequested;
     internal event Action<bool>? BoxesEnabledChangeRequested;
     internal event Action<bool>? ThumbnailsEnabledChangeRequested;
+    internal event Action<bool>? SingleClickOpenChangeRequested;
     private string _organizationStartChoice = "suggested";
     private bool _practiceItemsAdded;
     private ProductConfigurationStartupMode _configurationStartupMode;
@@ -558,6 +560,46 @@ public sealed partial class MainWindow : Window
         {
             ThumbnailsEnabledChangeRequested?.Invoke(
                 ThumbnailsEnabledToggle.IsOn);
+        }
+    }
+
+    internal void ApplySingleClickOpenState(
+        bool enabled,
+        bool canChange,
+        string status)
+    {
+        _suppressSingleClickOpenChange = true;
+        try
+        {
+            SingleClickOpenToggle.IsOn = enabled;
+            SingleClickOpenToggle.IsEnabled = canChange;
+            SingleClickOpenStatus.Text = status;
+            AutomationProperties.SetItemStatus(
+                SingleClickOpenToggle,
+                $"SingleClickOpen={enabled}:CanChange={canChange}");
+        }
+        finally
+        {
+            _suppressSingleClickOpenChange = false;
+        }
+    }
+
+    internal void ApplySingleClickOpenChangePending(bool requestedValue)
+    {
+        SingleClickOpenToggle.IsEnabled = false;
+        SingleClickOpenStatus.Text = requestedValue
+            ? "正在保存单击打开设置…"
+            : "正在恢复推荐的双击打开…";
+    }
+
+    private void SingleClickOpenToggle_Toggled(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (!_suppressSingleClickOpenChange)
+        {
+            SingleClickOpenChangeRequested?.Invoke(
+                SingleClickOpenToggle.IsOn);
         }
     }
 

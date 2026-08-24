@@ -383,3 +383,7 @@ DesktopHost/UIA 继续只持有可见名称和 `item:ordinal`，Enter、精确�
 ## Stage 194：PF-006B2A Shortcut/URL 与有限反馈
 
 App 权威打开控制器现在通过独立 Windows 引用解析边界处理 `.lnk/.url`：Shell Link 用 `IShellLinkW/IPersistFile` 只读解析并复核目标、参数、大小、类型、重解析点和解析前后长度/时间/SHA-256；InternetShortcut 只接受有界严格 UTF-8/UTF-16LE、唯一 URL 和 HTTP/HTTPS。解析后的目标才进入既有 `ShellExecuteExW`。有限结果经生命周期回到对应 Surface，GDI 项目标签与 UIA `ItemStatus` 共用无路径消息；动作型重试/定位仍由下一切片实现。详见 [Stage 194](194-pf006b2a-shortcut-url-feedback-audit.md)。
+
+## Stage 195：PF-006B2B1 可配置单击打开策略
+
+`ProductBoxesSettings` 以默认 `false` 的 `openItemsWithSingleClick` 保存用户选择；缺失/安全配置不会隐式开启或写盘。App 把成功加载/保存后的策略交给 DesktopHost 生命周期，生命周期对当前和后续 Surface 保持一致。真实 Surface 始终先提交共享选择；只有显式开启、普通、可信、非注入且无 Ctrl/Shift 的项目单击才以 `PointerSingleClick` 进入既有权威打开命令，并在单击模式抑制重复双击入口。路径仍不下放到 HWND/UIA。详见 [Stage 195](195-pf006b2b1-single-click-open-policy-audit.md)。

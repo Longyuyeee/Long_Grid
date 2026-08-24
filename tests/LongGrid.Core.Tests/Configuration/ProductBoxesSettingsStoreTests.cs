@@ -1,10 +1,60 @@
+using System.Text.Json;
 using LongGrid.Core.Configuration;
 using LongGrid.Infrastructure.Configuration;
+using Xunit.Abstractions;
 
 namespace LongGrid.Core.Tests.Configuration;
 
-public sealed class ProductBoxesSettingsStoreTests
+public sealed class ProductBoxesSettingsStoreTests(ITestOutputHelper output)
 {
+    [Fact]
+    public async Task RealStorePersistsSingleClickOpenOnlyAfterExplicitOptIn()
+    {
+        string directory = Path.Combine(
+            Path.GetTempPath(),
+            $"LongGrid.SingleClick.{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            using var store = new ProductBoxesSettingsStore(directory);
+            using var controller = new ProductBoxesSettingsController(store);
+            ProductBoxesSettingsLoadResult initial = await store.LoadAsync();
+            controller.Initialize(initial.Settings);
+
+            Assert.False(initial.Settings.OpenItemsWithSingleClick);
+            ProductBoxesSettingsChangeResult saved =
+                await controller.ChangeSingleClickOpenAsync(true);
+            ProductBoxesSettingsLoadResult restarted =
+                await new ProductBoxesSettingsStore(directory).LoadAsync();
+
+            Assert.Equal(ProductBoxesSettingsChangeStatus.Saved, saved.Status);
+            Assert.True(restarted.Settings.OpenItemsWithSingleClick);
+            output.WriteLine(JsonSerializer.Serialize(new
+            {
+                Purpose = "Pf006b2b1RealStoreSingleClickPolicy",
+                Expected = new
+                {
+                    DefaultEnabled = false,
+                    RestartedEnabled = true,
+                    Status = "Saved",
+                },
+                Actual = new
+                {
+                    DefaultEnabled = initial.Settings.OpenItemsWithSingleClick,
+                    RestartedEnabled =
+                        restarted.Settings.OpenItemsWithSingleClick,
+                    Status = saved.Status.ToString(),
+                },
+                Difference = "None",
+                Outcome = "Pass",
+            }));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task MissingSettingsDefaultToEnabledWithoutWritingAFile()
     {

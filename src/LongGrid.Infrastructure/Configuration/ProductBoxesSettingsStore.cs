@@ -282,5 +282,41 @@ public sealed class ProductBoxesSettingsController(
         }
     }
 
+    public async Task<ProductBoxesSettingsChangeResult> ChangeSingleClickOpenAsync(
+        bool enabled,
+        CancellationToken cancellationToken = default)
+    {
+        await changeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (current.OpenItemsWithSingleClick == enabled)
+            {
+                return new(ProductBoxesSettingsChangeStatus.Unchanged, current);
+            }
+            ProductBoxesSettings candidate = current with
+            {
+                OpenItemsWithSingleClick = enabled,
+            };
+            try
+            {
+                await store.SaveAsync(candidate, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception exception) when (
+                exception is IOException
+                    or UnauthorizedAccessException
+                    or InvalidDataException)
+            {
+                return new(ProductBoxesSettingsChangeStatus.Failed, current);
+            }
+            current = candidate;
+            return new(ProductBoxesSettingsChangeStatus.Saved, current);
+        }
+        finally
+        {
+            changeGate.Release();
+        }
+    }
+
     public void Dispose() => changeGate.Dispose();
 }

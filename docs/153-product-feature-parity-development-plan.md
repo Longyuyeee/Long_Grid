@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-006 项目选择、键盘导航与安全打开命令（PF-001～PF-005 产品证据并行 Pending）**
-- 最新工程审计：[Stage 194](194-pf006b2a-shortcut-url-feedback-audit.md)；PF-006B2A 已完成真实 Shortcut/URL 有界解析、HTTP/HTTPS 白名单和 HWND/UIA 有限反馈，PF-006 仍为 `InProgress`；30 个 PF 项仍为 `0 Complete`
+- 最新工程审计：[Stage 195](195-pf006b2b1-single-click-open-policy-audit.md)；PF-006B2B1 已完成默认双击、显式持久化单击策略及真实 Store/HWND 差异证据，PF-006 仍为 `InProgress`；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -63,7 +63,7 @@
 | 3 | PF-003 | 桌面拖动、缩放、吸附 | `EngineeringComplete / ProductEvidencePending`：生产工程链、正式 Store 与双屏混合 DPI 已完成；物理鼠标/触控/截图与 UIA Bounds 待安全环境补证 | Fences/Nimi 直接布局 |
 | 4 | PF-004 | 方格标题栏与就近操作 | `EngineeringComplete / ProductEvidencePending`：A～E 正式工程链完成；物理菜单/双击、触控截图和 Narrator 待补 | Fences 标题栏操作 |
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | `EngineeringComplete / ProductEvidencePending` | Fences/Nimi 项目呈现 |
-| 6 | PF-006 | 项目选择、键盘导航与打开 | `InProgress`：A 选择收敛完成；B1 File/Folder、B2A Shortcut/URL 与有限反馈完成；B2B 动作反馈待实现 | Fences/Portal 日常访问 |
+| 6 | PF-006 | 项目选择、键盘导航与打开 | `InProgress`：A 选择收敛完成；B1 File/Folder、B2A Shortcut/URL 与有限反馈、B2B1 单击策略完成；B2B2 动作反馈待实现 | Fences/Portal 日常访问 |
 | 7 | PF-007 | Explorer 拖入与方格间拖放 | 配置表单批量加入 | iTop/Fences 直接拖放 |
 | 8 | PF-008 | 方格内视图、排序、滚动与间距 | 方格级排序有限 | Nimi/Fences 视图控制 |
 | 9 | PF-009 | 桌面搜索、筛选与快速定位 | 控制中心搜索 | iTop Search |
@@ -254,7 +254,7 @@
 - 高对比和 Narrator 下选中、焦点、不可用三种状态可区分；
 - 自动化覆盖重复打开、目标变化、取消和进程启动失败。
 
-**2026-08-24 实施状态**：`InProgress`。Stage 192/PF-006A 完成选择收敛；Stage 193/PF-006B1 完成三入口共用的 File/Folder 权威安全打开。Stage 194/PF-006B2A 又以 `IShellLinkW/IPersistFile` 有界解析真实 `.lnk` 目标/参数，以严格 UTF-8/UTF-16LE 和 HTTP/HTTPS 白名单解析真实 `.url`，解析前后复核引用版本，并把有限无路径结果回写 DesktopHost HWND/UIA。真实 `.lnk` Shell、`.url` 与反馈均 `Difference=None`，Release 1155/1155。专用重试/Explorer 定位、可配置单击、框选、PageUp/PageDown 和物理/高对比/Narrator 仍 Pending；下一切片 PF-006B2B。
+**2026-08-24 实施状态**：`InProgress`。Stage 192/PF-006A 完成选择收敛；Stage 193/PF-006B1 完成三入口共用的 File/Folder 权威安全打开；Stage 194/PF-006B2A 完成 `.lnk/.url` 有界解析和无路径反馈。Stage 195/PF-006B2B1 又加入默认关闭、只有用户显式保存才启用的单击策略；单击先选择，Ctrl/Shift 和非可信来源不打开，真实 Store 重启与真实 HWND 均 `Difference=None`，Release 1157/1157。专用重试/Explorer 定位、框选、PageUp/PageDown 和物理/高对比/Narrator 仍 Pending；下一切片 PF-006B2B2。
 
 ### PF-007：Explorer 拖入与方格间拖放
 
@@ -887,6 +887,6 @@
 
 ## 15. 当前立即执行项
 
-当前工程切片为 **PF-006B2B：打开失败动作与可配置单击策略**。PF-006A 已完成选择收敛，PF-006B1 已完成 File/Folder，PF-006B2A 已完成 Shortcut/URL 有界解析与有限反馈；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
+当前工程切片为 **PF-006B2B2：权威失败重试与安全 Explorer 定位**。PF-006A 已完成选择收敛，PF-006B1 已完成 File/Folder，PF-006B2A 已完成 Shortcut/URL 有界解析与有限反馈，PF-006B2B1 已完成默认双击/显式单击策略；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
 
-Stage 194 已证明真实 `.lnk` 目标/参数、真实 `.url` 和真实 HWND/UIA 有限反馈可在同一权威命令内收敛。PF-006B2B 必须提供重新验证后的重试，只在安全父目录存在时允许 Explorer 定位，并把单击打开做成默认关闭、显式持久化的用户设置；同时补参数超限、解析竞态和真实像素证据。路径仍不得进入 UIA 或生命周期摘要。PageUp/PageDown、框选、PF-001～PF-005 与 G0 外部证据并行保留，任何版本在签名和安装门禁完成前不得分发。
+Stage 195 已证明默认双击、显式持久化单击设置能在真实 Store 和真实 HWND 中保持选择优先及来源约束。PF-006B2B2 必须提供重新读取当前 workspace/Catalog/现场目标后的重试；只在安全父目录存在、非重解析点并重新授权时允许 Explorer 定位。路径仍不得进入 UIA、日志摘要或生命周期状态。PageUp/PageDown、框选、物理/高对比/Narrator、PF-001～PF-005 与 G0 外部证据并行保留，任何版本在签名和安装门禁完成前不得分发。

@@ -234,6 +234,8 @@ public partial class App : Application
             MainWindow_BoxesEnabledChangeRequested;
         window.ThumbnailsEnabledChangeRequested +=
             MainWindow_ThumbnailsEnabledChangeRequested;
+        window.SingleClickOpenChangeRequested +=
+            MainWindow_SingleClickOpenChangeRequested;
         if (productDesktopSystemSurfaceEvents is not null)
         {
             productDesktopSystemSurfaceEvents.SurfaceChanged +=
@@ -1147,6 +1149,14 @@ public partial class App : Application
                 : result.Settings.ThumbnailsEnabled
                     ? "图片缩略图已开启；失败时自动回退类型图标。"
                     : "图片缩略图已关闭；不会启动缩略图工作进程。");
+        productDesktopHostLifecycle.ApplyItemOpenPolicy(
+            result.Settings.OpenItemsWithSingleClick);
+        window?.ApplySingleClickOpenState(
+            result.Settings.OpenItemsWithSingleClick,
+            canChange: true,
+            result.Settings.OpenItemsWithSingleClick
+                ? "单击打开已开启；关闭后恢复推荐的双击打开。"
+                : "推荐设置：单击选择，双击打开。");
         ApplyProductDesktopHostProjection(productDisplayTopology.Snapshot);
     }
 
@@ -1225,6 +1235,41 @@ public partial class App : Application
         {
             ApplyProductDesktopHostProjection(productDisplayTopology.Snapshot);
         }
+    }
+
+    private async void MainWindow_SingleClickOpenChangeRequested(
+        bool requestedValue)
+    {
+        MainWindow? currentWindow = window;
+        if (currentWindow is null || closingDrainInProgress)
+        {
+            return;
+        }
+        currentWindow.ApplySingleClickOpenChangePending(requestedValue);
+        ProductBoxesSettingsChangeResult result =
+            await boxesSettingsController.ChangeSingleClickOpenAsync(
+                requestedValue);
+        if (result.Status is ProductBoxesSettingsChangeStatus.Saved
+            or ProductBoxesSettingsChangeStatus.Unchanged)
+        {
+            productDesktopHostLifecycle.ApplyItemOpenPolicy(
+                result.Settings.OpenItemsWithSingleClick);
+        }
+        currentWindow.ApplySingleClickOpenState(
+            result.Settings.OpenItemsWithSingleClick,
+            canChange: true,
+            result.Status switch
+            {
+                ProductBoxesSettingsChangeStatus.Saved =>
+                    result.Settings.OpenItemsWithSingleClick
+                        ? "已保存：单击选择并打开项目。"
+                        : "已保存：单击选择，双击打开。",
+                ProductBoxesSettingsChangeStatus.Unchanged => "设置未变化。",
+                ProductBoxesSettingsChangeStatus.Failed =>
+                    "保存失败，已恢复之前的打开方式。",
+                _ => throw new InvalidOperationException(
+                    "Single-click settings change status must be finite."),
+            });
     }
 
     private async Task<ProductConfigurationStartupState> RecoverConfigurationAsync(
@@ -3704,6 +3749,8 @@ public partial class App : Application
                 MainWindow_BoxesEnabledChangeRequested;
             window.ThumbnailsEnabledChangeRequested -=
                 MainWindow_ThumbnailsEnabledChangeRequested;
+            window.SingleClickOpenChangeRequested -=
+                MainWindow_SingleClickOpenChangeRequested;
         }
 
         _ = productDesktopInteraction.Complete(DateTimeOffset.UtcNow);

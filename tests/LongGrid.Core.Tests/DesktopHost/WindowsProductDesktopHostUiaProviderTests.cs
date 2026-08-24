@@ -542,6 +542,124 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
     }
 
     [Fact]
+    public void RealHwndSingleClickOpenRequiresExplicitPolicyOptIn()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+        ProductDesktopHostReadOnlyProjection container = CreateContainer(
+            "container-1", "工作", ["真实项目"], false, 24, 36);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(100, 200, 1920, 1040), 96,
+                [container]);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                display,
+                new nint(914));
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var lease = new ProductDesktopInteractionLease(
+            Guid.NewGuid(), "container-1", 7, 9, 11,
+            now.AddSeconds(5));
+        ProductDesktopInteractionSelectionController selection =
+            ProductDesktopInteractionSelectionController.TryCreate(
+                lease,
+                container.ItemIds,
+                now).Controller!;
+        ProductDesktopInteractionSurfaceTransactionSnapshot current =
+            Transaction(selection.Snapshot);
+        var opened = new List<ProductDesktopItemOpenSurfaceInput>();
+        surface.BindSelection(
+            () => current,
+            (_, request) =>
+            {
+                ProductDesktopSelectionSnapshot updated = selection.Apply(
+                    lease,
+                    container.ItemIds,
+                    request,
+                    now);
+                current = Transaction(updated);
+                return updated.Status == ProductDesktopSelectionStatus.Applied;
+            });
+        surface.BindItemOpen(input =>
+        {
+            opened.Add(input);
+            return true;
+        });
+        var adapter = new ProductDesktopHostPassiveSurfaceModeAdapter(
+            new IProductDesktopHostReadOnlySurface[] { surface },
+            registryGeneration: 11);
+        Assert.True(adapter.ApplyExplicit(lease));
+
+        Assert.True(surface.SubmitPrimaryPointerForEvidence(30, 95));
+        Assert.Empty(opened);
+        int defaultOpenCount = opened.Count;
+        Assert.True(surface.ApplyItemOpenPolicy(singleClickEnabled: true));
+        Assert.True(surface.SubmitPrimaryPointerForEvidence(30, 95));
+
+        ProductDesktopItemOpenSurfaceInput actual = Assert.Single(opened);
+        Assert.Equal(ProductDesktopItemOpenSource.PointerSingleClick,
+            actual.Source);
+        Assert.Equal("item:1", actual.ItemId);
+        Assert.True(surface.SubmitPrimaryPointerForEvidence(
+            30, 95, control: true));
+        int modifiedOpenCount = opened.Count;
+        Assert.Single(opened);
+        Assert.False(surface.SubmitPrimaryPointerForEvidence(
+            30, 95, sourceAttested: false));
+        int unattestedOpenCount = opened.Count;
+        Assert.Single(opened);
+        output.WriteLine(JsonSerializer.Serialize(new
+        {
+            Purpose = "Pf006b2b1RealHwndSingleClickPolicy",
+            Expected = new
+            {
+                DefaultOpenCount = 0,
+                OptInOpenCount = 1,
+                ModifiedOpenCount = 1,
+                UnattestedOpenCount = 1,
+                Source = "PointerSingleClick",
+            },
+            Actual = new
+            {
+                DefaultOpenCount = defaultOpenCount,
+                OptInOpenCount = opened.Count,
+                ModifiedOpenCount = modifiedOpenCount,
+                UnattestedOpenCount = unattestedOpenCount,
+                Source = actual.Source.ToString(),
+            },
+            Difference = "None",
+            Outcome = "Pass",
+        }));
+
+        ProductDesktopInteractionSurfaceTransactionSnapshot Transaction(
+            ProductDesktopSelectionSnapshot selected) => new(
+                ProductDesktopInteractionSurfaceTransactionStatus.Explicit,
+                new(
+                    ProductDesktopInteractionMode.ExplicitInteraction,
+                    ProductDesktopInteractionAdmissionStatus.Admitted,
+                    ProductDesktopInteractionCancellationReason.None,
+                    lease),
+                new(
+                    ProductDesktopInteractionSurfaceMode.Explicit,
+                    11,
+                    Visible: true,
+                    HitTestTransparent: false,
+                    IsKeyboardFocusable: true,
+                    SelectionPatternAvailable: true,
+                    ToolWindow: true,
+                    NoActivate: true,
+                    Topmost: false,
+                    HasOwner: false,
+                    OwnsForeground: false),
+                selected,
+                ProductDesktopInteractionSelectionAccessibilityAdapter
+                    .CreateExplicit(selected),
+                selected.SelectionRevision + 1);
+    }
+
+    [Fact]
     public async Task NativeActivationSourceExposesFiniteInvokeAndHideRestoreContract()
     {
         if (!OperatingSystem.IsWindows())

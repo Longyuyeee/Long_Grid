@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 194](docs/194-pf006b2a-shortcut-url-feedback-audit.md) 已完成 PF-006B2A：真实 `.lnk` 经 Shell Link COM 有界解析目标/参数，真实 `.url` 仅放行严格 UTF-8/UTF-16LE 的 HTTP/HTTPS，有限结果回写 DesktopHost HWND/UIA 且不公开路径。PF-006 继续 `InProgress`，30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 195](docs/195-pf006b2b1-single-click-open-policy-audit.md) 已完成 PF-006B2B1：项目保持默认双击，只有用户显式持久化开启后才允许普通单击进入同一权威安全打开链；Ctrl/Shift 与非可信来源不会误打开。PF-006 继续 `InProgress`，30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -55,6 +55,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-006A 视口选择收敛与真实 HWND 审计（Stage 192）](docs/192-pf006a-viewport-selection-convergence-audit.md)
 - [PF-006B1 统一 File/Folder 安全打开审计（Stage 193）](docs/193-pf006b1-unified-safe-file-folder-open-audit.md)
 - [PF-006B2A Shortcut/URL 与有限反馈审计（Stage 194）](docs/194-pf006b2a-shortcut-url-feedback-audit.md)
+- [PF-006B2B1 可配置单击打开策略审计（Stage 195）](docs/195-pf006b2b1-single-click-open-policy-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)
@@ -212,7 +213,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)推进。PF-006B2A 已完成 Shortcut/URL 有界解析和 HWND/UIA 有限反馈；下一切片固定为 PF-006B2B 权威重试、安全 Explorer 定位和可配置单击策略。框选、PageUp/PageDown 与物理/Narrator 证据继续显式 Pending。任务栏美化、小组件/插件运行时和广泛窗口特效仍属于核心 MVP 后续。
+按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)推进。PF-006B2B1 已完成默认双击、显式持久化单击策略；下一切片固定为 PF-006B2B2 权威失败重试和安全 Explorer 定位。框选、PageUp/PageDown 与物理/Narrator 证据继续显式 Pending。任务栏美化、小组件/插件运行时和广泛窗口特效仍属于核心 MVP 后续。
 
 ## 开发启动
 

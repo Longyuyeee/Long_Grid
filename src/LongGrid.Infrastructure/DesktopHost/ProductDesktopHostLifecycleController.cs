@@ -293,6 +293,8 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
 
     bool ApplyItemOpenFeedback(ProductDesktopItemOpenFeedback feedback) => false;
 
+    bool ApplyItemOpenPolicy(bool openItemsWithSingleClick) => true;
+
     bool ApplyPresentation(ProductDesktopHostDisplayProjection projection) =>
         false;
 
@@ -371,6 +373,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         requestItemOpen = static request => new(
             ProductDesktopItemOpenStatus.InvalidRequest,
             request.Source);
+    private bool openItemsWithSingleClick;
 
     public ProductDesktopHostLifecycleController(
         ProductDesktopHostFeatureDecision featureDecision)
@@ -553,6 +556,19 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             requestItemOpen = requestOpen;
+        }
+    }
+
+    public void ApplyItemOpenPolicy(bool singleClickEnabled)
+    {
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            openItemsWithSingleClick = singleClickEnabled;
+            foreach (IProductDesktopHostReadOnlySurface surface in surfaces)
+            {
+                _ = surface.ApplyItemOpenPolicy(singleClickEnabled);
+            }
         }
     }
 
@@ -1354,6 +1370,11 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     created,
                     display,
                     input));
+                if (!created.ApplyItemOpenPolicy(openItemsWithSingleClick))
+                {
+                    throw new InvalidOperationException(
+                        "Every display surface must accept the item-open policy.");
+                }
                 if (!created.ReadOnlyAccessibilityAttested
                     || (controlledSurfaceLifecycle
                         ? !created.HiddenWindowContractAttested
