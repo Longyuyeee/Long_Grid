@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 192](docs/192-pf006a-viewport-selection-convergence-audit.md) 已完成 PF-006A：500 项/12 项翻页保持同一 HWND 和显式租约，不可见选择清除并把焦点确定收敛到新页首项；Ctrl+A 与内容空白清除进入共享选择权威链。PF-006 仍为 `InProgress`，框选、PageUp/PageDown、安全打开和产品证据尚未完成；30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 193](docs/193-pf006b1-unified-safe-file-folder-open-audit.md) 已完成 PF-006B1：Enter、项目双击和真实 HWND UIA Invoke 汇入同一权威打开命令，Resolved File/Folder 经现场类型/重解析点复核后由真实 `ShellExecuteExW` 提交系统关联；Shortcut/URL 仍固定 ReviewRequired。PF-006 继续 `InProgress`，30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -53,6 +53,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-005B2 缩略图正式呈现与过期结果审计（Stage 190）](docs/190-pf005b2-thumbnail-presentation-stale-result-audit.md)
 - [PF-005C 视口、真实像素与 PF-005 工程收口审计（Stage 191）](docs/191-pf005c-viewport-visual-engineering-closeout-audit.md)
 - [PF-006A 视口选择收敛与真实 HWND 审计（Stage 192）](docs/192-pf006a-viewport-selection-convergence-audit.md)
+- [PF-006B1 统一 File/Folder 安全打开审计（Stage 193）](docs/193-pf006b1-unified-safe-file-folder-open-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)
@@ -210,7 +211,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)推进。PF-006A 已让当前视口、翻页、pointer/keyboard/UIA 选择状态确定收敛，并补齐 Ctrl+A 与内容空白清除；下一切片固定为 PF-006B 统一安全打开命令。框选、PageUp/PageDown 和 PF-001～PF-005 的物理输入、截图、UIA/Narrator 继续显式 Pending。任务栏美化、小组件/插件运行时和广泛窗口特效仍属于核心 MVP 后续。
+按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)推进。PF-006B1 已完成 File/Folder 的三入口统一安全打开；下一切片固定为 PF-006B2 Shortcut/URL 有界解析、协议白名单和失败反馈。可配置单击打开、框选、PageUp/PageDown 与物理/Narrator 证据继续显式 Pending。任务栏美化、小组件/插件运行时和广泛窗口特效仍属于核心 MVP 后续。
 
 ## 开发启动
 

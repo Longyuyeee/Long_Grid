@@ -95,6 +95,8 @@ $desktopThumbnailRequestControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopThumbnailRequestController.cs'
 $desktopItemViewportCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopItemViewport.cs'
+$desktopItemOpenCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopItemOpen.cs'
 $boxesSettingsCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductBoxesSettings.cs'
 $desktopInteractionAdmissionCodePath = Join-Path $projectRoot `
@@ -499,6 +501,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopItemViewportCode = Get-Content `
         -LiteralPath $desktopItemViewportCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopItemOpenCode = Get-Content `
+        -LiteralPath $desktopItemOpenCodePath `
         -Raw `
         -Encoding UTF8
     $boxesSettingsCode = Get-Content `
@@ -2037,6 +2043,21 @@ function Test-SourceContract {
     ) `
         'The A5/M2 product surface must expose bounded UIA Fragments, keep Passive item patterns unavailable, gate root/item selection to Explicit, and attest non-topmost behavior.'
     Assert-Condition (
+        $desktopItemOpenCode -match 'KeyboardEnter' -and
+        $desktopItemOpenCode -match 'PointerDoubleClick' -and
+        $desktopItemOpenCode -match 'AssistiveInvoke' -and
+        $desktopItemOpenCode -match 'ShellExecuteEx' -and
+        $desktopItemOpenCode -match 'ReviewRequiredKind' -and
+        $desktopItemOpenCode -match 'ReparsePointRejected' -and
+        $desktopItemOpenCode -match 'File\.GetAttributes' -and
+        $desktopHostLifecycleControllerCode -match 'BindItemOpen' -and
+        $desktopInteractionActivationSourceCode -match 'KeyboardEnter' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'PointerDoubleClick' -and
+        $windowsDesktopHostUiaProviderCode -match 'requestItemOpen' -and
+        $windowsDesktopHostUiaProviderCode -match 'InvokeItem'
+    ) `
+        'PF-006B1 must converge Enter, item double-click, and UIA Invoke on one authority-safe File/Folder ShellExecuteEx boundary while fail-closing reparse and review-required kinds.'
+    Assert-Condition (
         $desktopContainerHeaderPresentationCode -match 'VisualTitle' -and
         $desktopContainerHeaderPresentationCode -match 'VisualStatus' -and
         $desktopContainerHeaderPresentationCode -match 'AccessibilityName' -and
@@ -3352,7 +3373,7 @@ function Test-SourceContract {
         productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-title-visibility-title-double-click-placement-remove-unified-edit-undo-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only-desktop-layout-session-candidate-publish-compensate-keyboard-title-focus-transaction-cross-display-mixed-dpi'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'
-                    productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-title-layout-invoke-no-file-operations'
+                    productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-title-layout-select-then-authority-safe-file-folder-open-zero-file-mutation'
                     readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'
     }
 }

@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-006 项目选择、键盘导航与安全打开命令（PF-001～PF-005 产品证据并行 Pending）**
-- 最新工程审计：[Stage 192](192-pf006a-viewport-selection-convergence-audit.md)；PF-006A 已完成同 HWND 视口翻页选择收敛、Ctrl+A 和内容空白清除，PF-006 仍为 `InProgress`，下一步进入 PF-006B 统一安全打开；30 个 PF 项仍为 `0 Complete`
+- 最新工程审计：[Stage 193](193-pf006b1-unified-safe-file-folder-open-audit.md)；PF-006B1 已完成 Enter/双击/UIA Invoke 共用的 File/Folder 安全打开，Shortcut/URL 固定 ReviewRequired，PF-006 仍为 `InProgress`；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -63,7 +63,7 @@
 | 3 | PF-003 | 桌面拖动、缩放、吸附 | `EngineeringComplete / ProductEvidencePending`：生产工程链、正式 Store 与双屏混合 DPI 已完成；物理鼠标/触控/截图与 UIA Bounds 待安全环境补证 | Fences/Nimi 直接布局 |
 | 4 | PF-004 | 方格标题栏与就近操作 | `EngineeringComplete / ProductEvidencePending`：A～E 正式工程链完成；物理菜单/双击、触控截图和 Narrator 待补 | Fences 标题栏操作 |
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | `EngineeringComplete / ProductEvidencePending` | Fences/Nimi 项目呈现 |
-| 6 | PF-006 | 项目选择、键盘导航与打开 | `InProgress`：A 当前视口/翻页选择收敛完成；B 安全打开待实现 | Fences/Portal 日常访问 |
+| 6 | PF-006 | 项目选择、键盘导航与打开 | `InProgress`：A 选择收敛完成；B1 File/Folder 统一打开完成；B2 Shortcut/URL 待实现 | Fences/Portal 日常访问 |
 | 7 | PF-007 | Explorer 拖入与方格间拖放 | 配置表单批量加入 | iTop/Fences 直接拖放 |
 | 8 | PF-008 | 方格内视图、排序、滚动与间距 | 方格级排序有限 | Nimi/Fences 视图控制 |
 | 9 | PF-009 | 桌面搜索、筛选与快速定位 | 控制中心搜索 | iTop Search |
@@ -254,7 +254,7 @@
 - 高对比和 Narrator 下选中、焦点、不可用三种状态可区分；
 - 自动化覆盖重复打开、目标变化、取消和进程启动失败。
 
-**2026-08-24 实施状态**：`InProgress`。Stage 192/PF-006A 修复了 Stage 191 翻页因可见 ID 变化而重建 Surface、撤销显式交互的偏差；现在同 workspace/topology/container/总数下的视口变更使用更晚 presentation generation 原位更新同一 HWND，并在同一 lease 内保留重叠选择、清除不可见选择、把焦点/anchor 收敛到新页首项。Ctrl+A 只选当前最多 12 项，方格内容空白单击进入共享 Clear。真实 HWND/UIA 第二页 12 项、生命周期租约和选择修订均 `Difference=None`，Release 1142/1142。框选、PageUp/PageDown、统一安全打开和物理/高对比/Narrator 证据仍 Pending；下一切片 PF-006B。
+**2026-08-24 实施状态**：`InProgress`。Stage 192/PF-006A 完成同 HWND 视口选择收敛、Ctrl+A 和内容空白 Clear。Stage 193/PF-006B1 将 Enter、项目双击和 UIA Invoke 汇入同一 lifecycle/App 权威命令；Resolved File/Folder 复核来源、revision/topology、显示器、ordinal、persisted/catalog target、filesystem provider、现场类型和 ReparsePoint 后，经真实 `ShellExecuteExW` 提交系统关联。真实 `where.exe` 启动、真实 HWND UIA Invoke、缺失/类型变化/陈旧/注入/失败均 `Difference=None`，Release 1150/1150。Shortcut/URL、失败可见反馈、可配置单击打开、框选、PageUp/PageDown 和物理/高对比/Narrator 仍 Pending；下一切片 PF-006B2。
 
 ### PF-007：Explorer 拖入与方格间拖放
 
@@ -887,6 +887,6 @@
 
 ## 15. 当前立即执行项
 
-当前工程切片为 **PF-006B：统一安全打开命令**。PF-006A 已完成当前 12 项视口、翻页选择收敛、Ctrl+A 与内容空白清除；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
+当前工程切片为 **PF-006B2：Shortcut/URL 安全解析与失败反馈**。PF-006A 已完成选择收敛，PF-006B1 已完成 File/Folder 三入口统一打开；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
 
-Stage 192 已证明真实 HWND 第二页、生命周期和唯一选择快照可以同 HWND 收敛。PF-006B 增加 Enter、项目双击和 UIA Invoke 共用的安全打开命令：文件夹/文件走系统关联，URL/快捷方式必须对未知协议、目标变化、无权限和进程启动失败给出有限结果；默认双击打开，单击打开只能由显式用户设置启用。所有打开动作不得改变方格归属或真实文件位置。PageUp/PageDown、框选、PF-001～PF-005 与 G0 外部证据并行保留，任何版本在签名和安装门禁完成前不得分发。
+Stage 193 已证明真实 File Shell 启动与真实 HWND UIA Invoke 可进入同一权威命令。PF-006B2 必须对 `.lnk` 目标/参数和 `.url` 尺寸、编码、URL 字段、`http/https` 协议做有界解析，未知协议继续拒绝，并把有限失败原因呈现给用户；不能把路径放入 UIA 或生命周期摘要。默认仍为双击打开，单击打开只能由显式用户设置启用。PageUp/PageDown、框选、PF-001～PF-005 与 G0 外部证据并行保留，任何版本在签名和安装门禁完成前不得分发。

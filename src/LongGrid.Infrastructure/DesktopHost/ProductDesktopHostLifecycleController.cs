@@ -286,6 +286,11 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
     {
     }
 
+    void BindItemOpen(
+        Func<ProductDesktopItemOpenSurfaceInput, bool> requestOpen)
+    {
+    }
+
     bool ApplyPresentation(ProductDesktopHostDisplayProjection projection) =>
         false;
 
@@ -360,6 +365,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         requestContainerMenu = static _ => false;
     private Func<ProductDesktopItemViewportRequest, bool>
         requestItemViewport = static _ => false;
+    private Func<ProductDesktopItemOpenRequest, bool>
+        requestItemOpen = static _ => false;
 
     public ProductDesktopHostLifecycleController(
         ProductDesktopHostFeatureDecision featureDecision)
@@ -530,6 +537,16 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             requestItemViewport = requestViewport;
+        }
+    }
+
+    public void BindItemOpen(Func<ProductDesktopItemOpenRequest, bool> requestOpen)
+    {
+        ArgumentNullException.ThrowIfNull(requestOpen);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            requestItemOpen = requestOpen;
         }
     }
 
@@ -1327,6 +1344,10 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                         created,
                         display,
                         input));
+                created.BindItemOpen(input => ApplyItemOpenFromSurface(
+                    created,
+                    display,
+                    input));
                 if (!created.ReadOnlyAccessibilityAttested
                     || (controlledSurfaceLifecycle
                         ? !created.HiddenWindowContractAttested
@@ -1431,6 +1452,11 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                                 display,
                                 request),
                             () => CancelInteractionFromActivationSource(source));
+                        source.BindItemOpen(input =>
+                            ApplyItemOpenFromActivationSource(
+                                source,
+                                display,
+                                input));
                         source.BindContainerLayout(
                             command => ApplyContainerLayoutFromActivationSource(
                                 source,
@@ -1795,6 +1821,90 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             {
                 return false;
             }
+        }
+    }
+
+    private bool ApplyItemOpenFromSurface(
+        IProductDesktopHostReadOnlySurface surface,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopItemOpenSurfaceInput input)
+    {
+        lock (gate)
+        {
+            if (disposed || !surfaces.Contains(surface))
+            {
+                return false;
+            }
+            return ApplyItemOpenUnsafe(display, input);
+        }
+    }
+
+    private bool ApplyItemOpenFromActivationSource(
+        IProductDesktopInteractionActivationSource source,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopItemOpenSurfaceInput input)
+    {
+        lock (gate)
+        {
+            if (disposed
+                || !activationSources.Contains(source)
+                || !string.Equals(
+                    source.DisplayId,
+                    display.DisplayId,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+            return ApplyItemOpenUnsafe(display, input);
+        }
+    }
+
+    private bool ApplyItemOpenUnsafe(
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopItemOpenSurfaceInput input)
+    {
+        ProductDesktopInteractionSurfaceTransactionSnapshot? transaction =
+            intentConsumption?.Snapshot.Transaction;
+        if (currentBatch is null
+            || transaction?.IsExplicit != true
+            || transaction.Selection is not { } activeSelection
+            || !string.Equals(
+                activeSelection.ContainerId,
+                input.ContainerId,
+                StringComparison.Ordinal)
+            || !activeSelection.VisibleItemIds.Contains(
+                input.ItemId,
+                StringComparer.Ordinal)
+            || !display.Containers.Any(container =>
+                string.Equals(
+                    container.ContainerId,
+                    input.ContainerId,
+                    StringComparison.Ordinal)
+                && container.ItemIds.Contains(
+                    input.ItemId,
+                    StringComparer.Ordinal)))
+        {
+            return false;
+        }
+        try
+        {
+            return requestItemOpen(new(
+                input.ContainerId,
+                display.DisplayId,
+                currentBatch.WorkspaceRevision,
+                currentBatch.TopologyGeneration,
+                input.ItemId,
+                input.Source,
+                input.SourceAttested,
+                input.IsInjected,
+                input.IsAutoRepeat));
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException
+                or InvalidOperationException
+                or OverflowException)
+        {
+            return false;
         }
     }
 

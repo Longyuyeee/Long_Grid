@@ -1,12 +1,15 @@
+using System.Text.Json;
 using System.Windows.Automation;
 using System.Windows.Automation.Provider;
 using LongGrid.Core.DesktopHost;
 using LongGrid.Infrastructure.DesktopHost;
+using Xunit.Abstractions;
 
 namespace LongGrid.Core.Tests.DesktopHost;
 
 [Collection(DesktopHostNativeWindowTestGroup.Name)]
-public sealed class WindowsProductDesktopHostUiaProviderTests
+public sealed class WindowsProductDesktopHostUiaProviderTests(
+    ITestOutputHelper output)
 {
     [Fact]
     public void EmptyNativeSurfaceNormalizesContextAndKeyboardCreateInputs()
@@ -365,6 +368,120 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
     }
 
     [Fact]
+    public void RealHwndUiaInvokeSelectsThenUsesOpenCommand()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+        ProductDesktopHostReadOnlyProjection container = CreateContainer(
+            "container-1", "工作", ["真实项目"], false, 24, 36);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(100, 200, 1920, 1040), 96,
+                [container]);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                display,
+                new nint(912));
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var lease = new ProductDesktopInteractionLease(
+            Guid.NewGuid(), "container-1", 7, 9, 11,
+            now.AddSeconds(5));
+        ProductDesktopInteractionSelectionController selection =
+            ProductDesktopInteractionSelectionController.TryCreate(
+                lease,
+                container.ItemIds,
+                now).Controller!;
+        ProductDesktopInteractionSurfaceTransactionSnapshot current =
+            Transaction(selection.Snapshot);
+        var opened = new List<ProductDesktopItemOpenSurfaceInput>();
+        surface.BindSelection(
+            () => current,
+            (_, request) =>
+            {
+                ProductDesktopSelectionSnapshot updated = selection.Apply(
+                    lease,
+                    container.ItemIds,
+                    request,
+                    now);
+                current = Transaction(updated);
+                return updated.Status == ProductDesktopSelectionStatus.Applied;
+            });
+        surface.BindItemOpen(input =>
+        {
+            opened.Add(input);
+            return true;
+        });
+        var adapter = new ProductDesktopHostPassiveSurfaceModeAdapter(
+            new IProductDesktopHostReadOnlySurface[] { surface },
+            registryGeneration: 11);
+        Assert.True(adapter.ApplyExplicit(lease));
+
+        AutomationElement root = AutomationElement.FromHandle(surface.Handle);
+        AutomationElement item = root.FindFirst(
+            TreeScope.Descendants,
+            new PropertyCondition(
+                AutomationElement.ControlTypeProperty,
+                ControlType.ListItem));
+        var invoke = (InvokePattern)item.GetCurrentPattern(
+            InvokePattern.Pattern);
+        invoke.Invoke();
+
+        ProductDesktopItemOpenSurfaceInput actual = Assert.Single(opened);
+        Assert.Equal("container-1", actual.ContainerId);
+        Assert.Equal("item:1", actual.ItemId);
+        Assert.Equal(ProductDesktopItemOpenSource.AssistiveInvoke,
+            actual.Source);
+        Assert.Equal(["item:1"], selection.Snapshot.SelectedItemIds);
+        output.WriteLine(JsonSerializer.Serialize(new
+        {
+            Purpose = "Pf006b1RealHwndUiaInvokeEvidence",
+            Expected = new
+            {
+                InvokeSource = "AssistiveInvoke",
+                ContainerId = "container-1",
+                ItemId = "item:1",
+                SelectionChanged = true,
+            },
+            Actual = new
+            {
+                InvokeSource = actual.Source.ToString(),
+                actual.ContainerId,
+                actual.ItemId,
+                SelectionChanged = selection.Snapshot.HasSelection,
+            },
+            Difference = "None",
+            Outcome = "Pass",
+        }));
+
+        ProductDesktopInteractionSurfaceTransactionSnapshot Transaction(
+            ProductDesktopSelectionSnapshot selected) => new(
+                ProductDesktopInteractionSurfaceTransactionStatus.Explicit,
+                new(
+                    ProductDesktopInteractionMode.ExplicitInteraction,
+                    ProductDesktopInteractionAdmissionStatus.Admitted,
+                    ProductDesktopInteractionCancellationReason.None,
+                    lease),
+                new(
+                    ProductDesktopInteractionSurfaceMode.Explicit,
+                    11,
+                    Visible: true,
+                    HitTestTransparent: false,
+                    IsKeyboardFocusable: true,
+                    SelectionPatternAvailable: true,
+                    ToolWindow: true,
+                    NoActivate: true,
+                    Topmost: false,
+                    HasOwner: false,
+                    OwnsForeground: false),
+                selected,
+                ProductDesktopInteractionSelectionAccessibilityAdapter
+                    .CreateExplicit(selected),
+                selected.SelectionRevision + 1);
+    }
+
+    [Fact]
     public async Task NativeActivationSourceExposesFiniteInvokeAndHideRestoreContract()
     {
         if (!OperatingSystem.IsWindows())
@@ -720,6 +837,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
                 lease, container.ItemIds, now).Controller!;
         ProductDesktopInteractionSurfaceTransactionSnapshot current =
             Transaction(selection.Snapshot);
+        var opened = new List<(string ContainerId, string ItemId)>();
         var provider = new WindowsProductDesktopHostUiaRootProvider(
             surface.Handle, display, new nint(911), () => true, () => current,
             (_, request) =>
@@ -728,6 +846,11 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
                     lease, container.ItemIds, request, now);
                 current = Transaction(updated);
                 return updated.Status == ProductDesktopSelectionStatus.Applied;
+            },
+            requestItemOpen: (containerId, itemId) =>
+            {
+                opened.Add((containerId, itemId));
+                return true;
             });
         WindowsProductDesktopHostUiaContainerProvider uiaContainer =
             Assert.Single(provider.Containers);
@@ -826,6 +949,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         item.Invoke();
         provider.PublishSelectionChanges();
 
+        Assert.Equal(("container-1", "item:1"), Assert.Single(opened));
         Assert.True(item.IsSelected);
         item.SetFocus();
         Assert.Same(item, provider.GetFocus());

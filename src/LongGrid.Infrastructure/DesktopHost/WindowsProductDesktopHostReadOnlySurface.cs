@@ -118,6 +118,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         requestContainerHeaderCommand = static _ => false;
     private Func<ProductDesktopItemViewportSurfaceInput, bool>
         requestItemViewport = static _ => false;
+    private Func<ProductDesktopItemOpenSurfaceInput, bool>
+        requestItemOpen = static _ => false;
     private ActiveContainerLayout? activeContainerLayout;
     private ProductDesktopHostReadOnlyProjection? containerLayoutPreview;
     private string? containerLayoutKeyboardFocusId;
@@ -344,7 +346,10 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 }
                 return nint.Zero;
             case NativeMethods.WmLButtonDoubleClick:
-                _ = HandleHeaderDoubleClick(longParameter);
+                if (!HandleHeaderDoubleClick(longParameter))
+                {
+                    _ = HandleItemDoubleClick(wordParameter, longParameter);
+                }
                 return nint.Zero;
             case NativeMethods.WmMouseMove:
                 UpdateHeaderHover(window, longParameter);
@@ -455,6 +460,13 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         requestItemViewport = requestViewport;
     }
 
+    public void BindItemOpen(
+        Func<ProductDesktopItemOpenSurfaceInput, bool> requestOpen)
+    {
+        ArgumentNullException.ThrowIfNull(requestOpen);
+        requestItemOpen = requestOpen;
+    }
+
     public bool ApplyPresentation(
         ProductDesktopHostDisplayProjection nextProjection)
     {
@@ -504,7 +516,14 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             SourceAttested: true,
             IsInjected: false,
             IsAutoRepeat: false)),
-        () => workspaceCreateHotKeyRegistered);
+        () => workspaceCreateHotKeyRegistered,
+        (containerId, itemId) => requestItemOpen(new(
+            containerId,
+            itemId,
+            ProductDesktopItemOpenSource.AssistiveInvoke,
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: false)));
 #endif
 
     internal bool SubmitItemViewportWheelForEvidence(
@@ -961,6 +980,51 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         {
             _ = applySelection(command.ContainerId, command.Request);
         }
+    }
+
+    private bool HandleItemDoubleClick(
+        nint wordParameter,
+        nint longParameter)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Explicit
+            || (wordParameter.ToInt64()
+                & (NativeMethods.MkControl | NativeMethods.MkShift)) != 0)
+        {
+            return false;
+        }
+        InputMessageSource source = default;
+        if (!NativeMethods.GetCurrentInputMessageSource(ref source)
+            || source.OriginId == NativeMethods.ImoInjected)
+        {
+            return false;
+        }
+        ProductDesktopPointerSelectionCommand? hit =
+            ProductDesktopPointerSelectionAdapter.Map(
+                projection,
+                selectionSnapshot(),
+                SignedLowWord(longParameter),
+                SignedHighWord(longParameter),
+                control: false,
+                shift: false);
+        if (hit?.Request is not
+            {
+                Action: ProductDesktopSelectionAction.SelectItem,
+                ItemId: { } itemId
+            })
+        {
+            return false;
+        }
+        if (!applySelection(hit.ContainerId, hit.Request))
+        {
+            return false;
+        }
+        return requestItemOpen(new(
+            hit.ContainerId,
+            itemId,
+            ProductDesktopItemOpenSource.PointerDoubleClick,
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: false));
     }
 
     private bool TryStartWorkspaceCreateDrag(

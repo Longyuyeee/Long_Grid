@@ -67,6 +67,7 @@ public partial class App : Application
     private long desktopHostPresentationGeneration;
     private readonly Dictionary<string, int> desktopItemViewportStarts =
         new(StringComparer.Ordinal);
+    private readonly ProductDesktopItemOpenController desktopItemOpens = new();
 
     public App()
     {
@@ -226,6 +227,7 @@ public partial class App : Application
             RequestDesktopContainerMenuNavigation);
         productDesktopHostLifecycle.BindItemViewport(
             RequestDesktopItemViewport);
+        productDesktopHostLifecycle.BindItemOpen(RequestDesktopItemOpen);
         window.DesktopKeyboardInteractionRequested +=
             MainWindow_DesktopKeyboardInteractionRequested;
         window.BoxesEnabledChangeRequested +=
@@ -2278,6 +2280,20 @@ public partial class App : Application
             desktopItemViewportStarts[request.ContainerId] = nextStart;
             ApplyProductDesktopHostProjection(topology);
         });
+    }
+
+    private bool RequestDesktopItemOpen(ProductDesktopItemOpenRequest request)
+    {
+        if (closingDrainInProgress)
+        {
+            return false;
+        }
+        ProductDesktopItemOpenResult result = desktopItemOpens.Open(
+            request,
+            productWorkspaceSession.State,
+            workspaceCommits.CurrentEditRevision,
+            productDisplayTopology.Snapshot);
+        return result.IsAccepted;
     }
 
     private bool RequestDesktopContainerLayout(

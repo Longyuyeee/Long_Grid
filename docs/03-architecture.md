@@ -375,3 +375,7 @@ App 把正式方格投影成有限的 `ProductDesktopHostReadOnlyProjection`；S
 ## Stage 192：PF-006A 视口选择收敛
 
 视口 ordinal/ID/名称变化在权威 workspace/topology、容器结构和总数不变时作为原位 presentation；唯一 selection transaction 以同一 lease 对新可见 ID 做 bounded reconcile，保留交集、删除不可见选择，焦点与 anchor 在不相交页面落到首项，并推进 selection revision/UIA 快照。Ctrl+A 与内容空白 Clear 复用同一权威控制器。真实 HWND/UIA 第二页与正式生命周期均 `Difference=None`；框选、跨视口 PageUp/PageDown 和安全打开仍 Pending，详见 [Stage 192](192-pf006a-viewport-selection-convergence-audit.md)。
+
+## Stage 193：PF-006B1 统一安全打开
+
+DesktopHost/UIA 继续只持有可见名称和 `item:ordinal`，Enter、精确项目双击与 UIA Invoke 经 lifecycle 附加 container/display/workspace revision/topology/source attestation 后，由 App 当前权威 workspace 解析真实目标。File/Folder 必须复核 resolved 状态、filesystem provider、persisted/catalog target、现场类型和非重解析点，才由 `ShellExecuteExW` 的 `open` verb 提交系统关联；只有 Shell API 明确接受才发布 `LaunchAccepted`。Shortcut/URL 在专用解析和协议白名单前保持 `ReviewRequiredKind`。详见 [Stage 193](193-pf006b1-unified-safe-file-folder-open-audit.md)。

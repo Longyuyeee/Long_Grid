@@ -741,6 +741,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                     "1",
                     "1"),
                 bridge);
+        var activationFactory = new RecordingActivationSourceFactory();
         var controller = new ProductDesktopHostLifecycleController(
             host,
             factory,
@@ -749,8 +750,14 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             bridge,
             forwarding,
             consumption,
-            new RecordingActivationSourceFactory());
+            activationFactory);
         var observed = new List<ProductDesktopHostLifecycleSnapshot>();
+        var openRequests = new List<ProductDesktopItemOpenRequest>();
+        controller.BindItemOpen(request =>
+        {
+            openRequests.Add(request);
+            return true;
+        });
         controller.SnapshotChanged += (_, value) => observed.Add(value);
         DateTimeOffset now = DateTimeOffset.UtcNow;
         _ = controller.ApplyProjectionBatch(CreateBatch());
@@ -803,6 +810,21 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             new(consumption.Snapshot);
         ProductDesktopHostLifecycleSnapshot lifecycleSelected =
             controller.Snapshot;
+        Assert.True(Assert.Single(factory.Surfaces).ApplyBoundItemOpen(new(
+            "container-1",
+            "item:2",
+            ProductDesktopItemOpenSource.PointerDoubleClick,
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: false)));
+        Assert.True(Assert.Single(activationFactory.Sources).ApplyBoundItemOpen(
+            new(
+                "container-1",
+                "item:2",
+                ProductDesktopItemOpenSource.KeyboardEnter,
+                SourceAttested: true,
+                IsInjected: false,
+                IsAutoRepeat: false)));
         _ = controller.ApplySystemSurfaceEvent(new(
             ProductDesktopInteractionSystemSurfaceEventKind.FocusLost,
             1,
@@ -830,6 +852,24 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.Equal(1, lifecycleSelected.SelectionRevision);
         Assert.DoesNotContain("container-1", lifecycleSelected.ToString());
         Assert.DoesNotContain("item:2", lifecycleSelected.ToString());
+        Assert.Equal(2, openRequests.Count);
+        Assert.All(openRequests, request =>
+        {
+            Assert.Equal("container-1", request.ContainerId);
+            Assert.Equal("display-primary", request.DisplayId);
+            Assert.Equal(7, request.WorkspaceRevision);
+            Assert.Equal(11, request.TopologyGeneration);
+            Assert.Equal("item:2", request.ItemId);
+            Assert.True(request.SourceAttested);
+            Assert.False(request.IsInjected);
+            Assert.False(request.IsAutoRepeat);
+        });
+        Assert.Equal(
+            [
+                ProductDesktopItemOpenSource.PointerDoubleClick,
+                ProductDesktopItemOpenSource.KeyboardEnter,
+            ],
+            openRequests.Select(request => request.Source));
         Assert.Equal(
             ProductDesktopInteractionIntentConsumptionStatus.AwaitingSurface,
             replay.Snapshot.Status);
@@ -1926,6 +1966,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                 ProductDesktopContainerMenuAvailability.Unavailable;
         private Func<ProductDesktopContainerMenuSurfaceInput, bool>
             applyContainerMenu = static _ => false;
+        private Func<ProductDesktopItemOpenSurfaceInput, bool> applyItemOpen =
+            static _ => false;
 
         public nint Handle { get; } = new(700);
 
@@ -1985,6 +2027,10 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             cancelSelection = cancel;
         }
 
+        public void BindItemOpen(
+            Func<ProductDesktopItemOpenSurfaceInput, bool> apply) =>
+            applyItemOpen = apply;
+
         public void BindContainerLayout(
             Func<ProductDesktopContainerLayoutKeyboardCommand, bool> apply,
             Func<string?, bool> applyTitleFocus)
@@ -2031,6 +2077,9 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             ProductDesktopContainerMenuSurfaceInput input) =>
             applyContainerMenu(input);
 
+        internal bool ApplyBoundItemOpen(
+            ProductDesktopItemOpenSurfaceInput input) => applyItemOpen(input);
+
         public void Dispose()
         {
             IsVisible = false;
@@ -2061,6 +2110,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             requestContainerHeaderCommand = static _ => false;
         private Func<ProductDesktopItemViewportSurfaceInput, bool>
             requestItemViewport = static _ => false;
+        private Func<ProductDesktopItemOpenSurfaceInput, bool>
+            requestItemOpen = static _ => false;
 
         internal bool WasCreatedHidden { get; } = startHidden;
 
@@ -2153,6 +2204,10 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             Func<ProductDesktopItemViewportSurfaceInput, bool> requestViewport) =>
             requestItemViewport = requestViewport;
 
+        public void BindItemOpen(
+            Func<ProductDesktopItemOpenSurfaceInput, bool> requestOpen) =>
+            requestItemOpen = requestOpen;
+
         public bool ApplyPresentation(
             ProductDesktopHostDisplayProjection nextProjection)
         {
@@ -2238,6 +2293,9 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                 wheelDelta,
                 SourceAttested: true,
                 IsInjected: false));
+
+        internal bool ApplyBoundItemOpen(
+            ProductDesktopItemOpenSurfaceInput input) => requestItemOpen(input);
 
         internal bool RequestBoundWorkspaceDrag(PixelRect bounds) =>
             requestWorkspaceCreate(new(

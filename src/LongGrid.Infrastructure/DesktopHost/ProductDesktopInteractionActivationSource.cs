@@ -118,6 +118,10 @@ internal interface IProductDesktopInteractionActivationSource : IDisposable
     {
     }
 
+    void BindItemOpen(Func<ProductDesktopItemOpenSurfaceInput, bool> apply)
+    {
+    }
+
     void BindContainerLayout(
         Func<ProductDesktopContainerLayoutKeyboardCommand, bool> apply,
         Func<string?, bool> applyTitleFocus)
@@ -182,6 +186,8 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
     private Func<ProductDesktopSelectionRequest, bool> applySelection =
         static _ => false;
     private Func<bool> cancelSelection = static () => false;
+    private Func<ProductDesktopItemOpenSurfaceInput, bool> requestItemOpen =
+        static _ => false;
     private Func<ProductDesktopContainerLayoutKeyboardCommand, bool>
         applyContainerLayout = static _ => false;
     private Func<string?, bool> applyContainerLayoutTitleFocus =
@@ -372,6 +378,12 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         cancelSelection = cancel;
     }
 
+    public void BindItemOpen(Func<ProductDesktopItemOpenSurfaceInput, bool> apply)
+    {
+        ArgumentNullException.ThrowIfNull(apply);
+        requestItemOpen = apply;
+    }
+
     public void BindContainerLayout(
         Func<ProductDesktopContainerLayoutKeyboardCommand, bool> apply,
         Func<string?, bool> applyTitleFocus)
@@ -554,7 +566,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             case NativeMethods.WmSysKeyDown:
                 if (keyboardProxy)
                 {
-                    HandleSelectionKey(wordParameter);
+                    HandleSelectionKey(wordParameter, longParameter);
                     return nint.Zero;
                 }
                 if (wordParameter.ToInt64() is NativeMethods.VkReturn
@@ -977,7 +989,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         return consumed;
     }
 
-    private void HandleSelectionKey(nint wordParameter)
+    private void HandleSelectionKey(nint wordParameter, nint longParameter)
     {
         InputMessageSource inputSource = default;
         if (!NativeMethods.GetCurrentInputMessageSource(ref inputSource)
@@ -994,6 +1006,26 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             (NativeMethods.GetKeyState(NativeMethods.VkMenu) & 0x8000) != 0;
         ProductDesktopInteractionSurfaceTransactionSnapshot? transaction =
             selectionSnapshot();
+        if (wordParameter.ToInt64() == NativeMethods.VkReturn
+            && !control
+            && !shift
+            && !alt
+            && transaction?.Selection is
+            {
+                ContainerId: { } openContainerId,
+                FocusedItemId: { } openItemId
+            })
+        {
+            _ = requestItemOpen(new(
+                openContainerId,
+                openItemId,
+                ProductDesktopItemOpenSource.KeyboardEnter,
+                SourceAttested: true,
+                IsInjected: false,
+                IsAutoRepeat:
+                    (longParameter.ToInt64() & (1L << 30)) != 0));
+            return;
+        }
         ProductDesktopContainerLayoutKeyboardDecision layout =
             ProductDesktopContainerLayoutKeyboardAdapter.Map(
                 containerLayoutTitleFocused,
