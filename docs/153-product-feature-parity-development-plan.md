@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-003 桌面拖动、缩放与吸附（PF-002F 产品证据并行 Pending）**
-- 最新工程审计：[Stage 178](178-pf003d3-keyboard-layout-transaction-audit.md)；PF-003D3 已增加独立标题焦点、方向键 1 DIP、Shift 8 DIP 与 Alt 缩放，并复用同一布局事务/补偿。真实 App/Store 微移 +1 DIP、扩宽 +8 DIP，外部 `Difference=None`。跨显示器和物理/UIA Bounds 仍待完成，PF-003 保持 `InProgress`；30 个 PF 项仍为 `0 Complete`
+- 最新工程审计：[Stage 179](179-pf003d4-cross-display-mixed-dpi-audit.md)；PF-003D4 已让 Move 保持逻辑尺寸/抓取偏移跨权威显示器，并按目标 DPI/工作区吸附、夹取和持久化。本机真实双屏 192/240 DPI、负虚拟坐标下，正式 App/Store 重载差值为 0 DIP、外部 `Difference=None`。物理鼠标/触控、截图和 UIA Bounds 仍待完成，PF-003 保持 `InProgress`；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -60,7 +60,7 @@
 | ---: | --- | --- | --- | --- |
 | 1 | PF-001 | 桌面方格总开关与桌面优先启动 | `InProgress`：总开关和桌面空状态已完成，桌面优先最终呈现待收口 | iTop Enable Boxes |
 | 2 | PF-002 | 桌面直接创建方格 | `EngineeringComplete / ProductEvidencePending`：正式 App 创建、保存、补偿与最近撤销工程证据通过；可见物理输入和 UIA/Narrator 待补 | iTop/Fences 多入口创建 |
-| 3 | PF-003 | 桌面拖动、缩放、吸附 | `InProgress`：预览/吸附、事务、失败补偿、Surface 九向输入、正式 App 候选/提交和键盘微调已实现；跨显示器与物理产品证据待完成 | Fences/Nimi 直接布局 |
+| 3 | PF-003 | 桌面拖动、缩放、吸附 | `InProgress`：预览/吸附、事务、失败补偿、Surface 九向输入、正式 App 候选/提交、键盘微调及跨显示器混合 DPI 已实现；物理鼠标/触控/截图与 UIA Bounds 待完成 | Fences/Nimi 直接布局 |
 | 4 | PF-004 | 方格标题栏与就近操作 | 部分 Core | Fences 标题栏操作 |
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | worker 有、UI 无 | Fences/Nimi 项目呈现 |
 | 6 | PF-006 | 项目选择、键盘导航与打开 | 选择底座 | Fences/Portal 日常访问 |

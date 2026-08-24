@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 178](docs/178-pf003d3-keyboard-layout-transaction-audit.md) 已完成 PF-003D3 工程链：独立标题焦点、方向键 1 DIP、Shift 8 DIP 与 Alt 缩放复用同一布局事务/补偿，真实 App/Store 微移 +1 DIP、扩宽 +8 DIP 的 Expected/Actual 为 `Difference=None`。跨显示器、物理鼠标/键盘和 UIA Bounds 仍未完成；PF-003 保持 `InProgress`，30 个 PF 项仍为 `0 Complete`。所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 179](docs/179-pf003d4-cross-display-mixed-dpi-audit.md) 已完成 PF-003D4 工程链：Move 可保持逻辑尺寸/抓取偏移跨权威显示器，按目标 DPI/工作区吸附夹取并复用唯一提交、保存与补偿。本机真实双屏 192/240 DPI、负虚拟坐标下，正式 App/Store 跨屏保存重载 X/Y 差值均为 0 DIP，`Difference=None`。物理鼠标/触控、截图和 UIA Bounds 仍未完成；PF-003 保持 `InProgress`，30 个 PF 项仍为 `0 Complete`。所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -39,6 +39,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [当前开发情况与最初需求对齐审计（Stage 176）](docs/176-current-development-requirement-alignment-audit.md)
 - [PF-003D2 App 布局会话、可见候选与提交补偿审计（Stage 177）](docs/177-pf003d2-app-layout-session-visible-candidate-audit.md)
 - [PF-003D3 键盘布局事务与真实重载审计（Stage 178）](docs/178-pf003d3-keyboard-layout-transaction-audit.md)
+- [PF-003D4 跨显示器混合 DPI 布局审计（Stage 179）](docs/179-pf003d4-cross-display-mixed-dpi-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)

@@ -31,7 +31,9 @@ public sealed record ProductDesktopContainerLayoutRequest(
     double CumulativeDeltaYDip,
     bool SnapEnabled,
     bool ShiftPressed,
-    ProductDesktopContainerLayoutCancellationReason CancellationReason);
+    ProductDesktopContainerLayoutCancellationReason CancellationReason,
+    int? PointerScreenX = null,
+    int? PointerScreenY = null);
 
 internal sealed record ProductDesktopContainerLayoutSurfaceInput(
     ProductDesktopContainerLayoutInputPhase Phase,
@@ -41,7 +43,9 @@ internal sealed record ProductDesktopContainerLayoutSurfaceInput(
     double CumulativeDeltaYDip,
     bool SnapEnabled,
     bool ShiftPressed,
-    ProductDesktopContainerLayoutCancellationReason CancellationReason);
+    ProductDesktopContainerLayoutCancellationReason CancellationReason,
+    int? PointerScreenX = null,
+    int? PointerScreenY = null);
 
 internal sealed record ProductDesktopContainerLayoutKeyboardCommand(
     string ContainerId,

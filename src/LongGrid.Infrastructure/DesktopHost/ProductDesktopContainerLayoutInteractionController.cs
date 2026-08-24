@@ -242,7 +242,9 @@ public sealed class ProductDesktopContainerLayoutInteractionController
                 topology.Displays,
                 request.Kind,
                 request.ContainerId,
-                request.DisplayId);
+                request.DisplayId,
+                request.PointerScreenX,
+                request.PointerScreenY);
         if (!begin.IsReady)
         {
             return Reject(request, clearPreview: false);
@@ -280,7 +282,9 @@ public sealed class ProductDesktopContainerLayoutInteractionController
                 request.CumulativeDeltaXDip,
                 request.CumulativeDeltaYDip,
                 request.SnapEnabled,
-                request.ShiftPressed);
+                request.ShiftPressed,
+                request.PointerScreenX,
+                request.PointerScreenY);
         if (snapshot.Status !=
             ProductWorkspaceContainerLayoutGestureSessionStatus.Previewing)
         {

@@ -1283,6 +1283,59 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
+    public async Task CrossDisplayPreviewMovesBetweenSurfacesAndClearsSource()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        ProductDesktopHostDisplayProjection source =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary",
+                new(0, 0, 1920, 1040),
+                96,
+                [CreateProjection()]);
+        ProductDesktopHostDisplayProjection target =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-secondary",
+                new(-1920, 0, 1920, 1040),
+                192,
+                [],
+                isPrimary: false,
+                workspaceIsEmpty: false);
+        _ = controller.ApplyProjectionBatch(CreateBatch(source, target));
+        ProductContainerPlacementState sameDisplay = new()
+        {
+            DisplayKey = "display-primary",
+            XDip = 100,
+            YDip = 120,
+            WidthDip = 360,
+            HeightDip = 240,
+        };
+        ProductContainerPlacementState crossDisplay = sameDisplay with
+        {
+            DisplayKey = "display-secondary",
+            XDip = 50,
+            YDip = 60,
+        };
+
+        Assert.True(controller.ApplyContainerLayoutPreview(
+            "display-primary", "container-1", 7, 11, sameDisplay));
+        Assert.Equal(sameDisplay, factory.Surfaces[0].LayoutPreview);
+        Assert.Null(factory.Surfaces[1].LayoutPreview);
+        Assert.True(controller.ApplyContainerLayoutPreview(
+            "display-primary", "container-1", 7, 11, crossDisplay));
+        Assert.Null(factory.Surfaces[0].LayoutPreview);
+        Assert.Equal(crossDisplay, factory.Surfaces[1].LayoutPreview);
+        Assert.Equal("container-1", factory.Surfaces[1].LayoutPreviewSourceId);
+        Assert.True(controller.ApplyContainerLayoutPreview(
+            "display-primary", "container-1", 7, 11, placement: null));
+        Assert.All(factory.Surfaces, surface => Assert.Null(surface.LayoutPreview));
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
     public async Task ConflictingTerminalUpdateFailsClosed()
     {
         var factory = new RecordingSurfaceFactory();
@@ -1693,6 +1746,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
 
         internal string? LayoutKeyboardFocusId { get; private set; }
 
+        internal string? LayoutPreviewSourceId { get; private set; }
+
         public nint Handle { get; } = handle;
 
         public nint InstanceMarker { get; } = instanceMarker;
@@ -1761,20 +1816,44 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             string containerId,
             ProductContainerPlacementState? placement)
         {
+            if (placement is null)
+            {
+                LayoutPreview = null;
+                LayoutPreviewSourceId = null;
+                return true;
+            }
             if (Projection is null
                 || Projection.Containers.Count(candidate => string.Equals(
                     candidate.ContainerId,
                     containerId,
                     StringComparison.Ordinal)) != 1
-                || (placement is not null && !string.Equals(
+                || !string.Equals(
                     placement.DisplayKey,
                     Projection.DisplayId,
-                    StringComparison.Ordinal)))
+                    StringComparison.Ordinal))
             {
                 return false;
             }
 
             LayoutPreview = placement;
+            LayoutPreviewSourceId = containerId;
+            return true;
+        }
+
+        public bool ApplyContainerLayoutPreview(
+            ProductDesktopHostReadOnlyProjection source,
+            ProductContainerPlacementState placement)
+        {
+            if (Projection is null
+                || !string.Equals(
+                    Projection.DisplayId,
+                    placement.DisplayKey,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+            LayoutPreview = placement;
+            LayoutPreviewSourceId = source.ContainerId;
             return true;
         }
 

@@ -218,6 +218,11 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
         string containerId,
         ProductContainerPlacementState? placement) => false;
 
+    bool ApplyContainerLayoutPreview(
+        ProductDesktopHostReadOnlyProjection source,
+        ProductContainerPlacementState placement) =>
+        ApplyContainerLayoutPreview(source.ContainerId, placement);
+
     bool ApplyContainerLayoutKeyboardFocus(string? containerId) => false;
 
     void RefreshSelection()
@@ -421,27 +426,64 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                 || currentBatch is null
                 || currentBatch.WorkspaceRevision != expectedWorkspaceRevision
                 || currentBatch.TopologyGeneration != expectedTopologyGeneration
-                || (placement is not null && !string.Equals(
-                    placement.DisplayKey,
-                    displayId,
-                    StringComparison.Ordinal))
                 || surfaces.Count != currentBatch.Displays.Count)
             {
                 return false;
             }
 
-            int[] matches = currentBatch.Displays
+            ProductDesktopHostReadOnlyProjection[] sources = currentBatch.Displays
+                .Where(display => string.Equals(
+                    display.DisplayId,
+                    displayId,
+                    StringComparison.Ordinal))
+                .SelectMany(display => display.Containers)
+                .Where(container => string.Equals(
+                    container.ContainerId,
+                    containerId,
+                    StringComparison.Ordinal))
+                .Take(2)
+                .ToArray();
+            if (sources.Length != 1)
+            {
+                return false;
+            }
+            if (placement is null)
+            {
+                bool cleared = true;
+                foreach (IProductDesktopHostReadOnlySurface surface in surfaces)
+                {
+                    cleared &= surface.ApplyContainerLayoutPreview(
+                        containerId,
+                        placement: null);
+                }
+                return cleared;
+            }
+
+            int[] targets = currentBatch.Displays
                 .Select((display, index) => new { display.DisplayId, Index = index })
                 .Where(candidate => string.Equals(
                     candidate.DisplayId,
-                    displayId,
+                    placement.DisplayKey,
                     StringComparison.Ordinal))
                 .Select(candidate => candidate.Index)
                 .ToArray();
-            return matches.Length == 1
-                && surfaces[matches[0]].ApplyContainerLayoutPreview(
-                    containerId,
-                    placement);
+            if (targets.Length != 1)
+            {
+                return false;
+            }
+            for (int index = 0; index < surfaces.Count; index++)
+            {
+                if (index != targets[0]
+                    && !surfaces[index].ApplyContainerLayoutPreview(
+                        containerId,
+                        placement: null))
+                {
+                    return false;
+                }
+            }
+            return surfaces[targets[0]].ApplyContainerLayoutPreview(
+                sources[0],
+                placement);
         }
     }
 
@@ -1069,7 +1111,9 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                         input.CumulativeDeltaYDip,
                         input.SnapEnabled,
                         input.ShiftPressed,
-                        input.CancellationReason)));
+                        input.CancellationReason,
+                        input.PointerScreenX,
+                        input.PointerScreenY)));
                 if (!created.ReadOnlyAccessibilityAttested
                     || (controlledSurfaceLifecycle
                         ? !created.HiddenWindowContractAttested

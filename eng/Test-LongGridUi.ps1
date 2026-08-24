@@ -2372,6 +2372,12 @@ function Test-SourceContract {
             'ApplyContainerLayoutPreview' -and
         $windowsDesktopHostReadOnlySurfaceCode -match `
             'containerLayoutPreview' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'ApplyContainerLayoutPreview\(\s*ProductDesktopHostReadOnlyProjection source' -and
+        $desktopHostLifecycleControllerCode -match `
+            'placement\.DisplayKey[\s\S]{0,1200}ApplyContainerLayoutPreview' -and
+        $appCode -match `
+            'DrivingFormalHardwareCrossDisplayMove' -and
         $appCode -match `
             'RequestDesktopWorkspaceCreate[\s\S]{0,2400}ProductDesktopHostLifecycleStatus\.ReadyReadOnly' -and
         $appCode -match `
@@ -3063,7 +3069,7 @@ function Test-SourceContract {
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
         productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-single-undo'
-        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-create-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only-desktop-layout-session-candidate-publish-compensate-keyboard-title-focus-transaction'
+        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-create-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only-desktop-layout-session-candidate-publish-compensate-keyboard-title-focus-transaction-cross-display-mixed-dpi'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'
                     productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-title-layout-invoke-no-file-operations'

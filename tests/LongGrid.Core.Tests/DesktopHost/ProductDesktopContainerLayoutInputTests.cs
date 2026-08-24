@@ -267,6 +267,52 @@ public sealed class ProductDesktopContainerLayoutInputTests
         Assert.NotEqual(nint.Zero, surface.Handle);
     }
 
+    [Fact]
+    public void RealMixedDpiTargetSurfaceDrawsExternalContainerCandidate()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        ProductDesktopHostDisplayProjection sourceDisplay = Display();
+        ProductDesktopHostDisplayProjection targetDisplay =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-2",
+                new(-1920, 0, 1920, 1040),
+                192,
+                [],
+                isPrimary: false,
+                workspaceIsEmpty: false);
+        using WindowsProductDesktopHostReadOnlySurface sourceSurface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                sourceDisplay,
+                new nint(17404));
+        using WindowsProductDesktopHostReadOnlySurface targetSurface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                targetDisplay,
+                new nint(17405));
+        ProductContainerPlacementState target = new()
+        {
+            DisplayKey = "display-2",
+            XDip = 50,
+            YDip = 60,
+            WidthDip = 200,
+            HeightDip = 160,
+        };
+
+        Assert.True(targetSurface.ApplyContainerLayoutPreview(
+            sourceDisplay.Containers.Single(),
+            target));
+        PixelRect bounds = targetSurface.GetContainerLayoutBoundsForEvidence(
+            "container-1")!.Value;
+        Assert.Equal(new PixelRect(100, 120, 400, 320), bounds);
+        Assert.True(targetSurface.ApplyContainerLayoutPreview(
+            "container-1",
+            placement: null));
+        Assert.Null(targetSurface.GetContainerLayoutBoundsForEvidence(
+            "container-1"));
+        Assert.NotEqual(nint.Zero, sourceSurface.Handle);
+        Assert.NotEqual(nint.Zero, targetSurface.Handle);
+    }
+
     private static ProductDesktopContainerLayoutSurfaceInput Input(
         ProductDesktopContainerLayoutInputPhase phase,
         double deltaX,

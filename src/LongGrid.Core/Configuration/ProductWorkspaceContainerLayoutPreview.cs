@@ -35,7 +35,10 @@ public sealed record ProductWorkspaceContainerLayoutPreviewRequest(
     double DeltaXDip,
     double DeltaYDip,
     bool SnapEnabled,
-    bool ShiftPressed);
+    bool ShiftPressed,
+    string? TargetDisplayId = null,
+    double? TargetXDip = null,
+    double? TargetYDip = null);
 
 public sealed record ProductWorkspaceContainerLayoutPreviewDecision(
     ProductWorkspaceContainerLayoutPreviewStatus Status,
@@ -112,21 +115,21 @@ public static class ProductWorkspaceContainerLayoutPreview
                 ProductWorkspaceContainerLayoutPreviewStatus.ContainerLocked);
         }
 
-        DisplayTopologyNode[] matchingDisplays = displays
+        DisplayTopologyNode[] matchingSourceDisplays = displays
             .Where(candidate => candidate is not null && string.Equals(
                 candidate.StableId,
                 request.DisplayId,
                 StringComparison.Ordinal))
             .ToArray();
-        if (matchingDisplays.Length != 1)
+        if (matchingSourceDisplays.Length != 1)
         {
             return Failure(
                 ProductWorkspaceContainerLayoutPreviewStatus.DisplayUnavailable);
         }
-        DisplayTopologyNode display = matchingDisplays[0];
+        DisplayTopologyNode sourceDisplay = matchingSourceDisplays[0];
         ProductContainerPlacementState source = container.Placement;
-        if (!display.WorkArea.HasArea
-            || display.EffectiveDpi is < 48 or > 768
+        if (!sourceDisplay.WorkArea.HasArea
+            || sourceDisplay.EffectiveDpi is < 48 or > 768
             || source is null
             || !string.Equals(
                 source.DisplayKey,
@@ -137,27 +140,89 @@ public static class ProductWorkspaceContainerLayoutPreview
                 ProductWorkspaceContainerLayoutPreviewStatus.DisplayUnavailable);
         }
 
-        double scale = display.EffectiveDpi / 96d;
-        double workWidth = display.WorkArea.Width / scale;
-        double workHeight = display.WorkArea.Height / scale;
+        string targetDisplayId = string.IsNullOrWhiteSpace(
+            request.TargetDisplayId)
+                ? request.DisplayId
+                : request.TargetDisplayId;
+        DisplayTopologyNode[] matchingTargetDisplays = displays
+            .Where(candidate => candidate is not null && string.Equals(
+                candidate.StableId,
+                targetDisplayId,
+                StringComparison.Ordinal))
+            .ToArray();
+        bool hasAbsoluteTarget = request.TargetXDip is not null
+            || request.TargetYDip is not null;
+        bool crossesDisplay = !string.Equals(
+            request.DisplayId,
+            targetDisplayId,
+            StringComparison.Ordinal);
+        if (matchingTargetDisplays.Length != 1
+            || (hasAbsoluteTarget
+                && (request.TargetXDip is not { } targetX
+                    || request.TargetYDip is not { } targetY
+                    || !double.IsFinite(targetX)
+                    || !double.IsFinite(targetY)
+                    || Math.Abs(targetX) > MaximumAbsoluteDeltaDip
+                    || Math.Abs(targetY) > MaximumAbsoluteDeltaDip
+                    || request.Kind !=
+                        ProductWorkspaceContainerLayoutGestureKind.Move))
+            || (crossesDisplay
+                && (request.Kind !=
+                        ProductWorkspaceContainerLayoutGestureKind.Move
+                    || !hasAbsoluteTarget)))
+        {
+            return Failure(
+                ProductWorkspaceContainerLayoutPreviewStatus.DisplayUnavailable);
+        }
+
+        DisplayTopologyNode targetDisplay = matchingTargetDisplays[0];
+        if (!targetDisplay.WorkArea.HasArea
+            || targetDisplay.EffectiveDpi is < 48 or > 768)
+        {
+            return Failure(
+                ProductWorkspaceContainerLayoutPreviewStatus.DisplayUnavailable);
+        }
+
+        double sourceScale = sourceDisplay.EffectiveDpi / 96d;
+        double sourceWorkWidth = sourceDisplay.WorkArea.Width / sourceScale;
+        double sourceWorkHeight = sourceDisplay.WorkArea.Height / sourceScale;
+        double targetScale = targetDisplay.EffectiveDpi / 96d;
+        double workWidth = targetDisplay.WorkArea.Width / targetScale;
+        double workHeight = targetDisplay.WorkArea.Height / targetScale;
         if (!ValidPlacement(source)
+            || sourceWorkWidth < MinimumWidthDip
+            || sourceWorkHeight < MinimumHeightDip
             || workWidth < MinimumWidthDip
             || workHeight < MinimumHeightDip
+            || source.WidthDip > workWidth
+            || source.HeightDip > workHeight
             || source.XDip < 0
             || source.YDip < 0
-            || source.XDip + source.WidthDip > workWidth
-            || source.YDip + source.HeightDip > workHeight)
+            || source.XDip + source.WidthDip > sourceWorkWidth
+            || source.YDip + source.HeightDip > sourceWorkHeight)
         {
             return Failure(
                 ProductWorkspaceContainerLayoutPreviewStatus.InvalidRequest);
         }
 
-        double left = source.XDip;
-        double top = source.YDip;
+        double left = hasAbsoluteTarget
+            ? request.TargetXDip!.Value
+            : source.XDip;
+        double top = hasAbsoluteTarget
+            ? request.TargetYDip!.Value
+            : source.YDip;
         double right = source.XDip + source.WidthDip;
         double bottom = source.YDip + source.HeightDip;
-        ApplyDelta(request.Kind, request.DeltaXDip, request.DeltaYDip,
-            ref left, ref top, ref right, ref bottom);
+        if (hasAbsoluteTarget)
+        {
+            right = left + source.WidthDip;
+            bottom = top + source.HeightDip;
+        }
+        else
+        {
+            ApplyDelta(request.Kind, request.DeltaXDip, request.DeltaYDip,
+                ref left, ref top, ref right, ref bottom);
+        }
         if (!double.IsFinite(left)
             || !double.IsFinite(top)
             || !double.IsFinite(right)
@@ -175,13 +240,13 @@ public static class ProductWorkspaceContainerLayoutPreview
             double[] xEdges = Edges(
                 state,
                 container.Id,
-                request.DisplayId,
+                targetDisplayId,
                 horizontal: true,
                 workWidth);
             double[] yEdges = Edges(
                 state,
                 container.Id,
-                request.DisplayId,
+                targetDisplayId,
                 horizontal: false,
                 workHeight);
             SnapHorizontal(
@@ -220,12 +285,17 @@ public static class ProductWorkspaceContainerLayoutPreview
             && NearlyEqual(bottom, snappedBottom);
         var placement = source with
         {
+            DisplayKey = targetDisplayId,
             XDip = left,
             YDip = top,
             WidthDip = right - left,
             HeightDip = bottom - top,
         };
-        bool changed = !NearlyEqual(source.XDip, placement.XDip)
+        bool changed = !string.Equals(
+                source.DisplayKey,
+                placement.DisplayKey,
+                StringComparison.Ordinal)
+            || !NearlyEqual(source.XDip, placement.XDip)
             || !NearlyEqual(source.YDip, placement.YDip)
             || !NearlyEqual(source.WidthDip, placement.WidthDip)
             || !NearlyEqual(source.HeightDip, placement.HeightDip);

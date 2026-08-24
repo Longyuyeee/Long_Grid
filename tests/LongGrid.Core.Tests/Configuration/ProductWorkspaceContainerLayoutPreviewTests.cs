@@ -250,6 +250,72 @@ public sealed class ProductWorkspaceContainerLayoutPreviewTests
     }
 
     [Fact]
+    public void CrossDisplayMoveUsesTargetDipSpaceAndTargetEdges()
+    {
+        ProductWorkspaceContainerLayoutPreviewRequest request = Request(
+            ProductWorkspaceContainerLayoutGestureKind.Move,
+            deltaX: 999,
+            deltaY: 999,
+            snapEnabled: false) with
+        {
+            TargetDisplayId = "display-2",
+            TargetXDip = 50,
+            TargetYDip = 60,
+        };
+
+        ProductWorkspaceContainerLayoutPreviewDecision result =
+            ProductWorkspaceContainerLayoutPreview.Evaluate(
+                State(),
+                5,
+                7,
+                MixedDpiDisplays(),
+                request);
+
+        Assert.True(result.CanPreview);
+        Assert.True(result.Changed);
+        Assert.Equal("display-2", result.Placement!.DisplayKey);
+        Assert.Equal(50, result.Placement.XDip);
+        Assert.Equal(60, result.Placement.YDip);
+        Assert.Equal(200, result.Placement.WidthDip);
+        Assert.Equal(160, result.Placement.HeightDip);
+    }
+
+    [Fact]
+    public void CrossDisplayResizeAndMissingAbsoluteTargetFailClosed()
+    {
+        ProductWorkspaceContainerLayoutPreviewRequest crossResize = Request(
+            ProductWorkspaceContainerLayoutGestureKind.ResizeRight,
+            10,
+            0) with
+        {
+            TargetDisplayId = "display-2",
+            TargetXDip = 50,
+            TargetYDip = 60,
+        };
+        ProductWorkspaceContainerLayoutPreviewRequest missingTarget = Request(
+            ProductWorkspaceContainerLayoutGestureKind.Move,
+            10,
+            0) with
+        {
+            TargetDisplayId = "display-2",
+        };
+
+        ProductWorkspaceContainerLayoutPreviewDecision resize =
+            ProductWorkspaceContainerLayoutPreview.Evaluate(
+                State(), 5, 7, MixedDpiDisplays(), crossResize);
+        ProductWorkspaceContainerLayoutPreviewDecision missing =
+            ProductWorkspaceContainerLayoutPreview.Evaluate(
+                State(), 5, 7, MixedDpiDisplays(), missingTarget);
+
+        Assert.Equal(
+            ProductWorkspaceContainerLayoutPreviewStatus.DisplayUnavailable,
+            resize.Status);
+        Assert.Equal(
+            ProductWorkspaceContainerLayoutPreviewStatus.DisplayUnavailable,
+            missing.Status);
+    }
+
+    [Fact]
     public void InvalidDeltaFailsClosed()
     {
         ProductWorkspaceContainerLayoutPreviewDecision result =
@@ -402,5 +468,17 @@ public sealed class ProductWorkspaceContainerLayoutPreviewTests
             96,
             DisplayRotation.Landscape,
             IsPrimary: true),
+    ];
+
+    private static DisplayTopologyNode[] MixedDpiDisplays() =>
+    [
+        Displays()[0],
+        new(
+            "display-2",
+            new(-1920, 0, 1920, 1080),
+            new(-1920, 0, 1920, 1040),
+            192,
+            DisplayRotation.Landscape,
+            IsPrimary: false),
     ];
 }

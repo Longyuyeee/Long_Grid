@@ -409,3 +409,11 @@ Stage 178 在不破坏既有项目方向导航的前提下增加独立标题焦�
 正式 Release App/Store Expected/Actual 实测：键盘语义微移内存/重载均为 X `+1 DIP`、save revision=5；Shift 大步扩宽内存/重载均为 `+8 DIP`、save revision=6；外部 `Difference=None`，桌面和用户配置元数据不变。首轮编译暴露 double/int 元组推断错误并修正；后续 Win32 复审暴露只监听 `WM_KEYDOWN` 会漏掉 Alt 缩放，补入 `WM_SYSKEYDOWN` 后再过门禁。
 
 聚焦 27/27、Release 全量 1068/1068、build 0 warning / 0 error，100 方格布局预览 P95 `0.055 ms < 16.7 ms`；真实窗口 2,329 ms 就绪并稳定 20 秒。live UIA 仍被已知 Windows App Runtime/Xaml 崩溃组合在启动前安全拒绝，ContractOnly 通过。PF-003 和顶层 `0 Complete` 口径不变；下一切片固定为 PF-003D4 跨显示器 DPI/边界迁移，物理输入、Narrator/UIA Bounds 继续为独立 Product Evidence，详见 [Stage 178](178-pf003d3-keyboard-layout-transaction-audit.md)。
+
+## 26. 2026-08-24 PF-003D4 跨显示器混合 DPI 增量复审
+
+Stage 179 已让 Move 在一次手势中保持逻辑 DIP 尺寸和抓取偏移跨越权威显示器；目标局部坐标按目标 DPI 与 WorkArea 计算，只对目标显示器吸附、夹取。Resize 继续禁止跨屏，指针离开权威显示器、拓扑/revision/目标/锁定变化均取消并恢复源 placement。lifecycle 会清理源 Surface 候选并把外部源投影路由到目标 Surface，取消时清理全部 Surface；没有扩大输入 region 或增加坐标直写入口。
+
+本机只读实际拓扑为双显示器、DPI 192/240、含负虚拟坐标。正式 Release App/Store 的跨屏 Begin/Update/Complete 均为 true，目标显示器改变并在重载后保持，X/Y 差值均为 0 DIP，save revision=7，外部 `Difference=None`。真实 `.lock` 写租约故障证明跨屏发布失败后内存和磁盘均恢复源显示器；两个非零 HWND Surface 证明目标像素候选正确。
+
+聚焦 63/63、Release 全量 1075/1075、build 0 warning / 0 error，布局预览 P95 `0.056 ms < 16.7 ms`；真实窗口 1,853 ms 就绪并稳定 20 秒，NuGet 无已知漏洞。live UIA 仍由已知崩溃组合在启动前安全拒绝。本轮是跨屏工程和真实硬件语义证据，不是物理鼠标/触控或 UIA Bounds 证据。PF-003 与顶层 `0 Complete` 口径不变；下一切片固定 PF-003D5 物理输入、截图与无障碍证据，详见 [Stage 179](179-pf003d4-cross-display-mixed-dpi-audit.md)。

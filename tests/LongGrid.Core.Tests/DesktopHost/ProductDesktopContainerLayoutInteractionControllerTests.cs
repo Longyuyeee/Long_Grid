@@ -144,7 +144,7 @@ public sealed class ProductDesktopContainerLayoutInteractionControllerTests
     }
 
     [Fact]
-    public async Task RealLeaseFailureCompensatesThroughInteractionController()
+    public async Task RealCrossDisplayLeaseFailureRestoresSourceDisplay()
     {
         string sandbox = Sandbox("RealCompensation");
         string storeDirectory = Path.Combine(sandbox, "store");
@@ -167,32 +167,31 @@ public sealed class ProductDesktopContainerLayoutInteractionControllerTests
             var controller =
                 new ProductDesktopContainerLayoutInteractionController(commits);
             _ = controller.Handle(
-                Request(ProductDesktopContainerLayoutInputPhase.Begin),
+                CrossDisplayRequest(ProductDesktopContainerLayoutInputPhase.Begin),
                 original,
                 false,
                 editRevision,
-                Topology());
+                MixedDpiTopology());
             _ = controller.Handle(
-                Request(
-                    ProductDesktopContainerLayoutInputPhase.Update,
-                    deltaX: 100,
-                    deltaY: 50),
+                CrossDisplayRequest(
+                    ProductDesktopContainerLayoutInputPhase.Update),
                 original,
                 false,
                 editRevision,
-                Topology());
+                MixedDpiTopology());
 
             await using FileStream lease = AcquireLease(store.WriteLeasePath);
             ProductDesktopContainerLayoutInteractionResult committed =
                 controller.Handle(
-                    Request(
-                        ProductDesktopContainerLayoutInputPhase.Complete,
-                        deltaX: 100,
-                        deltaY: 50),
+                    CrossDisplayRequest(
+                        ProductDesktopContainerLayoutInputPhase.Complete),
                     original,
                     false,
                     editRevision,
-                    Topology());
+                    MixedDpiTopology());
+            Assert.Equal(
+                "display-2",
+                committed.State!.Containers[0].Placement.DisplayKey);
             long failedRevision = saves.Snapshot.CurrentRevision;
             await WaitForStatusAsync(
                 saves,
@@ -210,10 +209,16 @@ public sealed class ProductDesktopContainerLayoutInteractionControllerTests
                 compensationRevision);
 
             Assert.True(compensation.IsCompensated);
-            Assert.Equal(100, compensation.State!.Containers[0].Placement.XDip);
+            Assert.Equal(
+                "display-1",
+                compensation.State!.Containers[0].Placement.DisplayKey);
+            Assert.Equal(100, compensation.State.Containers[0].Placement.XDip);
             Assert.Equal(100, compensation.State.Containers[0].Placement.YDip);
             ProductConfigurationLoadResult blockedReload = await store.LoadAsync();
-            Assert.Equal(100, blockedReload.Document!.Containers[0].Placement.XDip);
+            Assert.Equal(
+                "display-1",
+                blockedReload.Document!.Containers[0].Placement.DisplayKey);
+            Assert.Equal(100, blockedReload.Document.Containers[0].Placement.XDip);
 
             await lease.DisposeAsync();
             Assert.Equal(
@@ -225,7 +230,10 @@ public sealed class ProductDesktopContainerLayoutInteractionControllerTests
                 compensationRevision);
             ProductConfigurationLoadResult reloaded = await store.LoadAsync();
 
-            Assert.Equal(100, reloaded.Document!.Containers[0].Placement.XDip);
+            Assert.Equal(
+                "display-1",
+                reloaded.Document!.Containers[0].Placement.DisplayKey);
+            Assert.Equal(100, reloaded.Document.Containers[0].Placement.XDip);
             Assert.Equal(100, reloaded.Document.Containers[0].Placement.YDip);
             Assert.Equal("must-not-change", await File.ReadAllTextAsync(sentinelPath));
         }
@@ -253,6 +261,27 @@ public sealed class ProductDesktopContainerLayoutInteractionControllerTests
             SnapEnabled: false,
             ShiftPressed: false,
             cancellation);
+
+    private static ProductDesktopContainerLayoutRequest CrossDisplayRequest(
+        ProductDesktopContainerLayoutInputPhase phase) =>
+        new(
+            phase,
+            ProductWorkspaceContainerLayoutGestureKind.Move,
+            "container-1",
+            "display-1",
+            ExpectedWorkspaceRevision: 1,
+            ExpectedTopologyGeneration: 7,
+            CumulativeDeltaXDip: phase ==
+                ProductDesktopContainerLayoutInputPhase.Begin ? 0 : -1400,
+            CumulativeDeltaYDip: phase ==
+                ProductDesktopContainerLayoutInputPhase.Begin ? 0 : 300,
+            SnapEnabled: false,
+            ShiftPressed: false,
+            ProductDesktopContainerLayoutCancellationReason.None,
+            PointerScreenX: phase ==
+                ProductDesktopContainerLayoutInputPhase.Begin ? 120 : -1280,
+            PointerScreenY: phase ==
+                ProductDesktopContainerLayoutInputPhase.Begin ? 120 : 440);
 
     private static ProductWorkspaceState State() => new()
     {
@@ -297,6 +326,24 @@ public sealed class ProductDesktopContainerLayoutInteractionControllerTests
         ],
         ActivePathCount: 1,
         StableIdentityCount: 1,
+        BufferAttempts: 1);
+
+    private static ProductDisplayTopologySnapshot MixedDpiTopology() => new(
+        ProductDisplayTopologyStatus.Ready,
+        Generation: 7,
+        Displays:
+        [
+            Topology().Displays[0],
+            new(
+                "display-2",
+                new(-1920, 0, 1920, 1080),
+                new(-1920, 0, 1920, 1040),
+                192,
+                DisplayRotation.Landscape,
+                IsPrimary: false),
+        ],
+        ActivePathCount: 2,
+        StableIdentityCount: 2,
         BufferAttempts: 1);
 
     private static ProductWorkspaceSaveController Saves(

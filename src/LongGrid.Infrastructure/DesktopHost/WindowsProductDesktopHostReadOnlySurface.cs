@@ -444,17 +444,6 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             return false;
         }
 
-        ProductDesktopHostReadOnlyProjection[] matches = projection.Containers
-            .Where(candidate => string.Equals(
-                candidate.ContainerId,
-                containerId,
-                StringComparison.Ordinal))
-            .ToArray();
-        if (matches.Length != 1)
-        {
-            return false;
-        }
-
         if (placement is null)
         {
             if (containerLayoutPreview is not null && !string.Equals(
@@ -468,15 +457,38 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             _ = NativeMethods.InvalidateRect(Handle, nint.Zero, erase: false);
             return true;
         }
-        if (!string.Equals(
-            placement.DisplayKey,
-            projection.DisplayId,
-            StringComparison.Ordinal))
+
+        ProductDesktopHostReadOnlyProjection[] matches = projection.Containers
+            .Where(candidate => string.Equals(
+                candidate.ContainerId,
+                containerId,
+                StringComparison.Ordinal))
+            .ToArray();
+        if (matches.Length != 1)
         {
             return false;
         }
 
-        ProductDesktopHostReadOnlyProjection source = matches[0];
+        return ApplyContainerLayoutPreview(matches[0], placement);
+    }
+
+    public bool ApplyContainerLayoutPreview(
+        ProductDesktopHostReadOnlyProjection source,
+        ProductContainerPlacementState placement)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(placement);
+        if (disposed
+            || Handle == nint.Zero
+            || string.IsNullOrWhiteSpace(source.ContainerId)
+            || !string.Equals(
+                placement.DisplayKey,
+                projection.DisplayId,
+                StringComparison.Ordinal))
+        {
+            return false;
+        }
+
         try
         {
             ProductDesktopHostReadOnlyProjection candidate =
@@ -537,7 +549,13 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             .SingleOrDefault(candidate => string.Equals(
                 candidate.ContainerId,
                 containerId,
-                StringComparison.Ordinal));
+                StringComparison.Ordinal))
+            ?? (containerLayoutPreview is not null && string.Equals(
+                containerLayoutPreview.ContainerId,
+                containerId,
+                StringComparison.Ordinal)
+                    ? containerLayoutPreview
+                    : null);
         return container is null
             ? null
             : ToPixelRect(GetContainerBounds(container));
@@ -589,6 +607,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         }
 
         bool shift = (wordParameter.ToInt64() & NativeMethods.MkShift) != 0;
+        NativePoint startScreen = ToScreenPoint(x, y);
         var active = new ActiveContainerLayout(
             hit.ContainerId!,
             hit.Kind!.Value,
@@ -602,7 +621,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 0,
                 SnapEnabled: true,
                 shift,
-                ProductDesktopContainerLayoutCancellationReason.None)))
+                ProductDesktopContainerLayoutCancellationReason.None,
+                startScreen.X,
+                startScreen.Y)))
         {
             return false;
         }
@@ -628,15 +649,20 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         }
 
         double scale = projection.EffectiveDpi / 96d;
+        int currentX = SignedLowWord(longParameter);
+        int currentY = SignedHighWord(longParameter);
+        NativePoint currentScreen = ToScreenPoint(currentX, currentY);
         bool accepted = SubmitContainerLayoutInput(new(
             ProductDesktopContainerLayoutInputPhase.Update,
             active.Kind,
             active.ContainerId,
-            (SignedLowWord(longParameter) - active.Start.X) / scale,
-            (SignedHighWord(longParameter) - active.Start.Y) / scale,
+            (currentX - active.Start.X) / scale,
+            (currentY - active.Start.Y) / scale,
             SnapEnabled: true,
             active.ShiftPressed,
-            ProductDesktopContainerLayoutCancellationReason.None));
+            ProductDesktopContainerLayoutCancellationReason.None,
+            currentScreen.X,
+            currentScreen.Y));
         if (!accepted)
         {
             CancelContainerLayout(
@@ -658,6 +684,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             return;
         }
         double scale = projection.EffectiveDpi / 96d;
+        int currentX = SignedLowWord(longParameter);
+        int currentY = SignedHighWord(longParameter);
+        NativePoint currentScreen = ToScreenPoint(currentX, currentY);
         activeContainerLayout = null;
         if (NativeMethods.GetCapture() == window)
         {
@@ -667,11 +696,13 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             ProductDesktopContainerLayoutInputPhase.Complete,
             active.Kind,
             active.ContainerId,
-            (SignedLowWord(longParameter) - active.Start.X) / scale,
-            (SignedHighWord(longParameter) - active.Start.Y) / scale,
+            (currentX - active.Start.X) / scale,
+            (currentY - active.Start.Y) / scale,
             SnapEnabled: true,
             active.ShiftPressed,
-            ProductDesktopContainerLayoutCancellationReason.None));
+            ProductDesktopContainerLayoutCancellationReason.None,
+            currentScreen.X,
+            currentScreen.Y));
     }
 
     private void CancelContainerLayout(
@@ -854,6 +885,10 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
 
     private static int SignedHighWord(nint value) =>
         unchecked((short)((value.ToInt64() >> 16) & 0xFFFF));
+
+    private NativePoint ToScreenPoint(int clientX, int clientY) => new(
+        checked(projection.WorkArea.Left + clientX),
+        checked(projection.WorkArea.Top + clientY));
 
     private int ResolveHitTest(nint longParameter)
     {
@@ -1067,6 +1102,14 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                         in projection.Containers)
                     {
                         DrawContainer(deviceContext, container);
+                    }
+                    if (containerLayoutPreview is not null
+                        && !projection.Containers.Any(container => string.Equals(
+                            container.ContainerId,
+                            containerLayoutPreview.ContainerId,
+                            StringComparison.Ordinal)))
+                    {
+                        DrawContainer(deviceContext, containerLayoutPreview);
                     }
                     DrawContinuedWorkspaceCreate(deviceContext);
                 }

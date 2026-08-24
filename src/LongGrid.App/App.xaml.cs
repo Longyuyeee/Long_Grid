@@ -534,6 +534,123 @@ public partial class App : Application
             evidence.RecordStage(stage);
             ProductConfigurationLoadResult diskAfterKeyboardLayout =
                 await configurationStore.LoadAsync();
+            bool crossDisplayHardwareAvailable = topology.Displays.Count >= 2;
+            bool crossDisplayBegin = false;
+            bool crossDisplayUpdate = false;
+            bool crossDisplayComplete = false;
+            long crossDisplaySavedRevision =
+                keyboardResizeSave.SavedRevision;
+            ProductWorkspaceState afterCrossDisplayState =
+                afterKeyboardResizeState;
+            ProductConfigurationLoadResult diskAfterCrossDisplay =
+                diskAfterKeyboardLayout;
+            string crossSourcePlacementKey =
+                afterKeyboardResizeState.Containers.Single()
+                    .Placement.DisplayKey;
+            uint? crossDisplaySourceDpi = null;
+            uint? crossDisplayTargetDpi = null;
+            if (crossDisplayHardwareAvailable)
+            {
+                stage = "DrivingFormalHardwareCrossDisplayMove";
+                evidence.RecordStage(stage);
+                ProductContainerPlacementState crossSourcePlacement =
+                    afterKeyboardResizeState.Containers.Single().Placement;
+                DisplayTopologyNode crossSource = topology.Displays.Single(
+                    display => string.Equals(
+                        display.StableId,
+                        crossSourcePlacement.DisplayKey,
+                        StringComparison.Ordinal));
+                DisplayTopologyNode crossTarget = topology.Displays
+                    .Where(display => !string.Equals(
+                        display.StableId,
+                        crossSource.StableId,
+                        StringComparison.Ordinal))
+                    .OrderByDescending(display => display.WorkArea.Width)
+                    .First();
+                double targetScale = crossTarget.EffectiveDpi / 96d;
+                double targetWorkWidth =
+                    crossTarget.WorkArea.Width / targetScale;
+                double targetWorkHeight =
+                    crossTarget.WorkArea.Height / targetScale;
+                double targetXDip = Math.Clamp(
+                    48,
+                    0,
+                    Math.Max(
+                        0,
+                        targetWorkWidth - crossSourcePlacement.WidthDip));
+                double targetYDip = Math.Clamp(
+                    48,
+                    0,
+                    Math.Max(
+                        0,
+                        targetWorkHeight - crossSourcePlacement.HeightDip));
+                const double pointerOffsetDip = 20;
+                double sourceScale = crossSource.EffectiveDpi / 96d;
+                int startPointerX = checked((int)Math.Round(
+                    crossSource.WorkArea.Left
+                    + ((crossSourcePlacement.XDip + pointerOffsetDip)
+                        * sourceScale)));
+                int startPointerY = checked((int)Math.Round(
+                    crossSource.WorkArea.Top
+                    + ((crossSourcePlacement.YDip + pointerOffsetDip)
+                        * sourceScale)));
+                int targetPointerX = checked((int)Math.Round(
+                    crossTarget.WorkArea.Left
+                    + ((targetXDip + pointerOffsetDip) * targetScale)));
+                int targetPointerY = checked((int)Math.Round(
+                    crossTarget.WorkArea.Top
+                    + ((targetYDip + pointerOffsetDip) * targetScale)));
+                long crossDisplayRevision = workspaceCommits.CurrentEditRevision;
+                ProductDesktopContainerLayoutRequest CrossDisplayRequest(
+                    ProductDesktopContainerLayoutInputPhase phase) =>
+                    new(
+                        phase,
+                        ProductWorkspaceContainerLayoutGestureKind.Move,
+                        layoutContainer.Id,
+                        crossSource.StableId,
+                        crossDisplayRevision,
+                        topology.Generation,
+                        phase == ProductDesktopContainerLayoutInputPhase.Begin
+                            ? 0
+                            : (targetPointerX - startPointerX) / sourceScale,
+                        phase == ProductDesktopContainerLayoutInputPhase.Begin
+                            ? 0
+                            : (targetPointerY - startPointerY) / sourceScale,
+                        SnapEnabled: false,
+                        ShiftPressed: false,
+                        ProductDesktopContainerLayoutCancellationReason.None,
+                        phase == ProductDesktopContainerLayoutInputPhase.Begin
+                            ? startPointerX
+                            : targetPointerX,
+                        phase == ProductDesktopContainerLayoutInputPhase.Begin
+                            ? startPointerY
+                            : targetPointerY);
+                crossDisplayBegin = RequestDesktopContainerLayout(
+                    CrossDisplayRequest(
+                        ProductDesktopContainerLayoutInputPhase.Begin));
+                crossDisplayUpdate = RequestDesktopContainerLayout(
+                    CrossDisplayRequest(
+                        ProductDesktopContainerLayoutInputPhase.Update));
+                crossDisplayComplete = RequestDesktopContainerLayout(
+                    CrossDisplayRequest(
+                        ProductDesktopContainerLayoutInputPhase.Complete));
+                afterCrossDisplayState = productWorkspaceSession.State
+                    ?? throw new InvalidOperationException(
+                        "PF-003D4 cross-display evidence lost the writable workspace.");
+                long crossDisplaySaveRevision =
+                    productWorkspaceSaves.Snapshot.CurrentRevision;
+                stage = "WaitingForFormalCrossDisplaySave";
+                evidence.RecordStage(stage);
+                ProductWorkspaceSaveSnapshot crossDisplaySave =
+                    await WaitForProductWorkspaceSaveAsync(
+                        crossDisplaySaveRevision);
+                crossDisplaySavedRevision = crossDisplaySave.SavedRevision;
+                stage = "ReloadingFormalCrossDisplayStore";
+                evidence.RecordStage(stage);
+                diskAfterCrossDisplay = await configurationStore.LoadAsync();
+                crossDisplaySourceDpi = crossSource.EffectiveDpi;
+                crossDisplayTargetDpi = crossTarget.EffectiveDpi;
+            }
             stage = "CompletingFormalEvidenceSaves";
             evidence.RecordStage(stage);
             ProductWorkspaceSaveCompletionResult saveCompletion =
@@ -549,7 +666,8 @@ public partial class App : Application
                 && diskBefore.Status == ProductConfigurationLoadStatus.Missing
                 && afterCancelState.Containers.Count == 0
                 && diskAfterCancel.Status == ProductConfigurationLoadStatus.Missing
-                && workspaceCommits.CurrentEditRevision == createRevision + 6
+                && workspaceCommits.CurrentEditRevision == createRevision
+                    + (crossDisplayHardwareAvailable ? 7 : 6)
                 && afterCreateState.Containers.Count == 1
                 && createSaveRevision == 1
                 && createSave.Status == ProductWorkspaceSaveStatus.Saved
@@ -575,7 +693,8 @@ public partial class App : Application
                 && undoSave.SavedRevision == 3
                 && saveCompletion.Status ==
                     ProductWorkspaceSaveCompletionStatus.Completed
-                && saveCompletion.Snapshot.SavedRevision == 6
+                && saveCompletion.Snapshot.SavedRevision ==
+                    (crossDisplayHardwareAvailable ? 7 : 6)
                 && diskAfterUndo.Status ==
                     ProductConfigurationLoadStatus.LoadedPrimary
                 && diskAfterUndo.Document?.Containers.Count == 1
@@ -620,13 +739,41 @@ public partial class App : Application
                 && Math.Abs(
                     diskAfterKeyboardLayout.Document.Containers[0].Placement.WidthDip
                     - (layoutContainer.Placement.WidthDip + 8)) <= 1
+                && (!crossDisplayHardwareAvailable
+                    || (crossDisplayBegin
+                        && crossDisplayUpdate
+                        && crossDisplayComplete
+                        && afterCrossDisplayState.Containers.Count == 1
+                        && !string.Equals(
+                            afterCrossDisplayState.Containers[0].Placement.DisplayKey,
+                            crossSourcePlacementKey,
+                            StringComparison.Ordinal)
+                        && diskAfterCrossDisplay.Status ==
+                            ProductConfigurationLoadStatus.LoadedPrimary
+                        && string.Equals(
+                            diskAfterCrossDisplay.Document!.Containers[0]
+                                .Placement.DisplayKey,
+                            afterCrossDisplayState.Containers[0]
+                                .Placement.DisplayKey,
+                            StringComparison.Ordinal)
+                        && Math.Abs(
+                            diskAfterCrossDisplay.Document.Containers[0]
+                                .Placement.XDip
+                            - afterCrossDisplayState.Containers[0]
+                                .Placement.XDip) <= 1
+                        && Math.Abs(
+                            diskAfterCrossDisplay.Document.Containers[0]
+                                .Placement.YDip
+                            - afterCrossDisplayState.Containers[0]
+                                .Placement.YDip) <= 1
+                        && crossDisplaySavedRevision == 7))
                 && evidence.PreviewVisualTreeCount == 2
                 && evidence.PreviewActivatedCount == 0
                 && evidence.PreviewDrivenCount == 2;
             result = new
             {
                 SchemaVersion = 1,
-                Purpose = "Pf002AndPf003D3FormalAppPersistenceEvidence",
+                Purpose = "Pf002AndPf003D4FormalAppPersistenceEvidence",
                 Expected = new
                 {
                     InitialContainerCount = 0,
@@ -649,6 +796,8 @@ public partial class App : Application
                     KeyboardFineMoveDeltaXDip = 1,
                     KeyboardLargeResizeDeltaWidthDip = 8,
                     KeyboardLayoutSavedRevision = 6,
+                    CrossDisplayHardwareStatus =
+                        "PassedWhenTwoAuthoritativeDisplays",
                     PreviewVisualTreeCount = 2,
                     PreviewActivatedCount = 0,
                     PreviewDrivenCount = 2,
@@ -720,6 +869,55 @@ public partial class App : Application
                         - diskAfterLayout.Document?.Containers[0].Placement.WidthDip,
                     KeyboardLayoutSavedRevision =
                         keyboardResizeSave.SavedRevision,
+                    CrossDisplayHardwareAvailable =
+                        crossDisplayHardwareAvailable,
+                    CrossDisplayStatus = crossDisplayHardwareAvailable
+                        ? crossDisplayBegin
+                            && crossDisplayUpdate
+                            && crossDisplayComplete
+                                ? "Passed"
+                                : "Failed"
+                        : "Unavailable",
+                    CrossDisplayBegin = crossDisplayBegin,
+                    CrossDisplayUpdate = crossDisplayUpdate,
+                    CrossDisplayComplete = crossDisplayComplete,
+                    CrossDisplayChangedDisplay =
+                        crossDisplayHardwareAvailable
+                        && !string.Equals(
+                            afterCrossDisplayState.Containers[0]
+                                .Placement.DisplayKey,
+                            diskAfterKeyboardLayout.Document?.Containers[0]
+                                .Placement.DisplayKey,
+                            StringComparison.Ordinal),
+                    CrossDisplayPersistedSameDisplay =
+                        crossDisplayHardwareAvailable
+                        && string.Equals(
+                            diskAfterCrossDisplay.Document?.Containers[0]
+                                .Placement.DisplayKey,
+                            afterCrossDisplayState.Containers[0]
+                                .Placement.DisplayKey,
+                            StringComparison.Ordinal),
+                    CrossDisplayPersistedDeltaXDip =
+                        crossDisplayHardwareAvailable
+                            ? diskAfterCrossDisplay.Document?.Containers[0]
+                                .Placement.XDip
+                                - afterCrossDisplayState.Containers[0]
+                                    .Placement.XDip
+                            : null,
+                    CrossDisplayPersistedDeltaYDip =
+                        crossDisplayHardwareAvailable
+                            ? diskAfterCrossDisplay.Document?.Containers[0]
+                                .Placement.YDip
+                                - afterCrossDisplayState.Containers[0]
+                                    .Placement.YDip
+                            : null,
+                    CrossDisplaySourceDpi = crossDisplaySourceDpi,
+                    CrossDisplayTargetDpi = crossDisplayTargetDpi,
+                    CrossDisplayMixedDpi =
+                        crossDisplaySourceDpi is not null
+                        && crossDisplayTargetDpi is not null
+                        && crossDisplaySourceDpi != crossDisplayTargetDpi,
+                    CrossDisplaySavedRevision = crossDisplaySavedRevision,
                     SaveCompletion = saveCompletion.Status.ToString(),
                     PreviewVisualTreeCount = evidence.PreviewVisualTreeCount,
                     PreviewActivatedCount = evidence.PreviewActivatedCount,
@@ -741,7 +939,7 @@ public partial class App : Application
             result = new
             {
                 SchemaVersion = 1,
-                Purpose = "Pf002AndPf003D3FormalAppPersistenceEvidence",
+                Purpose = "Pf002AndPf003D4FormalAppPersistenceEvidence",
                 Expected = "Pass",
                 Actual = new
                 {

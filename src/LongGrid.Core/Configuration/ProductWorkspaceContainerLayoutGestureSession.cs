@@ -94,6 +94,8 @@ public sealed class ProductWorkspaceContainerLayoutGestureSession
     private readonly long expectedTopologyGeneration;
     private readonly string displayId;
     private readonly ProductContainerPlacementState originalPlacement;
+    private readonly double? pointerOffsetXDip;
+    private readonly double? pointerOffsetYDip;
     private ProductWorkspaceContainerLayoutGestureSessionStatus status;
     private ProductWorkspaceContainerLayoutPreviewStatus previewStatus;
     private ProductContainerPlacementState placement;
@@ -102,6 +104,9 @@ public sealed class ProductWorkspaceContainerLayoutGestureSession
     private double lastDeltaY;
     private bool lastSnapEnabled;
     private bool lastShiftPressed;
+    private string? lastTargetDisplayId;
+    private double? lastTargetXDip;
+    private double? lastTargetYDip;
     private bool changed;
     private bool snappedX;
     private bool snappedY;
@@ -112,7 +117,9 @@ public sealed class ProductWorkspaceContainerLayoutGestureSession
         long expectedEditRevision,
         long expectedTopologyGeneration,
         string displayId,
-        ProductContainerPlacementState originalPlacement)
+        ProductContainerPlacementState originalPlacement,
+        double? pointerOffsetXDip,
+        double? pointerOffsetYDip)
     {
         this.kind = kind;
         this.containerId = containerId;
@@ -120,6 +127,8 @@ public sealed class ProductWorkspaceContainerLayoutGestureSession
         this.expectedTopologyGeneration = expectedTopologyGeneration;
         this.displayId = displayId;
         this.originalPlacement = originalPlacement;
+        this.pointerOffsetXDip = pointerOffsetXDip;
+        this.pointerOffsetYDip = pointerOffsetYDip;
         placement = originalPlacement;
         status = ProductWorkspaceContainerLayoutGestureSessionStatus.Previewing;
         previewStatus = ProductWorkspaceContainerLayoutPreviewStatus.Ready;
@@ -132,7 +141,9 @@ public sealed class ProductWorkspaceContainerLayoutGestureSession
         IReadOnlyList<DisplayTopologyNode>? displays,
         ProductWorkspaceContainerLayoutGestureKind kind,
         string containerId,
-        string displayId)
+        string displayId,
+        int? pointerScreenX = null,
+        int? pointerScreenY = null)
     {
         var request = new ProductWorkspaceContainerLayoutPreviewRequest(
             kind,
@@ -159,6 +170,54 @@ public sealed class ProductWorkspaceContainerLayoutGestureSession
                 null);
         }
 
+        if ((pointerScreenX is null) != (pointerScreenY is null))
+        {
+            return new(
+                ProductWorkspaceContainerLayoutGestureBeginStatus.Rejected,
+                ProductWorkspaceContainerLayoutPreviewStatus.InvalidRequest,
+                null);
+        }
+
+        double? pointerOffsetX = null;
+        double? pointerOffsetY = null;
+        if (kind == ProductWorkspaceContainerLayoutGestureKind.Move
+            && pointerScreenX is { } startX
+            && pointerScreenY is { } startY)
+        {
+            DisplayTopologyNode[] sources = displays!
+                .Where(display => string.Equals(
+                    display.StableId,
+                    displayId,
+                    StringComparison.Ordinal))
+                .Take(2)
+                .ToArray();
+            if (sources.Length != 1)
+            {
+                return new(
+                    ProductWorkspaceContainerLayoutGestureBeginStatus.Rejected,
+                    ProductWorkspaceContainerLayoutPreviewStatus
+                        .DisplayUnavailable,
+                    null);
+            }
+            double scale = sources[0].EffectiveDpi / 96d;
+            pointerOffsetX =
+                (startX - sources[0].WorkArea.Left) / scale
+                - decision.Placement!.XDip;
+            pointerOffsetY =
+                (startY - sources[0].WorkArea.Top) / scale
+                - decision.Placement.YDip;
+            if (pointerOffsetX < 0
+                || pointerOffsetY < 0
+                || pointerOffsetX > decision.Placement.WidthDip
+                || pointerOffsetY > decision.Placement.HeightDip)
+            {
+                return new(
+                    ProductWorkspaceContainerLayoutGestureBeginStatus.Rejected,
+                    ProductWorkspaceContainerLayoutPreviewStatus.InvalidRequest,
+                    null);
+            }
+        }
+
         return new(
             ProductWorkspaceContainerLayoutGestureBeginStatus.Ready,
             ProductWorkspaceContainerLayoutPreviewStatus.Ready,
@@ -168,7 +227,9 @@ public sealed class ProductWorkspaceContainerLayoutGestureSession
                 currentEditRevision,
                 currentTopologyGeneration,
                 displayId,
-                Clone(decision.Placement!)));
+                Clone(decision.Placement!),
+                pointerOffsetX,
+                pointerOffsetY));
     }
 
     public ProductWorkspaceContainerLayoutGestureSnapshot Update(
@@ -179,12 +240,34 @@ public sealed class ProductWorkspaceContainerLayoutGestureSession
         double cumulativeDeltaXDip,
         double cumulativeDeltaYDip,
         bool snapEnabled,
-        bool shiftPressed)
+        bool shiftPressed,
+        int? pointerScreenX = null,
+        int? pointerScreenY = null)
     {
         lock (gate)
         {
             if (status != ProductWorkspaceContainerLayoutGestureSessionStatus.Previewing)
             {
+                return Snapshot();
+            }
+
+            if (!TryResolvePointerTarget(
+                    displays,
+                    pointerScreenX,
+                    pointerScreenY,
+                    out string? targetDisplayId,
+                    out double? targetX,
+                    out double? targetY))
+            {
+                status =
+                    ProductWorkspaceContainerLayoutGestureSessionStatus.Cancelled;
+                previewStatus =
+                    ProductWorkspaceContainerLayoutPreviewStatus
+                        .DisplayUnavailable;
+                placement = Clone(originalPlacement);
+                changed = false;
+                snappedX = false;
+                snappedY = false;
                 return Snapshot();
             }
 
@@ -196,7 +279,10 @@ public sealed class ProductWorkspaceContainerLayoutGestureSession
                 cumulativeDeltaXDip,
                 cumulativeDeltaYDip,
                 snapEnabled,
-                shiftPressed);
+                shiftPressed,
+                targetDisplayId,
+                targetX,
+                targetY);
             if (!decision.CanPreview)
             {
                 status = ProductWorkspaceContainerLayoutGestureSessionStatus.Cancelled;
@@ -213,6 +299,9 @@ public sealed class ProductWorkspaceContainerLayoutGestureSession
             lastDeltaY = cumulativeDeltaYDip;
             lastSnapEnabled = snapEnabled;
             lastShiftPressed = shiftPressed;
+            lastTargetDisplayId = targetDisplayId;
+            lastTargetXDip = targetX;
+            lastTargetYDip = targetY;
             previewStatus = decision.Status;
             placement = Clone(decision.Placement!);
             changed = decision.Changed;
@@ -262,7 +351,10 @@ public sealed class ProductWorkspaceContainerLayoutGestureSession
                 lastDeltaX,
                 lastDeltaY,
                 lastSnapEnabled,
-                lastShiftPressed);
+                lastShiftPressed,
+                lastTargetDisplayId,
+                lastTargetXDip,
+                lastTargetYDip);
             if (!decision.CanPreview)
             {
                 status = ProductWorkspaceContainerLayoutGestureSessionStatus.Cancelled;
@@ -295,9 +387,9 @@ public sealed class ProductWorkspaceContainerLayoutGestureSession
                     containerId,
                     expectedEditRevision,
                     expectedTopologyGeneration,
-                    displayId,
+                    decision.Placement!.DisplayKey,
                     Clone(originalPlacement),
-                    Clone(decision.Placement!),
+                    Clone(decision.Placement),
                     updateCount));
         }
     }
@@ -310,7 +402,10 @@ public sealed class ProductWorkspaceContainerLayoutGestureSession
         double deltaX,
         double deltaY,
         bool snapEnabled,
-        bool shiftPressed) =>
+        bool shiftPressed,
+        string? targetDisplayId = null,
+        double? targetXDip = null,
+        double? targetYDip = null) =>
         ProductWorkspaceContainerLayoutPreview.Evaluate(
             state,
             currentEditRevision,
@@ -325,7 +420,59 @@ public sealed class ProductWorkspaceContainerLayoutGestureSession
                 deltaX,
                 deltaY,
                 snapEnabled,
-                shiftPressed));
+                shiftPressed,
+                targetDisplayId,
+                targetXDip,
+                targetYDip));
+
+    private bool TryResolvePointerTarget(
+        IReadOnlyList<DisplayTopologyNode>? displays,
+        int? pointerScreenX,
+        int? pointerScreenY,
+        out string? targetDisplayId,
+        out double? targetXDip,
+        out double? targetYDip)
+    {
+        targetDisplayId = null;
+        targetXDip = null;
+        targetYDip = null;
+        bool anchored = pointerOffsetXDip is not null
+            || pointerOffsetYDip is not null;
+        if (!anchored)
+        {
+            return (pointerScreenX is null) == (pointerScreenY is null);
+        }
+        if (kind != ProductWorkspaceContainerLayoutGestureKind.Move
+            || pointerOffsetXDip is not { } offsetX
+            || pointerOffsetYDip is not { } offsetY
+            || pointerScreenX is not { } screenX
+            || pointerScreenY is not { } screenY
+            || displays is null)
+        {
+            return false;
+        }
+
+        DisplayTopologyNode[] targets = displays
+            .Where(display =>
+                screenX >= display.Bounds.Left
+                && screenX < display.Bounds.Right
+                && screenY >= display.Bounds.Top
+                && screenY < display.Bounds.Bottom)
+            .Take(2)
+            .ToArray();
+        if (targets.Length != 1)
+        {
+            return false;
+        }
+
+        DisplayTopologyNode target = targets[0];
+        double scale = target.EffectiveDpi / 96d;
+        targetDisplayId = target.StableId;
+        targetXDip = (screenX - target.WorkArea.Left) / scale - offsetX;
+        targetYDip = (screenY - target.WorkArea.Top) / scale - offsetY;
+        return double.IsFinite(targetXDip.Value)
+            && double.IsFinite(targetYDip.Value);
+    }
 
     private ProductWorkspaceContainerLayoutGestureSnapshot Snapshot() =>
         new(

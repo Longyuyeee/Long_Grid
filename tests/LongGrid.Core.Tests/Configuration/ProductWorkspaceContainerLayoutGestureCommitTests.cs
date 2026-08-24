@@ -7,6 +7,89 @@ namespace LongGrid.Core.Tests.Configuration;
 public sealed class ProductWorkspaceContainerLayoutGestureCommitTests
 {
     [Fact]
+    public async Task MixedDpiCrossDisplayMovePersistsTargetLocalPlacement()
+    {
+        string sandbox = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid.CrossDisplayGesture.Integration",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(sandbox);
+        try
+        {
+            var store = new ProductConfigurationStore(sandbox);
+            var workflow = new ProductConfigurationSaveWorkflow(
+                new ProductConfigurationSaveCoordinator(store));
+            await using var saves = new ProductWorkspaceSaveController(
+                workflow,
+                new ImmediateScheduler(),
+                TimeSpan.FromMilliseconds(1));
+            var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+            long revision = coordinator.AdvanceExternalRevision();
+            ProductWorkspaceState state = State();
+            DisplayTopologyNode[] displays = MixedDpiDisplays();
+
+            ProductWorkspaceContainerLayoutGestureSession session =
+                ProductWorkspaceContainerLayoutGestureSession.Begin(
+                    state,
+                    revision,
+                    currentTopologyGeneration: 7,
+                    displays,
+                    ProductWorkspaceContainerLayoutGestureKind.Move,
+                    "container-1",
+                    "display-1",
+                    pointerScreenX: 120,
+                    pointerScreenY: 120).Session!;
+            ProductWorkspaceContainerLayoutGestureSnapshot preview =
+                session.Update(
+                    state,
+                    revision,
+                    currentTopologyGeneration: 7,
+                    displays,
+                    cumulativeDeltaXDip: -1400,
+                    cumulativeDeltaYDip: 300,
+                    snapEnabled: false,
+                    shiftPressed: false,
+                    pointerScreenX: -1280,
+                    pointerScreenY: 440);
+            ProductWorkspaceContainerLayoutGestureCompletion completion =
+                session.Complete(state, revision, 7, displays).Completion!;
+            ProductWorkspaceContainerLayoutGestureCommitResult committed =
+                coordinator.CommitContainerLayoutGesture(state, 7, completion);
+            ProductWorkspaceSaveCompletionResult saved =
+                await saves.CompleteAsync();
+            ProductConfigurationLoadResult reloaded = await store.LoadAsync();
+
+            Assert.Equal(
+                ProductWorkspaceContainerLayoutGestureSessionStatus.Previewing,
+                preview.Status);
+            Assert.Equal("display-2", preview.Placement.DisplayKey);
+            Assert.Equal(300, preview.Placement.XDip);
+            Assert.Equal(200, preview.Placement.YDip);
+            Assert.Equal(200, preview.Placement.WidthDip);
+            Assert.Equal(160, preview.Placement.HeightDip);
+            Assert.True(committed.IsAccepted);
+            Assert.Equal(
+                ProductWorkspaceSaveCompletionStatus.Completed,
+                saved.Status);
+            Assert.Equal(
+                ProductConfigurationLoadStatus.LoadedPrimary,
+                reloaded.Status);
+            Assert.Equal(
+                "display-2",
+                reloaded.Document!.Containers[0].Placement.DisplayKey);
+            Assert.Equal(300, reloaded.Document.Containers[0].Placement.XDip);
+            Assert.Equal(200, reloaded.Document.Containers[0].Placement.YDip);
+        }
+        finally
+        {
+            if (Directory.Exists(sandbox))
+            {
+                Directory.Delete(sandbox, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task ThousandRealUpdatesWriteNothingAndCompletionSavesExactlyOnce()
     {
         string sandbox = Path.Combine(
@@ -163,6 +246,50 @@ public sealed class ProductWorkspaceContainerLayoutGestureCommitTests
         Assert.Equal(
             ProductWorkspaceContainerLayoutGestureCompletionStatus.Unavailable,
             completed.Status);
+    }
+
+    [Theory]
+    [InlineData(8, -1280, 440, ProductWorkspaceContainerLayoutPreviewStatus.StaleTopology)]
+    [InlineData(7, 5000, 5000, ProductWorkspaceContainerLayoutPreviewStatus.DisplayUnavailable)]
+    public void CrossDisplayTopologyChangeOrUnknownPointerRestoresSource(
+        long topologyGeneration,
+        int pointerX,
+        int pointerY,
+        ProductWorkspaceContainerLayoutPreviewStatus expectedStatus)
+    {
+        ProductWorkspaceState state = State();
+        DisplayTopologyNode[] displays = MixedDpiDisplays();
+        ProductWorkspaceContainerLayoutGestureSession session =
+            ProductWorkspaceContainerLayoutGestureSession.Begin(
+                state,
+                5,
+                7,
+                displays,
+                ProductWorkspaceContainerLayoutGestureKind.Move,
+                "container-1",
+                "display-1",
+                pointerScreenX: 120,
+                pointerScreenY: 120).Session!;
+
+        ProductWorkspaceContainerLayoutGestureSnapshot result = session.Update(
+            state,
+            5,
+            topologyGeneration,
+            displays,
+            -1400,
+            300,
+            snapEnabled: false,
+            shiftPressed: false,
+            pointerScreenX: pointerX,
+            pointerScreenY: pointerY);
+
+        Assert.Equal(
+            ProductWorkspaceContainerLayoutGestureSessionStatus.Cancelled,
+            result.Status);
+        Assert.Equal(expectedStatus, result.PreviewStatus);
+        Assert.Equal("display-1", result.Placement.DisplayKey);
+        Assert.Equal(100, result.Placement.XDip);
+        Assert.Equal(100, result.Placement.YDip);
     }
 
     [Fact]
@@ -337,6 +464,18 @@ public sealed class ProductWorkspaceContainerLayoutGestureCommitTests
             96,
             DisplayRotation.Landscape,
             IsPrimary: true),
+    ];
+
+    private static DisplayTopologyNode[] MixedDpiDisplays() =>
+    [
+        Displays()[0],
+        new(
+            "display-2",
+            new(-1920, 0, 1920, 1080),
+            new(-1920, 0, 1920, 1040),
+            192,
+            DisplayRotation.Landscape,
+            IsPrimary: false),
     ];
 
     private sealed class ImmediateScheduler : IProductWorkspaceSaveScheduler

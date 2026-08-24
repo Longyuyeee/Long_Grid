@@ -274,6 +274,37 @@ try {
                 $appActual.KeyboardPersistedDeltaWidthDip - 8) -le 1
         KeyboardLayoutSavedRevision =
             $appActual.KeyboardLayoutSavedRevision -eq 6
+        CrossDisplayStatus =
+            ($appActual.CrossDisplayHardwareAvailable -and
+                $appActual.CrossDisplayStatus -eq 'Passed') -or
+            (-not $appActual.CrossDisplayHardwareAvailable -and
+                $appActual.CrossDisplayStatus -eq 'Unavailable')
+        CrossDisplayBegin =
+            -not $appActual.CrossDisplayHardwareAvailable -or
+            $appActual.CrossDisplayBegin -eq $true
+        CrossDisplayUpdate =
+            -not $appActual.CrossDisplayHardwareAvailable -or
+            $appActual.CrossDisplayUpdate -eq $true
+        CrossDisplayComplete =
+            -not $appActual.CrossDisplayHardwareAvailable -or
+            $appActual.CrossDisplayComplete -eq $true
+        CrossDisplayChangedDisplay =
+            -not $appActual.CrossDisplayHardwareAvailable -or
+            $appActual.CrossDisplayChangedDisplay -eq $true
+        CrossDisplayPersistedSameDisplay =
+            -not $appActual.CrossDisplayHardwareAvailable -or
+            $appActual.CrossDisplayPersistedSameDisplay -eq $true
+        CrossDisplayPersistedDeltaXDip =
+            -not $appActual.CrossDisplayHardwareAvailable -or
+            [Math]::Abs($appActual.CrossDisplayPersistedDeltaXDip) -le 1
+        CrossDisplayPersistedDeltaYDip =
+            -not $appActual.CrossDisplayHardwareAvailable -or
+            [Math]::Abs($appActual.CrossDisplayPersistedDeltaYDip) -le 1
+        CrossDisplaySavedRevision =
+            ($appActual.CrossDisplayHardwareAvailable -and
+                $appActual.CrossDisplaySavedRevision -eq 7) -or
+            (-not $appActual.CrossDisplayHardwareAvailable -and
+                $appActual.CrossDisplaySavedRevision -eq 6)
         SaveCompletion = $appActual.SaveCompletion -eq 'Completed'
         PreviewVisualTreeCount = $appActual.PreviewVisualTreeCount -eq 2
         PreviewActivatedCount = $appActual.PreviewActivatedCount -eq 0
@@ -299,7 +330,7 @@ try {
         $userConfigurationUnchanged
     $finalResult = [ordered]@{
         SchemaVersion = 1
-        Purpose = 'Pf002AndPf003D3FormalAppEvidenceExternalVerification'
+        Purpose = 'Pf002AndPf003D4FormalAppEvidenceExternalVerification'
         Expected = [ordered]@{
             AppOutcome = 'Pass'
             AppEvidenceContractMatched = $true
