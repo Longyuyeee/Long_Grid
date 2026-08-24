@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 179](docs/179-pf003d4-cross-display-mixed-dpi-audit.md) 已完成 PF-003D4 工程链：Move 可保持逻辑尺寸/抓取偏移跨权威显示器，按目标 DPI/工作区吸附夹取并复用唯一提交、保存与补偿。本机真实双屏 192/240 DPI、负虚拟坐标下，正式 App/Store 跨屏保存重载 X/Y 差值均为 0 DIP，`Difference=None`。物理鼠标/触控、截图和 UIA Bounds 仍未完成；PF-003 保持 `InProgress`，30 个 PF 项仍为 `0 Complete`。所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 180](docs/180-pf003d5-real-input-evidence-readiness-audit.md) 已完成 PF-003D5 真实输入证据准入纠偏：五个真人场景现在可由正式入口执行，启动器仍不发送输入、不截屏、不自动写 Pass，SendInput 被机器合同禁止冒充物理设备。PF-003D4 跨屏工程与真实 Store 证据保持通过；物理鼠标/触控、截图和 UIA Bounds 仍未完成，PF-003 保持 `InProgress`，30 个 PF 项仍为 `0 Complete`。所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -40,6 +40,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-003D2 App 布局会话、可见候选与提交补偿审计（Stage 177）](docs/177-pf003d2-app-layout-session-visible-candidate-audit.md)
 - [PF-003D3 键盘布局事务与真实重载审计（Stage 178）](docs/178-pf003d3-keyboard-layout-transaction-audit.md)
 - [PF-003D4 跨显示器混合 DPI 布局审计（Stage 179）](docs/179-pf003d4-cross-display-mixed-dpi-audit.md)
+- [PF-003D5 真实输入证据准入纠偏审计（Stage 180）](docs/180-pf003d5-real-input-evidence-readiness-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)
@@ -197,7 +198,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6c7 已把独立系统表面人工会话与权威只读显示拓扑采样合并：probe 自有来源在失焦、Win+D/桌面显示、全屏、会话/RDP、Explorer 身份变化、拓扑指纹变化或非权威读取时立即失效 Prepared 并隐藏；只有系统表面安全且拓扑经过静默期与两个一致样本后，才以非激活 AwaitingPassiveSurface 恢复。它不启动正式 App、不改变系统或显示配置、不进入 Explicit 或文件操作，也不自动写 Pass。下一阶段执行 B6C3 真人矩阵并复核匿名证据，再决定是否进入正式 App 输入接线。A5、B6c2–B6c7 真实会话结果继续 PendingManualEvidence；任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)推进。当前固定执行 PF-003D5：在正式 Release App 与真实双显示器上分别取得可见 SendInput 和真人物理设备证据，核对候选截图、最终 Bounds、保存重载与失败恢复；SendInput 不得冒充物理鼠标/触控。随后复核并关闭 PF-001 桌面优先启动，再进入 PF-004～PF-010 日常桌面闭环。任务栏美化、小组件/插件运行时和广泛窗口特效继续属于核心 MVP 后续，不得抢占标题栏、项目呈现、打开、拖放和视图能力。
 
 ## 开发启动
 

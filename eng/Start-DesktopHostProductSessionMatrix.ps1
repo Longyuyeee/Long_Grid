@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('A5-01', 'A5-02', 'A5-03', 'A5-04', 'A5-05', 'A5-06')]
+    [ValidateSet(
+        'A5-01', 'A5-02', 'A5-03', 'A5-04', 'A5-05', 'A5-06',
+        'PF003D5-01', 'PF003D5-02', 'PF003D5-03', 'PF003D5-04', 'PF003D5-05')]
     [string] $Scenario,
 
     [ValidateSet('O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7', 'O8', 'O9')]
@@ -43,7 +45,7 @@ if (-not $ValidateOnly) {
 $contract = [ordered]@{
     schemaVersion = 1
     purpose = 'DesktopHostReadOnlyProductSessionMatrix'
-    scenarios = 'A5-01-through-A5-06'
+    scenarios = 'A5-01-through-A5-06-and-PF003D5-01-through-PF003D5-05'
     scenario = if ($ValidateOnly) { 'RequiredAtRuntime' } else { $Scenario }
     operatorId = if ($ValidateOnly) { 'O1-O9-required-at-runtime' } else { $OperatorId }
     operatorIdentifierPolicy = 'AnonymousLabelsOnly'
@@ -58,6 +60,9 @@ $contract = [ordered]@{
     requiresManualVisualReview = $true
     requiresManualNarratorReview = $true
     requiresRecoveryConfirmation = $true
+    physicalDeviceInputAutomaticallyVerified = $false
+    visibleScreenshotAutomaticallyCaptured = $false
+    touchOrPenRequiredOnlyWhenAvailable = $true
 }
 
 if ($contract.finalResultStatus -ne 'PendingManualEvidence' -or
@@ -69,7 +74,10 @@ if ($contract.finalResultStatus -ne 'PendingManualEvidence' -or
     $contract.writesResultFile -or
     -not $contract.requiresManualVisualReview -or
     -not $contract.requiresManualNarratorReview -or
-    -not $contract.requiresRecoveryConfirmation) {
+    -not $contract.requiresRecoveryConfirmation -or
+    $contract.physicalDeviceInputAutomaticallyVerified -or
+    $contract.visibleScreenshotAutomaticallyCaptured -or
+    -not $contract.touchOrPenRequiredOnlyWhenAvailable) {
     throw 'DesktopHost product-session safety contract is invalid.'
 }
 

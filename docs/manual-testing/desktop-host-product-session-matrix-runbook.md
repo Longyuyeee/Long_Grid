@@ -42,6 +42,21 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -Configuration Release
 ```
 
+PF-003D5 真实物理鼠标场景使用同一入口，例如：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File ./eng/Start-DesktopHostProductSessionMatrix.ps1 `
+  -Scenario PF003D5-01 `
+  -OperatorId O1 `
+  -AcknowledgeControlledEnvironment `
+  -AcknowledgeRecoveryPlan `
+  -Configuration Release `
+  -NoBuild
+```
+
+启动器本身不发送输入、不截屏、不写 Pass。由自动化 SendInput 得到的真实窗口结果必须单列为 `VisibleSyntheticInputEvidence`，不能填入物理设备列；物理鼠标/触控结论只能由操作者执行对应动作并复核。
+
 启动前应准备至少一个正式方格和仅适合展示的测试引用。不得在会话中使用包含隐私名称的真实工作区，也不得把路径、设备 ID、窗口标题或账户信息写入仓库。
 
 ## 结果纪律

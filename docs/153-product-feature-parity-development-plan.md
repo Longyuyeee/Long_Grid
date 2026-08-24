@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-003 桌面拖动、缩放与吸附（PF-002F 产品证据并行 Pending）**
-- 最新工程审计：[Stage 179](179-pf003d4-cross-display-mixed-dpi-audit.md)；PF-003D4 已让 Move 保持逻辑尺寸/抓取偏移跨权威显示器，并按目标 DPI/工作区吸附、夹取和持久化。本机真实双屏 192/240 DPI、负虚拟坐标下，正式 App/Store 重载差值为 0 DIP、外部 `Difference=None`。物理鼠标/触控、截图和 UIA Bounds 仍待完成，PF-003 保持 `InProgress`；30 个 PF 项仍为 `0 Complete`
+- 最新工程审计：[Stage 180](180-pf003d5-real-input-evidence-readiness-audit.md)；PF-003D5 五个真人场景现可由正式入口执行，且机器合同明确启动器不发送输入、不截屏、不自动写 Pass，SendInput 不得冒充物理设备。Stage 179 的双屏 192/240 DPI、负虚拟坐标、正式 Store 重载 0 DIP 证据保持通过；物理鼠标/触控、截图和 UIA Bounds 仍待完成，PF-003 保持 `InProgress`；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -173,7 +173,7 @@
 - 100 个方格布局操作不产生持续卡顿或窗口泄漏；
 - UIA Bounds 与最终视觉 Bounds 一致。
 
-**2026-08-24 实施状态**：`InProgress`。Stage 172–175 已实现预览/吸附、冻结事实会话、唯一提交、真实重载、写租约失败补偿和正式 Surface 九向 capture 输入；Stage 177 接通正式 App 候选/提交。Stage 178 又增加独立标题焦点、方向键 1 DIP、Shift 8 DIP 和 Alt 缩放，全部复用同一事务/补偿入口；真实 App/Store 微移 +1 DIP、扩宽 +8 DIP，外部 Expected/Actual 为 `Difference=None`。尚未实现跨显示器和物理鼠标/键盘/触控/可见截图/UIA Bounds，因此 PF-003 不得升级为 `EngineeringComplete` 或 `Complete`。
+**2026-08-24 实施状态**：`InProgress`。Stage 172–175 已实现预览/吸附、冻结事实会话、唯一提交、真实重载、写租约失败补偿和正式 Surface 九向 capture 输入；Stage 177 接通正式 App 候选/提交。Stage 178 又增加独立标题焦点、方向键 1 DIP、Shift 8 DIP 和 Alt 缩放，全部复用同一事务/补偿入口。Stage 179 已实现跨显示器 Move、目标 Per-Monitor DPI/WorkArea 换算、目标 Surface 候选路由及失效恢复；本机双屏 192/240 DPI、负虚拟坐标下正式 Store 重载误差为 0 DIP。物理鼠标/键盘/触控、可见截图和 UIA Bounds 仍未完成，因此 PF-003 不得升级为 `EngineeringComplete` 或 `Complete`。
 
 ### PF-004：方格标题栏与就近操作
 
@@ -883,4 +883,4 @@
 
 当前工程切片为 **PF-003：桌面拖动、缩放与吸附**。PF-002A～H 的正式工程链和 Stage 171 最近撤销证据已完成，PF-002 状态调整为 `EngineeringComplete / ProductEvidencePending`；当前 WinUI 上游缺陷仍阻断可见 Preview/视图发布、物理输入和 UIA/Narrator，因此 PF-002 不能标记 `Complete`。
 
-Stage 172–178 已完成 PF-003A–D3 的预览/吸附、事务、失败补偿、Surface 九向输入、正式 App 候选/提交和键盘微调接线。下一切片是 PF-003D4：跨显示器进入/退出、Per-Monitor DPI、工作区夹取与拓扑变化取消，并取得真实或明确标注的可控拓扑 Expected/Actual。物理/UIA 证据继续分阶段准入。PF-002F 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。
+Stage 172–179 已完成 PF-003A–D4 的预览/吸附、事务、失败补偿、Surface 九向输入、正式 App 候选/提交、键盘微调和跨显示器混合 DPI 接线。下一切片是 PF-003D5：在正式 Release App 中分别取得可见 SendInput 与真人物理鼠标/键盘/触控证据，记录截图、最终 Bounds、保存重载和失败恢复的 Expected/Actual/Difference；SendInput 不得冒充物理设备。PF-002F 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。PF-003 收口后必须先复核 PF-001 桌面优先启动缺口，再进入 PF-004。

@@ -135,6 +135,8 @@ $desktopInputForwardingSessionLauncherCodePath = Join-Path $projectRoot `
     'eng\Start-DesktopInteractionInputForwardingSession.ps1'
 $desktopSystemSurfaceSessionLauncherCodePath = Join-Path $projectRoot `
     'eng\Start-DesktopInteractionSystemSurfaceSession.ps1'
+$desktopHostProductSessionLauncherCodePath = Join-Path $projectRoot `
+    'eng\Start-DesktopHostProductSessionMatrix.ps1'
 $desktopHostProjectionBatchCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostProjectionBatch.cs'
 $desktopHostProjectionUpdateCodePath = Join-Path $projectRoot `
@@ -447,6 +449,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopSystemSurfaceSessionLauncherCode = Get-Content `
         -LiteralPath $desktopSystemSurfaceSessionLauncherCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopHostProductSessionLauncherCode = Get-Content `
+        -LiteralPath $desktopHostProductSessionLauncherCodePath `
         -Raw `
         -Encoding UTF8
     $desktopHostProjectionBatchCode = Get-Content `
@@ -1835,6 +1841,23 @@ function Test-SourceContract {
         -not ($appCode -match 'RunSystemSurfaceInteractive')
     ) `
         'B6c7 must combine public system-surface events with authoritative read-only topology fingerprints, invalidate and hide on unsafe generation, require stabilized joint recovery, retain manual evidence, and keep product Explicit and files disconnected.'
+    Assert-Condition (
+        $desktopHostProductSessionLauncherCode -match `
+            "'PF003D5-01'.*'PF003D5-02'.*'PF003D5-03'.*'PF003D5-04'.*'PF003D5-05'" -and
+        $desktopHostProductSessionLauncherCode -match `
+            'physicalDeviceInputAutomaticallyVerified\s*=\s*\$false' -and
+        $desktopHostProductSessionLauncherCode -match `
+            'visibleScreenshotAutomaticallyCaptured\s*=\s*\$false' -and
+        $desktopHostProductSessionLauncherCode -match `
+            'touchOrPenRequiredOnlyWhenAvailable\s*=\s*\$true' -and
+        $desktopHostProductSessionLauncherCode -match `
+            'sendsSyntheticInput\s*=\s*\$false' -and
+        $desktopHostProductSessionLauncherCode -match `
+            'finalResultStatus\s*=\s*''PendingManualEvidence''' -and
+        -not ($desktopHostProductSessionLauncherCode -match `
+            'SendInput\(|SetDisplayConfig|ChangeDisplaySettings|Start-Process|Stop-Process')
+    ) `
+        'PF-003D5 manual launcher must admit all five real-device scenarios while sending no input, changing no display state, capturing no screenshot, and retaining PendingManualEvidence.'
     Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and

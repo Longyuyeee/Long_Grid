@@ -417,3 +417,9 @@ Stage 179 已让 Move 在一次手势中保持逻辑 DIP 尺寸和抓取偏移�
 本机只读实际拓扑为双显示器、DPI 192/240、含负虚拟坐标。正式 Release App/Store 的跨屏 Begin/Update/Complete 均为 true，目标显示器改变并在重载后保持，X/Y 差值均为 0 DIP，save revision=7，外部 `Difference=None`。真实 `.lock` 写租约故障证明跨屏发布失败后内存和磁盘均恢复源显示器；两个非零 HWND Surface 证明目标像素候选正确。
 
 聚焦 63/63、Release 全量 1075/1075、build 0 warning / 0 error，布局预览 P95 `0.056 ms < 16.7 ms`；真实窗口 1,853 ms 就绪并稳定 20 秒，NuGet 无已知漏洞。live UIA 仍由已知崩溃组合在启动前安全拒绝。本轮是跨屏工程和真实硬件语义证据，不是物理鼠标/触控或 UIA Bounds 证据。PF-003 与顶层 `0 Complete` 口径不变；下一切片固定 PF-003D5 物理输入、截图与无障碍证据，详见 [Stage 179](179-pf003d4-cross-display-mixed-dpi-audit.md)。
+
+## 27. 2026-08-24 PF-003D5 真实输入证据准入纠偏复审
+
+审计发现 Stage 179 已在人工手册定义 PF003D5-01～05，但正式产品会话启动器仍只接受 A5-01～06，导致手册场景在参数绑定阶段无法执行；Stage 153 和 README 的下一步也分别停留在 D4 与 B6C3。Stage 180 已把五个场景接入同一受控入口，并用机器合同固定“不发送输入、不改变显示状态、不截屏、不自动写 Pass”，同时明确 SendInput 只能记 `VisibleSyntheticInputEvidence`，不能升级为物理设备证据。
+
+五个场景的参数绑定/ValidateOnly 和 153-ID UI 合同均通过。正式 Release App 可见自动化两次在截图观察阶段收到操作者物理 Escape，按安全规范立即停止，实际没有执行点击、拖动或配置提交，因此物理/截图结果继续 Pending。该切片关闭流程实现偏移，不增加 PF 完成数；PF-003 保持 `InProgress`，下一步仍为不被中止的可见合成输入证据和真人物理矩阵，详见 [Stage 180](180-pf003d5-real-input-evidence-readiness-audit.md)。
