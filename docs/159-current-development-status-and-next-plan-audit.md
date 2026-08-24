@@ -423,3 +423,9 @@ Stage 179 已让 Move 在一次手势中保持逻辑 DIP 尺寸和抓取偏移�
 审计发现 Stage 179 已在人工手册定义 PF003D5-01～05，但正式产品会话启动器仍只接受 A5-01～06，导致手册场景在参数绑定阶段无法执行；Stage 153 和 README 的下一步也分别停留在 D4 与 B6C3。Stage 180 已把五个场景接入同一受控入口，并用机器合同固定“不发送输入、不改变显示状态、不截屏、不自动写 Pass”，同时明确 SendInput 只能记 `VisibleSyntheticInputEvidence`，不能升级为物理设备证据。
 
 五个场景的参数绑定/ValidateOnly 和 153-ID UI 合同均通过。正式 Release App 可见自动化两次在截图观察阶段收到操作者物理 Escape，按安全规范立即停止，实际没有执行点击、拖动或配置提交，因此物理/截图结果继续 Pending。该切片关闭流程实现偏移，不增加 PF 完成数；PF-003 保持 `InProgress`，下一步仍为不被中止的可见合成输入证据和真人物理矩阵，详见 [Stage 180](180-pf003d5-real-input-evidence-readiness-audit.md)。
+
+## 28. 2026-08-24 PF-003D5 正式 App 可见捕获阻断复审
+
+在干净提交基础上再次启动正式 Release App，Windows Capture 两次都只得到透明 Surface 下层内容，随后目标窗口消失；由于没有可信产品截图，控制器没有发送任何点击、拖动或键盘输入。Windows Application Error/WER 的两个独立报告均指向 `Microsoft.UI.Xaml.dll 3.2.3.0`、异常 `0xc000027b` 和 P7 `8001010e`，与 Stage 169 已审计的 RPC_E_WRONG_THREAD fail-fast 完全一致。
+
+Stage 172–180 已覆盖 PF-003 的全部计划生产工程与证据准入，剩余均为物理/截图/Narrator/UIA/热插拔 Product Evidence。因此 PF-003 调整为 `EngineeringComplete / ProductEvidencePending`，不是 `Complete`，顶层仍为 0/30 Complete。下一开发项转为 PF-001 桌面优先启动收口；PF-003 外部证据只在上游安全运行时或独立机器并行补证，详见 [Stage 181](181-pf003d5-visible-capture-upstream-blocker-audit.md)。
