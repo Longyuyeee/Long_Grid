@@ -7,6 +7,74 @@ namespace LongGrid.Core.Tests.DesktopHost;
 public sealed class ProductDesktopContainerLayoutInputTests
 {
     [Theory]
+    [InlineData(0x25, false, false, ProductWorkspaceContainerLayoutGestureKind.Move, -1, 0)]
+    [InlineData(0x26, false, true, ProductWorkspaceContainerLayoutGestureKind.Move, 0, -8)]
+    [InlineData(0x27, true, false, ProductWorkspaceContainerLayoutGestureKind.ResizeRight, 1, 0)]
+    [InlineData(0x28, true, true, ProductWorkspaceContainerLayoutGestureKind.ResizeBottom, 0, 8)]
+    public void TitleFocusMapsFineLargeMoveAndResizeToFiniteLayoutCommand(
+        int virtualKey,
+        bool alt,
+        bool shift,
+        ProductWorkspaceContainerLayoutGestureKind expectedKind,
+        double expectedX,
+        double expectedY)
+    {
+        ProductDesktopContainerLayoutKeyboardDecision decision =
+            ProductDesktopContainerLayoutKeyboardAdapter.Map(
+                titleFocused: true,
+                virtualKey,
+                alt,
+                control: false,
+                shift);
+
+        Assert.True(decision.HasLayoutCommand);
+        Assert.Equal(expectedKind, decision.Kind);
+        Assert.Equal(expectedX, decision.DeltaXDip);
+        Assert.Equal(expectedY, decision.DeltaYDip);
+        Assert.Equal(shift, decision.ShiftPressed);
+    }
+
+    [Fact]
+    public void TabOwnsTitleFocusWithoutStealingItemNavigation()
+    {
+        ProductDesktopContainerLayoutKeyboardDecision enter =
+            ProductDesktopContainerLayoutKeyboardAdapter.Map(
+                titleFocused: false,
+                virtualKey: 0x09,
+                alt: false,
+                control: false,
+                shift: false);
+        ProductDesktopContainerLayoutKeyboardDecision itemArrow =
+            ProductDesktopContainerLayoutKeyboardAdapter.Map(
+                titleFocused: false,
+                virtualKey: 0x27,
+                alt: false,
+                control: false,
+                shift: false);
+        ProductDesktopContainerLayoutKeyboardDecision exit =
+            ProductDesktopContainerLayoutKeyboardAdapter.Map(
+                titleFocused: true,
+                virtualKey: 0x09,
+                alt: false,
+                control: false,
+                shift: true);
+        ProductDesktopContainerLayoutKeyboardDecision controlTab =
+            ProductDesktopContainerLayoutKeyboardAdapter.Map(
+                titleFocused: false,
+                virtualKey: 0x09,
+                alt: false,
+                control: true,
+                shift: false);
+
+        Assert.True(enter.Handled);
+        Assert.True(enter.TitleFocused);
+        Assert.False(itemArrow.Handled);
+        Assert.True(exit.Handled);
+        Assert.False(exit.TitleFocused);
+        Assert.False(controlTab.Handled);
+    }
+
+    [Theory]
     [InlineData(101, 101, ProductWorkspaceContainerLayoutGestureKind.ResizeTopLeft)]
     [InlineData(200, 101, ProductWorkspaceContainerLayoutGestureKind.ResizeTop)]
     [InlineData(299, 101, ProductWorkspaceContainerLayoutGestureKind.ResizeTopRight)]

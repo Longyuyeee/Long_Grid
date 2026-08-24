@@ -913,6 +913,61 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.False(source.LastInput.IsAutoRepeat);
         Assert.True(consumption.Snapshot.IsExplicit);
         Assert.False(controller.CanRequestKeyboardInteraction);
+        var layoutRequests = new List<ProductDesktopContainerLayoutRequest>();
+        controller.BindContainerLayout(request =>
+        {
+            layoutRequests.Add(request);
+            return true;
+        });
+        Assert.True(source.ApplyBoundTitleFocus("container-1"));
+        Assert.Equal(
+            "container-1",
+            Assert.Single(surfaceFactory.Surfaces).LayoutKeyboardFocusId);
+        Assert.True(source.ApplyBoundContainerLayout(new(
+            "container-1",
+            ProductWorkspaceContainerLayoutGestureKind.Move,
+            DeltaXDip: 1,
+            DeltaYDip: 0,
+            ShiftPressed: false)));
+        Assert.Equal(
+            [
+                ProductDesktopContainerLayoutInputPhase.Begin,
+                ProductDesktopContainerLayoutInputPhase.Update,
+                ProductDesktopContainerLayoutInputPhase.Complete,
+            ],
+            layoutRequests.Select(request => request.Phase));
+        Assert.All(layoutRequests, request =>
+        {
+            Assert.Equal(7, request.ExpectedWorkspaceRevision);
+            Assert.Equal(11, request.ExpectedTopologyGeneration);
+            Assert.False(request.SnapEnabled);
+        });
+        Assert.Equal(1, layoutRequests[1].CumulativeDeltaXDip);
+        layoutRequests.Clear();
+        controller.BindContainerLayout(request =>
+        {
+            layoutRequests.Add(request);
+            return request.Phase !=
+                ProductDesktopContainerLayoutInputPhase.Complete;
+        });
+        Assert.False(source.ApplyBoundContainerLayout(new(
+            "container-1",
+            ProductWorkspaceContainerLayoutGestureKind.ResizeRight,
+            DeltaXDip: 8,
+            DeltaYDip: 0,
+            ShiftPressed: true)));
+        Assert.Equal(
+            [
+                ProductDesktopContainerLayoutInputPhase.Begin,
+                ProductDesktopContainerLayoutInputPhase.Update,
+                ProductDesktopContainerLayoutInputPhase.Complete,
+                ProductDesktopContainerLayoutInputPhase.Cancel,
+            ],
+            layoutRequests.Select(request => request.Phase));
+        Assert.True(layoutRequests[1].SnapEnabled);
+        Assert.True(layoutRequests[1].ShiftPressed);
+        Assert.True(source.ApplyBoundTitleFocus(null));
+        Assert.Null(Assert.Single(surfaceFactory.Surfaces).LayoutKeyboardFocusId);
         Assert.True(source.ApplyBoundSelection(new(
             ProductDesktopSelectionAction.MoveNext)));
         Assert.Equal(
@@ -1513,6 +1568,10 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         private Func<ProductDesktopSelectionRequest, bool> applySelection =
             static _ => false;
         private Func<bool> cancelSelection = static () => false;
+        private Func<ProductDesktopContainerLayoutKeyboardCommand, bool>
+            applyContainerLayout = static _ => false;
+        private Func<string?, bool> applyContainerLayoutTitleFocus =
+            static _ => false;
 
         public nint Handle { get; } = new(700);
 
@@ -1572,10 +1631,25 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             cancelSelection = cancel;
         }
 
+        public void BindContainerLayout(
+            Func<ProductDesktopContainerLayoutKeyboardCommand, bool> apply,
+            Func<string?, bool> applyTitleFocus)
+        {
+            applyContainerLayout = apply;
+            applyContainerLayoutTitleFocus = applyTitleFocus;
+        }
+
         internal bool ApplyBoundSelection(
             ProductDesktopSelectionRequest request) => applySelection(request);
 
         internal bool CancelBoundSelection() => cancelSelection();
+
+        internal bool ApplyBoundContainerLayout(
+            ProductDesktopContainerLayoutKeyboardCommand command) =>
+            applyContainerLayout(command);
+
+        internal bool ApplyBoundTitleFocus(string? containerId) =>
+            applyContainerLayoutTitleFocus(containerId);
 
         public void Dispose()
         {
@@ -1616,6 +1690,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         internal int ApplyHiddenCalls { get; private set; }
 
         internal ProductContainerPlacementState? LayoutPreview { get; private set; }
+
+        internal string? LayoutKeyboardFocusId { get; private set; }
 
         public nint Handle { get; } = handle;
 
@@ -1699,6 +1775,23 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             }
 
             LayoutPreview = placement;
+            return true;
+        }
+
+        public bool ApplyContainerLayoutKeyboardFocus(string? containerId)
+        {
+            if (containerId is not null
+                && (Projection is null
+                    || Projection.Containers.Count(candidate =>
+                        !candidate.IsLocked
+                        && string.Equals(
+                            candidate.ContainerId,
+                            containerId,
+                            StringComparison.Ordinal)) != 1))
+            {
+                return false;
+            }
+            LayoutKeyboardFocusId = containerId;
             return true;
         }
 

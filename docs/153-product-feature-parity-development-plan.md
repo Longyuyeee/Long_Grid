@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-003 桌面拖动、缩放与吸附（PF-002F 产品证据并行 Pending）**
-- 最新工程审计：[Stage 177](177-pf003d2-app-layout-session-visible-candidate-audit.md)；PF-003D2 已接通正式 App 消费、Surface 内存候选、唯一提交与保存补偿，真实 App/Store 位移 32/16 DIP 且外部 `Difference=None`。方向键微调、跨显示器和物理/UIA Bounds 仍待完成，PF-003 保持 `InProgress`；30 个 PF 项仍为 `0 Complete`
+- 最新工程审计：[Stage 178](178-pf003d3-keyboard-layout-transaction-audit.md)；PF-003D3 已增加独立标题焦点、方向键 1 DIP、Shift 8 DIP 与 Alt 缩放，并复用同一布局事务/补偿。真实 App/Store 微移 +1 DIP、扩宽 +8 DIP，外部 `Difference=None`。跨显示器和物理/UIA Bounds 仍待完成，PF-003 保持 `InProgress`；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -60,7 +60,7 @@
 | ---: | --- | --- | --- | --- |
 | 1 | PF-001 | 桌面方格总开关与桌面优先启动 | `InProgress`：总开关和桌面空状态已完成，桌面优先最终呈现待收口 | iTop Enable Boxes |
 | 2 | PF-002 | 桌面直接创建方格 | `EngineeringComplete / ProductEvidencePending`：正式 App 创建、保存、补偿与最近撤销工程证据通过；可见物理输入和 UIA/Narrator 待补 | iTop/Fences 多入口创建 |
-| 3 | PF-003 | 桌面拖动、缩放、吸附 | `InProgress`：预览/吸附、事务、失败补偿、Surface 九向输入和正式 App 候选/提交接线已实现；键盘、跨显示器与物理产品证据待完成 | Fences/Nimi 直接布局 |
+| 3 | PF-003 | 桌面拖动、缩放、吸附 | `InProgress`：预览/吸附、事务、失败补偿、Surface 九向输入、正式 App 候选/提交和键盘微调已实现；跨显示器与物理产品证据待完成 | Fences/Nimi 直接布局 |
 | 4 | PF-004 | 方格标题栏与就近操作 | 部分 Core | Fences 标题栏操作 |
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | worker 有、UI 无 | Fences/Nimi 项目呈现 |
 | 6 | PF-006 | 项目选择、键盘导航与打开 | 选择底座 | Fences/Portal 日常访问 |
@@ -173,7 +173,7 @@
 - 100 个方格布局操作不产生持续卡顿或窗口泄漏；
 - UIA Bounds 与最终视觉 Bounds 一致。
 
-**2026-08-24 实施状态**：`InProgress`。Stage 172–175 已实现预览/吸附、冻结事实会话、唯一提交、真实重载、写租约失败补偿和正式 Surface 九向 capture 输入。Stage 177 又接通正式 App 消费、Surface 动态内存候选、pointer-up 唯一提交与补偿观察；真实 App/Store 位移 32/16 DIP，外部 Expected/Actual 为 `Difference=None`。尚未实现方向键/Alt 缩放微调、跨显示器和物理鼠标/触控/可见截图/UIA Bounds，因此 PF-003 不得升级为 `EngineeringComplete` 或 `Complete`。
+**2026-08-24 实施状态**：`InProgress`。Stage 172–175 已实现预览/吸附、冻结事实会话、唯一提交、真实重载、写租约失败补偿和正式 Surface 九向 capture 输入；Stage 177 接通正式 App 候选/提交。Stage 178 又增加独立标题焦点、方向键 1 DIP、Shift 8 DIP 和 Alt 缩放，全部复用同一事务/补偿入口；真实 App/Store 微移 +1 DIP、扩宽 +8 DIP，外部 Expected/Actual 为 `Difference=None`。尚未实现跨显示器和物理鼠标/键盘/触控/可见截图/UIA Bounds，因此 PF-003 不得升级为 `EngineeringComplete` 或 `Complete`。
 
 ### PF-004：方格标题栏与就近操作
 
@@ -883,4 +883,4 @@
 
 当前工程切片为 **PF-003：桌面拖动、缩放与吸附**。PF-002A～H 的正式工程链和 Stage 171 最近撤销证据已完成，PF-002 状态调整为 `EngineeringComplete / ProductEvidencePending`；当前 WinUI 上游缺陷仍阻断可见 Preview/视图发布、物理输入和 UIA/Narrator，因此 PF-002 不能标记 `Complete`。
 
-Stage 172–177 已完成 PF-003A–D2 的预览/吸附、事务、失败补偿、Surface 九向输入和正式 App 候选/提交接线。下一切片是 PF-003D3：方向键 1 DIP、Shift 大步和 Alt 缩放复用同一事务入口并取得正式 App 保存/重载证据。跨显示器与物理/UIA 证据继续分阶段准入。PF-002F 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。
+Stage 172–178 已完成 PF-003A–D3 的预览/吸附、事务、失败补偿、Surface 九向输入、正式 App 候选/提交和键盘微调接线。下一切片是 PF-003D4：跨显示器进入/退出、Per-Monitor DPI、工作区夹取与拓扑变化取消，并取得真实或明确标注的可控拓扑 Expected/Actual。物理/UIA 证据继续分阶段准入。PF-002F 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。

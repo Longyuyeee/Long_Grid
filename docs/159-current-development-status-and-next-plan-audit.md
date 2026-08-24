@@ -401,3 +401,11 @@ Stage 177 已让正式 App 绑定 DesktopHost 布局请求，并以独立控制�
 真实 App 首轮为 Begin=true、Update/Complete=false、位移/保存 0，证明证据模式跳过主窗口刷新时也错误跳过了安全 DesktopHost 投影。拆分宿主投影刷新后，正式 App Begin/Update/Complete 全为 true，内存和真实 Store 重载均移动 32/16 DIP，save revision=4，外部 `Difference=None`。真实写租约故障又证明交互控制器能自动恢复原内存/磁盘布局且不触碰桌面哨兵。
 
 聚焦为 52/52、Release 全量 1063/1063、build 0 warning / 0 error，100 方格布局预览 P95 `0.083 ms < 16.7 ms`；真实窗口 1,744 ms 就绪并稳定 20 秒。物理鼠标、键盘微调、跨显示器和 UIA Bounds 仍未通过，PF-003 与顶层 `0 Complete` 口径不变。下一切片固定为 PF-003D3 键盘移动/缩放并复用同一事务链，详见 [Stage 177](177-pf003d2-app-layout-session-visible-candidate-audit.md)。
+
+## 25. 2026-08-24 PF-003D3 键盘布局事务增量复审
+
+Stage 178 在不破坏既有项目方向导航的前提下增加独立标题焦点：Tab 切入后方向键移动 1 DIP，Shift 使用 8 DIP 大步，Alt+方向键调整宽高；标题焦点在正式 Surface 标题区可见，退出、隐藏和释放时清除。原生来源同时处理 `WM_KEYDOWN` 和 Alt 组合实际使用的 `WM_SYSKEYDOWN`，继续拒绝注入来源。每枚键由 lifecycle 重新核对 source、Explicit transaction、display、锁定、revision/topology 和有限 delta，再展开为同一 `Begin → Update → Complete`，没有新增坐标直写或保存入口。
+
+正式 Release App/Store Expected/Actual 实测：键盘语义微移内存/重载均为 X `+1 DIP`、save revision=5；Shift 大步扩宽内存/重载均为 `+8 DIP`、save revision=6；外部 `Difference=None`，桌面和用户配置元数据不变。首轮编译暴露 double/int 元组推断错误并修正；后续 Win32 复审暴露只监听 `WM_KEYDOWN` 会漏掉 Alt 缩放，补入 `WM_SYSKEYDOWN` 后再过门禁。
+
+聚焦 27/27、Release 全量 1068/1068、build 0 warning / 0 error，100 方格布局预览 P95 `0.055 ms < 16.7 ms`；真实窗口 2,329 ms 就绪并稳定 20 秒。live UIA 仍被已知 Windows App Runtime/Xaml 崩溃组合在启动前安全拒绝，ContractOnly 通过。PF-003 和顶层 `0 Complete` 口径不变；下一切片固定为 PF-003D4 跨显示器 DPI/边界迁移，物理输入、Narrator/UIA Bounds 继续为独立 Product Evidence，详见 [Stage 178](178-pf003d3-keyboard-layout-transaction-audit.md)。

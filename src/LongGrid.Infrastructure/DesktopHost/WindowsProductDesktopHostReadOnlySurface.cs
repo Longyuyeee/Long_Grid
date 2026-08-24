@@ -108,6 +108,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         requestContainerLayout = static _ => false;
     private ActiveContainerLayout? activeContainerLayout;
     private ProductDesktopHostReadOnlyProjection? containerLayoutPreview;
+    private string? containerLayoutKeyboardFocusId;
     private NativePoint workspaceCreateDragStart;
     private NativePoint workspaceCreateDragCurrent;
     private bool workspaceCreateDragActive;
@@ -503,6 +504,29 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             return false;
         }
 
+        _ = NativeMethods.InvalidateRect(Handle, nint.Zero, erase: false);
+        return true;
+    }
+
+    public bool ApplyContainerLayoutKeyboardFocus(string? containerId)
+    {
+        if (disposed || Handle == nint.Zero)
+        {
+            return false;
+        }
+        if (containerId is not null
+            && (mode != ProductDesktopInteractionSurfaceMode.Explicit
+                || projection.Containers.Count(candidate =>
+                    !candidate.IsLocked
+                    && string.Equals(
+                        candidate.ContainerId,
+                        containerId,
+                        StringComparison.Ordinal)) != 1))
+        {
+            return false;
+        }
+
+        containerLayoutKeyboardFocusId = containerId;
         _ = NativeMethods.InvalidateRect(Handle, nint.Zero, erase: false);
         return true;
     }
@@ -1232,6 +1256,21 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 _ = NativeMethods.DrawFocusRect(deviceContext, ref previewOutline);
             }
 
+            if (string.Equals(
+                containerLayoutKeyboardFocusId,
+                container.ContainerId,
+                StringComparison.Ordinal))
+            {
+                NativeRect headerFocus = new(
+                    bounds.Left + ToPixels(4, scale),
+                    bounds.Top + ToPixels(4, scale),
+                    bounds.Right - ToPixels(4, scale),
+                    Math.Min(
+                        bounds.Bottom,
+                        bounds.Top + headerHeight - ToPixels(4, scale)));
+                _ = NativeMethods.DrawFocusRect(deviceContext, ref headerFocus);
+            }
+
             DrawText(
                 deviceContext,
                 container.Title,
@@ -1373,6 +1412,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             Handle,
             ProductDesktopContainerLayoutCancellationReason.HostInvalidated);
         containerLayoutPreview = null;
+        containerLayoutKeyboardFocusId = null;
         disposed = true;
         if (Handle != nint.Zero)
         {
@@ -1403,6 +1443,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             Handle,
             ProductDesktopContainerLayoutCancellationReason.HostInvalidated);
         containerLayoutPreview = null;
+        containerLayoutKeyboardFocusId = null;
         CancelWorkspaceCreateDrag(Handle);
         mode = ProductDesktopInteractionSurfaceMode.Passive;
         TryRegisterWorkspaceCreateHotKey();
@@ -1432,6 +1473,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             Handle,
             ProductDesktopContainerLayoutCancellationReason.HostInvalidated);
         containerLayoutPreview = null;
+        containerLayoutKeyboardFocusId = null;
         CancelWorkspaceCreateDrag(Handle);
         mode = ProductDesktopInteractionSurfaceMode.Hidden;
         ReleaseWorkspaceCreateHotKey();

@@ -254,6 +254,26 @@ try {
         LayoutPersistedDeltaYDip =
             [Math]::Abs($appActual.LayoutPersistedDeltaYDip - 16) -le 1
         LayoutSavedRevision = $appActual.LayoutSavedRevision -eq 4
+        KeyboardMoveBegin = $appActual.KeyboardMoveBegin -eq $true
+        KeyboardMoveUpdate = $appActual.KeyboardMoveUpdate -eq $true
+        KeyboardMoveComplete = $appActual.KeyboardMoveComplete -eq $true
+        KeyboardFineMoveDeltaXDip =
+            [Math]::Abs($appActual.KeyboardFineMoveDeltaXDip - 1) -le 1
+        KeyboardMoveSavedRevision =
+            $appActual.KeyboardMoveSavedRevision -eq 5
+        KeyboardResizeBegin = $appActual.KeyboardResizeBegin -eq $true
+        KeyboardResizeUpdate = $appActual.KeyboardResizeUpdate -eq $true
+        KeyboardResizeComplete = $appActual.KeyboardResizeComplete -eq $true
+        KeyboardLargeResizeDeltaWidthDip =
+            [Math]::Abs(
+                $appActual.KeyboardLargeResizeDeltaWidthDip - 8) -le 1
+        KeyboardPersistedDeltaXDip =
+            [Math]::Abs($appActual.KeyboardPersistedDeltaXDip - 1) -le 1
+        KeyboardPersistedDeltaWidthDip =
+            [Math]::Abs(
+                $appActual.KeyboardPersistedDeltaWidthDip - 8) -le 1
+        KeyboardLayoutSavedRevision =
+            $appActual.KeyboardLayoutSavedRevision -eq 6
         SaveCompletion = $appActual.SaveCompletion -eq 'Completed'
         PreviewVisualTreeCount = $appActual.PreviewVisualTreeCount -eq 2
         PreviewActivatedCount = $appActual.PreviewActivatedCount -eq 0
@@ -279,7 +299,7 @@ try {
         $userConfigurationUnchanged
     $finalResult = [ordered]@{
         SchemaVersion = 1
-        Purpose = 'Pf002AndPf003D2FormalAppEvidenceExternalVerification'
+        Purpose = 'Pf002AndPf003D3FormalAppEvidenceExternalVerification'
         Expected = [ordered]@{
             AppOutcome = 'Pass'
             AppEvidenceContractMatched = $true

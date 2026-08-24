@@ -458,6 +458,82 @@ public partial class App : Application
             evidence.RecordStage(stage);
             ProductConfigurationLoadResult diskAfterLayout =
                 await configurationStore.LoadAsync();
+            stage = "DrivingFormalKeyboardFineMove";
+            evidence.RecordStage(stage);
+            long keyboardMoveRevision = workspaceCommits.CurrentEditRevision;
+            bool KeyboardMoveRequest(
+                ProductDesktopContainerLayoutInputPhase phase) =>
+                RequestDesktopContainerLayout(new(
+                    phase,
+                    ProductWorkspaceContainerLayoutGestureKind.Move,
+                    layoutContainer.Id,
+                    layoutContainer.Placement.DisplayKey,
+                    keyboardMoveRevision,
+                    topology.Generation,
+                    phase == ProductDesktopContainerLayoutInputPhase.Begin
+                        ? 0
+                        : 1,
+                    0,
+                    SnapEnabled: false,
+                    ShiftPressed: false,
+                    ProductDesktopContainerLayoutCancellationReason.None));
+            bool keyboardMoveBegin = KeyboardMoveRequest(
+                ProductDesktopContainerLayoutInputPhase.Begin);
+            bool keyboardMoveUpdate = KeyboardMoveRequest(
+                ProductDesktopContainerLayoutInputPhase.Update);
+            bool keyboardMoveComplete = KeyboardMoveRequest(
+                ProductDesktopContainerLayoutInputPhase.Complete);
+            ProductWorkspaceState afterKeyboardMoveState =
+                productWorkspaceSession.State
+                ?? throw new InvalidOperationException(
+                    "PF-003D3 keyboard move evidence lost the writable workspace.");
+            long keyboardMoveSaveRevision =
+                productWorkspaceSaves.Snapshot.CurrentRevision;
+            stage = "WaitingForFormalKeyboardMoveSave";
+            evidence.RecordStage(stage);
+            ProductWorkspaceSaveSnapshot keyboardMoveSave =
+                await WaitForProductWorkspaceSaveAsync(
+                    keyboardMoveSaveRevision);
+            stage = "DrivingFormalKeyboardLargeResize";
+            evidence.RecordStage(stage);
+            long keyboardResizeRevision = workspaceCommits.CurrentEditRevision;
+            bool KeyboardResizeRequest(
+                ProductDesktopContainerLayoutInputPhase phase) =>
+                RequestDesktopContainerLayout(new(
+                    phase,
+                    ProductWorkspaceContainerLayoutGestureKind.ResizeRight,
+                    layoutContainer.Id,
+                    layoutContainer.Placement.DisplayKey,
+                    keyboardResizeRevision,
+                    topology.Generation,
+                    phase == ProductDesktopContainerLayoutInputPhase.Begin
+                        ? 0
+                        : 8,
+                    0,
+                    SnapEnabled: true,
+                    ShiftPressed: true,
+                    ProductDesktopContainerLayoutCancellationReason.None));
+            bool keyboardResizeBegin = KeyboardResizeRequest(
+                ProductDesktopContainerLayoutInputPhase.Begin);
+            bool keyboardResizeUpdate = KeyboardResizeRequest(
+                ProductDesktopContainerLayoutInputPhase.Update);
+            bool keyboardResizeComplete = KeyboardResizeRequest(
+                ProductDesktopContainerLayoutInputPhase.Complete);
+            ProductWorkspaceState afterKeyboardResizeState =
+                productWorkspaceSession.State
+                ?? throw new InvalidOperationException(
+                    "PF-003D3 keyboard resize evidence lost the writable workspace.");
+            long keyboardResizeSaveRevision =
+                productWorkspaceSaves.Snapshot.CurrentRevision;
+            stage = "WaitingForFormalKeyboardResizeSave";
+            evidence.RecordStage(stage);
+            ProductWorkspaceSaveSnapshot keyboardResizeSave =
+                await WaitForProductWorkspaceSaveAsync(
+                    keyboardResizeSaveRevision);
+            stage = "ReloadingFormalKeyboardLayoutStore";
+            evidence.RecordStage(stage);
+            ProductConfigurationLoadResult diskAfterKeyboardLayout =
+                await configurationStore.LoadAsync();
             stage = "CompletingFormalEvidenceSaves";
             evidence.RecordStage(stage);
             ProductWorkspaceSaveCompletionResult saveCompletion =
@@ -473,7 +549,7 @@ public partial class App : Application
                 && diskBefore.Status == ProductConfigurationLoadStatus.Missing
                 && afterCancelState.Containers.Count == 0
                 && diskAfterCancel.Status == ProductConfigurationLoadStatus.Missing
-                && workspaceCommits.CurrentEditRevision == createRevision + 4
+                && workspaceCommits.CurrentEditRevision == createRevision + 6
                 && afterCreateState.Containers.Count == 1
                 && createSaveRevision == 1
                 && createSave.Status == ProductWorkspaceSaveStatus.Saved
@@ -499,7 +575,7 @@ public partial class App : Application
                 && undoSave.SavedRevision == 3
                 && saveCompletion.Status ==
                     ProductWorkspaceSaveCompletionStatus.Completed
-                && saveCompletion.Snapshot.SavedRevision == 4
+                && saveCompletion.Snapshot.SavedRevision == 6
                 && diskAfterUndo.Status ==
                     ProductConfigurationLoadStatus.LoadedPrimary
                 && diskAfterUndo.Document?.Containers.Count == 1
@@ -520,13 +596,37 @@ public partial class App : Application
                     - (layoutOriginalX + 32)) <= 1
                 && Math.Abs(diskAfterLayout.Document.Containers[0].Placement.YDip
                     - (layoutOriginalY + 16)) <= 1
+                && keyboardMoveBegin
+                && keyboardMoveUpdate
+                && keyboardMoveComplete
+                && Math.Abs(afterKeyboardMoveState.Containers[0].Placement.XDip
+                    - (layoutOriginalX + 33)) <= 1
+                && keyboardMoveSave.Status == ProductWorkspaceSaveStatus.Saved
+                && keyboardMoveSave.SavedRevision == 5
+                && keyboardResizeBegin
+                && keyboardResizeUpdate
+                && keyboardResizeComplete
+                && Math.Abs(
+                    afterKeyboardResizeState.Containers[0].Placement.WidthDip
+                    - (layoutContainer.Placement.WidthDip + 8)) <= 1
+                && keyboardResizeSave.Status ==
+                    ProductWorkspaceSaveStatus.Saved
+                && keyboardResizeSave.SavedRevision == 6
+                && diskAfterKeyboardLayout.Status ==
+                    ProductConfigurationLoadStatus.LoadedPrimary
+                && Math.Abs(
+                    diskAfterKeyboardLayout.Document!.Containers[0].Placement.XDip
+                    - (layoutOriginalX + 33)) <= 1
+                && Math.Abs(
+                    diskAfterKeyboardLayout.Document.Containers[0].Placement.WidthDip
+                    - (layoutContainer.Placement.WidthDip + 8)) <= 1
                 && evidence.PreviewVisualTreeCount == 2
                 && evidence.PreviewActivatedCount == 0
                 && evidence.PreviewDrivenCount == 2;
             result = new
             {
                 SchemaVersion = 1,
-                Purpose = "Pf002AndPf003D2FormalAppPersistenceEvidence",
+                Purpose = "Pf002AndPf003D3FormalAppPersistenceEvidence",
                 Expected = new
                 {
                     InitialContainerCount = 0,
@@ -546,6 +646,9 @@ public partial class App : Application
                     LayoutDeltaXDip = 32,
                     LayoutDeltaYDip = 16,
                     LayoutSavedRevision = 4,
+                    KeyboardFineMoveDeltaXDip = 1,
+                    KeyboardLargeResizeDeltaWidthDip = 8,
+                    KeyboardLayoutSavedRevision = 6,
                     PreviewVisualTreeCount = 2,
                     PreviewActivatedCount = 0,
                     PreviewDrivenCount = 2,
@@ -596,6 +699,27 @@ public partial class App : Application
                         diskAfterLayout.Document?.Containers[0].Placement.YDip
                         - layoutOriginalY,
                     LayoutSavedRevision = layoutSave.SavedRevision,
+                    KeyboardMoveBegin = keyboardMoveBegin,
+                    KeyboardMoveUpdate = keyboardMoveUpdate,
+                    KeyboardMoveComplete = keyboardMoveComplete,
+                    KeyboardFineMoveDeltaXDip =
+                        afterKeyboardMoveState.Containers[0].Placement.XDip
+                        - afterLayoutState.Containers[0].Placement.XDip,
+                    KeyboardMoveSavedRevision = keyboardMoveSave.SavedRevision,
+                    KeyboardResizeBegin = keyboardResizeBegin,
+                    KeyboardResizeUpdate = keyboardResizeUpdate,
+                    KeyboardResizeComplete = keyboardResizeComplete,
+                    KeyboardLargeResizeDeltaWidthDip =
+                        afterKeyboardResizeState.Containers[0].Placement.WidthDip
+                        - afterKeyboardMoveState.Containers[0].Placement.WidthDip,
+                    KeyboardPersistedDeltaXDip =
+                        diskAfterKeyboardLayout.Document?.Containers[0].Placement.XDip
+                        - diskAfterLayout.Document?.Containers[0].Placement.XDip,
+                    KeyboardPersistedDeltaWidthDip =
+                        diskAfterKeyboardLayout.Document?.Containers[0].Placement.WidthDip
+                        - diskAfterLayout.Document?.Containers[0].Placement.WidthDip,
+                    KeyboardLayoutSavedRevision =
+                        keyboardResizeSave.SavedRevision,
                     SaveCompletion = saveCompletion.Status.ToString(),
                     PreviewVisualTreeCount = evidence.PreviewVisualTreeCount,
                     PreviewActivatedCount = evidence.PreviewActivatedCount,
@@ -617,7 +741,7 @@ public partial class App : Application
             result = new
             {
                 SchemaVersion = 1,
-                Purpose = "Pf002AndPf003D2FormalAppPersistenceEvidence",
+                Purpose = "Pf002AndPf003D3FormalAppPersistenceEvidence",
                 Expected = "Pass",
                 Actual = new
                 {

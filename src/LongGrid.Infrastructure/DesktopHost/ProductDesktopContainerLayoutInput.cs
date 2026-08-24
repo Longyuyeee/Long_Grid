@@ -43,6 +43,104 @@ internal sealed record ProductDesktopContainerLayoutSurfaceInput(
     bool ShiftPressed,
     ProductDesktopContainerLayoutCancellationReason CancellationReason);
 
+internal sealed record ProductDesktopContainerLayoutKeyboardCommand(
+    string ContainerId,
+    ProductWorkspaceContainerLayoutGestureKind Kind,
+    double DeltaXDip,
+    double DeltaYDip,
+    bool ShiftPressed);
+
+internal sealed record ProductDesktopContainerLayoutKeyboardDecision(
+    bool Handled,
+    bool? TitleFocused,
+    ProductWorkspaceContainerLayoutGestureKind? Kind,
+    double DeltaXDip,
+    double DeltaYDip,
+    bool ShiftPressed)
+{
+    internal bool HasLayoutCommand =>
+        Handled && TitleFocused is null && Kind is not null;
+}
+
+internal static class ProductDesktopContainerLayoutKeyboardAdapter
+{
+    internal const double FineStepDip = 1;
+    internal const double LargeStepDip = 8;
+
+    internal static ProductDesktopContainerLayoutKeyboardDecision Map(
+        bool titleFocused,
+        int virtualKey,
+        bool alt,
+        bool control,
+        bool shift)
+    {
+        if (virtualKey == 0x09 && !alt && !control)
+        {
+            return new(
+                Handled: true,
+                TitleFocused: !titleFocused,
+                Kind: null,
+                DeltaXDip: 0,
+                DeltaYDip: 0,
+                ShiftPressed: shift);
+        }
+
+        if (!titleFocused || virtualKey is < 0x25 or > 0x28)
+        {
+            return Ignored;
+        }
+
+        double step = shift ? LargeStepDip : FineStepDip;
+        if (!alt)
+        {
+            (double x, double y) = virtualKey switch
+            {
+                0x25 => (-step, 0d),
+                0x26 => (0d, -step),
+                0x27 => (step, 0d),
+                0x28 => (0d, step),
+                _ => (0d, 0d),
+            };
+            return new(
+                Handled: true,
+                TitleFocused: null,
+                ProductWorkspaceContainerLayoutGestureKind.Move,
+                x,
+                y,
+                shift);
+        }
+
+        ProductWorkspaceContainerLayoutGestureKind kind = virtualKey is
+            0x25 or 0x27
+                ? ProductWorkspaceContainerLayoutGestureKind.ResizeRight
+                : ProductWorkspaceContainerLayoutGestureKind.ResizeBottom;
+        (double resizeX, double resizeY) = virtualKey switch
+        {
+            0x25 => (-step, 0d),
+            0x26 => (0d, -step),
+            0x27 => (step, 0d),
+            0x28 => (0d, step),
+            _ => (0d, 0d),
+        };
+        return new(
+            Handled: true,
+            TitleFocused: null,
+            kind,
+            resizeX,
+            resizeY,
+            shift);
+    }
+
+    private static ProductDesktopContainerLayoutKeyboardDecision Ignored =>
+        new(
+            Handled: false,
+            TitleFocused: null,
+            Kind: null,
+            DeltaXDip: 0,
+            DeltaYDip: 0,
+            ShiftPressed: false);
+}
+
 public enum ProductDesktopContainerLayoutHitStatus
 {
     Hit,

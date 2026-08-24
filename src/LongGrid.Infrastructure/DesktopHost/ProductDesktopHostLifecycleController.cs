@@ -218,6 +218,8 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
         string containerId,
         ProductContainerPlacementState? placement) => false;
 
+    bool ApplyContainerLayoutKeyboardFocus(string? containerId) => false;
+
     void RefreshSelection()
     {
     }
@@ -1173,6 +1175,16 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                                 display,
                                 request),
                             () => CancelInteractionFromActivationSource(source));
+                        source.BindContainerLayout(
+                            command => ApplyContainerLayoutFromActivationSource(
+                                source,
+                                display,
+                                command),
+                            containerId =>
+                                ApplyContainerLayoutKeyboardFocusFromActivationSource(
+                                    source,
+                                    display,
+                                    containerId));
                         if (!source.IsVisible || !source.ContractAttested)
                         {
                             ReleaseSurfaceUnsafe();
@@ -1271,6 +1283,141 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             }
         }
         return entered;
+    }
+
+    private bool ApplyContainerLayoutFromActivationSource(
+        IProductDesktopInteractionActivationSource source,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopContainerLayoutKeyboardCommand command)
+    {
+        lock (gate)
+        {
+            ProductDesktopInteractionSurfaceTransactionSnapshot? transaction =
+                intentConsumption?.Snapshot.Transaction;
+            ProductDesktopHostReadOnlyProjection[] targets = display.Containers
+                .Where(container => string.Equals(
+                    container.ContainerId,
+                    command.ContainerId,
+                    StringComparison.Ordinal))
+                .Take(2)
+                .ToArray();
+            if (disposed
+                || currentBatch is null
+                || !activationSources.Contains(source)
+                || !string.Equals(source.DisplayId, display.DisplayId,
+                    StringComparison.Ordinal)
+                || transaction?.IsExplicit != true
+                || !string.Equals(
+                    transaction.Selection?.ContainerId,
+                    command.ContainerId,
+                    StringComparison.Ordinal)
+                || targets.Length != 1
+                || targets[0].IsLocked
+                || !double.IsFinite(command.DeltaXDip)
+                || !double.IsFinite(command.DeltaYDip)
+                || (command.DeltaXDip == 0 && command.DeltaYDip == 0))
+            {
+                return false;
+            }
+
+            var begin = new ProductDesktopContainerLayoutRequest(
+                ProductDesktopContainerLayoutInputPhase.Begin,
+                command.Kind,
+                command.ContainerId,
+                display.DisplayId,
+                currentBatch.WorkspaceRevision,
+                currentBatch.TopologyGeneration,
+                0,
+                0,
+                SnapEnabled: command.ShiftPressed,
+                command.ShiftPressed,
+                ProductDesktopContainerLayoutCancellationReason.None);
+            if (!TryRequestContainerLayoutUnsafe(begin))
+            {
+                return false;
+            }
+
+            ProductDesktopContainerLayoutRequest update = begin with
+            {
+                Phase = ProductDesktopContainerLayoutInputPhase.Update,
+                CumulativeDeltaXDip = command.DeltaXDip,
+                CumulativeDeltaYDip = command.DeltaYDip,
+            };
+            if (!TryRequestContainerLayoutUnsafe(update))
+            {
+                _ = TryRequestContainerLayoutUnsafe(begin with
+                {
+                    Phase = ProductDesktopContainerLayoutInputPhase.Cancel,
+                    CancellationReason =
+                        ProductDesktopContainerLayoutCancellationReason
+                            .HostInvalidated,
+                });
+                return false;
+            }
+
+            if (TryRequestContainerLayoutUnsafe(update with
+            {
+                Phase = ProductDesktopContainerLayoutInputPhase.Complete,
+            }))
+            {
+                return true;
+            }
+
+            _ = TryRequestContainerLayoutUnsafe(begin with
+            {
+                Phase = ProductDesktopContainerLayoutInputPhase.Cancel,
+                CancellationReason =
+                    ProductDesktopContainerLayoutCancellationReason
+                        .HostInvalidated,
+            });
+            return false;
+        }
+    }
+
+    private bool TryRequestContainerLayoutUnsafe(
+        ProductDesktopContainerLayoutRequest request)
+    {
+        try
+        {
+            return requestContainerLayout(request);
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException
+                or InvalidOperationException
+                or OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private bool ApplyContainerLayoutKeyboardFocusFromActivationSource(
+        IProductDesktopInteractionActivationSource source,
+        ProductDesktopHostDisplayProjection display,
+        string? containerId)
+    {
+        lock (gate)
+        {
+            if (disposed
+                || !activationSources.Contains(source)
+                || !string.Equals(source.DisplayId, display.DisplayId,
+                    StringComparison.Ordinal)
+                || surfaces.Count != currentBatch?.Displays.Count)
+            {
+                return false;
+            }
+
+            int displayIndex = currentBatch.Displays
+                .Select((candidate, index) => new { candidate.DisplayId, index })
+                .Where(candidate => string.Equals(
+                    candidate.DisplayId,
+                    display.DisplayId,
+                    StringComparison.Ordinal))
+                .Select(candidate => candidate.index)
+                .SingleOrDefault(-1);
+            return displayIndex >= 0
+                && surfaces[displayIndex]
+                    .ApplyContainerLayoutKeyboardFocus(containerId);
+        }
     }
 
     private ProductDesktopInteractionSurfaceTransactionSnapshot?

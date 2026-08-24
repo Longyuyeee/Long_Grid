@@ -85,6 +85,12 @@ internal interface IProductDesktopInteractionActivationSource : IDisposable
         Func<bool> cancel)
     {
     }
+
+    void BindContainerLayout(
+        Func<ProductDesktopContainerLayoutKeyboardCommand, bool> apply,
+        Func<string?, bool> applyTitleFocus)
+    {
+    }
 }
 
 internal interface IProductDesktopInteractionActivationSourceFactory
@@ -132,6 +138,11 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
     private Func<ProductDesktopSelectionRequest, bool> applySelection =
         static _ => false;
     private Func<bool> cancelSelection = static () => false;
+    private Func<ProductDesktopContainerLayoutKeyboardCommand, bool>
+        applyContainerLayout = static _ => false;
+    private Func<string?, bool> applyContainerLayoutTitleFocus =
+        static _ => false;
+    private bool containerLayoutTitleFocused;
 #if WINDOWS
     private ActivationUiaProvider? uiaProvider;
 #endif
@@ -294,6 +305,16 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         cancelSelection = cancel;
     }
 
+    public void BindContainerLayout(
+        Func<ProductDesktopContainerLayoutKeyboardCommand, bool> apply,
+        Func<string?, bool> applyTitleFocus)
+    {
+        ArgumentNullException.ThrowIfNull(apply);
+        ArgumentNullException.ThrowIfNull(applyTitleFocus);
+        applyContainerLayout = apply;
+        applyContainerLayoutTitleFocus = applyTitleFocus;
+    }
+
     public void Dispose()
     {
         if (disposed)
@@ -434,6 +455,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                 }
                 return nint.Zero;
             case NativeMethods.WmKeyDown:
+            case NativeMethods.WmSysKeyDown:
                 if (keyboardProxy)
                 {
                     HandleSelectionKey(wordParameter);
@@ -561,9 +583,49 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             (NativeMethods.GetKeyState(NativeMethods.VkControl) & 0x8000) != 0;
         bool shift =
             (NativeMethods.GetKeyState(NativeMethods.VkShift) & 0x8000) != 0;
+        bool alt =
+            (NativeMethods.GetKeyState(NativeMethods.VkMenu) & 0x8000) != 0;
+        ProductDesktopInteractionSurfaceTransactionSnapshot? transaction =
+            selectionSnapshot();
+        ProductDesktopContainerLayoutKeyboardDecision layout =
+            ProductDesktopContainerLayoutKeyboardAdapter.Map(
+                containerLayoutTitleFocused,
+                checked((int)wordParameter.ToInt64()),
+                alt,
+                control,
+                shift);
+        if (layout.Handled)
+        {
+            string? containerId = transaction?.Selection?.ContainerId;
+            if (layout.TitleFocused is { } titleFocused)
+            {
+                if (!titleFocused
+                    || (!string.IsNullOrWhiteSpace(containerId)
+                        && applyContainerLayoutTitleFocus(containerId)))
+                {
+                    if (!titleFocused)
+                    {
+                        _ = applyContainerLayoutTitleFocus(null);
+                    }
+                    containerLayoutTitleFocused = titleFocused;
+                }
+                return;
+            }
+            if (layout.HasLayoutCommand
+                && !string.IsNullOrWhiteSpace(containerId))
+            {
+                _ = applyContainerLayout(new(
+                    containerId,
+                    layout.Kind!.Value,
+                    layout.DeltaXDip,
+                    layout.DeltaYDip,
+                    layout.ShiftPressed));
+            }
+            return;
+        }
         ProductDesktopKeyboardSelectionDecision decision =
             ProductDesktopKeyboardSelectionAdapter.Map(
-                selectionSnapshot()?.Selection,
+                transaction?.Selection,
                 checked((int)wordParameter.ToInt64()),
                 control,
                 shift);
@@ -607,6 +669,11 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             Handle,
             NativeMethods.GwlExStyle,
             new nint(style | NativeMethods.WsExNoActivate));
+        if (containerLayoutTitleFocused)
+        {
+            _ = applyContainerLayoutTitleFocus(null);
+            containerLayoutTitleFocused = false;
+        }
         keyboardProxy = false;
     }
 
@@ -832,6 +899,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         internal const uint WmGetObject = 0x003D;
         internal const uint WmNcHitTest = 0x0084;
         internal const uint WmKeyDown = 0x0100;
+        internal const uint WmSysKeyDown = 0x0104;
         internal const uint WmLButtonDown = 0x0201;
         internal const uint WmMouseActivate = 0x0021;
         internal const int HtClient = 1;
@@ -857,6 +925,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         internal const int VkEnd = 0x23;
         internal const int VkShift = 0x10;
         internal const int VkControl = 0x11;
+        internal const int VkMenu = 0x12;
         internal const uint ImoInjected = 2;
         internal const int Transparent = 1;
         internal const uint DtCenter = 0x00000001;
