@@ -39,7 +39,7 @@
 | 单色浅背景 | `longfangge-monochrome-dark.svg` | Pass；只保留核心 L |
 | 单色深背景 | `longfangge-monochrome-light.svg` | Pass；只保留核心 L |
 | 静态黑白高对比 | `longfangge-high-contrast.svg` | Pass（回退） |
-| Windows 运行时强制颜色 | UI Shell 尚未建立 | Pending |
+| Windows 运行时强制颜色 | 正式 UI Shell 已建立，真人高对比矩阵未关闭 | Pending |
 | 彩色任务栏/壁纸背景 | 需要真实 Windows 外壳矩阵 | Pending |
 
 静态应用图标与 UI 控件的对比度标准不能完全等同。这里的硬门槛是：在不依赖次级色时，白色或单色 L 仍形成稳定剪影；焦点、选择和交互状态仍必须由正式 UI 的系统颜色与非颜色线索承担。
@@ -63,8 +63,8 @@
 | 16/20/24/32/48/64/128/256 px | 原生 SVG 与对应 PNG | Pass（资产） |
 | 16 px 仍可识别 L | 整数像素五单元 L，不依赖次级色 | Pass（渲染审计） |
 | 平面、现代、简约 | 无透视、阴影、纹理、滤镜和渐变 | Pass |
-| Windows ICO/MSIX 全套资产 | 等待正式 App/打包工程 | Pending |
-| Windows 外壳实机检查 | 等待 UI Shell 与测试矩阵 | Pending |
+| Windows ICO/MSIX 全套资产 | MSIX 暂存资产已可生成；最终 ICO/Store 集合待补 | Partial |
+| Windows 外壳实机检查 | 正式 UI Shell 已存在，仍等待安装、开始菜单与高 DPI 矩阵 | Pending |
 | 最终负责人批准 | 当前只批准进入 RC1 | Pending |
 | 近似商标检索 | 尚未执行 | Pending |
 
@@ -72,10 +72,10 @@
 
 RC1 可以进入正式 UI Shell 的开发资源目录，但在以下事项关闭前不得升级为 Final：
 
-1. 建立 `LongGrid.App` 后，在 Windows 10/11、100%–300% DPI、浅色/深色/高对比环境检查任务栏、开始菜单、标题栏、快捷方式和应用列表；
+1. 使用现有 `LongGrid.App` 和未来签名安装包，在 Windows 10/11、100%–300% DPI、浅色/深色/高对比环境检查任务栏、开始菜单、标题栏、快捷方式和应用列表；
 2. 建立受测试的资产生成脚本，生成 ICO、MSIX/Store/Square/Splash 资产并验证安全区；
 3. 对目标发行地区执行图形近似检索和商标数据库检索，记录查询、日期和判断；
 4. 将品牌色转为正式 Design Token，并验证 UI 选择/焦点不依赖品牌色；
 5. 产品负责人对外壳实机截图、检索记录和安装包资产最终签字。
 
-下一开发步骤仍遵循产品主线：先用 RC1 建立正式 UI Shell 与 Design Token，不让商标法务或商店素材工作阻塞只读 MVP。
+下一开发步骤仍遵循产品主线：RC1 已进入正式 UI Shell 与 Design Token；后续补最终 ICO/Store 资产、签名安装和 Windows 外壳实机矩阵，不让商标法务工作阻塞核心桌面整理闭环。

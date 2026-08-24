@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-006 项目选择、键盘导航与安全打开命令（PF-001～PF-005 产品证据并行 Pending）**
-- 最新工程审计：[Stage 196](196-pf006b2b2-authoritative-retry-safe-explorer-locate-audit.md)；PF-006B2B2 已完成权威重试、安全 Explorer 定位及真实文件系统/HWND/可见 Shell 差异证据，PF-006 仍为 `InProgress`；30 个 PF 项仍为 `0 Complete`
+- 最新全量对齐审计：[Stage 197](197-current-development-original-requirement-alignment-audit.md)；产品方向未发生根本偏移，但 30 个 PF 项仍为 `0 Complete`，真实启动功能合同通过而 1 秒产品目标失败，当前 37 提交功能分支必须先关闭集成风险
 
 ## 1. 本文解决什么问题
 
@@ -41,17 +41,18 @@
 
 - 配置模型已有方格名称、锁定、颜色、透明度、折叠、显示器、DIP 位置/尺寸和 File/Folder/Shortcut/URL 安全引用；
 - 控制中心已有创建、重命名、锁定、折叠、外观预设、位置/尺寸预设、删除、引用加入/移除/改归属、搜索、健康筛选、排序和最近动作撤销；
-- 正式只读桌面目录、配置保存/恢复、布局恢复预览、DesktopHost 投影、输入准入、选择和 UIA 底座已存在；
-- 独立受限缩略图 worker 已存在，但正式项目 UI 尚未消费；
-- 多显示器/DPI 恢复、500 项规模、失败补偿等工程底座可以复用于用户功能。
+- 正式桌面目录、配置保存/恢复、布局恢复预览、DesktopHost 投影、输入准入、选择、UIA 和有限 Shell 操作底座已存在；
+- 正式 DesktopHost 已消费系统类型图标和受限缩略图 worker，并支持有限状态、视口、选择、File/Folder/Shortcut/URL 安全打开、失败重试和安全 Explorer 定位；
+- 多显示器/混合 DPI 恢复、500 项规模、失败补偿和桌面优先单实例启动等工程底座已建立；
+- WinUI 3 控制中心、Mica/Desktop Acrylic、自定义标题栏、品牌 RC1、一键启动和内部 unsigned RC 打包链均已存在。
 
 ### 3.2 用户可感知的主要差距
 
-- 主要操作集中在控制中心表单，用户不能像 Fences/iTop 一样直接在桌面完成创建、拖动、缩放、放入项目和就近编辑；
-- 正式桌面方格仍缺完整项目图标、缩略图、打开、多选和拖放闭环；
+- 创建、拖动、缩放、标题栏操作、图标/缩略图、选择和安全打开已有正式工程链，但物理输入/Narrator/高对比证据债务仍使 PF-001～PF-005 无法产品完成；
+- 用户仍不能像 Fences/iTop 一样完成桌面/Explorer 直接拖入、框选与完整低摩擦整理旅程；
 - 没有自动整理规则、Folder Portal、Tab、Roll-up、Peek、Quick-hide、托盘与全局快捷键；
 - 没有可命名布局快照、场景/页面、应用工作空间捕获与启动；
-- 外观只有有限预设，尚无竞品级标题、间距、图标尺寸、视图模式、主题融合和细节反馈；
+- 外观已有正式 Design Token、Mica/Acrylic 和品牌 RC1，但桌面 Surface、主题持久化、竞品级标题/间距/图标尺寸/视图模式、动效和无障碍矩阵尚未收口；
 - 安装更新、Widgets、壁纸/任务栏和 Private Box 等产品宽度尚未实现。
 
 ## 4. 功能优先级总表
@@ -887,6 +888,6 @@
 
 ## 15. 当前立即执行项
 
-当前工程切片为 **PF-006C1：PageUp/PageDown 跨视口键盘导航**。PF-006A 已完成选择收敛，PF-006B1/B2A/B2B1/B2B2 已完成四类引用安全打开、有限反馈、单击策略、权威重试和安全定位；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
+当前治理门为 **Gate A：集成、启动性能与产品证据纠偏**，完成后工程切片仍为 **PF-006C1：PageUp/PageDown 跨视口键盘导航**。PF-006A 已完成选择收敛，PF-006B1/B2A/B2B1/B2B2 已完成四类引用安全打开、有限反馈、单击策略、权威重试和安全定位；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
 
-Stage 196 已证明失败动作可在不下放路径的条件下重新读取当前权威状态，并由真实 Shell 接受安全 Explorer 定位。PF-006C1 必须在同一显式租约和真实 HWND 中把 PageUp/PageDown 的 viewport、选择、焦点与 UIA 快照原子收敛，页边界不越界，陈旧/auto-repeat 来源失败关闭。框选留给 C2；物理/高对比/Narrator、PF-001～PF-005 与 G0 外部证据并行保留，任何版本在签名和安装门禁完成前不得分发。
+Stage 197 复核确认产品安全方向未偏移，但真实 ready 5107/1589/1140 ms 均高于 PF-001 的 1 秒目标，且当前分支领先 `origin/main` 37 个提交。必须先经 PR/完整 CI 集成当前基线，并把启动性能升级为 Expected/Actual/Difference 产品门禁。之后 PF-006C1 在同一显式租约和真实 HWND 中把 PageUp/PageDown 的 viewport、选择、焦点与 UIA 快照原子收敛，页边界不越界，陈旧/auto-repeat 来源失败关闭；框选留给 C2。PF-007 后优先转入首次引导和自动整理闭环，物理/高对比/Narrator 证据集中收口，任何版本在签名和安装门禁完成前不得分发。
