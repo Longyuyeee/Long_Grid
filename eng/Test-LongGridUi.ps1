@@ -157,6 +157,8 @@ $desktopContainerMenuCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopContainerMenu.cs'
 $desktopContainerMenuNavigationCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopContainerMenuNavigationController.cs'
+$desktopContainerDeleteControllerCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopContainerDeleteController.cs'
 $desktopInteractionActivationSourceCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionActivationSource.cs'
 $desktopWorkspaceCreateAdmissionCodePath = Join-Path $projectRoot `
@@ -505,6 +507,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopContainerMenuNavigationCode = Get-Content `
         -LiteralPath $desktopContainerMenuNavigationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopContainerDeleteControllerCode = Get-Content `
+        -LiteralPath $desktopContainerDeleteControllerCodePath `
         -Raw `
         -Encoding UTF8
     $desktopInteractionActivationSourceCode = Get-Content `
@@ -2034,13 +2040,43 @@ function Test-SourceContract {
         $desktopInteractionActivationSourceCode -match 'CreatePopupMenu' -and
         $desktopInteractionActivationSourceCode -match 'TrackPopupMenuEx' -and
         $desktopInteractionActivationSourceCode -match `
-            '删除方格配置…（下一阶段确认）' -and
+            '创建规则（后续功能）' -and
         $desktopHostLifecycleControllerCode -match 'BindContainerMenu' -and
         $appCode -match 'RequestDesktopContainerMenuNavigation' -and
         $codeBehind -match 'OpenProductWorkspaceContainerMenuTarget' -and
         $codeBehind -match 'Changed=False:DesktopFilesChanged=False'
     ) `
         'PF-004C must expose a finite native menu, pre-disable unsafe/future actions, stamp source and generation facts, and navigate the unique control center without writing configuration.'
+    Assert-Condition (
+        $desktopContainerMenuCode -match `
+            'DeleteContainerConfiguration' -and
+        $desktopContainerMenuCode -match `
+            'CanDeleteContainerConfiguration' -and
+        $desktopInteractionActivationSourceCode -match `
+            'MenuDeleteCommand' -and
+        $desktopInteractionActivationSourceCode -match `
+            '删除方格配置…' -and
+        $desktopContainerDeleteControllerCode -match `
+            'CommitContainerRemovalUndo' -and
+        $desktopContainerDeleteControllerCode -match `
+            'ProductWorkspaceSaveStatus\.Failed' -and
+        $desktopContainerDeleteControllerCode -match 'Compensated' -and
+        $codeBehind -match `
+            'DesktopContainerDeleteConfirmationDialog' -and
+        $codeBehind -match `
+            'DefaultButton\s*=\s*ContentDialogButton\.Close' -and
+        $codeBehind -match `
+            '真实桌面文件不会被删除、移动或重命名' -and
+        $appCode -match `
+            'HandleDesktopContainerMenuRequestAsync' -and
+        $appCode -match `
+            'ProductDesktopContainerMenuNavigationController\.Handle' -and
+        $appCode -match `
+            'desktopContainerDeletes\.CommitConfirmed' -and
+        $latestUndoPresentationCode -match `
+            'ProductWorkspaceLatestUndoKind\.ContainerRemoval'
+    ) `
+        'PF-004D must bind delete confirmation to current facts, default to cancel, preserve desktop files, compensate failed persistence, and expose unified undo.'
     Assert-Condition (
         ([regex]::Matches(
             $appCode,

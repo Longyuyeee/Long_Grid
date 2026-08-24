@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
-- 当前开发项：**PF-004D 桌面删除确认与统一撤销（PF-001～PF-003 产品证据并行 Pending）**
-- 最新工程审计：[Stage 185](185-pf004c-desktop-container-more-menu-audit.md)；PF-004C 已提供正式四按钮标题命令面和 Win32 原生更多菜单，把重命名、外观、列表排序安全导航到唯一控制中心，并预先禁用后续/危险动作；真实 HWND 菜单、Store/App `Difference=None`。PF-004 顶层仍为 `InProgress`；PF-001～PF-003 均为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`
+- 当前开发项：**PF-004E 标题策略与就近编辑统一撤销收口（PF-001～PF-003 产品证据并行 Pending）**
+- 最新工程审计：[Stage 186](186-pf004d-desktop-delete-confirmation-undo-audit.md)；PF-004D 已启用原生删除入口，正式确认默认取消并绑定 container/display/revision/topology，确认后二次复核，真实 Store 删除/统一撤销和写租约失败补偿均 `Difference=None`，真实文件内容不变。PF-004 顶层仍为 `InProgress`，剩余标题策略及重命名/折叠/锁定/外观统一撤销；PF-001～PF-003 均为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -61,7 +61,7 @@
 | 1 | PF-001 | 桌面方格总开关与桌面优先启动 | `EngineeringComplete / ProductEvidencePending`：正式桌面优先与单实例唤起已通过，物理无障碍证据待补 | iTop Enable Boxes |
 | 2 | PF-002 | 桌面直接创建方格 | `EngineeringComplete / ProductEvidencePending`：正式 App 创建、保存、补偿与最近撤销工程证据通过；可见物理输入和 UIA/Narrator 待补 | iTop/Fences 多入口创建 |
 | 3 | PF-003 | 桌面拖动、缩放、吸附 | `EngineeringComplete / ProductEvidencePending`：生产工程链、正式 Store 与双屏混合 DPI 已完成；物理鼠标/触控/截图与 UIA Bounds 待安全环境补证 | Fences/Nimi 直接布局 |
-| 4 | PF-004 | 方格标题栏与就近操作 | `InProgress`：A 标题、B 直接命令、C 更多菜单已完成；D 删除确认/统一撤销待开发 | Fences 标题栏操作 |
+| 4 | PF-004 | 方格标题栏与就近操作 | `InProgress`：A 标题、B 直接命令、C 更多菜单、D 删除确认/补偿/统一撤销已完成；E 标题策略与其余就近编辑撤销待收口 | Fences 标题栏操作 |
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | worker 有、UI 无 | Fences/Nimi 项目呈现 |
 | 6 | PF-006 | 项目选择、键盘导航与打开 | 选择底座 | Fences/Portal 日常访问 |
 | 7 | PF-007 | Explorer 拖入与方格间拖放 | 配置表单批量加入 | iTop/Fences 直接拖放 |
@@ -200,7 +200,7 @@
 - 标题隐藏不使方格失去键盘管理能力；
 - 多方格同时操作不会把命令应用到错误目标。
 
-**2026-08-24 实施状态**：`InProgress`。Stage 183/PF-004A 已完成标题/UIA，Stage 184/PF-004B 完成直接折叠/锁定；Stage 185/PF-004C 又加入第四个 32 DIP/UIA“更多”目标和真实 Win32 菜单，以动态锁定/只读/保存失败状态和 container/display/revision/topology/来源事实把重命名、外观、方格列表排序导航到唯一控制中心。规则、Portal/Tab 和删除在菜单中明确显示但禁用，打开/取消/导航零配置写入。真实 HWND 菜单、Store 和 App Expected/Actual 均为 `Difference=None`。删除确认、统一撤销及真人/无障碍菜单选择证据仍未完成，不能标记 `EngineeringComplete` 或 `Complete`。下一切片为 PF-004D。
+**2026-08-24 实施状态**：`InProgress`。Stage 183/PF-004A 已完成标题/UIA，Stage 184/PF-004B 完成直接折叠/锁定，Stage 185/PF-004C 完成真实 Win32 更多菜单与安全导航；Stage 186/PF-004D 已启用原生删除入口，正式 ContentDialog 默认取消，确认后二次复核同一 container/display/revision/topology，复用正式 Remove 和统一 `ContainerRemoval` 撤销，并在异步 Store 写租约失败时自动补偿。真实 Store 取消零字节/时间变化、删除/撤销、失败补偿、真实文件内容和正式 App 均为 `Difference=None`。PF-004 仍缺标题双击/显示策略，以及重命名、折叠、锁定和外观的一致撤销收口；物理菜单选择/Narrator 证据也 Pending，因此不能标记 `EngineeringComplete` 或 `Complete`。下一切片为 PF-004E。
 
 ### PF-005：正式项目图标、缩略图与有限状态
 
@@ -883,6 +883,6 @@
 
 ## 15. 当前立即执行项
 
-当前工程切片为 **PF-004D：桌面删除确认与统一撤销**。PF-004A 标题信息/UIA、PF-004B 直接折叠/锁定与 PF-004C 原生更多菜单已完成；PF-001、PF-002A～H 和 PF-003A～D5 的正式工程链均已完成，三者状态为 `EngineeringComplete / ProductEvidencePending`；当前 WinUI 上游缺陷仍阻断部分可见物理输入和 UIA/Narrator，因此都不能标记 `Complete`。
+当前工程切片为 **PF-004E：标题策略与就近编辑统一撤销收口**。PF-004A 标题信息/UIA、PF-004B 直接折叠/锁定、PF-004C 原生更多菜单和 PF-004D 删除确认/失败补偿/统一撤销均已完成；PF-001、PF-002A～H 和 PF-003A～D5 的正式工程链均已完成，三者状态为 `EngineeringComplete / ProductEvidencePending`；当前 WinUI 上游缺陷仍阻断部分可见物理输入和 UIA/Narrator，因此都不能标记 `Complete`。
 
-Stage 185 已关闭 PF-004C 缺少桌面更多管理入口的差距。下一切片启用删除入口但只能创建绑定 container/revision/topology 的确认会话；默认取消，明确只删除 Long方格配置、不删除真实文件，确认后二次复核并复用现有 Remove、保存失败补偿和最近撤销。锁定、只读、保存失败、Esc、失焦和陈旧状态均零提交。PF-001～PF-003 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。
+Stage 186 已关闭桌面删除入口缺少默认取消、二次复核、失败补偿和统一撤销的差距。下一切片不得继续扩展菜单宽度，而应完成标题双击行为/标题显示策略的有限设置，并让重命名、折叠、锁定和外观进入同一最近撤销选择器；每种编辑都必须绑定修订、失败补偿且不修改真实文件。完成后总审 PF-004 是否可转为 `EngineeringComplete / ProductEvidencePending`，再进入 PF-005。PF-001～PF-003 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。

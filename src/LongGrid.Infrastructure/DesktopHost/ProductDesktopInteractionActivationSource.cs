@@ -801,6 +801,9 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                     ProductDesktopContainerMenuAction.OpenAppearance,
                 NativeMethods.MenuSortCommand =>
                     ProductDesktopContainerMenuAction.OpenSort,
+                NativeMethods.MenuDeleteCommand =>
+                    ProductDesktopContainerMenuAction
+                        .DeleteContainerConfiguration,
                 _ => null,
             };
             if (action is { } selected)
@@ -859,7 +862,10 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                 NativeMethods.MfSeparator,
                 0,
                 string.Empty)
-            && Append(0, "删除方格配置…（下一阶段确认）", enabled: false);
+            && Append(
+                NativeMethods.MenuDeleteCommand,
+                "删除方格配置…",
+                availability.CanDeleteContainerConfiguration);
         if (appended)
         {
             return menu;
@@ -1377,6 +1383,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         internal const uint MenuRenameCommand = 41001;
         internal const uint MenuAppearanceCommand = 41002;
         internal const uint MenuSortCommand = 41003;
+        internal const uint MenuDeleteCommand = 41004;
         internal const nint MenuEvidenceTimerId = 49004;
         internal static readonly nint ArrowCursor = new(32512);
 

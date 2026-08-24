@@ -34,6 +34,7 @@ public sealed partial class MainWindow : Window
     private bool _desktopHostConnected;
     private bool _suppressBoxesEnabledChange;
     private ContentDialog? _desktopWorkspaceCreatePreviewDialog;
+    private ContentDialog? _desktopContainerDeleteConfirmationDialog;
     private TaskCompletionSource<string?>? _safePreviewCompletion;
     private Func<string, ProductDesktopWorkspaceCreatePreviewSnapshot>?
         _evaluateSafePreviewName;
@@ -1802,6 +1803,132 @@ public sealed partial class MainWindow : Window
                 $"Ordinal={containerOrdinal}:Focused={focused}:" +
                 "Changed=False:DesktopFilesChanged=False");
         return focused;
+    }
+
+    internal async Task<bool> ConfirmDesktopContainerDeletionAsync(
+        int containerOrdinal,
+        string containerName,
+        int itemCount,
+        long editRevision,
+        long topologyGeneration)
+    {
+        if (!IsProductXamlReady
+            || containerOrdinal <= 0
+            || string.IsNullOrWhiteSpace(containerName)
+            || itemCount < 0
+            || _desktopContainerDeleteConfirmationDialog is not null)
+        {
+            return false;
+        }
+
+        int candidateIndex = _containerEditor.Candidates
+            .Select((candidate, index) => (candidate, index))
+            .Where(pair => pair.candidate.Ordinal == containerOrdinal)
+            .Select(pair => pair.index)
+            .DefaultIfEmpty(-1)
+            .First();
+        if (candidateIndex < 0)
+        {
+            return false;
+        }
+
+        NavigationViewItem? overview = ShellNavigation.MenuItems
+            .OfType<NavigationViewItem>()
+            .FirstOrDefault(item => string.Equals(
+                item.Tag as string,
+                "overview",
+                StringComparison.Ordinal));
+        if (overview is null)
+        {
+            return false;
+        }
+
+        ShellNavigation.SelectedItem = overview;
+        ProductWorkspaceContainerEditSelector.SelectedIndex = candidateIndex;
+        var dialog = new ContentDialog
+        {
+            Title = "删除方格配置",
+            Content = $"确认删除“{containerName}”及其中 {itemCount} 个配置引用。只删除 Long方格的组织关系；真实桌面文件不会被删除、移动或重命名。",
+            PrimaryButtonText = "确认删除方格配置",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = RootLayout.XamlRoot,
+        };
+        AutomationProperties.SetAutomationId(
+            dialog,
+            "DesktopContainerDeleteConfirmationDialog");
+        AutomationProperties.SetItemStatus(
+            dialog,
+            $"DesktopContainerDeleteConfirmation:Ordinal={containerOrdinal}:" +
+                $"Revision={editRevision}:Topology={topologyGeneration}:" +
+                "Default=Cancel:Changed=False:DesktopFilesChanged=False");
+        _desktopContainerDeleteConfirmationDialog = dialog;
+        try
+        {
+            bool confirmed;
+            try
+            {
+                confirmed = await dialog.ShowAsync() == ContentDialogResult.Primary;
+            }
+            catch (InvalidOperationException)
+            {
+                ProductWorkspaceContainerEditStatus.Text =
+                    "当前已有确认窗口，请关闭后重新操作；配置未改变。";
+                AutomationProperties.SetItemStatus(
+                    ProductWorkspaceContainerEditStatus,
+                    "DesktopContainerDeleteDialogBusy:Changed=False:" +
+                        "DesktopFilesChanged=False");
+                return false;
+            }
+            if (!confirmed)
+            {
+                ProductWorkspaceContainerEditStatus.Text =
+                    "已取消删除；Long方格配置和真实桌面文件均未改变。";
+                AutomationProperties.SetItemStatus(
+                    ProductWorkspaceContainerEditStatus,
+                    "DesktopContainerDeleteCancelled:Changed=False:" +
+                        "DesktopFilesChanged=False");
+            }
+            return confirmed;
+        }
+        finally
+        {
+            _desktopContainerDeleteConfirmationDialog = null;
+        }
+    }
+
+    internal void ApplyDesktopContainerDeleteCommitResult(
+        ProductDesktopContainerDeleteResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        ProductWorkspaceContainerEditStatus.Text = result.Status switch
+        {
+            ProductDesktopContainerDeleteStatus.Accepted =>
+                "方格配置及其中引用已删除并进入安全保存队列；真实桌面文件未改变，可通过统一撤销恢复。",
+            ProductDesktopContainerDeleteStatus.Compensated =>
+                "删除保存失败，Long方格已恢复原方格及引用；真实桌面文件始终未改变。",
+            ProductDesktopContainerDeleteStatus.Rejected
+                when result.EditError == ProductWorkspaceEditError.ContainerLocked =>
+                "确认期间方格已锁定，请先解锁再删除；配置未改变。",
+            _ => "删除确认已失效或请求无效；配置和真实桌面文件均未改变。",
+        };
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceContainerEditStatus,
+            $"DesktopContainerDeleteCommit:{result.Status}:" +
+                $"Revision={result.EditRevision}:Changed={result.IsAccepted}:" +
+                $"Compensated={result.IsCompensated}:" +
+                "DesktopFilesChanged=False");
+        UpdateProductWorkspaceContainerEditButtons();
+    }
+
+    internal void ApplyDesktopContainerDeleteRevalidationFailure()
+    {
+        ProductWorkspaceContainerEditStatus.Text =
+            "确认期间方格、显示器或工作区状态已变化，删除会话已安全取消。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceContainerEditStatus,
+            "DesktopContainerDeleteRevalidationRejected:Changed=False:" +
+                "DesktopFilesChanged=False");
     }
 
     private void ProductWorkspaceContainerEditSelector_SelectionChanged(

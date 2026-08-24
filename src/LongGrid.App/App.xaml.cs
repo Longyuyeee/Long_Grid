@@ -29,6 +29,8 @@ public partial class App : Application
         desktopContainerLayoutInteractions;
     private readonly ProductDesktopContainerHeaderCommandController
         desktopContainerHeaderCommands;
+    private readonly ProductDesktopContainerDeleteController
+        desktopContainerDeletes;
     private readonly ProductWorkspaceCatalogRevisionSynchronizer
         workspaceCatalogRevisions;
     private readonly ProductDesktopCatalogController productDesktopCatalog;
@@ -86,6 +88,9 @@ public partial class App : Application
         workspaceCommits = new(productWorkspaceSaves);
         desktopContainerLayoutInteractions = new(workspaceCommits);
         desktopContainerHeaderCommands = new(
+            workspaceCommits,
+            productWorkspaceSaves);
+        desktopContainerDeletes = new(
             workspaceCommits,
             productWorkspaceSaves);
         workspaceCatalogRevisions = new(workspaceCommits);
@@ -2003,13 +2008,19 @@ public partial class App : Application
     private ProductDesktopContainerMenuAvailability
         GetDesktopContainerMenuAvailability(
             string containerId,
-            string displayId) =>
+            string displayId)
+    {
+        ProductDesktopContainerMenuAvailability availability =
             ProductDesktopContainerMenuNavigationController.EvaluateAvailability(
                 productWorkspaceSession.State,
                 productWorkspaceSession.IsReadOnly || closingDrainInProgress,
                 productWorkspaceSaves.Snapshot,
                 containerId,
                 displayId);
+        return desktopContainerDeletes.CanStart
+            ? availability
+            : availability with { CanDeleteContainerConfiguration = false };
+    }
 
     private bool RequestDesktopContainerMenuNavigation(
         ProductDesktopContainerMenuRequest request)
@@ -2021,25 +2032,101 @@ public partial class App : Application
         }
 
         return currentWindow.DispatcherQueue.TryEnqueue(() =>
-        {
-            ProductDesktopContainerMenuNavigationResult result =
-                ProductDesktopContainerMenuNavigationController.Handle(
-                    request,
-                    productWorkspaceSession.State,
-                    productWorkspaceSession.IsReadOnly,
-                    workspaceCommits.CurrentEditRevision,
-                    productWorkspaceSaves.Snapshot,
-                    productDisplayTopology.Snapshot);
-            if (!result.IsAccepted)
-            {
-                return;
-            }
+            _ = HandleDesktopContainerMenuRequestAsync(currentWindow, request));
+    }
 
-            ActivateMainWindow();
+    private async Task HandleDesktopContainerMenuRequestAsync(
+        MainWindow currentWindow,
+        ProductDesktopContainerMenuRequest request)
+    {
+        ProductDesktopContainerMenuNavigationResult result =
+            ProductDesktopContainerMenuNavigationController.Handle(
+                request,
+                productWorkspaceSession.State,
+                productWorkspaceSession.IsReadOnly,
+                workspaceCommits.CurrentEditRevision,
+                productWorkspaceSaves.Snapshot,
+                productDisplayTopology.Snapshot);
+        if (!result.IsAccepted)
+        {
+            return;
+        }
+
+        ActivateMainWindow();
+        if (result.Action !=
+            ProductDesktopContainerMenuAction.DeleteContainerConfiguration)
+        {
             _ = currentWindow.OpenProductWorkspaceContainerMenuTarget(
                 result.ContainerOrdinal,
                 result.Action);
-        });
+            return;
+        }
+
+        ProductContainerState? target = productWorkspaceSession.State?.Containers
+            .ElementAtOrDefault(result.ContainerOrdinal - 1);
+        if (target is null
+            || !string.Equals(target.Id, result.ContainerId, StringComparison.Ordinal)
+            || !string.Equals(
+                target.Placement.DisplayKey,
+                result.DisplayId,
+                StringComparison.Ordinal))
+        {
+            currentWindow.ApplyDesktopContainerDeleteRevalidationFailure();
+            return;
+        }
+
+        bool confirmed = await currentWindow.ConfirmDesktopContainerDeletionAsync(
+            result.ContainerOrdinal,
+            target.Name,
+            target.Items.Count,
+            result.EditRevision,
+            result.TopologyGeneration);
+        if (!confirmed)
+        {
+            return;
+        }
+        if (closingDrainInProgress || !ReferenceEquals(window, currentWindow))
+        {
+            currentWindow.ApplyDesktopContainerDeleteRevalidationFailure();
+            return;
+        }
+
+        ProductDesktopContainerMenuNavigationResult revalidated =
+            ProductDesktopContainerMenuNavigationController.Handle(
+                request,
+                productWorkspaceSession.State,
+                productWorkspaceSession.IsReadOnly,
+                workspaceCommits.CurrentEditRevision,
+                productWorkspaceSaves.Snapshot,
+                productDisplayTopology.Snapshot);
+        if (!revalidated.IsAccepted
+            || revalidated.Action !=
+                ProductDesktopContainerMenuAction.DeleteContainerConfiguration
+            || revalidated.ContainerOrdinal != result.ContainerOrdinal
+            || !string.Equals(
+                revalidated.ContainerId,
+                result.ContainerId,
+                StringComparison.Ordinal)
+            || !string.Equals(
+                revalidated.DisplayId,
+                result.DisplayId,
+                StringComparison.Ordinal))
+        {
+            currentWindow.ApplyDesktopContainerDeleteRevalidationFailure();
+            return;
+        }
+
+        ProductDesktopContainerDeleteResult commit =
+            desktopContainerDeletes.CommitConfirmed(
+                revalidated,
+                productWorkspaceSession.State);
+        if (commit.IsAccepted)
+        {
+            ApplyAcceptedProductWorkspaceDocument(
+                commit.Document!,
+                productDesktopCatalog.Snapshot);
+        }
+        currentWindow.ApplyDesktopContainerDeleteCommitResult(commit);
     }
 
     private bool RequestDesktopContainerLayout(
@@ -3054,6 +3141,23 @@ public partial class App : Application
         MainWindow currentWindow,
         ProductWorkspaceSaveSnapshot snapshot)
     {
+        ProductDesktopContainerDeleteResult deletePublication =
+            desktopContainerDeletes.ObserveSave(
+                productWorkspaceSession.State,
+                workspaceCommits.CurrentEditRevision,
+                snapshot);
+        if (deletePublication.IsCompensated)
+        {
+            ApplyAcceptedProductWorkspaceDocument(
+                deletePublication.Document!,
+                productDesktopCatalog.Snapshot);
+            currentWindow.ApplyDesktopContainerDeleteCommitResult(
+                deletePublication);
+            currentWindow.ApplyProductWorkspaceSaveState(
+                productWorkspaceSaves.Snapshot);
+            return;
+        }
+
         ProductDesktopContainerHeaderCommandResult headerPublication =
             desktopContainerHeaderCommands.ObserveSave(
                 productWorkspaceSession.State,

@@ -934,7 +934,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             (containerId, displayId) =>
                 containerId == "container-1"
                     && displayId == "display-primary"
-                    ? new(true, true, true)
+                    ? new(true, true, true, true)
                     : ProductDesktopContainerMenuAvailability.Unavailable,
             request =>
             {
@@ -942,7 +942,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                 return true;
             });
         Assert.Equal(
-            new(true, true, true),
+            new(true, true, true, true),
             source.GetBoundContainerMenuAvailability("container-1"));
         Assert.True(source.ApplyBoundContainerMenu(new(
             ProductDesktopContainerMenuAction.OpenAppearance,

@@ -13,7 +13,10 @@ public sealed record ProductDesktopContainerMenuNavigationResult(
     ProductDesktopContainerMenuNavigationStatus Status,
     ProductDesktopContainerMenuAction Action,
     int ContainerOrdinal,
-    long EditRevision)
+    long EditRevision,
+    string ContainerId,
+    string DisplayId,
+    long TopologyGeneration)
 {
     public bool IsAccepted =>
         Status == ProductDesktopContainerMenuNavigationStatus.Accepted
@@ -59,7 +62,8 @@ public static class ProductDesktopContainerMenuNavigationController
         return new(
             CanOpenRename: editingAvailable,
             CanOpenAppearance: editingAvailable,
-            CanOpenSort: true);
+            CanOpenSort: true,
+            CanDeleteContainerConfiguration: editingAvailable);
     }
 
     public static ProductDesktopContainerMenuNavigationResult Handle(
@@ -117,6 +121,8 @@ public static class ProductDesktopContainerMenuNavigationController
                 availability.CanOpenAppearance,
             ProductDesktopContainerMenuAction.OpenSort =>
                 availability.CanOpenSort,
+            ProductDesktopContainerMenuAction.DeleteContainerConfiguration =>
+                availability.CanDeleteContainerConfiguration,
             _ => false,
         };
         return accepted
@@ -124,7 +130,10 @@ public static class ProductDesktopContainerMenuNavigationController
                 ProductDesktopContainerMenuNavigationStatus.Accepted,
                 request.Action,
                 targets[0].Ordinal,
-                currentEditRevision)
+                currentEditRevision,
+                request.ContainerId,
+                request.DisplayId,
+                topology.Generation)
             : Reject(request.Action, currentEditRevision);
     }
 
@@ -134,5 +143,8 @@ public static class ProductDesktopContainerMenuNavigationController
             ProductDesktopContainerMenuNavigationStatus.Rejected,
             action,
             ContainerOrdinal: 0,
-            revision);
+            revision,
+            ContainerId: string.Empty,
+            DisplayId: string.Empty,
+            TopologyGeneration: 0);
 }

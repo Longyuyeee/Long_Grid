@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准，PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，PF-002 空态入口、统一创建默认值、空态多输入和非空持续入口证据分别见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)至 [Stage 158](158-pf002c2-persistent-desktop-create-audit.md)；当前真实完成度、计划偏移审计和 PF-002D～PF-010 的严格验收顺序见 [Stage 159](159-current-development-status-and-next-plan-audit.md)，最新全量需求对齐快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁仍以 [Stage 149 专用环境预检](149-m4c2c-dedicated-environment-preflight-audit.md)为准。历史状态见 [Stage 133](133-current-development-status-and-closeout-audit.md)与[开发状态审计](11-development-status-and-direction-audit.md)。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准，PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，PF-002 空态入口、统一创建默认值、空态多输入和非空持续入口证据分别见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)至 [Stage 158](158-pf002c2-persistent-desktop-create-audit.md)；当前真实完成度、计划偏移审计和 PF-002D～PF-010 的严格验收顺序见 [Stage 159](159-current-development-status-and-next-plan-audit.md)，最新全量需求对齐快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)，PF-004D 桌面删除确认/补偿/统一撤销实证见 [Stage 186](186-pf004d-desktop-delete-confirmation-undo-audit.md)。外部证据和发布门禁仍以 [Stage 149 专用环境预检](149-m4c2c-dedicated-environment-preflight-audit.md)为准。历史状态见 [Stage 133](133-current-development-status-and-closeout-audit.md)与[开发状态审计](11-development-status-and-direction-audit.md)。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 ## Phase 0：立项与技术验证
 
@@ -366,3 +366,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-24 PF-004B 桌面标题栏直接命令：每方格新增折叠/展开和锁定/解锁，与进入交互共同形成三个有限 32 DIP/UIA 按钮；命令绑定 container/display/revision/topology/来源事实，锁定折叠与不安全输入失败关闭，锁定仍可解锁。正式 App 复用唯一提交/保存链并在写租约失败时恢复内存原值、保留可重试补偿。真实 HWND、Store 成功/失败/重试和正式 App 20 秒均为 `Difference=None`；全量 1094/1094、build 0 warning/error。PF-004 仍为 `InProgress`，下一切片进入 PF-004C 更多菜单与安全管理入口，详见 [Stage 184](184-pf004b-desktop-header-command-audit.md)。
 
 2026-08-24 PF-004C 原生更多菜单：标题命令面扩为四个 32 DIP/UIA 目标，真实 Win32 `#32768` 菜单把重命名、外观和方格列表排序导航到唯一控制中心，规则/Portal-Tab/删除明确显示并禁用。锁定、只读、保存失败、revision/topology/来源事实决定打开前状态；取消和导航零配置写入。真实菜单 6 项状态、Store 字节/写入时间、写租约失败和正式 App 20 秒均为 `Difference=None`；全量 1097/1097、build 0 warning/error。PF-004 仍为 `InProgress`，下一切片进入 PF-004D 删除确认与统一撤销，详见 [Stage 185](185-pf004c-desktop-container-more-menu-audit.md)。
+
+2026-08-24 PF-004D 删除确认与统一撤销：原生菜单删除项按锁定/只读/保存失败/待发布状态动态启用；正式确认默认取消并绑定 container/display/revision/topology，确认后二次复核。真实 Store 默认取消零字节/时间变化，确认删除后统一撤销恢复完整方格和引用；真实写租约失败自动补偿并在重试后持久化原状态，两组 Expected/Actual 均 `Difference=None`，真实文件内容始终不变。全量 1099/1099、build 0 warning/error、153-ID UI 合同及正式 App 20 秒通过。PF-004 仍缺标题策略和其余就近编辑撤销，下一切片为 PF-004E，详见 [Stage 186](186-pf004d-desktop-delete-confirmation-undo-audit.md)。

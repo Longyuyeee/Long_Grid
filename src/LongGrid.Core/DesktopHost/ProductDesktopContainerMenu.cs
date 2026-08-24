@@ -5,6 +5,7 @@ public enum ProductDesktopContainerMenuAction
     OpenRename,
     OpenAppearance,
     OpenSort,
+    DeleteContainerConfiguration,
 }
 
 public sealed record ProductDesktopContainerMenuRequest(
@@ -20,8 +21,9 @@ public sealed record ProductDesktopContainerMenuRequest(
 public sealed record ProductDesktopContainerMenuAvailability(
     bool CanOpenRename,
     bool CanOpenAppearance,
-    bool CanOpenSort)
+    bool CanOpenSort,
+    bool CanDeleteContainerConfiguration)
 {
     public static ProductDesktopContainerMenuAvailability Unavailable { get; } =
-        new(false, false, false);
+        new(false, false, false, false);
 }

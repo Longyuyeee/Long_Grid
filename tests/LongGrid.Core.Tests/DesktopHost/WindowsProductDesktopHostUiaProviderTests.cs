@@ -405,7 +405,8 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
             _ => new(
                 CanOpenRename: true,
                 CanOpenAppearance: true,
-                CanOpenSort: true),
+                CanOpenSort: true,
+                CanDeleteContainerConfiguration: true),
             input =>
             {
                 menuInputs.Add(input);
@@ -483,7 +484,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
                 ("方格列表排序…", true),
                 ("创建规则（后续功能）", false),
                 ("生成 Portal / Tab（后续功能）", false),
-                ("删除方格配置…（下一阶段确认）", false),
+                ("删除方格配置…", true),
             ],
             menuItems);
         Assert.False(source.IsContainerMenuOpenForEvidence);

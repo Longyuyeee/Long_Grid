@@ -1,6 +1,7 @@
 using System.Text.Json;
 using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopHost;
+using LongGrid.Core.DesktopItems;
 using LongGrid.Infrastructure.Configuration;
 using LongGrid.Infrastructure.DesktopHost;
 using Xunit.Abstractions;
@@ -59,14 +60,24 @@ public sealed class ProductDesktopContainerMenuNavigationControllerTests(
                     currentEditRevision: 1,
                     clean,
                     Topology());
+            ProductDesktopContainerMenuNavigationResult delete =
+                ProductDesktopContainerMenuNavigationController.Handle(
+                    Request(ProductDesktopContainerMenuAction
+                        .DeleteContainerConfiguration),
+                    state,
+                    isReadOnly: false,
+                    currentEditRevision: 1,
+                    clean,
+                    Topology());
             byte[] after = await File.ReadAllBytesAsync(configurationPath);
             DateTime afterWrite = File.GetLastWriteTimeUtc(configurationPath);
 
-            Assert.Equal(new(true, true, true), availability);
+            Assert.Equal(new(true, true, true, true), availability);
             Assert.True(rename.IsAccepted);
             Assert.True(appearance.IsAccepted);
             Assert.True(sort.IsAccepted);
-            Assert.All([rename, appearance, sort], result =>
+            Assert.True(delete.IsAccepted);
+            Assert.All([rename, appearance, sort, delete], result =>
                 Assert.Equal(1, result.ContainerOrdinal));
             Assert.Equal(before, after);
             Assert.Equal(beforeWrite, afterWrite);
@@ -77,6 +88,7 @@ public sealed class ProductDesktopContainerMenuNavigationControllerTests(
                     Rename = "Accepted:Ordinal=1",
                     Appearance = "Accepted:Ordinal=1",
                     Sort = "Accepted:Ordinal=1",
+                    DeleteConfirmation = "Accepted:Ordinal=1",
                     ConfigurationBytesChanged = false,
                     ConfigurationWriteTimeChanged = false,
                 },
@@ -86,6 +98,8 @@ public sealed class ProductDesktopContainerMenuNavigationControllerTests(
                     Appearance =
                         $"{appearance.Status}:Ordinal={appearance.ContainerOrdinal}",
                     Sort = $"{sort.Status}:Ordinal={sort.ContainerOrdinal}",
+                    DeleteConfirmation =
+                        $"{delete.Status}:Ordinal={delete.ContainerOrdinal}",
                     ConfigurationBytesChanged = !before.SequenceEqual(after),
                     ConfigurationWriteTimeChanged = beforeWrite != afterWrite,
                 },
@@ -105,7 +119,7 @@ public sealed class ProductDesktopContainerMenuNavigationControllerTests(
         ProductWorkspaceSaveSnapshot clean = ProductWorkspaceSaveSnapshot.Initial;
 
         Assert.Equal(
-            new(false, false, true),
+            new(false, false, true, false),
             ProductDesktopContainerMenuNavigationController.EvaluateAvailability(
                 locked,
                 isReadOnly: false,
@@ -113,7 +127,7 @@ public sealed class ProductDesktopContainerMenuNavigationControllerTests(
                 "container-1",
                 "display-1"));
         Assert.Equal(
-            new(false, false, true),
+            new(false, false, true, false),
             ProductDesktopContainerMenuNavigationController.EvaluateAvailability(
                 State(),
                 isReadOnly: true,
@@ -122,6 +136,14 @@ public sealed class ProductDesktopContainerMenuNavigationControllerTests(
                 "display-1"));
         Assert.False(ProductDesktopContainerMenuNavigationController.Handle(
             Request(ProductDesktopContainerMenuAction.OpenRename),
+            locked,
+            false,
+            1,
+            clean,
+            Topology()).IsAccepted);
+        Assert.False(ProductDesktopContainerMenuNavigationController.Handle(
+            Request(ProductDesktopContainerMenuAction
+                .DeleteContainerConfiguration),
             locked,
             false,
             1,
@@ -151,6 +173,156 @@ public sealed class ProductDesktopContainerMenuNavigationControllerTests(
             1,
             clean,
             Topology()).IsAccepted);
+    }
+
+    [Fact]
+    public async Task RealStoreDeleteConfirmationAndUnifiedUndoPreserveDesktopFile()
+    {
+        string sandbox = Sandbox("RealDeleteUndo");
+        string storeDirectory = Path.Combine(sandbox, "store");
+        string desktopDirectory = Path.Combine(sandbox, "desktop");
+        string desktopFile = Path.Combine(desktopDirectory, "keep.txt");
+        Directory.CreateDirectory(desktopDirectory);
+        await File.WriteAllTextAsync(desktopFile, "keep-original");
+        try
+        {
+            ProductItemReferenceState item =
+                ProductItemReferenceState.CreateResolved(
+                    "item-1",
+                    new(
+                        new DesktopItemIdentity("filesystem", desktopFile),
+                        "user-desktop",
+                        "keep.txt",
+                        DesktopItemKind.File));
+            ProductWorkspaceState baseState = State();
+            ProductWorkspaceState state = baseState with
+            {
+                Containers =
+                [
+                    baseState.Containers[0] with
+                    {
+                        Items = [item],
+                    },
+                ],
+            };
+            var store = new ProductConfigurationStore(storeDirectory);
+            await store.SaveAsync(
+                ProductWorkspaceConfigurationProjector.Project(state).Document!);
+            byte[] beforeCancel = await File.ReadAllBytesAsync(store.PrimaryPath);
+            DateTime beforeCancelWrite =
+                File.GetLastWriteTimeUtc(store.PrimaryPath);
+            await using ProductWorkspaceSaveController saves = Saves(store);
+            var commits = new ProductWorkspaceCommitCoordinator(saves);
+            var deletes = new ProductDesktopContainerDeleteController(
+                commits,
+                saves);
+            long revision = commits.AdvanceExternalRevision();
+            ProductDesktopContainerMenuRequest request = Request(
+                ProductDesktopContainerMenuAction.DeleteContainerConfiguration);
+
+            ProductDesktopContainerMenuNavigationResult prepared =
+                ProductDesktopContainerMenuNavigationController.Handle(
+                    request,
+                    state,
+                    isReadOnly: false,
+                    revision,
+                    saves.Snapshot,
+                    Topology());
+            byte[] afterCancel = await File.ReadAllBytesAsync(store.PrimaryPath);
+            DateTime afterCancelWrite = File.GetLastWriteTimeUtc(store.PrimaryPath);
+
+            ProductDesktopContainerMenuNavigationResult revalidated =
+                ProductDesktopContainerMenuNavigationController.Handle(
+                    request,
+                    state,
+                    isReadOnly: false,
+                    revision,
+                    saves.Snapshot,
+                    Topology());
+            ProductDesktopContainerDeleteResult removal =
+                deletes.CommitConfirmed(revalidated, state);
+            await WaitForStatusAsync(
+                saves,
+                ProductWorkspaceSaveStatus.Saved,
+                revision: 1);
+            ProductDesktopContainerDeleteResult publication =
+                deletes.ObserveSave(
+                    removal.State,
+                    commits.CurrentEditRevision,
+                    saves.Snapshot);
+            ProductWorkspaceContainerRemovalUndoToken token =
+                Assert.IsType<ProductWorkspaceContainerRemovalUndoToken>(
+                    removal.RemovalUndoToken);
+            ProductWorkspaceLatestUndoSelection latest =
+                ProductWorkspaceLatestUndoSelector.Select(
+                    layoutRecovery: null,
+                    containerRemoval: token,
+                    referenceBatchAddition: null,
+                    selectedReferenceContainer: null,
+                    referenceRemoval: null,
+                    referenceReassignment: null);
+            ProductWorkspaceContainerRemovalUndoCommitResult undo =
+                commits.CommitContainerRemovalUndo(
+                    removal.State!,
+                    token,
+                    confirmed: true);
+            await WaitForStatusAsync(
+                saves,
+                ProductWorkspaceSaveStatus.Saved,
+                revision: 2);
+            ProductConfigurationLoadResult restored = await store.LoadAsync();
+
+            Assert.True(prepared.IsAccepted);
+            Assert.Equal(beforeCancel, afterCancel);
+            Assert.Equal(beforeCancelWrite, afterCancelWrite);
+            Assert.True(revalidated.IsAccepted);
+            Assert.True(removal.IsAccepted);
+            Assert.Empty(removal.State!.Containers);
+            Assert.Equal(
+                ProductDesktopContainerDeleteStatus.Published,
+                publication.Status);
+            Assert.Equal(ProductWorkspaceLatestUndoKind.ContainerRemoval, latest.Kind);
+            Assert.True(undo.IsAccepted);
+            Assert.Single(restored.Document!.Containers);
+            Assert.Single(restored.Document.Containers[0].Items);
+            Assert.True(File.Exists(desktopFile));
+            Assert.Equal("keep-original", await File.ReadAllTextAsync(desktopFile));
+            output.WriteLine(JsonSerializer.Serialize(new
+            {
+                Expected = new
+                {
+                    DefaultCancelConfigurationBytesChanged = false,
+                    DefaultCancelWriteTimeChanged = false,
+                    Revalidation = "Accepted:Ordinal=1",
+                    RemovedContainerCount = 0,
+                    LatestUndo = "ContainerRemoval",
+                    RestoredContainerCount = 1,
+                    RestoredReferenceCount = 1,
+                    DesktopFileExists = true,
+                    DesktopFileContent = "keep-original",
+                },
+                Actual = new
+                {
+                    DefaultCancelConfigurationBytesChanged =
+                        !beforeCancel.SequenceEqual(afterCancel),
+                    DefaultCancelWriteTimeChanged =
+                        beforeCancelWrite != afterCancelWrite,
+                    Revalidation =
+                        $"{revalidated.Status}:Ordinal={revalidated.ContainerOrdinal}",
+                    RemovedContainerCount = removal.State.Containers.Count,
+                    LatestUndo = latest.Kind.ToString(),
+                    RestoredContainerCount = restored.Document.Containers.Count,
+                    RestoredReferenceCount = restored.Document.Containers[0].Items.Count,
+                    DesktopFileExists = File.Exists(desktopFile),
+                    DesktopFileContent = await File.ReadAllTextAsync(desktopFile),
+                },
+                Difference = "None",
+            }));
+        }
+        finally
+        {
+            DeleteSandbox(sandbox);
+        }
     }
 
     [Fact]
@@ -191,7 +363,7 @@ public sealed class ProductDesktopContainerMenuNavigationControllerTests(
 
             Assert.Equal(ProductWorkspaceSaveFailure.WriteLeaseUnavailable,
                 saves.Snapshot.Failure);
-            Assert.Equal(new(false, false, true), availability);
+            Assert.Equal(new(false, false, true, false), availability);
             Assert.Equal("Work", reloaded.Document!.Containers[0].Name);
             output.WriteLine(JsonSerializer.Serialize(new
             {
@@ -201,6 +373,7 @@ public sealed class ProductDesktopContainerMenuNavigationControllerTests(
                     RenameEnabled = false,
                     AppearanceEnabled = false,
                     SortEnabled = true,
+                    DeleteEnabled = false,
                     PersistedName = "Work",
                 },
                 Actual = new
@@ -209,12 +382,144 @@ public sealed class ProductDesktopContainerMenuNavigationControllerTests(
                     RenameEnabled = availability.CanOpenRename,
                     AppearanceEnabled = availability.CanOpenAppearance,
                     SortEnabled = availability.CanOpenSort,
+                    DeleteEnabled =
+                        availability.CanDeleteContainerConfiguration,
                     PersistedName = reloaded.Document.Containers[0].Name,
                 },
                 Difference = "None",
             }));
             await lease.DisposeAsync();
             Assert.True(saves.DiscardFailedRetryForExternalBaseline());
+        }
+        finally
+        {
+            DeleteSandbox(sandbox);
+        }
+    }
+
+    [Fact]
+    public async Task RealDeleteWriteFailureCompensatesAndPersistsOriginalContainer()
+    {
+        string sandbox = Sandbox("RealDeleteCompensation");
+        string storeDirectory = Path.Combine(sandbox, "store");
+        string desktopDirectory = Path.Combine(sandbox, "desktop");
+        string desktopFile = Path.Combine(desktopDirectory, "keep.txt");
+        Directory.CreateDirectory(desktopDirectory);
+        await File.WriteAllTextAsync(desktopFile, "keep-original");
+        try
+        {
+            ProductWorkspaceState seed = State();
+            ProductWorkspaceState state = seed with
+            {
+                Containers =
+                [
+                    seed.Containers[0] with
+                    {
+                        Items =
+                        [
+                            ProductItemReferenceState.CreateResolved(
+                                "item-1",
+                                new(
+                                    new DesktopItemIdentity(
+                                        "filesystem",
+                                        desktopFile),
+                                    "user-desktop",
+                                    "keep.txt",
+                                    DesktopItemKind.File)),
+                        ],
+                    },
+                ],
+            };
+            var store = new ProductConfigurationStore(
+                storeDirectory,
+                writeLeaseTimeout: TimeSpan.FromMilliseconds(50),
+                writeLeaseRetryDelay: TimeSpan.FromMilliseconds(5));
+            await store.SaveAsync(
+                ProductWorkspaceConfigurationProjector.Project(state).Document!);
+            await using ProductWorkspaceSaveController saves = Saves(store);
+            var commits = new ProductWorkspaceCommitCoordinator(saves);
+            var deletes = new ProductDesktopContainerDeleteController(
+                commits,
+                saves);
+            long revision = commits.AdvanceExternalRevision();
+            ProductDesktopContainerMenuNavigationResult confirmation =
+                ProductDesktopContainerMenuNavigationController.Handle(
+                    Request(ProductDesktopContainerMenuAction
+                        .DeleteContainerConfiguration),
+                    state,
+                    isReadOnly: false,
+                    revision,
+                    saves.Snapshot,
+                    Topology());
+
+            await using FileStream lease = AcquireLease(store.WriteLeasePath);
+            ProductDesktopContainerDeleteResult removal =
+                deletes.CommitConfirmed(confirmation, state);
+            await WaitForStatusAsync(
+                saves,
+                ProductWorkspaceSaveStatus.Failed,
+                revision: 1);
+            ProductDesktopContainerDeleteResult compensation =
+                deletes.ObserveSave(
+                    removal.State,
+                    commits.CurrentEditRevision,
+                    saves.Snapshot);
+            await WaitForStatusAsync(
+                saves,
+                ProductWorkspaceSaveStatus.Failed,
+                revision: 2);
+            ProductConfigurationLoadResult blockedReload = await store.LoadAsync();
+
+            Assert.True(compensation.IsCompensated);
+            Assert.Single(compensation.State!.Containers);
+            Assert.Single(blockedReload.Document!.Containers);
+            await lease.DisposeAsync();
+            Assert.Equal(
+                ProductWorkspaceSaveRetryStatus.Accepted,
+                saves.Retry().Status);
+            await WaitForStatusAsync(
+                saves,
+                ProductWorkspaceSaveStatus.Saved,
+                revision: 2);
+            ProductConfigurationLoadResult restored = await store.LoadAsync();
+            ProductWorkspaceLatestUndoSelection latest =
+                ProductWorkspaceLatestUndoSelector.Select(
+                    layoutRecovery: null,
+                    containerRemoval: commits.CurrentContainerRemovalUndoToken,
+                    referenceBatchAddition: null,
+                    selectedReferenceContainer: null,
+                    referenceRemoval: null,
+                    referenceReassignment: null);
+
+            Assert.Single(restored.Document!.Containers);
+            Assert.Single(restored.Document.Containers[0].Items);
+            Assert.Equal(ProductWorkspaceLatestUndoKind.Unavailable, latest.Kind);
+            Assert.True(File.Exists(desktopFile));
+            Assert.Equal("keep-original", await File.ReadAllTextAsync(desktopFile));
+            output.WriteLine(JsonSerializer.Serialize(new
+            {
+                Expected = new
+                {
+                    SourceFailure = "WriteLeaseUnavailable",
+                    Status = "Compensated",
+                    InMemoryContainerCount = 1,
+                    PersistedContainerCount = 1,
+                    PersistedReferenceCount = 1,
+                    LatestUndo = "Unavailable",
+                    DesktopFileContent = "keep-original",
+                },
+                Actual = new
+                {
+                    SourceFailure = compensation.SourceFailure.ToString(),
+                    Status = compensation.Status.ToString(),
+                    InMemoryContainerCount = compensation.State.Containers.Count,
+                    PersistedContainerCount = restored.Document.Containers.Count,
+                    PersistedReferenceCount = restored.Document.Containers[0].Items.Count,
+                    LatestUndo = latest.Kind.ToString(),
+                    DesktopFileContent = await File.ReadAllTextAsync(desktopFile),
+                },
+                Difference = "None",
+            }));
         }
         finally
         {
