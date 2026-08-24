@@ -40,6 +40,8 @@ public partial class App : Application
         productThumbnailWorker;
     private readonly ProductResourceTelemetryServer? productResourceTelemetry;
     private readonly ProductPf002AppEvidenceSession? pf002AppEvidenceSession;
+    private readonly ProductDesktopFirstStartupEvidenceSession?
+        desktopFirstStartupEvidenceSession;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
     private ProductConfigurationLoadResult? currentConfigurationLoadResult;
@@ -59,7 +61,16 @@ public partial class App : Application
         InitializeComponent();
         pf002AppEvidenceSession =
             ProductPf002AppEvidenceSession.TryCreateFromEnvironment();
+        desktopFirstStartupEvidenceSession =
+            ProductDesktopFirstStartupEvidenceSession.TryCreateFromEnvironment();
+        if (pf002AppEvidenceSession is not null
+            && desktopFirstStartupEvidenceSession is not null)
+        {
+            throw new InvalidOperationException(
+                "PF-002 and desktop-first evidence sessions cannot run together.");
+        }
         string configurationDirectory = pf002AppEvidenceSession?.DirectoryPath
+            ?? desktopFirstStartupEvidenceSession?.DirectoryPath
             ?? Path.Combine(
                 Environment.GetFolderPath(
                     Environment.SpecialFolder.LocalApplicationData),
@@ -207,17 +218,14 @@ public partial class App : Application
             productDesktopHostLifecycle.CanRequestKeyboardInteraction);
         ApplyProductWorkspaceSessionViews();
         window.AppWindow.Closing += AppWindow_Closing;
-        window.Activate();
         if (pf002AppEvidenceSession is not null)
         {
+            window.Activate();
             _ = RunPf002AppEvidenceSessionAsync(pf002AppEvidenceSession);
         }
         else
         {
-            _ = LoadBoxesSettingsAsync();
-            _ = LoadConfigurationStartupStateAsync();
-            _ = RefreshProductDesktopCatalogAsync();
-            _ = RefreshProductDisplayTopologyAsync();
+            _ = InitializeDesktopFirstStartupAsync();
         }
 
         if (activationPending)
@@ -226,6 +234,81 @@ public partial class App : Application
             ActivateMainWindow();
         }
     }
+
+    private async Task InitializeDesktopFirstStartupAsync()
+    {
+        try
+        {
+            await Task.WhenAll(
+                LoadBoxesSettingsAsync(),
+                LoadConfigurationStartupStateAsync(),
+                RefreshProductDesktopCatalogAsync(),
+                RefreshProductDisplayTopologyAsync());
+
+            DateTime deadline = DateTime.UtcNow.AddSeconds(5);
+            while (DateTime.UtcNow < deadline
+                && productDesktopHostLifecycle.Snapshot.Status
+                    == ProductDesktopHostLifecycleStatus.AwaitingHost)
+            {
+                await Task.Delay(100);
+            }
+
+            ProductConfigurationStartupState? configuration =
+                currentConfigurationLoadResult is null
+                    ? null
+                    : ProductConfigurationStartupState.FromLoadResult(
+                        currentConfigurationLoadResult);
+            ProductDesktopFirstStartupDecision decision =
+                ProductDesktopFirstStartupPolicy.Evaluate(
+                    new(
+                        EvidenceSession: false,
+                        RedirectedActivationPending: activationPending,
+                        BoxesEnabled: boxesSettingsController.Current.BoxesEnabled,
+                        ConfigurationRequiresAttention:
+                            configuration?.RequiresRecoveryNotice != false,
+                        HostReadiness: MapDesktopFirstHostReadiness(
+                            productDesktopHostLifecycle.Snapshot.Status)));
+            if (decision.ActivateControlCenter)
+            {
+                ActivateMainWindow();
+            }
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or InvalidDataException
+                or InvalidOperationException)
+        {
+            ActivateMainWindow();
+        }
+    }
+
+    private static ProductDesktopFirstHostReadiness MapDesktopFirstHostReadiness(
+        ProductDesktopHostLifecycleStatus status) => status switch
+        {
+            ProductDesktopHostLifecycleStatus.AwaitingHost =>
+                ProductDesktopFirstHostReadiness.AwaitingHost,
+            ProductDesktopHostLifecycleStatus.AwaitingWorkspace =>
+                ProductDesktopFirstHostReadiness.AwaitingWorkspace,
+            ProductDesktopHostLifecycleStatus.SuspendedSystemSurface =>
+                ProductDesktopFirstHostReadiness.SuspendedSystemSurface,
+            ProductDesktopHostLifecycleStatus.ReadyReadOnly =>
+                ProductDesktopFirstHostReadiness.Ready,
+            ProductDesktopHostLifecycleStatus.DisabledByUser =>
+                ProductDesktopFirstHostReadiness.DisabledByUser,
+            ProductDesktopHostLifecycleStatus.DisabledBySafetyPolicy =>
+                ProductDesktopFirstHostReadiness.DisabledBySafetyPolicy,
+            ProductDesktopHostLifecycleStatus.SuspendedUnsafeTopology =>
+                ProductDesktopFirstHostReadiness.SuspendedUnsafeTopology,
+            ProductDesktopHostLifecycleStatus.Faulted =>
+                ProductDesktopFirstHostReadiness.Faulted,
+            ProductDesktopHostLifecycleStatus.Completed =>
+                ProductDesktopFirstHostReadiness.Faulted,
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(status),
+                status,
+                "Unknown DesktopHost lifecycle status."),
+        };
 
     private async Task LoadConfigurationStartupStateAsync()
     {

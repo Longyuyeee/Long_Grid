@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 181](docs/181-pf003d5-visible-capture-upstream-blocker-audit.md) 在正式 Release App 上两次真实复现 Windows Capture 触发 Microsoft.UI.Xaml 3.2.3.0 / RPC_E_WRONG_THREAD 已知上游崩溃；零输入、零配置提交，未伪报通过。PF-003 的 Stage 172–180 生产工程范围已完成，状态调整为 `EngineeringComplete / ProductEvidencePending`；物理鼠标/触控、截图和 UIA Bounds 仍待安全环境补证，30 个 PF 项仍为 `0 Complete`。下一开发项转为 PF-001 桌面优先启动收口，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 182](docs/182-pf001-desktop-first-startup-audit.md) 已关闭 PF-001 正常启动无条件弹出控制中心的缺口；正式 Release App 实测首次只显示 DesktopHost、20 秒持续响应，第二次启动激活唯一控制中心，退出后零进程和零临时配置写入。PF-001、PF-002、PF-003 均为 `EngineeringComplete / ProductEvidencePending`，物理/无障碍证据仍待安全环境补充，30 个 PF 项仍为 `0 Complete`。下一开发项为 PF-004 方格标题栏与就近操作，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -42,6 +42,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-003D4 跨显示器混合 DPI 布局审计（Stage 179）](docs/179-pf003d4-cross-display-mixed-dpi-audit.md)
 - [PF-003D5 真实输入证据准入纠偏审计（Stage 180）](docs/180-pf003d5-real-input-evidence-readiness-audit.md)
 - [PF-003D5 正式 App 可见捕获上游阻断审计（Stage 181）](docs/181-pf003d5-visible-capture-upstream-blocker-audit.md)
+- [PF-001 桌面优先启动收口与真实窗口审计（Stage 182）](docs/182-pf001-desktop-first-startup-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)
@@ -199,7 +200,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)推进。当前固定执行 PF-001 桌面优先启动收口：普通启动不强制激活控制中心，已有方格时保持桌面优先，空工作区提供可发现但不抢前台的首建入口。PF-003 物理鼠标/触控、截图和 UIA/Narrator 在上游安全运行时或独立机器并行补证；不得继续强制触发已知崩溃。PF-001 收口后进入 PF-004～PF-010 日常桌面闭环，任务栏美化、小组件/插件运行时和广泛窗口特效继续属于核心 MVP 后续。
+按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)推进。PF-001 桌面优先启动工程已由 Stage 182 收口，当前固定进入 PF-004 方格标题栏与就近操作，并随后完成 PF-005～PF-010 日常桌面闭环。PF-001～PF-003 的物理输入、截图和 UIA/Narrator 在上游安全运行时或独立机器并行补证；不得继续强制触发已知崩溃。任务栏美化、小组件/插件运行时和广泛窗口特效继续属于核心 MVP 后续。
 
 ## 开发启动
 

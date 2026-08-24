@@ -429,3 +429,9 @@ Stage 179 已让 Move 在一次手势中保持逻辑 DIP 尺寸和抓取偏移�
 在干净提交基础上再次启动正式 Release App，Windows Capture 两次都只得到透明 Surface 下层内容，随后目标窗口消失；由于没有可信产品截图，控制器没有发送任何点击、拖动或键盘输入。Windows Application Error/WER 的两个独立报告均指向 `Microsoft.UI.Xaml.dll 3.2.3.0`、异常 `0xc000027b` 和 P7 `8001010e`，与 Stage 169 已审计的 RPC_E_WRONG_THREAD fail-fast 完全一致。
 
 Stage 172–180 已覆盖 PF-003 的全部计划生产工程与证据准入，剩余均为物理/截图/Narrator/UIA/热插拔 Product Evidence。因此 PF-003 调整为 `EngineeringComplete / ProductEvidencePending`，不是 `Complete`，顶层仍为 0/30 Complete。下一开发项转为 PF-001 桌面优先启动收口；PF-003 外部证据只在上游安全运行时或独立机器并行补证，详见 [Stage 181](181-pf003d5-visible-capture-upstream-blocker-audit.md)。
+
+## 29. 2026-08-24 PF-001 桌面优先启动收口复审
+
+Stage 182 已把正常启动从“无条件显示控制中心”改为有限状态决策：方格开启且 DesktopHost 可用/空工作区/系统表面暂挂时保持桌面优先；方格关闭、配置需注意、Host 故障/超时/不安全或第二次用户启动时激活唯一控制中心。真实 Release App 首次控制中心 0 个、DesktopHost 1 个，`1,378 ms` 冷启动就绪并稳定 20 秒；第二进程退出码 0，重定向后控制中心 1 个，退出后活进程和临时配置写入均为 0。
+
+本轮还从真实门禁发现并修正 PowerShell `Add-Type` 旧 C# 语法不兼容、历史 `$LASTEXITCODE` 误报以及干净会话仍硬编码 146-ID（正式合同已为 153-ID）的测试偏移。Release 全量 1087/1087、build 0 warning / 0 error。PF-001 调整为 `EngineeringComplete / ProductEvidencePending`；PF-001～PF-003 均未取得完整物理/无障碍证据，顶层仍为 0/30 Complete。下一开发项严格进入 PF-004，详见 [Stage 182](182-pf001-desktop-first-startup-audit.md)。

@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
-- 当前开发项：**PF-001 桌面优先启动收口（PF-002/PF-003 产品证据并行 Pending）**
-- 最新工程审计：[Stage 181](181-pf003d5-visible-capture-upstream-blocker-audit.md)；正式 Release App 的 Windows Capture 2/2 复现 Microsoft.UI.Xaml 3.2.3.0 / RPC_E_WRONG_THREAD 已知上游崩溃，零输入、零配置提交。PF-003 的 Stage 172–180 生产工程范围已完成，调整为 `EngineeringComplete / ProductEvidencePending`；物理鼠标/触控、截图和 UIA Bounds 仍待安全环境补证，30 个 PF 项仍为 `0 Complete`
+- 当前开发项：**PF-004 方格标题栏与就近操作（PF-001～PF-003 产品证据并行 Pending）**
+- 最新工程审计：[Stage 182](182-pf001-desktop-first-startup-audit.md)；PF-001 正常启动已桌面优先，正式 Release App 真实窗口 20 秒稳定、第二次启动激活唯一控制中心、零临时配置写入。PF-001～PF-003 均为 `EngineeringComplete / ProductEvidencePending`；物理输入、截图和 UIA/Narrator 仍待安全环境补证，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -58,7 +58,7 @@
 
 | 顺序 | ID | 用户功能 | 当前状态 | 对标目标 |
 | ---: | --- | --- | --- | --- |
-| 1 | PF-001 | 桌面方格总开关与桌面优先启动 | `InProgress`：总开关和桌面空状态已完成，桌面优先最终呈现待收口 | iTop Enable Boxes |
+| 1 | PF-001 | 桌面方格总开关与桌面优先启动 | `EngineeringComplete / ProductEvidencePending`：正式桌面优先与单实例唤起已通过，物理无障碍证据待补 | iTop Enable Boxes |
 | 2 | PF-002 | 桌面直接创建方格 | `EngineeringComplete / ProductEvidencePending`：正式 App 创建、保存、补偿与最近撤销工程证据通过；可见物理输入和 UIA/Narrator 待补 | iTop/Fences 多入口创建 |
 | 3 | PF-003 | 桌面拖动、缩放、吸附 | `EngineeringComplete / ProductEvidencePending`：生产工程链、正式 Store 与双屏混合 DPI 已完成；物理鼠标/触控/截图与 UIA Bounds 待安全环境补证 | Fences/Nimi 直接布局 |
 | 4 | PF-004 | 方格标题栏与就近操作 | 部分 Core | Fences 标题栏操作 |
@@ -117,7 +117,7 @@
 - 自动化覆盖首次值、迁移、重复点击、失败回滚和进程重启；
 - 完成后用户不需要开发参数即可使用正式桌面方格。
 
-**2026-08-16 实施状态**：`InProgress`。用户级设置、原子备份、失败回滚、控制中心无障碍开关、默认产品启用、紧急禁用优先级、关闭资源释放、最新布局恢复和桌面空工作区首个方格入口已经完成；应用仍默认激活控制中心，桌面优先启动的最终呈现尚未满足，不能标记完成。总开关证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，桌面空状态证据见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)。
+**2026-08-24 实施状态**：`EngineeringComplete / ProductEvidencePending`。用户级设置、原子备份、失败回滚、默认产品启用、紧急禁用优先级、关闭资源释放、最新布局恢复和桌面空工作区首建入口均已完成；Stage 182 又移除正常启动的无条件控制中心激活，以有限策略让可用 DesktopHost 保持桌面优先，并在方格关闭、配置需注意、Host 不可用或第二次用户启动时激活唯一控制中心。正式 Release App 20 秒真实窗口 Expected/Actual 为 `Difference=None`；物理 Narrator/UIA 和签名安装证据仍 Pending，因此不能标记产品 `Complete`。证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)、[Stage 155](155-pf002-desktop-empty-create-entry-audit.md)与 [Stage 182](182-pf001-desktop-first-startup-audit.md)。
 
 ### PF-002：桌面直接创建方格
 
@@ -881,6 +881,6 @@
 
 ## 15. 当前立即执行项
 
-当前工程切片转为 **PF-001：桌面优先启动收口**。PF-002A～H 和 PF-003A～D5 的正式工程链均已完成，两者状态为 `EngineeringComplete / ProductEvidencePending`；当前 WinUI 上游缺陷仍阻断可见 Preview/视图发布、物理输入和 UIA/Narrator，因此都不能标记 `Complete`。
+当前工程切片转为 **PF-004：方格标题栏与就近操作**。PF-001、PF-002A～H 和 PF-003A～D5 的正式工程链均已完成，三者状态为 `EngineeringComplete / ProductEvidencePending`；当前 WinUI 上游缺陷仍阻断部分可见物理输入和 UIA/Narrator，因此都不能标记 `Complete`。
 
-Stage 181 已确认 PF-003 可见捕获继续被已知上游组合阻断，重复强制执行不会产生有效产品证据。下一切片关闭 PF-001 启动时无条件激活控制中心的缺口：桌面方格已就绪时保持桌面优先，空工作区显示非激活首建入口，控制中心由明确用户动作打开。PF-002F、PF-003D5 与 G0 外部证据并行保留；任何版本在物理/无障碍、签名和安装门禁完成前不得分发。PF-001 收口后进入 PF-004。
+Stage 182 已关闭 PF-001 启动时无条件激活控制中心的缺口：桌面方格就绪时保持桌面优先，空工作区显示非激活首建入口，第二次用户启动激活唯一控制中心。下一切片完成 PF-004 的用户可见标题、焦点、锁定、折叠和更多操作最小闭环；PF-001～PF-003 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。

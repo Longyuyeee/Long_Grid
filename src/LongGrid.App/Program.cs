@@ -23,8 +23,10 @@ public static class Program
         AppActivationArguments activation = AppInstance
             .GetCurrent()
             .GetActivatedEventArgs();
-        string instanceKey = ProductPf002AppEvidenceSession.ResolveInstanceKey(
-            MainInstanceKey);
+        string instanceKey = ProductDesktopFirstStartupEvidenceSession
+            .ResolveInstanceKey(
+                ProductPf002AppEvidenceSession.ResolveInstanceKey(
+                    MainInstanceKey));
         AppInstance mainInstance = AppInstance.FindOrRegisterForKey(instanceKey);
 
         if (!mainInstance.IsCurrent)

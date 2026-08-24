@@ -358,3 +358,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-24 PF-003D5 证据准入纠偏：人工手册已定义但启动器无法接受的 PF003D5-01～05 现全部接入正式受控会话入口；合同继续固定不发送输入、不改显示/会话、不截屏、不写 Pass，并新增机器字段禁止把 SendInput 标成物理设备。Stage 153/README 的过期 D4/B6C3 下一步已同步为 D5→PF-001 收口→PF-004～010。两次正式 App 可见自动化均在截图观察阶段被操作者 Escape 中止，零输入、零证据升级；物理/截图/UIA 继续 Pending，详见 [Stage 180](180-pf003d5-real-input-evidence-readiness-audit.md)。
 
 2026-08-24 PF-003D5 可见捕获阻断：正式 Release App 的 Windows Capture 两次只得到透明 Surface 下层内容，随后进程退出；零点击、零拖动、零配置提交。Application Error/WER 均为 Microsoft.UI.Xaml 3.2.3.0、`0xc000027b`、P7 `8001010e`，与既有 RPC_E_WRONG_THREAD 上游签名一致。Stage 172–180 已关闭 PF-003 生产工程范围，状态调整为 `EngineeringComplete / ProductEvidencePending`；物理/截图/UIA 继续在安全环境补证，下一产品切片转入 PF-001 桌面优先启动，详见 [Stage 181](181-pf003d5-visible-capture-upstream-blocker-audit.md)。
+
+2026-08-24 PF-001 桌面优先启动收口：正常启动不再无条件弹出控制中心；可用/空工作区 DesktopHost 保持桌面优先，方格关闭、配置需注意、Host 不可用或第二次用户启动时激活唯一控制中心。正式 Release App 首次 DesktopHost 1 个、控制中心 0 个，`1,378 ms` 冷启动并稳定 20 秒，重定向/退出/临时配置 Expected/Actual 均无差异。PF-001 调整为 `EngineeringComplete / ProductEvidencePending`，顶层仍为 0/30 Complete，下一切片进入 PF-004，详见 [Stage 182](182-pf001-desktop-first-startup-audit.md)。
