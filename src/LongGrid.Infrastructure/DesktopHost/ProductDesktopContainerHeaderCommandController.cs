@@ -114,7 +114,7 @@ public sealed class ProductDesktopContainerHeaderCommandController
                         currentEditRevision,
                         targets[0].Ordinal,
                         !originalValue));
-            if (!committed.IsAccepted)
+            if (!committed.IsAccepted || committed.EditUndoToken is null)
             {
                 return Reject(
                     request,
@@ -128,7 +128,8 @@ public sealed class ProductDesktopContainerHeaderCommandController
                 committed.EditRevision,
                 saves.Snapshot.CurrentRevision,
                 originalValue,
-                !originalValue);
+                !originalValue,
+                committed.EditUndoToken);
             return new(
                 ProductDesktopContainerHeaderCommandStatus.Accepted,
                 request.Kind,
@@ -199,21 +200,18 @@ public sealed class ProductDesktopContainerHeaderCommandController
                     currentEditRevision);
             }
 
-            ProductWorkspaceContainerCommitResult compensated =
-                workspaceCommits.CommitContainer(
+            ProductWorkspaceContainerEditUndoCommitResult compensated =
+                workspaceCommits.CommitContainerEditUndo(
                     state,
-                    CommitRequest(
-                        pending.Kind,
-                        currentEditRevision,
-                        targets[0].Ordinal,
-                        pending.OriginalValue));
+                    pending.UndoToken,
+                    confirmed: true);
             if (!compensated.IsAccepted)
             {
                 return Result(
                     ProductDesktopContainerHeaderCommandStatus.Rejected,
                     pending,
                     compensated.EditRevision,
-                    compensated.EditError,
+                    ProductWorkspaceEditError.InvalidState,
                     save.Failure);
             }
 
@@ -300,5 +298,6 @@ public sealed class ProductDesktopContainerHeaderCommandController
         long EditRevision,
         long SaveRevision,
         bool OriginalValue,
-        bool CommittedValue);
+        bool CommittedValue,
+        ProductWorkspaceContainerEditUndoToken UndoToken);
 }

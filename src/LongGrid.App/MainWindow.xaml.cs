@@ -121,6 +121,8 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerOpacityPreset?,
         ProductWorkspaceContainerPositionPreset?,
         ProductWorkspaceContainerSizePreset?,
+        ProductContainerTitleVisibilityPolicy?,
+        ProductContainerTitleDoubleClickAction?,
         bool,
         ProductWorkspaceContainerCommitResult> _commitProductWorkspaceContainerAction;
     private readonly Func<
@@ -128,6 +130,11 @@ public sealed partial class MainWindow : Window
         bool,
         ProductWorkspaceContainerRemovalUndoCommitResult>
         _commitProductWorkspaceContainerRemovalUndo;
+    private readonly Func<
+        ProductWorkspaceContainerEditUndoToken,
+        bool,
+        ProductWorkspaceContainerEditUndoCommitResult>
+        _commitProductWorkspaceContainerEditUndo;
     private readonly Func<
         ProductWorkspaceLayoutRecoveryReviewToken,
         bool,
@@ -241,6 +248,8 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerOpacityPreset?,
             ProductWorkspaceContainerPositionPreset?,
             ProductWorkspaceContainerSizePreset?,
+            ProductContainerTitleVisibilityPolicy?,
+            ProductContainerTitleDoubleClickAction?,
             bool,
             ProductWorkspaceContainerCommitResult> commitProductWorkspaceContainerAction,
         Func<
@@ -248,6 +257,11 @@ public sealed partial class MainWindow : Window
             bool,
             ProductWorkspaceContainerRemovalUndoCommitResult>
             commitProductWorkspaceContainerRemovalUndo,
+        Func<
+            ProductWorkspaceContainerEditUndoToken,
+            bool,
+            ProductWorkspaceContainerEditUndoCommitResult>
+            commitProductWorkspaceContainerEditUndo,
         Func<
             ProductWorkspaceLayoutRecoveryReviewToken,
             bool,
@@ -286,6 +300,8 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceContainerAction);
         ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceContainerRemovalUndo);
+        ArgumentNullException.ThrowIfNull(
+            commitProductWorkspaceContainerEditUndo);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecovery);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecoveryUndo);
         _recoverConfiguration = recoverConfiguration;
@@ -319,6 +335,8 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceContainerAction;
         _commitProductWorkspaceContainerRemovalUndo =
             commitProductWorkspaceContainerRemovalUndo;
+        _commitProductWorkspaceContainerEditUndo =
+            commitProductWorkspaceContainerEditUndo;
         _commitProductWorkspaceLayoutRecovery =
             commitProductWorkspaceLayoutRecovery;
         _commitProductWorkspaceLayoutRecoveryUndo =
@@ -1466,6 +1484,14 @@ public sealed partial class MainWindow : Window
                 when _latestUndo.ReferenceReassignmentToken is { } token:
                 UndoLatestReferenceReassignment(token);
                 break;
+            case ProductWorkspaceLatestUndoKind.ContainerEdit
+                when _latestUndo.ContainerEditToken is { } token:
+                ProductWorkspaceContainerEditUndoCommitResult editUndo =
+                    _commitProductWorkspaceContainerEditUndo(token, true);
+                ProductWorkspaceContainerEditStatus.Text = editUndo.IsAccepted
+                    ? "最近一次方格编辑已撤销并进入安全保存队列；桌面文件未改变。"
+                    : "最近一次方格编辑撤销已安全拒绝；配置与桌面文件均未改变。";
+                break;
             default:
                 return ProductWorkspaceLatestUndoKind.Unavailable;
         }
@@ -1719,6 +1745,10 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerEditPresentation.ColorChoices;
         ProductWorkspaceContainerOpacitySelector.ItemsSource =
             ProductWorkspaceContainerEditPresentation.OpacityChoices;
+        ProductWorkspaceContainerTitleVisibilitySelector.ItemsSource =
+            ProductWorkspaceContainerEditPresentation.TitleVisibilityChoices;
+        ProductWorkspaceContainerTitleDoubleClickSelector.ItemsSource =
+            ProductWorkspaceContainerEditPresentation.TitleDoubleClickChoices;
         ProductWorkspaceContainerPositionSelector.ItemsSource =
             ProductWorkspaceContainerEditPresentation.PositionChoices;
         ProductWorkspaceContainerSizeSelector.ItemsSource =
@@ -1946,6 +1976,8 @@ public sealed partial class MainWindow : Window
         {
             ProductWorkspaceContainerColorSelector.SelectedIndex = -1;
             ProductWorkspaceContainerOpacitySelector.SelectedIndex = -1;
+            ProductWorkspaceContainerTitleVisibilitySelector.SelectedIndex = -1;
+            ProductWorkspaceContainerTitleDoubleClickSelector.SelectedIndex = -1;
             ProductWorkspaceContainerPositionSelector.SelectedIndex = -1;
             ProductWorkspaceContainerSizeSelector.SelectedIndex = -1;
         }
@@ -2014,6 +2046,20 @@ public sealed partial class MainWindow : Window
             FindColorChoiceIndex(selected.Color);
         ProductWorkspaceContainerOpacitySelector.SelectedIndex =
             FindOpacityChoiceIndex(selected.Opacity);
+        ProductWorkspaceContainerTitleVisibilitySelector.SelectedIndex =
+            ProductWorkspaceContainerEditPresentation.TitleVisibilityChoices
+                .Select((choice, index) => (choice, index))
+                .Where(pair => pair.choice.Policy == selected.TitleVisibility)
+                .Select(pair => pair.index)
+                .DefaultIfEmpty(-1)
+                .First();
+        ProductWorkspaceContainerTitleDoubleClickSelector.SelectedIndex =
+            ProductWorkspaceContainerEditPresentation.TitleDoubleClickChoices
+                .Select((choice, index) => (choice, index))
+                .Where(pair => pair.choice.Action == selected.TitleDoubleClickAction)
+                .Select(pair => pair.index)
+                .DefaultIfEmpty(-1)
+                .First();
     }
 
     private void ApplyProductWorkspaceContainerPlacementSelection(
@@ -2076,21 +2122,35 @@ public sealed partial class MainWindow : Window
             && !selected.IsLocked;
         ProductWorkspaceContainerColorSelector.IsEnabled = canEditAppearance;
         ProductWorkspaceContainerOpacitySelector.IsEnabled = canEditAppearance;
+        ProductWorkspaceContainerTitleVisibilitySelector.IsEnabled =
+            canEditAppearance;
+        ProductWorkspaceContainerTitleDoubleClickSelector.IsEnabled =
+            canEditAppearance;
         ProductWorkspaceContainerColorChoicePresentation? colorChoice =
             ProductWorkspaceContainerColorSelector.SelectedItem as
                 ProductWorkspaceContainerColorChoicePresentation;
         ProductWorkspaceContainerOpacityChoicePresentation? opacityChoice =
             ProductWorkspaceContainerOpacitySelector.SelectedItem as
                 ProductWorkspaceContainerOpacityChoicePresentation;
+        ProductWorkspaceContainerTitleVisibilityChoicePresentation? titleVisibility =
+            ProductWorkspaceContainerTitleVisibilitySelector.SelectedItem as
+                ProductWorkspaceContainerTitleVisibilityChoicePresentation;
+        ProductWorkspaceContainerTitleDoubleClickChoicePresentation? titleDoubleClick =
+            ProductWorkspaceContainerTitleDoubleClickSelector.SelectedItem as
+                ProductWorkspaceContainerTitleDoubleClickChoicePresentation;
         ProductWorkspaceContainerAppearanceButton.IsEnabled =
             canEditAppearance
             && colorChoice is not null
             && opacityChoice is not null
+            && titleVisibility is not null
+            && titleDoubleClick is not null
             && (!string.Equals(
                     colorChoice.Color,
                     selected!.Color,
                     StringComparison.OrdinalIgnoreCase)
-                || Math.Abs(opacityChoice.Opacity - selected.Opacity) >= 0.000001);
+                || Math.Abs(opacityChoice.Opacity - selected.Opacity) >= 0.000001
+                || titleVisibility.Policy != selected.TitleVisibility
+                || titleDoubleClick.Action != selected.TitleDoubleClickAction);
         bool canEditPlacement = _containerEditor.CanUpdatePlacement
             && selected is not null
             && !selected.IsLocked;
@@ -2186,7 +2246,11 @@ public sealed partial class MainWindow : Window
             || ProductWorkspaceContainerColorSelector.SelectedItem is not
                 ProductWorkspaceContainerColorChoicePresentation color
             || ProductWorkspaceContainerOpacitySelector.SelectedItem is not
-                ProductWorkspaceContainerOpacityChoicePresentation opacity)
+                ProductWorkspaceContainerOpacityChoicePresentation opacity
+            || ProductWorkspaceContainerTitleVisibilitySelector.SelectedItem is not
+                ProductWorkspaceContainerTitleVisibilityChoicePresentation titleVisibility
+            || ProductWorkspaceContainerTitleDoubleClickSelector.SelectedItem is not
+                ProductWorkspaceContainerTitleDoubleClickChoicePresentation titleDoubleClick)
         {
             return;
         }
@@ -2195,7 +2259,9 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerCommitAction.SetAppearancePreset,
             selected.Ordinal,
             colorPreset: color.Preset,
-            opacityPreset: opacity.Preset);
+            opacityPreset: opacity.Preset,
+            titleVisibility: titleVisibility.Policy,
+            titleDoubleClickAction: titleDoubleClick.Action);
     }
 
     private void ProductWorkspaceContainerPlacementButton_Click(
@@ -2307,6 +2373,8 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerOpacityPreset? opacityPreset = null,
         ProductWorkspaceContainerPositionPreset? positionPreset = null,
         ProductWorkspaceContainerSizePreset? sizePreset = null,
+        ProductContainerTitleVisibilityPolicy? titleVisibility = null,
+        ProductContainerTitleDoubleClickAction? titleDoubleClickAction = null,
         bool confirmed = false)
     {
         string name = action == ProductWorkspaceContainerCommitAction.Remove
@@ -2323,6 +2391,8 @@ public sealed partial class MainWindow : Window
                 opacityPreset,
                 positionPreset,
                 sizePreset,
+                titleVisibility,
+                titleDoubleClickAction,
                 confirmed);
         bool changed = result.IsAccepted;
         ProductWorkspaceContainerEditStatus.Text = result.Status switch

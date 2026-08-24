@@ -922,13 +922,16 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.Equal("display-primary", headerCommand.DisplayId);
         Assert.Equal(7, headerCommand.ExpectedWorkspaceRevision);
         Assert.Equal(11, headerCommand.ExpectedTopologyGeneration);
+        RecordingSurface readOnlySurface = Assert.Single(surfaceFactory.Surfaces);
+        Assert.True(readOnlySurface.RequestBoundContainerHeaderDoubleClick());
+        Assert.Equal(2, headerCommands.Count);
         Assert.False(source.ApplyBoundContainerHeader(new(
             ProductDesktopContainerHeaderCommandKind.ToggleLocked,
             "container-1",
             SourceAttested: true,
             IsInjected: true,
             IsAutoRepeat: false)));
-        Assert.Single(headerCommands);
+        Assert.Equal(2, headerCommands.Count);
         var menuRequests = new List<ProductDesktopContainerMenuRequest>();
         controller.BindContainerMenu(
             (containerId, displayId) =>
@@ -955,13 +958,20 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.Equal("display-primary", menuRequest.DisplayId);
         Assert.Equal(7, menuRequest.ExpectedWorkspaceRevision);
         Assert.Equal(11, menuRequest.ExpectedTopologyGeneration);
+        Assert.True(source.ApplyBoundContainerMenu(new(
+            ProductDesktopContainerMenuAction.DeleteContainerConfiguration,
+            "container-1",
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: false)));
+        Assert.Equal(2, menuRequests.Count);
         Assert.False(source.ApplyBoundContainerMenu(new(
             ProductDesktopContainerMenuAction.OpenRename,
             "container-1",
             SourceAttested: true,
             IsInjected: false,
             IsAutoRepeat: true)));
-        Assert.Single(menuRequests);
+        Assert.Equal(2, menuRequests.Count);
         Assert.True(controller.RequestKeyboardInteraction());
         Assert.Equal(
             ProductDesktopInteractionForwardedInputKind.KeyboardActivation,
@@ -1821,6 +1831,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             requestWorkspaceCreate = static _ => false;
         private Func<ProductDesktopContainerLayoutSurfaceInput, bool>
             requestContainerLayout = static _ => false;
+        private Func<ProductDesktopContainerHeaderSurfaceInput, bool>
+            requestContainerHeaderCommand = static _ => false;
 
         internal bool WasCreatedHidden { get; } = startHidden;
 
@@ -1902,6 +1914,10 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         public void BindContainerLayout(
             Func<ProductDesktopContainerLayoutSurfaceInput, bool> requestLayout) =>
             requestContainerLayout = requestLayout;
+
+        public void BindContainerHeaderCommand(
+            Func<ProductDesktopContainerHeaderSurfaceInput, bool> requestCommand) =>
+            requestContainerHeaderCommand = requestCommand;
 
         public bool ApplyContainerLayoutPreview(
             string containerId,
@@ -1990,6 +2006,14 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                 SnapEnabled: true,
                 ShiftPressed: false,
                 ProductDesktopContainerLayoutCancellationReason.None));
+
+        internal bool RequestBoundContainerHeaderDoubleClick() =>
+            requestContainerHeaderCommand(new(
+                ProductDesktopContainerHeaderCommandKind.ToggleCollapsed,
+                "container-1",
+                SourceAttested: true,
+                IsInjected: false,
+                IsAutoRepeat: false));
 
         internal bool ApplyBoundSelection(
             string containerId,

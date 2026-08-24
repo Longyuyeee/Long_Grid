@@ -10,7 +10,8 @@ internal sealed record ProductWorkspaceLatestUndoPresentation(
     ProductWorkspaceReferenceBatchAdditionUndoToken? ReferenceBatchAdditionToken,
     ProductWorkspaceReferenceBatchAdditionUndoToken? SelectedReferenceContainerToken,
     ProductWorkspaceReferenceRemovalUndoToken? ReferenceRemovalToken,
-    ProductWorkspaceReferenceReassignmentUndoToken? ReferenceReassignmentToken)
+    ProductWorkspaceReferenceReassignmentUndoToken? ReferenceReassignmentToken,
+    ProductWorkspaceContainerEditUndoToken? ContainerEditToken)
 {
     public static ProductWorkspaceLatestUndoPresentation Unavailable { get; } =
         Create(null, null, null, null, null, null);
@@ -26,6 +27,15 @@ internal sealed record ProductWorkspaceLatestUndoPresentation(
             "撤销使用选择创建方格",
         ProductWorkspaceLatestUndoKind.ReferenceRemoval => "撤销批量移除",
         ProductWorkspaceLatestUndoKind.ReferenceReassignment => "撤销批量改归属",
+        ProductWorkspaceLatestUndoKind.ContainerEdit => ContainerEditToken?.Kind switch
+        {
+            ProductWorkspaceContainerEditUndoKind.Rename => "撤销重命名",
+            ProductWorkspaceContainerEditUndoKind.Locked => "撤销锁定状态",
+            ProductWorkspaceContainerEditUndoKind.Collapsed => "撤销折叠状态",
+            ProductWorkspaceContainerEditUndoKind.Appearance => "撤销方格外观",
+            ProductWorkspaceContainerEditUndoKind.Placement => "撤销方格布局",
+            _ => "撤销方格编辑",
+        },
         _ => "没有可撤销的配置编辑",
     };
 
@@ -43,7 +53,8 @@ internal sealed record ProductWorkspaceLatestUndoPresentation(
         ProductWorkspaceReferenceBatchAdditionUndoToken? referenceBatchAddition,
         ProductWorkspaceReferenceBatchAdditionUndoToken? selectedReferenceContainer,
         ProductWorkspaceReferenceRemovalUndoToken? referenceRemoval,
-        ProductWorkspaceReferenceReassignmentUndoToken? referenceReassignment) =>
+        ProductWorkspaceReferenceReassignmentUndoToken? referenceReassignment,
+        ProductWorkspaceContainerEditUndoToken? containerEdit = null) =>
         new(
             ProductWorkspaceLatestUndoSelector.Select(
                 layoutRecovery,
@@ -51,11 +62,13 @@ internal sealed record ProductWorkspaceLatestUndoPresentation(
                 referenceBatchAddition,
                 selectedReferenceContainer,
                 referenceRemoval,
-                referenceReassignment),
+                referenceReassignment,
+                containerEdit),
             layoutRecovery,
             containerRemoval,
             referenceBatchAddition,
             selectedReferenceContainer,
             referenceRemoval,
-            referenceReassignment);
+            referenceReassignment,
+            containerEdit);
 }

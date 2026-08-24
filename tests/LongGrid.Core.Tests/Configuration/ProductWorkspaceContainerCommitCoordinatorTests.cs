@@ -731,6 +731,90 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
         Assert.Equal(2, saves.Snapshot.CurrentRevision);
     }
 
+    [Fact]
+    public async Task RealStoreContainerEditsUndoAndReloadWithoutDifference()
+    {
+        string sandbox = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid.ContainerEditUndo.Tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(sandbox);
+        try
+        {
+            ProductWorkspaceContainerCommitAction[] actions =
+            [
+                ProductWorkspaceContainerCommitAction.Rename,
+                ProductWorkspaceContainerCommitAction.SetLocked,
+                ProductWorkspaceContainerCommitAction.SetCollapsed,
+                ProductWorkspaceContainerCommitAction.SetAppearancePreset,
+            ];
+            foreach (ProductWorkspaceContainerCommitAction action in actions)
+            {
+                string storeDirectory = Path.Combine(sandbox, action.ToString());
+                ProductWorkspaceState expected = State(Container("container-1", "Before"));
+                ProductConfigurationDocument expectedDocument =
+                    ProductWorkspaceConfigurationProjector.Project(expected).Document!;
+                var store = new ProductConfigurationStore(storeDirectory);
+                await store.SaveAsync(expectedDocument);
+                var workflow = new ProductConfigurationSaveWorkflow(
+                    new ProductConfigurationSaveCoordinator(store));
+                await using var saves = new ProductWorkspaceSaveController(
+                    workflow,
+                    new ImmediateScheduler(),
+                    TimeSpan.FromMilliseconds(1));
+                var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+                long revision = coordinator.AdvanceExternalRevision();
+                ProductWorkspaceContainerCommitRequest request = action switch
+                {
+                    ProductWorkspaceContainerCommitAction.Rename =>
+                        new(action, revision, 1, "After"),
+                    ProductWorkspaceContainerCommitAction.SetLocked =>
+                        new(action, revision, 1, string.Empty, StateValue: true),
+                    ProductWorkspaceContainerCommitAction.SetCollapsed =>
+                        new(action, revision, 1, string.Empty, StateValue: true),
+                    ProductWorkspaceContainerCommitAction.SetAppearancePreset =>
+                        new(
+                            action,
+                            revision,
+                            1,
+                            string.Empty,
+                            ColorPreset: ProductWorkspaceContainerColorPreset.Amber,
+                            OpacityPreset: ProductWorkspaceContainerOpacityPreset.Subtle,
+                            TitleVisibility: ProductContainerTitleVisibilityPolicy.Hover,
+                            TitleDoubleClickAction:
+                                ProductContainerTitleDoubleClickAction.None),
+                    _ => throw new InvalidOperationException(),
+                };
+
+                ProductWorkspaceContainerCommitResult edited =
+                    coordinator.CommitContainer(expected, request);
+                Assert.True(edited.IsAccepted);
+                Assert.NotNull(edited.EditUndoToken);
+                ProductWorkspaceContainerEditUndoCommitResult undone =
+                    coordinator.CommitContainerEditUndo(
+                        edited.State!,
+                        edited.EditUndoToken!,
+                        confirmed: true);
+                Assert.True(
+                    undone.IsAccepted,
+                    $"{action}:Status={undone.Status}:Undo={undone.UndoStatus}");
+                _ = await saves.CompleteAsync();
+                ProductConfigurationLoadResult actual = await store.LoadAsync();
+
+                Assert.Equal(
+                    ProductWorkspaceConfigurationFingerprint.Compute(expectedDocument),
+                    ProductWorkspaceConfigurationFingerprint.Compute(actual.Document!));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(sandbox))
+            {
+                Directory.Delete(sandbox, recursive: true);
+            }
+        }
+    }
+
     private static ProductWorkspaceSaveController CreateSaves(
         IProductConfigurationSaveWorkflow workflow) =>
         new(

@@ -111,6 +111,9 @@ public static class ProductWorkspaceConfigurationProjector
                 Color = container.Appearance.Color,
                 Opacity = container.Appearance.Opacity,
                 Collapsed = container.Appearance.Collapsed,
+                TitleVisibility = container.Appearance.TitleVisibility,
+                TitleDoubleClickAction =
+                    container.Appearance.TitleDoubleClickAction,
                 ExtensionData = container.Appearance.ExtensionData,
             },
             Placement = new ContainerPlacementConfiguration

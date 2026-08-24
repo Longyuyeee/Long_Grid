@@ -12,6 +12,7 @@ public enum ProductWorkspaceLatestUndoKind
     SelectedReferenceContainer,
     ReferenceRemoval,
     ReferenceReassignment,
+    ContainerEdit,
 }
 
 public sealed record ProductWorkspaceLatestUndoSelection(
@@ -30,7 +31,8 @@ public static class ProductWorkspaceLatestUndoSelector
         ProductWorkspaceReferenceBatchAdditionUndoToken? referenceBatchAddition,
         ProductWorkspaceReferenceBatchAdditionUndoToken? selectedReferenceContainer,
         ProductWorkspaceReferenceRemovalUndoToken? referenceRemoval,
-        ProductWorkspaceReferenceReassignmentUndoToken? referenceReassignment)
+        ProductWorkspaceReferenceReassignmentUndoToken? referenceReassignment,
+        ProductWorkspaceContainerEditUndoToken? containerEdit = null)
     {
         (ProductWorkspaceLatestUndoKind Kind, bool IsPresent, Guid OperationId,
             long Revision)[]
@@ -60,6 +62,10 @@ public static class ProductWorkspaceLatestUndoSelector
                     ProductWorkspaceLatestUndoKind.ReferenceReassignment,
                     referenceReassignment?.OperationId,
                     referenceReassignment?.ReassignmentEditRevision),
+                Candidate(
+                    ProductWorkspaceLatestUndoKind.ContainerEdit,
+                    containerEdit?.OperationId,
+                    containerEdit?.EditRevision),
             ];
 
         (ProductWorkspaceLatestUndoKind Kind, bool IsPresent, Guid OperationId,

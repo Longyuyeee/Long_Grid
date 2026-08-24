@@ -778,7 +778,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         Assert.Equal(ControlType.Group.Id, uiaContainer.GetPropertyValue(
             AutomationElementIdentifiers.ControlTypeProperty.Id));
         Assert.Equal(
-            "Work；1 个项目；安全引用；未锁定；已展开",
+                "Work；1 个项目；安全引用；未锁定；已展开；标题始终显示；双击标题切换折叠",
             uiaContainer.GetPropertyValue(
                 AutomationElementIdentifiers.NameProperty.Id));
         Assert.NotNull(uiaContainer.GetPropertyValue(
@@ -788,7 +788,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         Assert.False((bool)uiaContainer.GetPropertyValue(
             AutomationElementIdentifiers.IsKeyboardFocusableProperty.Id)!);
         Assert.Equal(
-            "只读方格；ContainerHeader:Items=1:Locked=False:Collapsed=False:Source=SafeReferences",
+            "只读方格；ContainerHeader:Items=1:Locked=False:Collapsed=False:TitleVisibility=Always:DoubleClick=ToggleCollapsed:Source=SafeReferences",
             uiaContainer.GetPropertyValue(
                 AutomationElementIdentifiers.ItemStatusProperty.Id));
         Assert.Null(uiaContainer.GetPropertyValue(-1));

@@ -668,6 +668,8 @@ function Test-SourceContract {
         'ProductWorkspaceContainerCollapseButton',
         'ProductWorkspaceContainerColorSelector',
         'ProductWorkspaceContainerOpacitySelector',
+        'ProductWorkspaceContainerTitleVisibilitySelector',
+        'ProductWorkspaceContainerTitleDoubleClickSelector',
         'ProductWorkspaceContainerAppearanceButton',
         'ProductWorkspaceContainerPositionSelector',
         'ProductWorkspaceContainerSizeSelector',
@@ -1084,7 +1086,9 @@ function Test-SourceContract {
     }
     foreach ($selectorId in @(
             'ProductWorkspaceContainerColorSelector',
-            'ProductWorkspaceContainerOpacitySelector'
+            'ProductWorkspaceContainerOpacitySelector',
+            'ProductWorkspaceContainerTitleVisibilitySelector',
+            'ProductWorkspaceContainerTitleDoubleClickSelector'
         )) {
         $selectorNode = Get-XamlNodeByAutomationId $document $selectorId
         Assert-Condition (
@@ -2460,7 +2464,7 @@ function Test-SourceContract {
         $workspaceReadPresentationCode -match 'IsKnownEmptyWorkspace' -and
         $codeBehind -match 'ProductWorkspaceEmptyCreateShortcutPolicy\.Evaluate' -and
         $codeBehind -match 'ApplyProductWorkspaceReadModel[\s\S]{0,1200}UpdateProductWorkspaceEmptyCreateShortcut' -and
-        $codeBehind -match 'ApplyProductWorkspaceContainerEditor[\s\S]{0,2400}UpdateProductWorkspaceEmptyCreateShortcut' -and
+        $codeBehind -match 'ApplyProductWorkspaceContainerEditor[\s\S]{0,4000}UpdateProductWorkspaceEmptyCreateShortcut' -and
         $codeBehind -match 'ProductWorkspaceContainerNameEditor\.Focus\(\s*FocusState\.Programmatic\)' -and
         $codeBehind -match 'WorkspaceEmptyCreateShortcutOpened' -and
         $codeBehind -match 'Changed=False:DesktopFilesChanged=False'
@@ -3221,7 +3225,7 @@ function Test-SourceContract {
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
         productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-single-undo'
-        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-create-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only-desktop-layout-session-candidate-publish-compensate-keyboard-title-focus-transaction-cross-display-mixed-dpi'
+        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-title-visibility-title-double-click-placement-remove-unified-edit-undo-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only-desktop-layout-session-candidate-publish-compensate-keyboard-title-focus-transaction-cross-display-mixed-dpi'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'
                     productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-title-layout-invoke-no-file-operations'

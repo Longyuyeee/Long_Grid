@@ -106,12 +106,16 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         requestWorkspaceCreate = static _ => false;
     private Func<ProductDesktopContainerLayoutSurfaceInput, bool>
         requestContainerLayout = static _ => false;
+    private Func<ProductDesktopContainerHeaderSurfaceInput, bool>
+        requestContainerHeaderCommand = static _ => false;
     private ActiveContainerLayout? activeContainerLayout;
     private ProductDesktopHostReadOnlyProjection? containerLayoutPreview;
     private string? containerLayoutKeyboardFocusId;
     private NativePoint workspaceCreateDragStart;
     private NativePoint workspaceCreateDragCurrent;
     private bool workspaceCreateDragActive;
+    private string? hoveredHeaderContainerId;
+    private bool trackingMouseLeave;
     private volatile ProductDesktopInteractionSurfaceMode mode;
     private bool workspaceCreateHotKeyRegistered;
 #if WINDOWS
@@ -213,6 +217,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         var windowClass = new WindowClass
         {
             Size = (uint)Marshal.SizeOf<WindowClass>(),
+            Style = NativeMethods.CsDoubleClicks,
             WindowProcedure = windowProcedure,
             Instance = module,
             ClassName = className,
@@ -230,10 +235,6 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         uint extendedStyle = NativeMethods.WsExToolWindow
                 | NativeMethods.WsExLayered
                 | NativeMethods.WsExNoActivate;
-        if (projection.Containers.Count > 0)
-        {
-            extendedStyle |= NativeMethods.WsExTransparent;
-        }
         Handle = NativeMethods.CreateWindowEx(
             extendedStyle,
             className,
@@ -352,7 +353,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                     }
                 }
                 return nint.Zero;
+            case NativeMethods.WmLButtonDoubleClick:
+                _ = HandleHeaderDoubleClick(longParameter);
+                return nint.Zero;
             case NativeMethods.WmMouseMove:
+                UpdateHeaderHover(window, longParameter);
                 if (activeContainerLayout is not null)
                 {
                     UpdateContainerLayout(longParameter);
@@ -360,6 +365,14 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 else
                 {
                     UpdateWorkspaceCreateDrag(longParameter);
+                }
+                return nint.Zero;
+            case NativeMethods.WmMouseLeave:
+                trackingMouseLeave = false;
+                if (hoveredHeaderContainerId is not null)
+                {
+                    hoveredHeaderContainerId = null;
+                    _ = NativeMethods.InvalidateRect(window, nint.Zero, erase: false);
                 }
                 return nint.Zero;
             case NativeMethods.WmLButtonUp:
@@ -435,6 +448,13 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         requestContainerLayout = requestLayout;
     }
 
+    public void BindContainerHeaderCommand(
+        Func<ProductDesktopContainerHeaderSurfaceInput, bool> requestCommand)
+    {
+        ArgumentNullException.ThrowIfNull(requestCommand);
+        requestContainerHeaderCommand = requestCommand;
+    }
+
     public bool ApplyContainerLayoutPreview(
         string containerId,
         ProductContainerPlacementState? placement)
@@ -505,7 +525,9 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 placement.HeightDip,
                 source.IsLocked,
                 source.ItemIds,
-                source.TotalItemCount);
+                source.TotalItemCount,
+                source.TitleVisibility,
+                source.TitleDoubleClickAction);
             _ = ProductDesktopHostSurfaceLayout.GetContainerBounds(
                 projection,
                 candidate);
@@ -570,6 +592,14 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 containerId,
                 StringComparison.Ordinal))
             ?.Header;
+
+    internal bool IsContainerHeaderVisibleForEvidence(string containerId) =>
+        projection.Containers
+            .SingleOrDefault(candidate => string.Equals(
+                candidate.ContainerId,
+                containerId,
+                StringComparison.Ordinal)) is { } container
+        && IsHeaderVisible(container);
 
     internal bool SubmitContainerLayoutInput(
         ProductDesktopContainerLayoutSurfaceInput input)
@@ -916,9 +946,115 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         PixelRect? create =
             ProductDesktopHostSurfaceLayout.GetWorkspaceCreateButtonBounds(
                 projection);
-        return create is not null && Contains(create.Value, x, y)
-                ? NativeMethods.HtClient
-                : NativeMethods.HtTransparent;
+        if (create is not null && Contains(create.Value, x, y))
+        {
+            return NativeMethods.HtClient;
+        }
+        return FindHeaderAt(x, y) is not null
+            ? NativeMethods.HtClient
+            : NativeMethods.HtTransparent;
+    }
+
+    private ProductDesktopHostReadOnlyProjection? FindHeaderAt(int x, int y) =>
+        projection.Containers.SingleOrDefault(container =>
+            Contains(GetHeaderInteractionBounds(container), x, y));
+
+    private PixelRect GetHeaderInteractionBounds(
+        ProductDesktopHostReadOnlyProjection container)
+    {
+        PixelRect bounds = ProductDesktopHostSurfaceLayout.GetContainerBounds(
+            projection,
+            container);
+        double scale = projection.EffectiveDpi / 96d;
+        int headerHeight = ToPixels(
+            ProductDesktopHostSurfaceLayout.HeaderHeightDip,
+            scale);
+        int controlsWidth = ToPixels(140, scale);
+        return new(
+            bounds.Left,
+            bounds.Top,
+            Math.Max(0, bounds.Width - controlsWidth),
+            Math.Min(bounds.Height, headerHeight));
+    }
+
+    private bool IsHeaderVisible(ProductDesktopHostReadOnlyProjection container) =>
+        container.TitleVisibility switch
+        {
+            ProductContainerTitleVisibilityPolicy.Always => true,
+            ProductContainerTitleVisibilityPolicy.Hover => string.Equals(
+                hoveredHeaderContainerId,
+                container.ContainerId,
+                StringComparison.Ordinal),
+            ProductContainerTitleVisibilityPolicy.Hidden => false,
+            _ => false,
+        };
+
+    private void UpdateHeaderHover(nint window, nint longParameter)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Passive)
+        {
+            return;
+        }
+        if (!trackingMouseLeave)
+        {
+            var tracking = new TrackMouseEvent
+            {
+                Size = (uint)Marshal.SizeOf<TrackMouseEvent>(),
+                Flags = NativeMethods.TmeLeave,
+                Window = window,
+            };
+            trackingMouseLeave = NativeMethods.TrackMouseEvent(ref tracking);
+        }
+
+        string? next = FindHeaderAt(
+            SignedLowWord(longParameter),
+            SignedHighWord(longParameter))?.ContainerId;
+        if (!string.Equals(
+            hoveredHeaderContainerId,
+            next,
+            StringComparison.Ordinal))
+        {
+            hoveredHeaderContainerId = next;
+            _ = NativeMethods.InvalidateRect(window, nint.Zero, erase: false);
+        }
+    }
+
+    private bool HandleHeaderDoubleClick(nint longParameter)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Passive)
+        {
+            return false;
+        }
+        ProductDesktopHostReadOnlyProjection? container = FindHeaderAt(
+            SignedLowWord(longParameter),
+            SignedHighWord(longParameter));
+        if (container is null
+            || container.IsLocked
+            || container.TitleDoubleClickAction !=
+                ProductContainerTitleDoubleClickAction.ToggleCollapsed)
+        {
+            return false;
+        }
+
+        InputMessageSource source = default;
+        bool observed = NativeMethods.GetCurrentInputMessageSource(ref source);
+        try
+        {
+            return requestContainerHeaderCommand(new(
+                ProductDesktopContainerHeaderCommandKind.ToggleCollapsed,
+                container.ContainerId,
+                SourceAttested: observed,
+                IsInjected: !observed
+                    || source.OriginId == NativeMethods.ImoInjected,
+                IsAutoRepeat: false));
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException
+                or InvalidOperationException
+                or OverflowException)
+        {
+            return false;
+        }
     }
 
     private bool HandleWorkspaceCreatePress(nint longParameter)
@@ -1325,35 +1461,38 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             }
 
             ProductDesktopContainerHeaderPresentation header = container.Header;
-            int controlsWidth = ToPixels(140, scale);
-            DrawText(
-                deviceContext,
-                header.VisualTitle,
-                new(
-                    bounds.Left + horizontalPadding,
-                    bounds.Top + ToPixels(4, scale),
-                    Math.Max(
+            if (IsHeaderVisible(container))
+            {
+                int controlsWidth = ToPixels(140, scale);
+                DrawText(
+                    deviceContext,
+                    header.VisualTitle,
+                    new(
                         bounds.Left + horizontalPadding,
-                        bounds.Right - controlsWidth),
-                    bounds.Top + ToPixels(27, scale)),
-                NativeMethods.DtLeft
-                    | NativeMethods.DtVCenter
-                    | NativeMethods.DtSingleLine
-                    | NativeMethods.DtEndEllipsis);
-            DrawText(
-                deviceContext,
-                header.VisualStatus,
-                new(
-                    bounds.Left + horizontalPadding,
-                    bounds.Top + ToPixels(27, scale),
-                    Math.Max(
+                        bounds.Top + ToPixels(4, scale),
+                        Math.Max(
+                            bounds.Left + horizontalPadding,
+                            bounds.Right - controlsWidth),
+                        bounds.Top + ToPixels(27, scale)),
+                    NativeMethods.DtLeft
+                        | NativeMethods.DtVCenter
+                        | NativeMethods.DtSingleLine
+                        | NativeMethods.DtEndEllipsis);
+                DrawText(
+                    deviceContext,
+                    header.VisualStatus,
+                    new(
                         bounds.Left + horizontalPadding,
-                        bounds.Right - controlsWidth),
-                    bounds.Top + ToPixels(50, scale)),
-                NativeMethods.DtLeft
-                    | NativeMethods.DtVCenter
-                    | NativeMethods.DtSingleLine
-                    | NativeMethods.DtEndEllipsis);
+                        bounds.Top + ToPixels(27, scale),
+                        Math.Max(
+                            bounds.Left + horizontalPadding,
+                            bounds.Right - controlsWidth),
+                        bounds.Top + ToPixels(50, scale)),
+                    NativeMethods.DtLeft
+                        | NativeMethods.DtVCenter
+                        | NativeMethods.DtSingleLine
+                        | NativeMethods.DtEndEllipsis);
+            }
             if (container.IsCollapsed)
             {
                 return;
@@ -1746,13 +1885,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         long required = NativeMethods.WsExToolWindow
             | NativeMethods.WsExLayered
             | NativeMethods.WsExNoActivate;
-        if (projection.Containers.Count > 0)
-        {
-            required |= NativeMethods.WsExTransparent;
-        }
         return (style & required) == required
-            && (projection.Containers.Count == 0
-                || (style & NativeMethods.WsExTransparent) != 0)
+            && (style & NativeMethods.WsExTransparent) == 0
             && (style & NativeMethods.WsExTopmost) == 0
             && NativeMethods.GetWindow(Handle, NativeMethods.GwOwner) == nint.Zero
             && NativeMethods.GetForegroundWindow() != Handle;
@@ -1921,6 +2055,15 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    private struct TrackMouseEvent
+    {
+        internal uint Size;
+        internal uint Flags;
+        internal nint Window;
+        internal uint HoverTime;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     private struct InputMessageSource
     {
         internal uint DeviceType;
@@ -1943,6 +2086,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     private static class NativeMethods
     {
         internal const uint WsPopup = 0x80000000;
+        internal const uint CsDoubleClicks = 0x0008;
         internal const uint WsExToolWindow = 0x00000080;
         internal const uint WsExTransparent = 0x00000020;
         internal const uint WsExLayered = 0x00080000;
@@ -1958,8 +2102,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint WmGetObject = 0x003D;
         internal const uint WmKeyDown = 0x0100;
         internal const uint WmLButtonDown = 0x0201;
+        internal const uint WmLButtonDoubleClick = 0x0203;
         internal const uint WmLButtonUp = 0x0202;
         internal const uint WmMouseMove = 0x0200;
+        internal const uint WmMouseLeave = 0x02A3;
+        internal const uint TmeLeave = 0x00000002;
         internal const int VkEscape = 0x1B;
         internal const uint WmRButtonUp = 0x0205;
         internal const uint WmCaptureChanged = 0x0215;
@@ -2101,6 +2248,10 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool GetCurrentInputMessageSource(
             ref InputMessageSource inputMessageSource);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool TrackMouseEvent(ref TrackMouseEvent trackEvent);
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]

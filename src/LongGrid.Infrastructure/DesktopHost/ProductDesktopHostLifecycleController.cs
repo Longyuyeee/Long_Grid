@@ -67,7 +67,9 @@ public sealed record ProductDesktopHostReadOnlyProjection
         double heightDip,
         bool isLocked,
         IReadOnlyList<string> itemIds,
-        int totalItemCount)
+        int totalItemCount,
+        ProductContainerTitleVisibilityPolicy titleVisibility,
+        ProductContainerTitleDoubleClickAction titleDoubleClickAction)
     {
         ContainerId = containerId;
         Title = title;
@@ -82,6 +84,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
         IsLocked = isLocked;
         ItemIds = itemIds;
         TotalItemCount = totalItemCount;
+        TitleVisibility = titleVisibility;
+        TitleDoubleClickAction = titleDoubleClickAction;
     }
 
     public string ContainerId { get; }
@@ -110,12 +114,18 @@ public sealed record ProductDesktopHostReadOnlyProjection
 
     public int TotalItemCount { get; }
 
+    public ProductContainerTitleVisibilityPolicy TitleVisibility { get; }
+
+    public ProductContainerTitleDoubleClickAction TitleDoubleClickAction { get; }
+
     public ProductDesktopContainerHeaderPresentation Header =>
         ProductDesktopContainerHeaderPresentation.Create(
             Title,
             TotalItemCount,
             IsLocked,
-            IsCollapsed);
+            IsCollapsed,
+            TitleVisibility,
+            TitleDoubleClickAction);
 
     public static ProductDesktopHostReadOnlyProjection Create(
         string containerId,
@@ -130,7 +140,11 @@ public sealed record ProductDesktopHostReadOnlyProjection
         double heightDip,
         bool isLocked = false,
         IEnumerable<string>? itemIds = null,
-        int? totalItemCount = null)
+        int? totalItemCount = null,
+        ProductContainerTitleVisibilityPolicy titleVisibility =
+            ProductContainerTitleVisibilityPolicy.Always,
+        ProductContainerTitleDoubleClickAction titleDoubleClickAction =
+            ProductContainerTitleDoubleClickAction.ToggleCollapsed)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(containerId);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
@@ -166,6 +180,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
             || !double.IsFinite(yDip)
             || !double.IsFinite(widthDip)
             || !double.IsFinite(heightDip)
+            || !Enum.IsDefined(titleVisibility)
+            || !Enum.IsDefined(titleDoubleClickAction)
             || widthDip <= 0
             || heightDip <= 0)
         {
@@ -186,7 +202,9 @@ public sealed record ProductDesktopHostReadOnlyProjection
             heightDip,
             isLocked,
             Array.AsReadOnly(visibleItemIds),
-            boundedTotalItemCount);
+            boundedTotalItemCount,
+            titleVisibility,
+            titleDoubleClickAction);
     }
 }
 
@@ -227,6 +245,11 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
 
     void BindContainerLayout(
         Func<ProductDesktopContainerLayoutSurfaceInput, bool> requestLayout)
+    {
+    }
+
+    void BindContainerHeaderCommand(
+        Func<ProductDesktopContainerHeaderSurfaceInput, bool> requestCommand)
     {
     }
 
@@ -1161,6 +1184,11 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                         input.CancellationReason,
                         input.PointerScreenX,
                         input.PointerScreenY)));
+                created.BindContainerHeaderCommand(input =>
+                    ApplyContainerHeaderCommandFromSurface(
+                        created,
+                        display,
+                        input));
                 if (!created.ReadOnlyAccessibilityAttested
                     || (controlledSurfaceLifecycle
                         ? !created.HiddenWindowContractAttested
@@ -1533,6 +1561,58 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         }
     }
 
+    private bool ApplyContainerHeaderCommandFromSurface(
+        IProductDesktopHostReadOnlySurface surface,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopContainerHeaderSurfaceInput input)
+    {
+        lock (gate)
+        {
+            ProductDesktopHostReadOnlyProjection[] targets = display.Containers
+                .Where(container => string.Equals(
+                    container.ContainerId,
+                    input.ContainerId,
+                    StringComparison.Ordinal))
+                .Take(2)
+                .ToArray();
+            if (disposed
+                || currentBatch is null
+                || !surfaces.Contains(surface)
+                || targets.Length != 1
+                || input.Kind !=
+                    ProductDesktopContainerHeaderCommandKind.ToggleCollapsed
+                || targets[0].TitleDoubleClickAction !=
+                    ProductContainerTitleDoubleClickAction.ToggleCollapsed
+                || targets[0].IsLocked
+                || !input.SourceAttested
+                || input.IsInjected
+                || input.IsAutoRepeat)
+            {
+                return false;
+            }
+
+            try
+            {
+                return requestContainerHeaderCommand(new(
+                    input.Kind,
+                    input.ContainerId,
+                    display.DisplayId,
+                    currentBatch.WorkspaceRevision,
+                    currentBatch.TopologyGeneration,
+                    input.SourceAttested,
+                    input.IsInjected,
+                    input.IsAutoRepeat));
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException
+                    or InvalidOperationException
+                    or OverflowException)
+            {
+                return false;
+            }
+        }
+    }
+
     private ProductDesktopContainerMenuAvailability
         GetContainerMenuAvailabilityFromActivationSource(
             IProductDesktopInteractionActivationSource source,
@@ -1592,6 +1672,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     availability.CanOpenAppearance,
                 ProductDesktopContainerMenuAction.OpenSort =>
                     availability.CanOpenSort,
+                ProductDesktopContainerMenuAction.DeleteContainerConfiguration =>
+                    availability.CanDeleteContainerConfiguration,
                 _ => false,
             };
             if (currentBatch is null

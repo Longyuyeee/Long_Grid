@@ -148,6 +148,40 @@ public sealed class ProductWorkspaceConfigurationProjectorTests
     }
 
     [Fact]
+    public void TitlePoliciesRoundTripThroughPersistedConfiguration()
+    {
+        ProductWorkspaceState template = CreateState([CreateItem()]);
+        ProductWorkspaceState source = template with
+        {
+            Containers =
+            [
+                template.Containers[0] with
+                {
+                    Appearance = template.Containers[0].Appearance with
+                    {
+                        TitleVisibility =
+                            ProductContainerTitleVisibilityPolicy.Hover,
+                        TitleDoubleClickAction =
+                            ProductContainerTitleDoubleClickAction.None,
+                    },
+                },
+            ],
+        };
+
+        ProductConfigurationDocument document =
+            ProductWorkspaceConfigurationProjector.Project(source).Document!;
+        ProductWorkspaceState restored =
+            ProductWorkspaceConfigurationResolver.Resolve(document, []).State!;
+
+        Assert.Equal(
+            ProductContainerTitleVisibilityPolicy.Hover,
+            document.Containers[0].Appearance.TitleVisibility);
+        Assert.Equal(
+            ProductContainerTitleDoubleClickAction.None,
+            restored.Containers[0].Appearance.TitleDoubleClickAction);
+    }
+
+    [Fact]
     public void RelativeOrDisplayTextTargetIsRejectedWithoutDocumentContent()
     {
         DesktopCatalogEntry entry = CreateItem().CatalogEntry! with

@@ -62,6 +62,17 @@ public sealed class ProductWorkspaceLatestUndoSelectorTests
             ProductWorkspaceLatestUndoSelector.Select(
                 null, null, null, null, null,
                 new(operationId, 6, Fingerprint('a'), Fingerprint('b'))));
+        AssertSelection(
+            ProductWorkspaceLatestUndoKind.ContainerEdit,
+            7,
+            ProductWorkspaceLatestUndoSelector.Select(
+                null, null, null, null, null, null,
+                new(
+                    operationId,
+                    7,
+                    ProductWorkspaceContainerEditUndoKind.Appearance,
+                    Fingerprint('a'),
+                    Fingerprint('b'))));
     }
 
     [Fact]

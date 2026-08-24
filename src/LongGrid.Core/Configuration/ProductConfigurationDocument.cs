@@ -100,6 +100,14 @@ public sealed record ContainerAppearanceConfiguration
     [JsonPropertyName("collapsed")]
     public bool Collapsed { get; init; }
 
+    [JsonPropertyName("titleVisibility")]
+    public ProductContainerTitleVisibilityPolicy TitleVisibility { get; init; } =
+        ProductContainerTitleVisibilityPolicy.Always;
+
+    [JsonPropertyName("titleDoubleClickAction")]
+    public ProductContainerTitleDoubleClickAction TitleDoubleClickAction
+    { get; init; } = ProductContainerTitleDoubleClickAction.ToggleCollapsed;
+
     [JsonExtensionData]
     public IDictionary<string, JsonElement>? ExtensionData { get; init; }
 }

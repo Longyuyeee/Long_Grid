@@ -479,6 +479,31 @@
                                                 IsEnabled="False"
                                                 SelectionChanged="ProductWorkspaceContainerAppearanceSelector_SelectionChanged" />
                                         </Grid>
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <ComboBox
+                                                x:Name="ProductWorkspaceContainerTitleVisibilitySelector"
+                                                AutomationProperties.AutomationId="ProductWorkspaceContainerTitleVisibilitySelector"
+                                                AutomationProperties.Name="选择正式方格标题显示策略"
+                                                DisplayMemberPath="DisplayName"
+                                                Header="标题显示"
+                                                HorizontalAlignment="Stretch"
+                                                IsEnabled="False"
+                                                SelectionChanged="ProductWorkspaceContainerAppearanceSelector_SelectionChanged" />
+                                            <ComboBox
+                                                x:Name="ProductWorkspaceContainerTitleDoubleClickSelector"
+                                                Grid.Column="1"
+                                                AutomationProperties.AutomationId="ProductWorkspaceContainerTitleDoubleClickSelector"
+                                                AutomationProperties.Name="选择正式方格标题双击动作"
+                                                DisplayMemberPath="DisplayName"
+                                                Header="标题双击"
+                                                HorizontalAlignment="Stretch"
+                                                IsEnabled="False"
+                                                SelectionChanged="ProductWorkspaceContainerAppearanceSelector_SelectionChanged" />
+                                        </Grid>
                                         <Button
                                             x:Name="ProductWorkspaceContainerAppearanceButton"
                                             AutomationProperties.AutomationId="ProductWorkspaceContainerAppearanceButton"

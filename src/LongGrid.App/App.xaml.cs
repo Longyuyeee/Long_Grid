@@ -49,6 +49,7 @@ public partial class App : Application
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
     private ProductConfigurationLoadResult? currentConfigurationLoadResult;
+    private PendingControlCenterContainerEdit? pendingControlCenterContainerEdit;
     private MainWindow? window;
     private bool closeAfterDrain;
     private bool closingDrainInProgress;
@@ -197,6 +198,7 @@ public partial class App : Application
             CommitProductWorkspaceReferenceReassignmentUndo,
             CommitProductWorkspaceContainerAction,
             CommitProductWorkspaceContainerRemovalUndo,
+            CommitProductWorkspaceContainerEditUndo,
             CommitProductWorkspaceLayoutRecovery,
             CommitProductWorkspaceLayoutRecoveryUndo);
         productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
@@ -466,6 +468,8 @@ public partial class App : Application
                     opacityPreset: null,
                     positionPreset: null,
                     sizePreset: null,
+                    titleVisibility: null,
+                    titleDoubleClickAction: null,
                     confirmed: true);
             ProductWorkspaceState afterRemovalState = productWorkspaceSession.State
                 ?? throw new InvalidOperationException(
@@ -1525,7 +1529,8 @@ public partial class App : Application
                 workspaceCommits.CurrentReferenceBatchAdditionUndoToken,
                 workspaceCommits.CurrentSelectedReferenceContainerUndoToken,
                 workspaceCommits.CurrentReferenceRemovalUndoToken,
-                workspaceCommits.CurrentReferenceReassignmentUndoToken));
+                workspaceCommits.CurrentReferenceReassignmentUndoToken,
+                workspaceCommits.CurrentContainerEditUndoToken));
         ApplyProductWorkspaceReferenceReview();
     }
 
@@ -1837,6 +1842,8 @@ public partial class App : Application
         ProductWorkspaceContainerOpacityPreset? opacityPreset,
         ProductWorkspaceContainerPositionPreset? positionPreset,
         ProductWorkspaceContainerSizePreset? sizePreset,
+        ProductContainerTitleVisibilityPolicy? titleVisibility,
+        ProductContainerTitleDoubleClickAction? titleDoubleClickAction,
         bool confirmed) =>
         CommitProductWorkspaceContainerActionCore(
             action,
@@ -1851,7 +1858,9 @@ public partial class App : Application
             confirmed,
             createDisplayId: null,
             createBoundsPixels: null,
-            useDefaultName: false);
+            useDefaultName: false,
+            titleVisibility: titleVisibility,
+            titleDoubleClickAction: titleDoubleClickAction);
 
     private ProductWorkspaceContainerCommitResult
         CommitProductWorkspaceContainerActionCore(
@@ -1867,7 +1876,9 @@ public partial class App : Application
             bool confirmed,
             string? createDisplayId,
             PixelRect? createBoundsPixels,
-            bool useDefaultName)
+            bool useDefaultName,
+            ProductContainerTitleVisibilityPolicy? titleVisibility = null,
+            ProductContainerTitleDoubleClickAction? titleDoubleClickAction = null)
     {
         ProductWorkspaceState? state = productWorkspaceSession.State;
         bool creatingFirstConfiguration =
@@ -1927,10 +1938,20 @@ public partial class App : Application
                     opacityPreset,
                     positionPreset,
                     sizePreset,
-                    confirmed));
+                    confirmed,
+                    titleVisibility,
+                    titleDoubleClickAction));
         if (!result.IsAccepted)
         {
             return result;
+        }
+
+        if (result.EditUndoToken is { } editUndoToken)
+        {
+            pendingControlCenterContainerEdit = new(
+                editUndoToken,
+                result.EditRevision,
+                productWorkspaceSaves.Snapshot.CurrentRevision);
         }
 
         ApplyAcceptedProductWorkspaceDocument(
@@ -2745,6 +2766,41 @@ public partial class App : Application
         return result;
     }
 
+    private ProductWorkspaceContainerEditUndoCommitResult
+        CommitProductWorkspaceContainerEditUndo(
+            ProductWorkspaceContainerEditUndoToken token,
+            bool confirmed)
+    {
+        ProductWorkspaceState? state = productWorkspaceSession.State;
+        if (state is null || productWorkspaceSession.IsReadOnly)
+        {
+            return new(
+                ProductWorkspaceContainerEditUndoCommitStatus.InvalidState,
+                ProductWorkspaceContainerEditUndoStatus.InvalidState,
+                null,
+                workspaceCommits.CurrentEditRevision,
+                null,
+                null);
+        }
+
+        ProductWorkspaceContainerEditUndoCommitResult result =
+            workspaceCommits.CommitContainerEditUndo(
+                StampAuthoritativeDisplayTopology(state),
+                token,
+                confirmed);
+        if (result.IsAccepted)
+        {
+            ApplyAcceptedProductWorkspaceDocument(
+                result.Document!,
+                productDesktopCatalog.Snapshot);
+        }
+        else
+        {
+            ApplyProductWorkspaceSessionViews();
+        }
+        return result;
+    }
+
     private void ApplyAcceptedProductWorkspaceDocument(
         ProductConfigurationDocument document,
         ProductDesktopCatalogSnapshot catalog)
@@ -3141,6 +3197,41 @@ public partial class App : Application
         MainWindow currentWindow,
         ProductWorkspaceSaveSnapshot snapshot)
     {
+        if (pendingControlCenterContainerEdit is { } pendingEdit)
+        {
+            if (snapshot.Status == ProductWorkspaceSaveStatus.Saved
+                && snapshot.SavedRevision == pendingEdit.SaveRevision)
+            {
+                pendingControlCenterContainerEdit = null;
+            }
+            else if (snapshot.Status == ProductWorkspaceSaveStatus.Failed
+                && snapshot.CurrentRevision == pendingEdit.SaveRevision
+                && workspaceCommits.CurrentEditRevision == pendingEdit.EditRevision
+                && productWorkspaceSession.State is { } failedState)
+            {
+                pendingControlCenterContainerEdit = null;
+                ProductWorkspaceContainerEditUndoCommitResult compensation =
+                    workspaceCommits.CommitContainerEditUndo(
+                        failedState,
+                        pendingEdit.Token,
+                        confirmed: true);
+                if (compensation.IsAccepted)
+                {
+                    ApplyAcceptedProductWorkspaceDocument(
+                        compensation.Document!,
+                        productDesktopCatalog.Snapshot);
+                    currentWindow.ApplyProductWorkspaceSaveState(
+                        productWorkspaceSaves.Snapshot);
+                    return;
+                }
+            }
+            else if (workspaceCommits.CurrentEditRevision != pendingEdit.EditRevision
+                || snapshot.CurrentRevision != pendingEdit.SaveRevision)
+            {
+                pendingControlCenterContainerEdit = null;
+            }
+        }
+
         ProductDesktopContainerDeleteResult deletePublication =
             desktopContainerDeletes.ObserveSave(
                 productWorkspaceSession.State,
@@ -3259,6 +3350,11 @@ public partial class App : Application
 
         currentWindow.ApplyProductWorkspaceSaveState(snapshot);
     }
+
+    private sealed record PendingControlCenterContainerEdit(
+        ProductWorkspaceContainerEditUndoToken Token,
+        long EditRevision,
+        long SaveRevision);
 
     private async void AppWindow_Closing(
         AppWindow sender,
