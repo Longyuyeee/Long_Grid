@@ -441,3 +441,9 @@ Stage 182 已把正常启动从“无条件显示控制中心”改为有限状�
 Stage 183 已在正式 GDI DesktopHost 标题显示折叠方向、名称、真实项目总数、安全引用来源、锁定和折叠状态，并让 UIA 读取同一有限 presentation。可见项目仍限制为 12，标题总数限制为正式 500 项；跨显示器布局预览复制总数，不扩大输入 region、文件访问或窗口权限。
 
 真实测试创建非零原生 HWND，窗口标题、Passive 合同、`▸ 工作资料`、`7 项 · 安全引用 · 已锁定 · 已折叠` 和中文无障碍名称全部与 Expected 一致。首轮编译修正 CA1838；首轮全量又真实发现 ItemStatus 丢失“只读”导致 1/1091 失败，保留安全前缀后 1091/1091。PF-004 顶层仍为 `InProgress`，下一切片固定 PF-004B 桌面直接折叠/锁定命令，详见 [Stage 183](183-pf004a-desktop-container-header-presentation-audit.md)。
+
+## 31. 2026-08-24 PF-004B 桌面标题栏直接命令复审
+
+Stage 184 已在每个正式方格标题命令面提供进入、折叠/展开和锁定/解锁三个有限 32 DIP/UIA 按钮。生命周期与 App 双重复核 container/display/workspace revision/topology generation 和来源事实；陈旧、错误显示器、注入、自动重复、锁定折叠和并发未发布命令全部失败关闭。锁定后仍可解锁，布局与折叠继续拒绝。
+
+命令复用唯一配置提交和保存控制器；App 应用文档后复读当前保存快照，覆盖极快 Store 在 publication 登记前已完成通知的竞态。真实 Store 验证折叠成功后内存/重载均为 true；真实写租约冲突得到 `WriteLeaseUnavailable`，内存恢复原锁定值，冲突期间磁盘保持原值，释放租约后 Retry 把补偿版本落盘。真实 activation HWND/UIA 验证 3 个 32×32 按钮和精确来源请求；正式 App 1,776 ms 就绪并响应 20 秒。全量 1094/1094、build 0 warning/error、153-ID/PF-004B 合同通过，Expected/Actual `Difference=None`。PF-004 继续 `InProgress`，下一切片固定 PF-004C 更多菜单与安全管理入口，详见 [Stage 184](184-pf004b-desktop-header-command-audit.md)。

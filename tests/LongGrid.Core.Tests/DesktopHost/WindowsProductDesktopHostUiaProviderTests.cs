@@ -385,6 +385,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
                     24,
                     36)]);
         ProductDesktopInteractionForwardedInput? forwarded = null;
+        var headerInputs = new List<ProductDesktopContainerHeaderSurfaceInput>();
         using WindowsProductDesktopInteractionActivationSource source =
             WindowsProductDesktopInteractionActivationSource.Create(
                 display,
@@ -394,6 +395,11 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
                     forwarded = input;
                     return true;
                 });
+        source.BindContainerHeaderCommand(input =>
+        {
+            headerInputs.Add(input);
+            return true;
+        });
 
         AutomationElement root = AutomationElement.FromHandle(source.Handle);
         Assert.Equal(
@@ -401,19 +407,31 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
             root.Current.AutomationId);
         Assert.Equal("桌面方格交互入口", root.Current.Name);
         Assert.Equal(ControlType.Pane, root.Current.ControlType);
-        AutomationElement button = root.FindFirst(
+        AutomationElementCollection buttons = root.FindAll(
             TreeScope.Children,
             new PropertyCondition(
                 AutomationElement.ControlTypeProperty,
                 ControlType.Button));
+        Assert.Equal(3, buttons.Count);
+        AutomationElement button = buttons.Cast<AutomationElement>()
+            .Single(candidate => candidate.Current.Name == "进入 工作 交互");
         Assert.NotNull(button);
-        Assert.Equal("进入桌面方格交互", button.Current.Name);
         Assert.Equal(
             "LongGrid.DesktopHost.ActivationButton.1",
             button.Current.AutomationId);
         Assert.False(button.Current.IsKeyboardFocusable);
-        Assert.Equal(new System.Windows.Rect(454, 236, 30, 30),
+        Assert.Equal(new System.Windows.Rect(452, 236, 32, 32),
             button.Current.BoundingRectangle);
+        AutomationElement collapse = buttons.Cast<AutomationElement>()
+            .Single(candidate => candidate.Current.Name == "折叠 工作");
+        Assert.Equal(new System.Windows.Rect(420, 236, 32, 32),
+            collapse.Current.BoundingRectangle);
+        ((InvokePattern)collapse.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+        AutomationElement lockButton = buttons.Cast<AutomationElement>()
+            .Single(candidate => candidate.Current.Name == "锁定 工作");
+        Assert.Equal(new System.Windows.Rect(388, 236, 32, 32),
+            lockButton.Current.BoundingRectangle);
+        ((InvokePattern)lockButton.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
         Assert.True(button.TryGetCurrentPattern(
             InvokePattern.Pattern,
             out object? pattern));
@@ -428,6 +446,21 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         Assert.True(forwarded.SourceAttested);
         Assert.False(forwarded.IsInjected);
         Assert.False(forwarded.IsAutoRepeat);
+        Assert.Collection(
+            headerInputs,
+            input =>
+            {
+                Assert.Equal(
+                    ProductDesktopContainerHeaderCommandKind.ToggleCollapsed,
+                    input.Kind);
+                Assert.Equal("container-1", input.ContainerId);
+                Assert.True(input.SourceAttested);
+                Assert.False(input.IsInjected);
+                Assert.False(input.IsAutoRepeat);
+            },
+            input => Assert.Equal(
+                ProductDesktopContainerHeaderCommandKind.ToggleLocked,
+                input.Kind));
         Assert.True(source.ContractAttested);
         Assert.False(source.OwnsForegroundWindow);
         Assert.False(source.RequestKeyboardInteraction());
@@ -521,7 +554,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
                 display,
                 [firstRegion, secondRegion],
                 new nint(904),
-                () => available,
+                _ => available,
                 region =>
                 {
                     invoked = region;

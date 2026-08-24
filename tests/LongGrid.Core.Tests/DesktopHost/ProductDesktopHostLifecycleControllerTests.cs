@@ -904,6 +904,31 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, ready.Status);
         Assert.True(controller.CanRequestKeyboardInteraction);
         Assert.True(controller.OwnsForegroundActivationSource);
+        var headerCommands = new List<
+            ProductDesktopContainerHeaderCommandRequest>();
+        controller.BindContainerHeaderCommand(request =>
+        {
+            headerCommands.Add(request);
+            return true;
+        });
+        Assert.True(source.ApplyBoundContainerHeader(new(
+            ProductDesktopContainerHeaderCommandKind.ToggleCollapsed,
+            "container-1",
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: false)));
+        ProductDesktopContainerHeaderCommandRequest headerCommand =
+            Assert.Single(headerCommands);
+        Assert.Equal("display-primary", headerCommand.DisplayId);
+        Assert.Equal(7, headerCommand.ExpectedWorkspaceRevision);
+        Assert.Equal(11, headerCommand.ExpectedTopologyGeneration);
+        Assert.False(source.ApplyBoundContainerHeader(new(
+            ProductDesktopContainerHeaderCommandKind.ToggleLocked,
+            "container-1",
+            SourceAttested: true,
+            IsInjected: true,
+            IsAutoRepeat: false)));
+        Assert.Single(headerCommands);
         Assert.True(controller.RequestKeyboardInteraction());
         Assert.Equal(
             ProductDesktopInteractionForwardedInputKind.KeyboardActivation,
@@ -1625,6 +1650,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             applyContainerLayout = static _ => false;
         private Func<string?, bool> applyContainerLayoutTitleFocus =
             static _ => false;
+        private Func<ProductDesktopContainerHeaderSurfaceInput, bool>
+            applyContainerHeaderCommand = static _ => false;
 
         public nint Handle { get; } = new(700);
 
@@ -1692,6 +1719,12 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             applyContainerLayoutTitleFocus = applyTitleFocus;
         }
 
+        public void BindContainerHeaderCommand(
+            Func<ProductDesktopContainerHeaderSurfaceInput, bool> apply)
+        {
+            applyContainerHeaderCommand = apply;
+        }
+
         internal bool ApplyBoundSelection(
             ProductDesktopSelectionRequest request) => applySelection(request);
 
@@ -1703,6 +1736,10 @@ public sealed class ProductDesktopHostLifecycleControllerTests
 
         internal bool ApplyBoundTitleFocus(string? containerId) =>
             applyContainerLayoutTitleFocus(containerId);
+
+        internal bool ApplyBoundContainerHeader(
+            ProductDesktopContainerHeaderSurfaceInput input) =>
+            applyContainerHeaderCommand(input);
 
         public void Dispose()
         {

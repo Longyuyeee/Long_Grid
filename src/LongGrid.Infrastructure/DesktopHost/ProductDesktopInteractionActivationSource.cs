@@ -9,6 +9,13 @@ using System.Windows.Automation.Provider;
 
 namespace LongGrid.Infrastructure.DesktopHost;
 
+internal sealed record ProductDesktopContainerHeaderSurfaceInput(
+    ProductDesktopContainerHeaderCommandKind Kind,
+    string ContainerId,
+    bool SourceAttested,
+    bool IsInjected,
+    bool IsAutoRepeat);
+
 internal sealed record ProductDesktopKeyboardSelectionDecision(
     bool Cancel,
     ProductDesktopSelectionRequest? Request);
@@ -59,6 +66,13 @@ internal static class ProductDesktopKeyboardSelectionAdapter
     }
 }
 
+internal enum ProductDesktopActivationRegionKind
+{
+    EnterInteraction,
+    ToggleCollapsed,
+    ToggleLocked,
+}
+
 internal interface IProductDesktopInteractionActivationSource : IDisposable
 {
     nint Handle { get; }
@@ -89,6 +103,12 @@ internal interface IProductDesktopInteractionActivationSource : IDisposable
     void BindContainerLayout(
         Func<ProductDesktopContainerLayoutKeyboardCommand, bool> apply,
         Func<string?, bool> applyTitleFocus)
+    {
+    }
+
+
+    void BindContainerHeaderCommand(
+        Func<ProductDesktopContainerHeaderSurfaceInput, bool> apply)
     {
     }
 }
@@ -122,7 +142,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSourceFactory
 internal sealed class WindowsProductDesktopInteractionActivationSource
     : IProductDesktopInteractionActivationSource
 {
-    private const int ActivationButtonSizeDip = 30;
+    private const int ActivationButtonSizeDip = 32;
     private static long nextUserActionSequence;
     private readonly string className;
     private readonly nint module;
@@ -142,6 +162,8 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         applyContainerLayout = static _ => false;
     private Func<string?, bool> applyContainerLayoutTitleFocus =
         static _ => false;
+    private Func<ProductDesktopContainerHeaderSurfaceInput, bool>
+        applyContainerHeaderCommand = static _ => false;
     private bool containerLayoutTitleFocused;
 #if WINDOWS
     private ActivationUiaProvider? uiaProvider;
@@ -168,7 +190,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         if (regions.Length == 0)
         {
             throw new ArgumentException(
-                "An activation source requires at least one unlocked container.",
+                "An activation source requires at least one container.",
                 nameof(projection));
         }
 
@@ -192,6 +214,12 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         !disposed && Handle != nint.Zero && NativeMethods.IsWindowVisible(Handle);
 
     public bool CanActivate =>
+        CommandSurfaceAvailable
+        && regions.Any(region =>
+            region.Kind == ProductDesktopActivationRegionKind.EnterInteraction
+            && !region.IsLocked);
+
+    private bool CommandSurfaceAvailable =>
         activationAvailable && !keyboardProxy && IsVisible && ContractAttested;
 
     public bool OwnsForegroundWindow =>
@@ -283,9 +311,15 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
     public bool RequestKeyboardInteraction()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        return CanActivate
+        ActivationRegion? target = regions
+            .Cast<ActivationRegion?>()
+            .FirstOrDefault(region => region is { } candidate
+                && candidate.Kind ==
+                    ProductDesktopActivationRegionKind.EnterInteraction
+                && !candidate.IsLocked);
+        return CanActivate && target is { } region
             && Forward(
-                regions[0],
+                region,
                 ProductDesktopInteractionForwardedInputKind
                     .KeyboardActivation,
                 isInjected: false,
@@ -313,6 +347,13 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         ArgumentNullException.ThrowIfNull(applyTitleFocus);
         applyContainerLayout = apply;
         applyContainerLayoutTitleFocus = applyTitleFocus;
+    }
+
+    public void BindContainerHeaderCommand(
+        Func<ProductDesktopContainerHeaderSurfaceInput, bool> apply)
+    {
+        ArgumentNullException.ThrowIfNull(apply);
+        applyContainerHeaderCommand = apply;
     }
 
     public void Dispose()
@@ -390,13 +431,13 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             projection,
             regions,
             InstanceMarker,
-            () => CanActivate,
-            region => Forward(
+            CanInvokeRegion,
+            region => InvokeRegion(
                 region,
-                ProductDesktopInteractionForwardedInputKind
-                    .AssistiveTechnologyActivation,
+                sourceAttested: true,
                 isInjected: false,
-                isAutoRepeat: false));
+                isAutoRepeat: false,
+                assistiveTechnology: true));
 #endif
 
         if (!NativeMethods.SetLayeredWindowAttributes(
@@ -445,13 +486,13 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                     InputMessageSource source = default;
                     bool observed = NativeMethods.GetCurrentInputMessageSource(
                         ref source);
-                    _ = Forward(
+                    _ = InvokeRegion(
                         hit.Value,
-                        ProductDesktopInteractionForwardedInputKind
-                            .PrimaryPointerPress,
+                        sourceAttested: observed,
                         isInjected: !observed
                             || source.OriginId == NativeMethods.ImoInjected,
-                        isAutoRepeat: false);
+                        isAutoRepeat: false,
+                        assistiveTechnology: false);
                 }
                 return nint.Zero;
             case NativeMethods.WmKeyDown:
@@ -514,7 +555,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                 _ = NativeMethods.FillRect(deviceContext, ref bounds, brush);
                 _ = NativeMethods.DrawText(
                     deviceContext,
-                    "↗",
+                    ButtonText(region),
                     -1,
                     ref bounds,
                     NativeMethods.DtCenter
@@ -528,6 +569,60 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             _ = NativeMethods.EndPaint(window, ref paint);
         }
     }
+
+    private bool InvokeRegion(
+        ActivationRegion region,
+        bool sourceAttested,
+        bool isInjected,
+        bool isAutoRepeat,
+        bool assistiveTechnology)
+    {
+        if (region.Kind == ProductDesktopActivationRegionKind.EnterInteraction)
+        {
+            return !region.IsLocked
+                && Forward(
+                    region,
+                    assistiveTechnology
+                        ? ProductDesktopInteractionForwardedInputKind
+                            .AssistiveTechnologyActivation
+                        : ProductDesktopInteractionForwardedInputKind
+                            .PrimaryPointerPress,
+                    isInjected,
+                    isAutoRepeat);
+        }
+        if (!CommandSurfaceAvailable
+            || !sourceAttested
+            || isInjected
+            || isAutoRepeat
+            || string.IsNullOrWhiteSpace(region.ContainerId))
+        {
+            return false;
+        }
+
+        return applyContainerHeaderCommand(new(
+            region.Kind == ProductDesktopActivationRegionKind.ToggleCollapsed
+                ? ProductDesktopContainerHeaderCommandKind.ToggleCollapsed
+                : ProductDesktopContainerHeaderCommandKind.ToggleLocked,
+            region.ContainerId,
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: false));
+    }
+
+    private bool CanInvokeRegion(ActivationRegion region) =>
+        CommandSurfaceAvailable
+        && (region.Kind != ProductDesktopActivationRegionKind.EnterInteraction
+            || !region.IsLocked);
+
+    private static string ButtonText(ActivationRegion region) => region.Kind switch
+    {
+        ProductDesktopActivationRegionKind.EnterInteraction => "↗",
+        ProductDesktopActivationRegionKind.ToggleCollapsed =>
+            region.IsCollapsed ? "▾" : "▸",
+        ProductDesktopActivationRegionKind.ToggleLocked =>
+            region.IsLocked ? "解" : "锁",
+        _ => string.Empty,
+    };
 
     private bool Forward(
         ActivationRegion region,
@@ -691,22 +786,43 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                 ActivationButtonSizeDip,
                 scale));
         return projection.Containers
-            .Where(container => !container.IsLocked)
-            .Select(container =>
+            .SelectMany((container, containerIndex) =>
             {
                 PixelRect bounds = ProductDesktopHostSurfaceLayout
                     .GetContainerBounds(projection, container);
                 int size = Math.Min(
                     buttonSize,
-                    Math.Min(bounds.Width, bounds.Height));
-                int left = checked(bounds.Left + bounds.Width - size);
-                return new ActivationRegion(
-                    left,
-                    bounds.Top,
-                    size,
-                    size,
-                    checked(left + (size / 2)),
-                    checked(bounds.Top + (size / 2)));
+                    Math.Min(bounds.Width / 3, bounds.Height));
+                int right = checked(bounds.Left + bounds.Width);
+                return new[]
+                {
+                    CreateRegion(
+                        right - size,
+                        ProductDesktopActivationRegionKind.EnterInteraction),
+                    CreateRegion(
+                        right - (size * 2),
+                        ProductDesktopActivationRegionKind.ToggleCollapsed),
+                    CreateRegion(
+                        right - (size * 3),
+                        ProductDesktopActivationRegionKind.ToggleLocked),
+                };
+
+                ActivationRegion CreateRegion(
+                    int left,
+                    ProductDesktopActivationRegionKind kind) =>
+                    new(
+                        left,
+                        bounds.Top,
+                        size,
+                        size,
+                        checked(left + (size / 2)),
+                        checked(bounds.Top + (size / 2)),
+                        container.ContainerId,
+                        container.Title,
+                        containerIndex,
+                        kind,
+                        container.IsLocked,
+                        container.IsCollapsed);
             })
             .ToArray();
     }
@@ -827,7 +943,14 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         int Width,
         int Height,
         int ActivationX,
-        int ActivationY)
+        int ActivationY,
+        string ContainerId = "",
+        string Title = "",
+        int ContainerIndex = 0,
+        ProductDesktopActivationRegionKind Kind =
+            ProductDesktopActivationRegionKind.EnterInteraction,
+        bool IsLocked = false,
+        bool IsCollapsed = false)
     {
         internal bool Contains(int x, int y) =>
             x >= Left
@@ -1109,14 +1232,14 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         private readonly nint window;
         private readonly ProductDesktopHostDisplayProjection projection;
         private readonly ActivationUiaButtonProvider[] buttons;
-        private readonly Func<bool> isAvailable;
+        private readonly Func<ActivationRegion, bool> isAvailable;
 
         internal ActivationUiaProvider(
             nint window,
             ProductDesktopHostDisplayProjection projection,
             IReadOnlyList<ActivationRegion> regions,
             nint instanceMarker,
-            Func<bool> isAvailable,
+            Func<ActivationRegion, bool> isAvailable,
             Func<ActivationRegion, bool> invoke)
         {
             this.window = window;
@@ -1169,7 +1292,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                 || id == AutomationElementIdentifiers.IsContentElementProperty.Id =>
                 true,
             var id when id == AutomationElementIdentifiers.IsEnabledProperty.Id =>
-                isAvailable(),
+                buttons.Any(button => button.IsAvailable),
             var id when id == AutomationElementIdentifiers
                 .IsKeyboardFocusableProperty.Id => false,
             _ => null,
@@ -1216,11 +1339,13 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         ActivationRegion region,
         int index,
         int marker,
-        Func<bool> isAvailable,
+        Func<ActivationRegion, bool> isAvailable,
         Func<ActivationRegion, bool> invoke)
         : IRawElementProviderFragment, IInvokeProvider
     {
         public ProviderOptions ProviderOptions => root.ProviderOptions;
+
+        internal bool IsAvailable => isAvailable(region);
 
         public IRawElementProviderSimple? HostRawElementProvider => null;
 
@@ -1234,7 +1359,22 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         public object? GetPropertyValue(int propertyId) => propertyId switch
         {
             var id when id == AutomationElementIdentifiers.NameProperty.Id =>
-                "进入桌面方格交互",
+                region.Kind switch
+                {
+                    ProductDesktopActivationRegionKind.EnterInteraction =>
+                        string.IsNullOrWhiteSpace(region.Title)
+                            ? "进入桌面方格交互"
+                            : $"进入 {region.Title} 交互",
+                    ProductDesktopActivationRegionKind.ToggleCollapsed =>
+                        string.IsNullOrWhiteSpace(region.Title)
+                            ? (region.IsCollapsed ? "展开桌面方格" : "折叠桌面方格")
+                            : $"{(region.IsCollapsed ? "展开" : "折叠")} {region.Title}",
+                    ProductDesktopActivationRegionKind.ToggleLocked =>
+                        string.IsNullOrWhiteSpace(region.Title)
+                            ? (region.IsLocked ? "解锁桌面方格" : "锁定桌面方格")
+                            : $"{(region.IsLocked ? "解锁" : "锁定")} {region.Title}",
+                    _ => "桌面方格操作",
+                },
             var id when id == AutomationElementIdentifiers.AutomationIdProperty.Id =>
                 $"LongGrid.DesktopHost.ActivationButton.{index + 1}",
             var id when id == AutomationElementIdentifiers.ControlTypeProperty.Id =>
@@ -1243,7 +1383,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                 || id == AutomationElementIdentifiers.IsContentElementProperty.Id =>
                 true,
             var id when id == AutomationElementIdentifiers.IsEnabledProperty.Id =>
-                isAvailable(),
+                IsAvailable,
             var id when id == AutomationElementIdentifiers
                 .IsKeyboardFocusableProperty.Id => false,
             _ => null,
@@ -1275,7 +1415,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
 
         public void Invoke()
         {
-            if (!isAvailable() || !invoke(region))
+            if (!IsAvailable || !invoke(region))
             {
                 throw new ElementNotEnabledException();
             }

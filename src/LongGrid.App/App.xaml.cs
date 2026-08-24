@@ -27,6 +27,8 @@ public partial class App : Application
     private readonly ProductWorkspaceCommitCoordinator workspaceCommits;
     private readonly ProductDesktopContainerLayoutInteractionController
         desktopContainerLayoutInteractions;
+    private readonly ProductDesktopContainerHeaderCommandController
+        desktopContainerHeaderCommands;
     private readonly ProductWorkspaceCatalogRevisionSynchronizer
         workspaceCatalogRevisions;
     private readonly ProductDesktopCatalogController productDesktopCatalog;
@@ -83,6 +85,9 @@ public partial class App : Application
         productWorkspaceSaves = new(saveWorkflow);
         workspaceCommits = new(productWorkspaceSaves);
         desktopContainerLayoutInteractions = new(workspaceCommits);
+        desktopContainerHeaderCommands = new(
+            workspaceCommits,
+            productWorkspaceSaves);
         workspaceCatalogRevisions = new(workspaceCommits);
         productDesktopCatalog = new(
             ProductDesktopCatalogReader.CreateForCurrentUser());
@@ -199,6 +204,8 @@ public partial class App : Application
             RequestDesktopWorkspaceCreate);
         productDesktopHostLifecycle.BindContainerLayout(
             RequestDesktopContainerLayout);
+        productDesktopHostLifecycle.BindContainerHeaderCommand(
+            RequestDesktopContainerHeaderCommand);
         window.DesktopKeyboardInteractionRequested +=
             MainWindow_DesktopKeyboardInteractionRequested;
         window.BoxesEnabledChangeRequested +=
@@ -1960,6 +1967,36 @@ public partial class App : Application
         });
     }
 
+    private bool RequestDesktopContainerHeaderCommand(
+        ProductDesktopContainerHeaderCommandRequest request)
+    {
+        MainWindow? currentWindow = window;
+        if (currentWindow is null || closingDrainInProgress)
+        {
+            return false;
+        }
+
+        return currentWindow.DispatcherQueue.TryEnqueue(() =>
+        {
+            ProductDesktopContainerHeaderCommandResult result =
+                desktopContainerHeaderCommands.Handle(
+                    request,
+                    productWorkspaceSession.State,
+                    productWorkspaceSession.IsReadOnly,
+                    workspaceCommits.CurrentEditRevision,
+                    productDisplayTopology.Snapshot);
+            if (result.IsAccepted)
+            {
+                ApplyAcceptedProductWorkspaceDocument(
+                    result.Document!,
+                    productDesktopCatalog.Snapshot);
+                ApplyProductWorkspaceSaveSnapshot(
+                    currentWindow,
+                    productWorkspaceSaves.Snapshot);
+            }
+        });
+    }
+
     private bool RequestDesktopContainerLayout(
         ProductDesktopContainerLayoutRequest request)
     {
@@ -2972,6 +3009,21 @@ public partial class App : Application
         MainWindow currentWindow,
         ProductWorkspaceSaveSnapshot snapshot)
     {
+        ProductDesktopContainerHeaderCommandResult headerPublication =
+            desktopContainerHeaderCommands.ObserveSave(
+                productWorkspaceSession.State,
+                workspaceCommits.CurrentEditRevision,
+                snapshot);
+        if (headerPublication.IsCompensated)
+        {
+            ApplyAcceptedProductWorkspaceDocument(
+                headerPublication.Document!,
+                productDesktopCatalog.Snapshot);
+            currentWindow.ApplyProductWorkspaceSaveState(
+                productWorkspaceSaves.Snapshot);
+            return;
+        }
+
         ProductDesktopContainerLayoutPublicationResult layoutPublication =
             desktopContainerLayoutInteractions.ObserveSave(
                 productWorkspaceSession.State,

@@ -149,6 +149,12 @@ $windowsDesktopHostReadOnlySurfaceCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostReadOnlySurface.cs'
 $desktopContainerHeaderPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopContainerHeaderPresentation.cs'
+$desktopContainerHeaderCommandCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopContainerHeaderCommand.cs'
+$desktopContainerHeaderCommandControllerCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopContainerHeaderCommandController.cs'
+$desktopInteractionActivationSourceCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionActivationSource.cs'
 $desktopWorkspaceCreateAdmissionCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopWorkspaceCreateAdmission.cs'
 $workspaceContainerCreationDefaultsCodePath = Join-Path $projectRoot `
@@ -479,6 +485,18 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopContainerHeaderPresentationCode = Get-Content `
         -LiteralPath $desktopContainerHeaderPresentationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopContainerHeaderCommandCode = Get-Content `
+        -LiteralPath $desktopContainerHeaderCommandCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopContainerHeaderCommandControllerCode = Get-Content `
+        -LiteralPath $desktopContainerHeaderCommandControllerCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopInteractionActivationSourceCode = Get-Content `
+        -LiteralPath $desktopInteractionActivationSourceCodePath `
         -Raw `
         -Encoding UTF8
     $desktopWorkspaceCreateAdmissionCode = Get-Content `
@@ -1968,6 +1986,29 @@ function Test-SourceContract {
             'projection\.Header\.AccessibilityStatus'
     ) `
         'PF-004A must render one bounded title/status contract and expose the same state to UIA.'
+    Assert-Condition (
+        $desktopContainerHeaderCommandCode -match 'ToggleCollapsed' -and
+        $desktopContainerHeaderCommandCode -match 'ToggleLocked' -and
+        $desktopContainerHeaderCommandCode -match 'ExpectedWorkspaceRevision' -and
+        $desktopContainerHeaderCommandCode -match 'ExpectedTopologyGeneration' -and
+        $desktopInteractionActivationSourceCode -match `
+            'ActivationButtonSizeDip\s*=\s*32' -and
+        $desktopInteractionActivationSourceCode -match `
+            'BindContainerHeaderCommand' -and
+        $desktopInteractionActivationSourceCode -match `
+            'IsInjected[\s\S]*IsAutoRepeat' -and
+        $desktopHostLifecycleControllerCode -match `
+            'BindContainerHeaderCommand' -and
+        $desktopContainerHeaderCommandControllerCode -match `
+            'ProductWorkspaceCommitCoordinator' -and
+        $desktopContainerHeaderCommandControllerCode -match `
+            'ProductWorkspaceSaveStatus\.Failed' -and
+        $desktopContainerHeaderCommandControllerCode -match `
+            'Compensated' -and
+        $appCode -match 'ProductDesktopContainerHeaderCommandController' -and
+        $appCode -match 'ObserveSave'
+    ) `
+        'PF-004B must expose finite 32 DIP header commands, stamp source/revision/topology facts, use the formal commit/save chain, and compensate failed persistence.'
     Assert-Condition (
         ([regex]::Matches(
             $appCode,

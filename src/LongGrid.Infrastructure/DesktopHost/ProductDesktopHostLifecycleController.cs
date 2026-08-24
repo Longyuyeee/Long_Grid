@@ -291,6 +291,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         requestWorkspaceCreate = static _ => false;
     private Func<ProductDesktopContainerLayoutRequest, bool>
         requestContainerLayout = static _ => false;
+    private Func<ProductDesktopContainerHeaderCommandRequest, bool>
+        requestContainerHeaderCommand = static _ => false;
 
     public ProductDesktopHostLifecycleController(
         ProductDesktopHostFeatureDecision featureDecision)
@@ -427,6 +429,17 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         }
     }
 
+    public void BindContainerHeaderCommand(
+        Func<ProductDesktopContainerHeaderCommandRequest, bool> requestCommand)
+    {
+        ArgumentNullException.ThrowIfNull(requestCommand);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            requestContainerHeaderCommand = requestCommand;
+        }
+    }
+
     public bool ApplyContainerLayoutPreview(
         string displayId,
         string containerId,
@@ -513,9 +526,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     && snapshot.Status
                         == ProductDesktopHostLifecycleStatus.ReadyReadOnly
                     && IsPassiveInteractionAvailableUnsafe()
-                    && activationSources.Count > 0
-                    && activationSources.All(source =>
-                        source.CanActivate);
+                    && activationSources.Any(source => source.CanActivate);
             }
         }
     }
@@ -1219,8 +1230,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
 
                     foreach (ProductDesktopHostDisplayProjection display
                         in batch.Displays.Where(candidate =>
-                            candidate.Containers.Any(container =>
-                                !container.IsLocked)))
+                            candidate.Containers.Count > 0))
                     {
                         IProductDesktopInteractionActivationSource source =
                             activationSourceFactory.Create(
@@ -1245,6 +1255,11 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                                     source,
                                     display,
                                     containerId));
+                        source.BindContainerHeaderCommand(input =>
+                            ApplyContainerHeaderCommandFromActivationSource(
+                                source,
+                                display,
+                                input));
                         if (!source.IsVisible || !source.ContractAttested)
                         {
                             ReleaseSurfaceUnsafe();
@@ -1431,6 +1446,60 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                         .HostInvalidated,
             });
             return false;
+        }
+    }
+
+    private bool ApplyContainerHeaderCommandFromActivationSource(
+        IProductDesktopInteractionActivationSource source,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopContainerHeaderSurfaceInput input)
+    {
+        lock (gate)
+        {
+            ProductDesktopHostReadOnlyProjection[] targets = display.Containers
+                .Where(container => string.Equals(
+                    container.ContainerId,
+                    input.ContainerId,
+                    StringComparison.Ordinal))
+                .Take(2)
+                .ToArray();
+            if (disposed
+                || currentBatch is null
+                || !activationSources.Contains(source)
+                || !string.Equals(
+                    source.DisplayId,
+                    display.DisplayId,
+                    StringComparison.Ordinal)
+                || targets.Length != 1
+                || !input.SourceAttested
+                || input.IsInjected
+                || input.IsAutoRepeat
+                || (input.Kind ==
+                        ProductDesktopContainerHeaderCommandKind.ToggleCollapsed
+                    && targets[0].IsLocked))
+            {
+                return false;
+            }
+
+            try
+            {
+                return requestContainerHeaderCommand(new(
+                    input.Kind,
+                    input.ContainerId,
+                    display.DisplayId,
+                    currentBatch.WorkspaceRevision,
+                    currentBatch.TopologyGeneration,
+                    input.SourceAttested,
+                    input.IsInjected,
+                    input.IsAutoRepeat));
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException
+                    or InvalidOperationException
+                    or OverflowException)
+            {
+                return false;
+            }
         }
     }
 
