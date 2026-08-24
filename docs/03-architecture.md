@@ -371,3 +371,7 @@ App 把正式方格投影成有限的 `ProductDesktopHostReadOnlyProjection`；S
 `ProductDesktopHostProjectionBuilder` 只接受权威 `ProductDisplayTopologySnapshot`，把最多 100 个正式方格按稳定 DisplayKey 分组；未知键回退唯一主显示器。批次携带 workspace revision、拓扑 generation 与 SHA-256 拓扑指纹，限制最多 16 个使用中显示器、全局唯一方格 ID 和有限显示文本。
 
 生命周期为每个实际含方格的显示器创建一个 HWND，同一显示器内所有方格由一个 `SetWindowRgn` 联合 Region 和一次 GDI 绘制承载。每个显示器 HWND 仍需进程、线程、实例标记与 Bounds 所有权复读；第二个或后续显示器失败时，先前已注册窗口也整批注销销毁。当前 GDI 用颜色与桌面基色混合近似有限透明度，不是最终逐像素 Composition 材质；A4 必须继续审计动态拓扑/关闭/资源，阶段 B 才能开放输入和 UIA Fragment。
+
+## Stage 192：PF-006A 视口选择收敛
+
+视口 ordinal/ID/名称变化在权威 workspace/topology、容器结构和总数不变时作为原位 presentation；唯一 selection transaction 以同一 lease 对新可见 ID 做 bounded reconcile，保留交集、删除不可见选择，焦点与 anchor 在不相交页面落到首项，并推进 selection revision/UIA 快照。Ctrl+A 与内容空白 Clear 复用同一权威控制器。真实 HWND/UIA 第二页与正式生命周期均 `Difference=None`；框选、跨视口 PageUp/PageDown 和安全打开仍 Pending，详见 [Stage 192](192-pf006a-viewport-selection-convergence-audit.md)。

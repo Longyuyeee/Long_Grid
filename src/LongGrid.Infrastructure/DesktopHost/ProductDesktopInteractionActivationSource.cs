@@ -40,6 +40,16 @@ internal static class ProductDesktopKeyboardSelectionAdapter
             return new(Cancel: true, Request: null);
         }
 
+        if (selection is not null
+            && virtualKey == 0x41
+            && control
+            && !shift)
+        {
+            return new(
+                Cancel: false,
+                Request: new(ProductDesktopSelectionAction.SelectAll));
+        }
+
         ProductDesktopSelectionCommand? command = virtualKey switch
         {
             0x25 or 0x26 => ProductDesktopSelectionCommand.Previous,

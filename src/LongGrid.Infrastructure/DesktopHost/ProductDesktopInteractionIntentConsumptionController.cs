@@ -197,6 +197,37 @@ public sealed class ProductDesktopInteractionIntentConsumptionController
         }
     }
 
+    public ProductDesktopInteractionIntentConsumptionResult
+        ReconcileVisibleItems(
+            IReadOnlyList<string> currentVisibleItemIds,
+            DateTimeOffset nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(currentVisibleItemIds);
+        lock (gate)
+        {
+            if (!enabled
+                || completed
+                || transaction?.Snapshot.Admission.Lease is not { } lease)
+            {
+                return Result();
+            }
+
+            ProductDesktopInteractionSurfaceTransactionSnapshot reconciled =
+                transaction.ReconcileVisibleItems(
+                    lease,
+                    currentVisibleItemIds,
+                    nowUtc);
+            return PublishResult(
+                reconciled.IsExplicit
+                    ? ProductDesktopInteractionIntentConsumptionStatus
+                        .SelectionApplied
+                    : ProductDesktopInteractionIntentConsumptionStatus
+                        .EntryRejected,
+                consumed: snapshot.PreparedIntentConsumed,
+                reconciled);
+        }
+    }
+
     public ProductDesktopInteractionIntentConsumptionResult Cancel(
         ProductDesktopInteractionCancellationSignal signal,
         DateTimeOffset nowUtc)

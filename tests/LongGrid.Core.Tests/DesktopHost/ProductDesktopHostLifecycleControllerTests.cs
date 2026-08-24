@@ -1460,6 +1460,92 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         await controller.DisposeAsync();
     }
 
+    [Fact]
+    public async Task ViewportPresentationReconcilesExplicitSelectionWithoutReplacingSurface()
+    {
+        var factory = new RecordingSurfaceFactory();
+        ProductDesktopHostFeatureDecision host =
+            ProductDesktopHostFeaturePolicy.Evaluate("1");
+        ProductDesktopInteractionFeatureDecision interactionFeature =
+            ProductDesktopInteractionFeaturePolicy.Evaluate(host, "1");
+        var interaction = new ProductDesktopInteractionDevelopmentController(
+            interactionFeature);
+        ProductDesktopInteractionIntentBridgeFeatureDecision bridgeFeature =
+            ProductDesktopInteractionIntentBridgePolicy.Evaluate(
+                interactionFeature,
+                "1",
+                "1");
+        var bridge = new ProductDesktopInteractionIntentPreparationBridge(
+            bridgeFeature);
+        ProductDesktopInteractionInputForwardingFeatureDecision forwardingFeature =
+            ProductDesktopInteractionInputForwardingPolicy.Evaluate(
+                bridgeFeature,
+                "1",
+                "1");
+        var forwarding = new ProductDesktopInteractionInputForwardingAdapter(
+            forwardingFeature,
+            bridge);
+        var consumption =
+            new ProductDesktopInteractionIntentConsumptionController(
+                interactionFeature,
+                forwardingFeature,
+                bridge);
+        var controller = new ProductDesktopHostLifecycleController(
+            host,
+            factory,
+            new FactoryBackedInspector(factory),
+            interaction,
+            bridge,
+            forwarding,
+            consumption,
+            new RecordingActivationSourceFactory());
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        _ = controller.ApplyProjectionUpdate(ViewportPresentationUpdate(1, 1));
+        RecordingSurface surface = Assert.Single(factory.Surfaces);
+        nint originalHandle = surface.Handle;
+        ProductDesktopInteractionInputForwardingResult prepared =
+            controller.ForwardInteractionInput(
+                new(
+                    Guid.NewGuid(),
+                    1,
+                    now,
+                    ProductDesktopInteractionForwardedInputKind
+                        .PrimaryPointerPress,
+                    "display-primary",
+                    30,
+                    40,
+                    SourceAttested: true,
+                    IsInjected: false,
+                    IsAutoRepeat: false),
+                now);
+        Assert.True(controller.ConsumePreparedInteractionIntent(
+            prepared.PreparedIntent!, now).IsExplicit);
+        Assert.True(surface.ApplyBoundSelection(
+            "container-1",
+            new(ProductDesktopSelectionAction.SelectItem,
+                ItemId: "item:2")));
+
+        ProductDesktopHostLifecycleSnapshot actual =
+            controller.ApplyProjectionUpdate(ViewportPresentationUpdate(13, 2));
+        ProductDesktopSelectionSnapshot selection = consumption.Snapshot
+            .Transaction!.Selection!;
+
+        Assert.Equal(originalHandle, surface.Handle);
+        Assert.Single(factory.Surfaces);
+        Assert.False(surface.IsDisposed);
+        Assert.Equal(1, surface.ApplyPresentationCalls);
+        Assert.True(actual.ExplicitInteractionActive);
+        Assert.Equal(ProductDesktopSelectionStatus.Reconciled,
+            selection.Status);
+        Assert.Empty(selection.SelectedItemIds);
+        Assert.Equal("item:13", selection.FocusedItemId);
+        Assert.Equal("item:13", selection.AnchorItemId);
+        Assert.Equal(2, selection.SelectionRevision);
+        Assert.Equal("item:13",
+            surface.Projection!.Containers[0].ItemIds[0]);
+        await controller.DisposeAsync();
+    }
+
     private static ProductDesktopHostProjectionUpdate PresentationUpdate(
         ProductDesktopItemVisualStatus status,
         long presentationGeneration)
@@ -1474,6 +1560,38 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             ProductDesktopHostReadOnlyProjection.Create(
                 "container-1", "方格", ["图片"], "#2457D6", 0.82,
                 false, 24, 36, 360, 240, itemVisuals: [visual]);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(0, 0, 1920, 1040), 96, [container]);
+        ProductDesktopHostProjectionBatch batch =
+            ProductDesktopHostProjectionBatch.Create(
+                7, 11, new string('C', 64), [display],
+                presentationGeneration);
+        return ProductDesktopHostProjectionUpdate.Create(
+            7,
+            11,
+            ProductDesktopHostProjectionDisposition.Ready,
+            batch,
+            presentationGeneration);
+    }
+
+    private static ProductDesktopHostProjectionUpdate ViewportPresentationUpdate(
+        int firstOrdinal,
+        long presentationGeneration)
+    {
+        string[] names = Enumerable.Range(firstOrdinal, 12)
+            .Select(index => $"项目 {index}")
+            .ToArray();
+        string[] ids = Enumerable.Range(firstOrdinal, 12)
+            .Select(index => $"item:{index}")
+            .ToArray();
+        ProductDesktopHostReadOnlyProjection container =
+            ProductDesktopHostReadOnlyProjection.Create(
+                "container-1", "方格", names, "#2457D6", 0.82,
+                false, 24, 36, 360, 360,
+                itemIds: ids,
+                totalItemCount: 24,
+                visibleItemStartOrdinal: firstOrdinal);
         ProductDesktopHostDisplayProjection display =
             ProductDesktopHostDisplayProjection.Create(
                 "display-primary", new(0, 0, 1920, 1040), 96, [container]);

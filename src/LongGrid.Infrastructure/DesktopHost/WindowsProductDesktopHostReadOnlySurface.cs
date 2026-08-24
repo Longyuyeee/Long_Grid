@@ -51,10 +51,18 @@ internal static class ProductDesktopPointerSelectionAdapter
         if (x < bounds.Left || x >= bounds.Right
             || y < bounds.Top + headerHeight
             || y >= bounds.Bottom
-            || index < 0
-            || index >= container.ItemIds.Count)
+            || index < 0)
         {
             return null;
+        }
+
+        if (index >= container.ItemIds.Count)
+        {
+            return control || shift
+                ? null
+                : new(
+                    container.ContainerId,
+                    new(ProductDesktopSelectionAction.Clear));
         }
 
         ProductDesktopSelectionModifiers modifiers =

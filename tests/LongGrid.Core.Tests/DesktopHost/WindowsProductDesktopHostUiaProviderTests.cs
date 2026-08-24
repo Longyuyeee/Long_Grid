@@ -851,6 +851,13 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
             hit.Request.Modifiers);
         Assert.Null(ProductDesktopPointerSelectionAdapter.Map(
             display, current, 30, 40, control: false, shift: false));
+        ProductDesktopPointerSelectionCommand clear = Assert.IsType<
+            ProductDesktopPointerSelectionCommand>(
+                ProductDesktopPointerSelectionAdapter.Map(
+                    display, current, 30, 150,
+                    control: false, shift: false));
+        Assert.Equal(ProductDesktopSelectionAction.Clear,
+            clear.Request.Action);
         Assert.Null(ProductDesktopPointerSelectionAdapter.Map(
             display, current, 0, 95, control: false, shift: false));
         Assert.Null(ProductDesktopPointerSelectionAdapter.Map(
@@ -921,6 +928,27 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
 
         Assert.False(decision.Cancel);
         Assert.Equal(expected, decision.Request!.Action);
+    }
+
+    [Fact]
+    public void KeyboardProxyMapsControlAToBoundedSelectAll()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var lease = new ProductDesktopInteractionLease(
+            Guid.NewGuid(), "container-1", 7, 9, 11, now.AddSeconds(5));
+        ProductDesktopSelectionSnapshot selection =
+            ProductDesktopInteractionSelectionController.TryCreate(
+                lease, ["item:1", "item:2"], now).Controller!.Snapshot;
+
+        ProductDesktopKeyboardSelectionDecision decision =
+            ProductDesktopKeyboardSelectionAdapter.Map(
+                selection, 0x41, control: true, shift: false);
+
+        Assert.False(decision.Cancel);
+        Assert.Equal(ProductDesktopSelectionAction.SelectAll,
+            decision.Request!.Action);
+        Assert.Null(ProductDesktopKeyboardSelectionAdapter.Map(
+            selection, 0x41, control: false, shift: false).Request);
     }
 
     [Fact]

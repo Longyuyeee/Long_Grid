@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-006 项目选择、键盘导航与安全打开命令（PF-001～PF-005 产品证据并行 Pending）**
-- 最新工程审计：[Stage 191](191-pf005c-viewport-visual-engineering-closeout-audit.md)；PF-005 已完成系统类型图标、真实受限 worker→BGRA→真实 HWND、持久化开关、有限失败、原位呈现代次和 500 项/12 项视口工程闭环，状态为 `EngineeringComplete / ProductEvidencePending`。下一步进入 PF-006；30 个 PF 项仍为 `0 Complete`
+- 最新工程审计：[Stage 192](192-pf006a-viewport-selection-convergence-audit.md)；PF-006A 已完成同 HWND 视口翻页选择收敛、Ctrl+A 和内容空白清除，PF-006 仍为 `InProgress`，下一步进入 PF-006B 统一安全打开；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -62,8 +62,8 @@
 | 2 | PF-002 | 桌面直接创建方格 | `EngineeringComplete / ProductEvidencePending`：正式 App 创建、保存、补偿与最近撤销工程证据通过；可见物理输入和 UIA/Narrator 待补 | iTop/Fences 多入口创建 |
 | 3 | PF-003 | 桌面拖动、缩放、吸附 | `EngineeringComplete / ProductEvidencePending`：生产工程链、正式 Store 与双屏混合 DPI 已完成；物理鼠标/触控/截图与 UIA Bounds 待安全环境补证 | Fences/Nimi 直接布局 |
 | 4 | PF-004 | 方格标题栏与就近操作 | `EngineeringComplete / ProductEvidencePending`：A～E 正式工程链完成；物理菜单/双击、触控截图和 Narrator 待补 | Fences 标题栏操作 |
-| 5 | PF-005 | 正式项目图标、缩略图与状态 | `InProgress`：A 系统类型图标完成；B1 worker 队列/缓存完成；B2 绘制/开关待实现 | Fences/Nimi 项目呈现 |
-| 6 | PF-006 | 项目选择、键盘导航与打开 | 选择底座 | Fences/Portal 日常访问 |
+| 5 | PF-005 | 正式项目图标、缩略图与状态 | `EngineeringComplete / ProductEvidencePending` | Fences/Nimi 项目呈现 |
+| 6 | PF-006 | 项目选择、键盘导航与打开 | `InProgress`：A 当前视口/翻页选择收敛完成；B 安全打开待实现 | Fences/Portal 日常访问 |
 | 7 | PF-007 | Explorer 拖入与方格间拖放 | 配置表单批量加入 | iTop/Fences 直接拖放 |
 | 8 | PF-008 | 方格内视图、排序、滚动与间距 | 方格级排序有限 | Nimi/Fences 视图控制 |
 | 9 | PF-009 | 桌面搜索、筛选与快速定位 | 控制中心搜索 | iTop Search |
@@ -253,6 +253,8 @@
 - 锁定方格仍允许选择和打开；
 - 高对比和 Narrator 下选中、焦点、不可用三种状态可区分；
 - 自动化覆盖重复打开、目标变化、取消和进程启动失败。
+
+**2026-08-24 实施状态**：`InProgress`。Stage 192/PF-006A 修复了 Stage 191 翻页因可见 ID 变化而重建 Surface、撤销显式交互的偏差；现在同 workspace/topology/container/总数下的视口变更使用更晚 presentation generation 原位更新同一 HWND，并在同一 lease 内保留重叠选择、清除不可见选择、把焦点/anchor 收敛到新页首项。Ctrl+A 只选当前最多 12 项，方格内容空白单击进入共享 Clear。真实 HWND/UIA 第二页 12 项、生命周期租约和选择修订均 `Difference=None`，Release 1142/1142。框选、PageUp/PageDown、统一安全打开和物理/高对比/Narrator 证据仍 Pending；下一切片 PF-006B。
 
 ### PF-007：Explorer 拖入与方格间拖放
 
@@ -885,6 +887,6 @@
 
 ## 15. 当前立即执行项
 
-当前工程切片为 **PF-006：项目选择、键盘导航与安全打开命令**。PF-005A/B1/B2/C 已完成系统图标、受限提取、正式像素呈现、持久化开关、过期拒绝、原位呈现代次与 500 项视口的工程闭环；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`。
+当前工程切片为 **PF-006B：统一安全打开命令**。PF-006A 已完成当前 12 项视口、翻页选择收敛、Ctrl+A 与内容空白清除；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
 
-Stage 191 已证明真实 worker 成功像素可进入真实 HWND，并关闭 13～500 项滚入/滚出调度及同权威事实呈现冲突。PF-006 先复审已有 Explicit selection 是否使用当前视口 ItemIds，统一 pointer、keyboard 和 UIA 的单选/Ctrl/Shift/清除/焦点状态；随后增加 Enter、双击和 UIA Invoke 共用的安全打开命令，文件夹/文件走系统关联，URL/快捷方式必须对未知协议、目标变化、无权限和进程启动失败给出有限结果。所有打开动作不得改变方格归属或真实文件位置。PF-001～PF-005 与 G0 外部证据并行保留，任何版本在签名和安装门禁完成前不得分发。
+Stage 192 已证明真实 HWND 第二页、生命周期和唯一选择快照可以同 HWND 收敛。PF-006B 增加 Enter、项目双击和 UIA Invoke 共用的安全打开命令：文件夹/文件走系统关联，URL/快捷方式必须对未知协议、目标变化、无权限和进程启动失败给出有限结果；默认双击打开，单击打开只能由显式用户设置启用。所有打开动作不得改变方格归属或真实文件位置。PageUp/PageDown、框选、PF-001～PF-005 与 G0 外部证据并行保留，任何版本在签名和安装门禁完成前不得分发。

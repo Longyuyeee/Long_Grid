@@ -79,7 +79,8 @@ public static class ProductDesktopInteractionSelectionAccessibilityAdapter
             .Where(selected.Contains)
             .ToArray();
         if (selection.Status is not (ProductDesktopSelectionStatus.Ready
-                or ProductDesktopSelectionStatus.Applied)
+                or ProductDesktopSelectionStatus.Applied
+                or ProductDesktopSelectionStatus.Reconciled)
             || selection.LeaseIntentId == Guid.Empty
             || string.IsNullOrWhiteSpace(selection.ContainerId)
             || selection.WorkspaceRevision <= 0

@@ -285,6 +285,50 @@ public sealed class ProductDesktopInteractionSurfaceModeTransaction
         }
     }
 
+    public ProductDesktopInteractionSurfaceTransactionSnapshot
+        ReconcileVisibleItems(
+            ProductDesktopInteractionLease currentLease,
+            IReadOnlyList<string> currentVisibleItemIds,
+            DateTimeOffset nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(currentLease);
+        ArgumentNullException.ThrowIfNull(currentVisibleItemIds);
+        lock (sync)
+        {
+            if (!snapshot.IsExplicit || selection is null)
+            {
+                return snapshot;
+            }
+
+            ProductDesktopSelectionSnapshot updated =
+                selection.ReconcileVisibleItems(
+                    currentLease,
+                    currentVisibleItemIds,
+                    nowUtc);
+            if (updated.Status != ProductDesktopSelectionStatus.Reconciled)
+            {
+                return Publish(
+                    snapshot.Status,
+                    snapshot.Admission,
+                    snapshot.Surface,
+                    updated,
+                    snapshot.Accessibility,
+                    incrementRevision: false);
+            }
+
+            return Publish(
+                snapshot.Status,
+                snapshot.Admission,
+                snapshot.Surface,
+                updated,
+                ProductDesktopInteractionSelectionAccessibilityAdapter
+                    .CreateExplicit(updated),
+                incrementRevision:
+                    updated.SelectionRevision
+                    != snapshot.Selection!.SelectionRevision);
+        }
+    }
+
     public ProductDesktopInteractionSurfaceTransactionSnapshot Cancel(
         ProductDesktopInteractionCancellationSignal signal,
         DateTimeOffset nowUtc,

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Windows.Automation;
 using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopHost;
 using LongGrid.Infrastructure.DesktopHost;
@@ -290,6 +291,113 @@ public sealed class ProductDesktopItemVisualPresentationTests(
                 ViewportWheelDelta = captured?.WheelDelta,
             },
             Difference = "None",
+        }));
+    }
+
+    [Fact]
+    public void RealHwndViewportAndSelectionConvergeOnSecondPage()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var lease = new ProductDesktopInteractionLease(
+            Guid.NewGuid(), "container-reconcile", 7, 11, 19,
+            now.AddSeconds(5));
+        string[] firstNames = Enumerable.Range(1, 12)
+            .Select(index => $"项目 {index}")
+            .ToArray();
+        string[] firstIds = Enumerable.Range(1, 12)
+            .Select(index => $"item:{index}")
+            .ToArray();
+        ProductDesktopHostReadOnlyProjection first =
+            ProductDesktopHostReadOnlyProjection.Create(
+                "container-reconcile", "翻页选择", firstNames,
+                "#2457D6", 0.82, false, 24, 36, 360, 400,
+                itemIds: firstIds,
+                totalItemCount: 24,
+                visibleItemStartOrdinal: 1);
+        ProductDesktopHostDisplayProjection initial =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(0, 0, 1280, 720), 96, [first]);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                initial,
+                new nint(5225));
+        nint originalHandle = surface.Handle;
+        ProductDesktopInteractionSelectionController selection =
+            ProductDesktopInteractionSelectionController.TryCreate(
+                lease,
+                firstIds,
+                now).Controller!;
+        _ = selection.Apply(
+            lease,
+            firstIds,
+            new(ProductDesktopSelectionAction.SelectItem,
+                ItemId: "item:2"),
+            now);
+        string[] secondNames = Enumerable.Range(13, 12)
+            .Select(index => $"项目 {index}")
+            .ToArray();
+        string[] secondIds = Enumerable.Range(13, 12)
+            .Select(index => $"item:{index}")
+            .ToArray();
+        ProductDesktopHostReadOnlyProjection second =
+            ProductDesktopHostReadOnlyProjection.Create(
+                "container-reconcile", "翻页选择", secondNames,
+                "#2457D6", 0.82, false, 24, 36, 360, 400,
+                itemIds: secondIds,
+                totalItemCount: 24,
+                visibleItemStartOrdinal: 13);
+        ProductDesktopHostDisplayProjection next =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(0, 0, 1280, 720), 96, [second]);
+
+        bool applied = surface.ApplyPresentation(next);
+        ProductDesktopSelectionSnapshot reconciled =
+            selection.ReconcileVisibleItems(lease, secondIds, now);
+        AutomationElement root = AutomationElement.FromHandle(surface.Handle);
+        AutomationElement group = root.FindFirst(
+            TreeScope.Children,
+            new PropertyCondition(
+                AutomationElement.ControlTypeProperty,
+                ControlType.Group));
+        AutomationElementCollection items = group.FindAll(
+            TreeScope.Children,
+            new PropertyCondition(
+                AutomationElement.ControlTypeProperty,
+                ControlType.Text));
+        string firstVisibleName = items[0].Current.Name;
+
+        Assert.True(applied);
+        Assert.Equal(originalHandle, surface.Handle);
+        Assert.Equal(12, items.Count);
+        Assert.StartsWith("项目 13；", firstVisibleName,
+            StringComparison.Ordinal);
+        Assert.Empty(reconciled.SelectedItemIds);
+        Assert.Equal("item:13", reconciled.FocusedItemId);
+        output.WriteLine(JsonSerializer.Serialize(new
+        {
+            Purpose = "Pf006aRealHwndViewportSelectionConvergenceEvidence",
+            Expected = new
+            {
+                SameHwnd = true,
+                VisibleCount = 12,
+                FirstVisibleName = "项目 13",
+                SelectedCount = 0,
+                FocusedItemId = "item:13",
+            },
+            Actual = new
+            {
+                SameHwnd = originalHandle == surface.Handle,
+                VisibleCount = items.Count,
+                FirstVisibleName = firstVisibleName.Split('；')[0],
+                SelectedCount = reconciled.SelectedItemIds.Count,
+                reconciled.FocusedItemId,
+            },
+            Difference = "None",
+            Outcome = "Pass",
         }));
     }
 

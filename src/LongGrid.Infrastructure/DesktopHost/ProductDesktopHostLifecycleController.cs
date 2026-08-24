@@ -1157,6 +1157,37 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     topologyGeneration: update.TopologyGeneration);
             }
         }
+        ProductDesktopInteractionSurfaceTransactionSnapshot? transaction =
+            intentConsumption?.Snapshot.Transaction;
+        if (transaction?.IsExplicit == true
+            && transaction.Selection is { } activeSelection)
+        {
+            ProductDesktopHostReadOnlyProjection? activeContainer = batch.Displays
+                .SelectMany(display => display.Containers)
+                .SingleOrDefault(container => string.Equals(
+                    container.ContainerId,
+                    activeSelection.ContainerId,
+                    StringComparison.Ordinal));
+            if (activeContainer is null)
+            {
+                return ApplyNewUpdateUnsafe(update);
+            }
+
+            ProductDesktopInteractionIntentConsumptionResult reconciled =
+                intentConsumption!.ReconcileVisibleItems(
+                    activeContainer.ItemIds,
+                    DateTimeOffset.UtcNow);
+            if (!reconciled.IsExplicit
+                || reconciled.Snapshot.Transaction?.Selection?.Status
+                    != ProductDesktopSelectionStatus.Reconciled)
+            {
+                return ApplyNewUpdateUnsafe(update);
+            }
+            foreach (IProductDesktopHostReadOnlySurface surface in surfaces)
+            {
+                surface.RefreshSelection();
+            }
+        }
         lastPresentationGeneration = update.PresentationGeneration;
         currentUpdate = update;
         currentBatch = batch;
@@ -2291,17 +2322,11 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     && first.HeightDip.Equals(second.HeightDip)
                     && first.IsLocked == second.IsLocked
                     && first.TotalItemCount == second.TotalItemCount
-                    && first.VisibleItemStartOrdinal ==
-                        second.VisibleItemStartOrdinal
                     && first.TitleVisibility == second.TitleVisibility
                     && first.TitleDoubleClickAction ==
                         second.TitleDoubleClickAction
-                    && first.ItemIds.SequenceEqual(
-                        second.ItemIds,
-                        StringComparer.Ordinal)
-                    && first.ItemNames.SequenceEqual(
-                        second.ItemNames,
-                        StringComparer.Ordinal);
+                    && first.ItemIds.Count == second.ItemIds.Count
+                    && first.ItemNames.Count == second.ItemNames.Count;
             }));
 
     private static bool UpdatesEqual(
