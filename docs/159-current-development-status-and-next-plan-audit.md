@@ -435,3 +435,9 @@ Stage 172–180 已覆盖 PF-003 的全部计划生产工程与证据准入，�
 Stage 182 已把正常启动从“无条件显示控制中心”改为有限状态决策：方格开启且 DesktopHost 可用/空工作区/系统表面暂挂时保持桌面优先；方格关闭、配置需注意、Host 故障/超时/不安全或第二次用户启动时激活唯一控制中心。真实 Release App 首次控制中心 0 个、DesktopHost 1 个，`1,378 ms` 冷启动就绪并稳定 20 秒；第二进程退出码 0，重定向后控制中心 1 个，退出后活进程和临时配置写入均为 0。
 
 本轮还从真实门禁发现并修正 PowerShell `Add-Type` 旧 C# 语法不兼容、历史 `$LASTEXITCODE` 误报以及干净会话仍硬编码 146-ID（正式合同已为 153-ID）的测试偏移。Release 全量 1087/1087、build 0 warning / 0 error。PF-001 调整为 `EngineeringComplete / ProductEvidencePending`；PF-001～PF-003 均未取得完整物理/无障碍证据，顶层仍为 0/30 Complete。下一开发项严格进入 PF-004，详见 [Stage 182](182-pf001-desktop-first-startup-audit.md)。
+
+## 30. 2026-08-24 PF-004A 正式桌面标题信息复审
+
+Stage 183 已在正式 GDI DesktopHost 标题显示折叠方向、名称、真实项目总数、安全引用来源、锁定和折叠状态，并让 UIA 读取同一有限 presentation。可见项目仍限制为 12，标题总数限制为正式 500 项；跨显示器布局预览复制总数，不扩大输入 region、文件访问或窗口权限。
+
+真实测试创建非零原生 HWND，窗口标题、Passive 合同、`▸ 工作资料`、`7 项 · 安全引用 · 已锁定 · 已折叠` 和中文无障碍名称全部与 Expected 一致。首轮编译修正 CA1838；首轮全量又真实发现 ItemStatus 丢失“只读”导致 1/1091 失败，保留安全前缀后 1091/1091。PF-004 顶层仍为 `InProgress`，下一切片固定 PF-004B 桌面直接折叠/锁定命令，详见 [Stage 183](183-pf004a-desktop-container-header-presentation-audit.md)。

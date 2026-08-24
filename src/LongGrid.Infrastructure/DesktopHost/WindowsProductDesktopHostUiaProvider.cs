@@ -389,7 +389,7 @@ internal sealed class WindowsProductDesktopHostUiaContainerProvider
     public object? GetPropertyValue(int propertyId) => propertyId switch
     {
         var id when id == AutomationElementIdentifiers.NameProperty.Id =>
-            $"{projection.Title}; {items.Length} visible items",
+            projection.Header.AccessibilityName,
         var id when id == AutomationElementIdentifiers.AutomationIdProperty.Id =>
             $"LongGrid.DesktopHost.Container.{index + 1}",
         var id when id == AutomationElementIdentifiers.ControlTypeProperty.Id =>
@@ -399,7 +399,7 @@ internal sealed class WindowsProductDesktopHostUiaContainerProvider
         var id when id == AutomationElementIdentifiers.IsEnabledProperty.Id => true,
         var id when id == AutomationElementIdentifiers.IsKeyboardFocusableProperty.Id => false,
         var id when id == AutomationElementIdentifiers.ItemStatusProperty.Id =>
-            "\u53ea\u8bfb\u65b9\u683c\uff1b\u4e0d\u652f\u6301\u7f16\u8f91",
+            projection.Header.AccessibilityStatus,
         _ => null,
     };
     public IRawElementProviderFragment? Navigate(NavigateDirection direction) =>

@@ -147,6 +147,8 @@ $windowsDesktopHostWindowInspectorCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostWindowInspector.cs'
 $windowsDesktopHostReadOnlySurfaceCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostReadOnlySurface.cs'
+$desktopContainerHeaderPresentationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopContainerHeaderPresentation.cs'
 $desktopWorkspaceCreateAdmissionCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopWorkspaceCreateAdmission.cs'
 $workspaceContainerCreationDefaultsCodePath = Join-Path $projectRoot `
@@ -473,6 +475,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $windowsDesktopHostReadOnlySurfaceCode = Get-Content `
         -LiteralPath $windowsDesktopHostReadOnlySurfaceCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopContainerHeaderPresentationCode = Get-Content `
+        -LiteralPath $desktopContainerHeaderPresentationCodePath `
         -Raw `
         -Encoding UTF8
     $desktopWorkspaceCreateAdmissionCode = Get-Content `
@@ -1948,6 +1954,20 @@ function Test-SourceContract {
         $windowsDesktopHostUiaProviderCode -match 'IsInteractiveItem'
     ) `
         'The A5/M2 product surface must expose bounded UIA Fragments, keep Passive item patterns unavailable, gate root/item selection to Explicit, and attest non-topmost behavior.'
+    Assert-Condition (
+        $desktopContainerHeaderPresentationCode -match 'VisualTitle' -and
+        $desktopContainerHeaderPresentationCode -match 'VisualStatus' -and
+        $desktopContainerHeaderPresentationCode -match 'AccessibilityName' -and
+        $desktopContainerHeaderPresentationCode -match 'AccessibilityStatus' -and
+        $desktopContainerHeaderPresentationCode -match 'SafeReferences' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'header\.VisualTitle' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'header\.VisualStatus' -and
+        $windowsDesktopHostUiaProviderCode -match `
+            'projection\.Header\.AccessibilityName' -and
+        $windowsDesktopHostUiaProviderCode -match `
+            'projection\.Header\.AccessibilityStatus'
+    ) `
+        'PF-004A must render one bounded title/status contract and expose the same state to UIA.'
     Assert-Condition (
         ([regex]::Matches(
             $appCode,

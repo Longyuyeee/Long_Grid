@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
-- 当前开发项：**PF-004 方格标题栏与就近操作（PF-001～PF-003 产品证据并行 Pending）**
-- 最新工程审计：[Stage 182](182-pf001-desktop-first-startup-audit.md)；PF-001 正常启动已桌面优先，正式 Release App 真实窗口 20 秒稳定、第二次启动激活唯一控制中心、零临时配置写入。PF-001～PF-003 均为 `EngineeringComplete / ProductEvidencePending`；物理输入、截图和 UIA/Narrator 仍待安全环境补证，30 个 PF 项仍为 `0 Complete`
+- 当前开发项：**PF-004B 桌面直接折叠/锁定命令（PF-001～PF-003 产品证据并行 Pending）**
+- 最新工程审计：[Stage 183](183-pf004a-desktop-container-header-presentation-audit.md)；PF-004A 已让正式标题以同一有限事实显示名称、项目总数、安全引用、锁定/折叠状态并提供中文 UIA 状态，真实原生 HWND `Difference=None`。PF-004 顶层仍为 `InProgress`；PF-001～PF-003 均为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -61,7 +61,7 @@
 | 1 | PF-001 | 桌面方格总开关与桌面优先启动 | `EngineeringComplete / ProductEvidencePending`：正式桌面优先与单实例唤起已通过，物理无障碍证据待补 | iTop Enable Boxes |
 | 2 | PF-002 | 桌面直接创建方格 | `EngineeringComplete / ProductEvidencePending`：正式 App 创建、保存、补偿与最近撤销工程证据通过；可见物理输入和 UIA/Narrator 待补 | iTop/Fences 多入口创建 |
 | 3 | PF-003 | 桌面拖动、缩放、吸附 | `EngineeringComplete / ProductEvidencePending`：生产工程链、正式 Store 与双屏混合 DPI 已完成；物理鼠标/触控/截图与 UIA Bounds 待安全环境补证 | Fences/Nimi 直接布局 |
-| 4 | PF-004 | 方格标题栏与就近操作 | 部分 Core | Fences 标题栏操作 |
+| 4 | PF-004 | 方格标题栏与就近操作 | `InProgress`：A 标题信息/UIA 已完成，B 直接折叠/锁定命令待开发 | Fences 标题栏操作 |
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | worker 有、UI 无 | Fences/Nimi 项目呈现 |
 | 6 | PF-006 | 项目选择、键盘导航与打开 | 选择底座 | Fences/Portal 日常访问 |
 | 7 | PF-007 | Explorer 拖入与方格间拖放 | 配置表单批量加入 | iTop/Fences 直接拖放 |
@@ -199,6 +199,8 @@
 - Narrator 按名称、项目数、锁定/折叠状态、操作顺序读取；
 - 标题隐藏不使方格失去键盘管理能力；
 - 多方格同时操作不会把命令应用到错误目标。
+
+**2026-08-24 实施状态**：`InProgress`。Stage 183/PF-004A 已把名称、项目总数、安全引用来源、锁定/折叠状态接入正式 GDI 标题和中文 UIA，同一 presentation 避免视觉/辅助技术漂移；真实非零 HWND 与 Passive 合同 Expected/Actual 为 `Difference=None`。桌面直接折叠/锁定、更多菜单、重命名、外观、排序、删除确认和撤销仍未完成，不能标记 `EngineeringComplete` 或 `Complete`。下一切片为 PF-004B。
 
 ### PF-005：正式项目图标、缩略图与有限状态
 
@@ -881,6 +883,6 @@
 
 ## 15. 当前立即执行项
 
-当前工程切片转为 **PF-004：方格标题栏与就近操作**。PF-001、PF-002A～H 和 PF-003A～D5 的正式工程链均已完成，三者状态为 `EngineeringComplete / ProductEvidencePending`；当前 WinUI 上游缺陷仍阻断部分可见物理输入和 UIA/Narrator，因此都不能标记 `Complete`。
+当前工程切片为 **PF-004B：桌面直接折叠/展开与锁定/解锁**。PF-004A 标题信息/UIA 已完成；PF-001、PF-002A～H 和 PF-003A～D5 的正式工程链均已完成，三者状态为 `EngineeringComplete / ProductEvidencePending`；当前 WinUI 上游缺陷仍阻断部分可见物理输入和 UIA/Narrator，因此都不能标记 `Complete`。
 
-Stage 182 已关闭 PF-001 启动时无条件激活控制中心的缺口：桌面方格就绪时保持桌面优先，空工作区显示非激活首建入口，第二次用户启动激活唯一控制中心。下一切片完成 PF-004 的用户可见标题、焦点、锁定、折叠和更多操作最小闭环；PF-001～PF-003 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。
+Stage 183 已关闭 PF-004A 标题只显示名称的缺口。下一切片在既有有限输入窗口内增加至少 32×32 DIP 的折叠与锁定按钮，并用 container/revision/topology/来源事实绑定正式配置事务和失败回滚；之后再完成更多菜单、删除确认与撤销。PF-001～PF-003 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。

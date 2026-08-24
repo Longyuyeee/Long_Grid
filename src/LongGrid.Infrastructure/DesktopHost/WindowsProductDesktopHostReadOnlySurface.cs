@@ -504,7 +504,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 placement.WidthDip,
                 placement.HeightDip,
                 source.IsLocked,
-                source.ItemIds);
+                source.ItemIds,
+                source.TotalItemCount);
             _ = ProductDesktopHostSurfaceLayout.GetContainerBounds(
                 projection,
                 candidate);
@@ -560,6 +561,15 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             ? null
             : ToPixelRect(GetContainerBounds(container));
     }
+
+    internal ProductDesktopContainerHeaderPresentation?
+        GetContainerHeaderPresentationForEvidence(string containerId) =>
+        projection.Containers
+            .SingleOrDefault(candidate => string.Equals(
+                candidate.ContainerId,
+                containerId,
+                StringComparison.Ordinal))
+            ?.Header;
 
     internal bool SubmitContainerLayoutInput(
         ProductDesktopContainerLayoutSurfaceInput input)
@@ -1314,16 +1324,32 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 _ = NativeMethods.DrawFocusRect(deviceContext, ref headerFocus);
             }
 
+            ProductDesktopContainerHeaderPresentation header = container.Header;
+            int controlsWidth = ToPixels(44, scale);
             DrawText(
                 deviceContext,
-                container.Title,
+                header.VisualTitle,
                 new(
                     bounds.Left + horizontalPadding,
-                    bounds.Top + ToPixels(12, scale),
+                    bounds.Top + ToPixels(4, scale),
                     Math.Max(
                         bounds.Left + horizontalPadding,
-                        bounds.Right - horizontalPadding),
-                    bounds.Top + ToPixels(36, scale)),
+                        bounds.Right - controlsWidth),
+                    bounds.Top + ToPixels(27, scale)),
+                NativeMethods.DtLeft
+                    | NativeMethods.DtVCenter
+                    | NativeMethods.DtSingleLine
+                    | NativeMethods.DtEndEllipsis);
+            DrawText(
+                deviceContext,
+                header.VisualStatus,
+                new(
+                    bounds.Left + horizontalPadding,
+                    bounds.Top + ToPixels(27, scale),
+                    Math.Max(
+                        bounds.Left + horizontalPadding,
+                        bounds.Right - controlsWidth),
+                    bounds.Top + ToPixels(50, scale)),
                 NativeMethods.DtLeft
                     | NativeMethods.DtVCenter
                     | NativeMethods.DtSingleLine

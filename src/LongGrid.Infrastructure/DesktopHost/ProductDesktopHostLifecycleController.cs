@@ -66,7 +66,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
         double widthDip,
         double heightDip,
         bool isLocked,
-        IReadOnlyList<string> itemIds)
+        IReadOnlyList<string> itemIds,
+        int totalItemCount)
     {
         ContainerId = containerId;
         Title = title;
@@ -80,6 +81,7 @@ public sealed record ProductDesktopHostReadOnlyProjection
         HeightDip = heightDip;
         IsLocked = isLocked;
         ItemIds = itemIds;
+        TotalItemCount = totalItemCount;
     }
 
     public string ContainerId { get; }
@@ -106,6 +108,15 @@ public sealed record ProductDesktopHostReadOnlyProjection
 
     public IReadOnlyList<string> ItemIds { get; }
 
+    public int TotalItemCount { get; }
+
+    public ProductDesktopContainerHeaderPresentation Header =>
+        ProductDesktopContainerHeaderPresentation.Create(
+            Title,
+            TotalItemCount,
+            IsLocked,
+            IsCollapsed);
+
     public static ProductDesktopHostReadOnlyProjection Create(
         string containerId,
         string title,
@@ -118,7 +129,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
         double widthDip,
         double heightDip,
         bool isLocked = false,
-        IEnumerable<string>? itemIds = null)
+        IEnumerable<string>? itemIds = null,
+        int? totalItemCount = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(containerId);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
@@ -131,6 +143,7 @@ public sealed record ProductDesktopHostReadOnlyProjection
                     .Select(ordinal => $"item:{ordinal}"))
             .Take(MaximumVisibleItems)
             .ToArray();
+        int boundedTotalItemCount = totalItemCount ?? visibleItems.Length;
         if (visibleItems.Any(string.IsNullOrWhiteSpace)
             || containerId.Length > ProductConfigurationLimits.MaximumIdLength
             || title.Length > ProductConfigurationLimits.MaximumNameLength
@@ -141,6 +154,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
                 > ProductConfigurationLimits.MaximumIdLength)
             || visibleItemIds.Distinct(StringComparer.Ordinal).Count()
                 != visibleItemIds.Length
+            || boundedTotalItemCount < visibleItems.Length
+            || boundedTotalItemCount > ProductConfigurationLimits.MaximumItems
             || color is null
             || color.Length != 7
             || color[0] != '#'
@@ -170,7 +185,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
             widthDip,
             heightDip,
             isLocked,
-            Array.AsReadOnly(visibleItemIds));
+            Array.AsReadOnly(visibleItemIds),
+            boundedTotalItemCount);
     }
 }
 

@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 182](docs/182-pf001-desktop-first-startup-audit.md) 已关闭 PF-001 正常启动无条件弹出控制中心的缺口；正式 Release App 实测首次只显示 DesktopHost、20 秒持续响应，第二次启动激活唯一控制中心，退出后零进程和零临时配置写入。PF-001、PF-002、PF-003 均为 `EngineeringComplete / ProductEvidencePending`，物理/无障碍证据仍待安全环境补充，30 个 PF 项仍为 `0 Complete`。下一开发项为 PF-004 方格标题栏与就近操作，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 183](docs/183-pf004a-desktop-container-header-presentation-audit.md) 已完成 PF-004A 正式桌面标题信息：名称、项目总数、安全引用来源、锁定与折叠状态由视觉/UIA 同一合同输出，真实原生 HWND Expected/Actual 为 `Difference=None`。PF-004 顶层仍为 `InProgress`，下一切片是直接折叠/锁定命令；PF-001～PF-003 仍为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`，所有产物不可公开分发。
 
 ## 产品原则
 
@@ -43,6 +43,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-003D5 真实输入证据准入纠偏审计（Stage 180）](docs/180-pf003d5-real-input-evidence-readiness-audit.md)
 - [PF-003D5 正式 App 可见捕获上游阻断审计（Stage 181）](docs/181-pf003d5-visible-capture-upstream-blocker-audit.md)
 - [PF-001 桌面优先启动收口与真实窗口审计（Stage 182）](docs/182-pf001-desktop-first-startup-audit.md)
+- [PF-004A 正式桌面方格标题信息与无障碍状态审计（Stage 183）](docs/183-pf004a-desktop-container-header-presentation-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)
@@ -200,7 +201,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)推进。PF-001 桌面优先启动工程已由 Stage 182 收口，当前固定进入 PF-004 方格标题栏与就近操作，并随后完成 PF-005～PF-010 日常桌面闭环。PF-001～PF-003 的物理输入、截图和 UIA/Narrator 在上游安全运行时或独立机器并行补证；不得继续强制触发已知崩溃。任务栏美化、小组件/插件运行时和广泛窗口特效继续属于核心 MVP 后续。
+按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)推进。PF-004A 标题信息已完成，当前固定执行 PF-004B 桌面直接折叠/展开与锁定/解锁，再进入更多菜单、删除确认和撤销；PF-004 收口后继续 PF-005～PF-010 日常桌面闭环。PF-001～PF-003 的物理输入、截图和 UIA/Narrator 在上游安全运行时或独立机器并行补证；不得继续强制触发已知崩溃。任务栏美化、小组件/插件运行时和广泛窗口特效继续属于核心 MVP 后续。
 
 ## 开发启动
 

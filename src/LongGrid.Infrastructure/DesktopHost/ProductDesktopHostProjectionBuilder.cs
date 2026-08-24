@@ -130,7 +130,8 @@ public static class ProductDesktopHostProjectionBuilder
                     visible.WidthDip,
                     visible.HeightDip,
                     source.IsLocked,
-                    itemIds);
+                    itemIds,
+                    visible.Items.Count);
             string displayId = byDisplay.ContainsKey(source.Placement.DisplayKey)
                 ? source.Placement.DisplayKey
                 : primary.StableId;

@@ -687,16 +687,20 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         Assert.Null(uiaContainer.GetPatternProvider(-1));
         Assert.Equal(ControlType.Group.Id, uiaContainer.GetPropertyValue(
             AutomationElementIdentifiers.ControlTypeProperty.Id));
-        Assert.NotNull(uiaContainer.GetPropertyValue(
-            AutomationElementIdentifiers.NameProperty.Id));
+        Assert.Equal(
+            "Work；1 个项目；安全引用；未锁定；已展开",
+            uiaContainer.GetPropertyValue(
+                AutomationElementIdentifiers.NameProperty.Id));
         Assert.NotNull(uiaContainer.GetPropertyValue(
             AutomationElementIdentifiers.AutomationIdProperty.Id));
         Assert.True((bool)uiaContainer.GetPropertyValue(
             AutomationElementIdentifiers.IsEnabledProperty.Id)!);
         Assert.False((bool)uiaContainer.GetPropertyValue(
             AutomationElementIdentifiers.IsKeyboardFocusableProperty.Id)!);
-        Assert.NotNull(uiaContainer.GetPropertyValue(
-            AutomationElementIdentifiers.ItemStatusProperty.Id));
+        Assert.Equal(
+            "只读方格；ContainerHeader:Items=1:Locked=False:Collapsed=False:Source=SafeReferences",
+            uiaContainer.GetPropertyValue(
+                AutomationElementIdentifiers.ItemStatusProperty.Id));
         Assert.Null(uiaContainer.GetPropertyValue(-1));
         Assert.Same(provider, uiaContainer.Navigate(NavigateDirection.Parent));
         Assert.Same(item, uiaContainer.Navigate(NavigateDirection.FirstChild));
