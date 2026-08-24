@@ -482,6 +482,66 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
     }
 
     [Fact]
+    public void RealHwndPublishesFiniteOpenFailureToVisibleItemAndUia()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+        ProductDesktopHostReadOnlyProjection container = CreateContainer(
+            "container-1", "工作", ["不安全网址"], false, 24, 36);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(100, 200, 1920, 1040), 96,
+                [container]);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                display,
+                new nint(913));
+
+        const string expected = "网址协议不受支持，仅允许 HTTP/HTTPS";
+        Assert.True(surface.ApplyItemOpenFeedback(new(
+            "container-1",
+            "item:1",
+            ProductDesktopItemOpenStatus.ProtocolRejected,
+            expected)));
+
+        AutomationElement root = AutomationElement.FromHandle(surface.Handle);
+        AutomationElement item = root.FindFirst(
+            TreeScope.Descendants,
+            new PropertyCondition(
+                AutomationElement.AutomationIdProperty,
+                "LongGrid.DesktopHost.Item.1.1"));
+        Assert.Contains(expected, item.Current.ItemStatus,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("file:", item.Current.ItemStatus,
+            StringComparison.OrdinalIgnoreCase);
+        output.WriteLine(JsonSerializer.Serialize(new
+        {
+            Purpose = "Pf006b2RealHwndFiniteOpenFeedback",
+            Expected = new
+            {
+                ContainsMessage = true,
+                UiaContainsPath = false,
+                Status = "ProtocolRejected",
+            },
+            Actual = new
+            {
+                ContainsMessage = item.Current.ItemStatus.Contains(
+                    expected,
+                    StringComparison.Ordinal),
+                UiaContainsPath = item.Current.ItemStatus.Contains(
+                    "file:",
+                    StringComparison.OrdinalIgnoreCase),
+                Status = ProductDesktopItemOpenStatus.ProtocolRejected
+                    .ToString(),
+            },
+            Difference = "None",
+            Outcome = "Pass",
+        }));
+    }
+
+    [Fact]
     public async Task NativeActivationSourceExposesFiniteInvokeAndHideRestoreContract()
     {
         if (!OperatingSystem.IsWindows())

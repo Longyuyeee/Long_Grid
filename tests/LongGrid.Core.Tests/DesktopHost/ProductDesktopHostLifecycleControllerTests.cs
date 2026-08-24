@@ -756,7 +756,9 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         controller.BindItemOpen(request =>
         {
             openRequests.Add(request);
-            return true;
+            return new(
+                ProductDesktopItemOpenStatus.LaunchAccepted,
+                request.Source);
         });
         controller.SnapshotChanged += (_, value) => observed.Add(value);
         DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -853,6 +855,14 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.DoesNotContain("container-1", lifecycleSelected.ToString());
         Assert.DoesNotContain("item:2", lifecycleSelected.ToString());
         Assert.Equal(2, openRequests.Count);
+        ProductDesktopItemOpenFeedback feedback = Assert.IsType<
+            ProductDesktopItemOpenFeedback>(
+                Assert.Single(factory.Surfaces).LastItemOpenFeedback);
+        Assert.Equal("container-1", feedback.ContainerId);
+        Assert.Equal("item:2", feedback.ItemId);
+        Assert.Equal(ProductDesktopItemOpenStatus.LaunchAccepted,
+            feedback.Status);
+        Assert.Equal("已提交系统打开", feedback.Message);
         Assert.All(openRequests, request =>
         {
             Assert.Equal("container-1", request.ContainerId);
@@ -2132,6 +2142,9 @@ public sealed class ProductDesktopHostLifecycleControllerTests
 
         internal string? LayoutPreviewSourceId { get; private set; }
 
+        internal ProductDesktopItemOpenFeedback? LastItemOpenFeedback
+        { get; private set; }
+
         public nint Handle { get; } = handle;
 
         public nint InstanceMarker { get; } = instanceMarker;
@@ -2207,6 +2220,13 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         public void BindItemOpen(
             Func<ProductDesktopItemOpenSurfaceInput, bool> requestOpen) =>
             requestItemOpen = requestOpen;
+
+        public bool ApplyItemOpenFeedback(
+            ProductDesktopItemOpenFeedback feedback)
+        {
+            LastItemOpenFeedback = feedback;
+            return true;
+        }
 
         public bool ApplyPresentation(
             ProductDesktopHostDisplayProjection nextProjection)

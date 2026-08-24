@@ -97,6 +97,8 @@ $desktopItemViewportCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopItemViewport.cs'
 $desktopItemOpenCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopItemOpen.cs'
+$desktopItemOpenReferenceResolverCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopItemOpenReferenceResolver.cs'
 $boxesSettingsCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductBoxesSettings.cs'
 $desktopInteractionAdmissionCodePath = Join-Path $projectRoot `
@@ -505,6 +507,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopItemOpenCode = Get-Content `
         -LiteralPath $desktopItemOpenCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopItemOpenReferenceResolverCode = Get-Content `
+        -LiteralPath $desktopItemOpenReferenceResolverCodePath `
         -Raw `
         -Encoding UTF8
     $boxesSettingsCode = Get-Content `
@@ -2047,7 +2053,6 @@ function Test-SourceContract {
         $desktopItemOpenCode -match 'PointerDoubleClick' -and
         $desktopItemOpenCode -match 'AssistiveInvoke' -and
         $desktopItemOpenCode -match 'ShellExecuteEx' -and
-        $desktopItemOpenCode -match 'ReviewRequiredKind' -and
         $desktopItemOpenCode -match 'ReparsePointRejected' -and
         $desktopItemOpenCode -match 'File\.GetAttributes' -and
         $desktopHostLifecycleControllerCode -match 'BindItemOpen' -and
@@ -2056,7 +2061,32 @@ function Test-SourceContract {
         $windowsDesktopHostUiaProviderCode -match 'requestItemOpen' -and
         $windowsDesktopHostUiaProviderCode -match 'InvokeItem'
     ) `
-        'PF-006B1 must converge Enter, item double-click, and UIA Invoke on one authority-safe File/Folder ShellExecuteEx boundary while fail-closing reparse and review-required kinds.'
+        'PF-006B1 must converge Enter, item double-click, and UIA Invoke on one authority-safe File/Folder ShellExecuteEx boundary while fail-closing reparse targets.'
+    Assert-Condition (
+        $desktopItemOpenReferenceResolverCode -match 'IShellLinkW' -and
+        $desktopItemOpenReferenceResolverCode -match 'IPersistFile' -and
+        $desktopItemOpenReferenceResolverCode -match `
+            'MaximumShortcutBytes\s*=\s*1024\s*\*\s*1024' -and
+        $desktopItemOpenReferenceResolverCode -match `
+            'MaximumInternetShortcutBytes\s*=\s*64\s*\*\s*1024' -and
+        $desktopItemOpenReferenceResolverCode -match 'UTF8Encoding' -and
+        $desktopItemOpenReferenceResolverCode -match 'Encoding\.Unicode' -and
+        $desktopItemOpenReferenceResolverCode -match 'UriSchemeHttp' -and
+        $desktopItemOpenReferenceResolverCode -match 'UriSchemeHttps' -and
+        $desktopItemOpenReferenceResolverCode -match 'ProtocolRejected' -and
+        $desktopItemOpenReferenceResolverCode -match 'SHA256\.HashData' -and
+        $desktopItemOpenReferenceResolverCode -match `
+            'CryptographicOperations\.FixedTimeEquals' -and
+        $desktopItemOpenReferenceResolverCode -match 'FileAttributes\.ReparsePoint' -and
+        $desktopItemOpenCode -match 'UserMessage' -and
+        $desktopHostLifecycleControllerCode -match `
+            'PublishItemOpenFeedbackUnsafe' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'ApplyItemOpenFeedback' -and
+        $windowsDesktopHostUiaProviderCode -match `
+            'PublishItemOpenFeedback'
+    ) `
+        'PF-006B2A must bound real Shell Link and InternetShortcut parsing, allow only HTTP/HTTPS URLs, recheck references, and publish finite path-free HWND/UIA feedback.'
     Assert-Condition (
         $desktopContainerHeaderPresentationCode -match 'VisualTitle' -and
         $desktopContainerHeaderPresentationCode -match 'VisualStatus' -and
@@ -3373,7 +3403,7 @@ function Test-SourceContract {
         productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-title-visibility-title-double-click-placement-remove-unified-edit-undo-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only-desktop-layout-session-candidate-publish-compensate-keyboard-title-focus-transaction-cross-display-mixed-dpi'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'
-                    productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-title-layout-select-then-authority-safe-file-folder-open-zero-file-mutation'
+                    productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-title-layout-select-then-authority-safe-file-folder-lnk-http-https-open-finite-path-free-feedback-zero-file-mutation'
                     readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'
     }
 }

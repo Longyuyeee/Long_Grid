@@ -2282,18 +2282,20 @@ public partial class App : Application
         });
     }
 
-    private bool RequestDesktopItemOpen(ProductDesktopItemOpenRequest request)
+    private ProductDesktopItemOpenResult RequestDesktopItemOpen(
+        ProductDesktopItemOpenRequest request)
     {
         if (closingDrainInProgress)
         {
-            return false;
+            return new(
+                ProductDesktopItemOpenStatus.InvalidRequest,
+                request.Source);
         }
-        ProductDesktopItemOpenResult result = desktopItemOpens.Open(
+        return desktopItemOpens.Open(
             request,
             productWorkspaceSession.State,
             workspaceCommits.CurrentEditRevision,
             productDisplayTopology.Snapshot);
-        return result.IsAccepted;
     }
 
     private bool RequestDesktopContainerLayout(

@@ -291,6 +291,8 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
     {
     }
 
+    bool ApplyItemOpenFeedback(ProductDesktopItemOpenFeedback feedback) => false;
+
     bool ApplyPresentation(ProductDesktopHostDisplayProjection projection) =>
         false;
 
@@ -365,8 +367,10 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         requestContainerMenu = static _ => false;
     private Func<ProductDesktopItemViewportRequest, bool>
         requestItemViewport = static _ => false;
-    private Func<ProductDesktopItemOpenRequest, bool>
-        requestItemOpen = static _ => false;
+    private Func<ProductDesktopItemOpenRequest, ProductDesktopItemOpenResult>
+        requestItemOpen = static request => new(
+            ProductDesktopItemOpenStatus.InvalidRequest,
+            request.Source);
 
     public ProductDesktopHostLifecycleController(
         ProductDesktopHostFeatureDecision featureDecision)
@@ -540,7 +544,9 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         }
     }
 
-    public void BindItemOpen(Func<ProductDesktopItemOpenRequest, bool> requestOpen)
+    public void BindItemOpen(
+        Func<ProductDesktopItemOpenRequest, ProductDesktopItemOpenResult>
+            requestOpen)
     {
         ArgumentNullException.ThrowIfNull(requestOpen);
         lock (gate)
@@ -1888,7 +1894,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         }
         try
         {
-            return requestItemOpen(new(
+            ProductDesktopItemOpenResult result = requestItemOpen(new(
                 input.ContainerId,
                 display.DisplayId,
                 currentBatch.WorkspaceRevision,
@@ -1898,6 +1904,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                 input.SourceAttested,
                 input.IsInjected,
                 input.IsAutoRepeat));
+            PublishItemOpenFeedbackUnsafe(display, input, result);
+            return result.IsAccepted;
         }
         catch (Exception exception) when (
             exception is ArgumentException
@@ -1906,6 +1914,39 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         {
             return false;
         }
+    }
+
+    private void PublishItemOpenFeedbackUnsafe(
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopItemOpenSurfaceInput input,
+        ProductDesktopItemOpenResult result)
+    {
+        if (currentBatch is null)
+        {
+            return;
+        }
+        int displayIndex = -1;
+        for (int index = 0; index < currentBatch.Displays.Count; index++)
+        {
+            if (ReferenceEquals(currentBatch.Displays[index], display)
+                || string.Equals(
+                    currentBatch.Displays[index].DisplayId,
+                    display.DisplayId,
+                    StringComparison.Ordinal))
+            {
+                displayIndex = index;
+                break;
+            }
+        }
+        if (displayIndex < 0 || displayIndex >= surfaces.Count)
+        {
+            return;
+        }
+        _ = surfaces[displayIndex].ApplyItemOpenFeedback(new(
+            input.ContainerId,
+            input.ItemId,
+            result.Status,
+            result.UserMessage));
     }
 
     private ProductDesktopContainerMenuAvailability

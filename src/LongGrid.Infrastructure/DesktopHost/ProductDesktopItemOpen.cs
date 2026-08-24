@@ -21,6 +21,11 @@ public enum ProductDesktopItemOpenStatus
     TypeChanged,
     ReparsePointRejected,
     ReviewRequiredKind,
+    ReferenceTooLarge,
+    ReferenceMalformed,
+    ProtocolRejected,
+    ShortcutTargetUnavailable,
+    ShortcutTargetUnsafe,
     LaunchFailed,
 }
 
@@ -40,6 +45,23 @@ public sealed record ProductDesktopItemOpenResult(
     ProductDesktopItemOpenSource Source)
 {
     public bool IsAccepted => Status == ProductDesktopItemOpenStatus.LaunchAccepted;
+
+    public string UserMessage => Status switch
+    {
+        ProductDesktopItemOpenStatus.LaunchAccepted => "已提交系统打开",
+        ProductDesktopItemOpenStatus.StaleAuthority => "桌面状态已变化，请重试",
+        ProductDesktopItemOpenStatus.TargetUnavailable => "引用不存在，请检查后重试",
+        ProductDesktopItemOpenStatus.UnresolvedReference => "引用仍待确认，未执行打开",
+        ProductDesktopItemOpenStatus.TypeChanged => "目标类型已变化，未执行打开",
+        ProductDesktopItemOpenStatus.ReparsePointRejected => "目标需要重新确认，未执行打开",
+        ProductDesktopItemOpenStatus.ReferenceTooLarge => "快捷方式超出安全大小",
+        ProductDesktopItemOpenStatus.ReferenceMalformed => "快捷方式格式无效或编码不受支持",
+        ProductDesktopItemOpenStatus.ProtocolRejected => "网址协议不受支持，仅允许 HTTP/HTTPS",
+        ProductDesktopItemOpenStatus.ShortcutTargetUnavailable => "快捷方式目标不存在",
+        ProductDesktopItemOpenStatus.ShortcutTargetUnsafe => "快捷方式目标需要重新确认",
+        ProductDesktopItemOpenStatus.LaunchFailed => "系统未能打开，请重试",
+        _ => "当前项目无法安全打开",
+    };
 }
 
 internal sealed record ProductDesktopItemOpenSurfaceInput(
@@ -50,9 +72,17 @@ internal sealed record ProductDesktopItemOpenSurfaceInput(
     bool IsInjected,
     bool IsAutoRepeat);
 
+internal sealed record ProductDesktopItemOpenFeedback(
+    string ContainerId,
+    string ItemId,
+    ProductDesktopItemOpenStatus Status,
+    string Message);
+
 internal interface IProductDesktopItemShellLauncher
 {
-    ProductDesktopShellLaunchResult Launch(string target);
+    ProductDesktopShellLaunchResult Launch(
+        string target,
+        string? parameters = null);
 }
 
 internal sealed record ProductDesktopShellLaunchResult(
@@ -62,7 +92,9 @@ internal sealed record ProductDesktopShellLaunchResult(
 internal sealed class WindowsProductDesktopItemShellLauncher
     : IProductDesktopItemShellLauncher
 {
-    public ProductDesktopShellLaunchResult Launch(string target)
+    public ProductDesktopShellLaunchResult Launch(
+        string target,
+        string? parameters = null)
     {
         var info = new ShellExecuteInfo
         {
@@ -70,6 +102,7 @@ internal sealed class WindowsProductDesktopItemShellLauncher
             Mask = SeeMaskNoCloseProcess | SeeMaskNoAsync,
             Verb = "open",
             File = target,
+            Parameters = parameters,
             Show = ShowNormal,
         };
         if (!ShellExecuteEx(ref info))
@@ -131,17 +164,23 @@ public sealed class ProductDesktopItemOpenController
 {
     private readonly object gate = new();
     private readonly IProductDesktopItemShellLauncher launcher;
+    private readonly IProductDesktopItemOpenReferenceResolver referenceResolver;
 
     public ProductDesktopItemOpenController()
-        : this(new WindowsProductDesktopItemShellLauncher())
+        : this(
+            new WindowsProductDesktopItemShellLauncher(),
+            new WindowsProductDesktopItemOpenReferenceResolver())
     {
     }
 
     internal ProductDesktopItemOpenController(
-        IProductDesktopItemShellLauncher launcher)
+        IProductDesktopItemShellLauncher launcher,
+        IProductDesktopItemOpenReferenceResolver? referenceResolver = null)
     {
         this.launcher = launcher
             ?? throw new ArgumentNullException(nameof(launcher));
+        this.referenceResolver = referenceResolver
+            ?? new WindowsProductDesktopItemOpenReferenceResolver();
     }
 
     internal int LastLaunchProcessIdForEvidence { get; private set; }
@@ -206,15 +245,10 @@ public sealed class ProductDesktopItemOpenController
                 ProductDesktopItemOpenStatus.UnresolvedReference,
                 request);
         }
-        if (item.PersistedKind is ConfigurationItemKind.Shortcut
-            or ConfigurationItemKind.Url)
-        {
-            return Result(
-                ProductDesktopItemOpenStatus.ReviewRequiredKind,
-                request);
-        }
         if (item.PersistedKind is not (ConfigurationItemKind.File
-                or ConfigurationItemKind.Folder)
+                or ConfigurationItemKind.Folder
+                or ConfigurationItemKind.Shortcut
+                or ConfigurationItemKind.Url)
             || !string.Equals(
                 item.CatalogEntry.Identity.Provider,
                 "filesystem",
@@ -244,25 +278,29 @@ public sealed class ProductDesktopItemOpenController
             {
                 return Result(ProductDesktopItemOpenStatus.InvalidRequest, request);
             }
-            bool file = File.Exists(target);
-            bool directory = Directory.Exists(target);
-            if (!file && !directory)
+            if (item.PersistedKind is ConfigurationItemKind.File
+                or ConfigurationItemKind.Folder)
             {
-                return Result(
-                    ProductDesktopItemOpenStatus.TargetUnavailable,
-                    request);
-            }
-            if ((item.PersistedKind == ConfigurationItemKind.File && !file)
-                || (item.PersistedKind == ConfigurationItemKind.Folder
-                    && !directory))
-            {
-                return Result(ProductDesktopItemOpenStatus.TypeChanged, request);
-            }
-            if ((File.GetAttributes(target) & FileAttributes.ReparsePoint) != 0)
-            {
-                return Result(
-                    ProductDesktopItemOpenStatus.ReparsePointRejected,
-                    request);
+                bool file = File.Exists(target);
+                bool directory = Directory.Exists(target);
+                if (!file && !directory)
+                {
+                    return Result(
+                        ProductDesktopItemOpenStatus.TargetUnavailable,
+                        request);
+                }
+                if ((item.PersistedKind == ConfigurationItemKind.File && !file)
+                    || (item.PersistedKind == ConfigurationItemKind.Folder
+                        && !directory))
+                {
+                    return Result(ProductDesktopItemOpenStatus.TypeChanged, request);
+                }
+                if ((File.GetAttributes(target) & FileAttributes.ReparsePoint) != 0)
+                {
+                    return Result(
+                        ProductDesktopItemOpenStatus.ReparsePointRejected,
+                        request);
+                }
             }
         }
         catch (Exception exception) when (
@@ -275,9 +313,25 @@ public sealed class ProductDesktopItemOpenController
             return Result(ProductDesktopItemOpenStatus.TargetUnavailable, request);
         }
 
+        string? parameters = null;
+        if (item.PersistedKind is ConfigurationItemKind.Shortcut
+            or ConfigurationItemKind.Url)
+        {
+            ProductDesktopItemOpenReferenceResolution resolved =
+                referenceResolver.Resolve(item.PersistedKind, target);
+            if (!resolved.IsResolved)
+            {
+                return Result(resolved.Status, request);
+            }
+            target = resolved.Target!;
+            parameters = resolved.Parameters;
+        }
+
         try
         {
-            ProductDesktopShellLaunchResult launched = launcher.Launch(target);
+            ProductDesktopShellLaunchResult launched = launcher.Launch(
+                target,
+                parameters);
             LastLaunchProcessIdForEvidence = launched.ProcessId;
             return Result(
                 launched.Accepted

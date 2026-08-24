@@ -120,6 +120,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         requestItemViewport = static _ => false;
     private Func<ProductDesktopItemOpenSurfaceInput, bool>
         requestItemOpen = static _ => false;
+    private ProductDesktopItemOpenFeedback? itemOpenFeedback;
     private ActiveContainerLayout? activeContainerLayout;
     private ProductDesktopHostReadOnlyProjection? containerLayoutPreview;
     private string? containerLayoutKeyboardFocusId;
@@ -467,6 +468,44 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         requestItemOpen = requestOpen;
     }
 
+    public bool ApplyItemOpenFeedback(ProductDesktopItemOpenFeedback feedback)
+    {
+        ArgumentNullException.ThrowIfNull(feedback);
+        if (disposed
+            || Handle == nint.Zero
+            || !Enum.IsDefined(feedback.Status)
+            || string.IsNullOrWhiteSpace(feedback.Message)
+            || feedback.Message.Length > 160
+            || !projection.Containers.Any(container =>
+                string.Equals(
+                    container.ContainerId,
+                    feedback.ContainerId,
+                    StringComparison.Ordinal)
+                && container.ItemIds.Contains(
+                    feedback.ItemId,
+                    StringComparer.Ordinal)))
+        {
+            return false;
+        }
+        string? previous = itemOpenFeedback is { } old
+            && string.Equals(old.ContainerId, feedback.ContainerId,
+                StringComparison.Ordinal)
+            && string.Equals(old.ItemId, feedback.ItemId,
+                StringComparison.Ordinal)
+                ? old.Message
+                : null;
+        itemOpenFeedback = feedback;
+        _ = NativeMethods.InvalidateRect(Handle, nint.Zero, erase: false);
+#if WINDOWS
+        uiaProvider?.PublishItemOpenFeedback(
+            feedback.ContainerId,
+            feedback.ItemId,
+            previous,
+            feedback.Message);
+#endif
+        return true;
+    }
+
     public bool ApplyPresentation(
         ProductDesktopHostDisplayProjection nextProjection)
     {
@@ -488,6 +527,15 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             return false;
         }
         projection = nextProjection;
+        if (itemOpenFeedback is { } feedback
+            && !projection.Containers.Any(container =>
+                string.Equals(container.ContainerId, feedback.ContainerId,
+                    StringComparison.Ordinal)
+                && container.ItemIds.Contains(feedback.ItemId,
+                    StringComparer.Ordinal)))
+        {
+            itemOpenFeedback = null;
+        }
 #if WINDOWS
         uiaProvider = CreateUiaProvider();
 #endif
@@ -523,7 +571,14 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             ProductDesktopItemOpenSource.AssistiveInvoke,
             SourceAttested: true,
             IsInjected: false,
-            IsAutoRepeat: false)));
+            IsAutoRepeat: false)),
+        (containerId, itemId) => itemOpenFeedback is { } feedback
+            && string.Equals(feedback.ContainerId, containerId,
+                StringComparison.Ordinal)
+            && string.Equals(feedback.ItemId, itemId,
+                StringComparison.Ordinal)
+                ? feedback.Message
+                : null);
 #endif
 
     internal bool SubmitItemViewportWheelForEvidence(
@@ -1883,11 +1938,21 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 }
             }
 
+            string label = container.ItemNames.Count == 0
+                ? item
+                : VisualLabel(visual!, item);
+            if (itemId is not null
+                && itemOpenFeedback is { } feedback
+                && string.Equals(feedback.ContainerId, container.ContainerId,
+                    StringComparison.Ordinal)
+                && string.Equals(feedback.ItemId, itemId,
+                    StringComparison.Ordinal))
+            {
+                label = $"{feedback.Message} · {label}";
+            }
             DrawText(
                 deviceContext,
-                container.ItemNames.Count == 0
-                    ? item
-                    : VisualLabel(visual!, item),
+                label,
                 new(
                     bounds.Left + horizontalPadding
                         + (visual is null

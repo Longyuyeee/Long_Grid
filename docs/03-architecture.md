@@ -379,3 +379,7 @@ App 把正式方格投影成有限的 `ProductDesktopHostReadOnlyProjection`；S
 ## Stage 193：PF-006B1 统一安全打开
 
 DesktopHost/UIA 继续只持有可见名称和 `item:ordinal`，Enter、精确项目双击与 UIA Invoke 经 lifecycle 附加 container/display/workspace revision/topology/source attestation 后，由 App 当前权威 workspace 解析真实目标。File/Folder 必须复核 resolved 状态、filesystem provider、persisted/catalog target、现场类型和非重解析点，才由 `ShellExecuteExW` 的 `open` verb 提交系统关联；只有 Shell API 明确接受才发布 `LaunchAccepted`。Shortcut/URL 在专用解析和协议白名单前保持 `ReviewRequiredKind`。详见 [Stage 193](193-pf006b1-unified-safe-file-folder-open-audit.md)。
+
+## Stage 194：PF-006B2A Shortcut/URL 与有限反馈
+
+App 权威打开控制器现在通过独立 Windows 引用解析边界处理 `.lnk/.url`：Shell Link 用 `IShellLinkW/IPersistFile` 只读解析并复核目标、参数、大小、类型、重解析点和解析前后长度/时间/SHA-256；InternetShortcut 只接受有界严格 UTF-8/UTF-16LE、唯一 URL 和 HTTP/HTTPS。解析后的目标才进入既有 `ShellExecuteExW`。有限结果经生命周期回到对应 Surface，GDI 项目标签与 UIA `ItemStatus` 共用无路径消息；动作型重试/定位仍由下一切片实现。详见 [Stage 194](194-pf006b2a-shortcut-url-feedback-audit.md)。
