@@ -929,6 +929,39 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             IsInjected: true,
             IsAutoRepeat: false)));
         Assert.Single(headerCommands);
+        var menuRequests = new List<ProductDesktopContainerMenuRequest>();
+        controller.BindContainerMenu(
+            (containerId, displayId) =>
+                containerId == "container-1"
+                    && displayId == "display-primary"
+                    ? new(true, true, true)
+                    : ProductDesktopContainerMenuAvailability.Unavailable,
+            request =>
+            {
+                menuRequests.Add(request);
+                return true;
+            });
+        Assert.Equal(
+            new(true, true, true),
+            source.GetBoundContainerMenuAvailability("container-1"));
+        Assert.True(source.ApplyBoundContainerMenu(new(
+            ProductDesktopContainerMenuAction.OpenAppearance,
+            "container-1",
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: false)));
+        ProductDesktopContainerMenuRequest menuRequest =
+            Assert.Single(menuRequests);
+        Assert.Equal("display-primary", menuRequest.DisplayId);
+        Assert.Equal(7, menuRequest.ExpectedWorkspaceRevision);
+        Assert.Equal(11, menuRequest.ExpectedTopologyGeneration);
+        Assert.False(source.ApplyBoundContainerMenu(new(
+            ProductDesktopContainerMenuAction.OpenRename,
+            "container-1",
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: true)));
+        Assert.Single(menuRequests);
         Assert.True(controller.RequestKeyboardInteraction());
         Assert.Equal(
             ProductDesktopInteractionForwardedInputKind.KeyboardActivation,
@@ -1652,6 +1685,11 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             static _ => false;
         private Func<ProductDesktopContainerHeaderSurfaceInput, bool>
             applyContainerHeaderCommand = static _ => false;
+        private Func<string, ProductDesktopContainerMenuAvailability>
+            containerMenuAvailability = static _ =>
+                ProductDesktopContainerMenuAvailability.Unavailable;
+        private Func<ProductDesktopContainerMenuSurfaceInput, bool>
+            applyContainerMenu = static _ => false;
 
         public nint Handle { get; } = new(700);
 
@@ -1725,6 +1763,14 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             applyContainerHeaderCommand = apply;
         }
 
+        public void BindContainerMenu(
+            Func<string, ProductDesktopContainerMenuAvailability> availability,
+            Func<ProductDesktopContainerMenuSurfaceInput, bool> apply)
+        {
+            containerMenuAvailability = availability;
+            applyContainerMenu = apply;
+        }
+
         internal bool ApplyBoundSelection(
             ProductDesktopSelectionRequest request) => applySelection(request);
 
@@ -1740,6 +1786,14 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         internal bool ApplyBoundContainerHeader(
             ProductDesktopContainerHeaderSurfaceInput input) =>
             applyContainerHeaderCommand(input);
+
+        internal ProductDesktopContainerMenuAvailability
+            GetBoundContainerMenuAvailability(string containerId) =>
+                containerMenuAvailability(containerId);
+
+        internal bool ApplyBoundContainerMenu(
+            ProductDesktopContainerMenuSurfaceInput input) =>
+            applyContainerMenu(input);
 
         public void Dispose()
         {

@@ -206,6 +206,9 @@ public partial class App : Application
             RequestDesktopContainerLayout);
         productDesktopHostLifecycle.BindContainerHeaderCommand(
             RequestDesktopContainerHeaderCommand);
+        productDesktopHostLifecycle.BindContainerMenu(
+            GetDesktopContainerMenuAvailability,
+            RequestDesktopContainerMenuNavigation);
         window.DesktopKeyboardInteractionRequested +=
             MainWindow_DesktopKeyboardInteractionRequested;
         window.BoxesEnabledChangeRequested +=
@@ -1994,6 +1997,48 @@ public partial class App : Application
                     currentWindow,
                     productWorkspaceSaves.Snapshot);
             }
+        });
+    }
+
+    private ProductDesktopContainerMenuAvailability
+        GetDesktopContainerMenuAvailability(
+            string containerId,
+            string displayId) =>
+            ProductDesktopContainerMenuNavigationController.EvaluateAvailability(
+                productWorkspaceSession.State,
+                productWorkspaceSession.IsReadOnly || closingDrainInProgress,
+                productWorkspaceSaves.Snapshot,
+                containerId,
+                displayId);
+
+    private bool RequestDesktopContainerMenuNavigation(
+        ProductDesktopContainerMenuRequest request)
+    {
+        MainWindow? currentWindow = window;
+        if (currentWindow is null || closingDrainInProgress)
+        {
+            return false;
+        }
+
+        return currentWindow.DispatcherQueue.TryEnqueue(() =>
+        {
+            ProductDesktopContainerMenuNavigationResult result =
+                ProductDesktopContainerMenuNavigationController.Handle(
+                    request,
+                    productWorkspaceSession.State,
+                    productWorkspaceSession.IsReadOnly,
+                    workspaceCommits.CurrentEditRevision,
+                    productWorkspaceSaves.Snapshot,
+                    productDisplayTopology.Snapshot);
+            if (!result.IsAccepted)
+            {
+                return;
+            }
+
+            ActivateMainWindow();
+            _ = currentWindow.OpenProductWorkspaceContainerMenuTarget(
+                result.ContainerOrdinal,
+                result.Action);
         });
     }
 

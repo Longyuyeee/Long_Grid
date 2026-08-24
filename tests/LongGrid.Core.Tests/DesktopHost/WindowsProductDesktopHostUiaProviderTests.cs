@@ -365,7 +365,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
     }
 
     [Fact]
-    public void NativeActivationSourceExposesFiniteInvokeAndHideRestoreContract()
+    public async Task NativeActivationSourceExposesFiniteInvokeAndHideRestoreContract()
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -386,6 +386,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
                     36)]);
         ProductDesktopInteractionForwardedInput? forwarded = null;
         var headerInputs = new List<ProductDesktopContainerHeaderSurfaceInput>();
+        var menuInputs = new List<ProductDesktopContainerMenuSurfaceInput>();
         using WindowsProductDesktopInteractionActivationSource source =
             WindowsProductDesktopInteractionActivationSource.Create(
                 display,
@@ -400,6 +401,16 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
             headerInputs.Add(input);
             return true;
         });
+        source.BindContainerMenu(
+            _ => new(
+                CanOpenRename: true,
+                CanOpenAppearance: true,
+                CanOpenSort: true),
+            input =>
+            {
+                menuInputs.Add(input);
+                return true;
+            });
 
         AutomationElement root = AutomationElement.FromHandle(source.Handle);
         Assert.Equal(
@@ -412,26 +423,71 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
             new PropertyCondition(
                 AutomationElement.ControlTypeProperty,
                 ControlType.Button));
-        Assert.Equal(3, buttons.Count);
+        Assert.Equal(4, buttons.Count);
         AutomationElement button = buttons.Cast<AutomationElement>()
             .Single(candidate => candidate.Current.Name == "进入 工作 交互");
         Assert.NotNull(button);
         Assert.Equal(
-            "LongGrid.DesktopHost.ActivationButton.1",
+            "LongGrid.DesktopHost.ActivationButton.3",
             button.Current.AutomationId);
         Assert.False(button.Current.IsKeyboardFocusable);
-        Assert.Equal(new System.Windows.Rect(452, 236, 32, 32),
+        Assert.Equal(new System.Windows.Rect(420, 236, 32, 32),
             button.Current.BoundingRectangle);
         AutomationElement collapse = buttons.Cast<AutomationElement>()
             .Single(candidate => candidate.Current.Name == "折叠 工作");
-        Assert.Equal(new System.Windows.Rect(420, 236, 32, 32),
+        Assert.Equal(new System.Windows.Rect(388, 236, 32, 32),
             collapse.Current.BoundingRectangle);
         ((InvokePattern)collapse.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
         AutomationElement lockButton = buttons.Cast<AutomationElement>()
             .Single(candidate => candidate.Current.Name == "锁定 工作");
-        Assert.Equal(new System.Windows.Rect(388, 236, 32, 32),
+        Assert.Equal(new System.Windows.Rect(356, 236, 32, 32),
             lockButton.Current.BoundingRectangle);
         ((InvokePattern)lockButton.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+        AutomationElement more = buttons.Cast<AutomationElement>()
+            .Single(candidate => candidate.Current.Name == "更多 工作 管理操作");
+        Assert.Equal(new System.Windows.Rect(452, 236, 32, 32),
+            more.Current.BoundingRectangle);
+        ((InvokePattern)more.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+        Task<(string Name, bool Enabled)[]> observeMenu = Task.Run(() =>
+        {
+            AutomationElement? nativeMenu = null;
+            bool visible = SpinWait.SpinUntil(() =>
+            {
+                nativeMenu = AutomationElement.RootElement.FindFirst(
+                    TreeScope.Children,
+                    new AndCondition(
+                        new PropertyCondition(
+                            AutomationElement.ClassNameProperty,
+                            "#32768"),
+                        new PropertyCondition(
+                            AutomationElement.ProcessIdProperty,
+                            Environment.ProcessId)));
+                return nativeMenu is not null;
+            }, TimeSpan.FromSeconds(5));
+            Assert.True(visible);
+            return nativeMenu!.FindAll(
+                    TreeScope.Descendants,
+                    new PropertyCondition(
+                        AutomationElement.ControlTypeProperty,
+                        ControlType.MenuItem))
+                .Cast<AutomationElement>()
+                .Select(item => (item.Current.Name, item.Current.IsEnabled))
+                .ToArray();
+        });
+        source.ShowPendingContainerMenuForEvidence();
+        (string Name, bool Enabled)[] menuItems = await observeMenu;
+        Assert.Equal(
+            [
+                ("重命名…", true),
+                ("外观…", true),
+                ("方格列表排序…", true),
+                ("创建规则（后续功能）", false),
+                ("生成 Portal / Tab（后续功能）", false),
+                ("删除方格配置…（下一阶段确认）", false),
+            ],
+            menuItems);
+        Assert.False(source.IsContainerMenuOpenForEvidence);
+        Assert.Empty(menuInputs);
         Assert.True(button.TryGetCurrentPattern(
             InvokePattern.Pattern,
             out object? pattern));

@@ -447,3 +447,9 @@ Stage 183 已在正式 GDI DesktopHost 标题显示折叠方向、名称、真�
 Stage 184 已在每个正式方格标题命令面提供进入、折叠/展开和锁定/解锁三个有限 32 DIP/UIA 按钮。生命周期与 App 双重复核 container/display/workspace revision/topology generation 和来源事实；陈旧、错误显示器、注入、自动重复、锁定折叠和并发未发布命令全部失败关闭。锁定后仍可解锁，布局与折叠继续拒绝。
 
 命令复用唯一配置提交和保存控制器；App 应用文档后复读当前保存快照，覆盖极快 Store 在 publication 登记前已完成通知的竞态。真实 Store 验证折叠成功后内存/重载均为 true；真实写租约冲突得到 `WriteLeaseUnavailable`，内存恢复原锁定值，冲突期间磁盘保持原值，释放租约后 Retry 把补偿版本落盘。真实 activation HWND/UIA 验证 3 个 32×32 按钮和精确来源请求；正式 App 1,776 ms 就绪并响应 20 秒。全量 1094/1094、build 0 warning/error、153-ID/PF-004B 合同通过，Expected/Actual `Difference=None`。PF-004 继续 `InProgress`，下一切片固定 PF-004C 更多菜单与安全管理入口，详见 [Stage 184](184-pf004b-desktop-header-command-audit.md)。
+
+## 32. 2026-08-24 PF-004C 原生更多菜单与安全导航复审
+
+Stage 185 已把标题命令面扩为锁定、折叠、进入、更多四个 32 DIP/UIA 目标；更多由 activation HWND 拥有线程建立真实 Win32 `#32768` 菜单。重命名、外观和方格列表排序导航到唯一控制中心；规则、Portal/Tab 和删除明确显示但禁用。锁定/只读/真实保存失败会在菜单打开前禁用编辑入口，排序仍可用；所有选择继续双重绑定 container/display/revision/topology/来源事实。
+
+真实测试通过 OS UIA 读取实际菜单 6 项及 `true/true/true/false/false/false` 状态，取消零请求；真实 Store 验证三项导航均命中 ordinal 1 且配置字节/写入时间不变，写租约失败为 `WriteLeaseUnavailable`、磁盘名称保持 `Work`。首轮跨线程 EndMenu 挂起被改为拥有线程 WM_TIMER 关闭；四按钮排序又暴露键盘仍硬取 regions[0]，已改为按 Kind 选择 Enter。最终 1097/1097、build 0 warning/error、153-ID/PF-004C 合同通过；正式 App 1,304 ms 就绪并响应 20 秒，Expected/Actual `Difference=None`。PF-004 继续 `InProgress`，下一切片固定 PF-004D 删除确认与统一撤销，详见 [Stage 185](185-pf004c-desktop-container-more-menu-audit.md)。

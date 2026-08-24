@@ -364,3 +364,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-24 PF-004A 正式标题信息：GDI 标题和 UIA 现在共用名称、真实项目总数、安全引用、锁定/折叠状态；可见项目仍为 12，上限仍为 500。真实原生 HWND 的标题、Passive 合同、视觉状态和无障碍名称 Expected/Actual 无差异。首次全量发现 ItemStatus 丢失“只读”并修正，最终 1091/1091。PF-004 仍为 `InProgress`，下一切片进入 PF-004B 桌面直接折叠/锁定，详见 [Stage 183](183-pf004a-desktop-container-header-presentation-audit.md)。
 
 2026-08-24 PF-004B 桌面标题栏直接命令：每方格新增折叠/展开和锁定/解锁，与进入交互共同形成三个有限 32 DIP/UIA 按钮；命令绑定 container/display/revision/topology/来源事实，锁定折叠与不安全输入失败关闭，锁定仍可解锁。正式 App 复用唯一提交/保存链并在写租约失败时恢复内存原值、保留可重试补偿。真实 HWND、Store 成功/失败/重试和正式 App 20 秒均为 `Difference=None`；全量 1094/1094、build 0 warning/error。PF-004 仍为 `InProgress`，下一切片进入 PF-004C 更多菜单与安全管理入口，详见 [Stage 184](184-pf004b-desktop-header-command-audit.md)。
+
+2026-08-24 PF-004C 原生更多菜单：标题命令面扩为四个 32 DIP/UIA 目标，真实 Win32 `#32768` 菜单把重命名、外观和方格列表排序导航到唯一控制中心，规则/Portal-Tab/删除明确显示并禁用。锁定、只读、保存失败、revision/topology/来源事实决定打开前状态；取消和导航零配置写入。真实菜单 6 项状态、Store 字节/写入时间、写租约失败和正式 App 20 秒均为 `Difference=None`；全量 1097/1097、build 0 warning/error。PF-004 仍为 `InProgress`，下一切片进入 PF-004D 删除确认与统一撤销，详见 [Stage 185](185-pf004c-desktop-container-more-menu-audit.md)。

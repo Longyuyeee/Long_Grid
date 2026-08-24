@@ -1325,7 +1325,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             }
 
             ProductDesktopContainerHeaderPresentation header = container.Header;
-            int controlsWidth = ToPixels(44, scale);
+            int controlsWidth = ToPixels(140, scale);
             DrawText(
                 deviceContext,
                 header.VisualTitle,

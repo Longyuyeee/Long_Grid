@@ -293,6 +293,11 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         requestContainerLayout = static _ => false;
     private Func<ProductDesktopContainerHeaderCommandRequest, bool>
         requestContainerHeaderCommand = static _ => false;
+    private Func<string, string, ProductDesktopContainerMenuAvailability>
+        containerMenuAvailability = static (_, _) =>
+            ProductDesktopContainerMenuAvailability.Unavailable;
+    private Func<ProductDesktopContainerMenuRequest, bool>
+        requestContainerMenu = static _ => false;
 
     public ProductDesktopHostLifecycleController(
         ProductDesktopHostFeatureDecision featureDecision)
@@ -437,6 +442,21 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             requestContainerHeaderCommand = requestCommand;
+        }
+    }
+
+    public void BindContainerMenu(
+        Func<string, string, ProductDesktopContainerMenuAvailability>
+            availability,
+        Func<ProductDesktopContainerMenuRequest, bool> requestMenu)
+    {
+        ArgumentNullException.ThrowIfNull(availability);
+        ArgumentNullException.ThrowIfNull(requestMenu);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            containerMenuAvailability = availability;
+            requestContainerMenu = requestMenu;
         }
     }
 
@@ -1260,6 +1280,16 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                                 source,
                                 display,
                                 input));
+                        source.BindContainerMenu(
+                            containerId =>
+                                GetContainerMenuAvailabilityFromActivationSource(
+                                    source,
+                                    display,
+                                    containerId),
+                            input => ApplyContainerMenuFromActivationSource(
+                                source,
+                                display,
+                                input));
                         if (!source.IsVisible || !source.ContractAttested)
                         {
                             ReleaseSurfaceUnsafe();
@@ -1485,6 +1515,98 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             {
                 return requestContainerHeaderCommand(new(
                     input.Kind,
+                    input.ContainerId,
+                    display.DisplayId,
+                    currentBatch.WorkspaceRevision,
+                    currentBatch.TopologyGeneration,
+                    input.SourceAttested,
+                    input.IsInjected,
+                    input.IsAutoRepeat));
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException
+                    or InvalidOperationException
+                    or OverflowException)
+            {
+                return false;
+            }
+        }
+    }
+
+    private ProductDesktopContainerMenuAvailability
+        GetContainerMenuAvailabilityFromActivationSource(
+            IProductDesktopInteractionActivationSource source,
+            ProductDesktopHostDisplayProjection display,
+            string containerId)
+    {
+        lock (gate)
+        {
+            if (disposed
+                || currentBatch is null
+                || !activationSources.Contains(source)
+                || !string.Equals(
+                    source.DisplayId,
+                    display.DisplayId,
+                    StringComparison.Ordinal)
+                || display.Containers.Count(container => string.Equals(
+                    container.ContainerId,
+                    containerId,
+                    StringComparison.Ordinal)) != 1)
+            {
+                return ProductDesktopContainerMenuAvailability.Unavailable;
+            }
+
+            try
+            {
+                return containerMenuAvailability(
+                    containerId,
+                    display.DisplayId);
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException
+                    or InvalidOperationException
+                    or OverflowException)
+            {
+                return ProductDesktopContainerMenuAvailability.Unavailable;
+            }
+        }
+    }
+
+    private bool ApplyContainerMenuFromActivationSource(
+        IProductDesktopInteractionActivationSource source,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopContainerMenuSurfaceInput input)
+    {
+        lock (gate)
+        {
+            ProductDesktopContainerMenuAvailability availability =
+                GetContainerMenuAvailabilityFromActivationSource(
+                    source,
+                    display,
+                    input.ContainerId);
+            bool actionAvailable = input.Action switch
+            {
+                ProductDesktopContainerMenuAction.OpenRename =>
+                    availability.CanOpenRename,
+                ProductDesktopContainerMenuAction.OpenAppearance =>
+                    availability.CanOpenAppearance,
+                ProductDesktopContainerMenuAction.OpenSort =>
+                    availability.CanOpenSort,
+                _ => false,
+            };
+            if (currentBatch is null
+                || !actionAvailable
+                || !input.SourceAttested
+                || input.IsInjected
+                || input.IsAutoRepeat)
+            {
+                return false;
+            }
+
+            try
+            {
+                return requestContainerMenu(new(
+                    input.Action,
                     input.ContainerId,
                     display.DisplayId,
                     currentBatch.WorkspaceRevision,

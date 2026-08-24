@@ -16,6 +16,13 @@ internal sealed record ProductDesktopContainerHeaderSurfaceInput(
     bool IsInjected,
     bool IsAutoRepeat);
 
+internal sealed record ProductDesktopContainerMenuSurfaceInput(
+    ProductDesktopContainerMenuAction Action,
+    string ContainerId,
+    bool SourceAttested,
+    bool IsInjected,
+    bool IsAutoRepeat);
+
 internal sealed record ProductDesktopKeyboardSelectionDecision(
     bool Cancel,
     ProductDesktopSelectionRequest? Request);
@@ -71,6 +78,7 @@ internal enum ProductDesktopActivationRegionKind
     EnterInteraction,
     ToggleCollapsed,
     ToggleLocked,
+    OpenMoreMenu,
 }
 
 internal interface IProductDesktopInteractionActivationSource : IDisposable
@@ -109,6 +117,12 @@ internal interface IProductDesktopInteractionActivationSource : IDisposable
 
     void BindContainerHeaderCommand(
         Func<ProductDesktopContainerHeaderSurfaceInput, bool> apply)
+    {
+    }
+
+    void BindContainerMenu(
+        Func<string, ProductDesktopContainerMenuAvailability> availability,
+        Func<ProductDesktopContainerMenuSurfaceInput, bool> apply)
     {
     }
 }
@@ -164,6 +178,14 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         static _ => false;
     private Func<ProductDesktopContainerHeaderSurfaceInput, bool>
         applyContainerHeaderCommand = static _ => false;
+    private Func<string, ProductDesktopContainerMenuAvailability>
+        containerMenuAvailability = static _ =>
+            ProductDesktopContainerMenuAvailability.Unavailable;
+    private Func<ProductDesktopContainerMenuSurfaceInput, bool>
+        applyContainerMenu = static _ => false;
+    private readonly object menuGate = new();
+    private PendingMenuOpen? pendingMenuOpen;
+    private bool menuOpen;
     private bool containerLayoutTitleFocused;
 #if WINDOWS
     private ActivationUiaProvider? uiaProvider;
@@ -301,6 +323,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
     public bool ApplyHidden()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        CloseContainerMenu();
         RestoreActivationWindowPolicy();
         activationAvailable = false;
         ApplyEmptyRegion();
@@ -356,6 +379,16 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         applyContainerHeaderCommand = apply;
     }
 
+    public void BindContainerMenu(
+        Func<string, ProductDesktopContainerMenuAvailability> availability,
+        Func<ProductDesktopContainerMenuSurfaceInput, bool> apply)
+    {
+        ArgumentNullException.ThrowIfNull(availability);
+        ArgumentNullException.ThrowIfNull(apply);
+        containerMenuAvailability = availability;
+        applyContainerMenu = apply;
+    }
+
     public void Dispose()
     {
         if (disposed)
@@ -364,6 +397,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         }
 
         disposed = true;
+        CloseContainerMenu();
         if (Handle != nint.Zero)
         {
 #if WINDOWS
@@ -495,6 +529,17 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                         assistiveTechnology: false);
                 }
                 return nint.Zero;
+            case NativeMethods.WmOpenContainerMenu:
+                ShowPendingContainerMenu(window);
+                return nint.Zero;
+            case NativeMethods.WmTimer
+                when wordParameter.ToInt64() ==
+                    NativeMethods.MenuEvidenceTimerId:
+                _ = NativeMethods.KillTimer(
+                    window,
+                    NativeMethods.MenuEvidenceTimerId);
+                _ = NativeMethods.EndMenu();
+                return nint.Zero;
             case NativeMethods.WmKeyDown:
             case NativeMethods.WmSysKeyDown:
                 if (keyboardProxy)
@@ -509,13 +554,23 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                     InputMessageSource source = default;
                     bool observed = NativeMethods.GetCurrentInputMessageSource(
                         ref source);
-                    _ = Forward(
-                        regions[0],
-                        ProductDesktopInteractionForwardedInputKind
-                            .KeyboardActivation,
-                        isInjected: !observed
-                            || source.OriginId == NativeMethods.ImoInjected,
-                        autoRepeat);
+                    ActivationRegion? target = regions
+                        .Cast<ActivationRegion?>()
+                        .FirstOrDefault(region => region is { } candidate
+                            && candidate.Kind ==
+                                ProductDesktopActivationRegionKind
+                                    .EnterInteraction
+                            && !candidate.IsLocked);
+                    if (target is { } region)
+                    {
+                        _ = Forward(
+                            region,
+                            ProductDesktopInteractionForwardedInputKind
+                                .KeyboardActivation,
+                            isInjected: !observed
+                                || source.OriginId == NativeMethods.ImoInjected,
+                            autoRepeat);
+                    }
                 }
                 return nint.Zero;
             case NativeMethods.WmEraseBackground:
@@ -590,6 +645,14 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                     isInjected,
                     isAutoRepeat);
         }
+        if (region.Kind == ProductDesktopActivationRegionKind.OpenMoreMenu)
+        {
+            return QueueContainerMenu(
+                region,
+                sourceAttested,
+                isInjected,
+                isAutoRepeat);
+        }
         if (!CommandSurfaceAvailable
             || !sourceAttested
             || isInjected
@@ -611,8 +674,14 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
 
     private bool CanInvokeRegion(ActivationRegion region) =>
         CommandSurfaceAvailable
-        && (region.Kind != ProductDesktopActivationRegionKind.EnterInteraction
-            || !region.IsLocked);
+        && (region.Kind switch
+        {
+            ProductDesktopActivationRegionKind.EnterInteraction =>
+                !region.IsLocked,
+            ProductDesktopActivationRegionKind.OpenMoreMenu =>
+                MenuHasAvailableAction(region.ContainerId),
+            _ => true,
+        });
 
     private static string ButtonText(ActivationRegion region) => region.Kind switch
     {
@@ -621,8 +690,235 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             region.IsCollapsed ? "▾" : "▸",
         ProductDesktopActivationRegionKind.ToggleLocked =>
             region.IsLocked ? "解" : "锁",
+        ProductDesktopActivationRegionKind.OpenMoreMenu => "⋯",
         _ => string.Empty,
     };
+
+    private bool MenuHasAvailableAction(string containerId)
+    {
+        ProductDesktopContainerMenuAvailability availability =
+            containerMenuAvailability(containerId);
+        return availability.CanOpenRename
+            || availability.CanOpenAppearance
+            || availability.CanOpenSort;
+    }
+
+    private bool QueueContainerMenu(
+        ActivationRegion region,
+        bool sourceAttested,
+        bool isInjected,
+        bool isAutoRepeat)
+    {
+        if (!CommandSurfaceAvailable
+            || !sourceAttested
+            || isInjected
+            || isAutoRepeat
+            || string.IsNullOrWhiteSpace(region.ContainerId)
+            || !MenuHasAvailableAction(region.ContainerId))
+        {
+            return false;
+        }
+
+        lock (menuGate)
+        {
+            if (pendingMenuOpen is not null || menuOpen)
+            {
+                return false;
+            }
+            pendingMenuOpen = new(
+                region,
+                sourceAttested,
+                isInjected,
+                isAutoRepeat);
+        }
+
+        if (NativeMethods.PostMessage(
+                Handle,
+                NativeMethods.WmOpenContainerMenu,
+                nint.Zero,
+                nint.Zero))
+        {
+            return true;
+        }
+        lock (menuGate)
+        {
+            pendingMenuOpen = null;
+        }
+        return false;
+    }
+
+    private void ShowPendingContainerMenu(nint window)
+    {
+        PendingMenuOpen? pending;
+        lock (menuGate)
+        {
+            pending = pendingMenuOpen;
+            pendingMenuOpen = null;
+            if (pending is null || menuOpen)
+            {
+                return;
+            }
+            menuOpen = true;
+        }
+
+        nint menu = nint.Zero;
+        try
+        {
+            if (!CommandSurfaceAvailable)
+            {
+                return;
+            }
+            ProductDesktopContainerMenuAvailability availability =
+                containerMenuAvailability(pending.Region.ContainerId);
+            menu = CreateContainerMenu(availability);
+            if (menu == nint.Zero)
+            {
+                return;
+            }
+
+            NativePoint point = new(
+                pending.Region.Left,
+                checked(pending.Region.Top + pending.Region.Height));
+            if (!NativeMethods.ClientToScreen(window, ref point))
+            {
+                return;
+            }
+
+            uint command = NativeMethods.TrackPopupMenuEx(
+                menu,
+                NativeMethods.TpmRightButton
+                    | NativeMethods.TpmNoNotify
+                    | NativeMethods.TpmReturnCommand,
+                point.X,
+                point.Y,
+                window,
+                nint.Zero);
+            ProductDesktopContainerMenuAction? action = command switch
+            {
+                NativeMethods.MenuRenameCommand =>
+                    ProductDesktopContainerMenuAction.OpenRename,
+                NativeMethods.MenuAppearanceCommand =>
+                    ProductDesktopContainerMenuAction.OpenAppearance,
+                NativeMethods.MenuSortCommand =>
+                    ProductDesktopContainerMenuAction.OpenSort,
+                _ => null,
+            };
+            if (action is { } selected)
+            {
+                _ = applyContainerMenu(new(
+                    selected,
+                    pending.Region.ContainerId,
+                    pending.SourceAttested,
+                    pending.IsInjected,
+                    pending.IsAutoRepeat));
+            }
+        }
+        finally
+        {
+            if (menu != nint.Zero)
+            {
+                _ = NativeMethods.DestroyMenu(menu);
+            }
+            lock (menuGate)
+            {
+                menuOpen = false;
+            }
+        }
+    }
+
+    private static nint CreateContainerMenu(
+        ProductDesktopContainerMenuAvailability availability)
+    {
+        nint menu = NativeMethods.CreatePopupMenu();
+        if (menu == nint.Zero)
+        {
+            return nint.Zero;
+        }
+
+        bool appended = Append(
+                NativeMethods.MenuRenameCommand,
+                "重命名…",
+                availability.CanOpenRename)
+            && Append(
+                NativeMethods.MenuAppearanceCommand,
+                "外观…",
+                availability.CanOpenAppearance)
+            && Append(
+                NativeMethods.MenuSortCommand,
+                "方格列表排序…",
+                availability.CanOpenSort)
+            && NativeMethods.AppendMenu(
+                menu,
+                NativeMethods.MfSeparator,
+                0,
+                string.Empty)
+            && Append(0, "创建规则（后续功能）", enabled: false)
+            && Append(0, "生成 Portal / Tab（后续功能）", enabled: false)
+            && NativeMethods.AppendMenu(
+                menu,
+                NativeMethods.MfSeparator,
+                0,
+                string.Empty)
+            && Append(0, "删除方格配置…（下一阶段确认）", enabled: false);
+        if (appended)
+        {
+            return menu;
+        }
+
+        _ = NativeMethods.DestroyMenu(menu);
+        return nint.Zero;
+
+        bool Append(uint command, string text, bool enabled) =>
+            NativeMethods.AppendMenu(
+                menu,
+                NativeMethods.MfString
+                    | (enabled ? 0 : NativeMethods.MfGray),
+                command,
+                text);
+    }
+
+    private void CloseContainerMenu()
+    {
+        lock (menuGate)
+        {
+            pendingMenuOpen = null;
+            if (!menuOpen)
+            {
+                return;
+            }
+        }
+        _ = NativeMethods.EndMenu();
+    }
+
+    internal bool IsContainerMenuOpenForEvidence
+    {
+        get
+        {
+            lock (menuGate)
+            {
+                return menuOpen;
+            }
+        }
+    }
+
+    internal void ShowPendingContainerMenuForEvidence()
+    {
+        try
+        {
+            _ = NativeMethods.SetTimer(
+                Handle,
+                NativeMethods.MenuEvidenceTimerId,
+                1200,
+                nint.Zero);
+            ShowPendingContainerMenu(Handle);
+        }
+        finally
+        {
+            _ = NativeMethods.KillTimer(
+                Handle,
+                NativeMethods.MenuEvidenceTimerId);
+        }
+    }
 
     private bool Forward(
         ActivationRegion region,
@@ -792,19 +1088,22 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                     .GetContainerBounds(projection, container);
                 int size = Math.Min(
                     buttonSize,
-                    Math.Min(bounds.Width / 3, bounds.Height));
+                    Math.Min(bounds.Width / 4, bounds.Height));
                 int right = checked(bounds.Left + bounds.Width);
                 return new[]
                 {
                     CreateRegion(
-                        right - size,
-                        ProductDesktopActivationRegionKind.EnterInteraction),
-                    CreateRegion(
-                        right - (size * 2),
-                        ProductDesktopActivationRegionKind.ToggleCollapsed),
+                        right - (size * 4),
+                        ProductDesktopActivationRegionKind.ToggleLocked),
                     CreateRegion(
                         right - (size * 3),
-                        ProductDesktopActivationRegionKind.ToggleLocked),
+                        ProductDesktopActivationRegionKind.ToggleCollapsed),
+                    CreateRegion(
+                        right - (size * 2),
+                        ProductDesktopActivationRegionKind.EnterInteraction),
+                    CreateRegion(
+                        right - size,
+                        ProductDesktopActivationRegionKind.OpenMoreMenu),
                 };
 
                 ActivationRegion CreateRegion(
@@ -959,6 +1258,19 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             && y < checked(Top + Height);
     }
 
+    private sealed record PendingMenuOpen(
+        ActivationRegion Region,
+        bool SourceAttested,
+        bool IsInjected,
+        bool IsAutoRepeat);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint(int x, int y)
+    {
+        internal int X = x;
+        internal int Y = y;
+    }
+
     private delegate nint WindowProcedure(
         nint window,
         uint message,
@@ -1025,6 +1337,8 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         internal const uint WmSysKeyDown = 0x0104;
         internal const uint WmLButtonDown = 0x0201;
         internal const uint WmMouseActivate = 0x0021;
+        internal const uint WmTimer = 0x0113;
+        internal const uint WmOpenContainerMenu = 0x8001;
         internal const int HtClient = 1;
         internal const int MaNoActivate = 3;
         internal const int MaActivate = 1;
@@ -1054,6 +1368,16 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         internal const uint DtCenter = 0x00000001;
         internal const uint DtVCenter = 0x00000004;
         internal const uint DtSingleLine = 0x00000020;
+        internal const uint MfString = 0x00000000;
+        internal const uint MfGray = 0x00000001;
+        internal const uint MfSeparator = 0x00000800;
+        internal const uint TpmRightButton = 0x00000002;
+        internal const uint TpmNoNotify = 0x00000080;
+        internal const uint TpmReturnCommand = 0x00000100;
+        internal const uint MenuRenameCommand = 41001;
+        internal const uint MenuAppearanceCommand = 41002;
+        internal const uint MenuSortCommand = 41003;
+        internal const nint MenuEvidenceTimerId = 49004;
         internal static readonly nint ArrowCursor = new(32512);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
@@ -1082,6 +1406,14 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
 
         [DllImport("user32.dll")]
         internal static extern nint DefWindowProc(
+            nint window,
+            uint message,
+            nint wordParameter,
+            nint longParameter);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool PostMessage(
             nint window,
             uint message,
             nint wordParameter,
@@ -1214,6 +1546,53 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             int characterCount,
             ref NativeRect bounds,
             uint format);
+
+        [DllImport("user32.dll")]
+        internal static extern nint CreatePopupMenu();
+
+        [DllImport("user32.dll", EntryPoint = "AppendMenuW", CharSet = CharSet.Unicode)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool AppendMenu(
+            nint menu,
+            uint flags,
+            uint identifier,
+            string text);
+
+        [DllImport("user32.dll")]
+        internal static extern uint TrackPopupMenuEx(
+            nint menu,
+            uint flags,
+            int x,
+            int y,
+            nint window,
+            nint parameters);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool DestroyMenu(nint menu);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool ClientToScreen(
+            nint window,
+            ref NativePoint point);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool EndMenu();
+
+        [DllImport("user32.dll")]
+        internal static extern nuint SetTimer(
+            nint window,
+            nint identifier,
+            uint intervalMilliseconds,
+            nint timerProcedure);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool KillTimer(
+            nint window,
+            nint identifier);
 
 #if WINDOWS
         [DllImport("uiautomationcore.dll")]
@@ -1373,6 +1752,10 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                         string.IsNullOrWhiteSpace(region.Title)
                             ? (region.IsLocked ? "解锁桌面方格" : "锁定桌面方格")
                             : $"{(region.IsLocked ? "解锁" : "锁定")} {region.Title}",
+                    ProductDesktopActivationRegionKind.OpenMoreMenu =>
+                        string.IsNullOrWhiteSpace(region.Title)
+                            ? "更多桌面方格管理操作"
+                            : $"更多 {region.Title} 管理操作",
                     _ => "桌面方格操作",
                 },
             var id when id == AutomationElementIdentifiers.AutomationIdProperty.Id =>

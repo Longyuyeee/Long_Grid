@@ -1744,6 +1744,66 @@ public sealed partial class MainWindow : Window
         UpdateProductWorkspaceEmptyCreateShortcut();
     }
 
+    internal bool OpenProductWorkspaceContainerMenuTarget(
+        int containerOrdinal,
+        ProductDesktopContainerMenuAction action)
+    {
+        if (!IsProductXamlReady
+            || containerOrdinal <= 0
+            || !Enum.IsDefined(action))
+        {
+            return false;
+        }
+
+        int candidateIndex = _containerEditor.Candidates
+            .Select((candidate, index) => (candidate, index))
+            .Where(pair => pair.candidate.Ordinal == containerOrdinal)
+            .Select(pair => pair.index)
+            .DefaultIfEmpty(-1)
+            .First();
+        if (candidateIndex < 0)
+        {
+            return false;
+        }
+
+        NavigationViewItem? overview = ShellNavigation.MenuItems
+            .OfType<NavigationViewItem>()
+            .FirstOrDefault(item => string.Equals(
+                item.Tag as string,
+                "overview",
+                StringComparison.Ordinal));
+        if (overview is null)
+        {
+            return false;
+        }
+
+        ShellNavigation.SelectedItem = overview;
+        ProductWorkspaceContainerEditSelector.SelectedIndex = candidateIndex;
+        FrameworkElement target = action switch
+        {
+            ProductDesktopContainerMenuAction.OpenRename =>
+                ProductWorkspaceContainerNameEditor,
+            ProductDesktopContainerMenuAction.OpenAppearance =>
+                ProductWorkspaceContainerColorSelector,
+            ProductDesktopContainerMenuAction.OpenSort =>
+                ProductWorkspaceSortSelector,
+            _ => throw new ArgumentOutOfRangeException(nameof(action)),
+        };
+        target.StartBringIntoView();
+        bool focused = target.Focus(FocusState.Programmatic);
+        if (focused
+            && action == ProductDesktopContainerMenuAction.OpenRename)
+        {
+            ProductWorkspaceContainerNameEditor.SelectAll();
+        }
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceContainerEditStatus,
+            $"DesktopContainerMenuNavigation:{action}:" +
+                $"Ordinal={containerOrdinal}:Focused={focused}:" +
+                "Changed=False:DesktopFilesChanged=False");
+        return focused;
+    }
+
     private void ProductWorkspaceContainerEditSelector_SelectionChanged(
         object sender,
         SelectionChangedEventArgs e)

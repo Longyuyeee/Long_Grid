@@ -153,6 +153,10 @@ $desktopContainerHeaderCommandCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopContainerHeaderCommand.cs'
 $desktopContainerHeaderCommandControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopContainerHeaderCommandController.cs'
+$desktopContainerMenuCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopContainerMenu.cs'
+$desktopContainerMenuNavigationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopContainerMenuNavigationController.cs'
 $desktopInteractionActivationSourceCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionActivationSource.cs'
 $desktopWorkspaceCreateAdmissionCodePath = Join-Path $projectRoot `
@@ -493,6 +497,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopContainerHeaderCommandControllerCode = Get-Content `
         -LiteralPath $desktopContainerHeaderCommandControllerCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopContainerMenuCode = Get-Content `
+        -LiteralPath $desktopContainerMenuCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopContainerMenuNavigationCode = Get-Content `
+        -LiteralPath $desktopContainerMenuNavigationCodePath `
         -Raw `
         -Encoding UTF8
     $desktopInteractionActivationSourceCode = Get-Content `
@@ -2009,6 +2021,26 @@ function Test-SourceContract {
         $appCode -match 'ObserveSave'
     ) `
         'PF-004B must expose finite 32 DIP header commands, stamp source/revision/topology facts, use the formal commit/save chain, and compensate failed persistence.'
+    Assert-Condition (
+        $desktopContainerMenuCode -match 'OpenRename' -and
+        $desktopContainerMenuCode -match 'OpenAppearance' -and
+        $desktopContainerMenuCode -match 'OpenSort' -and
+        $desktopContainerMenuCode -match 'ExpectedWorkspaceRevision' -and
+        $desktopContainerMenuCode -match 'ExpectedTopologyGeneration' -and
+        $desktopContainerMenuNavigationCode -match `
+            'ProductWorkspaceSaveStatus\.Failed' -and
+        $desktopContainerMenuNavigationCode -match 'IsInjected' -and
+        $desktopContainerMenuNavigationCode -match 'IsAutoRepeat' -and
+        $desktopInteractionActivationSourceCode -match 'CreatePopupMenu' -and
+        $desktopInteractionActivationSourceCode -match 'TrackPopupMenuEx' -and
+        $desktopInteractionActivationSourceCode -match `
+            '删除方格配置…（下一阶段确认）' -and
+        $desktopHostLifecycleControllerCode -match 'BindContainerMenu' -and
+        $appCode -match 'RequestDesktopContainerMenuNavigation' -and
+        $codeBehind -match 'OpenProductWorkspaceContainerMenuTarget' -and
+        $codeBehind -match 'Changed=False:DesktopFilesChanged=False'
+    ) `
+        'PF-004C must expose a finite native menu, pre-disable unsafe/future actions, stamp source and generation facts, and navigate the unique control center without writing configuration.'
     Assert-Condition (
         ([regex]::Matches(
             $appCode,
