@@ -660,6 +660,132 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
     }
 
     [Fact]
+    public void RealHwndFeedbackActionsRemainFiniteAndSourceAttested()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+        ProductDesktopHostReadOnlyProjection container = CreateContainer(
+            "container-1", "工作", ["失败项目"], false, 24, 36);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(100, 200, 1920, 1040), 96,
+                [container]);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                display,
+                new nint(915));
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var lease = new ProductDesktopInteractionLease(
+            Guid.NewGuid(), "container-1", 7, 9, 11,
+            now.AddSeconds(5));
+        ProductDesktopInteractionSelectionController selection =
+            ProductDesktopInteractionSelectionController.TryCreate(
+                lease,
+                container.ItemIds,
+                now).Controller!;
+        ProductDesktopInteractionSurfaceTransactionSnapshot current =
+            Transaction(selection.Snapshot);
+        var actions = new List<ProductDesktopItemOpenSurfaceInput>();
+        surface.BindSelection(
+            () => current,
+            (_, request) =>
+            {
+                ProductDesktopSelectionSnapshot updated = selection.Apply(
+                    lease,
+                    container.ItemIds,
+                    request,
+                    now);
+                current = Transaction(updated);
+                return updated.Status == ProductDesktopSelectionStatus.Applied;
+            });
+        surface.BindItemOpen(input =>
+        {
+            actions.Add(input);
+            return true;
+        });
+        var adapter = new ProductDesktopHostPassiveSurfaceModeAdapter(
+            new IProductDesktopHostReadOnlySurface[] { surface },
+            registryGeneration: 11);
+        Assert.True(adapter.ApplyExplicit(lease));
+        Assert.True(surface.ApplyItemOpenFeedback(new(
+            "container-1",
+            "item:1",
+            ProductDesktopItemOpenStatus.TargetUnavailable,
+            "引用不存在；右键可重试或定位",
+            CanRetry: true,
+            CanLocateInExplorer: true)));
+
+        Assert.True(surface.SubmitItemOpenFeedbackActionForEvidence(
+            ProductDesktopItemOpenSource.FeedbackRetry));
+        Assert.True(surface.SubmitItemOpenFeedbackActionForEvidence(
+            ProductDesktopItemOpenSource.FeedbackLocateInExplorer));
+        Assert.False(surface.SubmitItemOpenFeedbackActionForEvidence(
+            ProductDesktopItemOpenSource.FeedbackRetry,
+            sourceAttested: false));
+        Assert.False(surface.SubmitItemOpenFeedbackActionForEvidence(
+            ProductDesktopItemOpenSource.FeedbackLocateInExplorer,
+            isInjected: true));
+
+        Assert.Equal(2, actions.Count);
+        Assert.All(actions, action =>
+        {
+            Assert.Equal("container-1", action.ContainerId);
+            Assert.Equal("item:1", action.ItemId);
+            Assert.True(action.SourceAttested);
+            Assert.False(action.IsInjected);
+        });
+        output.WriteLine(JsonSerializer.Serialize(new
+        {
+            Purpose = "Pf006b2b2RealHwndFeedbackActions",
+            Expected = new
+            {
+                AcceptedSources =
+                    "FeedbackRetry,FeedbackLocateInExplorer",
+                AcceptedCount = 2,
+                UnattestedRejected = true,
+                InjectedRejected = true,
+            },
+            Actual = new
+            {
+                AcceptedSources = string.Join(",", actions.Select(action =>
+                    action.Source.ToString())),
+                AcceptedCount = actions.Count,
+                UnattestedRejected = true,
+                InjectedRejected = true,
+            },
+            Difference = "None",
+            Outcome = "Pass",
+        }));
+
+        ProductDesktopInteractionSurfaceTransactionSnapshot Transaction(
+            ProductDesktopSelectionSnapshot selected) => new(
+                ProductDesktopInteractionSurfaceTransactionStatus.Explicit,
+                new(
+                    ProductDesktopInteractionMode.ExplicitInteraction,
+                    ProductDesktopInteractionAdmissionStatus.Admitted,
+                    ProductDesktopInteractionCancellationReason.None,
+                    lease),
+                new(
+                    ProductDesktopInteractionSurfaceMode.Explicit,
+                    11,
+                    Visible: true,
+                    HitTestTransparent: false,
+                    IsKeyboardFocusable: true,
+                    SelectionPatternAvailable: true,
+                    ToolWindow: true,
+                    NoActivate: true,
+                    Topmost: false,
+                    HasOwner: false,
+                    OwnsForeground: false),
+                selected,
+                ProductDesktopInteractionSelectionAccessibilityAdapter
+                    .CreateExplicit(selected),
+                selected.SelectionRevision + 1);
+    }
+
+    [Fact]
     public async Task NativeActivationSourceExposesFiniteInvokeAndHideRestoreContract()
     {
         if (!OperatingSystem.IsWindows())

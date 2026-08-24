@@ -387,3 +387,7 @@ App 权威打开控制器现在通过独立 Windows 引用解析边界处理 `.l
 ## Stage 195：PF-006B2B1 可配置单击打开策略
 
 `ProductBoxesSettings` 以默认 `false` 的 `openItemsWithSingleClick` 保存用户选择；缺失/安全配置不会隐式开启或写盘。App 把成功加载/保存后的策略交给 DesktopHost 生命周期，生命周期对当前和后续 Surface 保持一致。真实 Surface 始终先提交共享选择；只有显式开启、普通、可信、非注入且无 Ctrl/Shift 的项目单击才以 `PointerSingleClick` 进入既有权威打开命令，并在单击模式抑制重复双击入口。路径仍不下放到 HWND/UIA。详见 [Stage 195](195-pf006b2b1-single-click-open-policy-audit.md)。
+
+## Stage 196：PF-006B2B2 权威重试与安全 Explorer 定位
+
+打开结果只向 Surface 投影有限状态、无路径消息和 Retry/Locate 可用位；原生项目右键菜单把可信、非注入动作作为新的打开来源交回既有生命周期，生命周期重新附加当前 display/revision/topology。Retry 完整重跑安全打开；Locate 在 App 权威边界重新验证 resolved filesystem 引用、Catalog/Persisted 一致性、现场父目录/目标及 ReparsePoint，再调用绝对 `%WINDIR%\explorer.exe`。存在目标才用 `/select`，缺失目标只打开安全父目录。详见 [Stage 196](196-pf006b2b2-authoritative-retry-safe-explorer-locate-audit.md)。

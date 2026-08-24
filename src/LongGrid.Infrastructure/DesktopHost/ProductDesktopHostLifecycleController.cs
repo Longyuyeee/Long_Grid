@@ -1967,8 +1967,20 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             input.ContainerId,
             input.ItemId,
             result.Status,
-            result.UserMessage));
+            ItemOpenFeedbackMessage(result),
+            result.CanRetry,
+            result.CanLocateInExplorer));
     }
+
+    private static string ItemOpenFeedbackMessage(
+        ProductDesktopItemOpenResult result) =>
+        (result.CanRetry, result.CanLocateInExplorer) switch
+        {
+            (true, true) => $"{result.UserMessage}；右键可重试或定位",
+            (true, false) => $"{result.UserMessage}；右键可重试",
+            (false, true) => $"{result.UserMessage}；右键可定位",
+            _ => result.UserMessage,
+        };
 
     private ProductDesktopContainerMenuAvailability
         GetContainerMenuAvailabilityFromActivationSource(

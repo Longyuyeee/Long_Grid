@@ -2103,6 +2103,21 @@ function Test-SourceContract {
     ) `
         'PF-006B2B1 must default single-click open off, persist only explicit opt-in, flow policy to current/new HWND surfaces, select before open, and preserve modified-click selection.'
     Assert-Condition (
+        $desktopItemOpenCode -match 'FeedbackRetry' -and
+        $desktopItemOpenCode -match 'FeedbackLocateInExplorer' -and
+        $desktopItemOpenCode -match 'TryResolveExplorerLocation' -and
+        $desktopItemOpenCode -match 'ExplorerParentUnsafe' -and
+        $desktopItemOpenCode -match `
+            'Environment\.SpecialFolder\.Windows' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'HandleItemOpenFeedbackContextMenu' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'GetCurrentInputMessageSource' -and
+        $desktopHostLifecycleControllerCode -match `
+            'CanLocateInExplorer'
+    ) `
+        'PF-006B2B2 must expose finite native retry/locate actions, revalidate current authority, use absolute system Explorer only for a present non-reparse parent, and keep paths outside HWND/UIA feedback.'
+    Assert-Condition (
         $desktopContainerHeaderPresentationCode -match 'VisualTitle' -and
         $desktopContainerHeaderPresentationCode -match 'VisualStatus' -and
         $desktopContainerHeaderPresentationCode -match 'AccessibilityName' -and
@@ -3418,7 +3433,7 @@ function Test-SourceContract {
         productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-title-visibility-title-double-click-placement-remove-unified-edit-undo-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only-desktop-layout-session-candidate-publish-compensate-keyboard-title-focus-transaction-cross-display-mixed-dpi'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'
-                    productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-title-layout-select-then-authority-safe-file-folder-lnk-http-https-open-finite-path-free-feedback-default-double-click-persisted-single-click-opt-in-zero-file-mutation'
+                    productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-title-layout-select-then-authority-safe-file-folder-lnk-http-https-open-finite-path-free-feedback-default-double-click-persisted-single-click-opt-in-authoritative-retry-safe-explorer-locate-zero-file-mutation'
                     readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'
     }
 }

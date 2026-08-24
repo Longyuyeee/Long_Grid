@@ -404,7 +404,10 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                     ProductDesktopContainerLayoutCancellationReason.EscapePressed);
                 return nint.Zero;
             case NativeMethods.WmRButtonUp:
-                _ = HandleWorkspaceCreateContextMenu(window, longParameter);
+                if (!HandleItemOpenFeedbackContextMenu(window, longParameter))
+                {
+                    _ = HandleWorkspaceCreateContextMenu(window, longParameter);
+                }
                 return nint.Zero;
             case NativeMethods.WmHotKey
                 when wordParameter.ToInt64() == EmptyCreateHotKeyId:
@@ -614,6 +617,14 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             y,
             control,
             shift,
+            sourceAttested,
+            isInjected);
+
+    internal bool SubmitItemOpenFeedbackActionForEvidence(
+        ProductDesktopItemOpenSource source,
+        bool sourceAttested = true,
+        bool isInjected = false) => SubmitItemOpenFeedbackAction(
+            source,
             sourceAttested,
             isInjected);
 
@@ -1533,6 +1544,138 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         {
             _ = NativeMethods.DestroyMenu(menu);
         }
+    }
+
+    private bool HandleItemOpenFeedbackContextMenu(
+        nint window,
+        nint longParameter)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Explicit
+            || itemOpenFeedback is not { } feedback
+            || (!feedback.CanRetry && !feedback.CanLocateInExplorer))
+        {
+            return false;
+        }
+        ProductDesktopPointerSelectionCommand? hit =
+            ProductDesktopPointerSelectionAdapter.Map(
+                projection,
+                selectionSnapshot(),
+                SignedLowWord(longParameter),
+                SignedHighWord(longParameter),
+                control: false,
+                shift: false);
+        if (hit?.Request is not
+            {
+                Action: ProductDesktopSelectionAction.SelectItem,
+                ItemId: { } itemId,
+            }
+            || !string.Equals(hit.ContainerId, feedback.ContainerId,
+                StringComparison.Ordinal)
+            || !string.Equals(itemId, feedback.ItemId,
+                StringComparison.Ordinal))
+        {
+            return false;
+        }
+        InputMessageSource inputSource = default;
+        if (!NativeMethods.GetCurrentInputMessageSource(ref inputSource)
+            || inputSource.OriginId == NativeMethods.ImoInjected
+            || !applySelection(hit.ContainerId, hit.Request))
+        {
+            return true;
+        }
+        nint menu = NativeMethods.CreatePopupMenu();
+        if (menu == nint.Zero)
+        {
+            return true;
+        }
+        try
+        {
+            if (feedback.CanRetry
+                && !NativeMethods.AppendMenu(
+                    menu,
+                    NativeMethods.MfString,
+                    NativeMethods.ItemOpenRetryMenuCommand,
+                    "重新验证并重试"))
+            {
+                return true;
+            }
+            if (feedback.CanLocateInExplorer
+                && !NativeMethods.AppendMenu(
+                    menu,
+                    NativeMethods.MfString,
+                    NativeMethods.ItemOpenLocateMenuCommand,
+                    "在资源管理器中定位"))
+            {
+                return true;
+            }
+            NativePoint point = new(
+                SignedLowWord(longParameter),
+                SignedHighWord(longParameter));
+            if (!NativeMethods.ClientToScreen(window, ref point))
+            {
+                return true;
+            }
+            nint foreground = NativeMethods.GetForegroundWindow();
+            uint command = NativeMethods.TrackPopupMenuEx(
+                menu,
+                NativeMethods.TpmRightButton
+                    | NativeMethods.TpmNoNotify
+                    | NativeMethods.TpmReturnCommand,
+                point.X,
+                point.Y,
+                window,
+                nint.Zero);
+            if (NativeMethods.GetForegroundWindow() != foreground)
+            {
+                return true;
+            }
+            return command switch
+            {
+                NativeMethods.ItemOpenRetryMenuCommand =>
+                    SubmitItemOpenFeedbackAction(
+                        ProductDesktopItemOpenSource.FeedbackRetry,
+                        sourceAttested: true,
+                        isInjected: false),
+                NativeMethods.ItemOpenLocateMenuCommand =>
+                    SubmitItemOpenFeedbackAction(
+                        ProductDesktopItemOpenSource.FeedbackLocateInExplorer,
+                        sourceAttested: true,
+                        isInjected: false),
+                _ => true,
+            };
+        }
+        finally
+        {
+            _ = NativeMethods.DestroyMenu(menu);
+        }
+    }
+
+    private bool SubmitItemOpenFeedbackAction(
+        ProductDesktopItemOpenSource source,
+        bool sourceAttested,
+        bool isInjected)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Explicit
+            || !sourceAttested
+            || isInjected
+            || itemOpenFeedback is not { } feedback
+            || (source == ProductDesktopItemOpenSource.FeedbackRetry
+                && !feedback.CanRetry)
+            || (source == ProductDesktopItemOpenSource.FeedbackLocateInExplorer
+                && !feedback.CanLocateInExplorer)
+            || source is not (
+                ProductDesktopItemOpenSource.FeedbackRetry
+                    or ProductDesktopItemOpenSource.FeedbackLocateInExplorer))
+        {
+            return false;
+        }
+        return requestItemOpen(new(
+            feedback.ContainerId,
+            feedback.ItemId,
+            source,
+            sourceAttested,
+            isInjected,
+            IsAutoRepeat: false));
     }
 
     internal bool SubmitWorkspaceCreateInput(
@@ -2687,6 +2830,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint TpmNoNotify = 0x0080;
         internal const uint TpmReturnCommand = 0x0100;
         internal const uint EmptyCreateMenuCommand = 1;
+        internal const uint ItemOpenRetryMenuCommand = 2;
+        internal const uint ItemOpenLocateMenuCommand = 3;
         internal const long MkShift = 0x0004;
         internal const long MkControl = 0x0008;
         internal const uint ImoInjected = 2;

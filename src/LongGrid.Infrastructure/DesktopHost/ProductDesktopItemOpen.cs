@@ -10,6 +10,8 @@ public enum ProductDesktopItemOpenSource
     PointerSingleClick,
     PointerDoubleClick,
     AssistiveInvoke,
+    FeedbackRetry,
+    FeedbackLocateInExplorer,
 }
 
 public enum ProductDesktopItemOpenStatus
@@ -28,6 +30,10 @@ public enum ProductDesktopItemOpenStatus
     ShortcutTargetUnavailable,
     ShortcutTargetUnsafe,
     LaunchFailed,
+    ExplorerLocateAccepted,
+    ExplorerParentUnavailable,
+    ExplorerParentUnsafe,
+    ExplorerLaunchFailed,
 }
 
 public sealed record ProductDesktopItemOpenRequest(
@@ -43,9 +49,12 @@ public sealed record ProductDesktopItemOpenRequest(
 
 public sealed record ProductDesktopItemOpenResult(
     ProductDesktopItemOpenStatus Status,
-    ProductDesktopItemOpenSource Source)
+    ProductDesktopItemOpenSource Source,
+    bool CanRetry = false,
+    bool CanLocateInExplorer = false)
 {
-    public bool IsAccepted => Status == ProductDesktopItemOpenStatus.LaunchAccepted;
+    public bool IsAccepted => Status is ProductDesktopItemOpenStatus.LaunchAccepted
+        or ProductDesktopItemOpenStatus.ExplorerLocateAccepted;
 
     public string UserMessage => Status switch
     {
@@ -61,6 +70,14 @@ public sealed record ProductDesktopItemOpenResult(
         ProductDesktopItemOpenStatus.ShortcutTargetUnavailable => "快捷方式目标不存在",
         ProductDesktopItemOpenStatus.ShortcutTargetUnsafe => "快捷方式目标需要重新确认",
         ProductDesktopItemOpenStatus.LaunchFailed => "系统未能打开，请重试",
+        ProductDesktopItemOpenStatus.ExplorerLocateAccepted =>
+            "已提交资源管理器定位",
+        ProductDesktopItemOpenStatus.ExplorerParentUnavailable =>
+            "父目录不存在，无法安全定位",
+        ProductDesktopItemOpenStatus.ExplorerParentUnsafe =>
+            "父目录需要重新确认，未执行定位",
+        ProductDesktopItemOpenStatus.ExplorerLaunchFailed =>
+            "资源管理器未能定位，请重试",
         _ => "当前项目无法安全打开",
     };
 }
@@ -77,7 +94,9 @@ internal sealed record ProductDesktopItemOpenFeedback(
     string ContainerId,
     string ItemId,
     ProductDesktopItemOpenStatus Status,
-    string Message);
+    string Message,
+    bool CanRetry = false,
+    bool CanLocateInExplorer = false);
 
 internal interface IProductDesktopItemShellLauncher
 {
@@ -194,13 +213,214 @@ public sealed class ProductDesktopItemOpenController
     {
         lock (gate)
         {
-            return OpenUnsafe(
+            ProductDesktopItemOpenResult result = request.Source ==
+                ProductDesktopItemOpenSource.FeedbackLocateInExplorer
+                    ? LocateInExplorerUnsafe(
+                        request,
+                        state,
+                        currentWorkspaceRevision,
+                        topology)
+                    : OpenUnsafe(
+                        request,
+                        state,
+                        currentWorkspaceRevision,
+                        topology);
+            return result with
+            {
+                CanRetry = CanRetry(result.Status),
+                CanLocateInExplorer = !result.IsAccepted
+                    && TryResolveExplorerLocation(
+                        request,
+                        state,
+                        currentWorkspaceRevision,
+                        topology,
+                        out _,
+                        out _),
+            };
+        }
+    }
+
+    private ProductDesktopItemOpenResult LocateInExplorerUnsafe(
+        ProductDesktopItemOpenRequest request,
+        ProductWorkspaceState? state,
+        long currentWorkspaceRevision,
+        ProductDisplayTopologySnapshot topology)
+    {
+        LastLaunchProcessIdForEvidence = 0;
+        if (!TryResolveExplorerLocation(
                 request,
                 state,
                 currentWorkspaceRevision,
-                topology);
+                topology,
+                out string? location,
+                out bool selectTarget,
+                out ProductDesktopItemOpenStatus failure))
+        {
+            return Result(failure, request);
+        }
+        string windows = Environment.GetFolderPath(
+            Environment.SpecialFolder.Windows);
+        string explorer = Path.Combine(windows, "explorer.exe");
+        if (!File.Exists(explorer))
+        {
+            return Result(
+                ProductDesktopItemOpenStatus.ExplorerLaunchFailed,
+                request);
+        }
+        string parameters = selectTarget
+            ? $"/select,\"{location}\""
+            : $"\"{location}\"";
+        try
+        {
+            ProductDesktopShellLaunchResult launched = launcher.Launch(
+                explorer,
+                parameters);
+            LastLaunchProcessIdForEvidence = launched.ProcessId;
+            return Result(
+                launched.Accepted
+                    ? ProductDesktopItemOpenStatus.ExplorerLocateAccepted
+                    : ProductDesktopItemOpenStatus.ExplorerLaunchFailed,
+                request);
+        }
+        catch (Exception exception) when (
+            exception is Win32Exception
+                or InvalidOperationException
+                or NotSupportedException)
+        {
+            return Result(
+                ProductDesktopItemOpenStatus.ExplorerLaunchFailed,
+                request);
         }
     }
+
+    private static bool TryResolveExplorerLocation(
+        ProductDesktopItemOpenRequest request,
+        ProductWorkspaceState? state,
+        long currentWorkspaceRevision,
+        ProductDisplayTopologySnapshot topology,
+        out string? location,
+        out bool selectTarget) => TryResolveExplorerLocation(
+            request,
+            state,
+            currentWorkspaceRevision,
+            topology,
+            out location,
+            out selectTarget,
+            out _);
+
+    private static bool TryResolveExplorerLocation(
+        ProductDesktopItemOpenRequest request,
+        ProductWorkspaceState? state,
+        long currentWorkspaceRevision,
+        ProductDisplayTopologySnapshot topology,
+        out string? location,
+        out bool selectTarget,
+        out ProductDesktopItemOpenStatus failure)
+    {
+        location = null;
+        selectTarget = false;
+        failure = ProductDesktopItemOpenStatus.InvalidRequest;
+        if (!RequestIsValid(request))
+        {
+            return false;
+        }
+        if (state is null
+            || !topology.IsAuthoritative
+            || request.WorkspaceRevision != currentWorkspaceRevision
+            || request.TopologyGeneration != topology.Generation)
+        {
+            failure = ProductDesktopItemOpenStatus.StaleAuthority;
+            return false;
+        }
+        ProductContainerState[] containers = state.Containers
+            .Where(container => string.Equals(
+                container.Id,
+                request.ContainerId,
+                StringComparison.Ordinal))
+            .Take(2)
+            .ToArray();
+        if (containers.Length != 1
+            || !DisplayMatches(containers[0], request.DisplayId, topology)
+            || !TryParseOrdinal(request.ItemId, out int ordinal)
+            || ordinal > containers[0].Items.Count)
+        {
+            failure = ProductDesktopItemOpenStatus.TargetUnavailable;
+            return false;
+        }
+        ProductItemReferenceState item = containers[0].Items[ordinal - 1];
+        if (item.Resolution != ProductItemReferenceResolution.Resolved
+            || item.CatalogEntry?.Identity is null
+            || item.PersistedKind is not (ConfigurationItemKind.File
+                or ConfigurationItemKind.Folder
+                or ConfigurationItemKind.Shortcut
+                or ConfigurationItemKind.Url)
+            || !string.Equals(
+                item.CatalogEntry.Identity.Provider,
+                "filesystem",
+                StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(
+                item.CatalogEntry.Identity.VolumeId)
+                != string.IsNullOrWhiteSpace(
+                    item.CatalogEntry.Identity.FileId)
+            || !Enum.IsDefined(item.CatalogEntry.Kind)
+            || MapKind(item.CatalogEntry.Kind) != item.PersistedKind
+            || !Path.IsPathFullyQualified(
+                item.CatalogEntry.Identity.CanonicalTarget))
+        {
+            failure = ProductDesktopItemOpenStatus.UnresolvedReference;
+            return false;
+        }
+        try
+        {
+            string target = Path.GetFullPath(
+                item.CatalogEntry.Identity.CanonicalTarget);
+            if (!string.Equals(
+                    target,
+                    Path.GetFullPath(item.PersistedTarget),
+                    StringComparison.OrdinalIgnoreCase)
+                || target.Contains('"'))
+            {
+                return false;
+            }
+            string? parent = Path.GetDirectoryName(target);
+            if (string.IsNullOrWhiteSpace(parent) || !Directory.Exists(parent))
+            {
+                failure = ProductDesktopItemOpenStatus.ExplorerParentUnavailable;
+                return false;
+            }
+            if ((File.GetAttributes(parent) & FileAttributes.ReparsePoint) != 0)
+            {
+                failure = ProductDesktopItemOpenStatus.ExplorerParentUnsafe;
+                return false;
+            }
+            bool exists = File.Exists(target) || Directory.Exists(target);
+            if (exists
+                && (File.GetAttributes(target) & FileAttributes.ReparsePoint) != 0)
+            {
+                failure = ProductDesktopItemOpenStatus.ExplorerParentUnsafe;
+                return false;
+            }
+            location = exists ? target : parent;
+            selectTarget = exists;
+            return true;
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException
+                or IOException
+                or NotSupportedException
+                or PathTooLongException
+                or UnauthorizedAccessException)
+        {
+            failure = ProductDesktopItemOpenStatus.ExplorerParentUnavailable;
+            return false;
+        }
+    }
+
+    private static bool CanRetry(ProductDesktopItemOpenStatus status) =>
+        status is not (
+            ProductDesktopItemOpenStatus.LaunchAccepted
+                or ProductDesktopItemOpenStatus.ExplorerLocateAccepted
+                or ProductDesktopItemOpenStatus.InvalidRequest);
 
     private ProductDesktopItemOpenResult OpenUnsafe(
         ProductDesktopItemOpenRequest request,
