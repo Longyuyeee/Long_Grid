@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。最新 [Stage 176 对齐审计](docs/176-current-development-requirement-alignment-audit.md) 确认 30 个 PF 项仍为 `0 Complete`：PF-002 为 `EngineeringComplete / ProductEvidencePending`，PF-001/PF-003 为 `InProgress`，其余仍处于底座、原型或未实现状态。当前应继续 PF-003D2 的 App 布局会话、可见候选和提交/补偿接线；任务栏实验、Widgets/Long助手宿主属于后续 P1/P2。所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 177](docs/177-pf003d2-app-layout-session-visible-candidate-audit.md) 已完成 PF-003D2：正式 App 消费 DesktopHost 布局会话、Surface 动态内存候选、pointer-up 唯一提交及保存失败补偿接线，真实 App/Store 位移 32/16 DIP 的 Expected/Actual 为 `Difference=None`。方向键微调、跨显示器、物理鼠标和 UIA Bounds 仍未完成；PF-003 保持 `InProgress`，30 个 PF 项仍为 `0 Complete`。所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -37,6 +37,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-003C 布局保存失败补偿审计（Stage 174）](docs/174-pf003c-layout-save-failure-compensation-audit.md)
 - [PF-003D1 DesktopHost 布局输入合同审计（Stage 175）](docs/175-pf003d1-desktop-host-layout-input-contract-audit.md)
 - [当前开发情况与最初需求对齐审计（Stage 176）](docs/176-current-development-requirement-alignment-audit.md)
+- [PF-003D2 App 布局会话、可见候选与提交补偿审计（Stage 177）](docs/177-pf003d2-app-layout-session-visible-candidate-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)

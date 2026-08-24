@@ -393,3 +393,11 @@ Stage 176 按 PRD、竞品功能计划、交互、任务栏、Widget/Long助手�
 当前 `f991d24` 基线重新实测为 Release 全量 `1058/1058`、build `0 warning / 0 error`；100 方格、500 项、2,000 次布局预览 P95 `0.090 ms < 16.7 ms`。PF-002 正式 App 外部 Expected/Actual 为 `Difference=None`，桌面与用户配置元数据不变；真实窗口 `1,175 ms` 就绪并稳定 20 秒。与此同时 App 明确输出 `VisibleInteractionStatus=BlockedByKnownUpstream` 和 `PreviewActivatedCount=0`，所以可见物理/UIA/Narrator 不得升级为通过。
 
 任务栏只有安全设计边界，Widget/Long助手只有协议与 Schema，均没有产品运行时。开发顺序保持 PF-003D2 → PF-003 跨显示器/物理证据 → PF-004–010 日常桌面操作 → 首次引导/规则 → 隐藏/托盘/快照 → 视觉/无障碍 → 发布门禁；P1/P2 扩展不抢占核心 MVP。详见 [Stage 176](176-current-development-requirement-alignment-audit.md)。
+
+## 24. 2026-08-24 PF-003D2 App 布局组合根增量复审
+
+Stage 177 已让正式 App 绑定 DesktopHost 布局请求，并以独立控制器组合 Stage 173 会话、Surface 内存候选、唯一提交和 Stage 174 保存补偿。lifecycle 只接受 display/revision/topology 精确匹配的候选；Surface 绘制独立候选及焦点轮廓，取消、隐藏和宿主失效恢复原 projection。极端有限 double 在 GDI 换算前失败关闭。
+
+真实 App 首轮为 Begin=true、Update/Complete=false、位移/保存 0，证明证据模式跳过主窗口刷新时也错误跳过了安全 DesktopHost 投影。拆分宿主投影刷新后，正式 App Begin/Update/Complete 全为 true，内存和真实 Store 重载均移动 32/16 DIP，save revision=4，外部 `Difference=None`。真实写租约故障又证明交互控制器能自动恢复原内存/磁盘布局且不触碰桌面哨兵。
+
+聚焦为 52/52、Release 全量 1063/1063、build 0 warning / 0 error，100 方格布局预览 P95 `0.083 ms < 16.7 ms`；真实窗口 1,744 ms 就绪并稳定 20 秒。物理鼠标、键盘微调、跨显示器和 UIA Bounds 仍未通过，PF-003 与顶层 `0 Complete` 口径不变。下一切片固定为 PF-003D3 键盘移动/缩放并复用同一事务链，详见 [Stage 177](177-pf003d2-app-layout-session-visible-candidate-audit.md)。

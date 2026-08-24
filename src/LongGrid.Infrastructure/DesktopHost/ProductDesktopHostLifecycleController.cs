@@ -214,6 +214,10 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
     {
     }
 
+    bool ApplyContainerLayoutPreview(
+        string containerId,
+        ProductContainerPlacementState? placement) => false;
+
     void RefreshSelection()
     {
     }
@@ -397,6 +401,45 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             requestContainerLayout = requestLayout;
+        }
+    }
+
+    public bool ApplyContainerLayoutPreview(
+        string displayId,
+        string containerId,
+        long expectedWorkspaceRevision,
+        long expectedTopologyGeneration,
+        ProductContainerPlacementState? placement)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(containerId);
+        lock (gate)
+        {
+            if (disposed
+                || currentBatch is null
+                || currentBatch.WorkspaceRevision != expectedWorkspaceRevision
+                || currentBatch.TopologyGeneration != expectedTopologyGeneration
+                || (placement is not null && !string.Equals(
+                    placement.DisplayKey,
+                    displayId,
+                    StringComparison.Ordinal))
+                || surfaces.Count != currentBatch.Displays.Count)
+            {
+                return false;
+            }
+
+            int[] matches = currentBatch.Displays
+                .Select((display, index) => new { display.DisplayId, Index = index })
+                .Where(candidate => string.Equals(
+                    candidate.DisplayId,
+                    displayId,
+                    StringComparison.Ordinal))
+                .Select(candidate => candidate.Index)
+                .ToArray();
+            return matches.Length == 1
+                && surfaces[matches[0]].ApplyContainerLayoutPreview(
+                    containerId,
+                    placement);
         }
     }
 

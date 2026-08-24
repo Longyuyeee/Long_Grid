@@ -244,6 +244,16 @@ try {
         RestoredName = $appActual.RestoredName -eq $expectedEvidenceName
         RestoredDiskStatus = $appActual.RestoredDiskStatus -eq 'LoadedPrimary'
         UndoSavedRevision = $appActual.UndoSavedRevision -eq 3
+        LayoutBegin = $appActual.LayoutBegin -eq $true
+        LayoutUpdate = $appActual.LayoutUpdate -eq $true
+        LayoutComplete = $appActual.LayoutComplete -eq $true
+        LayoutDeltaXDip = [Math]::Abs($appActual.LayoutDeltaXDip - 32) -le 1
+        LayoutDeltaYDip = [Math]::Abs($appActual.LayoutDeltaYDip - 16) -le 1
+        LayoutPersistedDeltaXDip =
+            [Math]::Abs($appActual.LayoutPersistedDeltaXDip - 32) -le 1
+        LayoutPersistedDeltaYDip =
+            [Math]::Abs($appActual.LayoutPersistedDeltaYDip - 16) -le 1
+        LayoutSavedRevision = $appActual.LayoutSavedRevision -eq 4
         SaveCompletion = $appActual.SaveCompletion -eq 'Completed'
         PreviewVisualTreeCount = $appActual.PreviewVisualTreeCount -eq 2
         PreviewActivatedCount = $appActual.PreviewActivatedCount -eq 0
@@ -269,7 +279,7 @@ try {
         $userConfigurationUnchanged
     $finalResult = [ordered]@{
         SchemaVersion = 1
-        Purpose = 'Pf002FormalAppEvidenceExternalVerification'
+        Purpose = 'Pf002AndPf003D2FormalAppEvidenceExternalVerification'
         Expected = [ordered]@{
             AppOutcome = 'Pass'
             AppEvidenceContractMatched = $true

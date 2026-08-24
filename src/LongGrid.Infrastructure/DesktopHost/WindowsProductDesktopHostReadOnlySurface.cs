@@ -107,6 +107,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     private Func<ProductDesktopContainerLayoutSurfaceInput, bool>
         requestContainerLayout = static _ => false;
     private ActiveContainerLayout? activeContainerLayout;
+    private ProductDesktopHostReadOnlyProjection? containerLayoutPreview;
     private NativePoint workspaceCreateDragStart;
     private NativePoint workspaceCreateDragCurrent;
     private bool workspaceCreateDragActive;
@@ -431,6 +432,91 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     {
         ArgumentNullException.ThrowIfNull(requestLayout);
         requestContainerLayout = requestLayout;
+    }
+
+    public bool ApplyContainerLayoutPreview(
+        string containerId,
+        ProductContainerPlacementState? placement)
+    {
+        if (disposed || Handle == nint.Zero || string.IsNullOrWhiteSpace(containerId))
+        {
+            return false;
+        }
+
+        ProductDesktopHostReadOnlyProjection[] matches = projection.Containers
+            .Where(candidate => string.Equals(
+                candidate.ContainerId,
+                containerId,
+                StringComparison.Ordinal))
+            .ToArray();
+        if (matches.Length != 1)
+        {
+            return false;
+        }
+
+        if (placement is null)
+        {
+            if (containerLayoutPreview is not null && !string.Equals(
+                containerLayoutPreview.ContainerId,
+                containerId,
+                StringComparison.Ordinal))
+            {
+                return false;
+            }
+            containerLayoutPreview = null;
+            _ = NativeMethods.InvalidateRect(Handle, nint.Zero, erase: false);
+            return true;
+        }
+        if (!string.Equals(
+            placement.DisplayKey,
+            projection.DisplayId,
+            StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        ProductDesktopHostReadOnlyProjection source = matches[0];
+        try
+        {
+            ProductDesktopHostReadOnlyProjection candidate =
+                ProductDesktopHostReadOnlyProjection.Create(
+                source.ContainerId,
+                source.Title,
+                source.ItemNames,
+                source.Color,
+                source.Opacity,
+                source.IsCollapsed,
+                placement.XDip,
+                placement.YDip,
+                placement.WidthDip,
+                placement.HeightDip,
+                source.IsLocked,
+                source.ItemIds);
+            _ = ProductDesktopHostSurfaceLayout.GetContainerBounds(
+                projection,
+                candidate);
+            containerLayoutPreview = candidate;
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException or OverflowException)
+        {
+            return false;
+        }
+
+        _ = NativeMethods.InvalidateRect(Handle, nint.Zero, erase: false);
+        return true;
+    }
+
+    internal PixelRect? GetContainerLayoutBoundsForEvidence(string containerId)
+    {
+        ProductDesktopHostReadOnlyProjection? container = projection.Containers
+            .SingleOrDefault(candidate => string.Equals(
+                candidate.ContainerId,
+                containerId,
+                StringComparison.Ordinal));
+        return container is null
+            ? null
+            : ToPixelRect(GetContainerBounds(container));
     }
 
     internal bool SubmitContainerLayoutInput(
@@ -1105,6 +1191,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         nint deviceContext,
         ProductDesktopHostReadOnlyProjection container)
     {
+        container = ResolveVisualContainer(container);
         NativeRect bounds = GetContainerBounds(container);
         double scale = projection.EffectiveDpi / 96d;
         int headerHeight = ToPixels(
@@ -1135,6 +1222,15 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 bounds.Bottom);
             _ = NativeMethods.SelectObject(deviceContext, previousPen);
             _ = NativeMethods.SelectObject(deviceContext, previousBrush);
+
+            if (containerLayoutPreview is not null && string.Equals(
+                containerLayoutPreview.ContainerId,
+                container.ContainerId,
+                StringComparison.Ordinal))
+            {
+                NativeRect previewOutline = bounds;
+                _ = NativeMethods.DrawFocusRect(deviceContext, ref previewOutline);
+            }
 
             DrawText(
                 deviceContext,
@@ -1276,6 +1372,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         CancelContainerLayout(
             Handle,
             ProductDesktopContainerLayoutCancellationReason.HostInvalidated);
+        containerLayoutPreview = null;
         disposed = true;
         if (Handle != nint.Zero)
         {
@@ -1305,6 +1402,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         CancelContainerLayout(
             Handle,
             ProductDesktopContainerLayoutCancellationReason.HostInvalidated);
+        containerLayoutPreview = null;
         CancelWorkspaceCreateDrag(Handle);
         mode = ProductDesktopInteractionSurfaceMode.Passive;
         TryRegisterWorkspaceCreateHotKey();
@@ -1333,6 +1431,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         CancelContainerLayout(
             Handle,
             ProductDesktopContainerLayoutCancellationReason.HostInvalidated);
+        containerLayoutPreview = null;
         CancelWorkspaceCreateDrag(Handle);
         mode = ProductDesktopInteractionSurfaceMode.Hidden;
         ReleaseWorkspaceCreateHotKey();
@@ -1573,6 +1672,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     private NativeRect GetContainerBounds(
         ProductDesktopHostReadOnlyProjection container)
     {
+        container = ResolveVisualContainer(container);
         PixelRect bounds = ProductDesktopHostSurfaceLayout.GetContainerBounds(
             projection,
             container);
@@ -1582,6 +1682,21 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             checked(bounds.Left + bounds.Width),
             checked(bounds.Top + bounds.Height));
     }
+
+    private ProductDesktopHostReadOnlyProjection ResolveVisualContainer(
+        ProductDesktopHostReadOnlyProjection container) =>
+        containerLayoutPreview is not null && string.Equals(
+            containerLayoutPreview.ContainerId,
+            container.ContainerId,
+            StringComparison.Ordinal)
+            ? containerLayoutPreview
+            : container;
+
+    private static PixelRect ToPixelRect(NativeRect bounds) => new(
+        bounds.Left,
+        bounds.Top,
+        checked(bounds.Right - bounds.Left),
+        checked(bounds.Bottom - bounds.Top));
 
     private static int ToPixels(double value, double scale) =>
         checked((int)Math.Round(value * scale));

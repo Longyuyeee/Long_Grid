@@ -156,6 +156,49 @@ public sealed class ProductDesktopContainerLayoutInputTests
             0)));
     }
 
+    [Fact]
+    public void RealNativeSurfaceMovesPreviewWithoutChangingProjection()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                Display(),
+                new nint(17403));
+        ProductContainerPlacementState candidate = new()
+        {
+            DisplayKey = "display-1",
+            XDip = 220,
+            YDip = 180,
+            WidthDip = 240,
+            HeightDip = 200,
+        };
+
+        PixelRect original = surface.GetContainerLayoutBoundsForEvidence(
+            "container-1")!.Value;
+        Assert.True(surface.ApplyContainerLayoutPreview(
+            "container-1",
+            candidate));
+        PixelRect preview = surface.GetContainerLayoutBoundsForEvidence(
+            "container-1")!.Value;
+        Assert.True(surface.ApplyContainerLayoutPreview(
+            "container-1",
+            placement: null));
+        PixelRect restored = surface.GetContainerLayoutBoundsForEvidence(
+            "container-1")!.Value;
+        Assert.False(surface.ApplyContainerLayoutPreview(
+            "container-1",
+            candidate with { XDip = double.MaxValue }));
+        PixelRect afterRejected = surface.GetContainerLayoutBoundsForEvidence(
+            "container-1")!.Value;
+
+        Assert.Equal(new PixelRect(100, 100, 200, 160), original);
+        Assert.Equal(new PixelRect(220, 180, 240, 200), preview);
+        Assert.Equal(original, restored);
+        Assert.Equal(original, afterRejected);
+        Assert.NotEqual(nint.Zero, surface.Handle);
+    }
+
     private static ProductDesktopContainerLayoutSurfaceInput Input(
         ProductDesktopContainerLayoutInputPhase phase,
         double deltaX,

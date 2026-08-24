@@ -25,6 +25,8 @@ public partial class App : Application
     private readonly ProductBoxesSettingsController boxesSettingsController;
     private readonly ProductWorkspaceSaveController productWorkspaceSaves;
     private readonly ProductWorkspaceCommitCoordinator workspaceCommits;
+    private readonly ProductDesktopContainerLayoutInteractionController
+        desktopContainerLayoutInteractions;
     private readonly ProductWorkspaceCatalogRevisionSynchronizer
         workspaceCatalogRevisions;
     private readonly ProductDesktopCatalogController productDesktopCatalog;
@@ -69,6 +71,7 @@ public partial class App : Application
             new ProductConfigurationSaveCoordinator(configurationStore));
         productWorkspaceSaves = new(saveWorkflow);
         workspaceCommits = new(productWorkspaceSaves);
+        desktopContainerLayoutInteractions = new(workspaceCommits);
         workspaceCatalogRevisions = new(workspaceCommits);
         productDesktopCatalog = new(
             ProductDesktopCatalogReader.CreateForCurrentUser());
@@ -183,6 +186,8 @@ public partial class App : Application
             ProductDesktopHostLifecycle_SnapshotChanged;
         productDesktopHostLifecycle.BindWorkspaceCreate(
             RequestDesktopWorkspaceCreate);
+        productDesktopHostLifecycle.BindContainerLayout(
+            RequestDesktopContainerLayout);
         window.DesktopKeyboardInteractionRequested +=
             MainWindow_DesktopKeyboardInteractionRequested;
         window.BoxesEnabledChangeRequested +=
@@ -396,14 +401,67 @@ public partial class App : Application
             ProductWorkspaceState afterUndoState = productWorkspaceSession.State
                 ?? throw new InvalidOperationException(
                     "PF-002 latest undo evidence lost the writable workspace.");
-            stage = "CompletingFormalUndoSave";
+            long undoSaveRevision = productWorkspaceSaves.Snapshot.CurrentRevision;
+            stage = "WaitingForFormalUndoSave";
             evidence.RecordStage(stage);
-            ProductWorkspaceSaveCompletionResult saveCompletion =
-                await productWorkspaceSaves.CompleteAsync();
+            ProductWorkspaceSaveSnapshot undoSave =
+                await WaitForProductWorkspaceSaveAsync(undoSaveRevision);
             stage = "ReloadingFormalUndoStore";
             evidence.RecordStage(stage);
             ProductConfigurationLoadResult diskAfterUndo =
                 await configurationStore.LoadAsync();
+
+            stage = "DrivingFormalContainerLayout";
+            evidence.RecordStage(stage);
+            topology = productDisplayTopology.Snapshot;
+            long layoutRevision = workspaceCommits.CurrentEditRevision;
+            ProductContainerState layoutContainer = afterUndoState.Containers.Single();
+            double layoutOriginalX = layoutContainer.Placement.XDip;
+            double layoutOriginalY = layoutContainer.Placement.YDip;
+            ProductDesktopContainerLayoutRequest LayoutRequest(
+                ProductDesktopContainerLayoutInputPhase phase,
+                double deltaX,
+                double deltaY) =>
+                new(
+                    phase,
+                    ProductWorkspaceContainerLayoutGestureKind.Move,
+                    layoutContainer.Id,
+                    layoutContainer.Placement.DisplayKey,
+                    layoutRevision,
+                    topology.Generation,
+                    deltaX,
+                    deltaY,
+                    SnapEnabled: false,
+                    ShiftPressed: false,
+                    ProductDesktopContainerLayoutCancellationReason.None);
+            bool layoutBegin = RequestDesktopContainerLayout(LayoutRequest(
+                ProductDesktopContainerLayoutInputPhase.Begin,
+                0,
+                0));
+            bool layoutUpdate = RequestDesktopContainerLayout(LayoutRequest(
+                ProductDesktopContainerLayoutInputPhase.Update,
+                32,
+                16));
+            bool layoutComplete = RequestDesktopContainerLayout(LayoutRequest(
+                ProductDesktopContainerLayoutInputPhase.Complete,
+                32,
+                16));
+            ProductWorkspaceState afterLayoutState = productWorkspaceSession.State
+                ?? throw new InvalidOperationException(
+                    "PF-003D2 layout evidence lost the writable workspace.");
+            long layoutSaveRevision = productWorkspaceSaves.Snapshot.CurrentRevision;
+            stage = "WaitingForFormalLayoutSave";
+            evidence.RecordStage(stage);
+            ProductWorkspaceSaveSnapshot layoutSave =
+                await WaitForProductWorkspaceSaveAsync(layoutSaveRevision);
+            stage = "ReloadingFormalLayoutStore";
+            evidence.RecordStage(stage);
+            ProductConfigurationLoadResult diskAfterLayout =
+                await configurationStore.LoadAsync();
+            stage = "CompletingFormalEvidenceSaves";
+            evidence.RecordStage(stage);
+            ProductWorkspaceSaveCompletionResult saveCompletion =
+                await productWorkspaceSaves.CompleteAsync();
 
             const string expectedName = "PF-002 证据方格";
             string? createdName = diskAfterCreate.Document?.Containers
@@ -415,7 +473,7 @@ public partial class App : Application
                 && diskBefore.Status == ProductConfigurationLoadStatus.Missing
                 && afterCancelState.Containers.Count == 0
                 && diskAfterCancel.Status == ProductConfigurationLoadStatus.Missing
-                && workspaceCommits.CurrentEditRevision == createRevision + 3
+                && workspaceCommits.CurrentEditRevision == createRevision + 4
                 && afterCreateState.Containers.Count == 1
                 && createSaveRevision == 1
                 && createSave.Status == ProductWorkspaceSaveStatus.Saved
@@ -437,20 +495,38 @@ public partial class App : Application
                 && executedUndoKind ==
                     ProductWorkspaceLatestUndoKind.ContainerRemoval
                 && afterUndoState.Containers.Count == 1
+                && undoSave.Status == ProductWorkspaceSaveStatus.Saved
+                && undoSave.SavedRevision == 3
                 && saveCompletion.Status ==
                     ProductWorkspaceSaveCompletionStatus.Completed
-                && saveCompletion.Snapshot.SavedRevision == 3
+                && saveCompletion.Snapshot.SavedRevision == 4
                 && diskAfterUndo.Status ==
                     ProductConfigurationLoadStatus.LoadedPrimary
                 && diskAfterUndo.Document?.Containers.Count == 1
                 && string.Equals(restoredName, expectedName, StringComparison.Ordinal)
+                && layoutBegin
+                && layoutUpdate
+                && layoutComplete
+                && afterLayoutState.Containers.Count == 1
+                && Math.Abs(afterLayoutState.Containers[0].Placement.XDip
+                    - (layoutOriginalX + 32)) <= 1
+                && Math.Abs(afterLayoutState.Containers[0].Placement.YDip
+                    - (layoutOriginalY + 16)) <= 1
+                && layoutSave.Status == ProductWorkspaceSaveStatus.Saved
+                && layoutSave.SavedRevision == 4
+                && diskAfterLayout.Status ==
+                    ProductConfigurationLoadStatus.LoadedPrimary
+                && Math.Abs(diskAfterLayout.Document!.Containers[0].Placement.XDip
+                    - (layoutOriginalX + 32)) <= 1
+                && Math.Abs(diskAfterLayout.Document.Containers[0].Placement.YDip
+                    - (layoutOriginalY + 16)) <= 1
                 && evidence.PreviewVisualTreeCount == 2
                 && evidence.PreviewActivatedCount == 0
                 && evidence.PreviewDrivenCount == 2;
             result = new
             {
                 SchemaVersion = 1,
-                Purpose = "Pf002FormalAppPreviewPersistenceLatestUndo",
+                Purpose = "Pf002AndPf003D2FormalAppPersistenceEvidence",
                 Expected = new
                 {
                     InitialContainerCount = 0,
@@ -464,6 +540,12 @@ public partial class App : Application
                     LatestUndoKind = "ContainerRemoval",
                     RestoredContainerCount = 1,
                     RestoredName = expectedName,
+                    LayoutBegin = true,
+                    LayoutUpdate = true,
+                    LayoutComplete = true,
+                    LayoutDeltaXDip = 32,
+                    LayoutDeltaYDip = 16,
+                    LayoutSavedRevision = 4,
                     PreviewVisualTreeCount = 2,
                     PreviewActivatedCount = 0,
                     PreviewDrivenCount = 2,
@@ -497,7 +579,23 @@ public partial class App : Application
                         diskAfterUndo.Document?.Containers.Count ?? 0,
                     RestoredName = restoredName,
                     RestoredDiskStatus = diskAfterUndo.Status.ToString(),
-                    UndoSavedRevision = saveCompletion.Snapshot.SavedRevision,
+                    UndoSavedRevision = undoSave.SavedRevision,
+                    LayoutBegin = layoutBegin,
+                    LayoutUpdate = layoutUpdate,
+                    LayoutComplete = layoutComplete,
+                    LayoutDeltaXDip =
+                        afterLayoutState.Containers[0].Placement.XDip
+                        - layoutOriginalX,
+                    LayoutDeltaYDip =
+                        afterLayoutState.Containers[0].Placement.YDip
+                        - layoutOriginalY,
+                    LayoutPersistedDeltaXDip =
+                        diskAfterLayout.Document?.Containers[0].Placement.XDip
+                        - layoutOriginalX,
+                    LayoutPersistedDeltaYDip =
+                        diskAfterLayout.Document?.Containers[0].Placement.YDip
+                        - layoutOriginalY,
+                    LayoutSavedRevision = layoutSave.SavedRevision,
                     SaveCompletion = saveCompletion.Status.ToString(),
                     PreviewVisualTreeCount = evidence.PreviewVisualTreeCount,
                     PreviewActivatedCount = evidence.PreviewActivatedCount,
@@ -519,7 +617,7 @@ public partial class App : Application
             result = new
             {
                 SchemaVersion = 1,
-                Purpose = "Pf002FormalAppPreviewPersistenceLatestUndo",
+                Purpose = "Pf002AndPf003D2FormalAppPersistenceEvidence",
                 Expected = "Pass",
                 Actual = new
                 {
@@ -950,29 +1048,7 @@ public partial class App : Application
                 ProductConfigurationError.None,
                 null)
             : ProductWorkspaceReadModel.Create(productWorkspaceSession.State);
-        ProductWorkspaceState? desktopHostState = productWorkspaceSession.State;
-        if (desktopHostState is null
-            && productWorkspaceSession.Status ==
-                ProductWorkspaceSessionStatus.NoSavedConfiguration
-            && currentConfigurationLoadResult?.Status ==
-                ProductConfigurationLoadStatus.Missing)
-        {
-            desktopHostState = ProductWorkspaceConfigurationResolver.Resolve(
-                ProductConfigurationDefaults.CreateEmpty(),
-                Array.Empty<DesktopCatalogEntry>()).State;
-        }
-        ProductWorkspaceReadResult desktopHostReadModel = desktopHostState is null
-            ? new(
-                ProductWorkspaceProjectionError.InvalidState,
-                ProductConfigurationError.None,
-                null)
-            : ProductWorkspaceReadModel.Create(desktopHostState);
-        _ = productDesktopHostLifecycle.ApplyProjectionUpdate(
-            ProductDesktopHostProjectionBuilder.BuildUpdate(
-                desktopHostState,
-                desktopHostReadModel.Snapshot,
-                topology,
-                workspaceCommits.CurrentEditRevision));
+        ApplyProductDesktopHostProjection(topology);
         ProductWorkspaceReadPresentation readPresentation = readModel.IsSuccess
             ? ProductWorkspaceReadPresentation.Create(readModel.Snapshot!)
             : productWorkspaceSession.Status ==
@@ -1477,6 +1553,71 @@ public partial class App : Application
                 currentWindow.ApplyDesktopWorkspaceCreateResult(false);
             }
         });
+    }
+
+    private bool RequestDesktopContainerLayout(
+        ProductDesktopContainerLayoutRequest request)
+    {
+        ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
+        ProductWorkspaceState? state = productWorkspaceSession.State;
+        if (state is not null && topology.IsAuthoritative)
+        {
+            state = StampAuthoritativeDisplayTopology(state);
+        }
+
+        ProductDesktopContainerLayoutInteractionResult result =
+            desktopContainerLayoutInteractions.Handle(
+                request,
+                state,
+                productWorkspaceSession.IsReadOnly || closingDrainInProgress,
+                workspaceCommits.CurrentEditRevision,
+                topology);
+        if (result.ClearPreview)
+        {
+            _ = productDesktopHostLifecycle.ApplyContainerLayoutPreview(
+                result.DisplayId,
+                result.ContainerId,
+                result.ExpectedWorkspaceRevision,
+                result.ExpectedTopologyGeneration,
+                placement: null);
+        }
+
+        if (result.Status ==
+            ProductDesktopContainerLayoutInteractionStatus.PreviewUpdated)
+        {
+            bool applied = productDesktopHostLifecycle.ApplyContainerLayoutPreview(
+                result.DisplayId,
+                result.ContainerId,
+                result.ExpectedWorkspaceRevision,
+                result.ExpectedTopologyGeneration,
+                result.PreviewPlacement);
+            if (!applied)
+            {
+                ProductDesktopContainerLayoutInteractionResult cancelled =
+                    desktopContainerLayoutInteractions.CancelActive(
+                        ProductDesktopContainerLayoutCancellationReason
+                            .HostInvalidated);
+                if (cancelled.ClearPreview)
+                {
+                    _ = productDesktopHostLifecycle.ApplyContainerLayoutPreview(
+                        cancelled.DisplayId,
+                        cancelled.ContainerId,
+                        cancelled.ExpectedWorkspaceRevision,
+                        cancelled.ExpectedTopologyGeneration,
+                        placement: null);
+                }
+                return false;
+            }
+        }
+
+        if (result.Status ==
+            ProductDesktopContainerLayoutInteractionStatus.Committed)
+        {
+            ApplyAcceptedProductWorkspaceDocument(
+                result.Document!,
+                productDesktopCatalog.Snapshot);
+        }
+        return result.IsAccepted;
     }
 
     private bool RequestProductWorkspaceSelectedReferenceCreate(
@@ -2048,6 +2189,38 @@ public partial class App : Application
         {
             ApplyProductWorkspaceSessionViews();
         }
+        else
+        {
+            ApplyProductDesktopHostProjection(productDisplayTopology.Snapshot);
+        }
+    }
+
+    private void ApplyProductDesktopHostProjection(
+        ProductDisplayTopologySnapshot topology)
+    {
+        ProductWorkspaceState? desktopHostState = productWorkspaceSession.State;
+        if (desktopHostState is null
+            && productWorkspaceSession.Status ==
+                ProductWorkspaceSessionStatus.NoSavedConfiguration
+            && currentConfigurationLoadResult?.Status ==
+                ProductConfigurationLoadStatus.Missing)
+        {
+            desktopHostState = ProductWorkspaceConfigurationResolver.Resolve(
+                ProductConfigurationDefaults.CreateEmpty(),
+                Array.Empty<DesktopCatalogEntry>()).State;
+        }
+        ProductWorkspaceReadResult desktopHostReadModel = desktopHostState is null
+            ? new(
+                ProductWorkspaceProjectionError.InvalidState,
+                ProductConfigurationError.None,
+                null)
+            : ProductWorkspaceReadModel.Create(desktopHostState);
+        _ = productDesktopHostLifecycle.ApplyProjectionUpdate(
+            ProductDesktopHostProjectionBuilder.BuildUpdate(
+                desktopHostState,
+                desktopHostReadModel.Snapshot,
+                topology,
+                workspaceCommits.CurrentEditRevision));
     }
 
     private ProductWorkspaceLayoutRecoveryCommitResult
@@ -2394,6 +2567,21 @@ public partial class App : Application
         MainWindow currentWindow,
         ProductWorkspaceSaveSnapshot snapshot)
     {
+        ProductDesktopContainerLayoutPublicationResult layoutPublication =
+            desktopContainerLayoutInteractions.ObserveSave(
+                productWorkspaceSession.State,
+                workspaceCommits.CurrentEditRevision,
+                snapshot);
+        if (layoutPublication.IsCompensated)
+        {
+            ApplyAcceptedProductWorkspaceDocument(
+                layoutPublication.Document!,
+                productDesktopCatalog.Snapshot);
+            currentWindow.ApplyProductWorkspaceSaveState(
+                productWorkspaceSaves.Snapshot);
+            return;
+        }
+
         ProductDesktopWorkspaceCreatePublicationToken? publication =
             desktopWorkspaceCreatePublication;
         ProductWorkspaceState? state = productWorkspaceSession.State;

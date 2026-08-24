@@ -123,3 +123,7 @@ PF-040–042、PF-050 和 PF-060 仍无产品运行时。它们分别属于 V1/P
 - 30 个 PF 项仍为 `0 Complete`；
 - 当前分支产物只能作为开发预览，禁止公开分发；
 - 下一开发切片结束时继续执行代码、真实测试、Expected/Actual、需求对齐、文档和推送六项闭环。
+
+## 9. 2026-08-24 后续进展
+
+Stage 177 已完成原计划 PF-003D2：正式 App 消费 Surface 请求、动态内存候选、唯一提交与保存补偿接线通过，真实 App/Store 位移 32/16 DIP，外部 `Difference=None`。该进展修正了“底座存在但 App 未接线”的主要偏差，但不改变本审计的顶层记账：PF-003 仍为 `InProgress`，30 个 PF 项仍为 `0 Complete`。下一切片调整为 PF-003D3 键盘微调；跨显示器与物理/UIA 证据继续 Pending，详见 [Stage 177](177-pf003d2-app-layout-session-visible-candidate-audit.md)。

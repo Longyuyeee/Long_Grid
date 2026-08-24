@@ -1185,6 +1185,49 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
+    public async Task LayoutPreviewRoutesOnlyForExactDisplayRevisionAndTopology()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        _ = controller.ApplyProjectionUpdate(ReadyUpdate(8, 12));
+        RecordingSurface surface = Assert.Single(factory.Surfaces);
+        ProductContainerPlacementState placement = new()
+        {
+            DisplayKey = "display-primary",
+            XDip = 220,
+            YDip = 180,
+            WidthDip = 240,
+            HeightDip = 200,
+        };
+
+        Assert.False(controller.ApplyContainerLayoutPreview(
+            "display-primary",
+            "container-1",
+            expectedWorkspaceRevision: 7,
+            expectedTopologyGeneration: 12,
+            placement));
+        Assert.Null(surface.LayoutPreview);
+        Assert.True(controller.ApplyContainerLayoutPreview(
+            "display-primary",
+            "container-1",
+            expectedWorkspaceRevision: 8,
+            expectedTopologyGeneration: 12,
+            placement));
+        Assert.Equal(placement, surface.LayoutPreview);
+        Assert.True(controller.ApplyContainerLayoutPreview(
+            "display-primary",
+            "container-1",
+            expectedWorkspaceRevision: 8,
+            expectedTopologyGeneration: 12,
+            placement: null));
+        Assert.Null(surface.LayoutPreview);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
     public async Task ConflictingTerminalUpdateFailsClosed()
     {
         var factory = new RecordingSurfaceFactory();
@@ -1572,6 +1615,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
 
         internal int ApplyHiddenCalls { get; private set; }
 
+        internal ProductContainerPlacementState? LayoutPreview { get; private set; }
+
         public nint Handle { get; } = handle;
 
         public nint InstanceMarker { get; } = instanceMarker;
@@ -1635,6 +1680,27 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         public void BindContainerLayout(
             Func<ProductDesktopContainerLayoutSurfaceInput, bool> requestLayout) =>
             requestContainerLayout = requestLayout;
+
+        public bool ApplyContainerLayoutPreview(
+            string containerId,
+            ProductContainerPlacementState? placement)
+        {
+            if (Projection is null
+                || Projection.Containers.Count(candidate => string.Equals(
+                    candidate.ContainerId,
+                    containerId,
+                    StringComparison.Ordinal)) != 1
+                || (placement is not null && !string.Equals(
+                    placement.DisplayKey,
+                    Projection.DisplayId,
+                    StringComparison.Ordinal)))
+            {
+                return false;
+            }
+
+            LayoutPreview = placement;
+            return true;
+        }
 
         internal bool RequestBoundWorkspaceCreate() =>
             requestWorkspaceCreate(new(

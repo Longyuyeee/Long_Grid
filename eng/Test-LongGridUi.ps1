@@ -2365,6 +2365,14 @@ function Test-SourceContract {
         $appCode -match `
             'BindWorkspaceCreate\(\s*RequestDesktopWorkspaceCreate\)' -and
         $appCode -match `
+            'BindContainerLayout\(\s*RequestDesktopContainerLayout\)' -and
+        $appCode -match `
+            'private bool RequestDesktopContainerLayout[\s\S]{0,5000}desktopContainerLayoutInteractions\.Handle[\s\S]{0,5000}ApplyContainerLayoutPreview' -and
+        $desktopHostLifecycleControllerCode -match `
+            'ApplyContainerLayoutPreview' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'containerLayoutPreview' -and
+        $appCode -match `
             'RequestDesktopWorkspaceCreate[\s\S]{0,2400}ProductDesktopHostLifecycleStatus\.ReadyReadOnly' -and
         $appCode -match `
             'RequestDesktopWorkspaceCreate[\s\S]{0,2200}RunDesktopWorkspaceCreatePreviewAsync' -and
@@ -3055,7 +3063,7 @@ function Test-SourceContract {
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
         productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-single-undo'
-        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-create-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only'
+        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-create-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only-desktop-layout-session-candidate-publish-compensate'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'
                     productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-invoke-no-file-operations'
