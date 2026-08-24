@@ -374,7 +374,11 @@ internal sealed class WindowsProductDesktopHostUiaContainerProvider
             Math.Max(0, (bounds.Height - header) / height));
         items = projection.ItemNames.Take(count).Select((name, itemIndex) =>
             new WindowsProductDesktopHostUiaItemProvider(
-                this, name, projection.ItemIds[itemIndex], itemIndex, marker))
+                this,
+                projection.ItemVisuals[itemIndex].AccessibilityName(name),
+                projection.ItemIds[itemIndex],
+                itemIndex,
+                marker))
             .ToArray();
     }
     internal IReadOnlyList<WindowsProductDesktopHostUiaItemProvider> Items => items;

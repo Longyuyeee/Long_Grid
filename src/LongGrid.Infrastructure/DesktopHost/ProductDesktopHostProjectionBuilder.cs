@@ -117,6 +117,11 @@ public static class ProductDesktopHostProjectionBuilder
             });
             IEnumerable<string> itemIds = visible.Items.Select(item =>
                 $"item:{item.Ordinal}");
+            IEnumerable<ProductDesktopItemVisualPresentation> itemVisuals =
+                visible.Items.Select(item =>
+                    ProductDesktopItemVisualPresentation.Create(
+                        item.Kind,
+                        item.Resolution));
             ProductDesktopHostReadOnlyProjection container =
                 ProductDesktopHostReadOnlyProjection.Create(
                     source.Id,
@@ -132,6 +137,7 @@ public static class ProductDesktopHostProjectionBuilder
                     source.IsLocked,
                     itemIds,
                     visible.Items.Count,
+                    itemVisuals,
                     source.Appearance.TitleVisibility,
                     source.Appearance.TitleDoubleClickAction);
             string displayId = byDisplay.ContainsKey(source.Placement.DisplayKey)

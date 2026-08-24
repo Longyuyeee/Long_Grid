@@ -526,6 +526,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 source.IsLocked,
                 source.ItemIds,
                 source.TotalItemCount,
+                source.ItemVisuals,
                 source.TitleVisibility,
                 source.TitleDoubleClickAction);
             _ = ProductDesktopHostSurfaceLayout.GetContainerBounds(
@@ -600,6 +601,40 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 containerId,
                 StringComparison.Ordinal)) is { } container
         && IsHeaderVisible(container);
+
+    internal bool IsSystemTypeIconAvailableForEvidence(
+        string containerId,
+        int itemIndex)
+    {
+        ProductDesktopHostReadOnlyProjection? container = projection.Containers
+            .SingleOrDefault(candidate => string.Equals(
+                candidate.ContainerId,
+                containerId,
+                StringComparison.Ordinal));
+        return container is not null
+            && itemIndex >= 0
+            && itemIndex < container.ItemVisuals.Count
+            && TryAcquireSystemIcon(container.ItemVisuals[itemIndex], out nint icon)
+            && DestroyAcquiredIcon(icon);
+    }
+
+    internal ProductDesktopItemVisualPresentation?
+        GetItemVisualForEvidence(string containerId, int itemIndex)
+    {
+        ProductDesktopHostReadOnlyProjection? container = projection.Containers
+            .SingleOrDefault(candidate => string.Equals(
+                candidate.ContainerId,
+                containerId,
+                StringComparison.Ordinal));
+        return container is not null
+            && itemIndex >= 0
+            && itemIndex < container.ItemVisuals.Count
+                ? container.ItemVisuals[itemIndex]
+                : null;
+    }
+
+    internal int GetSystemTypeIconSizeForEvidence() =>
+        ToPixels(20, projection.EffectiveDpi / 96d);
 
     internal bool SubmitContainerLayoutInput(
         ProductDesktopContainerLayoutSurfaceInput input)
@@ -1528,6 +1563,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             ProductDesktopHostSurfaceLayout.ItemHeightDip,
             scale);
         int horizontalPadding = ToPixels(18, scale);
+        int iconSize = ToPixels(20, scale);
         int top = bounds.Top + headerHeight;
         ProductDesktopInteractionSurfaceTransactionSnapshot? transaction =
             selectionSnapshot();
@@ -1579,11 +1615,44 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 _ = NativeMethods.DrawFocusRect(deviceContext, ref itemBounds);
             }
 
+            ProductDesktopItemVisualPresentation? visual =
+                container.ItemNames.Count == 0
+                    ? null
+                    : container.ItemVisuals[index];
+            int iconX = bounds.Left + horizontalPadding;
+            int iconY = top + Math.Max(0, (itemHeight - iconSize) / 2);
+            if (visual is not null
+                && TryAcquireSystemIcon(visual, out nint icon))
+            {
+                try
+                {
+                    _ = NativeMethods.DrawIconEx(
+                        deviceContext,
+                        iconX,
+                        iconY,
+                        icon,
+                        iconSize,
+                        iconSize,
+                        0,
+                        nint.Zero,
+                        NativeMethods.DiNormal);
+                }
+                finally
+                {
+                    _ = NativeMethods.DestroyIcon(icon);
+                }
+            }
+
             DrawText(
                 deviceContext,
-                container.ItemNames.Count == 0 ? item : $"•  {item}",
+                container.ItemNames.Count == 0
+                    ? item
+                    : VisualLabel(visual!, item),
                 new(
-                    bounds.Left + horizontalPadding,
+                    bounds.Left + horizontalPadding
+                        + (visual is null
+                            ? 0
+                            : iconSize + ToPixels(8, scale)),
                     top,
                     Math.Max(
                         bounds.Left + horizontalPadding,
@@ -1596,6 +1665,59 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             top += itemHeight;
         }
     }
+
+    private static string VisualLabel(
+        ProductDesktopItemVisualPresentation visual,
+        string name) => visual.Status switch
+        {
+            ProductDesktopItemVisualStatus.ReadyTypeIcon => name,
+            ProductDesktopItemVisualStatus.LoadingThumbnail => $"加载中 · {name}",
+            ProductDesktopItemVisualStatus.ReadyThumbnail => name,
+            ProductDesktopItemVisualStatus.Offline => $"离线 · {name}",
+            ProductDesktopItemVisualStatus.TargetChanged => $"类型变化 · {name}",
+            ProductDesktopItemVisualStatus.Ambiguous => $"待确认 · {name}",
+            ProductDesktopItemVisualStatus.Unsupported => $"不支持 · {name}",
+            ProductDesktopItemVisualStatus.AccessDenied => $"无权限 · {name}",
+            ProductDesktopItemVisualStatus.FailedFallback => $"已回退 · {name}",
+            _ => name,
+        };
+
+    private static bool TryAcquireSystemIcon(
+        ProductDesktopItemVisualPresentation visual,
+        out nint icon)
+    {
+        var info = new ShellStockIconInfo
+        {
+            Size = (uint)Marshal.SizeOf<ShellStockIconInfo>(),
+            Path = string.Empty,
+        };
+        uint stockId = visual.Status is ProductDesktopItemVisualStatus.Offline
+            or ProductDesktopItemVisualStatus.TargetChanged
+            or ProductDesktopItemVisualStatus.Ambiguous
+            or ProductDesktopItemVisualStatus.Unsupported
+            or ProductDesktopItemVisualStatus.AccessDenied
+            ? NativeMethods.StockIconWarning
+            : visual.TypeIcon switch
+            {
+                ProductDesktopItemTypeIconKind.Folder =>
+                    NativeMethods.StockIconFolder,
+                ProductDesktopItemTypeIconKind.Shortcut =>
+                    NativeMethods.StockIconLink,
+                ProductDesktopItemTypeIconKind.Url =>
+                    NativeMethods.StockIconWorld,
+                _ => NativeMethods.StockIconDocument,
+            };
+        int result = NativeMethods.SHGetStockIconInfo(
+            stockId,
+            NativeMethods.ShellStockIconFlagIcon
+                | NativeMethods.ShellStockIconFlagSmallIcon,
+            ref info);
+        icon = info.Icon;
+        return result >= 0 && icon != nint.Zero;
+    }
+
+    private static bool DestroyAcquiredIcon(nint icon) =>
+        icon != nint.Zero && NativeMethods.DestroyIcon(icon);
 
     private static void DrawText(
         nint deviceContext,
@@ -2070,6 +2192,17 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal uint OriginId;
     }
 
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct ShellStockIconInfo
+    {
+        internal uint Size;
+        internal nint Icon;
+        internal int SystemImageIndex;
+        internal int IconIndex;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+        internal string Path;
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     private struct NativePoint
     {
@@ -2134,6 +2267,14 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint DtVCenter = 0x0004;
         internal const uint DtSingleLine = 0x0020;
         internal const uint DtEndEllipsis = 0x8000;
+        internal const uint DiNormal = 0x0003;
+        internal const uint ShellStockIconFlagIcon = 0x00000100;
+        internal const uint ShellStockIconFlagSmallIcon = 0x00000001;
+        internal const uint StockIconDocument = 0;
+        internal const uint StockIconFolder = 3;
+        internal const uint StockIconWorld = 13;
+        internal const uint StockIconLink = 29;
+        internal const uint StockIconWarning = 78;
         internal const uint DtCenter = 0x0001;
         internal const int RgnOr = 2;
         internal const int NullRegion = 1;
@@ -2373,6 +2514,29 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             int characterCount,
             ref NativeRect rectangle,
             uint format);
+
+        [DllImport("shell32.dll")]
+        internal static extern int SHGetStockIconInfo(
+            uint stockIconId,
+            uint flags,
+            ref ShellStockIconInfo info);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool DrawIconEx(
+            nint deviceContext,
+            int x,
+            int y,
+            nint icon,
+            int width,
+            int height,
+            uint animationStep,
+            nint flickerFreeBrush,
+            uint flags);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool DestroyIcon(nint icon);
 
         [DllImport("user32.dll")]
         internal static extern int FillRect(

@@ -68,6 +68,7 @@ public sealed record ProductDesktopHostReadOnlyProjection
         bool isLocked,
         IReadOnlyList<string> itemIds,
         int totalItemCount,
+        IReadOnlyList<ProductDesktopItemVisualPresentation> itemVisuals,
         ProductContainerTitleVisibilityPolicy titleVisibility,
         ProductContainerTitleDoubleClickAction titleDoubleClickAction)
     {
@@ -84,6 +85,7 @@ public sealed record ProductDesktopHostReadOnlyProjection
         IsLocked = isLocked;
         ItemIds = itemIds;
         TotalItemCount = totalItemCount;
+        ItemVisuals = itemVisuals;
         TitleVisibility = titleVisibility;
         TitleDoubleClickAction = titleDoubleClickAction;
     }
@@ -114,6 +116,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
 
     public int TotalItemCount { get; }
 
+    public IReadOnlyList<ProductDesktopItemVisualPresentation> ItemVisuals { get; }
+
     public ProductContainerTitleVisibilityPolicy TitleVisibility { get; }
 
     public ProductContainerTitleDoubleClickAction TitleDoubleClickAction { get; }
@@ -141,6 +145,7 @@ public sealed record ProductDesktopHostReadOnlyProjection
         bool isLocked = false,
         IEnumerable<string>? itemIds = null,
         int? totalItemCount = null,
+        IEnumerable<ProductDesktopItemVisualPresentation>? itemVisuals = null,
         ProductContainerTitleVisibilityPolicy titleVisibility =
             ProductContainerTitleVisibilityPolicy.Always,
         ProductContainerTitleDoubleClickAction titleDoubleClickAction =
@@ -158,11 +163,19 @@ public sealed record ProductDesktopHostReadOnlyProjection
             .Take(MaximumVisibleItems)
             .ToArray();
         int boundedTotalItemCount = totalItemCount ?? visibleItems.Length;
+        ProductDesktopItemVisualPresentation[] visibleItemVisuals =
+            (itemVisuals ?? visibleItems.Select(_ =>
+                ProductDesktopItemVisualPresentation.Create(
+                    ConfigurationItemKind.File,
+                    ProductItemReferenceResolution.Resolved)))
+            .Take(MaximumVisibleItems)
+            .ToArray();
         if (visibleItems.Any(string.IsNullOrWhiteSpace)
             || containerId.Length > ProductConfigurationLimits.MaximumIdLength
             || title.Length > ProductConfigurationLimits.MaximumNameLength
             || visibleItems.Any(item => item.Length > MaximumVisibleNameLength)
             || visibleItemIds.Length != visibleItems.Length
+            || visibleItemVisuals.Length != visibleItems.Length
             || visibleItemIds.Any(string.IsNullOrWhiteSpace)
             || visibleItemIds.Any(id => id.Length
                 > ProductConfigurationLimits.MaximumIdLength)
@@ -203,6 +216,7 @@ public sealed record ProductDesktopHostReadOnlyProjection
             isLocked,
             Array.AsReadOnly(visibleItemIds),
             boundedTotalItemCount,
+            Array.AsReadOnly(visibleItemVisuals),
             titleVisibility,
             titleDoubleClickAction);
     }
@@ -2082,7 +2096,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             StringComparer.Ordinal)
         && left.ItemNames.SequenceEqual(
             right.ItemNames,
-            StringComparer.Ordinal);
+            StringComparer.Ordinal)
+        && left.ItemVisuals.SequenceEqual(right.ItemVisuals);
 
     private static bool BatchesEqual(
         ProductDesktopHostProjectionBatch left,

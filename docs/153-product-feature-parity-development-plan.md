@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
-- 当前开发项：**PF-005 正式项目图标、缩略图与有限状态（PF-001～PF-004 产品证据并行 Pending）**
-- 最新工程审计：[Stage 187](187-pf004e-title-policy-edit-undo-closeout-audit.md)；PF-004E 已完成标题显示/双击有限策略、真实桌面 HWND 交互、重命名/锁定/折叠/外观统一最近撤销和异步保存失败补偿，并纠正 PF-004D 删除生命周期漏放行。真实 HWND、Store、写租约均 `Difference=None`；PF-004 转为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`
+- 当前开发项：**PF-005B 隔离 worker 正式按需队列、缓存与缩略图开关（PF-001～PF-004 产品证据并行 Pending）**
+- 最新工程审计：[Stage 188](188-pf005a-system-type-icons-finite-state-audit.md)；PF-005A 已把真实 Windows Shell 类型/警告图标和有限引用状态接入正式 DesktopHost/UIA，500 项首屏有界为 12，100%～400% DPI 按 20 DIP 缩放。现有 worker 仍未被正式 UI 消费，PF-005 保持 `InProgress`；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -61,8 +61,8 @@
 | 1 | PF-001 | 桌面方格总开关与桌面优先启动 | `EngineeringComplete / ProductEvidencePending`：正式桌面优先与单实例唤起已通过，物理无障碍证据待补 | iTop Enable Boxes |
 | 2 | PF-002 | 桌面直接创建方格 | `EngineeringComplete / ProductEvidencePending`：正式 App 创建、保存、补偿与最近撤销工程证据通过；可见物理输入和 UIA/Narrator 待补 | iTop/Fences 多入口创建 |
 | 3 | PF-003 | 桌面拖动、缩放、吸附 | `EngineeringComplete / ProductEvidencePending`：生产工程链、正式 Store 与双屏混合 DPI 已完成；物理鼠标/触控/截图与 UIA Bounds 待安全环境补证 | Fences/Nimi 直接布局 |
-| 4 | PF-004 | 方格标题栏与就近操作 | `InProgress`：A 标题、B 直接命令、C 更多菜单、D 删除确认/补偿/统一撤销已完成；E 标题策略与其余就近编辑撤销待收口 | Fences 标题栏操作 |
-| 5 | PF-005 | 正式项目图标、缩略图与状态 | worker 有、UI 无 | Fences/Nimi 项目呈现 |
+| 4 | PF-004 | 方格标题栏与就近操作 | `EngineeringComplete / ProductEvidencePending`：A～E 正式工程链完成；物理菜单/双击、触控截图和 Narrator 待补 | Fences 标题栏操作 |
+| 5 | PF-005 | 正式项目图标、缩略图与状态 | `InProgress`：A 系统类型图标/有限状态完成；B 正式 worker/缓存/开关待实现 | Fences/Nimi 项目呈现 |
 | 6 | PF-006 | 项目选择、键盘导航与打开 | 选择底座 | Fences/Portal 日常访问 |
 | 7 | PF-007 | Explorer 拖入与方格间拖放 | 配置表单批量加入 | iTop/Fences 直接拖放 |
 | 8 | PF-008 | 方格内视图、排序、滚动与间距 | 方格级排序有限 | Nimi/Fences 视图控制 |
@@ -226,6 +226,8 @@
 - UIA 不暴露完整路径，只提供经批准的可见名称和类型；
 - 图片缩略图开关关闭时零 worker 请求；
 - 类型图标、缩略图与失败回退都有视觉回归样例。
+
+**2026-08-24 实施状态**：`InProgress`。Stage 188/PF-005A 已将 File/Folder/Shortcut/URL、Resolved/Missing/TypeChanged/Ambiguous/UnsupportedTarget 映射到正式 DesktopHost 有限视觉，使用真实 Windows Shell stock icon，UIA 只读取可见名称/类型/状态；真实 HWND、500→12 首屏投影和 100%～400% DPI 均为 `Difference=None`。审计确认隔离 worker 仍只在受控资源遥测会话启动且正式 UI 零消费，因此 PF-005 不得提前升级；下一切片为 PF-005B 正式按需队列、缓存失效、图片开关、真实缩略图和失败回退。
 
 ### PF-006：项目选择、键盘导航与打开
 
@@ -883,6 +885,6 @@
 
 ## 15. 当前立即执行项
 
-当前工程切片为 **PF-005：正式项目图标、缩略图与有限状态**。PF-004A～E 已完成正式工程链，PF-001～PF-004 均为 `EngineeringComplete / ProductEvidencePending`；当前 WinUI 上游缺陷仍阻断部分可见物理输入和 UIA/Narrator，因此都不能标记 `Complete`。
+当前工程切片为 **PF-005B：隔离 worker 正式按需队列、缓存与缩略图开关**。PF-005A 已完成真实系统类型图标、有限引用状态、隐私安全 UIA 和有界首屏投影；PF-001～PF-004 均为 `EngineeringComplete / ProductEvidencePending`。
 
-Stage 187 已关闭标题显示/双击策略、其余就近编辑统一撤销与失败补偿差距，并修复 PF-004D 删除生命周期漏放行。PF-005 应复用现有隔离 ThumbnailWorker 和安全身份，先交付系统图标、受限缩略图、加载/失败/离线/无权限有限状态与回退；必须用真实文件和真实 worker 记录 Expected/Actual/Difference，不得用 mock 命中率冒充产品效果。PF-001～PF-004 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。
+Stage 188 已关闭“正式项目仍只画圆点/文本”的第一处差距，并明确纠正“worker 存在即产品可用”的错误判断。PF-005B 必须让 worker 脱离资源遥测会话、按首屏可见项有界请求；缓存键包含安全身份/修改信息/尺寸/主题，图片开关关闭时零请求，失败/超时/退出回退类型图标且无孤儿进程/Profile。所有结论必须来自真实图片、真实 worker 和真实文件变化的 Expected/Actual/Difference。PF-001～PF-004 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。

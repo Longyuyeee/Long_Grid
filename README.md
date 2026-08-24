@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 187](docs/187-pf004e-title-policy-edit-undo-closeout-audit.md) 已完成 PF-004E：标题始终/悬停/隐藏与双击折叠/无动作进入正式配置和真实桌面 HWND，重命名、锁定、折叠、外观/标题策略进入同一最近撤销和保存失败补偿；真实 HWND、真实 Store 与写租约测试均为 `Difference=None`。PF-004 转为 `EngineeringComplete / ProductEvidencePending`，下一切片为 PF-005 正式图标/缩略图；PF-001～PF-003 同样等待产品证据，30 个 PF 项仍为 `0 Complete`，所有产物不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 188](docs/188-pf005a-system-type-icons-finite-state-audit.md) 已完成 PF-005A：正式 DesktopHost 使用真实 Windows Shell 类型/警告图标，引用解析状态进入有限视觉与隐私安全 UIA，500 项首屏仍有界为 12 项，100%～400% DPI 按 20 DIP 缩放。PF-005 顶层仍为 `InProgress`，下一切片为 PF-005B 正式隔离 worker/缓存/缩略图开关；PF-001～PF-004 为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`，所有产物不可公开分发。
 
 ## 产品原则
 
@@ -48,6 +48,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-004C 桌面方格“更多”菜单与安全导航审计（Stage 185）](docs/185-pf004c-desktop-container-more-menu-audit.md)
 - [PF-004D 桌面删除确认、失败补偿与统一撤销审计（Stage 186）](docs/186-pf004d-desktop-delete-confirmation-undo-audit.md)
 - [PF-004E 标题策略、编辑撤销与 PF-004 工程收口审计（Stage 187）](docs/187-pf004e-title-policy-edit-undo-closeout-audit.md)
+- [PF-005A 系统类型图标与有限项目状态审计（Stage 188）](docs/188-pf005a-system-type-icons-finite-state-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)
@@ -205,7 +206,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)推进。PF-004A～E 正式工程链已完成，PF-004 与 PF-001～PF-003 均为 `EngineeringComplete / ProductEvidencePending`；当前固定进入 PF-005 正式项目图标、缩略图与有限状态，之后继续 PF-006～PF-010 日常桌面闭环。物理输入、截图和 UIA/Narrator 在上游安全运行时或独立机器并行补证；不得继续强制触发已知崩溃。任务栏美化、小组件/插件运行时和广泛窗口特效继续属于核心 MVP 后续。
+按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)推进。PF-005A 已完成真实系统类型图标和有限引用状态，当前固定执行 PF-005B 隔离 worker 正式按需队列、缓存、图片缩略图开关与失败回退，再总审 PF-005；PF-001～PF-004 的物理输入、截图和 UIA/Narrator 在上游安全运行时或独立机器并行补证。任务栏美化、小组件/插件运行时和广泛窗口特效继续属于核心 MVP 后续。
 
 ## 开发启动
 

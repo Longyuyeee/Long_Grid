@@ -60,6 +60,15 @@ public sealed class ProductDesktopHostProjectionBuilderTests
         Assert.Equal(
             ["item:1", "item:2"],
             batch.Displays[0].Containers[0].ItemIds);
+        Assert.All(
+            batch.Displays[0].Containers[0].ItemVisuals,
+            visual =>
+            {
+                Assert.Equal(ProductDesktopItemTypeIconKind.File, visual.TypeIcon);
+                Assert.Equal(
+                    ProductDesktopItemVisualStatus.ReadyTypeIcon,
+                    visual.Status);
+            });
         Assert.DoesNotContain(
             batch.Displays[0].Containers[0].ItemIds,
             id => id.Contains("persisted", StringComparison.Ordinal));

@@ -89,6 +89,8 @@ $desktopHostWindowBridgeCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostWindowBridge.cs'
 $desktopHostFeaturePolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopHostFeaturePolicy.cs'
+$desktopItemVisualPresentationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopItemVisualPresentation.cs'
 $desktopInteractionAdmissionCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionAdmission.cs'
 $desktopInteractionCancellationCodePath = Join-Path $projectRoot `
@@ -479,6 +481,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopHostProjectionBuilderCode = Get-Content `
         -LiteralPath $desktopHostProjectionBuilderCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopItemVisualPresentationCode = Get-Content `
+        -LiteralPath $desktopItemVisualPresentationCodePath `
         -Raw `
         -Encoding UTF8
     $windowsDesktopHostWindowInspectorCode = Get-Content `
@@ -2009,6 +2015,21 @@ function Test-SourceContract {
     ) `
         'PF-004A must render one bounded title/status contract and expose the same state to UIA.'
     Assert-Condition (
+        $desktopHostProjectionBuilderCode -match `
+            'ProductDesktopItemVisualPresentation\.Create' -and
+        $desktopItemVisualPresentationCode -match `
+            'ReadyTypeIcon[\s\S]*LoadingThumbnail[\s\S]*ReadyThumbnail' -and
+        $desktopItemVisualPresentationCode -match `
+            'Offline[\s\S]*TargetChanged[\s\S]*Ambiguous[\s\S]*Unsupported[\s\S]*AccessDenied[\s\S]*FailedFallback' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'SHGetStockIconInfo' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'DrawIconEx' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'DestroyIcon' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'StockIconWarning' -and
+        $windowsDesktopHostUiaProviderCode -match `
+            'ItemVisuals\[itemIndex\]\.AccessibilityName\(name\)'
+    ) `
+        'PF-005A must project finite item visual states, draw released Windows Shell stock icons, and expose only privacy-safe UIA names.'
+    Assert-Condition (
         $desktopContainerHeaderCommandCode -match 'ToggleCollapsed' -and
         $desktopContainerHeaderCommandCode -match 'ToggleLocked' -and
         $desktopContainerHeaderCommandCode -match 'ExpectedWorkspaceRevision' -and
@@ -3216,6 +3237,7 @@ function Test-SourceContract {
         configurationRepair = 'confirmed-recovery-bounded-import-export-anonymous-interaction-evidence-and-single-removal'
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
+        productDesktopItemVisuals = 'windows-shell-stock-icons-finite-resolution-status-privacy-safe-uia-500-first-surface-bounded-20dip-100-to-400-percent'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'

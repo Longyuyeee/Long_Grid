@@ -298,8 +298,8 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
                 AutomationElement.ControlTypeProperty,
                 ControlType.Text));
         Assert.Equal(2, items.Count);
-        Assert.Equal("需求文档.docx", items[0].Current.Name);
-        Assert.Equal("设计参考.fig", items[1].Current.Name);
+        Assert.Equal("需求文档.docx；文件；类型图标已就绪", items[0].Current.Name);
+        Assert.Equal("设计参考.fig；文件；类型图标已就绪", items[1].Current.Name);
         Assert.All(items.Cast<AutomationElement>(), item =>
         {
             Assert.False(item.Current.IsKeyboardFocusable);
@@ -807,7 +807,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests
         Assert.Null(item.Navigate(NavigateDirection.NextSibling));
         Assert.Equal(3, item.GetRuntimeId().Length);
         Assert.Null(item.GetEmbeddedFragmentRoots());
-        Assert.Equal("Plan.docx", item.GetPropertyValue(
+        Assert.Equal("Plan.docx；文件；类型图标已就绪", item.GetPropertyValue(
             AutomationElementIdentifiers.NameProperty.Id));
         Assert.NotNull(item.GetPropertyValue(
             AutomationElementIdentifiers.AutomationIdProperty.Id));
