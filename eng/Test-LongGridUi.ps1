@@ -91,6 +91,8 @@ $desktopHostFeaturePolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopHostFeaturePolicy.cs'
 $desktopItemVisualPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopItemVisualPresentation.cs'
+$desktopThumbnailRequestControllerCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopThumbnailRequestController.cs'
 $desktopInteractionAdmissionCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionAdmission.cs'
 $desktopInteractionCancellationCodePath = Join-Path $projectRoot `
@@ -485,6 +487,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopItemVisualPresentationCode = Get-Content `
         -LiteralPath $desktopItemVisualPresentationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopThumbnailRequestControllerCode = Get-Content `
+        -LiteralPath $desktopThumbnailRequestControllerCodePath `
         -Raw `
         -Encoding UTF8
     $windowsDesktopHostWindowInspectorCode = Get-Content `
@@ -2030,6 +2036,33 @@ function Test-SourceContract {
     ) `
         'PF-005A must project finite item visual states, draw released Windows Shell stock icons, and expose only privacy-safe UIA names.'
     Assert-Condition (
+        $desktopThumbnailRequestControllerCode -match `
+            'MaximumVisibleRequests\s*=\s*12' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'MaximumCacheEntries\s*=\s*64' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'TimeSpan\.FromMilliseconds\(250\)' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'if \(!enabled\)[\s\S]{0,300}StopRuntime\(\)' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'file\.LastWriteTimeUtc\.Ticks' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'SHA256\.HashData' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'string SafeIdentity' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'file\.Attributes & FileAttributes\.ReparsePoint' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'ReadyThumbnail' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'FailedFallback' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'IsZeroCapabilityAppContainer' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'UsesKillOnJobClose'
+    ) `
+        'PF-005B1 must keep thumbnail work lazy, 12-request bounded, version/theme cached, 250 ms limited, isolation-attested, and finite-fallback safe.'
+    Assert-Condition (
         $desktopContainerHeaderCommandCode -match 'ToggleCollapsed' -and
         $desktopContainerHeaderCommandCode -match 'ToggleLocked' -and
         $desktopContainerHeaderCommandCode -match 'ExpectedWorkspaceRevision' -and
@@ -3238,6 +3271,7 @@ function Test-SourceContract {
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productDesktopItemVisuals = 'windows-shell-stock-icons-finite-resolution-status-privacy-safe-uia-500-first-surface-bounded-20dip-100-to-400-percent'
+        productDesktopThumbnailRequests = 'lazy-zero-disabled-12-visible-64-cache-version-size-theme-250ms-appcontainer-job-finite-fallback'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'

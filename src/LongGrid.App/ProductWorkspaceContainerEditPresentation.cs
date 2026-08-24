@@ -81,7 +81,8 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
             .ToArray();
 
     public static IReadOnlyList<ProductWorkspaceContainerTitleVisibilityChoicePresentation>
-        TitleVisibilityChoices { get; } =
+        TitleVisibilityChoices
+    { get; } =
     [
         new(ProductContainerTitleVisibilityPolicy.Always, "始终显示"),
         new(ProductContainerTitleVisibilityPolicy.Hover, "悬停显示"),
@@ -89,7 +90,8 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
     ];
 
     public static IReadOnlyList<ProductWorkspaceContainerTitleDoubleClickChoicePresentation>
-        TitleDoubleClickChoices { get; } =
+        TitleDoubleClickChoices
+    { get; } =
     [
         new(ProductContainerTitleDoubleClickAction.ToggleCollapsed, "双击折叠 / 展开"),
         new(ProductContainerTitleDoubleClickAction.None, "双击不执行操作"),

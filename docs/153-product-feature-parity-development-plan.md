@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
-- 当前开发项：**PF-005B 隔离 worker 正式按需队列、缓存与缩略图开关（PF-001～PF-004 产品证据并行 Pending）**
-- 最新工程审计：[Stage 188](188-pf005a-system-type-icons-finite-state-audit.md)；PF-005A 已把真实 Windows Shell 类型/警告图标和有限引用状态接入正式 DesktopHost/UIA，500 项首屏有界为 12，100%～400% DPI 按 20 DIP 缩放。现有 worker 仍未被正式 UI 消费，PF-005 保持 `InProgress`；30 个 PF 项仍为 `0 Complete`
+- 当前开发项：**PF-005B2 缩略图像素正式绘制、持久化开关与过期请求处理（PF-001～PF-004 产品证据并行 Pending）**
+- 最新工程审计：[Stage 189](189-pf005b1-thumbnail-request-queue-cache-audit.md)；PF-005B1 已建立真实受限 worker 产品提取门面、关闭零启动的 12 项按需队列和 64 项文件版本/尺寸/主题缓存，超时/退出有限回退并删除 Profile。像素仍未进入 DesktopHost，PF-005 保持 `InProgress`；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -62,7 +62,7 @@
 | 2 | PF-002 | 桌面直接创建方格 | `EngineeringComplete / ProductEvidencePending`：正式 App 创建、保存、补偿与最近撤销工程证据通过；可见物理输入和 UIA/Narrator 待补 | iTop/Fences 多入口创建 |
 | 3 | PF-003 | 桌面拖动、缩放、吸附 | `EngineeringComplete / ProductEvidencePending`：生产工程链、正式 Store 与双屏混合 DPI 已完成；物理鼠标/触控/截图与 UIA Bounds 待安全环境补证 | Fences/Nimi 直接布局 |
 | 4 | PF-004 | 方格标题栏与就近操作 | `EngineeringComplete / ProductEvidencePending`：A～E 正式工程链完成；物理菜单/双击、触控截图和 Narrator 待补 | Fences 标题栏操作 |
-| 5 | PF-005 | 正式项目图标、缩略图与状态 | `InProgress`：A 系统类型图标/有限状态完成；B 正式 worker/缓存/开关待实现 | Fences/Nimi 项目呈现 |
+| 5 | PF-005 | 正式项目图标、缩略图与状态 | `InProgress`：A 系统类型图标完成；B1 worker 队列/缓存完成；B2 绘制/开关待实现 | Fences/Nimi 项目呈现 |
 | 6 | PF-006 | 项目选择、键盘导航与打开 | 选择底座 | Fences/Portal 日常访问 |
 | 7 | PF-007 | Explorer 拖入与方格间拖放 | 配置表单批量加入 | iTop/Fences 直接拖放 |
 | 8 | PF-008 | 方格内视图、排序、滚动与间距 | 方格级排序有限 | Nimi/Fences 视图控制 |
@@ -227,7 +227,7 @@
 - 图片缩略图开关关闭时零 worker 请求；
 - 类型图标、缩略图与失败回退都有视觉回归样例。
 
-**2026-08-24 实施状态**：`InProgress`。Stage 188/PF-005A 已将 File/Folder/Shortcut/URL、Resolved/Missing/TypeChanged/Ambiguous/UnsupportedTarget 映射到正式 DesktopHost 有限视觉，使用真实 Windows Shell stock icon，UIA 只读取可见名称/类型/状态；真实 HWND、500→12 首屏投影和 100%～400% DPI 均为 `Difference=None`。审计确认隔离 worker 仍只在受控资源遥测会话启动且正式 UI 零消费，因此 PF-005 不得提前升级；下一切片为 PF-005B 正式按需队列、缓存失效、图片开关、真实缩略图和失败回退。
+**2026-08-24 实施状态**：`InProgress`。Stage 188/PF-005A 已将 File/Folder/Shortcut/URL 和五类引用状态接入正式 DesktopHost 系统图标/UIA。Stage 189/PF-005B1 又把 worker 内部协议提升为串行产品提取门面，并建立关闭零启动、首屏最多 12 请求、最多 64 缓存、按文件长度/修改时间/尺寸/主题失效的控制器；真实 BMP、真实 AppContainer worker、Hang、Exit 和 Profile 清理均有 Expected/Actual。当前机器的真实 BMP 在 250 ms 内未完成，实际安全回退而非像素成功，这符合产品有限回退但不能作为缩略图视觉完成证据。PF-005 不得提前升级；下一切片 PF-005B2 必须把成功像素/回退状态接入 DesktopHost，增加持久化开关、过期请求取消和视觉回归。
 
 ### PF-006：项目选择、键盘导航与打开
 
@@ -885,6 +885,6 @@
 
 ## 15. 当前立即执行项
 
-当前工程切片为 **PF-005B：隔离 worker 正式按需队列、缓存与缩略图开关**。PF-005A 已完成真实系统类型图标、有限引用状态、隐私安全 UIA 和有界首屏投影；PF-001～PF-004 均为 `EngineeringComplete / ProductEvidencePending`。
+当前工程切片为 **PF-005B2：缩略图像素正式绘制、持久化开关与过期请求处理**。PF-005A 已完成真实系统类型图标，PF-005B1 已完成受限提取门面、懒启动首屏队列、版本缓存与有限回退；PF-001～PF-004 均为 `EngineeringComplete / ProductEvidencePending`。
 
-Stage 188 已关闭“正式项目仍只画圆点/文本”的第一处差距，并明确纠正“worker 存在即产品可用”的错误判断。PF-005B 必须让 worker 脱离资源遥测会话、按首屏可见项有界请求；缓存键包含安全身份/修改信息/尺寸/主题，图片开关关闭时零请求，失败/超时/退出回退类型图标且无孤儿进程/Profile。所有结论必须来自真实图片、真实 worker 和真实文件变化的 Expected/Actual/Difference。PF-001～PF-004 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。
+Stage 189 已让 worker 具备产品可调用的有界请求与缓存合同，但像素尚未被正式 HWND 消费。PF-005B2 必须从当前权威 workspace 只提取首屏已解析图片候选，把 Loading/Ready/FailedFallback 反馈到投影并绘制 BGRA 帧；设置页持久化开关关闭后必须取消/忽略过期结果并停止 worker，滚动/配置 revision/文件版本变化不能覆盖新状态。所有结论继续使用真实图片、真实 worker、真实文件变化和真实 HWND 的 Expected/Actual/Difference。PF-001～PF-004 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。

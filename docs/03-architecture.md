@@ -67,6 +67,8 @@ flowchart LR
 
 Shell COM 对象、PIDL、HWND 和原生句柄不得泄漏进 Core。
 
+PF-005B1 后，缩略图慢路径必须经过 `ProductDesktopThumbnailRequestController`：首个合法可见图片 cache miss 才启动经零 Capability AppContainer 与 Kill-on-Job-close 复核的 worker；每轮最多 12 请求，缓存最多 64 项并按 SHA-256 安全身份、文件长度/修改时间/尺寸/主题失效。关闭时停止 worker 且零新请求，超时、退出或协议失败只返回匿名 item key 的有限回退，不允许主进程改走 Shell 提取，也不允许路径进入缓存、DesktopHost 投影或 UIA。BGRA 帧进入 HWND 和过期结果处理属于 PF-005B2。
+
 P0-01a/P0-01b 已验证物理目录与 Desktop Namespace 的只读发现和对账：当前机器上 96 个物理项目全部在 Shell 枚举中匹配，Shell 另有 9 个文件系统命名空间项目和 11 个纯虚拟项目。因此生产发现链必须以 Shell 为完整视图、以 Known Folder 扫描作为对账与降级来源；虚拟项目不得误判为可移动文件。
 
 P0-01c 已验证当前 96 个物理桌面项目均可读取 Volume/File ID；临时沙箱内文件和目录重命名保持身份，复制产生新身份。72 个现存快捷方式目标与 `.lnk` 文件自身均为不同身份。生产模型应保存 Long Grid 领域 UUID、可变定位信息和可选文件系统稳定身份；快捷方式另存链接文件身份与可选目标身份。File ID 仅在同一计算机/卷语境内有效，不支持或返回全零时降级为规范化路径并保留不确定状态。
