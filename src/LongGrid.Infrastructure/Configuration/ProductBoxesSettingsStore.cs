@@ -246,5 +246,41 @@ public sealed class ProductBoxesSettingsController(
         }
     }
 
+    public async Task<ProductBoxesSettingsChangeResult> ChangeThumbnailsAsync(
+        bool thumbnailsEnabled,
+        CancellationToken cancellationToken = default)
+    {
+        await changeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (current.ThumbnailsEnabled == thumbnailsEnabled)
+            {
+                return new(ProductBoxesSettingsChangeStatus.Unchanged, current);
+            }
+            ProductBoxesSettings candidate = current with
+            {
+                ThumbnailsEnabled = thumbnailsEnabled,
+            };
+            try
+            {
+                await store.SaveAsync(candidate, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception exception) when (
+                exception is IOException
+                    or UnauthorizedAccessException
+                    or InvalidDataException)
+            {
+                return new(ProductBoxesSettingsChangeStatus.Failed, current);
+            }
+            current = candidate;
+            return new(ProductBoxesSettingsChangeStatus.Saved, current);
+        }
+        finally
+        {
+            changeGate.Release();
+        }
+    }
+
     public void Dispose() => changeGate.Dispose();
 }

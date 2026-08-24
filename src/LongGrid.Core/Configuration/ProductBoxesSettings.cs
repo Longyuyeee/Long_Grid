@@ -12,10 +12,13 @@ public sealed record ProductBoxesSettings
     [JsonPropertyName("boxesEnabled")]
     public bool BoxesEnabled { get; init; } = true;
 
+    [JsonPropertyName("thumbnailsEnabled")]
+    public bool ThumbnailsEnabled { get; init; } = true;
+
     public static ProductBoxesSettings Default { get; } = new();
 
     public static ProductBoxesSettings SafeDisabled { get; } =
-        new() { BoxesEnabled = false };
+        new() { BoxesEnabled = false, ThumbnailsEnabled = false };
 
     public bool IsValid => SchemaVersion == CurrentSchemaVersion;
 }

@@ -1,12 +1,16 @@
 using System.Security.Cryptography;
 using System.Text;
+using LongGrid.Core.Configuration;
+using LongGrid.Core.DesktopHost;
+using LongGrid.Core.DesktopItems;
 using LongGrid.ThumbnailWorker;
 
 namespace LongGrid.Infrastructure.DesktopHost;
 
-internal enum ProductDesktopThumbnailStatus
+public enum ProductDesktopThumbnailStatus
 {
     Disabled,
+    LoadingThumbnail,
     ReadyThumbnail,
     FailedFallback,
     Unsupported,
@@ -16,25 +20,88 @@ internal sealed record ProductDesktopThumbnailCandidate(
     string AnonymousItemKey,
     string TargetPath);
 
-internal sealed record ProductDesktopThumbnailFrame(
-    int Width,
-    int Height,
-    int Stride,
-    byte[] Bgra32Pixels);
-
-internal sealed record ProductDesktopThumbnailResult(
+public sealed record ProductDesktopThumbnailResult(
     string AnonymousItemKey,
     ProductDesktopThumbnailStatus Status,
     bool CacheHit,
     ProductDesktopThumbnailFrame? Frame);
 
-internal sealed record ProductDesktopThumbnailRefreshResult(
+public sealed record ProductDesktopThumbnailRefreshResult(
     bool Enabled,
     int CandidateCount,
     int WorkerRequestCount,
     int CacheHitCount,
     bool WorkerStarted,
     IReadOnlyList<ProductDesktopThumbnailResult> Results);
+
+public static class ProductDesktopThumbnailItemKey
+{
+    public static string Create(string containerId, int ordinal)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(containerId);
+        ArgumentOutOfRangeException.ThrowIfLessThan(ordinal, 1);
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(
+            $"{containerId}\n{ordinal}"));
+        return $"thumbnail:{Convert.ToHexString(hash)}";
+    }
+}
+
+internal static class ProductDesktopThumbnailCandidateBuilder
+{
+    internal static IReadOnlyList<ProductDesktopThumbnailCandidate> Build(
+        ProductWorkspaceState? state)
+    {
+        if (state is null)
+        {
+            return Array.Empty<ProductDesktopThumbnailCandidate>();
+        }
+        var candidates = new List<ProductDesktopThumbnailCandidate>();
+        foreach (ProductContainerState container in state.Containers)
+        {
+            for (int index = 0;
+                index < container.Items.Count
+                    && index < ProductDesktopHostReadOnlyProjection.MaximumVisibleItems;
+                index++)
+            {
+                ProductItemReferenceState item = container.Items[index];
+                DesktopCatalogEntry? entry = item.CatalogEntry;
+                if (item.Resolution != ProductItemReferenceResolution.Resolved
+                    || entry?.Kind != DesktopItemKind.File
+                    || !ProductDesktopThumbnailRequestController
+                        .IsSupportedImagePath(entry.Identity.CanonicalTarget))
+                {
+                    continue;
+                }
+                candidates.Add(new(
+                    ProductDesktopThumbnailItemKey.Create(container.Id, index + 1),
+                    entry.Identity.CanonicalTarget));
+                if (candidates.Count >=
+                    ProductDesktopThumbnailRequestController.MaximumVisibleRequests)
+                {
+                    return candidates.AsReadOnly();
+                }
+            }
+        }
+        return candidates.AsReadOnly();
+    }
+}
+
+public static class ProductDesktopThumbnailRefreshAdmission
+{
+    public static bool CanPublish(
+        long requestedGeneration,
+        long currentGeneration,
+        long requestedWorkspaceRevision,
+        long currentWorkspaceRevision,
+        long requestedTopologyGeneration,
+        long currentTopologyGeneration,
+        bool requestedEnabled,
+        bool currentEnabled) =>
+        requestedGeneration == currentGeneration
+        && requestedWorkspaceRevision == currentWorkspaceRevision
+        && requestedTopologyGeneration == currentTopologyGeneration
+        && requestedEnabled == currentEnabled;
+}
 
 internal interface IProductRestrictedThumbnailRuntime : IDisposable
 {
@@ -180,7 +247,8 @@ internal sealed class ProductDesktopThumbnailRequestController : IDisposable
                             cancellationToken).ConfigureAwait(false);
                     if (extracted.Success && extracted.Frame is { } frame)
                     {
-                        var productFrame = new ProductDesktopThumbnailFrame(
+                        ProductDesktopThumbnailFrame productFrame =
+                            ProductDesktopThumbnailFrame.Create(
                             frame.Width,
                             frame.Height,
                             frame.Stride,
@@ -253,6 +321,10 @@ internal sealed class ProductDesktopThumbnailRequestController : IDisposable
         ProductDesktopThumbnailStatus.FailedFallback,
         CacheHit: false,
         Frame: null);
+
+    internal static bool IsSupportedImagePath(string? path) =>
+        !string.IsNullOrWhiteSpace(path)
+        && ImageExtensions.Contains(Path.GetExtension(path));
 
     private static bool TryCreateCacheKey(
         ProductDesktopThumbnailCandidate candidate,

@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
-- 当前开发项：**PF-005B2 缩略图像素正式绘制、持久化开关与过期请求处理（PF-001～PF-004 产品证据并行 Pending）**
-- 最新工程审计：[Stage 189](189-pf005b1-thumbnail-request-queue-cache-audit.md)；PF-005B1 已建立真实受限 worker 产品提取门面、关闭零启动的 12 项按需队列和 64 项文件版本/尺寸/主题缓存，超时/退出有限回退并删除 Profile。像素仍未进入 DesktopHost，PF-005 保持 `InProgress`；30 个 PF 项仍为 `0 Complete`
+- 当前开发项：**PF-005C 真实视觉回归、视口调度与 PF-005 总审（PF-001～PF-004 产品证据并行 Pending）**
+- 最新工程审计：[Stage 190](190-pf005b2-thumbnail-presentation-stale-result-audit.md)；PF-005B2 已接入持久化开关、权威首屏候选、Loading/Ready/FailedFallback、过期结果拒绝与真实 HWND BGRA 绘制。当前机器 worker 仍有限回退，成功图片端到端截图和 13～500 项视口调度未完成，PF-005 保持 `InProgress`；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -227,7 +227,7 @@
 - 图片缩略图开关关闭时零 worker 请求；
 - 类型图标、缩略图与失败回退都有视觉回归样例。
 
-**2026-08-24 实施状态**：`InProgress`。Stage 188/PF-005A 已将 File/Folder/Shortcut/URL 和五类引用状态接入正式 DesktopHost 系统图标/UIA。Stage 189/PF-005B1 又把 worker 内部协议提升为串行产品提取门面，并建立关闭零启动、首屏最多 12 请求、最多 64 缓存、按文件长度/修改时间/尺寸/主题失效的控制器；真实 BMP、真实 AppContainer worker、Hang、Exit 和 Profile 清理均有 Expected/Actual。当前机器的真实 BMP 在 250 ms 内未完成，实际安全回退而非像素成功，这符合产品有限回退但不能作为缩略图视觉完成证据。PF-005 不得提前升级；下一切片 PF-005B2 必须把成功像素/回退状态接入 DesktopHost，增加持久化开关、过期请求取消和视觉回归。
+**2026-08-24 实施状态**：`InProgress`。Stage 188/PF-005A 已将 File/Folder/Shortcut/URL 和五类引用状态接入正式 DesktopHost 系统图标/UIA；Stage 189/PF-005B1 建立真实受限 worker 产品提取门面、关闭零启动、12 项队列与 64 项版本缓存；Stage 190/PF-005B2 已把持久化开关、权威首屏图片候选、Loading/Ready/FailedFallback、过期结果拒绝和 BGRA32 绘制接入正式 App。真实 Store 重启、真实文件变化、真实 worker 有限回退和确定性帧真实 HWND 绘制均有 Expected/Actual/Difference。当前机器的真实 BMP 仍未在 250 ms 内成功提取，且 13～500 项视口变化尚无滚入请求/滚出取消，不能作为完成证据。PF-005 不得提前升级；下一切片 PF-005C 必须完成成功真实图片端到端视觉回归、视口调度和 PF-005 总审。
 
 ### PF-006：项目选择、键盘导航与打开
 
@@ -885,6 +885,6 @@
 
 ## 15. 当前立即执行项
 
-当前工程切片为 **PF-005B2：缩略图像素正式绘制、持久化开关与过期请求处理**。PF-005A 已完成真实系统类型图标，PF-005B1 已完成受限提取门面、懒启动首屏队列、版本缓存与有限回退；PF-001～PF-004 均为 `EngineeringComplete / ProductEvidencePending`。
+当前工程切片为 **PF-005C：真实视觉回归、视口调度与 PF-005 总审**。PF-005A 已完成真实系统类型图标，PF-005B1 已完成受限提取门面、懒启动队列、版本缓存与有限回退，PF-005B2 已完成正式 App 像素呈现、持久化开关和过期结果拒绝；PF-001～PF-004 均为 `EngineeringComplete / ProductEvidencePending`。
 
-Stage 189 已让 worker 具备产品可调用的有界请求与缓存合同，但像素尚未被正式 HWND 消费。PF-005B2 必须从当前权威 workspace 只提取首屏已解析图片候选，把 Loading/Ready/FailedFallback 反馈到投影并绘制 BGRA 帧；设置页持久化开关关闭后必须取消/忽略过期结果并停止 worker，滚动/配置 revision/文件版本变化不能覆盖新状态。所有结论继续使用真实图片、真实 worker、真实文件变化和真实 HWND 的 Expected/Actual/Difference。PF-001～PF-004 与 G0 外部证据并行保留，任何版本在物理/无障碍、签名和安装门禁完成前不得分发。
+Stage 190 已让匿名 BGRA 帧进入真实 DesktopHost HWND，并用 generation、workspace revision、topology generation、开关和状态实例统一拒绝过期结果；但当前机器真实 worker 只得到有限回退，且正式 Surface 只投影首 12 项，没有 13～500 项滚入/滚出视口调度。PF-005C 必须在可成功提取环境使用真实 PNG/JPEG/BMP 建立 worker→投影→HWND→截图证据，覆盖浅/深主题、100%～400% DPI、Loading/Ready/FailedFallback；同时为视口变化建立最多 12 个活动请求、滚出取消、滚入请求和文件版本变化拒旧结果。完成后总审 PF-005，仍有物理/无障碍或视觉证据缺口则只能记 `EngineeringComplete / ProductEvidencePending`。PF-001～PF-004 与 G0 外部证据并行保留，任何版本在签名和安装门禁完成前不得分发。

@@ -23,9 +23,50 @@ public enum ProductDesktopItemVisualStatus
     FailedFallback,
 }
 
+public sealed record ProductDesktopThumbnailFrame
+{
+    private ProductDesktopThumbnailFrame(
+        int width,
+        int height,
+        int stride,
+        byte[] bgra32Pixels)
+    {
+        Width = width;
+        Height = height;
+        Stride = stride;
+        Bgra32Pixels = bgra32Pixels;
+    }
+
+    public int Width { get; }
+
+    public int Height { get; }
+
+    public int Stride { get; }
+
+    public byte[] Bgra32Pixels { get; }
+
+    public static ProductDesktopThumbnailFrame Create(
+        int width,
+        int height,
+        int stride,
+        ReadOnlySpan<byte> bgra32Pixels)
+    {
+        if (width is < 1 or > 256
+            || height is < 1 or > 256
+            || stride != checked(width * 4)
+            || bgra32Pixels.Length != checked(stride * height))
+        {
+            throw new ArgumentException(
+                "Thumbnail pixels must be bounded packed BGRA32.");
+        }
+        return new(width, height, stride, bgra32Pixels.ToArray());
+    }
+}
+
 public sealed record ProductDesktopItemVisualPresentation(
     ProductDesktopItemTypeIconKind TypeIcon,
-    ProductDesktopItemVisualStatus Status)
+    ProductDesktopItemVisualStatus Status,
+    ProductDesktopThumbnailFrame? Thumbnail = null)
 {
     public string TypeName => TypeIcon switch
     {
@@ -51,7 +92,7 @@ public sealed record ProductDesktopItemVisualPresentation(
     };
 
     public bool UsesFallbackTypeIcon => Status !=
-        ProductDesktopItemVisualStatus.ReadyThumbnail;
+        ProductDesktopItemVisualStatus.ReadyThumbnail || Thumbnail is null;
 
     public string AccessibilityName(string visibleName)
     {

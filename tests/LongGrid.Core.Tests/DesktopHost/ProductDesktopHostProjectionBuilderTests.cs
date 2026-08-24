@@ -132,6 +132,60 @@ public sealed class ProductDesktopHostProjectionBuilderTests
     }
 
     [Fact]
+    public void ThumbnailResultsProjectLoadingReadyAndFiniteFallbackStates()
+    {
+        ProductWorkspaceState state = CreateState();
+        ProductWorkspaceReadSnapshot read =
+            ProductWorkspaceReadModel.Create(state).Snapshot!;
+        var topology = new ProductDisplayTopologySnapshot(
+            ProductDisplayTopologyStatus.Ready,
+            9,
+            [Primary, Secondary],
+            2,
+            2,
+            1);
+        ProductDesktopThumbnailFrame frame = ProductDesktopThumbnailFrame.Create(
+            2,
+            2,
+            8,
+            new byte[16]);
+        var results = new Dictionary<string, ProductDesktopThumbnailResult>
+        {
+            [ProductDesktopThumbnailItemKey.Create("container-fallback", 1)] =
+                new("loading", ProductDesktopThumbnailStatus.LoadingThumbnail,
+                    false, null),
+            [ProductDesktopThumbnailItemKey.Create("container-fallback", 2)] =
+                new("ready", ProductDesktopThumbnailStatus.ReadyThumbnail,
+                    false, frame),
+        };
+
+        ProductDesktopHostProjectionBatch batch = Assert.IsType<
+            ProductDesktopHostProjectionBatch>(
+                ProductDesktopHostProjectionBuilder.Build(
+                    state, read, topology, 14, results));
+        ProductDesktopHostReadOnlyProjection container =
+            batch.Displays[0].Containers[0];
+
+        Assert.Equal(
+            ProductDesktopItemVisualStatus.LoadingThumbnail,
+            container.ItemVisuals[0].Status);
+        Assert.Equal(
+            ProductDesktopItemVisualStatus.ReadyThumbnail,
+            container.ItemVisuals[1].Status);
+        Assert.Same(frame, container.ItemVisuals[1].Thumbnail);
+
+        results[ProductDesktopThumbnailItemKey.Create("container-fallback", 1)] =
+            new("failed", ProductDesktopThumbnailStatus.Unsupported, false, null);
+        ProductDesktopHostProjectionBatch fallbackBatch = Assert.IsType<
+            ProductDesktopHostProjectionBatch>(
+                ProductDesktopHostProjectionBuilder.Build(
+                    state, read, topology, 14, results));
+        Assert.Equal(
+            ProductDesktopItemVisualStatus.FailedFallback,
+            fallbackBatch.Displays[0].Containers[0].ItemVisuals[0].Status);
+    }
+
+    [Fact]
     public void BuildFailsClosedWhenDisplayCountExceedsSurfaceBudget()
     {
         ProductWorkspaceState state = CreateState();

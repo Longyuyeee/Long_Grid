@@ -1,4 +1,6 @@
 using System.Text.Json;
+using LongGrid.Core.Configuration;
+using LongGrid.Core.DesktopItems;
 using LongGrid.Infrastructure.DesktopHost;
 using LongGrid.ThumbnailWorker;
 using Xunit.Abstractions;
@@ -223,6 +225,89 @@ public sealed class ProductDesktopThumbnailRequestControllerTests(
             },
             Difference = "None",
         }));
+    }
+
+    [Fact]
+    public void AuthoritativeWorkspaceCandidatesAreImageOnlyBoundedAndPathAnonymous()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "LongGrid.Pf005b2");
+        ProductItemReferenceState[] items = Enumerable.Range(1, 14)
+            .Select(index => ProductItemReferenceState.CreateResolved(
+                $"persisted-{index}",
+                new DesktopCatalogEntry(
+                    new DesktopItemIdentity(
+                        "filesystem",
+                        Path.Combine(root, $"private-{index}.png")),
+                    "user-desktop",
+                    $"图片 {index}",
+                    DesktopItemKind.File)))
+            .Append(ProductItemReferenceState.CreateResolved(
+                "persisted-text",
+                new DesktopCatalogEntry(
+                    new DesktopItemIdentity(
+                        "filesystem",
+                        Path.Combine(root, "private.txt")),
+                    "user-desktop",
+                    "文本",
+                    DesktopItemKind.File)))
+            .ToArray();
+        ProductWorkspaceState state = new()
+        {
+            ProfileId = "profile",
+            Containers =
+            [
+                new ProductContainerState
+                {
+                    Id = "container-a",
+                    Name = "图片",
+                    Appearance = new() { Color = "#2457D6" },
+                    Placement = new() { DisplayKey = "display-primary" },
+                    Items = items,
+                },
+            ],
+        };
+
+        IReadOnlyList<ProductDesktopThumbnailCandidate> actual =
+            ProductDesktopThumbnailCandidateBuilder.Build(state);
+
+        Assert.Equal(12, actual.Count);
+        Assert.All(actual, candidate =>
+        {
+            Assert.EndsWith(".png", candidate.TargetPath,
+                StringComparison.OrdinalIgnoreCase);
+            Assert.StartsWith("thumbnail:", candidate.AnonymousItemKey,
+                StringComparison.Ordinal);
+            Assert.DoesNotContain("private", candidate.AnonymousItemKey,
+                StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
+    [Theory]
+    [InlineData(2, 1, 7, 7, 9, 9, true, true)]
+    [InlineData(1, 1, 8, 7, 9, 9, true, true)]
+    [InlineData(1, 1, 7, 7, 10, 9, true, true)]
+    [InlineData(1, 1, 7, 7, 9, 9, true, false)]
+    public void StaleRefreshFactsCannotPublish(
+        long requestedGeneration,
+        long currentGeneration,
+        long requestedRevision,
+        long currentRevision,
+        long requestedTopology,
+        long currentTopology,
+        bool requestedEnabled,
+        bool currentEnabled)
+    {
+        Assert.False(ProductDesktopThumbnailRefreshAdmission.CanPublish(
+            requestedGeneration,
+            currentGeneration,
+            requestedRevision,
+            currentRevision,
+            requestedTopology,
+            currentTopology,
+            requestedEnabled,
+            currentEnabled));
+        Assert.True(ProductDesktopThumbnailRefreshAdmission.CanPublish(
+            1, 1, 7, 7, 9, 9, true, true));
     }
 
     private sealed class RecordingRuntime : IProductRestrictedThumbnailRuntime

@@ -23,6 +23,8 @@ public partial class App : Application
     private readonly ProductConfigurationStore configurationStore;
     private readonly ProductBoxesSettingsStore boxesSettingsStore;
     private readonly ProductBoxesSettingsController boxesSettingsController;
+    private readonly ProductDesktopThumbnailRequestController
+        productDesktopThumbnails;
     private readonly ProductWorkspaceSaveController productWorkspaceSaves;
     private readonly ProductWorkspaceCommitCoordinator workspaceCommits;
     private readonly ProductDesktopContainerLayoutInteractionController
@@ -60,6 +62,8 @@ public partial class App : Application
         desktopWorkspaceCreatePreviewWindow;
     private ProductDesktopWorkspaceCreatePublicationToken?
         desktopWorkspaceCreatePublication;
+    private CancellationTokenSource? desktopThumbnailRefreshCancellation;
+    private long desktopThumbnailRefreshGeneration;
 
     public App()
     {
@@ -83,6 +87,7 @@ public partial class App : Application
         configurationStore = new ProductConfigurationStore(configurationDirectory);
         boxesSettingsStore = new(configurationDirectory);
         boxesSettingsController = new(boxesSettingsStore);
+        productDesktopThumbnails = new();
         var saveWorkflow = new ProductConfigurationSaveWorkflow(
             new ProductConfigurationSaveCoordinator(configurationStore));
         productWorkspaceSaves = new(saveWorkflow);
@@ -220,6 +225,8 @@ public partial class App : Application
             MainWindow_DesktopKeyboardInteractionRequested;
         window.BoxesEnabledChangeRequested +=
             MainWindow_BoxesEnabledChangeRequested;
+        window.ThumbnailsEnabledChangeRequested +=
+            MainWindow_ThumbnailsEnabledChangeRequested;
         if (productDesktopSystemSurfaceEvents is not null)
         {
             productDesktopSystemSurfaceEvents.SurfaceChanged +=
@@ -1125,6 +1132,15 @@ public partial class App : Application
             result.Settings.BoxesEnabled,
             canChange,
             status);
+        window?.ApplyThumbnailsEnabledState(
+            result.Settings.ThumbnailsEnabled,
+            canChange: true,
+            result.Status == ProductBoxesSettingsLoadStatus.CorruptSafeDisabled
+                ? "设置损坏时已安全关闭图片缩略图。"
+                : result.Settings.ThumbnailsEnabled
+                    ? "图片缩略图已开启；失败时自动回退类型图标。"
+                    : "图片缩略图已关闭；不会启动缩略图工作进程。");
+        ApplyProductDesktopHostProjection(productDisplayTopology.Snapshot);
     }
 
     private async void MainWindow_BoxesEnabledChangeRequested(bool requestedValue)
@@ -1163,6 +1179,45 @@ public partial class App : Application
             snapshot.Status !=
                 ProductDesktopHostLifecycleStatus.DisabledBySafetyPolicy,
             status);
+        if (applied)
+        {
+            ApplyProductDesktopHostProjection(productDisplayTopology.Snapshot);
+        }
+    }
+
+    private async void MainWindow_ThumbnailsEnabledChangeRequested(
+        bool requestedValue)
+    {
+        MainWindow? currentWindow = window;
+        if (currentWindow is null || closingDrainInProgress)
+        {
+            return;
+        }
+        currentWindow.ApplyThumbnailsEnabledChangePending(requestedValue);
+        ProductBoxesSettingsChangeResult result =
+            await boxesSettingsController.ChangeThumbnailsAsync(requestedValue);
+        string status = result.Status switch
+        {
+            ProductBoxesSettingsChangeStatus.Saved =>
+                result.Settings.ThumbnailsEnabled
+                    ? "图片缩略图已开启并保存；正在按需刷新首屏项目。"
+                    : "图片缩略图已关闭并保存；已停止工作进程并回退类型图标。",
+            ProductBoxesSettingsChangeStatus.Unchanged =>
+                "图片缩略图状态未变化，没有重复写入设置。",
+            ProductBoxesSettingsChangeStatus.Failed =>
+                "设置保存失败，已恢复原缩略图状态。",
+            _ => throw new InvalidOperationException(
+                "Thumbnail settings change status must be finite."),
+        };
+        currentWindow.ApplyThumbnailsEnabledState(
+            result.Settings.ThumbnailsEnabled,
+            canChange: true,
+            status);
+        if (result.Status is ProductBoxesSettingsChangeStatus.Saved
+            or ProductBoxesSettingsChangeStatus.Unchanged)
+        {
+            ApplyProductDesktopHostProjection(productDisplayTopology.Snapshot);
+        }
     }
 
     private async Task<ProductConfigurationStartupState> RecoverConfigurationAsync(
@@ -2845,12 +2900,123 @@ public partial class App : Application
                 ProductConfigurationError.None,
                 null)
             : ProductWorkspaceReadModel.Create(desktopHostState);
+        long workspaceRevision = workspaceCommits.CurrentEditRevision;
+        IReadOnlyList<ProductDesktopThumbnailCandidate> candidates =
+            ProductDesktopThumbnailCandidateBuilder.Build(desktopHostState);
+        bool thumbnailsEnabled =
+            boxesSettingsController.Current.ThumbnailsEnabled
+            && boxesSettingsController.Current.BoxesEnabled;
+        IReadOnlyDictionary<string, ProductDesktopThumbnailResult> loading =
+            thumbnailsEnabled
+                ? candidates.ToDictionary(
+                    candidate => candidate.AnonymousItemKey,
+                    candidate => new ProductDesktopThumbnailResult(
+                        candidate.AnonymousItemKey,
+                        ProductDesktopThumbnailStatus.LoadingThumbnail,
+                        CacheHit: false,
+                        Frame: null),
+                    StringComparer.Ordinal)
+                : new Dictionary<string, ProductDesktopThumbnailResult>(
+                    StringComparer.Ordinal);
+        ApplyProductDesktopHostProjectionCore(
+            desktopHostState,
+            desktopHostReadModel.Snapshot,
+            topology,
+            workspaceRevision,
+            loading);
+
+        desktopThumbnailRefreshCancellation?.Cancel();
+        desktopThumbnailRefreshCancellation?.Dispose();
+        desktopThumbnailRefreshCancellation = new CancellationTokenSource();
+        long refreshGeneration = checked(++desktopThumbnailRefreshGeneration);
+        _ = RunProductDesktopThumbnailRefreshAsync(
+            desktopHostState,
+            desktopHostReadModel.Snapshot,
+            topology,
+            workspaceRevision,
+            thumbnailsEnabled,
+            candidates,
+            refreshGeneration,
+            desktopThumbnailRefreshCancellation.Token);
+    }
+
+    private void ApplyProductDesktopHostProjectionCore(
+        ProductWorkspaceState? state,
+        ProductWorkspaceReadSnapshot? readSnapshot,
+        ProductDisplayTopologySnapshot topology,
+        long workspaceRevision,
+        IReadOnlyDictionary<string, ProductDesktopThumbnailResult>
+            thumbnails)
+    {
         _ = productDesktopHostLifecycle.ApplyProjectionUpdate(
             ProductDesktopHostProjectionBuilder.BuildUpdate(
-                desktopHostState,
-                desktopHostReadModel.Snapshot,
+                state,
+                readSnapshot,
                 topology,
-                workspaceCommits.CurrentEditRevision));
+                workspaceRevision,
+                thumbnails));
+    }
+
+    private async Task RunProductDesktopThumbnailRefreshAsync(
+        ProductWorkspaceState? state,
+        ProductWorkspaceReadSnapshot? readSnapshot,
+        ProductDisplayTopologySnapshot topology,
+        long workspaceRevision,
+        bool enabled,
+        IReadOnlyList<ProductDesktopThumbnailCandidate> candidates,
+        long refreshGeneration,
+        CancellationToken cancellationToken)
+    {
+        ProductDesktopThumbnailRefreshResult result;
+        try
+        {
+            result = await productDesktopThumbnails.RefreshAsync(
+                enabled,
+                candidates,
+                pixelSize: 64,
+                themeKey: RequestedTheme.ToString(),
+                cancellationToken: cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        MainWindow? currentWindow = window;
+        if (currentWindow is null || cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+        _ = currentWindow.DispatcherQueue.TryEnqueue(() =>
+        {
+            bool currentEnabled =
+                boxesSettingsController.Current.ThumbnailsEnabled
+                && boxesSettingsController.Current.BoxesEnabled;
+            if (cancellationToken.IsCancellationRequested
+                || !ProductDesktopThumbnailRefreshAdmission.CanPublish(
+                    refreshGeneration,
+                    desktopThumbnailRefreshGeneration,
+                    workspaceRevision,
+                    workspaceCommits.CurrentEditRevision,
+                    topology.Generation,
+                    productDisplayTopology.Snapshot.Generation,
+                    enabled,
+                    currentEnabled)
+                || (state is not null
+                    && !ReferenceEquals(state, productWorkspaceSession.State)))
+            {
+                return;
+            }
+            IReadOnlyDictionary<string, ProductDesktopThumbnailResult> resolved =
+                result.Results.ToDictionary(
+                    item => item.AnonymousItemKey,
+                    StringComparer.Ordinal);
+            ApplyProductDesktopHostProjectionCore(
+                state,
+                readSnapshot,
+                topology,
+                workspaceRevision,
+                resolved);
+        });
     }
 
     private ProductWorkspaceLayoutRecoveryCommitResult
@@ -3412,6 +3578,8 @@ public partial class App : Application
                 MainWindow_DesktopKeyboardInteractionRequested;
             window.BoxesEnabledChangeRequested -=
                 MainWindow_BoxesEnabledChangeRequested;
+            window.ThumbnailsEnabledChangeRequested -=
+                MainWindow_ThumbnailsEnabledChangeRequested;
         }
 
         _ = productDesktopInteraction.Complete(DateTimeOffset.UtcNow);
@@ -3420,6 +3588,10 @@ public partial class App : Application
             await productResourceTelemetry.DisposeAsync();
         }
         productThumbnailWorker.Dispose();
+        desktopThumbnailRefreshCancellation?.Cancel();
+        desktopThumbnailRefreshCancellation?.Dispose();
+        desktopThumbnailRefreshCancellation = null;
+        productDesktopThumbnails.Dispose();
         boxesSettingsController.Dispose();
         boxesSettingsStore.Dispose();
         await productDesktopHostLifecycle.DisposeAsync();

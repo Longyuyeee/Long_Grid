@@ -9,7 +9,9 @@ public static class ProductDesktopHostProjectionBuilder
         ProductWorkspaceState? state,
         ProductWorkspaceReadSnapshot? readSnapshot,
         ProductDisplayTopologySnapshot topology,
-        long workspaceRevision)
+        long workspaceRevision,
+        IReadOnlyDictionary<string, ProductDesktopThumbnailResult>?
+            thumbnailResults = null)
     {
         ArgumentNullException.ThrowIfNull(topology);
         ArgumentOutOfRangeException.ThrowIfNegative(workspaceRevision);
@@ -69,7 +71,8 @@ public static class ProductDesktopHostProjectionBuilder
             state,
             readSnapshot,
             topology,
-            workspaceRevision);
+            workspaceRevision,
+            thumbnailResults);
         return ProductDesktopHostProjectionUpdate.Create(
             workspaceRevision,
             topology.Generation,
@@ -83,7 +86,9 @@ public static class ProductDesktopHostProjectionBuilder
         ProductWorkspaceState? state,
         ProductWorkspaceReadSnapshot? readSnapshot,
         ProductDisplayTopologySnapshot topology,
-        long workspaceRevision)
+        long workspaceRevision,
+        IReadOnlyDictionary<string, ProductDesktopThumbnailResult>?
+            thumbnailResults = null)
     {
         ArgumentNullException.ThrowIfNull(topology);
         if (state is null
@@ -118,10 +123,10 @@ public static class ProductDesktopHostProjectionBuilder
             IEnumerable<string> itemIds = visible.Items.Select(item =>
                 $"item:{item.Ordinal}");
             IEnumerable<ProductDesktopItemVisualPresentation> itemVisuals =
-                visible.Items.Select(item =>
-                    ProductDesktopItemVisualPresentation.Create(
-                        item.Kind,
-                        item.Resolution));
+                visible.Items.Select(item => ApplyThumbnailResult(
+                    source.Id,
+                    item,
+                    thumbnailResults));
             ProductDesktopHostReadOnlyProjection container =
                 ProductDesktopHostReadOnlyProjection.Create(
                     source.Id,
@@ -160,5 +165,43 @@ public static class ProductDesktopHostProjectionBuilder
             topology.Generation,
             DisplayTopologyFingerprint.Compute(topology.Displays),
             displays);
+    }
+
+    private static ProductDesktopItemVisualPresentation ApplyThumbnailResult(
+        string containerId,
+        ProductWorkspaceReadItem item,
+        IReadOnlyDictionary<string, ProductDesktopThumbnailResult>?
+            thumbnailResults)
+    {
+        ProductDesktopItemVisualPresentation fallback =
+            ProductDesktopItemVisualPresentation.Create(
+                item.Kind,
+                item.Resolution);
+        if (thumbnailResults is null
+            || !thumbnailResults.TryGetValue(
+                ProductDesktopThumbnailItemKey.Create(containerId, item.Ordinal),
+                out ProductDesktopThumbnailResult? thumbnail))
+        {
+            return fallback;
+        }
+        return thumbnail.Status switch
+        {
+            ProductDesktopThumbnailStatus.LoadingThumbnail => fallback with
+            {
+                Status = ProductDesktopItemVisualStatus.LoadingThumbnail,
+            },
+            ProductDesktopThumbnailStatus.ReadyThumbnail
+                when thumbnail.Frame is not null => fallback with
+                {
+                    Status = ProductDesktopItemVisualStatus.ReadyThumbnail,
+                    Thumbnail = thumbnail.Frame,
+                },
+            ProductDesktopThumbnailStatus.FailedFallback
+                or ProductDesktopThumbnailStatus.Unsupported => fallback with
+                {
+                    Status = ProductDesktopItemVisualStatus.FailedFallback,
+                },
+            _ => fallback,
+        };
     }
 }

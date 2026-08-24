@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 189](docs/189-pf005b1-thumbnail-request-queue-cache-audit.md) 已完成 PF-005B1：真实零 Capability worker 现在有产品提取门面和懒启动首屏队列，关闭时零启动/零请求，队列上限 12，64 项缓存按文件版本/尺寸/主题失效，250 ms 超时和退出均有限回退并清理 Profile。PF-005 顶层仍为 `InProgress`，下一切片 PF-005B2 才把像素帧接入 DesktopHost 和持久化开关；PF-001～PF-004 为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`，所有产物不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 190](docs/190-pf005b2-thumbnail-presentation-stale-result-audit.md) 已完成 PF-005B2 工程链：持久化缩略图开关、权威首屏图片候选、Loading/Ready/FailedFallback、过期结果拒绝和真实 HWND BGRA 绘制均已接入。真实受限 worker 在本机仍按 250 ms 合同有限回退，不能冒充成功视觉证据；PF-005 顶层保持 `InProgress`，下一切片 PF-005C 关闭真实图片视觉回归和 13～500 项视口调度。PF-001～PF-004 为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`，所有产物不可公开分发。
 
 ## 产品原则
 
@@ -50,6 +50,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-004E 标题策略、编辑撤销与 PF-004 工程收口审计（Stage 187）](docs/187-pf004e-title-policy-edit-undo-closeout-audit.md)
 - [PF-005A 系统类型图标与有限项目状态审计（Stage 188）](docs/188-pf005a-system-type-icons-finite-state-audit.md)
 - [PF-005B1 缩略图按需队列与缓存审计（Stage 189）](docs/189-pf005b1-thumbnail-request-queue-cache-audit.md)
+- [PF-005B2 缩略图正式呈现与过期结果审计（Stage 190）](docs/190-pf005b2-thumbnail-presentation-stale-result-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)
@@ -207,7 +208,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)推进。PF-005B1 已完成受限 worker 产品提取门面、懒启动首屏队列、版本缓存和有限失败回退，当前固定执行 PF-005B2 像素帧正式绘制、持久化图片开关、乱序/取消和视觉回归，再总审 PF-005；PF-001～PF-004 的物理输入、截图和 UIA/Narrator 在上游安全运行时或独立机器并行补证。任务栏美化、小组件/插件运行时和广泛窗口特效继续属于核心 MVP 后续。
+按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)推进。PF-005B2 已完成像素帧正式绘制、持久化图片开关和过期结果拒绝，当前固定执行 PF-005C：在成功提取环境完成真实图片端到端视觉回归，并补齐 13～500 项视口变化的按需请求/取消后总审 PF-005；PF-001～PF-004 的物理输入、截图和 UIA/Narrator 在上游安全运行时或独立机器并行补证。任务栏美化、小组件/插件运行时和广泛窗口特效继续属于核心 MVP 后续。
 
 ## 开发启动
 

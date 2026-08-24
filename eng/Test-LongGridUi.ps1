@@ -93,6 +93,8 @@ $desktopItemVisualPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopItemVisualPresentation.cs'
 $desktopThumbnailRequestControllerCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopThumbnailRequestController.cs'
+$boxesSettingsCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductBoxesSettings.cs'
 $desktopInteractionAdmissionCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionAdmission.cs'
 $desktopInteractionCancellationCodePath = Join-Path $projectRoot `
@@ -493,6 +495,10 @@ function Test-SourceContract {
         -LiteralPath $desktopThumbnailRequestControllerCodePath `
         -Raw `
         -Encoding UTF8
+    $boxesSettingsCode = Get-Content `
+        -LiteralPath $boxesSettingsCodePath `
+        -Raw `
+        -Encoding UTF8
     $windowsDesktopHostWindowInspectorCode = Get-Content `
         -LiteralPath $windowsDesktopHostWindowInspectorCodePath `
         -Raw `
@@ -647,6 +653,8 @@ function Test-SourceContract {
         'DesktopHostCard',
         'BoxesEnabledToggle',
         'BoxesEnabledStatus',
+        'ThumbnailsEnabledToggle',
+        'ThumbnailsEnabledStatus',
         'CurrentModeValue',
         'FileOperationValue',
         'DesktopHostValue',
@@ -1364,6 +1372,22 @@ function Test-SourceContract {
         $appCode -match 'SetUserEnabled' -and
         $codeBehind -match '_suppressBoxesEnabledChange'
     ) 'The product boxes switch must use one persisted controller and suppress programmatic toggles.'
+    $thumbnailsEnabledToggleNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ThumbnailsEnabledToggle'
+    Assert-Condition (
+        $thumbnailsEnabledToggleNode.GetAttribute(
+            'AutomationProperties.Name').Length -gt 0 -and
+        $thumbnailsEnabledToggleNode.GetAttribute('Toggled') -eq `
+            'ThumbnailsEnabledToggle_Toggled'
+    ) 'The thumbnail switch must remain named and bound to one audited handler.'
+    $thumbnailsEnabledStatusNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ThumbnailsEnabledStatus'
+    Assert-Condition (
+        $thumbnailsEnabledStatusNode.GetAttribute(
+            'AutomationProperties.LiveSetting') -eq 'Polite'
+    ) 'Thumbnail settings changes and failures must be politely announced.'
     Assert-Condition (
         $desktopInteractionAdmissionCode -match `
             'LONGGRID_ENABLE_DESKTOP_INTERACTION' -and
@@ -2062,6 +2086,25 @@ function Test-SourceContract {
             'UsesKillOnJobClose'
     ) `
         'PF-005B1 must keep thumbnail work lazy, 12-request bounded, version/theme cached, 250 ms limited, isolation-attested, and finite-fallback safe.'
+    Assert-Condition (
+        $boxesSettingsCode -match `
+            'JsonPropertyName\("thumbnailsEnabled"\)' -and
+        $codeBehind -match 'ThumbnailsEnabledChangeRequested' -and
+        $appCode -match 'ChangeThumbnailsAsync' -and
+        $appCode -match `
+            'ProductDesktopThumbnailCandidateBuilder\.Build' -and
+        $appCode -match `
+            'ProductDesktopThumbnailRefreshAdmission\.CanPublish' -and
+        $appCode -match 'desktopThumbnailRefreshGeneration' -and
+        $desktopHostProjectionBuilderCode -match 'LoadingThumbnail' -and
+        $desktopHostProjectionBuilderCode -match `
+            'Status = ProductDesktopItemVisualStatus\.ReadyThumbnail' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'StretchDIBits' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'SourceCopy' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'ProductDesktopThumbnailFrame'
+    ) `
+        'PF-005B2 must persist its switch, derive authoritative candidates, reject stale facts, project finite states, and draw bounded BGRA pixels on the HWND.'
     Assert-Condition (
         $desktopContainerHeaderCommandCode -match 'ToggleCollapsed' -and
         $desktopContainerHeaderCommandCode -match 'ToggleLocked' -and
@@ -3272,6 +3315,7 @@ function Test-SourceContract {
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
         productDesktopItemVisuals = 'windows-shell-stock-icons-finite-resolution-status-privacy-safe-uia-500-first-surface-bounded-20dip-100-to-400-percent'
         productDesktopThumbnailRequests = 'lazy-zero-disabled-12-visible-64-cache-version-size-theme-250ms-appcontainer-job-finite-fallback'
+        productDesktopThumbnailPresentation = 'persistent-switch-authoritative-candidates-loading-ready-fallback-stale-rejected-real-hwnd-bgra'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'

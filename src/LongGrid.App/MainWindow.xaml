@@ -215,6 +215,22 @@
                                             Style="{StaticResource LongGridSubtitleTextStyle}"
                                             Text="正在读取桌面方格设置…"
                                             TextWrapping="Wrap" />
+                                        <ToggleSwitch
+                                            x:Name="ThumbnailsEnabledToggle"
+                                            AutomationProperties.AutomationId="ThumbnailsEnabledToggle"
+                                            AutomationProperties.Name="显示图片缩略图"
+                                            Header="显示图片缩略图"
+                                            IsEnabled="False"
+                                            OffContent="类型图标"
+                                            OnContent="图片预览"
+                                            Toggled="ThumbnailsEnabledToggle_Toggled" />
+                                        <TextBlock
+                                            x:Name="ThumbnailsEnabledStatus"
+                                            AutomationProperties.AutomationId="ThumbnailsEnabledStatus"
+                                            AutomationProperties.LiveSetting="Polite"
+                                            Style="{StaticResource LongGridSubtitleTextStyle}"
+                                            Text="正在读取缩略图设置…"
+                                            TextWrapping="Wrap" />
                                         <TextBlock x:Name="DesktopHostValue" AutomationProperties.AutomationId="DesktopHostValue" FontSize="22" FontWeight="SemiBold" />
                                         <TextBlock x:Name="DesktopHostDetail" Style="{StaticResource LongGridSubtitleTextStyle}" />
                                         <Button

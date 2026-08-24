@@ -636,6 +636,30 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     internal int GetSystemTypeIconSizeForEvidence() =>
         ToPixels(20, projection.EffectiveDpi / 96d);
 
+    internal int DrawThumbnailFrameForEvidence(
+        ProductDesktopThumbnailFrame frame)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        nint deviceContext = NativeMethods.GetDC(Handle);
+        if (deviceContext == nint.Zero)
+        {
+            return 0;
+        }
+        try
+        {
+            return DrawThumbnailFrame(
+                deviceContext,
+                frame,
+                0,
+                0,
+                Math.Max(1, GetSystemTypeIconSizeForEvidence()));
+        }
+        finally
+        {
+            _ = NativeMethods.ReleaseDC(Handle, deviceContext);
+        }
+    }
+
     internal bool SubmitContainerLayoutInput(
         ProductDesktopContainerLayoutSurfaceInput input)
     {
@@ -1621,7 +1645,19 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                     : container.ItemVisuals[index];
             int iconX = bounds.Left + horizontalPadding;
             int iconY = top + Math.Max(0, (itemHeight - iconSize) / 2);
-            if (visual is not null
+            bool thumbnailDrawn = visual is
+            {
+                Status: ProductDesktopItemVisualStatus.ReadyThumbnail,
+                Thumbnail: { } thumbnail,
+            }
+                && DrawThumbnailFrame(
+                    deviceContext,
+                    thumbnail,
+                    iconX,
+                    iconY,
+                    iconSize) > 0;
+            if (!thumbnailDrawn
+                && visual is not null
                 && TryAcquireSystemIcon(visual, out nint icon))
             {
                 try
@@ -1663,6 +1699,49 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                     | NativeMethods.DtSingleLine
                     | NativeMethods.DtEndEllipsis);
             top += itemHeight;
+        }
+    }
+
+    private static int DrawThumbnailFrame(
+        nint deviceContext,
+        ProductDesktopThumbnailFrame frame,
+        int x,
+        int y,
+        int size)
+    {
+        var header = new NativeBitmapInfoHeader
+        {
+            Size = (uint)Marshal.SizeOf<NativeBitmapInfoHeader>(),
+            Width = frame.Width,
+            Height = -frame.Height,
+            Planes = 1,
+            BitCount = 32,
+            Compression = 0,
+            SizeImage = (uint)frame.Bgra32Pixels.Length,
+        };
+        GCHandle pixels = GCHandle.Alloc(
+            frame.Bgra32Pixels,
+            GCHandleType.Pinned);
+        try
+        {
+            return NativeMethods.StretchDIBits(
+                deviceContext,
+                x,
+                y,
+                size,
+                size,
+                0,
+                0,
+                frame.Width,
+                frame.Height,
+                pixels.AddrOfPinnedObject(),
+                ref header,
+                NativeMethods.DibRgbColors,
+                NativeMethods.SourceCopy);
+        }
+        finally
+        {
+            pixels.Free();
         }
     }
 
@@ -2204,6 +2283,22 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    private struct NativeBitmapInfoHeader
+    {
+        internal uint Size;
+        internal int Width;
+        internal int Height;
+        internal ushort Planes;
+        internal ushort BitCount;
+        internal uint Compression;
+        internal uint SizeImage;
+        internal int XPelsPerMeter;
+        internal int YPelsPerMeter;
+        internal uint ColorsUsed;
+        internal uint ColorsImportant;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     private struct NativePoint
     {
         internal NativePoint(int x, int y)
@@ -2275,6 +2370,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         internal const uint StockIconWorld = 13;
         internal const uint StockIconLink = 29;
         internal const uint StockIconWarning = 78;
+        internal const uint DibRgbColors = 0;
+        internal const uint SourceCopy = 0x00CC0020;
         internal const uint DtCenter = 0x0001;
         internal const int RgnOr = 2;
         internal const int NullRegion = 1;
@@ -2503,6 +2600,28 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
 
         [DllImport("gdi32.dll")]
         internal static extern uint SetTextColor(nint deviceContext, uint color);
+
+        [DllImport("gdi32.dll")]
+        internal static extern int StretchDIBits(
+            nint deviceContext,
+            int destinationX,
+            int destinationY,
+            int destinationWidth,
+            int destinationHeight,
+            int sourceX,
+            int sourceY,
+            int sourceWidth,
+            int sourceHeight,
+            nint bits,
+            ref NativeBitmapInfoHeader bitmapInfo,
+            uint usage,
+            uint rasterOperation);
+
+        [DllImport("user32.dll")]
+        internal static extern nint GetDC(nint window);
+
+        [DllImport("user32.dll")]
+        internal static extern int ReleaseDC(nint window, nint deviceContext);
 
         [DllImport("gdi32.dll")]
         internal static extern nint GetStockObject(int objectIndex);

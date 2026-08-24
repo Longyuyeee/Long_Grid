@@ -33,6 +33,7 @@ public sealed partial class MainWindow : Window
     private bool _desktopHostFeatureEnabled;
     private bool _desktopHostConnected;
     private bool _suppressBoxesEnabledChange;
+    private bool _suppressThumbnailsEnabledChange;
     private ContentDialog? _desktopWorkspaceCreatePreviewDialog;
     private ContentDialog? _desktopContainerDeleteConfirmationDialog;
     private TaskCompletionSource<string?>? _safePreviewCompletion;
@@ -42,6 +43,7 @@ public sealed partial class MainWindow : Window
 
     internal event EventHandler? DesktopKeyboardInteractionRequested;
     internal event Action<bool>? BoxesEnabledChangeRequested;
+    internal event Action<bool>? ThumbnailsEnabledChangeRequested;
     private string _organizationStartChoice = "suggested";
     private bool _practiceItemsAdded;
     private ProductConfigurationStartupMode _configurationStartupMode;
@@ -516,6 +518,46 @@ public sealed partial class MainWindow : Window
         if (!_suppressBoxesEnabledChange)
         {
             BoxesEnabledChangeRequested?.Invoke(BoxesEnabledToggle.IsOn);
+        }
+    }
+
+    internal void ApplyThumbnailsEnabledState(
+        bool thumbnailsEnabled,
+        bool canChange,
+        string status)
+    {
+        _suppressThumbnailsEnabledChange = true;
+        try
+        {
+            ThumbnailsEnabledToggle.IsOn = thumbnailsEnabled;
+            ThumbnailsEnabledToggle.IsEnabled = canChange;
+            ThumbnailsEnabledStatus.Text = status;
+            AutomationProperties.SetItemStatus(
+                ThumbnailsEnabledToggle,
+                $"ThumbnailsEnabled={thumbnailsEnabled}:CanChange={canChange}");
+        }
+        finally
+        {
+            _suppressThumbnailsEnabledChange = false;
+        }
+    }
+
+    internal void ApplyThumbnailsEnabledChangePending(bool requestedValue)
+    {
+        ThumbnailsEnabledToggle.IsEnabled = false;
+        ThumbnailsEnabledStatus.Text = requestedValue
+            ? "正在保存并启用图片缩略图…"
+            : "正在保存并切换到类型图标…";
+    }
+
+    private void ThumbnailsEnabledToggle_Toggled(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (!_suppressThumbnailsEnabledChange)
+        {
+            ThumbnailsEnabledChangeRequested?.Invoke(
+                ThumbnailsEnabledToggle.IsOn);
         }
     }
 

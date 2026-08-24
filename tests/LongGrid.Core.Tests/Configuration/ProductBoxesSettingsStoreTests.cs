@@ -19,6 +19,7 @@ public sealed class ProductBoxesSettingsStoreTests
                 ProductBoxesSettingsLoadStatus.MissingDefaulted,
                 result.Status);
             Assert.True(result.Settings.BoxesEnabled);
+            Assert.True(result.Settings.ThumbnailsEnabled);
             Assert.False(File.Exists(Path.Combine(directory, "settings.json")));
         }
         finally
@@ -34,7 +35,11 @@ public sealed class ProductBoxesSettingsStoreTests
         try
         {
             var first = new ProductBoxesSettingsStore(directory);
-            await first.SaveAsync(new() { BoxesEnabled = false });
+            await first.SaveAsync(new()
+            {
+                BoxesEnabled = false,
+                ThumbnailsEnabled = false,
+            });
 
             var restarted = new ProductBoxesSettingsStore(directory);
             ProductBoxesSettingsLoadResult result = await restarted.LoadAsync();
@@ -43,6 +48,7 @@ public sealed class ProductBoxesSettingsStoreTests
                 ProductBoxesSettingsLoadStatus.LoadedPrimary,
                 result.Status);
             Assert.False(result.Settings.BoxesEnabled);
+            Assert.False(result.Settings.ThumbnailsEnabled);
         }
         finally
         {
@@ -97,6 +103,7 @@ public sealed class ProductBoxesSettingsStoreTests
                 result.Status);
             Assert.True(result.RequiresAttention);
             Assert.False(result.Settings.BoxesEnabled);
+            Assert.False(result.Settings.ThumbnailsEnabled);
         }
         finally
         {
@@ -136,6 +143,44 @@ public sealed class ProductBoxesSettingsStoreTests
         Assert.True(result.Settings.BoxesEnabled);
         Assert.True(controller.Current.BoxesEnabled);
         Assert.Equal(1, store.SaveCount);
+    }
+
+    [Fact]
+    public async Task ThumbnailSwitchPersistsOnceAndRollsBackOnRealSaveFailure()
+    {
+        string directory = CreateTemporaryDirectory();
+        try
+        {
+            var realStore = new ProductBoxesSettingsStore(directory);
+            using var controller = new ProductBoxesSettingsController(realStore);
+            controller.Initialize(ProductBoxesSettings.Default);
+
+            ProductBoxesSettingsChangeResult saved =
+                await controller.ChangeThumbnailsAsync(false);
+            ProductBoxesSettingsChangeResult duplicate =
+                await controller.ChangeThumbnailsAsync(false);
+            ProductBoxesSettingsLoadResult restarted =
+                await new ProductBoxesSettingsStore(directory).LoadAsync();
+
+            Assert.Equal(ProductBoxesSettingsChangeStatus.Saved, saved.Status);
+            Assert.Equal(
+                ProductBoxesSettingsChangeStatus.Unchanged,
+                duplicate.Status);
+            Assert.False(restarted.Settings.ThumbnailsEnabled);
+
+            var failedStore = new RecordingStore { ThrowOnSave = true };
+            using var failed = new ProductBoxesSettingsController(failedStore);
+            failed.Initialize(ProductBoxesSettings.Default);
+            ProductBoxesSettingsChangeResult rejected =
+                await failed.ChangeThumbnailsAsync(false);
+
+            Assert.Equal(ProductBoxesSettingsChangeStatus.Failed, rejected.Status);
+            Assert.True(failed.Current.ThumbnailsEnabled);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     private static string CreateTemporaryDirectory()

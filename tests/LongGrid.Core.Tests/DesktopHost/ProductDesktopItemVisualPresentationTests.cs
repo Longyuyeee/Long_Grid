@@ -159,4 +159,57 @@ public sealed class ProductDesktopItemVisualPresentationTests(
         Assert.True(surface.IsSystemTypeIconAvailableForEvidence(
             "container-dpi", 0));
     }
+
+    [Fact]
+    public void RealHwndAcceptsBoundedTopDownBgraThumbnailFrame()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+        byte[] pixels = Enumerable.Range(0, 8 * 8)
+            .SelectMany(index => new byte[]
+            {
+                (byte)(index * 3),
+                (byte)(255 - index * 2),
+                (byte)(index * 4),
+                255,
+            })
+            .ToArray();
+        ProductDesktopThumbnailFrame frame =
+            ProductDesktopThumbnailFrame.Create(8, 8, 32, pixels);
+        ProductDesktopItemVisualPresentation visual = new(
+            ProductDesktopItemTypeIconKind.File,
+            ProductDesktopItemVisualStatus.ReadyThumbnail,
+            frame);
+        ProductDesktopHostReadOnlyProjection container =
+            ProductDesktopHostReadOnlyProjection.Create(
+                "container-thumbnail", "真实缩略图", ["像素图"],
+                "#2457D6", 0.82, false, 24, 36, 320, 240,
+                itemVisuals: [visual]);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(0, 0, 1280, 720), 96, [container]);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                display,
+                new nint(5208));
+
+        int actualScanLines = surface.DrawThumbnailFrameForEvidence(frame);
+
+        Assert.Equal(frame.Height, actualScanLines);
+        Assert.NotEqual(nint.Zero, surface.Handle);
+        output.WriteLine(JsonSerializer.Serialize(new
+        {
+            Purpose = "Pf005b2RealHwndBgraEvidence",
+            Expected = new { RealHwnd = true, BgraScanLines = 8 },
+            Actual = new
+            {
+                RealHwnd = surface.Handle != nint.Zero,
+                BgraScanLines = actualScanLines,
+            },
+            Difference = "None",
+            Outcome = "Pass",
+        }));
+    }
 }
