@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-006 项目选择、键盘导航与安全打开命令（PF-001～PF-005 产品证据并行 Pending）**
-- 最新开发审计：[Stage 203](203-pf006c1-page-navigation-viewport-uia-convergence-audit.md)；PF-006C1 本机真实 HWND/UIA 与 Release 1200/1200、90.36%/75.73% 已通过，等待 PR/main CI；30 个 PF 项仍为 `0 Complete`
+- 最新开发审计：[Stage 203](203-pf006c1-page-navigation-viewport-uia-convergence-audit.md)；PF-006C1 已以 `a70a3ef` 合入，PR/main 均为 1200/1200、90.02%/75.58% 与全下游门通过；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -255,7 +255,7 @@
 - 高对比和 Narrator 下选中、焦点、不可用三种状态可区分；
 - 自动化覆盖重复打开、目标变化、取消和进程启动失败。
 
-**2026-08-25 实施状态**：`InProgress`。Stage 192/PF-006A 完成选择收敛；Stage 193～196 完成安全打开、有限反馈、单击策略、重试和 Explorer 定位；Stage 203/PF-006C1 已在本机完成 PageUp/PageDown 的权威换页、相对焦点和真实 HWND/UIA 收敛，Release 1200/1200、90.36%/75.73%，等待 PR/main CI。框选及物理/高对比/Narrator 仍 Pending；下一切片 PF-006C2。
+**2026-08-25 实施状态**：`InProgress`。Stage 192/PF-006A 完成选择收敛；Stage 193～196 完成安全打开、有限反馈、单击策略、重试和 Explorer 定位；Stage 203/PF-006C1 已完成 PageUp/PageDown 的权威换页、相对焦点和真实 HWND/UIA 主线收敛。框选及物理/高对比/Narrator 仍 Pending；下一切片 PF-006C2。
 
 ### PF-007：Explorer 拖入与方格间拖放
 
@@ -888,6 +888,6 @@
 
 ## 15. 当前立即执行项
 
-**Gate A 已完成**；当前工程切片为 **PF-006C1：PageUp/PageDown 跨视口键盘导航的 PR/main 集成**。PF-001 的冷启动与运行期开启性能门已完成；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
+**Gate A 与 PF-006C1 已完成**；当前工程切片为 **PF-006C2：鼠标框选**。PF-001 的冷启动与运行期开启性能门已完成；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
 
-Stage 203 已在同一显式租约和正式激活 HWND 中把 PageUp/PageDown 的 viewport、选择、相对焦点与真实 UIA SelectionPattern 收敛；auto-repeat、Injected、修饰键和陈旧代次失败关闭，本机 1200/1200、90.36%/75.73%。先完成 PR/main CI，再进入 PF-006C2 框选；PF-007 后优先转入首次引导和自动整理闭环，任何版本在签名和安装门禁完成前不得分发。
+Stage 203 已在同一显式租约和正式激活 HWND 中把 PageUp/PageDown 的 viewport、选择、相对焦点与真实 UIA SelectionPattern 收敛；auto-repeat、Injected、修饰键和陈旧代次失败关闭，PR/main 均为 1200/1200、90.02%/75.58%。现在进入 PF-006C2 框选；PF-007 后优先转入首次引导和自动整理闭环，任何版本在签名和安装门禁完成前不得分发。
