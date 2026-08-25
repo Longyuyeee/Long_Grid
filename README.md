@@ -243,6 +243,8 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 开发启动
 
+在项目根目录双击 `启动Long方格.cmd` 即可恢复依赖、构建并启动当前工程预览版；启动失败时窗口会保留错误信息。该入口只负责转发到统一维护的 `eng/Start-LongGrid.ps1`，不会复制或产生容易过期的根目录 EXE。
+
 在 Windows x64 开发机上使用统一入口启动当前工程预览 App 与 DesktopHost：
 
 ```powershell
