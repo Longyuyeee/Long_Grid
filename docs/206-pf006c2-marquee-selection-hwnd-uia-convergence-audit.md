@@ -2,7 +2,7 @@
 
 日期：2026-08-25
 开发项：PF-006C2
-当前结论：**Engineering Complete / Integration Pending / Product Evidence Pending**
+当前结论：**Engineering Complete / Integrated / Product Evidence Pending**
 
 ## 1. 开发目标与需求边界
 
@@ -74,8 +74,18 @@ PF-006 的工程范围现已具备：单击/Ctrl/Shift 选择、框选与空白�
 - 高对比模式下 selection/focus/marquee 的可区分性；
 - 与正式 App 可见会话相关的既有 Windows App SDK UIA 上游阻断复测。
 
-因此本分支只标记 `Engineering Complete / Integration Pending / Product Evidence Pending`。待 PR 与合入后的 main 全链均绿色后，PF-006 才可提升为 `EngineeringComplete / ProductEvidencePending`，工程主线转入 PF-007 Explorer 拖入与方格间拖放。
+因此 PF-006 不标记产品 `Complete`，但在 PR 与 main 全链均绿色后可准确提升为 `EngineeringComplete / ProductEvidencePending`。工程主线转入 PF-007 Explorer 拖入与方格间拖放。
 
 ## 5. 集成状态
 
-本节将在 PR 与 main 完整 CI 通过后回填 PR、commit、run 和远端覆盖率。CI 失败必须先分析 Actual 与 Expected 的差异并修正，不得靠降低门槛或重复运行伪造通过。
+PR #233 run `32816426703` 完整通过，并 squash 合入 `main@5c78ddc`。合入后的 main run `32816956265` 再次完整通过：
+
+| 验收 | PR Actual | Main Actual | Difference |
+| --- | --- | --- | --- |
+| Release 测试 | 1225/1225，11 s | 1225/1225，12 s | None |
+| 覆盖率 | 90.08%（41412/45970）/75.60%（13498/17854） | 90.09%（41414/45970）/75.60%（13498/17854） | 均高于 90%/75%，采样差异不影响门禁 |
+| 文件/Worker 清理 | `ConditionalPass`，`CleanupSucceeded=true`，Profile deleted | 同左，Profile deletion attempt=1 | None |
+| 依赖漏洞 | 无已知漏洞 | 无已知漏洞 | None |
+| RC 清单 | 800/800 | 800/800 | None |
+
+本机、PR 和 main 三层证据均收敛。PF-006C2 状态为 `EngineeringComplete / Integrated / ProductEvidencePending`，PF-006 整体提升为 `EngineeringComplete / ProductEvidencePending`；30 个 PF 项仍为 `0 Complete`，因为物理鼠标、Narrator 和高对比产品证据没有被工程自动化替代。
