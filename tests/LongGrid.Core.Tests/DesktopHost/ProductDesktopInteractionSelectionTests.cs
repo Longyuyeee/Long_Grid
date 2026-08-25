@@ -310,6 +310,90 @@ public sealed class ProductDesktopInteractionSelectionTests
         Assert.Equal("c", selected.AnchorItemId);
     }
 
+    [Fact]
+    public void MarqueeSelectionAtomicallyReplacesOrderedVisibleItems()
+    {
+        ProductDesktopInteractionSelectionController controller = Controller();
+        _ = Apply(controller, Select("b"));
+
+        ProductDesktopSelectionSnapshot selected = Apply(
+            controller,
+            new(
+                ProductDesktopSelectionAction.SelectItems,
+                ItemIds: ["e", "a", "c"]));
+
+        Assert.Equal(["a", "c", "e"], selected.SelectedItemIds);
+        Assert.Equal("a", selected.FocusedItemId);
+        Assert.Equal("a", selected.AnchorItemId);
+        Assert.Equal(2, selected.SelectionRevision);
+    }
+
+    [Fact]
+    public void ControlMarqueeAddsWhilePlainEmptyMarqueeClears()
+    {
+        ProductDesktopInteractionSelectionController controller = Controller();
+        _ = Apply(controller, Select("b"));
+
+        ProductDesktopSelectionSnapshot added = Apply(
+            controller,
+            new(
+                ProductDesktopSelectionAction.SelectItems,
+                ProductDesktopSelectionModifiers.Control,
+                ItemIds: ["d"]));
+        ProductDesktopSelectionSnapshot cleared = Apply(
+            controller,
+            new(
+                ProductDesktopSelectionAction.SelectItems,
+                ItemIds: []));
+
+        Assert.Equal(["b", "d"], added.SelectedItemIds);
+        Assert.Equal("d", added.FocusedItemId);
+        Assert.Empty(cleared.SelectedItemIds);
+        Assert.Null(cleared.FocusedItemId);
+        Assert.Null(cleared.AnchorItemId);
+        Assert.Equal(3, cleared.SelectionRevision);
+    }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("duplicate")]
+    [InlineData("empty")]
+    [InlineData("shift")]
+    [InlineData("single-and-set")]
+    public void InvalidMarqueeRequestsFailClosedWithoutMutation(string fault)
+    {
+        ProductDesktopInteractionSelectionController controller = Controller();
+        _ = Apply(controller, Select("b"));
+        ProductDesktopSelectionRequest request = fault switch
+        {
+            "missing" => new(
+                ProductDesktopSelectionAction.SelectItems,
+                ItemIds: ["a", "missing"]),
+            "duplicate" => new(
+                ProductDesktopSelectionAction.SelectItems,
+                ItemIds: ["a", "a"]),
+            "empty" => new(
+                ProductDesktopSelectionAction.SelectItems,
+                ItemIds: [""]),
+            "shift" => new(
+                ProductDesktopSelectionAction.SelectItems,
+                ProductDesktopSelectionModifiers.Shift,
+                ItemIds: ["a"]),
+            "single-and-set" => new(
+                ProductDesktopSelectionAction.SelectItems,
+                ItemId: "a",
+                ItemIds: ["a"]),
+            _ => throw new InvalidOperationException(),
+        };
+
+        ProductDesktopSelectionSnapshot rejected = Apply(controller, request);
+
+        Assert.Equal(ProductDesktopSelectionStatus.InvalidRequest,
+            rejected.Status);
+        Assert.Equal(["b"], rejected.SelectedItemIds);
+        Assert.Equal(1, rejected.SelectionRevision);
+    }
+
     [Theory]
     [InlineData("missing-item")]
     [InlineData("item-on-navigation")]
