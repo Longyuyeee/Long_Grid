@@ -33,7 +33,8 @@ internal sealed record ProductDesktopItemViewportSurfaceInput(
     string ContainerId,
     int WheelDelta,
     bool SourceAttested,
-    bool IsInjected);
+    bool IsInjected,
+    bool IsAutoRepeat = false);
 
 public sealed record ProductDesktopItemViewportRequest(
     string ContainerId,
@@ -42,4 +43,5 @@ public sealed record ProductDesktopItemViewportRequest(
     long TopologyGeneration,
     int WheelDelta,
     bool SourceAttested,
-    bool IsInjected);
+    bool IsInjected,
+    bool IsAutoRepeat = false);

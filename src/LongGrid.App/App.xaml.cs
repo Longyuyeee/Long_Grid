@@ -2432,6 +2432,7 @@ public partial class App : Application
             || closingDrainInProgress
             || !request.SourceAttested
             || request.IsInjected
+            || request.IsAutoRepeat
             || request.WheelDelta == 0)
         {
             return false;

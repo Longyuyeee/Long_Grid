@@ -1514,6 +1514,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     public async Task ViewportPresentationReconcilesExplicitSelectionWithoutReplacingSurface()
     {
         var factory = new RecordingSurfaceFactory();
+        var activationFactory = new RecordingActivationSourceFactory();
         ProductDesktopHostFeatureDecision host =
             ProductDesktopHostFeaturePolicy.Evaluate("1");
         ProductDesktopInteractionFeatureDecision interactionFeature =
@@ -1548,7 +1549,13 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             bridge,
             forwarding,
             consumption,
-            new RecordingActivationSourceFactory());
+            activationFactory);
+        ProductDesktopItemViewportRequest? viewportRequest = null;
+        controller.BindItemViewport(request =>
+        {
+            viewportRequest = request;
+            return true;
+        });
         DateTimeOffset now = DateTimeOffset.UtcNow;
         _ = controller.ApplyProjectionUpdate(ViewportPresentationUpdate(1, 1));
         RecordingSurface surface = Assert.Single(factory.Surfaces);
@@ -1574,6 +1581,15 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             "container-1",
             new(ProductDesktopSelectionAction.SelectItem,
                 ItemId: "item:2")));
+        RecordingActivationSource activation =
+            Assert.Single(activationFactory.Sources);
+        Assert.True(activation.ApplyBoundItemViewport(new(
+            "container-1", -120, true, false)));
+        Assert.False(activation.ApplyBoundItemViewport(new(
+            "container-1", -120, true, false, IsAutoRepeat: true)));
+        Assert.Equal(-120, viewportRequest!.WheelDelta);
+        Assert.Equal(7, viewportRequest.WorkspaceRevision);
+        Assert.Equal(11, viewportRequest.TopologyGeneration);
 
         ProductDesktopHostLifecycleSnapshot actual =
             controller.ApplyProjectionUpdate(ViewportPresentationUpdate(13, 2));
@@ -1585,12 +1601,15 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.False(surface.IsDisposed);
         Assert.Equal(1, surface.ApplyPresentationCalls);
         Assert.True(actual.ExplicitInteractionActive);
-        Assert.Equal(ProductDesktopSelectionStatus.Reconciled,
+        Assert.Equal(1, actual.SelectedItemCount);
+        Assert.True(actual.FocusedItemAvailable);
+        Assert.Equal(3, actual.SelectionRevision);
+        Assert.Equal(ProductDesktopSelectionStatus.Applied,
             selection.Status);
-        Assert.Empty(selection.SelectedItemIds);
-        Assert.Equal("item:13", selection.FocusedItemId);
-        Assert.Equal("item:13", selection.AnchorItemId);
-        Assert.Equal(2, selection.SelectionRevision);
+        Assert.Equal(["item:14"], selection.SelectedItemIds);
+        Assert.Equal("item:14", selection.FocusedItemId);
+        Assert.Equal("item:14", selection.AnchorItemId);
+        Assert.Equal(3, selection.SelectionRevision);
         Assert.Equal("item:13",
             surface.Projection!.Containers[0].ItemIds[0]);
         await controller.DisposeAsync();
@@ -1978,6 +1997,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             applyContainerMenu = static _ => false;
         private Func<ProductDesktopItemOpenSurfaceInput, bool> applyItemOpen =
             static _ => false;
+        private Func<ProductDesktopItemViewportSurfaceInput, bool>
+            applyItemViewport = static _ => false;
 
         public nint Handle { get; } = new(700);
 
@@ -2041,6 +2062,10 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             Func<ProductDesktopItemOpenSurfaceInput, bool> apply) =>
             applyItemOpen = apply;
 
+        public void BindItemViewport(
+            Func<ProductDesktopItemViewportSurfaceInput, bool> apply) =>
+            applyItemViewport = apply;
+
         public void BindContainerLayout(
             Func<ProductDesktopContainerLayoutKeyboardCommand, bool> apply,
             Func<string?, bool> applyTitleFocus)
@@ -2089,6 +2114,10 @@ public sealed class ProductDesktopHostLifecycleControllerTests
 
         internal bool ApplyBoundItemOpen(
             ProductDesktopItemOpenSurfaceInput input) => applyItemOpen(input);
+
+        internal bool ApplyBoundItemViewport(
+            ProductDesktopItemViewportSurfaceInput input) =>
+            applyItemViewport(input);
 
         public void Dispose()
         {

@@ -25,7 +25,8 @@ internal sealed record ProductDesktopContainerMenuSurfaceInput(
 
 internal sealed record ProductDesktopKeyboardSelectionDecision(
     bool Cancel,
-    ProductDesktopSelectionRequest? Request);
+    ProductDesktopSelectionRequest? Request,
+    int ViewportWheelDelta = 0);
 
 internal static class ProductDesktopKeyboardSelectionAdapter
 {
@@ -38,6 +39,18 @@ internal static class ProductDesktopKeyboardSelectionAdapter
         if (virtualKey == 0x1B)
         {
             return new(Cancel: true, Request: null);
+        }
+
+        if (selection is not null && !control && !shift)
+        {
+            if (virtualKey == 0x21)
+            {
+                return new(false, null, ViewportWheelDelta: 120);
+            }
+            if (virtualKey == 0x22)
+            {
+                return new(false, null, ViewportWheelDelta: -120);
+            }
         }
 
         if (selection is not null
@@ -122,6 +135,11 @@ internal interface IProductDesktopInteractionActivationSource : IDisposable
     {
     }
 
+    void BindItemViewport(
+        Func<ProductDesktopItemViewportSurfaceInput, bool> apply)
+    {
+    }
+
     void BindContainerLayout(
         Func<ProductDesktopContainerLayoutKeyboardCommand, bool> apply,
         Func<string?, bool> applyTitleFocus)
@@ -190,6 +208,8 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
     private Func<bool> cancelSelection = static () => false;
     private Func<ProductDesktopItemOpenSurfaceInput, bool> requestItemOpen =
         static _ => false;
+    private Func<ProductDesktopItemViewportSurfaceInput, bool>
+        requestItemViewport = static _ => false;
     private Func<ProductDesktopContainerLayoutKeyboardCommand, bool>
         applyContainerLayout = static _ => false;
     private Func<string?, bool> applyContainerLayoutTitleFocus =
@@ -384,6 +404,13 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
     {
         ArgumentNullException.ThrowIfNull(apply);
         requestItemOpen = apply;
+    }
+
+    public void BindItemViewport(
+        Func<ProductDesktopItemViewportSurfaceInput, bool> apply)
+    {
+        ArgumentNullException.ThrowIfNull(apply);
+        requestItemViewport = apply;
     }
 
     public void BindContainerLayout(
@@ -1104,6 +1131,21 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         if (decision.Cancel)
         {
             _ = cancelSelection();
+            return;
+        }
+        if (decision.ViewportWheelDelta != 0)
+        {
+            if (!alt
+                && !isAutoRepeat
+                && transaction?.Selection?.ContainerId is { } containerId)
+            {
+                _ = requestItemViewport(new(
+                    containerId,
+                    decision.ViewportWheelDelta,
+                    SourceAttested: true,
+                    IsInjected: false,
+                    IsAutoRepeat: false));
+            }
             return;
         }
         if (decision.Request is not null)
