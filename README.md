@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-001 运行期开启真实性能已由 [Stage 199](docs/199-pf001-runtime-boxes-enable-real-window-performance-audit.md)关闭；PR #225 的 Windows PowerShell/157-ID 偏差已由 [Stage 200](docs/200-pr225-windows-powershell-ui-contract-ci-correction-audit.md)纠正，[Stage 201](docs/201-pr225-coverage-gate-recovery-audit.md)继续按远端/重复全量证据修正 headless 覆盖差异、真实 `.lnk` 参数证据、BMP worker 1507 ms 超时和原生菜单 hang。本机最终为 1198/1198、90.38%/75.64%，等待 PR 新 run 复核。PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`，30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-001 运行期开启真实性能已由 [Stage 199](docs/199-pf001-runtime-boxes-enable-real-window-performance-audit.md)关闭；PR #225 的 Windows PowerShell/157-ID 偏差已由 [Stage 200](docs/200-pr225-windows-powershell-ui-contract-ci-correction-audit.md)纠正，[Stage 201](docs/201-pr225-coverage-gate-recovery-audit.md)继续按远端/重复全量证据修正 headless 覆盖差异、真实 `.lnk` 参数证据、BMP worker 1507 ms 超时和原生菜单 hang。PR run `32803174900` 已为 1198/1198、90.01%/75.51% 全绿，等待最终文档提交复核及主线集成。PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`，30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
 
 ## 产品原则
 

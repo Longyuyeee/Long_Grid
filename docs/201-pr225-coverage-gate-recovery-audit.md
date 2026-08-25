@@ -2,7 +2,7 @@
 
 日期：2026-08-25
 开发项：Gate A / 长期功能分支主线集成
-结论：**Local Coverage Gate Pass With Headless-Runner Margin / PR CI Required**
+结论：**PR CI Pass / Main Integration Required**
 
 ## 1. 远端真实差异
 
@@ -99,3 +99,16 @@ PR run `32801490556` 在 SHA `44e1c3c` 上通过格式、Release 构建、启动
 第三轮完整测试随后触发另一个独立 hang 门：完成 1109 个测试后，`NativeActivationSourceExposesFiniteInvokeAndHideRestoreContract` 的真实弹出菜单没有被窗口 `WM_TIMER` 关闭，2 分钟 blame-hang 正确中止并生成 sequence 证据。为保证 evidence 自身有限化，菜单定时器改用受根引用的原生 `TIMERPROC` 在弹出菜单模态循环内直接调用 `EndMenu`；`SetTimer` 失败会立即抛出 Win32 错误，不再进入无限等待。隔离进程连续 5/5 通过，仍须再跑完整覆盖率与远端 PR CI。
 
 修正后最终同一次本机 Release collector 为 **1198/1198、lines 90.38%（40774/45116）、branches 75.64%（13162/17400）**，格式门与 `git diff --check` 同时通过。相较要求，Actual 分别保留 +0.38 pp / +0.64 pp，Difference 为 `None`；最终 Gate A 结论仍以新的 headless PR run 为准。
+
+## 10. 最终 PR headless CI 验收
+
+PR run [`32803174900`](https://github.com/Longyuyeee/Long_Grid/actions/runs/32803174900) 在 SHA `10cdb25` 上用全新 Windows runner 完成 6 分 29 秒的完整流水线：
+
+| 项目 | Expected | Remote Actual | Difference |
+| --- | ---: | ---: | ---: |
+| Release 测试 | 1198/1198 | 1198/1198，0 Failed | None / Pass |
+| 行覆盖率 | ≥90.00% | 90.01%（40610/45116） | +0.01 pp / Pass |
+| 分支覆盖率 | ≥75.00% | 75.51%（13138/17400） | +0.51 pp / Pass |
+| 全部后续门 | 全部通过 | 配置、500 项规模、恢复、生命周期、资源稳定、匿名遥测、文件安全、正式缩略图隔离、漏洞、内部未签名 RC 全部通过 | None / Pass |
+
+格式、构建、启动链、DesktopHost、输入、157-ID 无障碍、UI Automation、clean-session、单实例、hang 诊断和运行时恢复合同也全部通过。PR #225 当前 `mergeStateStatus=CLEAN`；Gate A 仍需合入 `main` 并核验 main CI，不能把 PR 绿灯提前记作主线关闭。
