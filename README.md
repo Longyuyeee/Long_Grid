@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 199](docs/199-pf001-runtime-boxes-enable-real-window-performance-audit.md) 已关闭 PF-001 运行期开启性能证据：正式 App 通过真实原子设置与产品生命周期连续三次完成 DesktopHost HWND 1→0→1，开启耗时 41/92/40 ms，最慢仍比 1000 ms 目标快 908 ms；1 ms 负向门以实际 31 ms、超出 30 ms 和退出码 1 正确失败。PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`，30 个 PF 项仍为 `0 Complete`，当前分支下一步必须完成主线集成，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-001 运行期开启真实性能已由 [Stage 199](docs/199-pf001-runtime-boxes-enable-real-window-performance-audit.md)关闭；PR #225 首次远端 CI 又暴露 Windows PowerShell 5.1 无 BOM UTF-8 解析失败和批量无障碍入口仍锁定 146 而权威合同已为 157 的集成偏差，[Stage 200](docs/200-pr225-windows-powershell-ui-contract-ci-correction-audit.md) 已在同一 `powershell.exe` 运行时复现并修正，等待完整 CI 重跑。PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`，30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -60,6 +60,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [当前开发与初始需求对齐审计（Stage 197）](docs/197-current-development-original-requirement-alignment-audit.md)
 - [PF-001 冷启动性能门禁与语义纠偏审计（Stage 198）](docs/198-pf001-cold-start-performance-gate-semantics-audit.md)
 - [PF-001 运行期开启真实窗口性能审计（Stage 199）](docs/199-pf001-runtime-boxes-enable-real-window-performance-audit.md)
+- [PR #225 Windows PowerShell UI 合同 CI 纠偏审计（Stage 200）](docs/200-pr225-windows-powershell-ui-contract-ci-correction-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)

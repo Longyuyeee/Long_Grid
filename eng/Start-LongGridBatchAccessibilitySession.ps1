@@ -78,6 +78,14 @@ foreach ($requiredPath in @(
     }
 }
 
+$uiScriptBytes = [IO.File]::ReadAllBytes($uiScript)
+Assert-Condition (
+    $uiScriptBytes.Length -ge 3 -and
+    $uiScriptBytes[0] -eq 0xEF -and
+    $uiScriptBytes[1] -eq 0xBB -and
+    $uiScriptBytes[2] -eq 0xBF
+) 'Test-LongGridUi.ps1 must retain its UTF-8 BOM for Windows PowerShell 5.1 compatibility.'
+
 if (-not $ValidateOnly) {
     if ([string]::IsNullOrWhiteSpace($Scenario)) {
         throw 'Scenario is required and must be one ID from BSA-01 through BSA-05.'
@@ -148,10 +156,10 @@ Assert-Condition ($LASTEXITCODE -eq 0) `
 $uiResult = $uiJson | ConvertFrom-Json
 Assert-Condition (
     $uiResult.outcome -eq 'Pass' -and
-    $uiResult.contract.requiredAutomationIds -eq 146 -and
+    $uiResult.contract.requiredAutomationIds -eq 157 -and
     $uiResult.contract.productBatchSelectionControls -eq
         'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
-) 'The batch accessibility matrix requires the complete 146-ID UI contract.'
+) 'The batch accessibility matrix requires the complete 157-ID UI contract.'
 
 $commit = 'unavailable'
 if (Get-Command git -ErrorAction SilentlyContinue) {
@@ -182,7 +190,7 @@ $sessionContract = [ordered]@{
     }
     operatorIdentifierPolicy = 'AnonymousLabelsOnly'
     commit = $commit
-    requiredAutomationIds = 146
+    requiredAutomationIds = 157
     focusedAutomationIds = $requiredAutomationIds.Count
     resultStatus = 'PendingManualEvidence'
     requiresManualJudgment = $true

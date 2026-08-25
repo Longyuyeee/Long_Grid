@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-006 项目选择、键盘导航与安全打开命令（PF-001～PF-005 产品证据并行 Pending）**
-- 最新性能门禁审计：[Stage 199](199-pf001-runtime-boxes-enable-real-window-performance-audit.md)；正式 App 真实设置与 HWND 1→0→1 连续三次为 41/92/40 ms，PF-001 运行期开启 1 秒目标通过；真人无障碍证据仍 Pending，30 个 PF 项仍为 `0 Complete`
+- 最新主线集成审计：[Stage 200](200-pr225-windows-powershell-ui-contract-ci-correction-audit.md)；PR #225 首次 CI 暴露并修正 Windows PowerShell 5.1 UTF-8 BOM 与 146→157 AutomationId 陈旧合同，等待完整重跑；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 

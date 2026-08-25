@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准，最新开发情况、初始需求对齐和竞品差距见 [Stage 197](197-current-development-original-requirement-alignment-audit.md)，冷启动语义与硬门见 [Stage 198](198-pf001-cold-start-performance-gate-semantics-audit.md)，运行期开启真实设置/HWND 性能见 [Stage 199](199-pf001-runtime-boxes-enable-real-window-performance-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，PF-002 空态入口、统一创建默认值、空态多输入和非空持续入口证据分别见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)至 [Stage 158](158-pf002c2-persistent-desktop-create-audit.md)；历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁仍以 [Stage 149](149-m4c2c-dedicated-environment-preflight-audit.md)为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准，最新开发与需求对齐见 [Stage 197](197-current-development-original-requirement-alignment-audit.md)，PF-001 冷启动/运行期开启性能见 [Stage 198](198-pf001-cold-start-performance-gate-semantics-audit.md)与 [Stage 199](199-pf001-runtime-boxes-enable-real-window-performance-audit.md)，PR #225 Windows PowerShell/无障碍合同集成纠偏见 [Stage 200](200-pr225-windows-powershell-ui-contract-ci-correction-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)；历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁仍以 [Stage 149](149-m4c2c-dedicated-environment-preflight-audit.md)为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 ## Phase 0：立项与技术验证
 
