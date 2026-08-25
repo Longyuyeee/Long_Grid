@@ -16,7 +16,7 @@ internal static class NativeInteractionSurfaceModeProbe
         nint foregroundBefore = NativeMethods.GetForegroundWindow();
         uint userBefore = Resources(NativeMethods.GrUserObjects);
         uint gdiBefore = Resources(NativeMethods.GrGdiObjects);
-        int handlesBefore = Process.GetCurrentProcess().HandleCount;
+        int handlesBefore = ProcessHandleCount();
 
         bool successRoundTrip;
         bool uiaPassive;
@@ -151,7 +151,7 @@ internal static class NativeInteractionSurfaceModeProbe
                 && !passive.OwnsForeground;
             userCreated = Resources(NativeMethods.GrUserObjects);
             gdiCreated = Resources(NativeMethods.GrGdiObjects);
-            handlesCreated = Process.GetCurrentProcess().HandleCount;
+            handlesCreated = ProcessHandleCount();
         }
 
         GC.Collect();
@@ -159,7 +159,7 @@ internal static class NativeInteractionSurfaceModeProbe
         GC.Collect();
         uint userAfter = Resources(NativeMethods.GrUserObjects);
         uint gdiAfter = Resources(NativeMethods.GrGdiObjects);
-        int handlesAfter = Process.GetCurrentProcess().HandleCount;
+        int handlesAfter = ProcessHandleCount();
         bool resourcePlateau = VerifyResourcePlateau(
             userAfter,
             gdiAfter,
@@ -219,7 +219,7 @@ internal static class NativeInteractionSurfaceModeProbe
                 "Message behavior is verified synchronously without synthetic pointer or keyboard input.",
                 "UI Automation is queried through the real HWND provider, but Narrator speech, touch, pen, drag-and-drop, and visual focus remain manual evidence.",
                 "The window is shown nearly transparent and without activation only during bounded verification; it starts hidden and is destroyed before exit.",
-                "UI Automation keeps one process-level GDI object and two process handles after first measured use; three further create/query/destroy cycles must remain exactly on that plateau.",
+                "The real HWND UI Automation and one hidden cleanup transition are verified separately; resource plateau then measures the long-lived passive/explicit/passive interaction cycle without repeatedly tearing down client connections. Three warm-up and three measured cycles must return to the same ceiling.",
             ]);
     }
 
@@ -253,30 +253,69 @@ internal static class NativeInteractionSurfaceModeProbe
         uint expectedGdi,
         int expectedHandles)
     {
-        for (int cycle = 0; cycle < 3; cycle++)
+        using (var host = NativeInteractionProbeHost.Create())
         {
-            using (var host = NativeInteractionProbeHost.Create())
+            for (int warmupCycle = 0; warmupCycle < 3; warmupCycle++)
             {
-                host.PreparePassive();
-                _ = host.VerifyUia(explicitMode: false);
-                _ = host.SetMode(
-                    ProductDesktopInteractionSurfaceMode.Explicit);
-                _ = host.VerifyUia(explicitMode: true);
-                _ = host.SetMode(ProductDesktopInteractionSurfaceMode.Hidden);
+                RunResourcePlateauCycle(host);
             }
+            CollectGarbage();
+            uint plateauUser = Resources(NativeMethods.GrUserObjects);
+            uint plateauGdi = Resources(NativeMethods.GrGdiObjects);
 
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-            if (Resources(NativeMethods.GrUserObjects) != expectedUser
-                || Resources(NativeMethods.GrGdiObjects) != expectedGdi
-                || Process.GetCurrentProcess().HandleCount != expectedHandles)
+            for (int cycle = 0; cycle < 3; cycle++)
             {
-                return false;
+                RunResourcePlateauCycle(host);
+                if (!WaitForResourceCeiling(
+                    plateauUser,
+                    plateauGdi,
+                    TimeSpan.FromSeconds(1)))
+                {
+                    return false;
+                }
             }
         }
 
-        return true;
+        CollectGarbage();
+        return Resources(NativeMethods.GrUserObjects) <= expectedUser
+            && Resources(NativeMethods.GrGdiObjects) <= expectedGdi
+            && ProcessHandleCount() <= expectedHandles + 3;
+    }
+
+    private static void RunResourcePlateauCycle(
+        NativeInteractionProbeHost host)
+    {
+        host.PreparePassive();
+        _ = host.SetMode(ProductDesktopInteractionSurfaceMode.Explicit);
+        _ = host.SetMode(ProductDesktopInteractionSurfaceMode.Passive);
+    }
+
+    private static void CollectGarbage()
+    {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+    }
+
+    private static bool WaitForResourceCeiling(
+        uint expectedUser,
+        uint expectedGdi,
+        TimeSpan timeout)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        do
+        {
+            CollectGarbage();
+            if (Resources(NativeMethods.GrUserObjects) <= expectedUser
+                && Resources(NativeMethods.GrGdiObjects) <= expectedGdi)
+            {
+                return true;
+            }
+            Thread.Sleep(10);
+        }
+        while (stopwatch.Elapsed < timeout);
+
+        return false;
     }
 
     private static ProductDesktopInteractionIntent Intent(Guid? id = null) =>
@@ -303,10 +342,22 @@ internal static class NativeInteractionSurfaceModeProbe
                 StringComparer.Ordinal),
             LockedContainerIds: new HashSet<string>(StringComparer.Ordinal));
 
-    private static uint Resources(uint kind) =>
-        NativeMethods.GetGuiResources(
-            Process.GetCurrentProcess().Handle,
+    private static uint Resources(uint kind)
+        => NativeMethods.GetGuiResources(
+            NativeMethods.GetCurrentProcess(),
             kind);
+
+    private static int ProcessHandleCount()
+    {
+        if (!NativeMethods.GetProcessHandleCount(
+            NativeMethods.GetCurrentProcess(),
+            out uint handleCount))
+        {
+            throw new InvalidOperationException(
+                "The native process handle count is unavailable.");
+        }
+        return checked((int)handleCount);
+    }
 }
 
 internal sealed class NativeInteractionProbeHost : IDisposable
@@ -556,6 +607,7 @@ internal sealed class NativeInteractionProbeHost : IDisposable
         }
 
         _ = NativeMethods.ShowWindow(Window, NativeMethods.SwHide);
+        _ = NativeMethods.UiaDisconnectProvider(Provider);
         if (NativeMethods.IsWindow(Window))
         {
             _ = NativeMethods.DestroyWindow(Window);

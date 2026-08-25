@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-001 运行期开启真实性能已由 [Stage 199](docs/199-pf001-runtime-boxes-enable-real-window-performance-audit.md)关闭；PR #225 的 Windows PowerShell/157-ID 偏差已由 [Stage 200](docs/200-pr225-windows-powershell-ui-contract-ci-correction-audit.md)纠正，[Stage 201](docs/201-pr225-coverage-gate-recovery-audit.md)继续按远端/重复全量证据修正 headless 覆盖差异、真实 `.lnk` 参数证据、BMP worker 1507 ms 超时和原生菜单 hang。PR run `32803174900` 已为 1198/1198、90.01%/75.51% 全绿，等待最终文档提交复核及主线集成。PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`，30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PR #225 已以 `9889cdc` 合入 `main`，但 main run `32804120282` 暴露原生交互 Surface 资源平台期观测偏差；[Stage 202](docs/202-main-native-surface-resource-plateau-audit.md)已把会扰动句柄的托管观测和同进程 UIA client 缓存从产品 provider 门中分离，本机真实探针 5/5 通过，等待纠正 PR/main CI。PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`，30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -62,6 +62,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-001 运行期开启真实窗口性能审计（Stage 199）](docs/199-pf001-runtime-boxes-enable-real-window-performance-audit.md)
 - [PR #225 Windows PowerShell UI 合同 CI 纠偏审计（Stage 200）](docs/200-pr225-windows-powershell-ui-contract-ci-correction-audit.md)
 - [PR #225 覆盖率门禁恢复审计（Stage 201）](docs/201-pr225-coverage-gate-recovery-audit.md)
+- [main 原生交互 Surface 资源平台期纠偏审计（Stage 202）](docs/202-main-native-surface-resource-plateau-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)
@@ -219,7 +220,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按 [Stage 201](docs/201-pr225-coverage-gate-recovery-audit.md)先让 PR #225 全新 Windows runner 复核 1198 项测试与 90%/75% 覆盖率门，再完成主线集成；之后按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)进入 PF-006C1 PageUp/PageDown 跨视口键盘导航。随后优先完成框选、桌面直接拖入、首次引导、自动整理、快速隐藏/托盘和命名快照。任务栏美化维持 P1 默认关闭实验模块，小组件/Long助手运行时维持 P2；两者均不得提前伪报完成。
+按 [Stage 202](docs/202-main-native-surface-resource-plateau-audit.md)先让资源平台期纠正通过 PR 与 main 完整 CI，关闭 Gate A；之后按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)进入 PF-006C1 PageUp/PageDown 跨视口键盘导航。随后优先完成框选、桌面直接拖入、首次引导、自动整理、快速隐藏/托盘和命名快照。任务栏美化维持 P1 默认关闭实验模块，小组件/Long助手运行时维持 P2；两者均不得提前伪报完成。
 
 ## 开发启动
 

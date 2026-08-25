@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Windows.Automation.Provider;
 
 internal static class NativeMethods
 {
@@ -341,6 +342,15 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     internal static extern uint GetGuiResources(nint process, uint flags);
 
+    [DllImport("kernel32.dll")]
+    internal static extern nint GetCurrentProcess();
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetProcessHandleCount(
+        nint process,
+        out uint handleCount);
+
     [DllImport("dcomp.dll", PreserveSig = true)]
     internal static extern int DCompositionCreateDevice(
         nint renderingDevice,
@@ -354,6 +364,11 @@ internal static class NativeMethods
         nint wordParameter,
         nint longParameter,
         nint provider);
+
+    [DllImport("uiautomationcore.dll")]
+    internal static extern int UiaDisconnectProvider(
+        [MarshalAs(UnmanagedType.Interface)]
+        IRawElementProviderSimple provider);
 
     [DllImport("gdi32.dll", SetLastError = true)]
     internal static extern nint CreateRectRgn(
