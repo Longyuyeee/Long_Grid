@@ -119,6 +119,8 @@ $desktopInteractionSelectionCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionSelection.cs'
 $desktopInteractionSelectionAccessibilityCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionSelectionAccessibility.cs'
+$desktopMarqueeSelectionCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopMarqueeSelection.cs'
 $desktopInteractionSurfaceModeCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionSurfaceModeTransaction.cs'
 $nativeInteractionSurfaceProbeCodePath = Join-Path $projectRoot `
@@ -419,6 +421,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopInteractionSelectionAccessibilityCode = Get-Content `
         -LiteralPath $desktopInteractionSelectionAccessibilityCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopMarqueeSelectionCode = Get-Content `
+        -LiteralPath $desktopMarqueeSelectionCodePath `
         -Raw `
         -Encoding UTF8
     $desktopInteractionSurfaceModeCode = Get-Content `
@@ -1506,6 +1512,27 @@ function Test-SourceContract {
             'ProductDesktopInteractionSelectionController')
     ) `
         'B3/M2 selection must remain lease and generation bound, keep Passive UIA nonfocusable and pattern-free, and expose Explicit SelectionItem/Invoke through the shared accessibility snapshot without a second selection controller.'
+    Assert-Condition (
+        $desktopInteractionSelectionCode -match `
+            'ProductDesktopSelectionAction\.SelectItems' -and
+        $desktopInteractionSelectionCode -match `
+            'items\.Count\s*<=\s*MaximumVisibleItems' -and
+        $desktopMarqueeSelectionCode -match `
+            'ProductDesktopMarqueeSelectionSession' -and
+        $desktopMarqueeSelectionCode -match 'SelectionRevision' -and
+        $desktopMarqueeSelectionCode -match 'VisibleItemIds' -and
+        $desktopMarqueeSelectionCode -match `
+            'ProductDesktopSelectionAction\.SelectItems' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'GetCurrentInputMessageSource' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'TryStartMarqueeSelection' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'CancelMarqueeSelection' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'DrawFocusRect'
+    ) `
+        'PF-006C2 marquee selection must stay explicit, attested, lease/revision bound, atomically select a bounded visible identity set, cancel on authority drift, and render a native preview.'
     Assert-Condition (
         $desktopInteractionSurfaceModeCode -match `
             'IProductDesktopInteractionSurfaceModeAdapter' -and
@@ -3444,6 +3471,7 @@ function Test-SourceContract {
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'
                     productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-title-layout-select-then-authority-safe-file-folder-lnk-http-https-open-finite-path-free-feedback-default-double-click-persisted-single-click-opt-in-authoritative-retry-safe-explorer-locate-zero-file-mutation'
+                    productDesktopMarqueeSelection = 'explicit-attested-blank-content-capture-bounded-visible-atomic-uia-converged-drift-cancelled'
                     readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'
     }
 }

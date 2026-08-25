@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-006 项目选择、键盘导航与安全打开命令（PF-001～PF-005 产品证据并行 Pending）**
-- 最新开发审计：[Stage 205](205-main-thumbnail-profile-bounded-cleanup-audit.md)；Stage 204/205 已以 `973db66`/`9dda47d` 合入，main run `32813543652` 为 1202/1202、90.03%/75.58%、正式 Worker/资源/漏洞和 RC 800/800 全绿；当前进入 PF-006C2 鼠标框选，30 个 PF 项仍为 `0 Complete`
+- 最新开发审计：[Stage 206](206-pf006c2-marquee-selection-hwnd-uia-convergence-audit.md)；PF-006C2 已在本地以真实 HWND/UIA、1225/1225、90.41%/75.74% 收敛，当前等待 PR/main 集成；集成前 PF-006 仍为 `InProgress`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -49,7 +49,7 @@
 ### 3.2 用户可感知的主要差距
 
 - 创建、拖动、缩放、标题栏操作、图标/缩略图、选择和安全打开已有正式工程链，但物理输入/Narrator/高对比证据债务仍使 PF-001～PF-005 无法产品完成；
-- 用户仍不能像 Fences/iTop 一样完成桌面/Explorer 直接拖入、框选与完整低摩擦整理旅程；
+- 用户仍不能像 Fences/iTop 一样完成桌面/Explorer 直接拖入与完整低摩擦整理旅程；框选工程链已完成，但物理鼠标/高对比/Narrator 证据待补；
 - 没有自动整理规则、Folder Portal、Tab、Roll-up、Peek、Quick-hide、托盘与全局快捷键；
 - 没有可命名布局快照、场景/页面、应用工作空间捕获与启动；
 - 外观已有正式 Design Token、Mica/Acrylic 和品牌 RC1，但桌面 Surface、主题持久化、竞品级标题/间距/图标尺寸/视图模式、动效和无障碍矩阵尚未收口；
@@ -64,7 +64,7 @@
 | 3 | PF-003 | 桌面拖动、缩放、吸附 | `EngineeringComplete / ProductEvidencePending`：生产工程链、正式 Store 与双屏混合 DPI 已完成；物理鼠标/触控/截图与 UIA Bounds 待安全环境补证 | Fences/Nimi 直接布局 |
 | 4 | PF-004 | 方格标题栏与就近操作 | `EngineeringComplete / ProductEvidencePending`：A～E 正式工程链完成；物理菜单/双击、触控截图和 Narrator 待补 | Fences 标题栏操作 |
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | `EngineeringComplete / ProductEvidencePending` | Fences/Nimi 项目呈现 |
-| 6 | PF-006 | 项目选择、键盘导航与打开 | `InProgress`：A 选择收敛完成；B1 File/Folder、B2A Shortcut/URL 与有限反馈、B2B1 单击策略、B2B2 重试/定位完成；C 跨视口导航/框选待实现 | Fences/Portal 日常访问 |
+| 6 | PF-006 | 项目选择、键盘导航与打开 | `InProgress / IntegrationPending`：A/B/C 工程范围含框选均已完成，等待 PF-006C2 PR/main 远端门禁；物理输入/Narrator/高对比仍 Pending | Fences/Portal 日常访问 |
 | 7 | PF-007 | Explorer 拖入与方格间拖放 | 配置表单批量加入 | iTop/Fences 直接拖放 |
 | 8 | PF-008 | 方格内视图、排序、滚动与间距 | 方格级排序有限 | Nimi/Fences 视图控制 |
 | 9 | PF-009 | 桌面搜索、筛选与快速定位 | 控制中心搜索 | iTop Search |
@@ -255,7 +255,7 @@
 - 高对比和 Narrator 下选中、焦点、不可用三种状态可区分；
 - 自动化覆盖重复打开、目标变化、取消和进程启动失败。
 
-**2026-08-25 实施状态**：`InProgress`。Stage 192/PF-006A 完成选择收敛；Stage 193～196 完成安全打开、有限反馈、单击策略、重试和 Explorer 定位；Stage 203/PF-006C1 已完成 PageUp/PageDown 的权威换页、相对焦点和真实 HWND/UIA 主线收敛。框选及物理/高对比/Narrator 仍 Pending；下一切片 PF-006C2。
+**2026-08-25 实施状态**：`InProgress / IntegrationPending / ProductEvidencePending`。Stage 192/PF-006A 完成选择收敛；Stage 193～196 完成安全打开、有限反馈、单击策略、重试和 Explorer 定位；Stage 203/PF-006C1 完成 PageUp/PageDown 的权威换页、相对焦点和真实 HWND/UIA 收敛；Stage 206/PF-006C2 已完成空白内容区起框、有界原子多选、输入证明、漂移取消、真实 HWND/UIA 收敛和 1225/1225 本地全量。当前等待 PR/main 集成；物理鼠标、高对比、Narrator 仍 Pending。远端全绿后 PF-006 提升为 `EngineeringComplete / ProductEvidencePending`，下一工程项为 PF-007。
 
 ### PF-007：Explorer 拖入与方格间拖放
 

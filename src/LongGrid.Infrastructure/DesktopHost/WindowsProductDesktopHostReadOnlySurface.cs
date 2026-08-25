@@ -123,6 +123,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     private ProductDesktopItemOpenFeedback? itemOpenFeedback;
     private bool openItemsWithSingleClick;
     private ActiveContainerLayout? activeContainerLayout;
+    private ProductDesktopMarqueeSelectionSession? activeMarqueeSelection;
     private ProductDesktopHostReadOnlyProjection? containerLayoutPreview;
     private string? containerLayoutKeyboardFocusId;
     private NativePoint workspaceCreateDragStart;
@@ -338,7 +339,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 if (!TryStartContainerLayout(window, wordParameter, longParameter)
                     && !HandleWorkspaceCreatePress(longParameter))
                 {
-                    if (!TryStartWorkspaceCreateDrag(
+                    if (!TryStartMarqueeSelection(
+                            window,
+                            wordParameter,
+                            longParameter)
+                        && !TryStartWorkspaceCreateDrag(
                             window,
                             wordParameter,
                             longParameter))
@@ -358,6 +363,10 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 if (activeContainerLayout is not null)
                 {
                     UpdateContainerLayout(longParameter);
+                }
+                else if (activeMarqueeSelection is not null)
+                {
+                    UpdateMarqueeSelection(longParameter);
                 }
                 else
                 {
@@ -380,6 +389,10 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 {
                     CompleteContainerLayout(window, longParameter);
                 }
+                else if (activeMarqueeSelection is not null)
+                {
+                    CompleteMarqueeSelection(window, longParameter);
+                }
                 else
                 {
                     CompleteWorkspaceCreateDrag(window, longParameter);
@@ -389,12 +402,14 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 CancelContainerLayout(
                     window,
                     ProductDesktopContainerLayoutCancellationReason.CancelMode);
+                CancelMarqueeSelection(window);
                 CancelWorkspaceCreateDrag(window);
                 return nint.Zero;
             case NativeMethods.WmCaptureChanged:
                 CancelContainerLayout(
                     window,
                     ProductDesktopContainerLayoutCancellationReason.CaptureLost);
+                CancelMarqueeSelection(window);
                 CancelWorkspaceCreateDrag(window);
                 return nint.Zero;
             case NativeMethods.WmKeyDown
@@ -402,6 +417,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 CancelContainerLayout(
                     window,
                     ProductDesktopContainerLayoutCancellationReason.EscapePressed);
+                CancelMarqueeSelection(window);
+                CancelWorkspaceCreateDrag(window);
                 return nint.Zero;
             case NativeMethods.WmRButtonUp:
                 if (!HandleItemOpenFeedbackContextMenu(window, longParameter))
@@ -540,6 +557,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         {
             return false;
         }
+        CancelMarqueeSelection(Handle);
         projection = nextProjection;
         if (itemOpenFeedback is { } feedback
             && !projection.Containers.Any(container =>
@@ -625,6 +643,35 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             shift,
             sourceAttested,
             isInjected);
+
+    internal bool BeginMarqueeSelectionForEvidence(
+        int x,
+        int y,
+        bool control = false,
+        bool shift = false,
+        bool sourceAttested = true,
+        bool isInjected = false) => TryStartMarqueeSelectionCore(
+            Handle,
+            x,
+            y,
+            control,
+            shift,
+            sourceAttested,
+            isInjected);
+
+    internal bool UpdateMarqueeSelectionForEvidence(int x, int y) =>
+        UpdateMarqueeSelectionCore(x, y);
+
+    internal bool CompleteMarqueeSelectionForEvidence(int x, int y) =>
+        CompleteMarqueeSelectionCore(Handle, x, y);
+
+    internal void CancelMarqueeSelectionForEvidence() =>
+        CancelMarqueeSelection(Handle);
+
+    internal PixelRect? GetMarqueeBoundsForEvidence() =>
+        activeMarqueeSelection is { } session
+            ? ProductDesktopMarqueeSelectionAdapter.GetBounds(session)
+            : null;
 
     internal bool SubmitItemOpenFeedbackActionForEvidence(
         ProductDesktopItemOpenSource source,
@@ -894,6 +941,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     {
         if (mode != ProductDesktopInteractionSurfaceMode.Explicit
             || activeContainerLayout is not null
+            || activeMarqueeSelection is not null
             || workspaceCreateDragActive)
         {
             return false;
@@ -1173,6 +1221,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         nint longParameter)
     {
         if (mode != ProductDesktopInteractionSurfaceMode.Explicit
+            || activeContainerLayout is not null
+            || activeMarqueeSelection is not null
             || workspaceCreateDragActive
             || (wordParameter.ToInt64()
                 & (NativeMethods.MkControl | NativeMethods.MkShift)) != 0)
@@ -1210,6 +1260,149 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         }
         _ = NativeMethods.InvalidateRect(window, nint.Zero, erase: false);
         return true;
+    }
+
+    private bool TryStartMarqueeSelection(
+        nint window,
+        nint wordParameter,
+        nint longParameter)
+    {
+        InputMessageSource source = default;
+        if (!NativeMethods.GetCurrentInputMessageSource(ref source))
+        {
+            return false;
+        }
+
+        long flags = wordParameter.ToInt64();
+        return TryStartMarqueeSelectionCore(
+            window,
+            SignedLowWord(longParameter),
+            SignedHighWord(longParameter),
+            (flags & NativeMethods.MkControl) != 0,
+            (flags & NativeMethods.MkShift) != 0,
+            sourceAttested: true,
+            isInjected: source.OriginId == NativeMethods.ImoInjected);
+    }
+
+    private bool TryStartMarqueeSelectionCore(
+        nint window,
+        int x,
+        int y,
+        bool control,
+        bool shift,
+        bool sourceAttested,
+        bool isInjected)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Explicit
+            || activeContainerLayout is not null
+            || activeMarqueeSelection is not null
+            || workspaceCreateDragActive
+            || !sourceAttested
+            || isInjected)
+        {
+            return false;
+        }
+
+        ProductDesktopMarqueeSelectionSession? session =
+            ProductDesktopMarqueeSelectionAdapter.TryStart(
+                projection,
+                selectionSnapshot(),
+                x,
+                y,
+                control,
+                shift);
+        if (session is null)
+        {
+            return false;
+        }
+
+        activeMarqueeSelection = session;
+        _ = NativeMethods.SetCapture(window);
+        if (NativeMethods.GetCapture() != window)
+        {
+            activeMarqueeSelection = null;
+            return false;
+        }
+        _ = NativeMethods.InvalidateRect(window, nint.Zero, erase: false);
+        return true;
+    }
+
+    private void UpdateMarqueeSelection(nint longParameter) =>
+        _ = UpdateMarqueeSelectionCore(
+            SignedLowWord(longParameter),
+            SignedHighWord(longParameter));
+
+    private bool UpdateMarqueeSelectionCore(int x, int y)
+    {
+        if (activeMarqueeSelection is not { } session)
+        {
+            return false;
+        }
+
+        ProductDesktopMarqueeSelectionSession? updated =
+            ProductDesktopMarqueeSelectionAdapter.TryUpdate(
+                projection,
+                selectionSnapshot(),
+                session,
+                x,
+                y);
+        if (updated is null)
+        {
+            CancelMarqueeSelection(Handle);
+            return false;
+        }
+
+        activeMarqueeSelection = updated;
+        _ = NativeMethods.InvalidateRect(Handle, nint.Zero, erase: false);
+        return true;
+    }
+
+    private void CompleteMarqueeSelection(nint window, nint longParameter) =>
+        _ = CompleteMarqueeSelectionCore(
+            window,
+            SignedLowWord(longParameter),
+            SignedHighWord(longParameter));
+
+    private bool CompleteMarqueeSelectionCore(
+        nint window,
+        int x,
+        int y)
+    {
+        if (activeMarqueeSelection is not { } session)
+        {
+            return false;
+        }
+
+        ProductDesktopMarqueeSelectionCommand? command =
+            ProductDesktopMarqueeSelectionAdapter.TryComplete(
+                projection,
+                selectionSnapshot(),
+                session,
+                x,
+                y);
+        activeMarqueeSelection = null;
+        if (NativeMethods.GetCapture() == window)
+        {
+            _ = NativeMethods.ReleaseCapture();
+        }
+        _ = NativeMethods.InvalidateRect(window, nint.Zero, erase: false);
+        return command is not null
+            && applySelection(command.ContainerId, command.Request);
+    }
+
+    private void CancelMarqueeSelection(nint window)
+    {
+        if (activeMarqueeSelection is null)
+        {
+            return;
+        }
+
+        activeMarqueeSelection = null;
+        if (NativeMethods.GetCapture() == window)
+        {
+            _ = NativeMethods.ReleaseCapture();
+        }
+        _ = NativeMethods.InvalidateRect(window, nint.Zero, erase: false);
     }
 
     private void UpdateWorkspaceCreateDrag(nint longParameter)
@@ -1804,6 +1997,17 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                         bounds.Bottom);
                     _ = NativeMethods.DrawFocusRect(deviceContext, ref outline);
                 }
+                if (activeMarqueeSelection is { } marquee)
+                {
+                    PixelRect bounds =
+                        ProductDesktopMarqueeSelectionAdapter.GetBounds(marquee);
+                    NativeRect outline = new(
+                        bounds.Left,
+                        bounds.Top,
+                        bounds.Right,
+                        bounds.Bottom);
+                    _ = NativeMethods.DrawFocusRect(deviceContext, ref outline);
+                }
             }
             finally
             {
@@ -2306,6 +2510,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         CancelContainerLayout(
             Handle,
             ProductDesktopContainerLayoutCancellationReason.HostInvalidated);
+        CancelMarqueeSelection(Handle);
+        CancelWorkspaceCreateDrag(Handle);
         containerLayoutPreview = null;
         containerLayoutKeyboardFocusId = null;
         disposed = true;
@@ -2339,6 +2545,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             ProductDesktopContainerLayoutCancellationReason.HostInvalidated);
         containerLayoutPreview = null;
         containerLayoutKeyboardFocusId = null;
+        CancelMarqueeSelection(Handle);
         CancelWorkspaceCreateDrag(Handle);
         mode = ProductDesktopInteractionSurfaceMode.Passive;
         TryRegisterWorkspaceCreateHotKey();
@@ -2369,6 +2576,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             ProductDesktopContainerLayoutCancellationReason.HostInvalidated);
         containerLayoutPreview = null;
         containerLayoutKeyboardFocusId = null;
+        CancelMarqueeSelection(Handle);
         CancelWorkspaceCreateDrag(Handle);
         mode = ProductDesktopInteractionSurfaceMode.Hidden;
         ReleaseWorkspaceCreateHotKey();

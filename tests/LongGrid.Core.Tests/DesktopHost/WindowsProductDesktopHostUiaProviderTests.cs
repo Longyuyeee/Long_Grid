@@ -1743,6 +1743,176 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
                 selected.SelectionRevision + 1);
     }
 
+    [Fact]
+    public void RealHwndMarqueeCommitsOneAtomicSelectionAndConvergesUia()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        ProductDesktopHostReadOnlyProjection container =
+            ProductDesktopHostReadOnlyProjection.Create(
+                "container-1",
+                "工作",
+                ["项目 1", "项目 2", "项目 3"],
+                "#2457D6",
+                0.82,
+                false,
+                24,
+                36,
+                360,
+                240,
+                itemIds: ["item-1", "item-2", "item-3"]);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary",
+                new(100, 200, 1920, 1040),
+                96,
+                [container]);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                display,
+                new nint(917));
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var lease = new ProductDesktopInteractionLease(
+            Guid.NewGuid(),
+            "container-1",
+            7,
+            9,
+            11,
+            now.AddMinutes(1));
+        ProductDesktopInteractionSelectionController selection =
+            ProductDesktopInteractionSelectionController.TryCreate(
+                lease,
+                container.ItemIds,
+                now).Controller!;
+        ProductDesktopInteractionSurfaceTransactionSnapshot current =
+            Transaction(selection.Snapshot);
+        int applyCount = 0;
+        surface.BindSelection(
+            () => current,
+            (_, request) =>
+            {
+                applyCount++;
+                ProductDesktopSelectionSnapshot updated = selection.Apply(
+                    lease,
+                    container.ItemIds,
+                    request,
+                    now);
+                current = Transaction(updated);
+                surface.RefreshSelection();
+                return updated.Status == ProductDesktopSelectionStatus.Applied;
+            });
+        Assert.True(surface.ApplyExplicit());
+        nint foregroundBefore = GetForegroundWindow();
+
+        Assert.False(surface.BeginMarqueeSelectionForEvidence(
+            300, 220, isInjected: true));
+        Assert.True(surface.BeginMarqueeSelectionForEvidence(300, 220));
+        Assert.True(surface.UpdateMarqueeSelectionForEvidence(30, 120));
+        PixelRect preview = Assert.IsType<PixelRect>(
+            surface.GetMarqueeBoundsForEvidence());
+        Assert.True(preview.HasArea);
+        Assert.True(surface.CompleteMarqueeSelectionForEvidence(30, 120));
+
+        Assert.Equal(1, applyCount);
+        Assert.Equal(["item-2", "item-3"],
+            selection.Snapshot.SelectedItemIds);
+        Assert.Null(surface.GetMarqueeBoundsForEvidence());
+        Assert.Equal(foregroundBefore, GetForegroundWindow());
+
+        AutomationElement root = AutomationElement.FromHandle(surface.Handle);
+        var pattern = (SelectionPattern)root.GetCurrentPattern(
+            SelectionPattern.Pattern);
+        AutomationElement[] uiaSelection = pattern.Current.GetSelection();
+        Assert.Equal(2, uiaSelection.Length);
+        Assert.Equal(
+            ["项目 2；文件；类型图标已就绪", "项目 3；文件；类型图标已就绪"],
+            uiaSelection.Select(item => item.Current.Name).ToArray());
+
+        Assert.True(surface.BeginMarqueeSelectionForEvidence(300, 220));
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x001F,
+            nint.Zero,
+            nint.Zero);
+        Assert.Null(surface.GetMarqueeBoundsForEvidence());
+        Assert.False(surface.CompleteMarqueeSelectionForEvidence(30, 120));
+        Assert.Equal(1, applyCount);
+
+        Assert.True(surface.BeginMarqueeSelectionForEvidence(300, 220));
+        Assert.True(surface.ApplyPresentation(display));
+        Assert.Null(surface.GetMarqueeBoundsForEvidence());
+        Assert.Equal(1, applyCount);
+
+        Assert.True(surface.BeginMarqueeSelectionForEvidence(300, 220));
+        Assert.True(surface.ApplyPassive());
+        Assert.Null(surface.GetMarqueeBoundsForEvidence());
+        Assert.False(surface.BeginMarqueeSelectionForEvidence(300, 220));
+        Assert.True(surface.ApplyExplicit());
+        Assert.Equal(1, applyCount);
+
+        output.WriteLine(System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Purpose = "Pf006C2RealHwndMarqueeSelection",
+            Expected = new
+            {
+                AtomicApplyCount = 1,
+                SelectedItemIds = "item-2,item-3",
+                UiaSelectionNames =
+                    "项目 2；文件；类型图标已就绪,项目 3；文件；类型图标已就绪",
+                InjectedStartRejected = true,
+                CancelModeClearsSession = true,
+                PresentationAndPassiveClearSession = true,
+                ForegroundOwnershipUnchanged = true,
+            },
+            Actual = new
+            {
+                AtomicApplyCount = applyCount,
+                SelectedItemIds = string.Join(",",
+                    selection.Snapshot.SelectedItemIds),
+                UiaSelectionNames = string.Join(",", uiaSelection.Select(
+                    item => item.Current.Name)),
+                InjectedStartRejected = true,
+                CancelModeClearsSession =
+                    surface.GetMarqueeBoundsForEvidence() is null,
+                PresentationAndPassiveClearSession =
+                    surface.GetMarqueeBoundsForEvidence() is null,
+                ForegroundOwnershipUnchanged =
+                    foregroundBefore == GetForegroundWindow(),
+            },
+            Difference = "None",
+            Outcome = "Pass",
+            EvidenceBoundary =
+                "Real HWND and real UIA provider; attested evidence helper is not physical mouse evidence.",
+        }));
+
+        ProductDesktopInteractionSurfaceTransactionSnapshot Transaction(
+            ProductDesktopSelectionSnapshot selected) => new(
+                ProductDesktopInteractionSurfaceTransactionStatus.Explicit,
+                new(
+                    ProductDesktopInteractionMode.ExplicitInteraction,
+                    ProductDesktopInteractionAdmissionStatus.Admitted,
+                    ProductDesktopInteractionCancellationReason.None,
+                    lease),
+                new(
+                    ProductDesktopInteractionSurfaceMode.Explicit,
+                    11,
+                    Visible: true,
+                    HitTestTransparent: false,
+                    IsKeyboardFocusable: true,
+                    SelectionPatternAvailable: true,
+                    ToolWindow: true,
+                    NoActivate: true,
+                    Topmost: false,
+                    HasOwner: false,
+                    OwnsForeground: false),
+                selected,
+                ProductDesktopInteractionSelectionAccessibilityAdapter
+                    .CreateExplicit(selected),
+                selected.SelectionRevision + 1);
+    }
+
     private static ProductDesktopHostReadOnlyProjection CreateContainer(
         string id,
         string title,

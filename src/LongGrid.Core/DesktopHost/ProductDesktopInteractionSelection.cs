@@ -23,6 +23,7 @@ public enum ProductDesktopSelectionModifiers
 public enum ProductDesktopSelectionAction
 {
     SelectItem,
+    SelectItems,
     MovePrevious,
     MoveNext,
     MoveFirst,
@@ -35,7 +36,8 @@ public sealed record ProductDesktopSelectionRequest(
     ProductDesktopSelectionAction Action,
     ProductDesktopSelectionModifiers Modifiers =
         ProductDesktopSelectionModifiers.None,
-    string? ItemId = null);
+    string? ItemId = null,
+    IReadOnlyList<string>? ItemIds = null);
 
 public sealed record ProductDesktopSelectionSnapshot(
     ProductDesktopSelectionStatus Status,
@@ -167,6 +169,8 @@ public sealed class ProductDesktopInteractionSelectionController
             {
                 ProductDesktopSelectionAction.SelectItem =>
                     Select(request.ItemId, request.Modifiers),
+                ProductDesktopSelectionAction.SelectItems =>
+                    SelectItems(request.ItemIds!, request.Modifiers),
                 ProductDesktopSelectionAction.MovePrevious =>
                     Move(-1, request.Modifiers),
                 ProductDesktopSelectionAction.MoveNext =>
@@ -243,13 +247,26 @@ public sealed class ProductDesktopInteractionSelectionController
     }
 
     private bool RequestIsValid(ProductDesktopSelectionRequest request) =>
-        request.Action == ProductDesktopSelectionAction.SelectItem
-            ? IndexOf(request.ItemId) >= 0
-            : request.Action is ProductDesktopSelectionAction.Clear
-                or ProductDesktopSelectionAction.SelectAll
-                ? request.ItemId is null
-                    && request.Modifiers == ProductDesktopSelectionModifiers.None
-                : request.ItemId is null;
+        request.Action switch
+        {
+            ProductDesktopSelectionAction.SelectItem =>
+                IndexOf(request.ItemId) >= 0 && request.ItemIds is null,
+            ProductDesktopSelectionAction.SelectItems =>
+                request.ItemId is null
+                && request.ItemIds is { } items
+                && request.Modifiers is ProductDesktopSelectionModifiers.None
+                    or ProductDesktopSelectionModifiers.Control
+                && items.Count <= MaximumVisibleItems
+                && items.All(item => IndexOf(item) >= 0)
+                && items.Distinct(StringComparer.Ordinal).Count()
+                    == items.Count,
+            ProductDesktopSelectionAction.Clear
+                or ProductDesktopSelectionAction.SelectAll =>
+                request.ItemId is null
+                && request.ItemIds is null
+                && request.Modifiers == ProductDesktopSelectionModifiers.None,
+            _ => request.ItemId is null && request.ItemIds is null,
+        };
 
     private bool SelectAll()
     {
@@ -278,6 +295,39 @@ public sealed class ProductDesktopInteractionSelectionController
         }
 
         return ApplyIndex(index, modifiers);
+    }
+
+    private bool SelectItems(
+        IReadOnlyList<string> itemIds,
+        ProductDesktopSelectionModifiers modifiers)
+    {
+        string? oldFocus = focusedItemId;
+        string? oldAnchor = anchorItemId;
+        string[] oldSelection = OrderedSelection();
+        string[] ordered = visibleItemIds.Where(itemIds.Contains).ToArray();
+        bool control = modifiers == ProductDesktopSelectionModifiers.Control;
+
+        if (!control)
+        {
+            selected.Clear();
+        }
+        selected.UnionWith(ordered);
+        if (ordered.Length > 0)
+        {
+            focusedItemId = ordered[0];
+            anchorItemId = ordered[0];
+        }
+        else if (!control)
+        {
+            focusedItemId = null;
+            anchorItemId = null;
+        }
+
+        return !string.Equals(oldFocus, focusedItemId, StringComparison.Ordinal)
+            || !string.Equals(oldAnchor, anchorItemId, StringComparison.Ordinal)
+            || !oldSelection.SequenceEqual(
+                OrderedSelection(),
+                StringComparer.Ordinal);
     }
 
     private bool Move(int delta, ProductDesktopSelectionModifiers modifiers)
