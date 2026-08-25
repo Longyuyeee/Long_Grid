@@ -159,7 +159,7 @@ pwsh ./eng/Test-LongGridDesktopFirstStartup.ps1 -Release -StabilitySeconds 0 -No
 | 退出残留 | 0 | 0 | None |
 | 临时配置写入 | 0 | 0 | None |
 | 冷启动观察值 | ≤10000 ms | 5107 / 1589 / 1140 ms | 均在上限内；Stage 198 已建立硬门禁 |
-| 运行期开启方格 | ≤1000 ms | 本场景未测量 | PendingDedicatedRealEvidence |
+| 运行期开启方格 | ≤1000 ms | Stage 199 三次 41 / 92 / 40 ms | Pass；最慢 -908 ms |
 
 ## 9. 最终结论
 

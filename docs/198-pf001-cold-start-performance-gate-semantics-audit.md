@@ -94,9 +94,9 @@ Stage 197 记录的 5107/1589/1140 ms 均是真实冷启动观察值，数据本
 
 ## 7. 剩余风险与下一步
 
-1. 新增专用运行期开启真实证据：在已初始化的正式 App 内关闭方格，确认 Surface/输入/UIA 释放，再开启并测量真实 HWND 恢复；目标 ≤1000 ms；
+1. 专用运行期开启真实证据已由 [Stage 199](199-pf001-runtime-boxes-enable-real-window-performance-audit.md)完成：正式设置链与 HWND 1→0→1 三次为 41/92/40 ms；
 2. 至少采集冷启动多样本并报告 median/P95，不能用一次 7570 ms 代表稳定性能；
 3. 若运行期开启或冷启动分布超限，再按配置读取、XAML 构造、目录枚举、拓扑和 Host 创建分段计时定位，不做无证据的“优化”；
-4. Gate A 性能证据完成后，将当前长期功能分支通过 PR 和完整主线 CI 集成，再进入 PF-006C1。
+4. Gate A 性能证据已经完成；下一步将当前长期功能分支通过 PR 和完整主线 CI 集成，再进入 PF-006C1。
 
 因此 PF-001 仍为 `EngineeringComplete / ProductEvidencePending`，项目仍不可公开分发。

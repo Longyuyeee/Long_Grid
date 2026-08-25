@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopHost;
@@ -48,6 +49,8 @@ public partial class App : Application
     private readonly ProductPf002AppEvidenceSession? pf002AppEvidenceSession;
     private readonly ProductDesktopFirstStartupEvidenceSession?
         desktopFirstStartupEvidenceSession;
+    private readonly ProductBoxesRuntimeEnableEvidenceSession?
+        boxesRuntimeEnableEvidenceSession;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
     private ProductConfigurationLoadResult? currentConfigurationLoadResult;
@@ -76,14 +79,20 @@ public partial class App : Application
             ProductPf002AppEvidenceSession.TryCreateFromEnvironment();
         desktopFirstStartupEvidenceSession =
             ProductDesktopFirstStartupEvidenceSession.TryCreateFromEnvironment();
-        if (pf002AppEvidenceSession is not null
-            && desktopFirstStartupEvidenceSession is not null)
+        boxesRuntimeEnableEvidenceSession =
+            ProductBoxesRuntimeEnableEvidenceSession.TryCreateFromEnvironment();
+        int evidenceSessionCount =
+            (pf002AppEvidenceSession is null ? 0 : 1)
+            + (desktopFirstStartupEvidenceSession is null ? 0 : 1)
+            + (boxesRuntimeEnableEvidenceSession is null ? 0 : 1);
+        if (evidenceSessionCount > 1)
         {
             throw new InvalidOperationException(
-                "PF-002 and desktop-first evidence sessions cannot run together.");
+                "Product App evidence sessions cannot run together.");
         }
         string configurationDirectory = pf002AppEvidenceSession?.DirectoryPath
             ?? desktopFirstStartupEvidenceSession?.DirectoryPath
+            ?? boxesRuntimeEnableEvidenceSession?.DirectoryPath
             ?? Path.Combine(
                 Environment.GetFolderPath(
                     Environment.SpecialFolder.LocalApplicationData),
@@ -256,6 +265,11 @@ public partial class App : Application
             window.Activate();
             _ = RunPf002AppEvidenceSessionAsync(pf002AppEvidenceSession);
         }
+        else if (boxesRuntimeEnableEvidenceSession is not null)
+        {
+            _ = RunBoxesRuntimeEnableEvidenceSessionAsync(
+                boxesRuntimeEnableEvidenceSession);
+        }
         else
         {
             _ = InitializeDesktopFirstStartupAsync();
@@ -314,6 +328,151 @@ public partial class App : Application
         {
             ActivateMainWindow();
         }
+    }
+
+    private async Task RunBoxesRuntimeEnableEvidenceSessionAsync(
+        ProductBoxesRuntimeEnableEvidenceSession evidence)
+    {
+        try
+        {
+            await Task.WhenAll(
+                LoadBoxesSettingsAsync(),
+                LoadConfigurationStartupStateAsync(),
+                RefreshProductDesktopCatalogAsync(),
+                RefreshProductDisplayTopologyAsync());
+
+            ProductDesktopHostLifecycleSnapshot initial =
+                await WaitForRuntimeEnableHostAsync(
+                    requireOwnedWindow: true,
+                    TimeSpan.FromSeconds(10));
+            await evidence.WriteJsonAsync(
+                evidence.InitialReadyPath,
+                new
+                {
+                    Status = initial.Status.ToString(),
+                    initial.OwnedWindowCount,
+                    initial.NativeHostConnected,
+                    initial.PassiveWindowContractAttested,
+                });
+            await evidence.WaitForAckAsync(
+                evidence.InitialObservedAckPath,
+                TimeSpan.FromSeconds(5));
+
+            ProductDesktopHostLifecycleSnapshot disabled =
+                await ChangeBoxesEnabledAsync(false);
+            if (disabled.Status != ProductDesktopHostLifecycleStatus.DisabledByUser
+                || disabled.OwnedWindowCount != 0)
+            {
+                throw new InvalidOperationException(
+                    "The product boxes change path did not disable DesktopHost.");
+            }
+            await evidence.WriteJsonAsync(
+                evidence.DisabledReadyPath,
+                new
+                {
+                    Status = disabled.Status.ToString(),
+                    disabled.OwnedWindowCount,
+                    disabled.NativeHostConnected,
+                });
+            await evidence.WaitForAckAsync(
+                evidence.DisabledObservedAckPath,
+                TimeSpan.FromSeconds(5));
+
+            long started = Stopwatch.GetTimestamp();
+            ProductDesktopHostLifecycleSnapshot restored =
+                await ChangeBoxesEnabledAsync(true);
+            if (restored.OwnedWindowCount == 0)
+            {
+                ApplyProductDesktopHostProjection(productDisplayTopology.Snapshot);
+                restored = await WaitForRuntimeEnableHostAsync(
+                    requireOwnedWindow: true,
+                    TimeSpan.FromSeconds(2));
+            }
+            int elapsedMilliseconds = checked((int)Math.Ceiling(
+                Stopwatch.GetElapsedTime(started).TotalMilliseconds));
+            const int budgetMilliseconds = 1000;
+            int differenceMilliseconds =
+                elapsedMilliseconds - budgetMilliseconds;
+            bool passed = restored.OwnedWindowCount > 0
+                && restored.NativeHostConnected
+                && restored.PassiveWindowContractAttested
+                && differenceMilliseconds <= 0;
+            await evidence.WriteJsonAsync(
+                evidence.ResultPath,
+                new
+                {
+                    SchemaVersion = 1,
+                    Purpose = "Pf001RuntimeBoxesEnableProductEvidence",
+                    Expected = new
+                    {
+                        InitialOwnedWindowCountMinimum = 1,
+                        DisabledOwnedWindowCount = 0,
+                        RestoredOwnedWindowCountMinimum = 1,
+                        RuntimeBoxesEnableBudgetMilliseconds =
+                            budgetMilliseconds,
+                    },
+                    Actual = new
+                    {
+                        InitialOwnedWindowCount = initial.OwnedWindowCount,
+                        DisabledOwnedWindowCount = disabled.OwnedWindowCount,
+                        RestoredOwnedWindowCount = restored.OwnedWindowCount,
+                        restored.NativeHostConnected,
+                        restored.PassiveWindowContractAttested,
+                        RuntimeBoxesEnableMilliseconds = elapsedMilliseconds,
+                        RuntimeBoxesEnableDifferenceMilliseconds =
+                            differenceMilliseconds,
+                    },
+                    Difference = passed
+                        ? "None"
+                        : differenceMilliseconds > 0
+                            ? $"RuntimeBoxesEnableExceededBy{differenceMilliseconds}Milliseconds"
+                            : "RuntimeBoxesEnableWindowContractMismatch",
+                    Outcome = passed ? "Pass" : "Fail",
+                });
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or InvalidDataException
+                or InvalidOperationException)
+        {
+            await evidence.WriteJsonAsync(
+                evidence.ResultPath,
+                new
+                {
+                    SchemaVersion = 1,
+                    Purpose = "Pf001RuntimeBoxesEnableProductEvidence",
+                    Difference = "ProductEvidenceSessionFailed",
+                    Outcome = "Fail",
+                    FailureType = exception.GetType().Name,
+                });
+        }
+    }
+
+    private async Task<ProductDesktopHostLifecycleSnapshot>
+        WaitForRuntimeEnableHostAsync(
+            bool requireOwnedWindow,
+            TimeSpan timeout)
+    {
+        DateTime deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            ProductDesktopHostLifecycleSnapshot snapshot =
+                productDesktopHostLifecycle.Snapshot;
+            bool readyStatus = snapshot.Status is
+                ProductDesktopHostLifecycleStatus.AwaitingWorkspace
+                or ProductDesktopHostLifecycleStatus.ReadyReadOnly;
+            if (readyStatus
+                && (!requireOwnedWindow || snapshot.OwnedWindowCount > 0))
+            {
+                return snapshot;
+            }
+
+            await Task.Delay(10);
+        }
+
+        throw new InvalidOperationException(
+            "The product DesktopHost did not reach the runtime-enable evidence state.");
     }
 
     private static ProductDesktopFirstHostReadiness MapDesktopFirstHostReadiness(
@@ -1162,10 +1321,16 @@ public partial class App : Application
 
     private async void MainWindow_BoxesEnabledChangeRequested(bool requestedValue)
     {
+        _ = await ChangeBoxesEnabledAsync(requestedValue);
+    }
+
+    private async Task<ProductDesktopHostLifecycleSnapshot>
+        ChangeBoxesEnabledAsync(bool requestedValue)
+    {
         MainWindow? currentWindow = window;
         if (currentWindow is null || closingDrainInProgress)
         {
-            return;
+            return productDesktopHostLifecycle.Snapshot;
         }
 
         currentWindow.ApplyBoxesEnabledChangePending(requestedValue);
@@ -1200,6 +1365,8 @@ public partial class App : Application
         {
             ApplyProductDesktopHostProjection(productDisplayTopology.Snapshot);
         }
+
+        return snapshot;
     }
 
     private async void MainWindow_ThumbnailsEnabledChangeRequested(
