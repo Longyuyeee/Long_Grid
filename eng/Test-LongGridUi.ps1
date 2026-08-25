@@ -161,6 +161,8 @@ $windowsDesktopHostWindowInspectorCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostWindowInspector.cs'
 $windowsDesktopHostReadOnlySurfaceCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostReadOnlySurface.cs'
+$desktopExplorerReferenceDropCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopExplorerReferenceDrop.cs'
 $desktopContainerHeaderPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopContainerHeaderPresentation.cs'
 $desktopContainerHeaderCommandCodePath = Join-Path $projectRoot `
@@ -529,6 +531,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $windowsDesktopHostReadOnlySurfaceCode = Get-Content `
         -LiteralPath $windowsDesktopHostReadOnlySurfaceCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopExplorerReferenceDropCode = Get-Content `
+        -LiteralPath $desktopExplorerReferenceDropCodePath `
         -Raw `
         -Encoding UTF8
     $desktopContainerHeaderPresentationCode = Get-Content `
@@ -1533,6 +1539,23 @@ function Test-SourceContract {
             'DrawFocusRect'
     ) `
         'PF-006C2 marquee selection must stay explicit, attested, lease/revision bound, atomically select a bounded visible identity set, cancel on authority drift, and render a native preview.'
+    Assert-Condition (
+        $desktopExplorerReferenceDropCode -match `
+            'ClipboardFormatHDrop\s*=\s*15' -and
+        $desktopExplorerReferenceDropCode -match `
+            'MaximumItemCount\s*=\s*256' -and
+        $desktopExplorerReferenceDropCode -match 'DragQueryFile' -and
+        $desktopExplorerReferenceDropCode -match 'ReleaseStgMedium' -and
+        $desktopExplorerReferenceDropCode -match 'File\.Exists' -and
+        $desktopExplorerReferenceDropCode -match 'Directory\.Exists' -and
+        $desktopExplorerReferenceDropCode -match `
+            'NotInAuthoritativeCatalog' -and
+        $desktopExplorerReferenceDropCode -match `
+            'ProductWorkspaceResolvedReferenceBatchCommitRequest' -and
+        -not ($desktopExplorerReferenceDropCode -match `
+            'File\.(Move|Copy|Delete)|Directory\.(Move|Delete)')
+    ) `
+        'PF-007A1 Explorer drop admission must accept only bounded real CF_HDROP paths, release OLE storage, require existing authoritative-catalog identities, emit the existing atomic reference request, and retain zero file mutation.'
     Assert-Condition (
         $desktopInteractionSurfaceModeCode -match `
             'IProductDesktopInteractionSurfaceModeAdapter' -and

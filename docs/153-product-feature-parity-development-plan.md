@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-007 Explorer 拖入与方格间拖放（PF-001～PF-006 产品证据并行 Pending）**
-- 最新开发审计：[Stage 206](206-pf006c2-marquee-selection-hwnd-uia-convergence-audit.md)；PF-006C2 已以 `main@5c78ddc` 集成，main run `32816956265` 为 1225/1225、90.09%/75.60%、正式 Worker/资源/漏洞与 RC 800/800 全绿；PF-006 提升为 `EngineeringComplete / ProductEvidencePending`，当前进入 PF-007，30 个 PF 项仍为 `0 Complete`
+- 最新开发审计：[Stage 207](207-pf007a1-real-ole-hdrop-reference-admission-audit.md)；PF-007A1 已在本地以真实 OLE HDROP、真实沙箱文件、一次原子保存、1233/1233 和 90.43%/75.77% 收敛，当前等待 PR/main 集成；PF-007 仍为 `InProgress`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -65,7 +65,7 @@
 | 4 | PF-004 | 方格标题栏与就近操作 | `EngineeringComplete / ProductEvidencePending`：A～E 正式工程链完成；物理菜单/双击、触控截图和 Narrator 待补 | Fences 标题栏操作 |
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | `EngineeringComplete / ProductEvidencePending` | Fences/Nimi 项目呈现 |
 | 6 | PF-006 | 项目选择、键盘导航与打开 | `EngineeringComplete / ProductEvidencePending`：A/B/C 工程范围含框选均已集成；物理输入/Narrator/高对比仍 Pending | Fences/Portal 日常访问 |
-| 7 | PF-007 | Explorer 拖入与方格间拖放 | 配置表单批量加入 | iTop/Fences 直接拖放 |
+| 7 | PF-007 | Explorer 拖入与方格间拖放 | `InProgress`：A1 真实 OLE HDROP 安全准入与原子配置请求完成；A2 DesktopHost DropTarget、B 方格间拖放待实现 | iTop/Fences 直接拖放 |
 | 8 | PF-008 | 方格内视图、排序、滚动与间距 | 方格级排序有限 | Nimi/Fences 视图控制 |
 | 9 | PF-009 | 桌面搜索、筛选与快速定位 | 控制中心搜索 | iTop Search |
 | 10 | PF-010 | 统一撤销、重做与操作历史 | 最近动作撤销 | iTop Snapshot/安全恢复 |
@@ -281,6 +281,8 @@
 - 桌面真实文件的路径、哈希、大小和位置在操作前后不变；
 - Narrator/键盘有等价“添加引用”“移动到方格”操作；
 - 视觉效果不能暗示真实文件已经移动。
+
+**2026-08-25 实施状态**：`InProgress`。Stage 207/PF-007A1 已完成真实 `CF_HDROP` HGLOBAL 的 1～256 项有界解析、现存路径/重复/权威 Catalog/目标锁定门禁，并把结果收敛到既有原子批量引用请求；真实沙箱文件两项一次保存，哈希和位置零变化，定向 8/8、全量 1233/1233、覆盖率 90.43%/75.77%。当前等待远端集成；正式 DesktopHost `IDropTarget`、悬停 Link 反馈、物理 Explorer 拖入和方格间改归属仍 Pending，下一切片 PF-007A2。
 
 ### PF-008：方格内视图、排序、滚动与间距
 
@@ -890,4 +892,4 @@
 
 **Gate A 与 PF-006C1 已完成**；当前工程切片为 **PF-006C2：鼠标框选**。PF-001 的冷启动与运行期开启性能门已完成；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
 
-Stage 203 已在同一显式租约和正式激活 HWND 中把 PageUp/PageDown 的 viewport、选择、相对焦点与真实 UIA SelectionPattern 收敛；auto-repeat、Injected、修饰键和陈旧代次失败关闭，PR/main 均为 1200/1200、90.02%/75.58%。现在进入 PF-006C2 框选；PF-007 后优先转入首次引导和自动整理闭环，任何版本在签名和安装门禁完成前不得分发。
+Stage 206 已完成 PF-006 框选并完成工程集成；Stage 207/PF-007A1 正在把真实 OLE HDROP 收敛到安全引用原子配置链。下一步为 PF-007A2 正式 DesktopHost DropTarget，PF-007 后优先转入首次引导和自动整理闭环；任何版本在签名和安装门禁完成前不得分发。
