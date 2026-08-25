@@ -3,7 +3,7 @@
 - 日期：2026-08-25
 - 基线：`main@973db66`
 - 触发证据：GitHub Actions run `32812105456`
-- 状态：`EngineeringComplete / PRAndMainEvidencePending`
+- 状态：`EngineeringComplete / Integrated`
 
 ## 1. 目标与真实差异
 
@@ -43,6 +43,6 @@ Stage 204 修正后的 main 已通过原先失败的真实原生 Surface 资源�
 
 本切片直接修复“临时资源必须可证明清理”的稳定性目标，没有增加功能宽度或偏离桌面整理主线。PF 状态不变；只有 PR/main 全链重新绿色后才恢复 PF-006C2 开发。
 
-## 5. 集成门
+## 5. 集成结果
 
-必须同时满足：PR 完整 CI、合入后 main 完整 CI、真实 Worker 清理测试、覆盖率、资源和 unsigned RC 门全部通过。单纯重跑旧提交不算修复证据。
+PR #231 run `32813091668` 完整通过并以 `9dda47d` 合入。main run `32813543652` 为 1202/1202、lines 90.03%（40826/45348）、branches 75.58%（13284/17576）；正式 Worker matrix 为 `ConditionalPass`、全部 Profile deleted、`CleanupSucceeded=true`，依赖漏洞门和内部 RC 800/800 文件审计通过。Expected/Actual/Difference 已收敛，本切片状态为 `EngineeringComplete / Integrated`，下一工程切片恢复为 PF-006C2。

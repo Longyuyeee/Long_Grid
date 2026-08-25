@@ -398,3 +398,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-25 main 原生清理指标纠偏：文档收口 run `32810599025` 的真实 HWND USER `2→2`、GDI `1→2` 和重复平台期均通过，但进程总句柄 `302→308` 被旧固定 `+2` 合同误判为 HWND 泄漏；本机又复现同基线 1/4 偶发失败。现不提高 USER/GDI 上限，销毁仍须回收且长生命周期 HWND 三轮模式切换必须回到平台期；进程总句柄保留诊断，不再用受 .NET/UIA 异步初始化影响的启动瞬间差值归责单 HWND。修正后独立真实进程 6/6、Release 1200/1200、157-ID 合同通过；等待 PR/main 证据后继续 PF-006C2，详见 [Stage 204](204-main-native-cleanup-metric-convergence-audit.md)。
 
 2026-08-25 main 缩略图 Profile 清理纠偏：Stage 204 以 `973db66` 合入后，main run `32812105456` 已通过原生 Surface 门，却在真实受限 Worker 测试以 1199/1200 停止；Hang 超时强杀和显式 Exit 均通过，只有 AppContainer Profile 单次删除偶发失败。现把已有 parent-exit 的自有 Profile 有界删除策略用于正常 Dispose：最多 20 次、间隔 50 ms，首轮成功不等待，全部失败仍硬失败；新增删除尝试数和 HRESULT 证据。本机旧基线 10/10 不能复现远端竞态，修正后独立真实 Worker 20/20；等待 PR/main 全链后继续 PF-006C2，详见 [Stage 205](205-main-thumbnail-profile-bounded-cleanup-audit.md)。
+
+2026-08-25 Gate 恢复：PR #231 run `32813091668` 全绿并以 `9dda47d` 合入；main run `32813543652` 为 1202/1202、lines 90.03%、branches 75.58%，原生 Surface 资源门、正式 Worker matrix、所有 Profile 删除、资源/恢复/漏洞和内部 RC 800/800 均通过。Stage 204/205 状态均提升为 `EngineeringComplete / Integrated`，当前正式进入 PF-006C2 鼠标框选。
