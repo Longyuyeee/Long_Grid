@@ -143,7 +143,218 @@
                                 </controls:ProductPageHeader.ActionContent>
                             </controls:ProductPageHeader>
 
-                            <Grid x:Name="OverviewMetricsGrid" ColumnSpacing="14">
+                            <StackPanel
+                                x:Name="ProductOverviewPanel"
+                                AutomationProperties.AutomationId="ProductOverviewPanel"
+                                Spacing="20">
+                                <Grid x:Name="ProductOverviewMetricsGrid" ColumnSpacing="14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Border
+                                        x:Name="OverviewBoxCountCard"
+                                        AutomationProperties.AccessibilityView="Content"
+                                        AutomationProperties.AutomationId="OverviewBoxCountCard"
+                                        AutomationProperties.Name="桌面盒子数量"
+                                        Style="{StaticResource LongGridCardStyle}">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="桌面盒子" />
+                                            <TextBlock
+                                                x:Name="OverviewBoxCountValue"
+                                                AutomationProperties.AutomationId="OverviewBoxCountValue"
+                                                FontSize="28"
+                                                FontWeight="SemiBold"
+                                                Text="—" />
+                                            <TextBlock
+                                                x:Name="OverviewBoxCountDetail"
+                                                Style="{StaticResource LongGridSubtitleTextStyle}"
+                                                Text="正在读取工作区"
+                                                TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border
+                                        x:Name="OverviewItemCountCard"
+                                        Grid.Column="1"
+                                        AutomationProperties.AccessibilityView="Content"
+                                        AutomationProperties.AutomationId="OverviewItemCountCard"
+                                        AutomationProperties.Name="盒子项目数量"
+                                        Style="{StaticResource LongGridCardStyle}">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="盒子项目" />
+                                            <TextBlock
+                                                x:Name="OverviewItemCountValue"
+                                                AutomationProperties.AutomationId="OverviewItemCountValue"
+                                                FontSize="28"
+                                                FontWeight="SemiBold"
+                                                Text="—" />
+                                            <TextBlock
+                                                x:Name="OverviewItemCountDetail"
+                                                Style="{StaticResource LongGridSubtitleTextStyle}"
+                                                Text="等待真实数据"
+                                                TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border
+                                        x:Name="OverviewHealthCard"
+                                        Grid.Column="2"
+                                        AutomationProperties.AccessibilityView="Content"
+                                        AutomationProperties.AutomationId="OverviewHealthCard"
+                                        AutomationProperties.Name="工作区健康状态"
+                                        Style="{StaticResource LongGridCardStyle}">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="当前状态" />
+                                            <TextBlock
+                                                x:Name="OverviewHealthValue"
+                                                AutomationProperties.AutomationId="OverviewHealthValue"
+                                                FontSize="22"
+                                                FontWeight="SemiBold"
+                                                Text="正在连接" />
+                                            <TextBlock
+                                                x:Name="OverviewHealthDetail"
+                                                Style="{StaticResource LongGridSubtitleTextStyle}"
+                                                Text="正在检查盒子与引用"
+                                                TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <Border
+                                    AutomationProperties.AccessibilityView="Content"
+                                    AutomationProperties.AutomationId="OverviewBoxesCard"
+                                    AutomationProperties.Name="我的盒子摘要"
+                                    Style="{StaticResource LongGridCardStyle}">
+                                    <StackPanel Spacing="14">
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Spacing="3">
+                                                <TextBlock FontSize="20" FontWeight="SemiBold" Text="我的盒子" />
+                                                <TextBlock
+                                                    x:Name="OverviewBoxesSummary"
+                                                    AutomationProperties.AutomationId="OverviewBoxesSummary"
+                                                    Style="{StaticResource LongGridSubtitleTextStyle}"
+                                                    Text="正在读取真实工作区"
+                                                    TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <Button
+                                                Grid.Column="1"
+                                                AutomationProperties.AutomationId="OpenBoxesManagementButton"
+                                                AutomationProperties.Name="管理全部盒子"
+                                                Click="OpenBoxesManagementButton_Click"
+                                                Content="管理全部" />
+                                        </Grid>
+                                        <StackPanel
+                                            x:Name="OverviewEmptyState"
+                                            AutomationProperties.AutomationId="OverviewEmptyState"
+                                            HorizontalAlignment="Center"
+                                            Spacing="8"
+                                            Visibility="Collapsed">
+                                            <SymbolIcon HorizontalAlignment="Center" Symbol="Library" />
+                                            <TextBlock
+                                                HorizontalAlignment="Center"
+                                                FontSize="18"
+                                                FontWeight="SemiBold"
+                                                Text="还没有桌面盒子" />
+                                            <TextBlock
+                                                MaxWidth="460"
+                                                HorizontalAlignment="Center"
+                                                Style="{StaticResource LongGridSubtitleTextStyle}"
+                                                Text="创建第一个盒子，开始整理桌面。"
+                                                TextAlignment="Center"
+                                                TextWrapping="Wrap" />
+                                            <Button
+                                                HorizontalAlignment="Center"
+                                                AutomationProperties.AutomationId="OverviewEmptyCreateButton"
+                                                AutomationProperties.Name="创建第一个盒子"
+                                                Click="OpenCreateBoxButton_Click"
+                                                Content="创建盒子"
+                                                Style="{StaticResource AccentButtonStyle}" />
+                                        </StackPanel>
+                                        <ListView
+                                            x:Name="OverviewContainerList"
+                                            AutomationProperties.AutomationId="OverviewContainerList"
+                                            AutomationProperties.Name="盒子摘要列表"
+                                            IsItemClickEnabled="False"
+                                            SelectionMode="None">
+                                            <ListView.ItemContainerStyle>
+                                                <Style TargetType="ListViewItem">
+                                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                                    <Setter Property="IsTabStop" Value="False" />
+                                                </Style>
+                                            </ListView.ItemContainerStyle>
+                                            <ListView.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid MinHeight="52" Padding="4,6" ColumnSpacing="12">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Spacing="2">
+                                                            <TextBlock FontSize="16" FontWeight="SemiBold" Text="{Binding DisplayName}" />
+                                                            <TextBlock
+                                                                Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                                                Text="{Binding Detail}"
+                                                                TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                        <Border
+                                                            Grid.Column="1"
+                                                            Padding="8,3"
+                                                            VerticalAlignment="Center"
+                                                            Background="{ThemeResource LongGridAccentSoftBrush}"
+                                                            CornerRadius="8">
+                                                            <TextBlock FontSize="11" FontWeight="SemiBold" Text="{Binding Health}" />
+                                                        </Border>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListView.ItemTemplate>
+                                        </ListView>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border
+                                    AutomationProperties.AccessibilityView="Content"
+                                    AutomationProperties.AutomationId="OverviewRecentActionCard"
+                                    AutomationProperties.Name="最近操作"
+                                    Style="{StaticResource LongGridCardStyle}">
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <SymbolIcon Margin="2,2,0,0" Symbol="Clock" />
+                                        <StackPanel Grid.Column="1" Spacing="3">
+                                            <TextBlock FontSize="16" FontWeight="SemiBold" Text="最近操作" />
+                                            <TextBlock
+                                                x:Name="OverviewRecentActionDetail"
+                                                AutomationProperties.AutomationId="OverviewRecentActionDetail"
+                                                Style="{StaticResource LongGridSubtitleTextStyle}"
+                                                Text="暂无可撤销的盒子操作"
+                                                TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <Button
+                                            x:Name="OverviewLatestUndoButton"
+                                            Grid.Column="2"
+                                            AutomationProperties.AutomationId="OverviewLatestUndoButton"
+                                            AutomationProperties.Name="没有可撤销的盒子操作"
+                                            Click="ProductWorkspaceLatestUndoButton_Click"
+                                            Content="撤销"
+                                            IsEnabled="False"
+                                            Visibility="Collapsed" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <Grid x:Name="OverviewMetricsGrid" ColumnSpacing="14" Visibility="Collapsed">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="*" />
@@ -256,6 +467,7 @@
                                 AutomationProperties.AccessibilityView="Content"
                                 AutomationProperties.AutomationId="ProductDesktopCatalogCard"
                                 AutomationProperties.Name="只读桌面目录状态"
+                                Visibility="Collapsed"
                                 Style="{StaticResource LongGridCardStyle}">
                                 <Grid ColumnSpacing="14">
                                     <Grid.ColumnDefinitions>
@@ -304,6 +516,7 @@
                                 AutomationProperties.AccessibilityView="Content"
                                 AutomationProperties.AutomationId="ProductWorkspaceSessionCard"
                                 AutomationProperties.Name="正式产品工作区会话状态"
+                                Visibility="Collapsed"
                                 Style="{StaticResource LongGridCardStyle}">
                                 <Grid ColumnSpacing="14">
                                     <Grid.ColumnDefinitions>
@@ -354,6 +567,7 @@
                                 AutomationProperties.AccessibilityView="Content"
                                 AutomationProperties.AutomationId="ProductWorkspaceLayoutRecoveryCard"
                                 AutomationProperties.Name="正式布局恢复只读预览"
+                                Visibility="Collapsed"
                                 Style="{StaticResource LongGridCardStyle}">
                                 <StackPanel Spacing="4">
                                     <TextBlock
@@ -400,6 +614,7 @@
                                 AutomationProperties.AccessibilityView="Content"
                                 AutomationProperties.AutomationId="ProductWorkspaceViewCard"
                                 AutomationProperties.Name="正式工作区只读视图"
+                                Visibility="Collapsed"
                                 Style="{StaticResource LongGridCardStyle}">
                                 <StackPanel Spacing="12">
                                     <StackPanel Spacing="4">
@@ -1007,6 +1222,7 @@
                                 AutomationProperties.AccessibilityView="Content"
                                 AutomationProperties.AutomationId="ProductWorkspaceReferenceReviewCard"
                                 AutomationProperties.Name="未解析引用审查"
+                                Visibility="Collapsed"
                                 Style="{StaticResource LongGridCardStyle}">
                                 <StackPanel Spacing="10">
                                     <TextBlock
@@ -1065,6 +1281,7 @@
                                 AutomationProperties.AccessibilityView="Content"
                                 AutomationProperties.AutomationId="ProductSaveStatusCard"
                                 AutomationProperties.Name="产品工作区自动保存状态"
+                                Visibility="Collapsed"
                                 Style="{StaticResource LongGridCardStyle}">
                                 <Grid ColumnSpacing="14">
                                     <Grid.ColumnDefinitions>

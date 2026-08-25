@@ -733,6 +733,7 @@ public sealed partial class MainWindow : Window
     {
         ArgumentNullException.ThrowIfNull(presentation);
         _workspaceRead = presentation;
+        ApplyProductOverview(presentation);
         ProductWorkspaceViewDetail.Text = presentation.Detail;
         ProductWorkspaceHealthFilterSelector.IsEnabled = presentation.CanFilter;
         ProductWorkspaceSearchBox.IsEnabled = presentation.CanFilter;
@@ -750,6 +751,74 @@ public sealed partial class MainWindow : Window
                 "DesktopFilesChanged=False");
         ApplyProductWorkspaceFilters();
         UpdateProductWorkspaceEmptyCreateShortcut();
+    }
+
+    private void ApplyProductOverview(
+        ProductWorkspaceReadPresentation presentation)
+    {
+        bool hasKnownWorkspace = presentation.CanFilter
+            || presentation.IsKnownEmptyWorkspace;
+        int containerCount = presentation.Containers.Count;
+        OverviewBoxCountValue.Text = hasKnownWorkspace
+            ? containerCount.ToString(System.Globalization.CultureInfo.CurrentCulture)
+            : "—";
+        OverviewItemCountValue.Text = hasKnownWorkspace
+            ? presentation.ItemCount.ToString(
+                System.Globalization.CultureInfo.CurrentCulture)
+            : "—";
+        OverviewBoxCountDetail.Text = hasKnownWorkspace
+            ? containerCount == 0
+                ? "创建第一个盒子，开始整理桌面"
+                : $"{presentation.EmptyContainerCount} 个空盒子"
+            : "正在读取真实工作区";
+        OverviewItemCountDetail.Text = hasKnownWorkspace
+            ? presentation.ItemCount == 0
+                ? "盒子里还没有项目"
+                : $"{presentation.UnresolvedReferenceCount} 个项目需要检查"
+            : "等待真实数据";
+
+        if (!hasKnownWorkspace)
+        {
+            OverviewHealthValue.Text = "正在连接";
+            OverviewHealthDetail.Text = "正在检查盒子与项目状态";
+        }
+        else if (presentation.NeedsReviewContainerCount > 0)
+        {
+            OverviewHealthValue.Text = "需要检查";
+            OverviewHealthDetail.Text =
+                $"{presentation.NeedsReviewContainerCount} 个盒子存在待处理项目";
+        }
+        else
+        {
+            OverviewHealthValue.Text = "运行正常";
+            OverviewHealthDetail.Text = containerCount == 0
+                ? "工作区已就绪，可以创建盒子"
+                : "所有盒子状态正常";
+        }
+
+        ProductWorkspaceReadContainerPresentation[] overviewContainers =
+            presentation.Containers.Take(4).ToArray();
+        OverviewContainerList.ItemsSource = overviewContainers;
+        OverviewContainerList.Visibility = overviewContainers.Length > 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        OverviewEmptyState.Visibility = hasKnownWorkspace
+            && overviewContainers.Length == 0
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        OverviewBoxesSummary.Text = !hasKnownWorkspace
+            ? "正在读取真实工作区"
+            : containerCount == 0
+                ? "创建第一个盒子，开始整理桌面"
+                : containerCount > overviewContainers.Length
+                    ? $"共 {containerCount} 个盒子，显示最近的 {overviewContainers.Length} 个"
+                    : $"共 {containerCount} 个盒子";
+
+        AutomationProperties.SetItemStatus(
+            ProductOverviewPanel,
+            $"ProductOverview:Known={hasKnownWorkspace}:" +
+                $"Containers={containerCount}:Items={presentation.ItemCount}:" +
+                $"NeedsReview={presentation.NeedsReviewContainerCount}");
     }
 
     private void ProductWorkspaceHealthFilterSelector_SelectionChanged(
@@ -1515,11 +1584,28 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceLatestUndoButton.Visibility = presentation.CanUndo
             ? Visibility.Visible
             : Visibility.Collapsed;
+        OverviewRecentActionDetail.Text = presentation.CanUndo
+            ? $"可撤销的最近操作：{presentation.ButtonText.Replace(
+                "撤销",
+                string.Empty,
+                StringComparison.Ordinal)}"
+            : "暂无可撤销的盒子操作";
+        OverviewLatestUndoButton.Content = presentation.ButtonText;
+        OverviewLatestUndoButton.IsEnabled = presentation.CanUndo;
+        OverviewLatestUndoButton.Visibility = presentation.CanUndo
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         AutomationProperties.SetName(
             ProductWorkspaceLatestUndoButton,
             presentation.AccessibilityName);
         AutomationProperties.SetItemStatus(
             ProductWorkspaceLatestUndoButton,
+            presentation.MachineStatus);
+        AutomationProperties.SetName(
+            OverviewLatestUndoButton,
+            presentation.AccessibilityName);
+        AutomationProperties.SetItemStatus(
+            OverviewLatestUndoButton,
             presentation.MachineStatus);
     }
 
@@ -3875,6 +3961,24 @@ public sealed partial class MainWindow : Window
             row: 0,
             column: 0,
             columnSpan: compact ? 3 : 1);
+
+        ProductOverviewMetricsGrid.ColumnSpacing = compact ? 0 : 14;
+        ProductOverviewMetricsGrid.RowSpacing = compact ? 12 : 0;
+        SetGridPosition(
+            OverviewBoxCountCard,
+            row: 0,
+            column: 0,
+            columnSpan: compact ? 3 : 1);
+        SetGridPosition(
+            OverviewItemCountCard,
+            row: compact ? 1 : 0,
+            column: compact ? 0 : 1,
+            columnSpan: compact ? 3 : 1);
+        SetGridPosition(
+            OverviewHealthCard,
+            row: compact ? 2 : 0,
+            column: compact ? 0 : 2,
+            columnSpan: compact ? 3 : 1);
         SetGridPosition(
             FileOperationCard,
             row: compact ? 1 : 0,
@@ -3988,22 +4092,30 @@ public sealed partial class MainWindow : Window
             OverviewPageHeader.Subtitle = boxesOnly
                 ? "创建和管理桌面盒子，调整外观、位置与内容。"
                 : "管理桌面盒子、文件夹绑定与最近操作。";
-            OverviewMetricsGrid.Visibility = boxesOnly
+            ProductOverviewPanel.Visibility = boxesOnly
                 ? Visibility.Collapsed
                 : Visibility.Visible;
-            ProductDesktopCatalogCard.Visibility = boxesOnly
-                ? Visibility.Collapsed
-                : Visibility.Visible;
-            ProductWorkspaceSessionCard.Visibility = boxesOnly
-                ? Visibility.Collapsed
-                : Visibility.Visible;
-            ProductWorkspaceLayoutRecoveryCard.Visibility = boxesOnly
-                ? Visibility.Collapsed
-                : Visibility.Visible;
+            OverviewMetricsGrid.Visibility = Visibility.Collapsed;
+            ProductDesktopCatalogCard.Visibility = Visibility.Collapsed;
+            ProductWorkspaceSessionCard.Visibility = Visibility.Collapsed;
+            ProductWorkspaceLayoutRecoveryCard.Visibility = Visibility.Collapsed;
+            ProductWorkspaceViewCard.Visibility = boxesOnly
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            ProductWorkspaceReferenceReviewCard.Visibility = boxesOnly
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            ProductSaveStatusCard.Visibility = boxesOnly
+                ? Visibility.Visible
+                : Visibility.Collapsed;
         }
     }
 
-    private void OpenCreateBoxButton_Click(object sender, RoutedEventArgs e)
+    private void OpenBoxesManagementButton_Click(
+        object sender,
+        RoutedEventArgs e) => SelectBoxesNavigation();
+
+    private bool SelectBoxesNavigation()
     {
         NavigationViewItem? boxes = ShellNavigation.MenuItems
             .OfType<NavigationViewItem>()
@@ -4013,10 +4125,19 @@ public sealed partial class MainWindow : Window
                 StringComparison.Ordinal));
         if (boxes is null)
         {
-            return;
+            return false;
         }
 
         ShellNavigation.SelectedItem = boxes;
+        return true;
+    }
+
+    private void OpenCreateBoxButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!SelectBoxesNavigation())
+        {
+            return;
+        }
         ProductWorkspaceContainerNameEditor.StartBringIntoView();
         ProductWorkspaceContainerNameEditor.Focus(FocusState.Programmatic);
     }

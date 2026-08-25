@@ -627,6 +627,22 @@ function Test-SourceContract {
         'OverviewPanel',
         'OverviewPageHeader',
         'OpenCreateBoxButton',
+        'ProductOverviewPanel',
+        'OverviewBoxCountCard',
+        'OverviewBoxCountValue',
+        'OverviewItemCountCard',
+        'OverviewItemCountValue',
+        'OverviewHealthCard',
+        'OverviewHealthValue',
+        'OverviewBoxesCard',
+        'OverviewBoxesSummary',
+        'OpenBoxesManagementButton',
+        'OverviewEmptyState',
+        'OverviewEmptyCreateButton',
+        'OverviewContainerList',
+        'OverviewRecentActionCard',
+        'OverviewRecentActionDetail',
+        'OverviewLatestUndoButton',
         'PersonalizationPageHeader',
         'SettingsPageHeader',
         'LegacyWorkspacePrototypeCard',
@@ -1356,6 +1372,48 @@ function Test-SourceContract {
         Assert-Condition ($legacyCard.GetAttribute('Visibility') -eq 'Collapsed') `
             "Legacy prototype '$legacyCardId' must stay out of the product shell."
     }
+    foreach ($engineeringCardId in @(
+            'CurrentModeCard',
+            'FileOperationCard',
+            'DesktopHostCard',
+            'ProductDesktopCatalogCard',
+            'ProductWorkspaceSessionCard',
+            'ProductWorkspaceLayoutRecoveryCard'
+        )) {
+        $engineeringCard = Get-XamlNodeByAutomationId $document $engineeringCardId
+        $visibility = if ($engineeringCardId -in @(
+                'CurrentModeCard',
+                'FileOperationCard',
+                'DesktopHostCard'
+            )) {
+            $engineeringCard.ParentNode.GetAttribute('Visibility')
+        }
+        else {
+            $engineeringCard.GetAttribute('Visibility')
+        }
+        Assert-Condition ($visibility -eq 'Collapsed') `
+            "Engineering status '$engineeringCardId' must not appear on the overview."
+    }
+    $openBoxesManagement = Get-XamlNodeByAutomationId `
+        $document `
+        'OpenBoxesManagementButton'
+    Assert-Condition (
+        $openBoxesManagement.GetAttribute('Click') -eq `
+            'OpenBoxesManagementButton_Click'
+    ) 'The overview summary must navigate to the real box management page.'
+    $overviewEmptyCreate = Get-XamlNodeByAutomationId `
+        $document `
+        'OverviewEmptyCreateButton'
+    Assert-Condition (
+        $overviewEmptyCreate.GetAttribute('Click') -eq 'OpenCreateBoxButton_Click'
+    ) 'The overview empty state must share the real box creation entry point.'
+    Assert-Condition (
+        $workspaceReadPresentationCode.Contains('snapshot.ItemCount') -and
+        $workspaceReadPresentationCode.Contains('snapshot.EmptyContainerCount') -and
+        $workspaceReadPresentationCode.Contains('snapshot.NeedsReviewContainerCount') -and
+        $codeBehind.Contains('ApplyProductOverview(presentation)') -and
+        $codeBehind.Contains('presentation.Containers.Take(4)')
+    ) 'The overview must derive counts and summaries from the real workspace presentation.'
 
     foreach ($themeId in @('ThemeSystem', 'ThemeLight', 'ThemeDark')) {
         $node = Get-XamlNodeByAutomationId $document $themeId
