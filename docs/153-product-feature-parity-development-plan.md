@@ -4,9 +4,9 @@
 - 代码基线：`main@08a83f441a5f0ab0b0330712260498a09aae6c9d`
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
-- 文档性质：后续产品功能开发的权威任务清单
-- 当前开发项：**PF-007 Explorer 拖入与方格间拖放（PF-001～PF-006 产品证据并行 Pending）**
-- 最新开发审计：[Stage 207](207-pf007a1-real-ole-hdrop-reference-admission-audit.md)；PF-007A1 已在本地以真实 OLE HDROP、真实沙箱文件、一次原子保存、1233/1233 和 90.43%/75.77% 收敛，当前等待 PR/main 集成；PF-007 仍为 `InProgress`，30 个 PF 项仍为 `0 Complete`
+- 文档性质：PF 功能详细 backlog 与历史验收账本；当前状态、执行顺序和里程碑以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
+- 当前开发项：**UI-R1 产品壳层与信息架构重构**；PF-007A2 在 UI-R1 验收后恢复，顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
+- 最新功能工程审计：[Stage 207](207-pf007a1-real-ole-hdrop-reference-admission-audit.md)；PF-007A1 已通过 PR #235 合入 `main@e081a2b`，完成真实 OLE HDROP、真实沙箱文件、一次原子保存、1233/1233 和 90.43%/75.77%；正式 DesktopHost DropTarget、物理 Explorer 拖入和方格间改归属仍 Pending，PF-007 保持 `InProgress`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -15,6 +15,8 @@
 本文从用户功能重新组织开发工作：对标产品能做什么、Long方格现在能不能做、下一步具体开发什么、用户怎样操作、状态怎样变化、哪些异常必须处理、什么结果才算本功能完成。后续每次开发从本文领取一个 `PF-*` 编号，不再以“再增加一个验证脚本”作为产品进度。
 
 外部证据、稳定性、签名和安装仍是发布门禁，但不再阻塞安全边界内的产品功能编码。任何功能进入公开或受控分发前，仍必须完成对应 G0 门禁。
+
+**2026-08-25 Core 范围覆盖决定**：项目负责人明确三项 Core 为“桌面右键创建和管理盒子、盒子绑定单个真实文件夹、任务栏美化”。因此 PF-040 的单文件夹绑定部分升为 Core；PF-081 不再包含任务栏，任务栏改由统一计划中的 `TASKBAR-R1～R4` 跟踪。自动整理、Tab、Peek、工作空间、Widgets、壁纸和 AI 均为扩展。当前执行顺序只看[统一开发计划](PRODUCT_EXECUTION_PLAN.md)，不得按本表旧编号把文件夹绑定或任务栏继续后移。
 
 ## 2. 对标依据与功能口径
 
@@ -50,10 +52,10 @@
 
 - 创建、拖动、缩放、标题栏操作、图标/缩略图、选择和安全打开已有正式工程链，但物理输入/Narrator/高对比证据债务仍使 PF-001～PF-005 无法产品完成；
 - 用户仍不能像 Fences/iTop 一样完成桌面/Explorer 直接拖入与完整低摩擦整理旅程；框选工程链已完成，但物理鼠标/高对比/Narrator 证据待补；
-- 没有自动整理规则、Folder Portal、Tab、Roll-up、Peek、Quick-hide、托盘与全局快捷键；
+- 没有单文件夹绑定盒子、自动整理规则、高级 Portal、Tab、Roll-up、Peek、Quick-hide、托盘与全局快捷键；
 - 没有可命名布局快照、场景/页面、应用工作空间捕获与启动；
 - 外观已有正式 Design Token、Mica/Acrylic 和品牌 RC1，但桌面 Surface、主题持久化、竞品级标题/间距/图标尺寸/视图模式、动效和无障碍矩阵尚未收口；
-- 安装更新、Widgets、壁纸/任务栏和 Private Box 等产品宽度尚未实现。
+- 核心任务栏美化，以及安装更新、Widgets、壁纸和 Private Box 等能力尚未实现。
 
 ## 4. 功能优先级总表
 
@@ -77,7 +79,7 @@
 | 16 | PF-031 | Quick-hide 与 Chameleon 模式 | 未实现 | Fences distraction-free |
 | 17 | PF-032 | Peek 临时置顶访问 | 未实现 | Fences Peek |
 | 18 | PF-033 | 托盘菜单与全局快捷键 | 未实现 | Fences/iTop 快速入口 |
-| 19 | PF-040 | Folder Portal 创建与目录镜像 | 未实现 | Fences/iTop Portal |
+| 19 | PF-040 | 单文件夹绑定盒子（Core）与高级 Portal | 未实现 | Fences/iTop Portal |
 | 20 | PF-041 | Portal 导航、视图与刷新 | 未实现 | Fences 6 Portal |
 | 21 | PF-042 | Portal 文件操作与拖放边界 | 未实现 | Portal 日常工作流 |
 | 22 | PF-050 | 方格 Tab 合并、切换与拆分 | 未实现 | Fences 6/iTop Tab Mode |
@@ -87,7 +89,7 @@
 | 26 | PF-070 | 外观、主题、图标和动效精修 | 有限预设 | Fences/Nimi customization |
 | 27 | PF-071 | 完整无障碍、本地化与高 DPI | 工程底座 | 成熟产品可用性 |
 | 28 | PF-080 | Private Box 方案决策 | 未实现 | iTop Private Box |
-| 29 | PF-081 | Widgets/壁纸/任务栏范围决策 | 未实现 | iTop 产品宽度 |
+| 29 | PF-081 | Widgets/壁纸/AI 范围决策；任务栏另列 Core | 未实现 | iTop 产品宽度 |
 | 30 | PF-090 | 安装、更新、反馈与支持入口 | unsigned 构建 | 竞品交付体验 |
 
 ## 5. 第一阶段：桌面方格核心闭环
@@ -816,19 +818,19 @@
 
 **验收目标（仅在批准后适用）**：完成独立安全 ADR、威胁模型、密码学方案评审、恢复/备份/卸载矩阵和外部安全审计；在此之前状态固定为 `DecisionRequired`，不得开发伪加密 UI。
 
-### PF-081：Widgets、壁纸、任务栏与 AI 宽度
+### PF-081：Widgets、壁纸与 AI 宽度
 
 **竞品能力**：iTop 包含日程、便签、时钟、天气、快捷工具、番茄钟、AI、壁纸、任务栏和开始菜单个性化。
 
-**Long方格判定**：这些能力扩大联网、隐私、内容审核、系统修改和维护面，不属于桌面整理核心闭环。
+**Long方格判定**：Widgets、壁纸与 AI 扩大联网、隐私、内容审核和维护面，不属于桌面整理核心闭环。任务栏美化已由项目负责人明确为 Core，不再受本节延期判断约束。
 
 **决策规则**：
 
 - 时钟/便签可作为低风险 Widget Host 试点；
 - 天气/日历同步需要联网与隐私决策；
 - 壁纸市场、AI、截图不进入近期计划；
-- 任务栏/开始菜单修改必须独立进程和独立开关，不与 DesktopHost 同故障域；
-- 只有 PF-001～PF-071 核心体验稳定后才评审。
+- 开始菜单深度修改继续延期；核心任务栏适配器必须独立进程和独立开关，不与 DesktopHost 同故障域；
+- Widgets、壁纸与 AI 只有三项 Core 稳定后才评审。
 
 **验收目标**：先形成用户需求数据和独立 PRD；未批准项标记 `IntentionallyDeferred`，不能用其数量拉低核心功能完成率，也不能抢占核心方格优先级。
 
@@ -890,6 +892,6 @@
 
 ## 15. 当前立即执行项
 
-**Gate A 与 PF-006C1 已完成**；当前工程切片为 **PF-006C2：鼠标框选**。PF-001 的冷启动与运行期开启性能门已完成；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
+PF-001～PF-006 均为 `EngineeringComplete / ProductEvidencePending`；Stage 206 已完成 PF-006 框选并集成，Stage 207/PF-007A1 已通过 PR #235 合入 `main@e081a2b`。PF-007 仍为 `InProgress`，正式 DesktopHost DropTarget、物理 Explorer 拖入和方格间改归属尚未完成。
 
-Stage 206 已完成 PF-006 框选并完成工程集成；Stage 207/PF-007A1 正在把真实 OLE HDROP 收敛到安全引用原子配置链。下一步为 PF-007A2 正式 DesktopHost DropTarget，PF-007 后优先转入首次引导和自动整理闭环；任何版本在签名和安装门禁完成前不得分发。
+2026-08-25 产品 UI 复审确认现有控制中心仍是教程/审计式 Shell。当前唯一执行项改为 [UI-R1 产品壳层与信息架构重构](PRODUCT_EXECUTION_PLAN.md)；UI-R1 完成后恢复 PF-007A2、PF-007B，并以完整 M1 用户旅程补齐产品证据。任何版本在签名和安装门禁完成前不得分发。

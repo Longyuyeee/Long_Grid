@@ -3,7 +3,7 @@
 审计日期：2026-07-29
 范围：iTop Easy Desktop、Stardock Fences、Nimi Places、Portals、PowerToys Workspaces，以及 TranslucentTB、RoundedTB、Windhawk、Start11、TaskbarX 等任务栏工具。
 
-> 2026-08-21 实施复审：安全边界和 P1 实验方向仍有效，但仓库尚无任务栏透明度/着色运行时、设置 UI、恢复守护或 Windows build 实机矩阵；不得把本审计写成已实现功能。当前优先级与全量对齐状态见 [Stage 176](176-current-development-requirement-alignment-audit.md)。
+> 2026-08-25 产品范围复审：项目负责人将任务栏美化明确为 Core 三支柱之一，不再按 P1 附属宽度处理。仓库仍无任务栏透明度/着色运行时、设置 UI、恢复守护或 Windows build 实机矩阵，因此完成度仍为“未实现”。Core 优先级改变不降低独立故障域、版本白名单、冲突检测和一键恢复要求；当前顺序见[统一开发计划](PRODUCT_EXECUTION_PLAN.md)。
 
 ## 1. 结论先行
 
@@ -22,8 +22,8 @@ Long Grid 最有价值的组合不是把所有工具拼在一起，而是：
 因此建议：
 
 - Long Grid 1.0 不注入 Explorer，不替换系统任务栏。
-- 先提供与系统主题协调的自有桌面容器。
-- 任务栏透明/着色作为可卸载实验模块。
+- 桌面盒子、文件夹绑定和任务栏美化共同构成 Long Grid Core。
+- 任务栏透明/着色作为独立可恢复组件交付，产品入口固定在“个性化 → 任务栏”；开发期仍使用 Feature Flag 和 Windows build 白名单控制风险。
 - 真正可自由设计的圆角 Dock 使用 Long Grid 自己的 AppBar 窗口实现。
 
 ## 2. 竞品桌面管理到底是什么样
@@ -181,7 +181,7 @@ Long Grid 自己维护项目引用，容器中的图标不是 Explorer 桌面图
 优点：路径和内容关系清楚，天然支持项目目录。
 缺点：需要处理大目录、网络盘、云占位、权限、缩略图和文件监控风暴。
 
-建议在 MVP 后半或 V1 提供。
+单文件夹绑定盒子属于 Core/MVP；多目录标签、复杂 Portal 导航和高风险真实文件操作在后续版本提供。
 
 ### 模型 D：窗口工作空间
 
@@ -317,9 +317,9 @@ Windows 正式支持应用使用 `SHAppBarMessage` 注册自己的屏幕边缘�
 - 预设“清透、磨砂、专注、纯色”四套 Long Grid 容器主题。
 - 引导用户进入 Windows 官方个性化设置，不静默篡改系统设置。
 
-### 第二层：可选任务栏外观实验
+### 第二层：核心任务栏外观组件
 
-- 独立组件、默认关闭。
+- 独立组件；默认保持系统外观，但在个性化页始终可发现。
 - 只做透明/着色和“最大化窗口时恢复实色”。
 - 按 Windows build 白名单启用。
 - 每次应用前保存原状态；提供托盘一键恢复和崩溃恢复。
@@ -352,6 +352,6 @@ TranslucentTB、RoundedTB 以及 Windows 11 Taskbar Styler 的公开代码均标
 
 ## 10. 后续实现审计
 
-本文主要回答竞品形态和可借鉴能力。Long Grid 自身的 Shell 数据管线、整理模式、DesktopHost、自有窗口材质、任务栏实验助手、LongBar 和 Phase 0 探针，统一以[核心 Windows 能力实现审计](08-core-windows-implementation-audit.md)为准。
+本文主要回答竞品形态和可借鉴能力。Long Grid 自身的 Shell 数据管线、整理模式、DesktopHost、自有窗口材质、任务栏适配器、LongBar 和 Phase 0 探针，统一以[核心 Windows 能力实现审计](08-core-windows-implementation-audit.md)为准。
 
 竞品交互路径、Long Grid 信息架构、首次启动、容器状态、拖放、规则模拟、恢复、Widget 和工作空间流程，统一以[交互设计审计与体验规范](09-interaction-design-audit.md)为准。
