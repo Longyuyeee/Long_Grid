@@ -2,7 +2,7 @@
 
 日期：2026-08-25  
 开发项：Gate A / PR #225 主线集成后验收  
-结论：**Corrective PR CI Pass / Main CI Required**
+结论：**Pass / Gate A Closed**
 
 ## 1. 主线真实失败
 
@@ -58,6 +58,20 @@ PR #225 已以 `9889cdc` squash 合入 `main`。main run [`32804120282`](https:/
 
 该结果表明纠正后的资源判定在独立 GitHub Windows runner 上复现，且没有以降低覆盖率、资源门槛或跳过下游交付审计换取通过。当前剩余差异仅为：纠正提交尚未合入 `main`，因此仍需主线 push CI 复验。
 
-## 5. 需求对齐与下一步
+## 5. main 集成复验与 Gate A 收口
 
-本切片只修复 Gate A 的资源稳定证据，不修改桌面文件、配置、窗口交互产品逻辑、任务栏或小组件范围。PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 仍为 `InProgress`；PR CI 已全绿，但 PF-006C1 必须继续等待纠正合入和新的 main CI 全绿。
+PR #226 已 squash 合入 `main` 为 `3489ca0`。主线 push CI run [`32806544628`](https://github.com/Longyuyeee/Long_Grid/actions/runs/32806544628) 完整通过：
+
+| 验收 | Expected | Main Actual | Difference |
+| --- | --- | --- | --- |
+| 原生 Surface 模式适配器 | 平台期与清理均 true | `RepeatedResourcePlateau=true`、`CleanupPassed=true` | None |
+| Release 测试 | 0 fail | 1198/1198，0 fail，13 s | None |
+| 覆盖率门 | lines ≥90%、branches ≥75% | 90.01%（40610/45116）、75.51%（13138/17400） | None |
+| 依赖漏洞门 | 无已知漏洞 | Pass | None |
+| 内部 unsigned RC | portable/MSIX/SBOM/清单审计通过 | Pass；800/800 文件校验成功 | None |
+
+本次没有通过重跑掩盖 main 差异：旧 main run 明确失败，探针观测与所有权边界被纠正，随后 PR 最终头与新 main 各自完成一次全链路通过。长期分支 PR、完整 CI、主线集成和失败纠偏闭环均已具备证据，**Gate A 关闭**。
+
+## 6. 需求对齐与下一步
+
+本切片只修复 Gate A 的资源稳定证据，不修改桌面文件、配置、窗口交互产品逻辑、任务栏或小组件范围。PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 仍为 `InProgress`；当前不存在方向偏移。下一工程切片恢复为 PF-006C1：PageUp/PageDown 跨视口键盘导航，继续要求 viewport、选择、焦点和 UIA 快照在真实 HWND 中一致收敛。
