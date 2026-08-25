@@ -105,6 +105,12 @@ internal sealed class ThumbnailWorkerClient : IDisposable
 
     internal bool AppContainerProfileDeleted => _appContainerProfile.WasDeleted;
 
+    internal int AppContainerProfileDeletionAttempts =>
+        _appContainerProfile.DeletionAttempts;
+
+    internal int AppContainerProfileDeletionHResult =>
+        _appContainerProfile.DeletionHResult;
+
     internal long PeakWorkingSetBytes { get; private set; }
 
     internal int PeakHandleCount { get; private set; }

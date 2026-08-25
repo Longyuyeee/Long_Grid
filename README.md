@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 203](docs/203-pf006c1-page-navigation-viewport-uia-convergence-audit.md)已完成 PF-006C1；随后 main 文档收口 run `32810599025` 暴露原生 Surface 清理探针把 .NET/UIA 进程级句柄初始化误判为 HWND 泄漏，[Stage 204](docs/204-main-native-cleanup-metric-convergence-audit.md)已按真实 USER/GDI 归属与长生命周期平台期完成本机修正，等待 PR/main 证据。基线恢复后进入 PF-006C2 鼠标框选；PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`，30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 203](docs/203-pf006c1-page-navigation-viewport-uia-convergence-audit.md)已完成 PF-006C1；[Stage 204](docs/204-main-native-cleanup-metric-convergence-audit.md)修正原生 Surface 资源归属并以 `973db66` 合入，但 main run `32812105456` 随后暴露缩略图 AppContainer Profile 单次删除竞态。[Stage 205](docs/205-main-thumbnail-profile-bounded-cleanup-audit.md)已完成有界重试与 20/20 本机真实 Worker 清理，等待 PR/main 证据。基线恢复后进入 PF-006C2 鼠标框选；PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`，30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
 
 ## 产品原则
 

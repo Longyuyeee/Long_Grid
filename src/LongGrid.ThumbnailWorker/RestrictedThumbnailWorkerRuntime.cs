@@ -45,6 +45,10 @@ public sealed class RestrictedThumbnailWorkerRuntime : IDisposable
 
     public bool OwnedProfileDeletionConfirmed { get; private set; }
 
+    public int OwnedProfileDeletionAttempts { get; private set; }
+
+    public int OwnedProfileDeletionHResult { get; private set; }
+
     private RestrictedThumbnailWorkerRuntime(ThumbnailWorkerClient client)
     {
         this.client = client;
@@ -207,6 +211,10 @@ public sealed class RestrictedThumbnailWorkerRuntime : IDisposable
         client.Dispose();
         requestGate.Dispose();
         OwnedProfileDeletionConfirmed = client.AppContainerProfileDeleted;
+        OwnedProfileDeletionAttempts =
+            client.AppContainerProfileDeletionAttempts;
+        OwnedProfileDeletionHResult =
+            client.AppContainerProfileDeletionHResult;
         disposed = true;
         GC.SuppressFinalize(this);
     }

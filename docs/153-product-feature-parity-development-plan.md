@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-006 项目选择、键盘导航与安全打开命令（PF-001～PF-005 产品证据并行 Pending）**
-- 最新开发审计：[Stage 204](204-main-native-cleanup-metric-convergence-audit.md)；PF-006C1 已以 `a70a3ef` 合入，但后续 main run `32810599025` 暴露原生清理指标把进程级句柄初始化误判为 HWND 泄漏；本机已按真实 USER/GDI 归属与平台期修正，等待 PR/main 证据，之后继续 PF-006C2；30 个 PF 项仍为 `0 Complete`
+- 最新开发审计：[Stage 205](205-main-thumbnail-profile-bounded-cleanup-audit.md)；Stage 204 已以 `973db66` 合入并让原生 Surface 门恢复，但 main run `32812105456` 又以 1199/1200 暴露缩略图 AppContainer Profile 单次删除竞态；现已采用仅限自有 Profile 的 `20 × 50 ms` 有界重试并完成 20/20 本机真实 Worker 清理，等待 PR/main 证据，之后继续 PF-006C2；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 

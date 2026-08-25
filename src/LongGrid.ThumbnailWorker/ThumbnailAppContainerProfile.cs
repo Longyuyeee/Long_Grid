@@ -10,6 +10,9 @@ internal sealed class ThumbnailAppContainerProfile : IDisposable
     internal const long MaximumBrokeredTotalBytes = 64L * 1024 * 1024;
     private const long MaximumStagedRuntimeBytes = 128L * 1024 * 1024;
     private const string ProfilePrefix = "LongGridThumbnailWorker";
+    private const int DisposalDeleteAttempts = 20;
+    private static readonly TimeSpan DisposalDeleteRetryDelay =
+        TimeSpan.FromMilliseconds(50);
 
     internal static IReadOnlyList<string> RequiredRuntimeFileNames { get; } =
     [
@@ -53,6 +56,10 @@ internal sealed class ThumbnailAppContainerProfile : IDisposable
     internal string WorkerExecutablePath { get; }
 
     internal bool WasDeleted { get; private set; }
+
+    internal int DeletionAttempts { get; private set; }
+
+    internal int DeletionHResult { get; private set; }
 
     internal int BrokeredInputCopiesCreated { get; private set; }
 
@@ -230,6 +237,51 @@ internal sealed class ThumbnailAppContainerProfile : IDisposable
             LastHResult: lastHResult);
     }
 
+    internal static ThumbnailAppContainerProfileDeleteResult
+        DeleteByNameWithRetry(
+            string profileName,
+            int maximumAttempts,
+            TimeSpan retryDelay,
+            Func<string, int>? deleteProfile = null,
+            Action<TimeSpan>? wait = null)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(maximumAttempts, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(retryDelay, TimeSpan.Zero);
+
+        if (!IsOwnedProfileName(profileName))
+        {
+            return new ThumbnailAppContainerProfileDeleteResult(
+                Deleted: false,
+                Attempts: 0,
+                LastHResult: unchecked((int)0x80070057));
+        }
+
+        deleteProfile ??= DeleteAppContainerProfile;
+        wait ??= Thread.Sleep;
+        int lastHResult = 0;
+        for (int attempt = 1; attempt <= maximumAttempts; attempt++)
+        {
+            lastHResult = deleteProfile(profileName);
+            if (lastHResult >= 0)
+            {
+                return new ThumbnailAppContainerProfileDeleteResult(
+                    Deleted: true,
+                    Attempts: attempt,
+                    LastHResult: lastHResult);
+            }
+
+            if (attempt < maximumAttempts && retryDelay > TimeSpan.Zero)
+            {
+                wait(retryDelay);
+            }
+        }
+
+        return new ThumbnailAppContainerProfileDeleteResult(
+            Deleted: false,
+            Attempts: maximumAttempts,
+            LastHResult: lastHResult);
+    }
+
     private static bool TryDeleteByName(string profileName, out int hResult)
     {
         if (!IsOwnedProfileName(profileName))
@@ -269,7 +321,14 @@ internal sealed class ThumbnailAppContainerProfile : IDisposable
             _appContainerSid = nint.Zero;
         }
 
-        WasDeleted = DeleteByName(ProfileName);
+        ThumbnailAppContainerProfileDeleteResult deletion =
+            DeleteByNameWithRetry(
+                ProfileName,
+                DisposalDeleteAttempts,
+                DisposalDeleteRetryDelay);
+        WasDeleted = deletion.Deleted;
+        DeletionAttempts = deletion.Attempts;
+        DeletionHResult = deletion.LastHResult;
         _disposed = true;
     }
 
