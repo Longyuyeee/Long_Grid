@@ -1,7 +1,7 @@
 # Stage 201：PR #225 覆盖率门禁恢复审计
 
-日期：2026-08-25  
-开发项：Gate A / 长期功能分支主线集成  
+日期：2026-08-25
+开发项：Gate A / 长期功能分支主线集成
 结论：**Local Coverage Gate Pass / PR CI Required**
 
 ## 1. 远端真实差异
