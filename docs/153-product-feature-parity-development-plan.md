@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-006 项目选择、键盘导航与安全打开命令（PF-001～PF-005 产品证据并行 Pending）**
-- 最新主线集成审计：[Stage 202](202-main-native-surface-resource-plateau-audit.md)；PR #225 已以 `9889cdc` 合入 main，但 main run `32804120282` 暴露原生 Surface 资源平台期观测偏差；本机纠正探针 5/5 通过，等待纠正 PR/main CI；30 个 PF 项仍为 `0 Complete`
+- 最新主线集成审计：[Stage 202](202-main-native-surface-resource-plateau-audit.md)；main run `32804120282` 暴露的原生 Surface 资源平台期观测偏差已纠正，本机探针 5/5、PR #226 run `32805578609` 的 1198/1198 与全部下游门均通过，等待合入后 main CI；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 

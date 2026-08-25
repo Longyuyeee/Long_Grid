@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PR #225 已以 `9889cdc` 合入 `main`，但 main run `32804120282` 暴露原生交互 Surface 资源平台期观测偏差；[Stage 202](docs/202-main-native-surface-resource-plateau-audit.md)已把会扰动句柄的托管观测和同进程 UIA client 缓存从产品 provider 门中分离，本机真实探针 5/5 通过，等待纠正 PR/main CI。PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`，30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PR #225 合入后的 main run `32804120282` 暴露原生交互 Surface 资源平台期观测偏差；[Stage 202](docs/202-main-native-surface-resource-plateau-audit.md)已完成纠正，本机真实探针 5/5 通过，纠正 PR #226 run `32805578609` 亦以 1198/1198、90.01%/75.51% 和全下游门通过，现只等待合入后的 main CI。PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`，30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -220,7 +220,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按 [Stage 202](docs/202-main-native-surface-resource-plateau-audit.md)先让资源平台期纠正通过 PR 与 main 完整 CI，关闭 Gate A；之后按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)进入 PF-006C1 PageUp/PageDown 跨视口键盘导航。随后优先完成框选、桌面直接拖入、首次引导、自动整理、快速隐藏/托盘和命名快照。任务栏美化维持 P1 默认关闭实验模块，小组件/Long助手运行时维持 P2；两者均不得提前伪报完成。
+按 [Stage 202](docs/202-main-native-surface-resource-plateau-audit.md)合入已通过 PR CI 的资源平台期纠正，并以 main 完整 CI 关闭 Gate A；之后按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)进入 PF-006C1 PageUp/PageDown 跨视口键盘导航。随后优先完成框选、桌面直接拖入、首次引导、自动整理、快速隐藏/托盘和命名快照。任务栏美化维持 P1 默认关闭实验模块，小组件/Long助手运行时维持 P2；两者均不得提前伪报完成。
 
 ## 开发启动
 
