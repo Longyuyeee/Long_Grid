@@ -645,7 +645,6 @@ function Test-SourceContract {
         'OverviewLatestUndoButton',
         'PersonalizationPageHeader',
         'SettingsPageHeader',
-        'LegacyWorkspacePrototypeCard',
         'LegacyDesignTokenPreviewCard',
         'ConfigurationRecoveryActionButton',
         'FirstRunPanel',
@@ -763,6 +762,12 @@ function Test-SourceContract {
         'ProductWorkspaceResolvedReferenceRemovalUndoButton',
         'ProductWorkspaceResolvedReferenceRemovalStatus',
         'ProductWorkspaceContainerEditStatus',
+        'ProductWorkspaceManagementGrid',
+        'ProductWorkspaceFilterGrid',
+        'ProductWorkspaceBasicSettingsExpander',
+        'ProductWorkspaceAppearanceSettingsExpander',
+        'ProductWorkspaceDeleteSettingsExpander',
+        'ProductWorkspaceContentSettingsExpander',
         'ProductWorkspaceSearchBox',
         'ProductWorkspaceHealthFilterSelector',
         'ProductWorkspaceSortSelector',
@@ -1364,14 +1369,13 @@ function Test-SourceContract {
     Assert-Condition (
         $openCreateBoxButton.GetAttribute('Click') -eq 'OpenCreateBoxButton_Click'
     ) 'The primary New Box action must route into the real box workspace.'
-    foreach ($legacyCardId in @(
-            'LegacyWorkspacePrototypeCard',
-            'LegacyDesignTokenPreviewCard'
-        )) {
-        $legacyCard = Get-XamlNodeByAutomationId $document $legacyCardId
-        Assert-Condition ($legacyCard.GetAttribute('Visibility') -eq 'Collapsed') `
-            "Legacy prototype '$legacyCardId' must stay out of the product shell."
-    }
+    $legacyDesignCard = Get-XamlNodeByAutomationId `
+        $document `
+        'LegacyDesignTokenPreviewCard'
+    Assert-Condition ($legacyDesignCard.GetAttribute('Visibility') -eq 'Collapsed') `
+        'The legacy design-token preview must stay out of the product shell.'
+    Assert-Condition (-not $document.OuterXml.Contains('LegacyWorkspacePrototypeCard')) `
+        'The anonymous workspace prototype must be removed from the product UI.'
     foreach ($engineeringCardId in @(
             'CurrentModeCard',
             'FileOperationCard',
@@ -1414,6 +1418,28 @@ function Test-SourceContract {
         $codeBehind.Contains('ApplyProductOverview(presentation)') -and
         $codeBehind.Contains('presentation.Containers.Take(4)')
     ) 'The overview must derive counts and summaries from the real workspace presentation.'
+    $basicSettingsExpander = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceBasicSettingsExpander'
+    Assert-Condition (
+        $basicSettingsExpander.GetAttribute('Header') -eq '基本设置' -and
+        $basicSettingsExpander.GetAttribute('IsExpanded') -eq 'True'
+    ) 'Box management must open with the primary settings section available.'
+    foreach ($secondarySection in @(
+            @{ Id = 'ProductWorkspaceAppearanceSettingsExpander'; Header = '外观与布局' },
+            @{ Id = 'ProductWorkspaceDeleteSettingsExpander'; Header = '删除与恢复' },
+            @{ Id = 'ProductWorkspaceContentSettingsExpander'; Header = '盒子内容' }
+        )) {
+        $section = Get-XamlNodeByAutomationId $document $secondarySection.Id
+        Assert-Condition (
+            $section.GetAttribute('Header') -eq $secondarySection.Header -and
+            $section.GetAttribute('IsExpanded') -eq 'False'
+        ) "Secondary box section '$($secondarySection.Id)' must be collapsed by default."
+    }
+    Assert-Condition (
+        $codeBehind.Contains('ProductWorkspaceManagementGrid.ColumnSpacing') -and
+        $codeBehind.Contains('Grid.SetRowSpan(ProductWorkspaceContainerEditorPanel')
+    ) 'The box list and settings panel must share an audited compact reflow path.'
 
     foreach ($themeId in @('ThemeSystem', 'ThemeLight', 'ThemeDark')) {
         $node = Get-XamlNodeByAutomationId $document $themeId

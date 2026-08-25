@@ -815,6 +815,96 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
         }
     }
 
+    [Fact]
+    public async Task RealStoreCreateOverviewRenameUndoJourneyKeepsDesktopGuardUnchanged()
+    {
+        string sandbox = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid.BoxManagementJourney.Tests",
+            Guid.NewGuid().ToString("N"));
+        string configurationDirectory = Path.Combine(sandbox, "Configuration");
+        string desktopDirectory = Path.Combine(sandbox, "DesktopGuard");
+        Directory.CreateDirectory(desktopDirectory);
+        string desktopGuardPath = Path.Combine(desktopDirectory, "keep.txt");
+        await File.WriteAllTextAsync(desktopGuardPath, "LongGrid must not change me.");
+        string expectedDesktopHash = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(
+                await File.ReadAllBytesAsync(desktopGuardPath)));
+
+        try
+        {
+            var store = new ProductConfigurationStore(configurationDirectory);
+            var workflow = new ProductConfigurationSaveWorkflow(
+                new ProductConfigurationSaveCoordinator(store));
+            await using var saves = new ProductWorkspaceSaveController(
+                workflow,
+                new ImmediateScheduler(),
+                TimeSpan.FromMilliseconds(1));
+            var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+            long revision = coordinator.AdvanceExternalRevision();
+
+            ProductWorkspaceContainerCommitResult created =
+                coordinator.CommitContainer(
+                    EmptyState(),
+                    new(
+                        ProductWorkspaceContainerCommitAction.Create,
+                        revision,
+                        0,
+                        "Inbox",
+                        Container("container-1", "Inbox")));
+            Assert.True(created.IsAccepted);
+            ProductWorkspaceReadResult overview =
+                ProductWorkspaceReadModel.Create(created.State!);
+            Assert.True(overview.IsSuccess);
+            Assert.Single(overview.Snapshot!.Containers);
+            Assert.Equal("Inbox", overview.Snapshot.Containers[0].UserVisibleName);
+
+            ProductWorkspaceContainerCommitResult renamed =
+                coordinator.CommitContainer(
+                    created.State!,
+                    new(
+                        ProductWorkspaceContainerCommitAction.Rename,
+                        created.EditRevision,
+                        1,
+                        "Projects"));
+            Assert.True(renamed.IsAccepted);
+            Assert.Equal("Projects", renamed.State!.Containers[0].Name);
+            Assert.NotNull(renamed.EditUndoToken);
+
+            ProductWorkspaceContainerEditUndoCommitResult undone =
+                coordinator.CommitContainerEditUndo(
+                    renamed.State,
+                    renamed.EditUndoToken!,
+                    confirmed: true);
+            Assert.True(undone.IsAccepted);
+            Assert.Equal("Inbox", undone.State!.Containers[0].Name);
+            _ = await saves.CompleteAsync();
+
+            ProductConfigurationLoadResult reloaded = await store.LoadAsync();
+            Assert.Equal(ProductConfigurationLoadStatus.LoadedPrimary, reloaded.Status);
+            ProductWorkspaceProjectionResult projected =
+                ProductWorkspaceConfigurationProjector.Project(undone.State);
+            Assert.True(projected.IsSuccess);
+            Assert.Equal(
+                ProductWorkspaceConfigurationFingerprint.Compute(projected.Document!),
+                ProductWorkspaceConfigurationFingerprint.Compute(reloaded.Document!));
+
+            string actualDesktopHash = Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData(
+                    await File.ReadAllBytesAsync(desktopGuardPath)));
+            Assert.Equal(expectedDesktopHash, actualDesktopHash);
+            Assert.Equal("LongGrid must not change me.", await File.ReadAllTextAsync(
+                desktopGuardPath));
+        }
+        finally
+        {
+            if (Directory.Exists(sandbox))
+            {
+                Directory.Delete(sandbox, recursive: true);
+            }
+        }
+    }
+
     private static ProductWorkspaceSaveController CreateSaves(
         IProductConfigurationSaveWorkflow workflow) =>
         new(

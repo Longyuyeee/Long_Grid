@@ -3969,6 +3969,53 @@ public sealed partial class MainWindow : Window
             row: 0,
             column: 0,
             columnSpan: compact ? 3 : 1);
+
+        ProductWorkspaceManagementGrid.ColumnSpacing = compact ? 0 : 20;
+        ProductWorkspaceListColumn.Width = new GridLength(
+            compact ? 1 : 5,
+            GridUnitType.Star);
+        ProductWorkspaceEditorColumn.Width = new GridLength(
+            compact ? 1 : 4,
+            GridUnitType.Star);
+        SetGridPosition(
+            ProductWorkspaceSearchBox,
+            row: 1,
+            column: 0,
+            columnSpan: compact ? 2 : 1);
+        SetGridPosition(
+            ProductWorkspaceFilterGrid,
+            row: 2,
+            column: 0,
+            columnSpan: compact ? 2 : 1);
+        SetGridPosition(
+            ProductWorkspaceSortSelector,
+            row: 3,
+            column: 0,
+            columnSpan: compact ? 2 : 1);
+        foreach (FrameworkElement workspaceListElement in new FrameworkElement[]
+        {
+            ProductWorkspaceEmptyCreateCard,
+            ProductWorkspaceNoResultsCard,
+            ProductWorkspaceContainerList,
+        })
+        {
+            SetGridPosition(
+                workspaceListElement,
+                row: 4,
+                column: 0,
+                columnSpan: compact ? 2 : 1);
+        }
+        SetGridPosition(
+            ProductWorkspaceViewStatus,
+            row: 5,
+            column: 0,
+            columnSpan: compact ? 2 : 1);
+        SetGridPosition(
+            ProductWorkspaceContainerEditorPanel,
+            row: compact ? 6 : 1,
+            column: compact ? 0 : 1,
+            columnSpan: compact ? 2 : 1);
+        Grid.SetRowSpan(ProductWorkspaceContainerEditorPanel, compact ? 1 : 5);
         SetGridPosition(
             OverviewItemCountCard,
             row: compact ? 1 : 0,
@@ -3989,29 +4036,6 @@ public sealed partial class MainWindow : Window
             row: compact ? 2 : 0,
             column: compact ? 0 : 2,
             columnSpan: compact ? 3 : 1);
-
-        WorkspaceItemsGrid.ColumnSpacing = compact ? 0 : 12;
-        WorkspaceItemsGrid.RowSpacing = compact ? 8 : 0;
-        SetGridPosition(
-            WorkspaceItemProject,
-            row: 0,
-            column: 0,
-            columnSpan: compact ? 4 : 1);
-        SetGridPosition(
-            WorkspaceItemReference,
-            row: compact ? 1 : 0,
-            column: compact ? 0 : 1,
-            columnSpan: compact ? 4 : 1);
-        SetGridPosition(
-            WorkspaceItemPending,
-            row: compact ? 2 : 0,
-            column: compact ? 0 : 2,
-            columnSpan: compact ? 4 : 1);
-        SetGridPosition(
-            WorkspaceItemArchive,
-            row: compact ? 3 : 0,
-            column: compact ? 0 : 3,
-            columnSpan: compact ? 4 : 1);
 
         BrandSurfaceGrid.ColumnSpacing = compact ? 0 : 12;
         BrandSurfaceGrid.RowSpacing = compact ? 12 : 0;
