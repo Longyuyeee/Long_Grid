@@ -142,7 +142,7 @@ Assert-Condition (
 ) 'The batch selection status regions must retain polite live-region semantics.'
 
 Assert-Condition (
-    $codeBehind.Contains('private const double CompactBreakpoint = 760;') -and
+    $codeBehind.Contains('private const double CompactBreakpoint = 840;') -and
     $codeBehind.Contains('_suppressBatchSelectionAnnouncements') -and
     $codeBehind.Contains('AutomationEvents.LiveRegionChanged') -and
     $codeBehind.Contains('ApplyTwoActionResponsiveLayout(')

@@ -373,6 +373,7 @@ test(shell): cover coalesced change notifications
 - 正式签名秘密只存在于受保护发布环境，不进入脚本、仓库或日志；
 - UI PR 必须检查浅色、深色、高对比、文本缩放、减少动画、键盘、Narrator、DPI 和低性能降级；
 - UI PR 必须执行 `eng/Test-LongGridUi.ps1 -ContractOnly`；具备可交互 Windows 会话时还要执行完整脚本，并把结构合同与实机结果分别记账；
+- 当已知 WinUI/UIA 上游崩溃或外部自动化无法枚举窗口时，UI-R1E 可执行 `eng/Test-LongGridUiR1eEvidence.ps1`：它必须使用唯一 GUID AppInstance、隔离配置、禁用 DesktopHost，只捕获正式 App 的进程内真实 XAML 与布局度量，并证明桌面和正常配置元数据不变；该证据可补浅/深色与响应式截图，但不能替代 Narrator、物理键盘、高对比或关闭系统动画的人工结论；
 - 涉及正式批量选择的 UI PR 必须执行 `eng/Start-LongGridBatchAccessibilitySession.ps1 -ValidateOnly`；若改变焦点、播报、主题或响应式布局，应在专用账户重跑受影响的 BSA 场景，未执行时继续记为 Pending；
 - 涉及批量配置编辑的 PR 必须证明 1..256 上限、同源/同容器边界、无重复、先完整验证后一次提交、默认取消确认、一次 revision、整批一次撤销和 `DesktopFilesChanged=False`；不得通过循环单项提交产生部分成功；
 - 管理窗口 UI PR 必须同时验证默认 DPI 感知尺寸、已审计窄窗口断点、无横向滚动和宽/紧凑状态可逆；窗口 API 的物理像素不得直接冒充 XAML 有效像素；

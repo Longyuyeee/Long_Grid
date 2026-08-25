@@ -1392,6 +1392,10 @@ function Test-SourceContract {
     ) 'The primary New Box action must route into the real box workspace.'
     Assert-Condition (-not $document.OuterXml.Contains('LegacyDesignTokenPreviewCard')) `
         'The legacy design-token preview must be removed from the product shell.'
+    Assert-Condition (
+        $codeBehind -match 'CompactBreakpoint\s*=\s*840' -and
+        $codeBehind -match 'new Thickness\(16, 56, 16, 24\)'
+    ) 'Compact product pages must switch near 840 DIP and reserve space below the pane toggle.'
     Assert-Condition (-not $document.OuterXml.Contains('LegacyWorkspacePrototypeCard')) `
         'The anonymous workspace prototype must be removed from the product UI.'
     foreach ($engineeringCardId in @(
@@ -1473,8 +1477,8 @@ function Test-SourceContract {
         'The theme handler must expose a light mode.'
     Assert-Condition ($codeBehind -match 'ElementTheme\.Dark') `
         'The theme handler must expose a dark mode.'
-    Assert-Condition ($codeBehind -match 'CompactBreakpoint\s*=\s*760') `
-        'The audited compact/wide breakpoint must remain 760 effective pixels.'
+    Assert-Condition ($codeBehind -match 'CompactBreakpoint\s*=\s*840') `
+        'The audited compact/wide breakpoint must remain 840 effective pixels.'
     Assert-Condition ($codeBehind -match 'RootLayout\.SizeChanged') `
         'Responsive layout must follow the effective root size.'
     Assert-Condition ($codeBehind -match 'NavigationViewPaneDisplayMode\.LeftMinimal') `
