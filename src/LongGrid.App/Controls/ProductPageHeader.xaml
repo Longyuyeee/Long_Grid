@@ -1,0 +1,34 @@
+<UserControl
+    x:Class="LongGrid.App.Controls.ProductPageHeader"
+    x:Name="Root"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid ColumnSpacing="24">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Spacing="6">
+            <TextBlock
+                AutomationProperties.AutomationId="ProductPageTitle"
+                FontSize="32"
+                FontWeight="SemiBold"
+                Foreground="{ThemeResource LongGridTextPrimaryBrush}"
+                Text="{x:Bind Title, Mode=OneWay}"
+                TextWrapping="Wrap" />
+            <TextBlock
+                MaxWidth="720"
+                HorizontalAlignment="Left"
+                AutomationProperties.AutomationId="ProductPageSubtitle"
+                FontSize="15"
+                Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                LineHeight="24"
+                Text="{x:Bind Subtitle, Mode=OneWay}"
+                TextWrapping="Wrap" />
+        </StackPanel>
+        <ContentPresenter
+            Grid.Column="1"
+            VerticalAlignment="Center"
+            Content="{x:Bind ActionContent, Mode=OneWay}" />
+    </Grid>
+</UserControl>

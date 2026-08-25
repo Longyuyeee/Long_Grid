@@ -2,6 +2,7 @@
     x:Class="LongGrid.App.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:LongGrid.App.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -42,22 +43,6 @@
                 FontWeight="SemiBold"
                 Foreground="{ThemeResource LongGridTextPrimaryBrush}"
                 Text="Long方格" />
-            <Border
-                x:Name="DevelopmentBadge"
-                Grid.Column="2"
-                Margin="14,0,0,0"
-                Padding="8,3"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Center"
-                Background="{ThemeResource LongGridSurfaceMutedBrush}"
-                CornerRadius="8">
-                <TextBlock
-                    x:Name="DevelopmentBadgeText"
-                    AutomationProperties.AutomationId="ResponsiveStatusText"
-                    FontSize="11"
-                    Foreground="{ThemeResource LongGridTextSecondaryBrush}"
-                    Text="开发期 · 只读 UI Shell" />
-            </Border>
         </Grid>
 
         <NavigationView
@@ -71,43 +56,41 @@
             OpenPaneLength="244"
             PaneDisplayMode="LeftCompact"
             SelectionChanged="ShellNavigation_SelectionChanged">
+            <NavigationView.PaneHeader>
+                <controls:ProductBrandHeader />
+            </NavigationView.PaneHeader>
             <NavigationView.MenuItems>
                 <NavigationViewItem
                     AccessKey="1"
                     AutomationProperties.AutomationId="NavOverview"
-                    Content="概览"
+                    Content="桌面概览"
                     Tag="overview">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Home" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem
                     AccessKey="2"
-                    AutomationProperties.AutomationId="NavFirstRun"
-                    Content="首次整理"
-                    Tag="first-run">
-                    <NavigationViewItem.Icon><SymbolIcon Symbol="Bullets" /></NavigationViewItem.Icon>
+                    AutomationProperties.AutomationId="NavBoxes"
+                    Content="盒子管理"
+                    Tag="boxes">
+                    <NavigationViewItem.Icon><SymbolIcon Symbol="Library" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem
                     AccessKey="3"
-                    AutomationProperties.AutomationId="NavAppearance"
-                    Content="外观与 Token"
-                    Tag="appearance">
+                    AutomationProperties.AutomationId="NavPersonalization"
+                    Content="个性化"
+                    Tag="personalization">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Edit" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
+            </NavigationView.MenuItems>
+            <NavigationView.FooterMenuItems>
                 <NavigationViewItem
                     AccessKey="4"
-                    AutomationProperties.AutomationId="NavSafety"
-                    Content="安全边界"
-                    Tag="safety">
-                    <NavigationViewItem.Icon><SymbolIcon Symbol="Permissions" /></NavigationViewItem.Icon>
+                    AutomationProperties.AutomationId="NavSettings"
+                    Content="设置"
+                    Tag="settings">
+                    <NavigationViewItem.Icon><SymbolIcon Symbol="Setting" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem
-                    AccessKey="5"
-                    AutomationProperties.AutomationId="NavRecovery"
-                    Content="恢复预览"
-                    Tag="recovery">
-                    <NavigationViewItem.Icon><SymbolIcon Symbol="Refresh" /></NavigationViewItem.Icon>
-                </NavigationViewItem>
-            </NavigationView.MenuItems>
+            </NavigationView.FooterMenuItems>
 
             <Grid x:Name="ContentFrame" Padding="32,28,32,32">
                 <ScrollViewer
@@ -126,7 +109,7 @@
                                 x:Name="ConfigurationRecoveryBanner"
                                 AutomationProperties.ItemStatus="StartupReadOnly:Catalog=FirstLevelMetadata;DesktopFileWrites=Disabled;DesktopHost=Disconnected"
                                 IsClosable="False"
-                                IsOpen="True"
+                                IsOpen="False"
                                 Severity="Informational"
                                 Title="正在检查本地配置"
                                 Message="配置与桌面目录采用只读启动；不会移动、重命名、删除或写入桌面文件，也不连接 DesktopHost 执行窗口操作。">
@@ -140,18 +123,25 @@
                                         Visibility="Collapsed" />
                                 </InfoBar.ActionButton>
                             </InfoBar>
-                            <StackPanel Spacing="8">
-                                <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="DESKTOP WORKSPACE" />
-                                <TextBlock Style="{StaticResource LongGridTitleTextStyle}" Text="把桌面还给专注本身" />
-                                <TextBlock
-                                    x:Name="RuntimeScopeDisclosureText"
-                                    MaxWidth="720"
-                                    HorizontalAlignment="Left"
-                                    AutomationProperties.ItemStatus="Catalog=RealDesktopFirstLevelMetadata;Practice=AnonymousMemory;FileContent=NotRead;DesktopFileWrites=Disabled;DesktopHost=Disconnected"
-                                    AutomationProperties.Name="当前数据与执行边界"
-                                    Style="{StaticResource LongGridSubtitleTextStyle}"
-                                    Text="概览中的目录与正式工作区会只读枚举本机用户桌面和公共桌面第一层元数据；首次整理、拖放与恢复练习仍使用匿名内存数据。Long方格不会读取文件内容，也不会移动、重命名、删除或写入桌面文件，DesktopHost 执行保持关闭。" />
-                            </StackPanel>
+                            <controls:ProductPageHeader
+                                x:Name="OverviewPageHeader"
+                                AutomationProperties.AutomationId="OverviewPageHeader"
+                                Title="桌面概览"
+                                Subtitle="管理桌面盒子、文件夹绑定与最近操作。">
+                                <controls:ProductPageHeader.ActionContent>
+                                    <Button
+                                        x:Name="OpenCreateBoxButton"
+                                        AutomationProperties.AutomationId="OpenCreateBoxButton"
+                                        AutomationProperties.Name="新建盒子"
+                                        Click="OpenCreateBoxButton_Click"
+                                        Style="{StaticResource AccentButtonStyle}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <SymbolIcon Symbol="Add" />
+                                            <TextBlock Text="新建盒子" />
+                                        </StackPanel>
+                                    </Button>
+                                </controls:ProductPageHeader.ActionContent>
+                            </controls:ProductPageHeader>
 
                             <Grid x:Name="OverviewMetricsGrid" ColumnSpacing="14">
                                 <Grid.ColumnDefinitions>
@@ -1120,7 +1110,11 @@
                                 </Grid>
                             </Border>
 
-                            <Border Style="{StaticResource LongGridCardStyle}">
+                            <Border
+                                x:Name="LegacyWorkspacePrototypeCard"
+                                AutomationProperties.AutomationId="LegacyWorkspacePrototypeCard"
+                                Style="{StaticResource LongGridCardStyle}"
+                                Visibility="Collapsed">
                                 <StackPanel Spacing="18">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -1571,14 +1565,13 @@
                             x:Name="AppearancePanel"
                             AutomationProperties.AccessibilityView="Content"
                             AutomationProperties.AutomationId="AppearancePanel"
-                            AutomationProperties.Name="外观与 Token 内容"
+                            AutomationProperties.Name="个性化内容"
                             Spacing="20"
                             Visibility="Collapsed">
-                            <StackPanel Spacing="8">
-                                <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="DESIGN SYSTEM" />
-                                <TextBlock Style="{StaticResource LongGridTitleTextStyle}" Text="可复用 Token，而不是散落常量" />
-                                <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="首片建立颜色、间距、圆角和卡片层级；控件状态继续复用 WinUI 系统资源。" />
-                            </StackPanel>
+                            <controls:ProductPageHeader
+                                AutomationProperties.AutomationId="PersonalizationPageHeader"
+                                Title="个性化"
+                                Subtitle="调整 Long方格的主题与视觉体验。任务栏预设将在核心适配器完成后出现在这里。" />
                             <Border Style="{StaticResource LongGridCardStyle}">
                                 <StackPanel Spacing="14">
                                     <TextBlock FontSize="20" FontWeight="SemiBold" Text="界面主题" />
@@ -1617,7 +1610,11 @@
                                         Text="当前：跟随系统（仅内存）" />
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource LongGridCardStyle}">
+                            <Border
+                                x:Name="LegacyDesignTokenPreviewCard"
+                                AutomationProperties.AutomationId="LegacyDesignTokenPreviewCard"
+                                Style="{StaticResource LongGridCardStyle}"
+                                Visibility="Collapsed">
                                 <StackPanel Spacing="18">
                                     <TextBlock FontSize="20" FontWeight="SemiBold" Text="品牌与表面" />
                                     <Grid x:Name="BrandSurfaceGrid" ColumnSpacing="12">
@@ -1644,14 +1641,13 @@
                             x:Name="SafetyPanel"
                             AutomationProperties.AccessibilityView="Content"
                             AutomationProperties.AutomationId="SafetyPanel"
-                            AutomationProperties.Name="安全边界内容"
+                            AutomationProperties.Name="设置内容"
                             Spacing="20"
                             Visibility="Collapsed">
-                            <StackPanel Spacing="8">
-                                <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="SAFETY CONTRACT" />
-                                <TextBlock Style="{StaticResource LongGridTitleTextStyle}" Text="当前切片主动不做什么" />
-                                <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="功能边界直接展示在界面中，避免把技术骨架误认成已经可用的桌面整理产品。" />
-                            </StackPanel>
+                            <controls:ProductPageHeader
+                                AutomationProperties.AutomationId="SettingsPageHeader"
+                                Title="设置"
+                                Subtitle="管理配置、隐私与高级诊断。核心盒子设置将在盒子管理中就近完成。" />
                             <Border Style="{StaticResource LongGridCardStyle}">
                                 <StackPanel Spacing="14">
                                     <InfoBar IsClosable="False" IsOpen="True" Severity="Success" Title="真实桌面保持不变" Message="没有目录枚举、Shell 通知、文件移动、删除、规则执行或自动配置写入。" />
