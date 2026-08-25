@@ -2,7 +2,7 @@
 
 日期：2026-08-25
 开发项：Gate A / 长期功能分支主线集成
-结论：**Local Coverage Gate Pass / PR CI Required**
+结论：**Local Coverage Gate Pass With Headless-Runner Margin / PR CI Required**
 
 ## 1. 远端真实差异
 
@@ -40,7 +40,7 @@ PR #225 第三次 CI run `32798585694` 已通过 Windows PowerShell 5.1 编码�
 | 激活键盘矩阵 | 分支通过、行继续提高 | 89.93% / 75.22% | 分支 Pass；行 -0.07 pp |
 | 最终真实系统采样与布局焦点 | ≥90% / ≥75% | 90.05%（40576/45058）/ 75.34%（13094/17380） | +0.05 / +0.34 pp，Pass |
 
-最终同一次 Release collector 为 1170/1170 通过；不是把多次失败报告相加后制造百分比。
+该轮同一次 Release collector 为 1170/1170 通过；不是把多次失败报告相加后制造百分比。远端 headless-runner 差异和后续余量修正见第 7 节。
 
 ## 5. 缩略图真实测试差异复核
 
@@ -57,3 +57,23 @@ PR #225 第三次 CI run `32798585694` 已通过 Windows PowerShell 5.1 编码�
 本切片只恢复 Gate A 的质量门，没有扩张任务栏、小组件、文件移动或窗口特效范围。PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 仍为 `InProgress`，下一功能切片仍是 PF-006C1 PageUp/PageDown。
 
 推送后必须由 PR #225 的全新 Windows runner 重新执行完整流水线。只有 PR 全绿、合入 `main` 且 main CI 通过，Gate A 才能关闭并进入 PF-006C1。
+
+## 7. 首次覆盖率修正后的远端差异与余量
+
+PR run `32800465632` 在最新 SHA 上通过格式、构建、全部合同和 1170/1170 测试，但 lines 为 89.68%（40410/45058），branches 为 75.20%（13070/17380）：
+
+| 项目 | Expected | Remote Actual | Difference |
+| --- | ---: | ---: | ---: |
+| 行覆盖率 | ≥90.00% | 89.68% | -0.32 pp / Fail |
+| 分支覆盖率 | ≥75.00% | 75.20% | +0.20 pp / Pass |
+
+下载远端 Cobertura 并与本机同 SHA 逐文件比较后，76 个唯一覆盖行差异集中于 `WindowsDisplayTopologySource.cs`：本机有完整 CCD/Monitor 成功路径，GitHub headless runner 只覆盖有限路径；激活源另差 6 行，遥测差 1 行，其余主要产品文件一致。因此 90.05% 的本机结果只有 0.05 pp 余量，不能代表 headless runner。
+
+第二增量没有排除 Windows topology，也没有伪造显示器，而是补充不依赖硬件的确定性产品合同：
+
+- active/no-active 布局取消和全部 layout result 状态；
+- 18 个安全打开终态的有限、无路径反馈与 Accepted 映射；
+- projection Ready、missing authority、revision/generation/disposition/batch 元数据拒绝；
+- 初始 Explorer 不可用、未知全屏、远程与 session unavailable 组合及稳定恢复。
+
+最终本机同一次 Release collector 为 **1198/1198、lines 90.41%（40738/45058）、branches 75.71%（13158/17380）**。按 run `32800465632` 的逐文件环境差异回算，headless runner 已超过 90% 行门并保留约 10 个唯一覆盖行余量；最终结论仍以新 run 为准。

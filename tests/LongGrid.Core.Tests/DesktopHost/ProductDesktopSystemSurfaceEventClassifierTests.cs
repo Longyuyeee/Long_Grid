@@ -109,6 +109,45 @@ public sealed class ProductDesktopSystemSurfaceEventClassifierTests
             classifier.ObserveFocusLost());
     }
 
+    [Fact]
+    public void InitialUnavailableShellAndCombinedSessionSignalsFailClosed()
+    {
+        var classifier = new ProductDesktopSystemSurfaceEventClassifier();
+
+        Assert.Equal(
+            [
+                ProductDesktopInteractionSystemSurfaceEventKind.ExplorerRestarted,
+                ProductDesktopInteractionSystemSurfaceEventKind.FullScreenTransition,
+            ],
+            classifier.Observe(new(
+                ShellWindow: nint.Zero,
+                ForegroundWindow: nint.Zero,
+                FullScreenStateKnown: false,
+                FullScreenActive: false,
+                RemoteSession: true)));
+        Assert.Equal(
+            [
+                ProductDesktopInteractionSystemSurfaceEventKind.RemoteSessionTransition,
+                ProductDesktopInteractionSystemSurfaceEventKind.SessionUnavailable,
+            ],
+            classifier.ObserveSessionAvailability(
+                available: false,
+                remoteTransition: true));
+        Assert.Equal(
+            [
+                ProductDesktopInteractionSystemSurfaceEventKind.ExplorerRestarted,
+                ProductDesktopInteractionSystemSurfaceEventKind.RemoteSessionTransition,
+            ],
+            classifier.Observe(SafeSample));
+        Assert.Empty(classifier.ObserveSessionAvailability(
+            available: true,
+            remoteTransition: false));
+        Assert.Empty(classifier.Observe(SafeSample));
+        Assert.Equal(
+            [ProductDesktopInteractionSystemSurfaceEventKind.RecoveryCandidate],
+            classifier.Observe(SafeSample));
+    }
+
     [Theory]
     [InlineData(ProductDesktopInteractionSystemSurfaceEventKind.FocusLost,
         ProductDesktopInteractionCancellationSignal.FocusLost)]

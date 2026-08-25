@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-006 项目选择、键盘导航与安全打开命令（PF-001～PF-005 产品证据并行 Pending）**
-- 最新主线集成审计：[Stage 201](201-pr225-coverage-gate-recovery-audit.md)；PR #225 的 PowerShell/157-ID 偏差已修正，第三次 CI 暴露的 87.89%/73.22% 覆盖率回归已在本机恢复为 1170/1170、90.05%/75.34%，等待全新 runner 复核；30 个 PF 项仍为 `0 Complete`
+- 最新主线集成审计：[Stage 201](201-pr225-coverage-gate-recovery-audit.md)；PR #225 的 PowerShell/157-ID 偏差已修正，覆盖率首轮补测在 headless runner 仍为 89.68%/75.20%，现以硬件无关矩阵把本机余量扩大为 1198/1198、90.41%/75.71%，等待新 run 复核；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -890,4 +890,4 @@
 
 当前治理门为 **Gate A：长期分支 PR、完整 CI 与主线集成**，完成后工程切片仍为 **PF-006C1：PageUp/PageDown 跨视口键盘导航**。PF-001 的冷启动与运行期开启性能门已完成；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
 
-Stage 199 以正式 App、真实原子设置保存和外部 Win32 HWND 三段握手完成运行期开启 ≤1000 ms 证据：三次 41/92/40 ms，最慢余量 908 ms；1 ms 负向门以 31 ms、超出 30 ms 和退出码 1 正确失败。Stage 201 又在不降低门槛、不排除正式原生适配器的前提下，把 PR #225 暴露的覆盖率从 87.89%/73.22% 恢复到本机 90.05%/75.34%，1170/1170。现在必须由 PR/完整 GitHub CI 复核并集成当前长期分支。之后 PF-006C1 在同一显式租约和真实 HWND 中把 PageUp/PageDown 的 viewport、选择、焦点与 UIA 快照原子收敛；框选留给 C2。PF-007 后优先转入首次引导和自动整理闭环，任何版本在签名和安装门禁完成前不得分发。
+Stage 199 以正式 App、真实原子设置保存和外部 Win32 HWND 三段握手完成运行期开启 ≤1000 ms 证据：三次 41/92/40 ms，最慢余量 908 ms；1 ms 负向门以 31 ms、超出 30 ms 和退出码 1 正确失败。Stage 201 在不降低门槛、不排除正式原生适配器的前提下，先把覆盖率从 87.89%/73.22% 提升到本机 90.05%/75.34%；远端 headless topology 差异仍使行覆盖为 89.68%，再补硬件无关矩阵后本机为 1198/1198、90.41%/75.71%。现在必须由 PR/完整 GitHub CI 复核并集成当前长期分支。之后 PF-006C1 在同一显式租约和真实 HWND 中把 PageUp/PageDown 的 viewport、选择、焦点与 UIA 快照原子收敛；框选留给 C2。PF-007 后优先转入首次引导和自动整理闭环，任何版本在签名和安装门禁完成前不得分发。

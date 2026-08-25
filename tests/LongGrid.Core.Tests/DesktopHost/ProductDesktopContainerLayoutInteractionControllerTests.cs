@@ -8,6 +8,74 @@ namespace LongGrid.Core.Tests.DesktopHost;
 public sealed class ProductDesktopContainerLayoutInteractionControllerTests
 {
     [Fact]
+    public async Task CancelActiveIsFiniteWithAndWithoutAnActiveGesture()
+    {
+        string sandbox = Sandbox("CancelActive");
+        try
+        {
+            var store = new ProductConfigurationStore(Path.Combine(sandbox, "store"));
+            await using ProductWorkspaceSaveController saves = Saves(store);
+            var commits = new ProductWorkspaceCommitCoordinator(saves);
+            long editRevision = commits.AdvanceExternalRevision();
+            var controller =
+                new ProductDesktopContainerLayoutInteractionController(commits);
+
+            ProductDesktopContainerLayoutInteractionResult empty =
+                controller.CancelActive(
+                    ProductDesktopContainerLayoutCancellationReason.EscapePressed);
+            ProductDesktopContainerLayoutInteractionResult began = controller.Handle(
+                Request(ProductDesktopContainerLayoutInputPhase.Begin),
+                State(),
+                isReadOnly: false,
+                editRevision,
+                Topology());
+            ProductDesktopContainerLayoutInteractionResult cancelled =
+                controller.CancelActive(
+                    ProductDesktopContainerLayoutCancellationReason.HostInvalidated);
+            ProductDesktopContainerLayoutInteractionResult second =
+                controller.CancelActive(
+                    ProductDesktopContainerLayoutCancellationReason.CaptureLost);
+
+            Assert.Equal(
+                ProductDesktopContainerLayoutInteractionStatus.Rejected,
+                empty.Status);
+            Assert.Equal(
+                ProductDesktopContainerLayoutInteractionStatus.Began,
+                began.Status);
+            Assert.Equal(
+                ProductDesktopContainerLayoutInteractionStatus.Cancelled,
+                cancelled.Status);
+            Assert.True(cancelled.ClearPreview);
+            Assert.Equal(
+                ProductDesktopContainerLayoutInteractionStatus.Rejected,
+                second.Status);
+            Assert.Throws<ArgumentNullException>(() =>
+                new ProductDesktopContainerLayoutInteractionController(null!));
+        }
+        finally
+        {
+            DeleteSandbox(sandbox);
+        }
+    }
+
+    [Theory]
+    [InlineData(ProductDesktopContainerLayoutInteractionStatus.Began, true)]
+    [InlineData(ProductDesktopContainerLayoutInteractionStatus.PreviewUpdated, true)]
+    [InlineData(ProductDesktopContainerLayoutInteractionStatus.Cancelled, true)]
+    [InlineData(ProductDesktopContainerLayoutInteractionStatus.NoChange, true)]
+    [InlineData(ProductDesktopContainerLayoutInteractionStatus.Committed, true)]
+    [InlineData(ProductDesktopContainerLayoutInteractionStatus.Rejected, false)]
+    public void ResultAcceptanceIsFinite(
+        ProductDesktopContainerLayoutInteractionStatus status,
+        bool expected)
+    {
+        var result = new ProductDesktopContainerLayoutInteractionResult(
+            status, "display-1", "container-1", 1, 7);
+
+        Assert.Equal(expected, result.IsAccepted);
+    }
+
+    [Fact]
     public async Task RealStoreCommitPublishesOneFinalCandidate()
     {
         string sandbox = Sandbox("RealCommit");

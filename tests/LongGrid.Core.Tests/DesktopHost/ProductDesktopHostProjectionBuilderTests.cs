@@ -341,6 +341,108 @@ public sealed class ProductDesktopHostProjectionBuilderTests
         Assert.Equal(Primary.WorkArea, display.WorkArea);
     }
 
+    [Fact]
+    public void BuildUpdatePublishesReadyBatchAndRejectsMissingAuthoritativeInput()
+    {
+        ProductWorkspaceState state = CreateState();
+        ProductWorkspaceReadSnapshot read =
+            ProductWorkspaceReadModel.Create(state).Snapshot!;
+        var topology = new ProductDisplayTopologySnapshot(
+            ProductDisplayTopologyStatus.Ready,
+            10,
+            [Primary, Secondary],
+            2,
+            2,
+            1);
+
+        ProductDesktopHostProjectionUpdate ready =
+            ProductDesktopHostProjectionBuilder.BuildUpdate(
+                state,
+                read,
+                topology,
+                workspaceRevision: 15,
+                presentationGeneration: 4);
+        ProductDesktopHostProjectionUpdate missingState =
+            ProductDesktopHostProjectionBuilder.BuildUpdate(
+                null,
+                read,
+                topology,
+                workspaceRevision: 15);
+        ProductDesktopHostProjectionUpdate missingRead =
+            ProductDesktopHostProjectionBuilder.BuildUpdate(
+                state,
+                null,
+                topology,
+                workspaceRevision: 15);
+
+        Assert.Equal(ProductDesktopHostProjectionDisposition.Ready,
+            ready.Disposition);
+        Assert.NotNull(ready.Batch);
+        Assert.Equal(4, ready.PresentationGeneration);
+        Assert.Equal(ProductDesktopHostProjectionDisposition.Invalid,
+            missingState.Disposition);
+        Assert.Equal(ProductDesktopHostProjectionDisposition.Invalid,
+            missingRead.Disposition);
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ProductDesktopHostProjectionBuilder.BuildUpdate(
+                state, read, topology, workspaceRevision: -1));
+    }
+
+    [Fact]
+    public void ProjectionUpdateRejectsMismatchedDispositionAndMetadata()
+    {
+        ProductWorkspaceState state = CreateState();
+        ProductWorkspaceReadSnapshot read =
+            ProductWorkspaceReadModel.Create(state).Snapshot!;
+        var topology = new ProductDisplayTopologySnapshot(
+            ProductDisplayTopologyStatus.Ready,
+            10,
+            [Primary, Secondary],
+            2,
+            2,
+            1);
+        ProductDesktopHostProjectionBatch readyBatch =
+            ProductDesktopHostProjectionBuilder.Build(
+                state, read, topology, workspaceRevision: 15)!;
+        ProductWorkspaceState emptyState = state with
+        {
+            Containers = Array.Empty<ProductContainerState>(),
+        };
+        ProductDesktopHostProjectionBatch emptyBatch =
+            ProductDesktopHostProjectionBuilder.BuildUpdate(
+                emptyState,
+                ProductWorkspaceReadModel.Create(emptyState).Snapshot!,
+                topology,
+                workspaceRevision: 15).Batch!;
+
+        Assert.Throws<ArgumentNullException>(() =>
+            ProductDesktopHostProjectionUpdate.Create(
+                15, 10, ProductDesktopHostProjectionDisposition.Ready));
+        Assert.Throws<ArgumentException>(() =>
+            ProductDesktopHostProjectionUpdate.Create(
+                16, 10, ProductDesktopHostProjectionDisposition.Ready,
+                readyBatch));
+        Assert.Throws<ArgumentException>(() =>
+            ProductDesktopHostProjectionUpdate.Create(
+                15, 10, ProductDesktopHostProjectionDisposition.Ready,
+                emptyBatch));
+        Assert.Throws<ArgumentException>(() =>
+            ProductDesktopHostProjectionUpdate.Create(
+                15, 10, ProductDesktopHostProjectionDisposition.EmptyWorkspace,
+                readyBatch));
+        Assert.Throws<ArgumentException>(() =>
+            ProductDesktopHostProjectionUpdate.Create(
+                15, 10, ProductDesktopHostProjectionDisposition.Invalid,
+                readyBatch));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ProductDesktopHostProjectionUpdate.Create(
+                0, -1, ProductDesktopHostProjectionDisposition.Invalid));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ProductDesktopHostProjectionUpdate.Create(
+                0, 0, ProductDesktopHostProjectionDisposition.Invalid,
+                presentationGeneration: -1));
+    }
+
     private static ProductWorkspaceState CreateState() => new()
     {
         ProfileId = "profile",
