@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
-- 当前开发项：**PF-006 项目选择、键盘导航与安全打开命令（PF-001～PF-005 产品证据并行 Pending）**
-- 最新开发审计：[Stage 206](206-pf006c2-marquee-selection-hwnd-uia-convergence-audit.md)；PF-006C2 已在本地以真实 HWND/UIA、1225/1225、90.41%/75.74% 收敛，当前等待 PR/main 集成；集成前 PF-006 仍为 `InProgress`，30 个 PF 项仍为 `0 Complete`
+- 当前开发项：**PF-007 Explorer 拖入与方格间拖放（PF-001～PF-006 产品证据并行 Pending）**
+- 最新开发审计：[Stage 206](206-pf006c2-marquee-selection-hwnd-uia-convergence-audit.md)；PF-006C2 已以 `main@5c78ddc` 集成，main run `32816956265` 为 1225/1225、90.09%/75.60%、正式 Worker/资源/漏洞与 RC 800/800 全绿；PF-006 提升为 `EngineeringComplete / ProductEvidencePending`，当前进入 PF-007，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -64,7 +64,7 @@
 | 3 | PF-003 | 桌面拖动、缩放、吸附 | `EngineeringComplete / ProductEvidencePending`：生产工程链、正式 Store 与双屏混合 DPI 已完成；物理鼠标/触控/截图与 UIA Bounds 待安全环境补证 | Fences/Nimi 直接布局 |
 | 4 | PF-004 | 方格标题栏与就近操作 | `EngineeringComplete / ProductEvidencePending`：A～E 正式工程链完成；物理菜单/双击、触控截图和 Narrator 待补 | Fences 标题栏操作 |
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | `EngineeringComplete / ProductEvidencePending` | Fences/Nimi 项目呈现 |
-| 6 | PF-006 | 项目选择、键盘导航与打开 | `InProgress / IntegrationPending`：A/B/C 工程范围含框选均已完成，等待 PF-006C2 PR/main 远端门禁；物理输入/Narrator/高对比仍 Pending | Fences/Portal 日常访问 |
+| 6 | PF-006 | 项目选择、键盘导航与打开 | `EngineeringComplete / ProductEvidencePending`：A/B/C 工程范围含框选均已集成；物理输入/Narrator/高对比仍 Pending | Fences/Portal 日常访问 |
 | 7 | PF-007 | Explorer 拖入与方格间拖放 | 配置表单批量加入 | iTop/Fences 直接拖放 |
 | 8 | PF-008 | 方格内视图、排序、滚动与间距 | 方格级排序有限 | Nimi/Fences 视图控制 |
 | 9 | PF-009 | 桌面搜索、筛选与快速定位 | 控制中心搜索 | iTop Search |
@@ -255,7 +255,7 @@
 - 高对比和 Narrator 下选中、焦点、不可用三种状态可区分；
 - 自动化覆盖重复打开、目标变化、取消和进程启动失败。
 
-**2026-08-25 实施状态**：`InProgress / IntegrationPending / ProductEvidencePending`。Stage 192/PF-006A 完成选择收敛；Stage 193～196 完成安全打开、有限反馈、单击策略、重试和 Explorer 定位；Stage 203/PF-006C1 完成 PageUp/PageDown 的权威换页、相对焦点和真实 HWND/UIA 收敛；Stage 206/PF-006C2 已完成空白内容区起框、有界原子多选、输入证明、漂移取消、真实 HWND/UIA 收敛和 1225/1225 本地全量。当前等待 PR/main 集成；物理鼠标、高对比、Narrator 仍 Pending。远端全绿后 PF-006 提升为 `EngineeringComplete / ProductEvidencePending`，下一工程项为 PF-007。
+**2026-08-25 实施状态**：`EngineeringComplete / ProductEvidencePending`。Stage 192/PF-006A 完成选择收敛；Stage 193～196 完成安全打开、有限反馈、单击策略、重试和 Explorer 定位；Stage 203/PF-006C1 完成 PageUp/PageDown 的权威换页、相对焦点和真实 HWND/UIA 收敛；Stage 206/PF-006C2 完成空白内容区起框、有界原子多选、输入证明、漂移取消和真实 HWND/UIA 收敛，并以 PR #233、`main@5c78ddc` 与 main run `32816956265` 完整集成。物理鼠标、高对比、Narrator 仍 Pending，因此 PF-006 不标记产品 Complete；下一工程项为 PF-007。
 
 ### PF-007：Explorer 拖入与方格间拖放
 

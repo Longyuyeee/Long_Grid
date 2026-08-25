@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 206](docs/206-pf006c2-marquee-selection-hwnd-uia-convergence-audit.md)已完成 PF-006C2 鼠标框选的本地工程收敛：真实 HWND/UIA、1225/1225 和 90.41%/75.74% 通过，当前等待 PR/main 集成。PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 在远端集成前仍为 `InProgress`，30 个 PF 项仍为 `0 Complete`，物理鼠标/Narrator/高对比证据 Pending，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 206](docs/206-pf006c2-marquee-selection-hwnd-uia-convergence-audit.md)已完成 PF-006C2 鼠标框选并以 `main@5c78ddc` 集成；main run `32816956265` 为 1225/1225、90.09%/75.60%、正式 Worker/资源/漏洞与 RC 800/800 全绿。PF-001～PF-006 均为 `EngineeringComplete / ProductEvidencePending`，当前工程主线进入 PF-007 Explorer 拖入与方格间拖放；30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -222,7 +222,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-PF-006C2 已按 [Stage 206](docs/206-pf006c2-marquee-selection-hwnd-uia-convergence-audit.md)完成本地工程收敛，当前先完成 PR/main 远端门禁；全绿后进入 PF-007 Explorer 拖入与方格间拖放。随后优先完成首次引导、自动整理、快速隐藏/托盘和命名快照。任务栏美化维持 P1 默认关闭实验模块，小组件/Long助手运行时维持 P2；两者均不得提前伪报完成。
+PF-006C2 已按 [Stage 206](docs/206-pf006c2-marquee-selection-hwnd-uia-convergence-audit.md)完成 PR/main 工程集成；下一步进入 PF-007 Explorer 拖入与方格间拖放。随后优先完成首次引导、自动整理、快速隐藏/托盘和命名快照。任务栏美化维持 P1 默认关闭实验模块，小组件/Long助手运行时维持 P2；两者均不得提前伪报完成。
 
 ## 开发启动
 
