@@ -169,6 +169,8 @@ public sealed class ProductDesktopThumbnailRequestControllerTests(
         }
 
         Assert.True(runtime.OwnedProfileDeletionConfirmed);
+        Assert.InRange(runtime.OwnedProfileDeletionAttempts, 1, 20);
+        Assert.True(runtime.OwnedProfileDeletionHResult >= 0);
         output.WriteLine(JsonSerializer.Serialize(new
         {
             Purpose = "Pf005b1RealRestrictedWorkerEvidence",
@@ -201,6 +203,10 @@ public sealed class ProductDesktopThumbnailRequestControllerTests(
                 TimeoutKillsWorker = timeout.WorkerExited,
                 ExplicitExitObserved = exited.WorkerExited,
                 OwnedProfileDeleted = runtime.OwnedProfileDeletionConfirmed,
+                ProfileDeletionAttempts =
+                    runtime.OwnedProfileDeletionAttempts,
+                ProfileDeletionHResult =
+                    $"0x{runtime.OwnedProfileDeletionHResult:X8}",
             },
             Difference = timeout.RoundTripMilliseconds <= 500
                 ? "None"
