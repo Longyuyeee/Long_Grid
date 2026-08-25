@@ -3,7 +3,7 @@
 - 日期：2026-08-25
 - 基线：`main@9b6bed2`
 - 触发证据：GitHub Actions run `32810599025`
-- 状态：`EngineeringComplete / PRAndMainEvidencePending`
+- 状态：`EngineeringComplete / Integrated`
 
 ## 1. 目标与基线差异
 
@@ -38,6 +38,6 @@
 
 本修正恢复“主干必须绿、测试必须测量产品可归属资源”的真实性，没有把重跑当修复，也没有放宽产品 USER/GDI 清理目标。它不改变 PF 状态：PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 仍为 `InProgress`；基线集成完成后继续 PF-006C2 鼠标框选。
 
-## 5. 集成门
+## 5. 集成结果
 
-只有 PR 与合入后的 main 完整流水线都通过，本文才能改为 `EngineeringComplete / ProductEvidencePending`。在此之前不得宣称主干恢复绿色。
+PR #230 完整流水线 `32811578150` 通过并以 `973db66` 合入；main run `32812105456` 已通过本切片修复的原生 Surface 资源门，随后由独立的缩略图 Profile 单次删除竞态以 1199/1200 停止。该下游问题由 Stage 205 修复；最终 main run `32813543652` 再次通过原生 Surface 门及全部下游门。因此本切片状态为 `EngineeringComplete / Integrated`。
