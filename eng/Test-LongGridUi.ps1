@@ -645,11 +645,13 @@ function Test-SourceContract {
         'OverviewLatestUndoButton',
         'PersonalizationPageHeader',
         'SettingsPageHeader',
-        'LegacyDesignTokenPreviewCard',
         'ConfigurationRecoveryActionButton',
         'FirstRunPanel',
         'AppearancePanel',
         'SafetyPanel',
+        'SettingsGeneralSection',
+        'SettingsPrivacySection',
+        'SettingsAdvancedDiagnosticsExpander',
         'ImportConfigurationButton',
         'ConfigurationImportStatus',
         'ExportConfigurationButton',
@@ -897,6 +899,25 @@ function Test-SourceContract {
     Assert-Condition (
         $exportStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
     ) 'Configuration export status must politely announce finite state changes.'
+    $settingsGeneralNode = Get-XamlNodeByAutomationId $document 'SettingsGeneralSection'
+    Assert-Condition (
+        $settingsGeneralNode.OuterXml.Contains('ImportConfigurationButton') -and
+        $settingsGeneralNode.OuterXml.Contains('ExportConfigurationButton')
+    ) 'Ordinary configuration backup and restore must stay in the general settings section.'
+    $settingsPrivacyNode = Get-XamlNodeByAutomationId $document 'SettingsPrivacySection'
+    Assert-Condition (
+        $settingsPrivacyNode.OuterXml.Contains('你的桌面文件由你掌控') -and
+        -not $settingsPrivacyNode.OuterXml.Contains('Issue #')
+    ) 'Privacy settings must use product language instead of engineering gates.'
+    $settingsAdvancedNode = Get-XamlNodeByAutomationId `
+        $document `
+        'SettingsAdvancedDiagnosticsExpander'
+    Assert-Condition ($settingsAdvancedNode.GetAttribute('IsExpanded') -eq 'False') `
+        'Advanced diagnostics must be collapsed for ordinary users by default.'
+    Assert-Condition (
+        $settingsAdvancedNode.OuterXml.Contains('CaptureAnonymousInteractionEvidenceButton') -and
+        $settingsAdvancedNode.OuterXml.Contains('ConfigurationEvidenceList')
+    ) 'One-shot evidence capture and its list must stay inside advanced diagnostics.'
     $evidenceButtonNode = Get-XamlNodeByAutomationId `
         $document `
         'RefreshConfigurationEvidenceButton'
@@ -1369,11 +1390,8 @@ function Test-SourceContract {
     Assert-Condition (
         $openCreateBoxButton.GetAttribute('Click') -eq 'OpenCreateBoxButton_Click'
     ) 'The primary New Box action must route into the real box workspace.'
-    $legacyDesignCard = Get-XamlNodeByAutomationId `
-        $document `
-        'LegacyDesignTokenPreviewCard'
-    Assert-Condition ($legacyDesignCard.GetAttribute('Visibility') -eq 'Collapsed') `
-        'The legacy design-token preview must stay out of the product shell.'
+    Assert-Condition (-not $document.OuterXml.Contains('LegacyDesignTokenPreviewCard')) `
+        'The legacy design-token preview must be removed from the product shell.'
     Assert-Condition (-not $document.OuterXml.Contains('LegacyWorkspacePrototypeCard')) `
         'The anonymous workspace prototype must be removed from the product UI.'
     foreach ($engineeringCardId in @(
