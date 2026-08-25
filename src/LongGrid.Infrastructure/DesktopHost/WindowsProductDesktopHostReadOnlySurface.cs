@@ -606,6 +606,12 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             sourceAttested,
             isInjected));
 
+    internal nint DispatchWindowMessageForEvidence(
+        uint message,
+        nint wordParameter,
+        nint longParameter) =>
+        WindowProc(Handle, message, wordParameter, longParameter);
+
     internal bool SubmitPrimaryPointerForEvidence(
         int x,
         int y,

@@ -67,3 +67,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 第二次 run `32798286067` 已真实越过第一次失败点，并通过 Build、启动链、批量无障碍、Issue 23/24、三个原生 DesktopHost 探针和 157-ID 权威 UI 合同。随后 `Validate clean-session UIA chain` 失败：该消费者仍硬编码 153-ID。
 
 本轮将 `Test-LongGridCleanSession.ps1` 的 validate-only、live 校验、输出字段和错误文案统一更新为 157；没有减少 AutomationId，也没有把 clean-session 合同扩张成真人 UIA Pass。修正后必须先用 workflow 同款 Windows PowerShell 5.1 `-ValidateOnly` 本地验证，再触发第三次远端完整 CI。
+
+## 8. 第三次 CI 增量
+
+第三次 run `32798585694` 已越过前两次合同失败并完成 1163/1163 测试，随后暴露长期分支真实覆盖率为 lines 87.89%、branches 73.22%，低于 90%/75%。该问题不属于 UI 数量或编码合同，后续修正与逐轮实测见 [Stage 201](201-pr225-coverage-gate-recovery-audit.md)。

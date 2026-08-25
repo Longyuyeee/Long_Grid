@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准，最新开发与需求对齐见 [Stage 197](197-current-development-original-requirement-alignment-audit.md)，PF-001 冷启动/运行期开启性能见 [Stage 198](198-pf001-cold-start-performance-gate-semantics-audit.md)与 [Stage 199](199-pf001-runtime-boxes-enable-real-window-performance-audit.md)，PR #225 Windows PowerShell/无障碍合同集成纠偏见 [Stage 200](200-pr225-windows-powershell-ui-contract-ci-correction-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)；历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁仍以 [Stage 149](149-m4c2c-dedicated-environment-preflight-audit.md)为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准，最新开发与需求对齐见 [Stage 197](197-current-development-original-requirement-alignment-audit.md)，PF-001 冷启动/运行期开启性能见 [Stage 198](198-pf001-cold-start-performance-gate-semantics-audit.md)与 [Stage 199](199-pf001-runtime-boxes-enable-real-window-performance-audit.md)，PR #225 Windows PowerShell/无障碍合同与覆盖率集成纠偏见 [Stage 200](200-pr225-windows-powershell-ui-contract-ci-correction-audit.md)及 [Stage 201](201-pr225-coverage-gate-recovery-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)；历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁仍以 [Stage 149](149-m4c2c-dedicated-environment-preflight-audit.md)为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 ## Phase 0：立项与技术验证
 
@@ -388,3 +388,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-24 PF-006B2B1：控制中心新增默认关闭、显式持久化的单击打开策略；加载/保存成功后策略同步到当前和后续真实 DesktopHost Surface。单击始终先选择，只有无修饰键的可信非注入普通单击才提交 `PointerSingleClick`，Ctrl/Shift、非可信来源和单击模式下重复双击入口失败关闭。真实磁盘 Store 重启及真实 HWND Expected/Actual 均 `Difference=None`，Release 1157/1157、157-ID 合同通过。PF-006 保持 `InProgress`，下一步 PF-006B2B2 权威重试和安全 Explorer 定位，详见 [Stage 195](195-pf006b2b1-single-click-open-policy-audit.md)。
 
 2026-08-24 PF-006B2B2：失败项目新增标准原生右键 Retry/Locate；动作只提交匿名项目/来源，当前 revision/topology 和 workspace/Catalog/现场路径全部重新验证。定位要求父目录存在且非 ReparsePoint，现存目标才 `/select`，并只调用绝对系统 Explorer。真实文件出现前后重试、真实安全/缺失/ReparsePoint 父目录、真实 HWND、非可信/Injected 和一次显式可见 Explorer 均 `Difference=None`；首轮测试证据 CA1861 已纠正，最终 Release 1163/1163、157-ID 合同通过。PF-006 保持 `InProgress`，下一步 PF-006C1，详见 [Stage 196](196-pf006b2b2-authoritative-retry-safe-explorer-locate-audit.md)。
+
+2026-08-25 PR #225 覆盖率恢复：第三次远端 CI 已通过前两轮 Windows PowerShell/157-ID 修正和 1163/1163 测试，但真实覆盖率为 lines 87.89%、branches 73.22%。未降低 90%/75% 门槛，也未排除正式原生适配器；新增真实 Windows sampler、系统事件源、DesktopHost HWND 消息和激活键盘矩阵后，本机同一次 Release collector 为 1170/1170、lines 90.05%、branches 75.34%。一次缩略图真实 worker `FailedFallback` 保留为失败事实，随后独立覆盖率 1/1、五进程覆盖率压力 5/5 及最终全量均通过；若远端复现必须增加有限诊断并修正。Gate A 等待 PR/main CI，下一功能仍为 PF-006C1，详见 [Stage 201](201-pr225-coverage-gate-recovery-audit.md)。

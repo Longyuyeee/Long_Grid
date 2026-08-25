@@ -948,6 +948,19 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         }
     }
 
+    internal void SubmitSelectionKeyForEvidence(
+        int virtualKey,
+        bool control = false,
+        bool shift = false,
+        bool alt = false,
+        bool isAutoRepeat = false) =>
+        HandleSelectionKeyCore(
+            virtualKey,
+            control,
+            shift,
+            alt,
+            isAutoRepeat);
+
     private bool Forward(
         ActivationRegion region,
         ProductDesktopInteractionForwardedInputKind kind,
@@ -1004,9 +1017,24 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             (NativeMethods.GetKeyState(NativeMethods.VkShift) & 0x8000) != 0;
         bool alt =
             (NativeMethods.GetKeyState(NativeMethods.VkMenu) & 0x8000) != 0;
+        HandleSelectionKeyCore(
+            checked((int)wordParameter.ToInt64()),
+            control,
+            shift,
+            alt,
+            (longParameter.ToInt64() & (1L << 30)) != 0);
+    }
+
+    private void HandleSelectionKeyCore(
+        int virtualKey,
+        bool control,
+        bool shift,
+        bool alt,
+        bool isAutoRepeat)
+    {
         ProductDesktopInteractionSurfaceTransactionSnapshot? transaction =
             selectionSnapshot();
-        if (wordParameter.ToInt64() == NativeMethods.VkReturn
+        if (virtualKey == NativeMethods.VkReturn
             && !control
             && !shift
             && !alt
@@ -1022,14 +1050,13 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                 ProductDesktopItemOpenSource.KeyboardEnter,
                 SourceAttested: true,
                 IsInjected: false,
-                IsAutoRepeat:
-                    (longParameter.ToInt64() & (1L << 30)) != 0));
+                IsAutoRepeat: isAutoRepeat));
             return;
         }
         ProductDesktopContainerLayoutKeyboardDecision layout =
             ProductDesktopContainerLayoutKeyboardAdapter.Map(
                 containerLayoutTitleFocused,
-                checked((int)wordParameter.ToInt64()),
+                virtualKey,
                 alt,
                 control,
                 shift);
@@ -1065,7 +1092,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         ProductDesktopKeyboardSelectionDecision decision =
             ProductDesktopKeyboardSelectionAdapter.Map(
                 transaction?.Selection,
-                checked((int)wordParameter.ToInt64()),
+                virtualKey,
                 control,
                 shift);
         if (decision.Cancel)

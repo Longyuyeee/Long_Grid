@@ -1395,6 +1395,197 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
         Assert.Null(unknown.Request);
     }
 
+    [Fact]
+    public void RealNativeSurfaceDispatchesFiniteWindowMessageMatrix()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        ProductDesktopHostReadOnlyProjection container = CreateContainer(
+            "container-1", "Work", ["Plan.docx"], false, 24, 36);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(100, 200, 1920, 1040), 96,
+                [container]);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                display,
+                new nint(916));
+        surface.BindContainerHeaderCommand(_ => true);
+        surface.BindContainerLayout(_ => true);
+        surface.BindItemViewport(_ => true);
+        surface.BindWorkspaceCreate(_ => true);
+
+        static nint Point(int x, int y) =>
+            new((y << 16) | (x & 0xFFFF));
+
+        Assert.Equal(new nint(3), surface.DispatchWindowMessageForEvidence(
+            0x0021, nint.Zero, nint.Zero));
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x0084, nint.Zero, Point(30, 40));
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x0200, nint.Zero, Point(30, 40));
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x0203, nint.Zero, Point(30, 40));
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x0201, nint.Zero, Point(30, 95));
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x0202, nint.Zero, Point(30, 95));
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x020A, new nint(120L << 16), Point(130, 295));
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x0205, nint.Zero, Point(-1, -1));
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x02A3, nint.Zero, nint.Zero);
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x0014, nint.Zero, nint.Zero);
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x000F, nint.Zero, nint.Zero);
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x0312, new nint(0x4C47), nint.Zero);
+        Assert.False(surface.ApplyContainerLayoutKeyboardFocus("container-1"));
+        Assert.True(surface.ApplyContainerLayoutKeyboardFocus(null));
+
+        Assert.True(surface.ApplyExplicit());
+        Assert.True(surface.ApplyContainerLayoutKeyboardFocus("container-1"));
+        Assert.False(surface.ApplyContainerLayoutKeyboardFocus("missing"));
+        Assert.True(surface.ApplyContainerLayoutKeyboardFocus(null));
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x0084, nint.Zero, Point(30, 40));
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x0201, nint.Zero, Point(30, 40));
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x0200, nint.Zero, Point(50, 60));
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x0202, nint.Zero, Point(50, 60));
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x0100, new nint(0x1B), nint.Zero);
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x001F, nint.Zero, nint.Zero);
+        _ = surface.DispatchWindowMessageForEvidence(
+            0x0215, nint.Zero, nint.Zero);
+
+        Assert.True(surface.ApplyHidden());
+        Assert.Equal(new nint(-1), surface.DispatchWindowMessageForEvidence(
+            0x0084, nint.Zero, Point(30, 40)));
+    }
+
+    [Fact]
+    public void RealActivationSourceRoutesFiniteKeyboardCommandMatrix()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        ProductDesktopHostReadOnlyProjection container = CreateContainer(
+            "container-1", "Work", ["Plan.docx", "Notes.txt"],
+            false, 24, 36);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(100, 200, 1920, 1040), 96,
+                [container]);
+        using WindowsProductDesktopInteractionActivationSource source =
+            WindowsProductDesktopInteractionActivationSource.Create(
+                display,
+                new nint(917),
+                _ => true);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var lease = new ProductDesktopInteractionLease(
+            Guid.NewGuid(), "container-1", 7, 9, 11, now.AddSeconds(5));
+        ProductDesktopInteractionSelectionController selection =
+            ProductDesktopInteractionSelectionController.TryCreate(
+                lease,
+                container.ItemIds,
+                now).Controller!;
+        ProductDesktopInteractionSurfaceTransactionSnapshot current =
+            Transaction(selection.Snapshot);
+        var opened = new List<ProductDesktopItemOpenSurfaceInput>();
+        var layouts = new List<ProductDesktopContainerLayoutKeyboardCommand>();
+        var titleFocus = new List<string?>();
+        int cancellations = 0;
+        source.BindSelection(
+            () => current,
+            request =>
+            {
+                ProductDesktopSelectionSnapshot updated = selection.Apply(
+                    lease, container.ItemIds, request, now);
+                current = Transaction(updated);
+                return updated.Status == ProductDesktopSelectionStatus.Applied;
+            },
+            () =>
+            {
+                cancellations++;
+                return true;
+            });
+        source.BindItemOpen(input =>
+        {
+            opened.Add(input);
+            return true;
+        });
+        source.BindContainerLayout(
+            input =>
+            {
+                layouts.Add(input);
+                return true;
+            },
+            containerId =>
+            {
+                titleFocus.Add(containerId);
+                return true;
+            });
+
+        source.SubmitSelectionKeyForEvidence(0x27);
+        source.SubmitSelectionKeyForEvidence(0x0D, isAutoRepeat: true);
+        source.SubmitSelectionKeyForEvidence(0x09);
+        source.SubmitSelectionKeyForEvidence(0x25, alt: true);
+        source.SubmitSelectionKeyForEvidence(0x27, alt: true, shift: true);
+        source.SubmitSelectionKeyForEvidence(0x09);
+        source.SubmitSelectionKeyForEvidence(0x1B);
+        source.SubmitSelectionKeyForEvidence(0x41, control: true);
+        source.SubmitSelectionKeyForEvidence(0x00);
+
+        Assert.Single(opened);
+        Assert.True(opened[0].IsAutoRepeat);
+        Assert.Equal(ProductDesktopItemOpenSource.KeyboardEnter,
+            opened[0].Source);
+        Assert.Equal(2, layouts.Count);
+        Assert.Contains("container-1", titleFocus);
+        Assert.Equal(1, cancellations);
+        Assert.Throws<ArgumentNullException>(() => source.BindItemOpen(null!));
+        Assert.Throws<ArgumentNullException>(() =>
+            source.BindContainerLayout(null!, _ => true));
+        Assert.Throws<ArgumentNullException>(() =>
+            source.BindContainerLayout(_ => true, null!));
+
+        ProductDesktopInteractionSurfaceTransactionSnapshot Transaction(
+            ProductDesktopSelectionSnapshot selected) => new(
+                ProductDesktopInteractionSurfaceTransactionStatus.Explicit,
+                new(
+                    ProductDesktopInteractionMode.ExplicitInteraction,
+                    ProductDesktopInteractionAdmissionStatus.Admitted,
+                    ProductDesktopInteractionCancellationReason.None,
+                    lease),
+                new(
+                    ProductDesktopInteractionSurfaceMode.Explicit,
+                    11,
+                    Visible: true,
+                    HitTestTransparent: false,
+                    IsKeyboardFocusable: true,
+                    SelectionPatternAvailable: true,
+                    ToolWindow: true,
+                    NoActivate: true,
+                    Topmost: false,
+                    HasOwner: false,
+                    OwnsForeground: false),
+                selected,
+                ProductDesktopInteractionSelectionAccessibilityAdapter
+                    .CreateExplicit(selected),
+                selected.SelectionRevision + 1);
+    }
+
     private static ProductDesktopHostReadOnlyProjection CreateContainer(
         string id,
         string title,
