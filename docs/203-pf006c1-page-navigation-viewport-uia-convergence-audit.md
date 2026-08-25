@@ -2,7 +2,7 @@
 
 日期：2026-08-25  
 开发项：PF-006C1  
-结论：**Local Engineering Pass / PR And Main CI Required**
+结论：**Engineering Complete / Product Evidence Pending**
 
 ## 1. 开发目标与基线差异
 
@@ -39,6 +39,19 @@ PF-006A 已提供当前可见页内的方向键、Home/End、选择和 UIA 快�
 
 格式门、Release 全解决方案构建（0 warning / 0 error）和 `git diff --check` 同时通过。
 
-## 4. 需求对齐与剩余范围
+## 4. PR 与 main 集成证据
 
-本切片直接完成竞品桌面整理软件应具备的跨页键盘导航，不涉及任务栏美化、小组件、插件、文件移动或发布签名，未发生方向偏移。PF-001～PF-005 状态不变，PF-006 仍为 `InProgress`：PF-006C1 本机工程证据完成，但仍需 PR/main CI；下一工程切片为 PF-006C2 鼠标框选，物理键盘、高对比和 Narrator 产品证据继续 Pending。
+PR #228 完整 Windows CI run `32809054227` 与合入后的 main run `32809576142` 均通过：
+
+| 验收 | Expected | PR Actual | Main Actual | Difference |
+| --- | --- | --- | --- | --- |
+| Release 测试 | 0 fail | 1200/1200，11 s | 1200/1200，13 s | None |
+| 覆盖率 | ≥90% / ≥75% | 90.02% / 75.58% | 90.02% / 75.58% | None |
+| 依赖漏洞 | 无已知漏洞 | Pass | Pass | None |
+| RC 清单/SBOM | 完整通过 | 800/800 Pass | 800/800 Pass | None |
+
+PR #228 已 squash 合入 `main` 为 `a70a3ef`。本机、PR 和 main 三层结果一致，PF-006C1 工程状态提升为 `EngineeringComplete / ProductEvidencePending`。
+
+## 5. 需求对齐与剩余范围
+
+本切片直接完成竞品桌面整理软件应具备的跨页键盘导航，不涉及任务栏美化、小组件、插件、文件移动或发布签名，未发生方向偏移。PF-001～PF-005 状态不变，PF-006 仍为 `InProgress`；下一工程切片为 PF-006C2 鼠标框选，物理键盘、高对比和 Narrator 产品证据继续 Pending。
