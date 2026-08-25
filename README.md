@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 206](docs/206-pf006c2-marquee-selection-hwnd-uia-convergence-audit.md)已完成 PF-006C2 鼠标框选并以 `main@5c78ddc` 集成；main run `32816956265` 为 1225/1225、90.09%/75.60%、正式 Worker/资源/漏洞与 RC 800/800 全绿。PF-001～PF-006 均为 `EngineeringComplete / ProductEvidencePending`，当前工程主线进入 PF-007 Explorer 拖入与方格间拖放；30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 207](docs/207-pf007a1-real-ole-hdrop-reference-admission-audit.md)已完成 PF-007A1 本地工程收敛：真实 OLE HDROP、真实沙箱文件、一次原子保存、1233/1233 和 90.43%/75.77% 通过，当前等待 PR/main 集成。PF-001～PF-006 均为 `EngineeringComplete / ProductEvidencePending`，PF-007 为 `InProgress`；30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -65,6 +65,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [main 原生交互 Surface 资源平台期纠偏审计（Stage 202）](docs/202-main-native-surface-resource-plateau-audit.md)
 - [PF-006C1 PageUp/PageDown 跨视口导航与 UIA 收敛审计（Stage 203）](docs/203-pf006c1-page-navigation-viewport-uia-convergence-audit.md)
 - [PF-006C2 鼠标框选、真实 HWND 与 UIA 收敛审计（Stage 206）](docs/206-pf006c2-marquee-selection-hwnd-uia-convergence-audit.md)
+- [PF-007A1 真实 OLE HDROP 安全引用准入审计（Stage 207）](docs/207-pf007a1-real-ole-hdrop-reference-admission-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)
@@ -222,7 +223,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-PF-006C2 已按 [Stage 206](docs/206-pf006c2-marquee-selection-hwnd-uia-convergence-audit.md)完成 PR/main 工程集成；下一步进入 PF-007 Explorer 拖入与方格间拖放。随后优先完成首次引导、自动整理、快速隐藏/托盘和命名快照。任务栏美化维持 P1 默认关闭实验模块，小组件/Long助手运行时维持 P2；两者均不得提前伪报完成。
+PF-007A1 已按 [Stage 207](docs/207-pf007a1-real-ole-hdrop-reference-admission-audit.md)完成本地 OLE 数据准入与原子配置收敛；先完成远端集成，再进入 PF-007A2 DesktopHost `IDropTarget`、悬停反馈与真实窗口路由。随后完成 PF-007B 方格间改归属。任务栏美化维持 P1 默认关闭实验模块，小组件/Long助手运行时维持 P2；两者均不得提前伪报完成。
 
 ## 开发启动
 
