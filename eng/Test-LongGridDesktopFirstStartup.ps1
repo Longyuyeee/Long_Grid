@@ -6,6 +6,9 @@ param(
     [ValidateRange(0, 120)]
     [int] $StabilitySeconds = 0,
 
+    [ValidateRange(1000, 15000)]
+    [int] $MaximumColdProcessReadyMilliseconds = 10000,
+
     [switch] $NoBuild
 )
 
@@ -148,7 +151,7 @@ try {
     $desktopReadyDeadline = $startedAt.AddSeconds(15)
     $firstLaunchWindows = @()
     do {
-        Start-Sleep -Milliseconds 100
+        Start-Sleep -Milliseconds 25
         $primary.Refresh()
         if (-not $primary.HasExited) {
             $firstLaunchWindows = Get-ProductWindows -ProcessId $primary.Id
@@ -208,7 +211,7 @@ try {
     $activationDeadline = (Get-Date).AddSeconds(5)
     $activatedWindows = @()
     do {
-        Start-Sleep -Milliseconds 100
+        Start-Sleep -Milliseconds 25
         $primary.Refresh()
         if (-not $primary.HasExited) {
             $activatedWindows = Get-ProductWindows -ProcessId $primary.Id
@@ -248,6 +251,16 @@ try {
     Assert-Condition ($evidenceFiles.Count -eq 0) `
         'Desktop-first startup unexpectedly wrote the temporary configuration root.'
 
+    $coldProcessDifferenceMilliseconds =
+        $firstLaunchReadyMilliseconds - $MaximumColdProcessReadyMilliseconds
+    $coldProcessWithinBudget = $coldProcessDifferenceMilliseconds -le 0
+    $difference = if ($coldProcessWithinBudget) {
+        'None'
+    }
+    else {
+        "ColdProcessDesktopHostReadyExceededBy$($coldProcessDifferenceMilliseconds)Milliseconds"
+    }
+
     [pscustomobject]@{
         SchemaVersion = 1
         Purpose = 'Pf001DesktopFirstStartupRealWindowEvidence'
@@ -260,6 +273,10 @@ try {
             TemporaryConfigurationWriteCount = 0
             CrossProcessUiaQueried = $false
             ResponsiveForSeconds = $StabilitySeconds
+            ColdProcessDesktopHostReadyBudgetMilliseconds =
+                $MaximumColdProcessReadyMilliseconds
+            RuntimeBoxesEnableBudgetMilliseconds = 1000
+            RuntimeBoxesEnableMeasuredByThisScenario = $false
         }
         Actual = [pscustomobject]@{
             FirstLaunchControlCenterVisible = $visibleControlCentersAtFirstLaunch.Count -gt 0
@@ -273,10 +290,16 @@ try {
             TemporaryConfigurationWriteCount = $evidenceFiles.Count
             CrossProcessUiaQueried = $false
             ResponsiveForSeconds = $StabilitySeconds
+            ColdProcessDesktopHostReadyDifferenceMilliseconds =
+                $coldProcessDifferenceMilliseconds
+            RuntimeBoxesEnableMilliseconds = $null
         }
-        Difference = 'None'
-        Outcome = 'Pass'
+        Difference = $difference
+        Outcome = if ($coldProcessWithinBudget) { 'Pass' } else { 'Fail' }
     } | ConvertTo-Json -Depth 4
+
+    Assert-Condition $coldProcessWithinBudget `
+        "Cold-process DesktopHost ready exceeded the $MaximumColdProcessReadyMilliseconds-ms product recovery budget by $coldProcessDifferenceMilliseconds ms."
 }
 finally {
     [Environment]::SetEnvironmentVariable(

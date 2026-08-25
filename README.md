@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 197](docs/197-current-development-original-requirement-alignment-audit.md) 复核确认方向仍对齐，但产品收口和流程需要纠偏：PF-001～PF-005 为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`，30 个 PF 项仍为 `0 Complete`；真实启动功能合同通过，但三次 ready 时间 5107/1589/1140 ms 均未达到 PF-001 的 1 秒产品目标。当前分支还需先完成主分支集成，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 198](docs/198-pf001-cold-start-performance-gate-semantics-audit.md) 已把冷进程启动与运行期开启方格拆成独立性能合同：真实冷启动 7570 ms 满足 10 秒恢复门，强制 1 秒冷启动以实际 1574 ms、超出 574 ms 和退出码 1 正确失败；PF-001 的运行期开启 ≤1000 ms 仍为专用真实证据 Pending。PF-001～PF-005 为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`，30 个 PF 项仍为 `0 Complete`，当前分支还需完成主线集成，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -58,6 +58,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-006B2B1 可配置单击打开策略审计（Stage 195）](docs/195-pf006b2b1-single-click-open-policy-audit.md)
 - [PF-006B2B2 权威重试与安全 Explorer 定位审计（Stage 196）](docs/196-pf006b2b2-authoritative-retry-safe-explorer-locate-audit.md)
 - [当前开发与初始需求对齐审计（Stage 197）](docs/197-current-development-original-requirement-alignment-audit.md)
+- [PF-001 冷启动性能门禁与语义纠偏审计（Stage 198）](docs/198-pf001-cold-start-performance-gate-semantics-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)
@@ -215,7 +216,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-先按 [Stage 197 当前开发与初始需求对齐审计](docs/197-current-development-original-requirement-alignment-audit.md)关闭分支集成和启动性能门禁，再按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)进入 PF-006C1 PageUp/PageDown 跨视口键盘导航。随后优先完成框选、桌面直接拖入、首次引导、自动整理、快速隐藏/托盘和命名快照，避免继续扩大工程深度却不关闭产品闭环。任务栏美化维持 P1 默认关闭实验模块，小组件/Long助手运行时维持 P2；两者均不得提前伪报完成。
+按 [Stage 198](docs/198-pf001-cold-start-performance-gate-semantics-audit.md)补运行中关闭→开启方格 ≤1000 ms 的真实 HWND 性能证据，再关闭长期分支 PR/主线 CI 集成；之后按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)进入 PF-006C1 PageUp/PageDown 跨视口键盘导航。随后优先完成框选、桌面直接拖入、首次引导、自动整理、快速隐藏/托盘和命名快照。任务栏美化维持 P1 默认关闭实验模块，小组件/Long助手运行时维持 P2；两者均不得提前伪报完成。
 
 ## 开发启动
 

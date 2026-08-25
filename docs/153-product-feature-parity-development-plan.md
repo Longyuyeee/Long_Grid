@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-006 项目选择、键盘导航与安全打开命令（PF-001～PF-005 产品证据并行 Pending）**
-- 最新全量对齐审计：[Stage 197](197-current-development-original-requirement-alignment-audit.md)；产品方向未发生根本偏移，但 30 个 PF 项仍为 `0 Complete`，真实启动功能合同通过而 1 秒产品目标失败，当前 37 提交功能分支必须先关闭集成风险
+- 最新性能门禁审计：[Stage 198](198-pf001-cold-start-performance-gate-semantics-audit.md)；冷启动 10 秒硬门已建立并真实通过，强制 1 秒阈值正确失败；PF-001 运行期开启 1 秒仍待专用真实证据，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -888,6 +888,6 @@
 
 ## 15. 当前立即执行项
 
-当前治理门为 **Gate A：集成、启动性能与产品证据纠偏**，完成后工程切片仍为 **PF-006C1：PageUp/PageDown 跨视口键盘导航**。PF-006A 已完成选择收敛，PF-006B1/B2A/B2B1/B2B2 已完成四类引用安全打开、有限反馈、单击策略、权威重试和安全定位；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
+当前治理门为 **Gate A：运行期开启性能证据与主线集成**，完成后工程切片仍为 **PF-006C1：PageUp/PageDown 跨视口键盘导航**。PF-006A 已完成选择收敛，PF-006B1/B2A/B2B1/B2B2 已完成四类引用安全打开、有限反馈、单击策略、权威重试和安全定位；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
 
-Stage 197 复核确认产品安全方向未偏移，但真实 ready 5107/1589/1140 ms 均高于 PF-001 的 1 秒目标，且当前分支领先 `origin/main` 37 个提交。必须先经 PR/完整 CI 集成当前基线，并把启动性能升级为 Expected/Actual/Difference 产品门禁。之后 PF-006C1 在同一显式租约和真实 HWND 中把 PageUp/PageDown 的 viewport、选择、焦点与 UIA 快照原子收敛，页边界不越界，陈旧/auto-repeat 来源失败关闭；框选留给 C2。PF-007 后优先转入首次引导和自动整理闭环，物理/高对比/Narrator 证据集中收口，任何版本在签名和安装门禁完成前不得分发。
+Stage 198 已纠正冷进程启动与运行期开启的场景混用：真实冷启动 7570 ms 满足 10 秒门，强制 1 秒预算以 1574 ms、超出 574 ms、退出码 1 正确失败；运行期开启 ≤1000 ms 仍待专用真实 HWND 证据。完成该证据后，必须经 PR/完整 CI 集成当前长期分支。之后 PF-006C1 在同一显式租约和真实 HWND 中把 PageUp/PageDown 的 viewport、选择、焦点与 UIA 快照原子收敛；框选留给 C2。PF-007 后优先转入首次引导和自动整理闭环，任何版本在签名和安装门禁完成前不得分发。

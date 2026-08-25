@@ -75,6 +75,10 @@ $evidence = $result | ConvertFrom-Json
 Assert-Condition (
     $evidence.Outcome -eq 'Pass' -and
     $evidence.Difference -eq 'None' -and
+    $evidence.Expected.ColdProcessDesktopHostReadyBudgetMilliseconds -eq 10000 -and
+    $evidence.Expected.RuntimeBoxesEnableBudgetMilliseconds -eq 1000 -and
+    $evidence.Expected.RuntimeBoxesEnableMeasuredByThisScenario -eq $false -and
+    $null -eq $evidence.Actual.RuntimeBoxesEnableMilliseconds -and
     $evidence.Actual.SecondaryExitCode -eq 0 -and
     $evidence.Actual.RedirectedControlCenterCount -eq 1 -and
     $evidence.Actual.RemainingLiveProcessCount -eq 0
