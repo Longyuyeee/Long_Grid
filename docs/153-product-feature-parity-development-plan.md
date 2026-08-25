@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
 - 当前开发项：**PF-006 项目选择、键盘导航与安全打开命令（PF-001～PF-005 产品证据并行 Pending）**
-- 最新主线集成审计：[Stage 201](201-pr225-coverage-gate-recovery-audit.md)；PR #225 已按真实失败修正 PowerShell/157-ID、headless 覆盖、`.lnk` 参数证据、BMP worker 1507 ms 超时与原生菜单 hang；run `32803174900` 为 1198/1198、90.01%/75.51% 全绿，等待最终文档复核与主线集成；30 个 PF 项仍为 `0 Complete`
+- 最新主线集成审计：[Stage 202](202-main-native-surface-resource-plateau-audit.md)；main run `32804120282` 暴露的原生 Surface 资源平台期观测偏差已纠正，本机探针 5/5、PR #226 run `32805578609` 的 1198/1198 与全部下游门均通过，等待合入后 main CI；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
