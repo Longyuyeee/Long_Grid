@@ -238,6 +238,113 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
     }
 
     [Fact]
+    public void RealNativeSurfacePageChangePublishesConvergedUiaSelection()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        static ProductDesktopHostReadOnlyProjection Page(int first) =>
+            ProductDesktopHostReadOnlyProjection.Create(
+                "container-1",
+                "工作",
+                Enumerable.Range(first, 12).Select(index => $"项目 {index}"),
+                "#2457D6",
+                0.82,
+                false,
+                24,
+                36,
+                360,
+                360,
+                itemIds: Enumerable.Range(first, 12)
+                    .Select(index => $"item:{index}"),
+                totalItemCount: 24,
+                visibleItemStartOrdinal: first);
+
+        ProductDesktopHostReadOnlyProjection firstPage = Page(1);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(100, 200, 1920, 1040), 96,
+                [firstPage]);
+        using WindowsProductDesktopHostReadOnlySurface surface =
+            WindowsProductDesktopHostReadOnlySurface.Create(
+                display, new nint(9003));
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var lease = new ProductDesktopInteractionLease(
+            Guid.NewGuid(), "container-1", 7, 9, 11, now.AddSeconds(10));
+        ProductDesktopInteractionSelectionController selection =
+            ProductDesktopInteractionSelectionController.TryCreate(
+                lease, firstPage.ItemIds, now).Controller!;
+        ProductDesktopInteractionSurfaceTransactionSnapshot current =
+            Transaction(selection.Snapshot);
+        surface.BindSelection(
+            () => current,
+            (_, request) =>
+            {
+                ProductDesktopSelectionSnapshot updated = selection.Apply(
+                    lease, current.Selection!.VisibleItemIds, request, now);
+                current = Transaction(updated);
+                return updated.Status == ProductDesktopSelectionStatus.Applied;
+            });
+        Assert.True(surface.ApplyExplicit());
+        Assert.True(selection.Apply(
+            lease,
+            firstPage.ItemIds,
+            new(ProductDesktopSelectionAction.SelectItem, ItemId: "item:2"),
+            now).Status == ProductDesktopSelectionStatus.Applied);
+
+        ProductDesktopHostReadOnlyProjection secondPage = Page(13);
+        Assert.True(surface.ApplyPresentation(
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(100, 200, 1920, 1040), 96,
+                [secondPage])));
+        _ = selection.ReconcileVisibleItems(lease, secondPage.ItemIds, now);
+        current = Transaction(selection.Apply(
+            lease,
+            secondPage.ItemIds,
+            new(ProductDesktopSelectionAction.SelectItem, ItemId: "item:14"),
+            now));
+        surface.RefreshSelection();
+
+        AutomationElement root = AutomationElement.FromHandle(surface.Handle);
+        var pattern = (SelectionPattern)root.GetCurrentPattern(
+            SelectionPattern.Pattern);
+        AutomationElement selected = Assert.Single(pattern.Current.GetSelection());
+
+        Assert.Equal("LongGrid.DesktopHost.Item.1.2",
+            selected.Current.AutomationId);
+        Assert.Contains("项目 14", selected.Current.Name,
+            StringComparison.Ordinal);
+        Assert.NotEqual(surface.Handle, GetForegroundWindow());
+
+        ProductDesktopInteractionSurfaceTransactionSnapshot Transaction(
+            ProductDesktopSelectionSnapshot snapshot) => new(
+                ProductDesktopInteractionSurfaceTransactionStatus.Explicit,
+                new(
+                    ProductDesktopInteractionMode.ExplicitInteraction,
+                    ProductDesktopInteractionAdmissionStatus.Admitted,
+                    ProductDesktopInteractionCancellationReason.None,
+                    lease),
+                new(
+                    ProductDesktopInteractionSurfaceMode.Explicit,
+                    11,
+                    Visible: true,
+                    HitTestTransparent: false,
+                    IsKeyboardFocusable: true,
+                    SelectionPatternAvailable: true,
+                    ToolWindow: true,
+                    NoActivate: true,
+                    Topmost: false,
+                    HasOwner: false,
+                    OwnsForeground: false),
+                snapshot,
+                ProductDesktopInteractionSelectionAccessibilityAdapter
+                    .CreateExplicit(snapshot),
+                snapshot.SelectionRevision + 1);
+    }
+
+    [Fact]
     public void NativeSurfaceExposesReadOnlyNonFocusableProjectionTree()
     {
         if (!OperatingSystem.IsWindows())
@@ -1396,6 +1503,33 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
     }
 
     [Fact]
+    public void KeyboardProxyMapsPageKeysOnlyForUnmodifiedExplicitSelection()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var lease = new ProductDesktopInteractionLease(
+            Guid.NewGuid(), "container-1", 7, 9, 11, now.AddSeconds(5));
+        ProductDesktopSelectionSnapshot selection =
+            ProductDesktopInteractionSelectionController.TryCreate(
+                lease, ["item:1", "item:2"], now).Controller!.Snapshot;
+
+        ProductDesktopKeyboardSelectionDecision previous =
+            ProductDesktopKeyboardSelectionAdapter.Map(
+                selection, 0x21, control: false, shift: false);
+        ProductDesktopKeyboardSelectionDecision next =
+            ProductDesktopKeyboardSelectionAdapter.Map(
+                selection, 0x22, control: false, shift: false);
+        ProductDesktopKeyboardSelectionDecision modified =
+            ProductDesktopKeyboardSelectionAdapter.Map(
+                selection, 0x22, control: false, shift: true);
+
+        Assert.Equal(120, previous.ViewportWheelDelta);
+        Assert.Equal(-120, next.ViewportWheelDelta);
+        Assert.Null(previous.Request);
+        Assert.Null(next.Request);
+        Assert.Equal(0, modified.ViewportWheelDelta);
+    }
+
+    [Fact]
     public void RealNativeSurfaceDispatchesFiniteWindowMessageMatrix()
     {
         if (!OperatingSystem.IsWindows())
@@ -1505,6 +1639,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
         var opened = new List<ProductDesktopItemOpenSurfaceInput>();
         var layouts = new List<ProductDesktopContainerLayoutKeyboardCommand>();
         var titleFocus = new List<string?>();
+        var viewports = new List<ProductDesktopItemViewportSurfaceInput>();
         int cancellations = 0;
         source.BindSelection(
             () => current,
@@ -1523,6 +1658,11 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
         source.BindItemOpen(input =>
         {
             opened.Add(input);
+            return true;
+        });
+        source.BindItemViewport(input =>
+        {
+            viewports.Add(input);
             return true;
         });
         source.BindContainerLayout(
@@ -1546,6 +1686,11 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
         source.SubmitSelectionKeyForEvidence(0x1B);
         source.SubmitSelectionKeyForEvidence(0x41, control: true);
         source.SubmitSelectionKeyForEvidence(0x00);
+        source.SubmitSelectionKeyForEvidence(0x22);
+        source.SubmitSelectionKeyForEvidence(0x21);
+        source.SubmitSelectionKeyForEvidence(0x22, isAutoRepeat: true);
+        source.SubmitSelectionKeyForEvidence(0x22, alt: true);
+        source.SubmitSelectionKeyForEvidence(0x22, shift: true);
 
         Assert.Single(opened);
         Assert.True(opened[0].IsAutoRepeat);
@@ -1554,7 +1699,19 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
         Assert.Equal(2, layouts.Count);
         Assert.Contains("container-1", titleFocus);
         Assert.Equal(1, cancellations);
+        Assert.Equal(2, viewports.Count);
+        Assert.Equal(-120, viewports[0].WheelDelta);
+        Assert.Equal(120, viewports[1].WheelDelta);
+        Assert.All(viewports, input =>
+        {
+            Assert.Equal("container-1", input.ContainerId);
+            Assert.True(input.SourceAttested);
+            Assert.False(input.IsInjected);
+            Assert.False(input.IsAutoRepeat);
+        });
         Assert.Throws<ArgumentNullException>(() => source.BindItemOpen(null!));
+        Assert.Throws<ArgumentNullException>(() =>
+            source.BindItemViewport(null!));
         Assert.Throws<ArgumentNullException>(() =>
             source.BindContainerLayout(null!, _ => true));
         Assert.Throws<ArgumentNullException>(() =>

@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 202](docs/202-main-native-surface-resource-plateau-audit.md)已完成原生交互 Surface 资源平台期纠偏：PR #226 合入为 `3489ca0`，main run `32806544628` 以 `RepeatedResourcePlateau=true`、1198/1198、90.01%/75.51% 和全下游门通过，Gate A 已关闭。当前恢复 PF-006C1 PageUp/PageDown 跨视口键盘导航；PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`，30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 203](docs/203-pf006c1-page-navigation-viewport-uia-convergence-audit.md)已在本机完成 PF-006C1 PageUp/PageDown 跨视口导航：正式激活 HWND、权威视口请求、相对焦点与真实 UIA SelectionPattern 收敛，Release 1200/1200、90.36%/75.73%，等待 PR/main CI。PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`，30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -63,6 +63,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PR #225 Windows PowerShell UI 合同 CI 纠偏审计（Stage 200）](docs/200-pr225-windows-powershell-ui-contract-ci-correction-audit.md)
 - [PR #225 覆盖率门禁恢复审计（Stage 201）](docs/201-pr225-coverage-gate-recovery-audit.md)
 - [main 原生交互 Surface 资源平台期纠偏审计（Stage 202）](docs/202-main-native-surface-resource-plateau-audit.md)
+- [PF-006C1 PageUp/PageDown 跨视口导航与 UIA 收敛审计（Stage 203）](docs/203-pf006c1-page-navigation-viewport-uia-convergence-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)
@@ -220,7 +221,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-Gate A 已按 [Stage 202](docs/202-main-native-surface-resource-plateau-audit.md)关闭；下一步按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)进入 PF-006C1 PageUp/PageDown 跨视口键盘导航。随后优先完成框选、桌面直接拖入、首次引导、自动整理、快速隐藏/托盘和命名快照。任务栏美化维持 P1 默认关闭实验模块，小组件/Long助手运行时维持 P2；两者均不得提前伪报完成。
+按 [Stage 203](docs/203-pf006c1-page-navigation-viewport-uia-convergence-audit.md)先让 PF-006C1 通过 PR/main CI，再进入 PF-006C2 鼠标框选。随后优先完成桌面直接拖入、首次引导、自动整理、快速隐藏/托盘和命名快照。任务栏美化维持 P1 默认关闭实验模块，小组件/Long助手运行时维持 P2；两者均不得提前伪报完成。
 
 ## 开发启动
 

@@ -1201,6 +1201,13 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         if (transaction?.IsExplicit == true
             && transaction.Selection is { } activeSelection)
         {
+            ProductDesktopHostReadOnlyProjection? previousContainer =
+                currentBatch?.Displays
+                    .SelectMany(display => display.Containers)
+                    .SingleOrDefault(container => string.Equals(
+                        container.ContainerId,
+                        activeSelection.ContainerId,
+                        StringComparison.Ordinal));
             ProductDesktopHostReadOnlyProjection? activeContainer = batch.Displays
                 .SelectMany(display => display.Containers)
                 .SingleOrDefault(container => string.Equals(
@@ -1222,6 +1229,38 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             {
                 return ApplyNewUpdateUnsafe(update);
             }
+            int previousFocusOffset = activeSelection.FocusedItemId is { } focused
+                ? activeSelection.VisibleItemIds
+                    .Select((itemId, index) => new { itemId, index })
+                    .Where(candidate => string.Equals(
+                        candidate.itemId, focused, StringComparison.Ordinal))
+                    .Select(candidate => candidate.index)
+                    .SingleOrDefault(-1)
+                : -1;
+            if (previousContainer is not null
+                && previousFocusOffset >= 0
+                && previousContainer.VisibleItemStartOrdinal
+                    != activeContainer.VisibleItemStartOrdinal
+                && activeContainer.ItemIds.Count > 0)
+            {
+                string targetItemId = activeContainer.ItemIds[
+                    Math.Min(previousFocusOffset,
+                        activeContainer.ItemIds.Count - 1)];
+                ProductDesktopInteractionIntentConsumptionResult focusedResult =
+                    intentConsumption.ApplySelection(
+                        new(
+                            ProductDesktopSelectionAction.SelectItem,
+                            ProductDesktopSelectionModifiers.None,
+                            targetItemId),
+                        activeContainer.ItemIds,
+                        DateTimeOffset.UtcNow);
+                if (!focusedResult.IsExplicit
+                    || focusedResult.Snapshot.Transaction?.Selection?.Status
+                        != ProductDesktopSelectionStatus.Applied)
+                {
+                    return ApplyNewUpdateUnsafe(update);
+                }
+            }
             foreach (IProductDesktopHostReadOnlySurface surface in surfaces)
             {
                 surface.RefreshSelection();
@@ -1230,12 +1269,20 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         lastPresentationGeneration = update.PresentationGeneration;
         currentUpdate = update;
         currentBatch = batch;
+        ProductDesktopSelectionSnapshot? finalSelection =
+            intentConsumption?.Snapshot.Transaction?.Selection;
         snapshot = snapshot with
         {
             Generation = checked(snapshot.Generation + 1),
             WorkspaceRevision = update.WorkspaceRevision,
             TopologyGeneration = update.TopologyGeneration,
             RenderedContainerCount = batch.ContainerCount,
+            SelectedItemCount = finalSelection?.SelectedItemIds.Count
+                ?? snapshot.SelectedItemCount,
+            FocusedItemAvailable = finalSelection?.FocusedItemId is not null
+                || (finalSelection is null && snapshot.FocusedItemAvailable),
+            SelectionRevision = finalSelection?.SelectionRevision
+                ?? snapshot.SelectionRevision,
         };
         return snapshot;
     }
@@ -1481,6 +1528,11 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                             () => CancelInteractionFromActivationSource(source));
                         source.BindItemOpen(input =>
                             ApplyItemOpenFromActivationSource(
+                                source,
+                                display,
+                                input));
+                        source.BindItemViewport(input =>
+                            ApplyItemViewportFromActivationSource(
                                 source,
                                 display,
                                 input));
@@ -1826,7 +1878,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     ProductDesktopHostReadOnlyProjection.MaximumVisibleItems
                 || input.WheelDelta == 0
                 || !input.SourceAttested
-                || input.IsInjected)
+                || input.IsInjected
+                || input.IsAutoRepeat)
             {
                 return false;
             }
@@ -1839,7 +1892,64 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     currentBatch.TopologyGeneration,
                     input.WheelDelta,
                     input.SourceAttested,
-                    input.IsInjected));
+                    input.IsInjected,
+                    input.IsAutoRepeat));
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException
+                    or InvalidOperationException
+                    or OverflowException)
+            {
+                return false;
+            }
+        }
+    }
+
+    private bool ApplyItemViewportFromActivationSource(
+        IProductDesktopInteractionActivationSource source,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopItemViewportSurfaceInput input)
+    {
+        lock (gate)
+        {
+            ProductDesktopInteractionSurfaceTransactionSnapshot? transaction =
+                intentConsumption?.Snapshot.Transaction;
+            ProductDesktopHostReadOnlyProjection[] targets = display.Containers
+                .Where(container => string.Equals(
+                    container.ContainerId,
+                    input.ContainerId,
+                    StringComparison.Ordinal))
+                .Take(2)
+                .ToArray();
+            if (disposed
+                || currentBatch is null
+                || !activationSources.Contains(source)
+                || !string.Equals(source.DisplayId, display.DisplayId,
+                    StringComparison.Ordinal)
+                || transaction?.IsExplicit != true
+                || !string.Equals(transaction.Selection?.ContainerId,
+                    input.ContainerId, StringComparison.Ordinal)
+                || targets.Length != 1
+                || targets[0].TotalItemCount <=
+                    ProductDesktopHostReadOnlyProjection.MaximumVisibleItems
+                || input.WheelDelta == 0
+                || !input.SourceAttested
+                || input.IsInjected
+                || input.IsAutoRepeat)
+            {
+                return false;
+            }
+            try
+            {
+                return requestItemViewport(new(
+                    input.ContainerId,
+                    display.DisplayId,
+                    currentBatch.WorkspaceRevision,
+                    currentBatch.TopologyGeneration,
+                    input.WheelDelta,
+                    input.SourceAttested,
+                    input.IsInjected,
+                    input.IsAutoRepeat));
             }
             catch (Exception exception) when (
                 exception is ArgumentException
