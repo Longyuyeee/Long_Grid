@@ -77,3 +77,25 @@ PR run `32800465632` 在最新 SHA 上通过格式、构建、全部合同和 11
 - 初始 Explorer 不可用、未知全屏、远程与 session unavailable 组合及稳定恢复。
 
 最终本机同一次 Release collector 为 **1198/1198、lines 90.41%（40738/45058）、branches 75.71%（13158/17380）**。按 run `32800465632` 的逐文件环境差异回算，headless runner 已超过 90% 行门并保留约 10 个唯一覆盖行余量；最终结论仍以新 run 为准。
+
+## 8. 远端真实快捷方式启动差异与修正
+
+PR run `32801490556` 在 SHA `44e1c3c` 上通过格式、Release 构建、启动链、DesktopHost、输入、UI Automation、clean-session、单实例和运行时恢复合同，但完整测试为 1197/1198：
+
+| 项目 | Expected | Remote Actual | Difference |
+| --- | --- | --- | --- |
+| 真实 `.lnk` 目标及参数进入 Shell | 目标进程 5 秒内退出 | `where.exe cmd.exe` 在 runner 中 5 秒未退出 | 1 个真实测试 Fail；后续门禁未执行 |
+
+原断言只能证明 `where.exe` 的进程寿命，不能直接证明参数产生了预期效果；命令输出及 runner 会话环境也会影响寿命。因此修正为更强的可观测行为：真实 COM `.lnk` 指向系统 `cmd.exe`，参数要求命令处理器把固定标记写入临时文件，测试等待真实 Shell 进程并核对标记内容。若参数没有经过 `.lnk` 解析和 `ShellExecuteEx` 到达目标，标记文件不会生成。
+
+本机以五个全新 VSTest 进程连续执行该真实测试，Expected 为 `LongGridPf006b2`，Actual 五次均为 `LongGridPf006b2`，Difference 为 `None`，5/5 Pass。此次只增强测试证据与 runner 稳定性，没有放宽产品状态、超时门禁或安全边界；仍须由新 PR run 验证完整 1198 测试、覆盖率及后续 preflight。
+
+## 9. 重复全量测试发现的缩略图超时与菜单挂起
+
+在推送前重复完整 XPlat Coverage 时，真实产品队列缩略图测试再次出现 `ReadyThumbnail -> FailedFallback`。新增的有限、匿名 evidence 不记录路径，只记录失败类、HRESULT 和 round trip；第三轮复现得到 `TimedOut / 0 / 1507.37 ms`，相对 1500 ms 产品预算超出约 7.37 ms。因此此前第 5 节“瞬时且未复现”的判断已被新证据推翻并修正。
+
+修正没有延长产品预算：受限 AppContainer worker 对 `.bmp` 优先使用 Windows `LoadImageW` 创建 DIBSection并复用既有受限共享内存像素链；原生加载失败时仍回退 `IShellItemImageFactory`。路径授权、受控副本、AppContainer、kill-on-job-close、像素尺寸和容量校验均保持。修正后的真实产品队列首轮约 664 ms，真实 worker/产品队列/文件版本缓存/真实 HWND 像素链 4/4 Pass；完整覆盖率前两轮均为 1198/1198。
+
+第三轮完整测试随后触发另一个独立 hang 门：完成 1109 个测试后，`NativeActivationSourceExposesFiniteInvokeAndHideRestoreContract` 的真实弹出菜单没有被窗口 `WM_TIMER` 关闭，2 分钟 blame-hang 正确中止并生成 sequence 证据。为保证 evidence 自身有限化，菜单定时器改用受根引用的原生 `TIMERPROC` 在弹出菜单模态循环内直接调用 `EndMenu`；`SetTimer` 失败会立即抛出 Win32 错误，不再进入无限等待。隔离进程连续 5/5 通过，仍须再跑完整覆盖率与远端 PR CI。
+
+修正后最终同一次本机 Release collector 为 **1198/1198、lines 90.38%（40774/45116）、branches 75.64%（13162/17400）**，格式门与 `git diff --check` 同时通过。相较要求，Actual 分别保留 +0.38 pp / +0.64 pp，Difference 为 `None`；最终 Gate A 结论仍以新的 headless PR run 为准。

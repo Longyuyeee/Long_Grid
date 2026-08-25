@@ -8,6 +8,9 @@ internal static class NativeMethods
     internal const uint GrGdiObjects = 0;
     internal const int RpcEChangedMode = unchecked((int)0x80010106);
     internal const uint DibRgbColors = 0;
+    internal const uint ImageBitmap = 0;
+    internal const uint LrLoadFromFile = 0x00000010;
+    internal const uint LrCreatedDibSection = 0x00002000;
 
     [DllImport("ole32.dll")]
     internal static extern int CoInitializeEx(nint reserved, uint coInit);
@@ -48,6 +51,15 @@ internal static class NativeMethods
         [Out] byte[] bits,
         ref NativeBitmapInfoHeader bitmapInfo,
         uint usage);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    internal static extern nint LoadImage(
+        nint instance,
+        string name,
+        uint type,
+        int desiredWidth,
+        int desiredHeight,
+        uint loadFlags);
 
     [DllImport("user32.dll")]
     internal static extern uint GetGuiResources(nint process, uint flags);

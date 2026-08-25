@@ -172,6 +172,8 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
 {
     private const int ActivationButtonSizeDip = 32;
     private static long nextUserActionSequence;
+    private static readonly NativeMethods.TimerProcedure MenuEvidenceTimer =
+        static (_, _, _, _) => _ = NativeMethods.EndMenu();
     private readonly string className;
     private readonly nint module;
     private readonly WindowProcedure windowProcedure;
@@ -931,13 +933,17 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
 
     internal void ShowPendingContainerMenuForEvidence()
     {
+        nuint timer = NativeMethods.SetTimer(
+            Handle,
+            NativeMethods.MenuEvidenceTimerId,
+            1200,
+            MenuEvidenceTimer);
+        if (timer == 0)
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
         try
         {
-            _ = NativeMethods.SetTimer(
-                Handle,
-                NativeMethods.MenuEvidenceTimerId,
-                1200,
-                nint.Zero);
             ShowPendingContainerMenu(Handle);
         }
         finally
@@ -1657,12 +1663,19 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool EndMenu();
 
+        [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+        internal delegate void TimerProcedure(
+            nint window,
+            uint message,
+            nuint identifier,
+            uint elapsedMilliseconds);
+
         [DllImport("user32.dll")]
         internal static extern nuint SetTimer(
             nint window,
             nint identifier,
             uint intervalMilliseconds,
-            nint timerProcedure);
+            TimerProcedure? timerProcedure);
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]

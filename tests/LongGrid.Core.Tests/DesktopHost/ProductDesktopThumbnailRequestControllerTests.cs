@@ -235,9 +235,18 @@ public sealed class ProductDesktopThumbnailRequestControllerTests(
                 "light");
 
         ProductDesktopThumbnailResult result = Assert.Single(enabled.Results);
-        Assert.Equal(
-            ProductDesktopThumbnailStatus.ReadyThumbnail,
-            result.Status);
+        ProductDesktopThumbnailExtractionEvidence extractionEvidence =
+            controller.LastExtractionEvidence;
+        Assert.True(
+            result.Status == ProductDesktopThumbnailStatus.ReadyThumbnail,
+            JsonSerializer.Serialize(new
+            {
+                Expected = "ReadyThumbnail",
+                Actual = result.Status.ToString(),
+                Difference = extractionEvidence.FailureKind.ToString(),
+                extractionEvidence.HResult,
+                extractionEvidence.RoundTripMilliseconds,
+            }));
         Assert.NotNull(result.Frame);
         Assert.Equal(1, enabled.WorkerRequestCount);
         Assert.Equal(0, disabled.WorkerRequestCount);
@@ -260,6 +269,9 @@ public sealed class ProductDesktopThumbnailRequestControllerTests(
                 DisabledRequests = disabled.WorkerRequestCount,
                 OwnedProfileDeleted =
                     controller.OwnedProfileDeletionConfirmed,
+                extractionEvidence.FailureKind,
+                extractionEvidence.HResult,
+                extractionEvidence.RoundTripMilliseconds,
             },
             Difference = "None",
         }));

@@ -15,6 +15,25 @@ internal static class ShellImageExtractor
         bool includePixels = false)
     {
         var stopwatch = Stopwatch.StartNew();
+        if (string.Equals(
+            Path.GetExtension(path),
+            ".bmp",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            nint directBitmap = NativeMethods.LoadImage(
+                nint.Zero,
+                path,
+                NativeMethods.ImageBitmap,
+                desiredWidth: 0,
+                desiredHeight: 0,
+                NativeMethods.LrLoadFromFile | NativeMethods.LrCreatedDibSection);
+            if (directBitmap != nint.Zero)
+            {
+                using var bitmap = new SafeGdiBitmapHandle(directBitmap);
+                return ExtractBitmap(bitmap, includePixels, stopwatch);
+            }
+        }
+
         int initializeResult = NativeMethods.CoInitializeEx(
             nint.Zero,
             NativeMethods.CoInitMultithreaded);
@@ -53,44 +72,7 @@ internal static class ShellImageExtractor
                 return ImageExtractionResult.Failed(imageResult, stopwatch.Elapsed);
             }
 
-            int objectResult = NativeMethods.GetObject(
-                bitmap.DangerousGetHandle(),
-                Marshal.SizeOf<NativeBitmap>(),
-                out NativeBitmap metadata);
-
-            if (objectResult == 0)
-            {
-                return ImageExtractionResult.Failed(
-                    Marshal.GetHRForLastWin32Error(),
-                    stopwatch.Elapsed);
-            }
-
-            if (metadata.Width <= 0
-                || metadata.Height == 0
-                || metadata.Height == int.MinValue)
-            {
-                return ImageExtractionResult.Failed(
-                    unchecked((int)0x8007000D),
-                    stopwatch.Elapsed);
-            }
-
-            BitmapPixelData? pixels = null;
-            if (includePixels)
-            {
-                pixels = CopyPixels(bitmap, metadata, out int pixelError);
-                if (pixels is null)
-                {
-                    return ImageExtractionResult.Failed(
-                        HResultFromWin32(pixelError),
-                        stopwatch.Elapsed);
-                }
-            }
-
-            return ImageExtractionResult.Succeeded(
-                metadata.Width,
-                Math.Abs(metadata.Height),
-                pixels,
-                stopwatch.Elapsed);
+            return ExtractBitmap(bitmap, includePixels, stopwatch);
         }
         catch (COMException exception)
         {
@@ -108,6 +90,48 @@ internal static class ShellImageExtractor
                 NativeMethods.CoUninitialize();
             }
         }
+    }
+
+    private static ImageExtractionResult ExtractBitmap(
+        SafeGdiBitmapHandle bitmap,
+        bool includePixels,
+        Stopwatch stopwatch)
+    {
+        int objectResult = NativeMethods.GetObject(
+            bitmap.DangerousGetHandle(),
+            Marshal.SizeOf<NativeBitmap>(),
+            out NativeBitmap metadata);
+        if (objectResult == 0)
+        {
+            return ImageExtractionResult.Failed(
+                Marshal.GetHRForLastWin32Error(),
+                stopwatch.Elapsed);
+        }
+        if (metadata.Width <= 0
+            || metadata.Height == 0
+            || metadata.Height == int.MinValue)
+        {
+            return ImageExtractionResult.Failed(
+                unchecked((int)0x8007000D),
+                stopwatch.Elapsed);
+        }
+
+        BitmapPixelData? pixels = null;
+        if (includePixels)
+        {
+            pixels = CopyPixels(bitmap, metadata, out int pixelError);
+            if (pixels is null)
+            {
+                return ImageExtractionResult.Failed(
+                    HResultFromWin32(pixelError),
+                    stopwatch.Elapsed);
+            }
+        }
+        return ImageExtractionResult.Succeeded(
+            metadata.Width,
+            Math.Abs(metadata.Height),
+            pixels,
+            stopwatch.Elapsed);
     }
 
     private static BitmapPixelData? CopyPixels(

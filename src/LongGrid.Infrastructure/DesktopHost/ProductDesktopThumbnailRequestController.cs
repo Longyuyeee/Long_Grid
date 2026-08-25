@@ -16,6 +16,25 @@ public enum ProductDesktopThumbnailStatus
     Unsupported,
 }
 
+internal enum ProductDesktopThumbnailFailureKind
+{
+    None,
+    WorkerRejected,
+    TimedOut,
+    WorkerExited,
+    ProtocolError,
+    RuntimeException,
+}
+
+internal sealed record ProductDesktopThumbnailExtractionEvidence(
+    ProductDesktopThumbnailFailureKind FailureKind,
+    int HResult,
+    double RoundTripMilliseconds)
+{
+    internal static ProductDesktopThumbnailExtractionEvidence None { get; } =
+        new(ProductDesktopThumbnailFailureKind.None, 0, 0);
+}
+
 internal sealed record ProductDesktopThumbnailCandidate(
     string AnonymousItemKey,
     string TargetPath);
@@ -168,6 +187,8 @@ internal sealed class ProductDesktopThumbnailRequestController : IDisposable
     private IProductRestrictedThumbnailRuntime? runtime;
     private bool disposed;
     private bool ownedProfileDeletionConfirmed;
+    private ProductDesktopThumbnailExtractionEvidence lastExtractionEvidence =
+        ProductDesktopThumbnailExtractionEvidence.None;
 
     internal ProductDesktopThumbnailRequestController(
         Func<IProductRestrictedThumbnailRuntime>? runtimeFactory = null)
@@ -178,6 +199,9 @@ internal sealed class ProductDesktopThumbnailRequestController : IDisposable
 
     internal bool OwnedProfileDeletionConfirmed =>
         ownedProfileDeletionConfirmed;
+
+    internal ProductDesktopThumbnailExtractionEvidence LastExtractionEvidence =>
+        lastExtractionEvidence;
 
     internal async Task<ProductDesktopThumbnailRefreshResult> RefreshAsync(
         bool enabled,
@@ -261,6 +285,18 @@ internal sealed class ProductDesktopThumbnailRequestController : IDisposable
                             pixelSize,
                             RequestTimeout,
                             cancellationToken).ConfigureAwait(false);
+                    lastExtractionEvidence = new(
+                        extracted.Success
+                            ? ProductDesktopThumbnailFailureKind.None
+                            : extracted.TimedOut
+                                ? ProductDesktopThumbnailFailureKind.TimedOut
+                                : extracted.ProtocolError
+                                    ? ProductDesktopThumbnailFailureKind.ProtocolError
+                                    : extracted.WorkerExited
+                                        ? ProductDesktopThumbnailFailureKind.WorkerExited
+                                        : ProductDesktopThumbnailFailureKind.WorkerRejected,
+                        extracted.HResult,
+                        extracted.RoundTripMilliseconds);
                     if (extracted.Success && extracted.Frame is { } frame)
                     {
                         ProductDesktopThumbnailFrame productFrame =
@@ -295,6 +331,10 @@ internal sealed class ProductDesktopThumbnailRequestController : IDisposable
                         or InvalidOperationException
                         or PlatformNotSupportedException)
                 {
+                    lastExtractionEvidence = new(
+                        ProductDesktopThumbnailFailureKind.RuntimeException,
+                        exception.HResult,
+                        0);
                     results.Add(Fallback(candidate.AnonymousItemKey));
                     workerUnavailable = true;
                     StopRuntime();
