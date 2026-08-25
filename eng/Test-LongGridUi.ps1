@@ -1555,6 +1555,16 @@ function Test-SourceContract {
         $nativeInteractionSurfaceProbeCode -match `
             'RepeatedResourcePlateau' -and
         $nativeInteractionSurfaceProbeCode -match `
+            'gdiAfter\s*<=\s*gdiBefore\s*\+\s*1' -and
+        $nativeInteractionSurfaceProbeCode -match `
+            'total process handles remain diagnostic' -and
+        $nativeInteractionSurfaceProbeCode -match `
+            'RunResourcePlateauCycle' -and
+        $nativeInteractionSurfaceProbeCode -match `
+            'WaitForResourceCeiling' -and
+        -not ($nativeInteractionSurfaceProbeCode -match `
+            'handlesAfter\s*<=\s*handlesBefore') -and
+        $nativeInteractionSurfaceProbeCode -match `
             'SyntheticInputUsed:\s*false' -and
         $nativeInteractionSurfaceProbeCode -match `
             'DesktopFilesReadOrChanged:\s*false' -and
