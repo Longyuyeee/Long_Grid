@@ -1,5 +1,6 @@
 using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopHost;
+using LongGrid.Infrastructure.Configuration;
 
 namespace LongGrid.Core.Tests.Configuration;
 
@@ -205,6 +206,112 @@ public sealed class ProductWorkspaceContainerCreationDefaultsTests
         Assert.NotEqual(first.Placement.XDip, second.Placement!.XDip);
         Assert.InRange(second.Placement.XDip, 0, 140);
         Assert.InRange(second.Placement.YDip, 0, 110);
+    }
+
+    [Fact]
+    public void DraggedPixelBoundsBecomeDisplayRelativeDips()
+    {
+        ProductWorkspaceContainerCreationDefaultsDecision decision =
+            ProductWorkspaceContainerCreationDefaults.Evaluate(
+                [],
+                null,
+                "display-secondary",
+                new(1920, -100, 1600, 1000),
+                192,
+                new(2120, 100, 640, 400));
+
+        Assert.True(decision.CanCreate);
+        Assert.Equal("display-secondary", decision.Placement!.DisplayKey);
+        Assert.Equal(100, decision.Placement.XDip);
+        Assert.Equal(100, decision.Placement.YDip);
+        Assert.Equal(320, decision.Placement.WidthDip);
+        Assert.Equal(200, decision.Placement.HeightDip);
+    }
+
+    [Theory]
+    [InlineData(1900, 100, 640, 400)]
+    [InlineData(2120, 100, 300, 400)]
+    [InlineData(2120, 100, 640, 200)]
+    public void OutOfWorkAreaOrUndersizedDragFailsClosed(
+        int left,
+        int top,
+        int width,
+        int height)
+    {
+        ProductWorkspaceContainerCreationDefaultsDecision decision =
+            ProductWorkspaceContainerCreationDefaults.Evaluate(
+                [],
+                null,
+                "display-secondary",
+                new(1920, -100, 1600, 1000),
+                192,
+                new(left, top, width, height));
+
+        Assert.Equal(
+            ProductWorkspaceContainerCreationDefaultsStatus.PlacementUnavailable,
+            decision.Status);
+        Assert.False(decision.CanCreate);
+    }
+
+    [Fact]
+    public async Task RealStoreReloadsExactDraggedPlacement()
+    {
+        string sandbox = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid.DragCreate.RealStore",
+            Guid.NewGuid().ToString("N"));
+        try
+        {
+            ProductWorkspaceContainerCreationDefaultsDecision decision =
+                ProductWorkspaceContainerCreationDefaults.Evaluate(
+                    [],
+                    "拖画方格",
+                    "display-secondary",
+                    new(1920, -100, 1600, 1000),
+                    192,
+                    new(2120, 100, 640, 400));
+            ProductWorkspaceState state = new()
+            {
+                ProfileId = "default",
+                Containers =
+                [
+                    new()
+                    {
+                        Id = "drag-created",
+                        Name = decision.Name!,
+                        Appearance = new()
+                        {
+                            Color = "#2563EB",
+                            Opacity = 0.88,
+                        },
+                        Placement = decision.Placement!,
+                        Items = Array.Empty<ProductItemReferenceState>(),
+                    },
+                ],
+            };
+            ProductConfigurationDocument document =
+                ProductWorkspaceConfigurationProjector.Project(state).Document!;
+            var store = new ProductConfigurationStore(sandbox);
+
+            await store.SaveAsync(document);
+            ProductConfigurationLoadResult loaded = await store.LoadAsync();
+
+            Assert.Equal(ProductConfigurationLoadStatus.LoadedPrimary, loaded.Status);
+            ContainerPlacementConfiguration placement =
+                loaded.Document!.Containers[0].Placement;
+            Assert.Equal("display-secondary", placement.DisplayKey);
+            Assert.Equal(100, placement.XDip);
+            Assert.Equal(100, placement.YDip);
+            Assert.Equal(320, placement.WidthDip);
+            Assert.Equal(200, placement.HeightDip);
+        }
+        finally
+        {
+            if (Directory.Exists(sandbox))
+            {
+                Directory.Delete(sandbox, recursive: true);
+            }
+        }
     }
 
     private static ProductWorkspaceContainerCreationDefaultsDecision Evaluate(

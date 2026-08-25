@@ -1,3 +1,4 @@
+using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopHost;
 using LongGrid.Infrastructure.DesktopHost;
 
@@ -740,6 +741,7 @@ public sealed class ProductDesktopHostLifecycleControllerTests
                     "1",
                     "1"),
                 bridge);
+        var activationFactory = new RecordingActivationSourceFactory();
         var controller = new ProductDesktopHostLifecycleController(
             host,
             factory,
@@ -748,8 +750,16 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             bridge,
             forwarding,
             consumption,
-            new RecordingActivationSourceFactory());
+            activationFactory);
         var observed = new List<ProductDesktopHostLifecycleSnapshot>();
+        var openRequests = new List<ProductDesktopItemOpenRequest>();
+        controller.BindItemOpen(request =>
+        {
+            openRequests.Add(request);
+            return new(
+                ProductDesktopItemOpenStatus.LaunchAccepted,
+                request.Source);
+        });
         controller.SnapshotChanged += (_, value) => observed.Add(value);
         DateTimeOffset now = DateTimeOffset.UtcNow;
         _ = controller.ApplyProjectionBatch(CreateBatch());
@@ -802,6 +812,21 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             new(consumption.Snapshot);
         ProductDesktopHostLifecycleSnapshot lifecycleSelected =
             controller.Snapshot;
+        Assert.True(Assert.Single(factory.Surfaces).ApplyBoundItemOpen(new(
+            "container-1",
+            "item:2",
+            ProductDesktopItemOpenSource.PointerDoubleClick,
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: false)));
+        Assert.True(Assert.Single(activationFactory.Sources).ApplyBoundItemOpen(
+            new(
+                "container-1",
+                "item:2",
+                ProductDesktopItemOpenSource.KeyboardEnter,
+                SourceAttested: true,
+                IsInjected: false,
+                IsAutoRepeat: false)));
         _ = controller.ApplySystemSurfaceEvent(new(
             ProductDesktopInteractionSystemSurfaceEventKind.FocusLost,
             1,
@@ -829,6 +854,32 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.Equal(1, lifecycleSelected.SelectionRevision);
         Assert.DoesNotContain("container-1", lifecycleSelected.ToString());
         Assert.DoesNotContain("item:2", lifecycleSelected.ToString());
+        Assert.Equal(2, openRequests.Count);
+        ProductDesktopItemOpenFeedback feedback = Assert.IsType<
+            ProductDesktopItemOpenFeedback>(
+                Assert.Single(factory.Surfaces).LastItemOpenFeedback);
+        Assert.Equal("container-1", feedback.ContainerId);
+        Assert.Equal("item:2", feedback.ItemId);
+        Assert.Equal(ProductDesktopItemOpenStatus.LaunchAccepted,
+            feedback.Status);
+        Assert.Equal("已提交系统打开", feedback.Message);
+        Assert.All(openRequests, request =>
+        {
+            Assert.Equal("container-1", request.ContainerId);
+            Assert.Equal("display-primary", request.DisplayId);
+            Assert.Equal(7, request.WorkspaceRevision);
+            Assert.Equal(11, request.TopologyGeneration);
+            Assert.Equal("item:2", request.ItemId);
+            Assert.True(request.SourceAttested);
+            Assert.False(request.IsInjected);
+            Assert.False(request.IsAutoRepeat);
+        });
+        Assert.Equal(
+            [
+                ProductDesktopItemOpenSource.PointerDoubleClick,
+                ProductDesktopItemOpenSource.KeyboardEnter,
+            ],
+            openRequests.Select(request => request.Source));
         Assert.Equal(
             ProductDesktopInteractionIntentConsumptionStatus.AwaitingSurface,
             replay.Snapshot.Status);
@@ -903,6 +954,74 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, ready.Status);
         Assert.True(controller.CanRequestKeyboardInteraction);
         Assert.True(controller.OwnsForegroundActivationSource);
+        var headerCommands = new List<
+            ProductDesktopContainerHeaderCommandRequest>();
+        controller.BindContainerHeaderCommand(request =>
+        {
+            headerCommands.Add(request);
+            return true;
+        });
+        Assert.True(source.ApplyBoundContainerHeader(new(
+            ProductDesktopContainerHeaderCommandKind.ToggleCollapsed,
+            "container-1",
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: false)));
+        ProductDesktopContainerHeaderCommandRequest headerCommand =
+            Assert.Single(headerCommands);
+        Assert.Equal("display-primary", headerCommand.DisplayId);
+        Assert.Equal(7, headerCommand.ExpectedWorkspaceRevision);
+        Assert.Equal(11, headerCommand.ExpectedTopologyGeneration);
+        RecordingSurface readOnlySurface = Assert.Single(surfaceFactory.Surfaces);
+        Assert.True(readOnlySurface.RequestBoundContainerHeaderDoubleClick());
+        Assert.Equal(2, headerCommands.Count);
+        Assert.False(source.ApplyBoundContainerHeader(new(
+            ProductDesktopContainerHeaderCommandKind.ToggleLocked,
+            "container-1",
+            SourceAttested: true,
+            IsInjected: true,
+            IsAutoRepeat: false)));
+        Assert.Equal(2, headerCommands.Count);
+        var menuRequests = new List<ProductDesktopContainerMenuRequest>();
+        controller.BindContainerMenu(
+            (containerId, displayId) =>
+                containerId == "container-1"
+                    && displayId == "display-primary"
+                    ? new(true, true, true, true)
+                    : ProductDesktopContainerMenuAvailability.Unavailable,
+            request =>
+            {
+                menuRequests.Add(request);
+                return true;
+            });
+        Assert.Equal(
+            new(true, true, true, true),
+            source.GetBoundContainerMenuAvailability("container-1"));
+        Assert.True(source.ApplyBoundContainerMenu(new(
+            ProductDesktopContainerMenuAction.OpenAppearance,
+            "container-1",
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: false)));
+        ProductDesktopContainerMenuRequest menuRequest =
+            Assert.Single(menuRequests);
+        Assert.Equal("display-primary", menuRequest.DisplayId);
+        Assert.Equal(7, menuRequest.ExpectedWorkspaceRevision);
+        Assert.Equal(11, menuRequest.ExpectedTopologyGeneration);
+        Assert.True(source.ApplyBoundContainerMenu(new(
+            ProductDesktopContainerMenuAction.DeleteContainerConfiguration,
+            "container-1",
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: false)));
+        Assert.Equal(2, menuRequests.Count);
+        Assert.False(source.ApplyBoundContainerMenu(new(
+            ProductDesktopContainerMenuAction.OpenRename,
+            "container-1",
+            SourceAttested: true,
+            IsInjected: false,
+            IsAutoRepeat: true)));
+        Assert.Equal(2, menuRequests.Count);
         Assert.True(controller.RequestKeyboardInteraction());
         Assert.Equal(
             ProductDesktopInteractionForwardedInputKind.KeyboardActivation,
@@ -912,6 +1031,61 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.False(source.LastInput.IsAutoRepeat);
         Assert.True(consumption.Snapshot.IsExplicit);
         Assert.False(controller.CanRequestKeyboardInteraction);
+        var layoutRequests = new List<ProductDesktopContainerLayoutRequest>();
+        controller.BindContainerLayout(request =>
+        {
+            layoutRequests.Add(request);
+            return true;
+        });
+        Assert.True(source.ApplyBoundTitleFocus("container-1"));
+        Assert.Equal(
+            "container-1",
+            Assert.Single(surfaceFactory.Surfaces).LayoutKeyboardFocusId);
+        Assert.True(source.ApplyBoundContainerLayout(new(
+            "container-1",
+            ProductWorkspaceContainerLayoutGestureKind.Move,
+            DeltaXDip: 1,
+            DeltaYDip: 0,
+            ShiftPressed: false)));
+        Assert.Equal(
+            [
+                ProductDesktopContainerLayoutInputPhase.Begin,
+                ProductDesktopContainerLayoutInputPhase.Update,
+                ProductDesktopContainerLayoutInputPhase.Complete,
+            ],
+            layoutRequests.Select(request => request.Phase));
+        Assert.All(layoutRequests, request =>
+        {
+            Assert.Equal(7, request.ExpectedWorkspaceRevision);
+            Assert.Equal(11, request.ExpectedTopologyGeneration);
+            Assert.False(request.SnapEnabled);
+        });
+        Assert.Equal(1, layoutRequests[1].CumulativeDeltaXDip);
+        layoutRequests.Clear();
+        controller.BindContainerLayout(request =>
+        {
+            layoutRequests.Add(request);
+            return request.Phase !=
+                ProductDesktopContainerLayoutInputPhase.Complete;
+        });
+        Assert.False(source.ApplyBoundContainerLayout(new(
+            "container-1",
+            ProductWorkspaceContainerLayoutGestureKind.ResizeRight,
+            DeltaXDip: 8,
+            DeltaYDip: 0,
+            ShiftPressed: true)));
+        Assert.Equal(
+            [
+                ProductDesktopContainerLayoutInputPhase.Begin,
+                ProductDesktopContainerLayoutInputPhase.Update,
+                ProductDesktopContainerLayoutInputPhase.Complete,
+                ProductDesktopContainerLayoutInputPhase.Cancel,
+            ],
+            layoutRequests.Select(request => request.Phase));
+        Assert.True(layoutRequests[1].SnapEnabled);
+        Assert.True(layoutRequests[1].ShiftPressed);
+        Assert.True(source.ApplyBoundTitleFocus(null));
+        Assert.Null(Assert.Single(surfaceFactory.Surfaces).LayoutKeyboardFocusId);
         Assert.True(source.ApplyBoundSelection(new(
             ProductDesktopSelectionAction.MoveNext)));
         Assert.Equal(
@@ -1184,6 +1358,102 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
+    public async Task LayoutPreviewRoutesOnlyForExactDisplayRevisionAndTopology()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        _ = controller.ApplyProjectionUpdate(ReadyUpdate(8, 12));
+        RecordingSurface surface = Assert.Single(factory.Surfaces);
+        ProductContainerPlacementState placement = new()
+        {
+            DisplayKey = "display-primary",
+            XDip = 220,
+            YDip = 180,
+            WidthDip = 240,
+            HeightDip = 200,
+        };
+
+        Assert.False(controller.ApplyContainerLayoutPreview(
+            "display-primary",
+            "container-1",
+            expectedWorkspaceRevision: 7,
+            expectedTopologyGeneration: 12,
+            placement));
+        Assert.Null(surface.LayoutPreview);
+        Assert.True(controller.ApplyContainerLayoutPreview(
+            "display-primary",
+            "container-1",
+            expectedWorkspaceRevision: 8,
+            expectedTopologyGeneration: 12,
+            placement));
+        Assert.Equal(placement, surface.LayoutPreview);
+        Assert.True(controller.ApplyContainerLayoutPreview(
+            "display-primary",
+            "container-1",
+            expectedWorkspaceRevision: 8,
+            expectedTopologyGeneration: 12,
+            placement: null));
+        Assert.Null(surface.LayoutPreview);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task CrossDisplayPreviewMovesBetweenSurfacesAndClearsSource()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        ProductDesktopHostDisplayProjection source =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary",
+                new(0, 0, 1920, 1040),
+                96,
+                [CreateProjection()]);
+        ProductDesktopHostDisplayProjection target =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-secondary",
+                new(-1920, 0, 1920, 1040),
+                192,
+                [],
+                isPrimary: false,
+                workspaceIsEmpty: false);
+        _ = controller.ApplyProjectionBatch(CreateBatch(source, target));
+        ProductContainerPlacementState sameDisplay = new()
+        {
+            DisplayKey = "display-primary",
+            XDip = 100,
+            YDip = 120,
+            WidthDip = 360,
+            HeightDip = 240,
+        };
+        ProductContainerPlacementState crossDisplay = sameDisplay with
+        {
+            DisplayKey = "display-secondary",
+            XDip = 50,
+            YDip = 60,
+        };
+
+        Assert.True(controller.ApplyContainerLayoutPreview(
+            "display-primary", "container-1", 7, 11, sameDisplay));
+        Assert.Equal(sameDisplay, factory.Surfaces[0].LayoutPreview);
+        Assert.Null(factory.Surfaces[1].LayoutPreview);
+        Assert.True(controller.ApplyContainerLayoutPreview(
+            "display-primary", "container-1", 7, 11, crossDisplay));
+        Assert.Null(factory.Surfaces[0].LayoutPreview);
+        Assert.Equal(crossDisplay, factory.Surfaces[1].LayoutPreview);
+        Assert.Equal("container-1", factory.Surfaces[1].LayoutPreviewSourceId);
+        Assert.True(controller.ApplyContainerLayoutPreview(
+            "display-primary", "container-1", 7, 11, placement: null));
+        Assert.All(factory.Surfaces, surface => Assert.Null(surface.LayoutPreview));
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
     public async Task ConflictingTerminalUpdateFailsClosed()
     {
         var factory = new RecordingSurfaceFactory();
@@ -1206,6 +1476,232 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, recovered.Status);
         Assert.Equal(2, factory.Surfaces.Count);
         Assert.False(factory.Surfaces[^1].IsDisposed);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task NewPresentationGenerationUpdatesVisualsWithoutReplacingSurface()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        ProductDesktopHostProjectionUpdate loading = PresentationUpdate(
+            ProductDesktopItemVisualStatus.LoadingThumbnail,
+            presentationGeneration: 1);
+        ProductDesktopHostProjectionUpdate ready = PresentationUpdate(
+            ProductDesktopItemVisualStatus.ReadyThumbnail,
+            presentationGeneration: 2);
+
+        _ = controller.ApplyProjectionUpdate(loading);
+        nint originalHandle = Assert.Single(factory.Surfaces).Handle;
+        ProductDesktopHostLifecycleSnapshot actual =
+            controller.ApplyProjectionUpdate(ready);
+
+        RecordingSurface surface = Assert.Single(factory.Surfaces);
+        Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, actual.Status);
+        Assert.Equal(originalHandle, surface.Handle);
+        Assert.False(surface.IsDisposed);
+        Assert.Equal(1, surface.ApplyPresentationCalls);
+        Assert.Equal(
+            ProductDesktopItemVisualStatus.ReadyThumbnail,
+            surface.Projection!.Containers[0].ItemVisuals[0].Status);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ViewportPresentationReconcilesExplicitSelectionWithoutReplacingSurface()
+    {
+        var factory = new RecordingSurfaceFactory();
+        ProductDesktopHostFeatureDecision host =
+            ProductDesktopHostFeaturePolicy.Evaluate("1");
+        ProductDesktopInteractionFeatureDecision interactionFeature =
+            ProductDesktopInteractionFeaturePolicy.Evaluate(host, "1");
+        var interaction = new ProductDesktopInteractionDevelopmentController(
+            interactionFeature);
+        ProductDesktopInteractionIntentBridgeFeatureDecision bridgeFeature =
+            ProductDesktopInteractionIntentBridgePolicy.Evaluate(
+                interactionFeature,
+                "1",
+                "1");
+        var bridge = new ProductDesktopInteractionIntentPreparationBridge(
+            bridgeFeature);
+        ProductDesktopInteractionInputForwardingFeatureDecision forwardingFeature =
+            ProductDesktopInteractionInputForwardingPolicy.Evaluate(
+                bridgeFeature,
+                "1",
+                "1");
+        var forwarding = new ProductDesktopInteractionInputForwardingAdapter(
+            forwardingFeature,
+            bridge);
+        var consumption =
+            new ProductDesktopInteractionIntentConsumptionController(
+                interactionFeature,
+                forwardingFeature,
+                bridge);
+        var controller = new ProductDesktopHostLifecycleController(
+            host,
+            factory,
+            new FactoryBackedInspector(factory),
+            interaction,
+            bridge,
+            forwarding,
+            consumption,
+            new RecordingActivationSourceFactory());
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        _ = controller.ApplyProjectionUpdate(ViewportPresentationUpdate(1, 1));
+        RecordingSurface surface = Assert.Single(factory.Surfaces);
+        nint originalHandle = surface.Handle;
+        ProductDesktopInteractionInputForwardingResult prepared =
+            controller.ForwardInteractionInput(
+                new(
+                    Guid.NewGuid(),
+                    1,
+                    now,
+                    ProductDesktopInteractionForwardedInputKind
+                        .PrimaryPointerPress,
+                    "display-primary",
+                    30,
+                    40,
+                    SourceAttested: true,
+                    IsInjected: false,
+                    IsAutoRepeat: false),
+                now);
+        Assert.True(controller.ConsumePreparedInteractionIntent(
+            prepared.PreparedIntent!, now).IsExplicit);
+        Assert.True(surface.ApplyBoundSelection(
+            "container-1",
+            new(ProductDesktopSelectionAction.SelectItem,
+                ItemId: "item:2")));
+
+        ProductDesktopHostLifecycleSnapshot actual =
+            controller.ApplyProjectionUpdate(ViewportPresentationUpdate(13, 2));
+        ProductDesktopSelectionSnapshot selection = consumption.Snapshot
+            .Transaction!.Selection!;
+
+        Assert.Equal(originalHandle, surface.Handle);
+        Assert.Single(factory.Surfaces);
+        Assert.False(surface.IsDisposed);
+        Assert.Equal(1, surface.ApplyPresentationCalls);
+        Assert.True(actual.ExplicitInteractionActive);
+        Assert.Equal(ProductDesktopSelectionStatus.Reconciled,
+            selection.Status);
+        Assert.Empty(selection.SelectedItemIds);
+        Assert.Equal("item:13", selection.FocusedItemId);
+        Assert.Equal("item:13", selection.AnchorItemId);
+        Assert.Equal(2, selection.SelectionRevision);
+        Assert.Equal("item:13",
+            surface.Projection!.Containers[0].ItemIds[0]);
+        await controller.DisposeAsync();
+    }
+
+    private static ProductDesktopHostProjectionUpdate PresentationUpdate(
+        ProductDesktopItemVisualStatus status,
+        long presentationGeneration)
+    {
+        ProductDesktopItemVisualPresentation visual = new(
+            ProductDesktopItemTypeIconKind.File,
+            status,
+            status == ProductDesktopItemVisualStatus.ReadyThumbnail
+                ? ProductDesktopThumbnailFrame.Create(2, 2, 8, new byte[16])
+                : null);
+        ProductDesktopHostReadOnlyProjection container =
+            ProductDesktopHostReadOnlyProjection.Create(
+                "container-1", "方格", ["图片"], "#2457D6", 0.82,
+                false, 24, 36, 360, 240, itemVisuals: [visual]);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(0, 0, 1920, 1040), 96, [container]);
+        ProductDesktopHostProjectionBatch batch =
+            ProductDesktopHostProjectionBatch.Create(
+                7, 11, new string('C', 64), [display],
+                presentationGeneration);
+        return ProductDesktopHostProjectionUpdate.Create(
+            7,
+            11,
+            ProductDesktopHostProjectionDisposition.Ready,
+            batch,
+            presentationGeneration);
+    }
+
+    private static ProductDesktopHostProjectionUpdate ViewportPresentationUpdate(
+        int firstOrdinal,
+        long presentationGeneration)
+    {
+        string[] names = Enumerable.Range(firstOrdinal, 12)
+            .Select(index => $"项目 {index}")
+            .ToArray();
+        string[] ids = Enumerable.Range(firstOrdinal, 12)
+            .Select(index => $"item:{index}")
+            .ToArray();
+        ProductDesktopHostReadOnlyProjection container =
+            ProductDesktopHostReadOnlyProjection.Create(
+                "container-1", "方格", names, "#2457D6", 0.82,
+                false, 24, 36, 360, 360,
+                itemIds: ids,
+                totalItemCount: 24,
+                visibleItemStartOrdinal: firstOrdinal);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(0, 0, 1920, 1040), 96, [container]);
+        ProductDesktopHostProjectionBatch batch =
+            ProductDesktopHostProjectionBatch.Create(
+                7, 11, new string('C', 64), [display],
+                presentationGeneration);
+        return ProductDesktopHostProjectionUpdate.Create(
+            7,
+            11,
+            ProductDesktopHostProjectionDisposition.Ready,
+            batch,
+            presentationGeneration);
+    }
+
+    [Fact]
+    public async Task ViewportRequestKeepsContainerDisplayAndAuthorityFacts()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        ProductDesktopItemViewportRequest? captured = null;
+        controller.BindItemViewport(request =>
+        {
+            captured = request;
+            return true;
+        });
+        string[] names = Enumerable.Range(1, 24)
+            .Select(index => $"项目 {index}")
+            .ToArray();
+        ProductDesktopHostReadOnlyProjection container =
+            ProductDesktopHostReadOnlyProjection.Create(
+                "container-scroll", "滚动", names, "#2457D6", 0.82,
+                false, 24, 36, 360, 300, totalItemCount: 24);
+        ProductDesktopHostDisplayProjection display =
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary", new(0, 0, 1920, 1040), 96, [container]);
+        ProductDesktopHostProjectionBatch batch =
+            ProductDesktopHostProjectionBatch.Create(
+                8, 12, new string('D', 64), [display]);
+        _ = controller.ApplyProjectionUpdate(
+            ProductDesktopHostProjectionUpdate.Create(
+                8,
+                12,
+                ProductDesktopHostProjectionDisposition.Ready,
+                batch));
+
+        bool actual = Assert.Single(factory.Surfaces)
+            .RequestBoundViewport("container-scroll", -120);
+
+        Assert.True(actual);
+        ProductDesktopItemViewportRequest request = Assert.IsType<
+            ProductDesktopItemViewportRequest>(captured);
+        Assert.Equal("container-scroll", request.ContainerId);
+        Assert.Equal("display-primary", request.DisplayId);
+        Assert.Equal(8, request.WorkspaceRevision);
+        Assert.Equal(12, request.TopologyGeneration);
+        Assert.Equal(-120, request.WheelDelta);
         await controller.DisposeAsync();
     }
 
@@ -1281,6 +1777,57 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         Assert.Equal("display-primary", captured!.DisplayId);
         Assert.Equal(8, captured.WorkspaceRevision);
         Assert.Equal(12, captured.TopologyGeneration);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ReadyWorkspaceLayoutInputKeepsDisplayRevisionAndTopology()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        ProductDesktopContainerLayoutRequest? captured = null;
+        controller.BindContainerLayout(request =>
+        {
+            captured = request;
+            return true;
+        });
+        _ = controller.ApplyProjectionUpdate(ReadyUpdate(8, 12));
+
+        Assert.True(factory.Surfaces[0].RequestBoundContainerLayout());
+        Assert.Equal("display-primary", captured!.DisplayId);
+        Assert.Equal("container-1", captured.ContainerId);
+        Assert.Equal(8, captured.ExpectedWorkspaceRevision);
+        Assert.Equal(12, captured.ExpectedTopologyGeneration);
+        Assert.Equal(ProductDesktopContainerLayoutInputPhase.Begin, captured.Phase);
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task DragCreateKeepsExactDisplayRevisionAndPixelBounds()
+    {
+        var factory = new RecordingSurfaceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            ProductDesktopHostFeaturePolicy.Evaluate("1"),
+            factory,
+            new FactoryBackedInspector(factory));
+        ProductDesktopWorkspaceCreateRequest? captured = null;
+        controller.BindWorkspaceCreate(request =>
+        {
+            captured = request;
+            return true;
+        });
+        _ = controller.ApplyProjectionUpdate(ReadyUpdate(8, 12));
+        PixelRect requested = new(220, 180, 480, 320);
+
+        Assert.True(factory.Surfaces[0].RequestBoundWorkspaceDrag(requested));
+        Assert.Equal(ProductDesktopWorkspaceCreateInputKind.PointerDrag, captured!.Kind);
+        Assert.Equal("display-primary", captured.DisplayId);
+        Assert.Equal(8, captured.WorkspaceRevision);
+        Assert.Equal(12, captured.TopologyGeneration);
+        Assert.Equal(requested, captured.RequestedBoundsPixels);
         await controller.DisposeAsync();
     }
 
@@ -1418,6 +1965,19 @@ public sealed class ProductDesktopHostLifecycleControllerTests
         private Func<ProductDesktopSelectionRequest, bool> applySelection =
             static _ => false;
         private Func<bool> cancelSelection = static () => false;
+        private Func<ProductDesktopContainerLayoutKeyboardCommand, bool>
+            applyContainerLayout = static _ => false;
+        private Func<string?, bool> applyContainerLayoutTitleFocus =
+            static _ => false;
+        private Func<ProductDesktopContainerHeaderSurfaceInput, bool>
+            applyContainerHeaderCommand = static _ => false;
+        private Func<string, ProductDesktopContainerMenuAvailability>
+            containerMenuAvailability = static _ =>
+                ProductDesktopContainerMenuAvailability.Unavailable;
+        private Func<ProductDesktopContainerMenuSurfaceInput, bool>
+            applyContainerMenu = static _ => false;
+        private Func<ProductDesktopItemOpenSurfaceInput, bool> applyItemOpen =
+            static _ => false;
 
         public nint Handle { get; } = new(700);
 
@@ -1477,10 +2037,58 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             cancelSelection = cancel;
         }
 
+        public void BindItemOpen(
+            Func<ProductDesktopItemOpenSurfaceInput, bool> apply) =>
+            applyItemOpen = apply;
+
+        public void BindContainerLayout(
+            Func<ProductDesktopContainerLayoutKeyboardCommand, bool> apply,
+            Func<string?, bool> applyTitleFocus)
+        {
+            applyContainerLayout = apply;
+            applyContainerLayoutTitleFocus = applyTitleFocus;
+        }
+
+        public void BindContainerHeaderCommand(
+            Func<ProductDesktopContainerHeaderSurfaceInput, bool> apply)
+        {
+            applyContainerHeaderCommand = apply;
+        }
+
+        public void BindContainerMenu(
+            Func<string, ProductDesktopContainerMenuAvailability> availability,
+            Func<ProductDesktopContainerMenuSurfaceInput, bool> apply)
+        {
+            containerMenuAvailability = availability;
+            applyContainerMenu = apply;
+        }
+
         internal bool ApplyBoundSelection(
             ProductDesktopSelectionRequest request) => applySelection(request);
 
         internal bool CancelBoundSelection() => cancelSelection();
+
+        internal bool ApplyBoundContainerLayout(
+            ProductDesktopContainerLayoutKeyboardCommand command) =>
+            applyContainerLayout(command);
+
+        internal bool ApplyBoundTitleFocus(string? containerId) =>
+            applyContainerLayoutTitleFocus(containerId);
+
+        internal bool ApplyBoundContainerHeader(
+            ProductDesktopContainerHeaderSurfaceInput input) =>
+            applyContainerHeaderCommand(input);
+
+        internal ProductDesktopContainerMenuAvailability
+            GetBoundContainerMenuAvailability(string containerId) =>
+                containerMenuAvailability(containerId);
+
+        internal bool ApplyBoundContainerMenu(
+            ProductDesktopContainerMenuSurfaceInput input) =>
+            applyContainerMenu(input);
+
+        internal bool ApplyBoundItemOpen(
+            ProductDesktopItemOpenSurfaceInput input) => applyItemOpen(input);
 
         public void Dispose()
         {
@@ -1506,17 +2114,36 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             applySelection = static (_, _) => false;
         private Func<ProductDesktopWorkspaceCreateInput, bool>
             requestWorkspaceCreate = static _ => false;
+        private Func<ProductDesktopContainerLayoutSurfaceInput, bool>
+            requestContainerLayout = static _ => false;
+        private Func<ProductDesktopContainerHeaderSurfaceInput, bool>
+            requestContainerHeaderCommand = static _ => false;
+        private Func<ProductDesktopItemViewportSurfaceInput, bool>
+            requestItemViewport = static _ => false;
+        private Func<ProductDesktopItemOpenSurfaceInput, bool>
+            requestItemOpen = static _ => false;
 
         internal bool WasCreatedHidden { get; } = startHidden;
 
-        internal ProductDesktopHostDisplayProjection? Projection { get; } =
+        internal ProductDesktopHostDisplayProjection? Projection { get; private set; } =
             projection;
+
+        internal int ApplyPresentationCalls { get; private set; }
 
         internal int ApplyPassiveCalls { get; private set; }
 
         internal int ApplyExplicitCalls { get; private set; }
 
         internal int ApplyHiddenCalls { get; private set; }
+
+        internal ProductContainerPlacementState? LayoutPreview { get; private set; }
+
+        internal string? LayoutKeyboardFocusId { get; private set; }
+
+        internal string? LayoutPreviewSourceId { get; private set; }
+
+        internal ProductDesktopItemOpenFeedback? LastItemOpenFeedback
+        { get; private set; }
 
         public nint Handle { get; } = handle;
 
@@ -1578,9 +2205,141 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             Func<ProductDesktopWorkspaceCreateInput, bool> requestCreate) =>
             requestWorkspaceCreate = requestCreate;
 
+        public void BindContainerLayout(
+            Func<ProductDesktopContainerLayoutSurfaceInput, bool> requestLayout) =>
+            requestContainerLayout = requestLayout;
+
+        public void BindContainerHeaderCommand(
+            Func<ProductDesktopContainerHeaderSurfaceInput, bool> requestCommand) =>
+            requestContainerHeaderCommand = requestCommand;
+
+        public void BindItemViewport(
+            Func<ProductDesktopItemViewportSurfaceInput, bool> requestViewport) =>
+            requestItemViewport = requestViewport;
+
+        public void BindItemOpen(
+            Func<ProductDesktopItemOpenSurfaceInput, bool> requestOpen) =>
+            requestItemOpen = requestOpen;
+
+        public bool ApplyItemOpenFeedback(
+            ProductDesktopItemOpenFeedback feedback)
+        {
+            LastItemOpenFeedback = feedback;
+            return true;
+        }
+
+        public bool ApplyPresentation(
+            ProductDesktopHostDisplayProjection nextProjection)
+        {
+            ApplyPresentationCalls++;
+            Projection = nextProjection;
+            return true;
+        }
+
+        public bool ApplyContainerLayoutPreview(
+            string containerId,
+            ProductContainerPlacementState? placement)
+        {
+            if (placement is null)
+            {
+                LayoutPreview = null;
+                LayoutPreviewSourceId = null;
+                return true;
+            }
+            if (Projection is null
+                || Projection.Containers.Count(candidate => string.Equals(
+                    candidate.ContainerId,
+                    containerId,
+                    StringComparison.Ordinal)) != 1
+                || !string.Equals(
+                    placement.DisplayKey,
+                    Projection.DisplayId,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            LayoutPreview = placement;
+            LayoutPreviewSourceId = containerId;
+            return true;
+        }
+
+        public bool ApplyContainerLayoutPreview(
+            ProductDesktopHostReadOnlyProjection source,
+            ProductContainerPlacementState placement)
+        {
+            if (Projection is null
+                || !string.Equals(
+                    Projection.DisplayId,
+                    placement.DisplayKey,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+            LayoutPreview = placement;
+            LayoutPreviewSourceId = source.ContainerId;
+            return true;
+        }
+
+        public bool ApplyContainerLayoutKeyboardFocus(string? containerId)
+        {
+            if (containerId is not null
+                && (Projection is null
+                    || Projection.Containers.Count(candidate =>
+                        !candidate.IsLocked
+                        && string.Equals(
+                            candidate.ContainerId,
+                            containerId,
+                            StringComparison.Ordinal)) != 1))
+            {
+                return false;
+            }
+            LayoutKeyboardFocusId = containerId;
+            return true;
+        }
+
         internal bool RequestBoundWorkspaceCreate() =>
             requestWorkspaceCreate(new(
                 ProductDesktopWorkspaceCreateInputKind.PrimaryPointer,
+                SourceAttested: true,
+                IsInjected: false,
+                IsAutoRepeat: false));
+
+        internal bool RequestBoundViewport(
+            string containerId,
+            int wheelDelta) =>
+            requestItemViewport(new(
+                containerId,
+                wheelDelta,
+                SourceAttested: true,
+                IsInjected: false));
+
+        internal bool ApplyBoundItemOpen(
+            ProductDesktopItemOpenSurfaceInput input) => requestItemOpen(input);
+
+        internal bool RequestBoundWorkspaceDrag(PixelRect bounds) =>
+            requestWorkspaceCreate(new(
+                ProductDesktopWorkspaceCreateInputKind.PointerDrag,
+                SourceAttested: true,
+                IsInjected: false,
+                IsAutoRepeat: false,
+                bounds));
+
+        internal bool RequestBoundContainerLayout() =>
+            requestContainerLayout(new(
+                ProductDesktopContainerLayoutInputPhase.Begin,
+                ProductWorkspaceContainerLayoutGestureKind.Move,
+                "container-1",
+                0,
+                0,
+                SnapEnabled: true,
+                ShiftPressed: false,
+                ProductDesktopContainerLayoutCancellationReason.None));
+
+        internal bool RequestBoundContainerHeaderDoubleClick() =>
+            requestContainerHeaderCommand(new(
+                ProductDesktopContainerHeaderCommandKind.ToggleCollapsed,
+                "container-1",
                 SourceAttested: true,
                 IsInjected: false,
                 IsAutoRepeat: false));

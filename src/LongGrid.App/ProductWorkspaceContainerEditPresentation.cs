@@ -14,7 +14,9 @@ internal sealed record ProductWorkspaceContainerEditCandidatePresentation(
     double XDip,
     double YDip,
     double WidthDip,
-    double HeightDip)
+    double HeightDip,
+    ProductContainerTitleVisibilityPolicy TitleVisibility,
+    ProductContainerTitleDoubleClickAction TitleDoubleClickAction)
 {
     public string AccessibilityName => $"方格 {Ordinal}，{DisplayName}";
 }
@@ -40,6 +42,14 @@ internal sealed record ProductWorkspaceContainerSizeChoicePresentation(
     string DisplayName,
     double WidthDip,
     double HeightDip);
+
+internal sealed record ProductWorkspaceContainerTitleVisibilityChoicePresentation(
+    ProductContainerTitleVisibilityPolicy Policy,
+    string DisplayName);
+
+internal sealed record ProductWorkspaceContainerTitleDoubleClickChoicePresentation(
+    ProductContainerTitleDoubleClickAction Action,
+    string DisplayName);
 
 internal sealed record ProductWorkspaceContainerEditPresentation(
     long EditRevision,
@@ -69,6 +79,23 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
                 },
                 ProductWorkspaceCommitCoordinator.ResolveColor(preset)))
             .ToArray();
+
+    public static IReadOnlyList<ProductWorkspaceContainerTitleVisibilityChoicePresentation>
+        TitleVisibilityChoices
+    { get; } =
+    [
+        new(ProductContainerTitleVisibilityPolicy.Always, "始终显示"),
+        new(ProductContainerTitleVisibilityPolicy.Hover, "悬停显示"),
+        new(ProductContainerTitleVisibilityPolicy.Hidden, "始终隐藏"),
+    ];
+
+    public static IReadOnlyList<ProductWorkspaceContainerTitleDoubleClickChoicePresentation>
+        TitleDoubleClickChoices
+    { get; } =
+    [
+        new(ProductContainerTitleDoubleClickAction.ToggleCollapsed, "双击折叠 / 展开"),
+        new(ProductContainerTitleDoubleClickAction.None, "双击不执行操作"),
+    ];
 
     public static IReadOnlyList<ProductWorkspaceContainerOpacityChoicePresentation>
         OpacityChoices
@@ -164,7 +191,9 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
                 container.XDip,
                 container.YDip,
                 container.WidthDip,
-                container.HeightDip))
+                container.HeightDip,
+                container.TitleVisibility,
+                container.TitleDoubleClickAction))
             .ToArray();
         return new(
             editRevision,

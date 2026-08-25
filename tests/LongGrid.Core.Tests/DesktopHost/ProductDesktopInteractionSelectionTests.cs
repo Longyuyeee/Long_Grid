@@ -92,6 +92,72 @@ public sealed class ProductDesktopInteractionSelectionTests
     }
 
     [Fact]
+    public void DisjointViewportReconcileClearsSelectionAndFocusesFirstVisible()
+    {
+        ProductDesktopInteractionSelectionController controller = Controller();
+        ProductDesktopSelectionSnapshot selected = Apply(
+            controller,
+            Select("d"));
+
+        ProductDesktopSelectionSnapshot reconciled =
+            controller.ReconcileVisibleItems(
+                Lease(),
+                ["f", "g", "h"],
+                Now);
+
+        Assert.Equal(ProductDesktopSelectionStatus.Reconciled,
+            reconciled.Status);
+        Assert.Equal(["f", "g", "h"], reconciled.VisibleItemIds);
+        Assert.Empty(reconciled.SelectedItemIds);
+        Assert.Equal("f", reconciled.FocusedItemId);
+        Assert.Equal("f", reconciled.AnchorItemId);
+        Assert.Equal(selected.SelectionRevision + 1,
+            reconciled.SelectionRevision);
+    }
+
+    [Fact]
+    public void OverlappingViewportReconcilePreservesVisibleSelection()
+    {
+        ProductDesktopInteractionSelectionController controller = Controller();
+        ProductDesktopSelectionSnapshot selected = Apply(
+            controller,
+            Select("d"));
+
+        ProductDesktopSelectionSnapshot reconciled =
+            controller.ReconcileVisibleItems(
+                Lease(),
+                ["c", "d", "e"],
+                Now);
+
+        Assert.Equal(["d"], reconciled.SelectedItemIds);
+        Assert.Equal("d", reconciled.FocusedItemId);
+        Assert.Equal("d", reconciled.AnchorItemId);
+        Assert.Equal(selected.SelectionRevision + 1,
+            reconciled.SelectionRevision);
+    }
+
+    [Fact]
+    public void InvalidViewportReconcileFailsClosedWithoutMutation()
+    {
+        ProductDesktopInteractionSelectionController controller = Controller();
+        ProductDesktopSelectionSnapshot selected = Apply(
+            controller,
+            Select("b"));
+
+        ProductDesktopSelectionSnapshot rejected =
+            controller.ReconcileVisibleItems(
+                Lease(),
+                ["duplicate", "duplicate"],
+                Now);
+
+        Assert.Equal(ProductDesktopSelectionStatus.InvalidModel,
+            rejected.Status);
+        Assert.Equal(selected.VisibleItemIds, rejected.VisibleItemIds);
+        Assert.Equal(selected.SelectedItemIds, rejected.SelectedItemIds);
+        Assert.Equal(selected.SelectionRevision, rejected.SelectionRevision);
+    }
+
+    [Fact]
     public void ControlSelectionTogglesWithoutDroppingOtherItems()
     {
         ProductDesktopInteractionSelectionController controller = Controller();
@@ -227,6 +293,21 @@ public sealed class ProductDesktopInteractionSelectionTests
         Assert.Null(snapshot.FocusedItemId);
         Assert.Null(snapshot.AnchorItemId);
         Assert.Equal(2, snapshot.SelectionRevision);
+    }
+
+    [Fact]
+    public void SelectAllSelectsBoundedViewportAndKeepsExistingFocus()
+    {
+        ProductDesktopInteractionSelectionController controller = Controller();
+        _ = Apply(controller, Select("c"));
+
+        ProductDesktopSelectionSnapshot selected = Apply(
+            controller,
+            new(ProductDesktopSelectionAction.SelectAll));
+
+        Assert.Equal(Items, selected.SelectedItemIds);
+        Assert.Equal("c", selected.FocusedItemId);
+        Assert.Equal("c", selected.AnchorItemId);
     }
 
     [Theory]

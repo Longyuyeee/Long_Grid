@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release',
@@ -8,7 +8,8 @@ param(
 
     [switch]$NoBuild,
     [switch]$ContractOnly,
-    [switch]$DesktopHostDevelopmentOptIn
+    [switch]$DesktopHostDevelopmentOptIn,
+    [switch]$AcknowledgeKnownUiaCrashRisk
 )
 
 $ErrorActionPreference = 'Stop'
@@ -16,10 +17,16 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $xamlPath = Join-Path $projectRoot 'src\LongGrid.App\MainWindow.xaml'
 $codeBehindPath = Join-Path $projectRoot 'src\LongGrid.App\MainWindow.xaml.cs'
 $appCodePath = Join-Path $projectRoot 'src\LongGrid.App\App.xaml.cs'
+$pf002AppEvidenceCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\ProductPf002AppEvidenceSession.cs'
+$winUiRuntimeSafetyCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\ProductWinUiRuntimeSafety.cs'
 $referenceReviewCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReferenceReview.cs'
 $referenceCommitCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceReferenceCommitCoordinator.cs'
+$workspaceReducerCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceReducer.cs'
 $referencePresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceReferenceReviewPresentation.cs'
 $resolvedReferenceAddPresentationCodePath = Join-Path $projectRoot `
@@ -82,6 +89,18 @@ $desktopHostWindowBridgeCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostWindowBridge.cs'
 $desktopHostFeaturePolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopHostFeaturePolicy.cs'
+$desktopItemVisualPresentationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopItemVisualPresentation.cs'
+$desktopThumbnailRequestControllerCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopThumbnailRequestController.cs'
+$desktopItemViewportCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopItemViewport.cs'
+$desktopItemOpenCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopItemOpen.cs'
+$desktopItemOpenReferenceResolverCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopItemOpenReferenceResolver.cs'
+$boxesSettingsCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductBoxesSettings.cs'
 $desktopInteractionAdmissionCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopInteractionAdmission.cs'
 $desktopInteractionCancellationCodePath = Join-Path $projectRoot `
@@ -128,6 +147,8 @@ $desktopInputForwardingSessionLauncherCodePath = Join-Path $projectRoot `
     'eng\Start-DesktopInteractionInputForwardingSession.ps1'
 $desktopSystemSurfaceSessionLauncherCodePath = Join-Path $projectRoot `
     'eng\Start-DesktopInteractionSystemSurfaceSession.ps1'
+$desktopHostProductSessionLauncherCodePath = Join-Path $projectRoot `
+    'eng\Start-DesktopHostProductSessionMatrix.ps1'
 $desktopHostProjectionBatchCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopHostProjectionBatch.cs'
 $desktopHostProjectionUpdateCodePath = Join-Path $projectRoot `
@@ -138,8 +159,32 @@ $windowsDesktopHostWindowInspectorCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostWindowInspector.cs'
 $windowsDesktopHostReadOnlySurfaceCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostReadOnlySurface.cs'
+$desktopContainerHeaderPresentationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopContainerHeaderPresentation.cs'
+$desktopContainerHeaderCommandCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopContainerHeaderCommand.cs'
+$desktopContainerHeaderCommandControllerCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopContainerHeaderCommandController.cs'
+$desktopContainerMenuCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\DesktopHost\ProductDesktopContainerMenu.cs'
+$desktopContainerMenuNavigationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopContainerMenuNavigationController.cs'
+$desktopContainerDeleteControllerCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopContainerDeleteController.cs'
+$desktopInteractionActivationSourceCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopInteractionActivationSource.cs'
 $desktopWorkspaceCreateAdmissionCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopWorkspaceCreateAdmission.cs'
+$workspaceContainerCreationDefaultsCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceContainerCreationDefaults.cs'
+$desktopWorkspaceCreatePreviewCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductDesktopWorkspaceCreatePreview.cs'
+$desktopWorkspaceCreatePreviewPlacementCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductDesktopWorkspaceCreatePreviewPlacement.cs'
+$desktopWorkspaceCreatePublicationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductDesktopWorkspaceCreatePublication.cs'
+$desktopWorkspaceCreateInlinePreviewCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\DesktopWorkspaceCreatePreviewWindow.cs'
 $windowsDesktopHostUiaProviderCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostUiaProvider.cs'
 $verifiedWindowBatchAdapterCodePath = Join-Path $projectRoot `
@@ -192,12 +237,24 @@ function Test-SourceContract {
     [xml]$document = Get-Content -LiteralPath $xamlPath -Raw -Encoding UTF8
     $codeBehind = Get-Content -LiteralPath $codeBehindPath -Raw -Encoding UTF8
     $appCode = Get-Content -LiteralPath $appCodePath -Raw -Encoding UTF8
+    $pf002AppEvidenceCode = Get-Content `
+        -LiteralPath $pf002AppEvidenceCodePath `
+        -Raw `
+        -Encoding UTF8
+    $winUiRuntimeSafetyCode = Get-Content `
+        -LiteralPath $winUiRuntimeSafetyCodePath `
+        -Raw `
+        -Encoding UTF8
     $referenceReviewCode = Get-Content `
         -LiteralPath $referenceReviewCodePath `
         -Raw `
         -Encoding UTF8
     $referenceCommitCode = Get-Content `
         -LiteralPath $referenceCommitCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceReducerCode = Get-Content `
+        -LiteralPath $workspaceReducerCodePath `
         -Raw `
         -Encoding UTF8
     $referencePresentationCode = Get-Content `
@@ -254,6 +311,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $workspaceContainerNameIntentPolicyCode = Get-Content `
         -LiteralPath $workspaceContainerNameIntentPolicyCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopWorkspaceCreatePublicationCode = Get-Content `
+        -LiteralPath $desktopWorkspaceCreatePublicationCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceReadPresentationCode = Get-Content `
@@ -416,6 +477,10 @@ function Test-SourceContract {
         -LiteralPath $desktopSystemSurfaceSessionLauncherCodePath `
         -Raw `
         -Encoding UTF8
+    $desktopHostProductSessionLauncherCode = Get-Content `
+        -LiteralPath $desktopHostProductSessionLauncherCodePath `
+        -Raw `
+        -Encoding UTF8
     $desktopHostProjectionBatchCode = Get-Content `
         -LiteralPath $desktopHostProjectionBatchCodePath `
         -Raw `
@@ -428,6 +493,30 @@ function Test-SourceContract {
         -LiteralPath $desktopHostProjectionBuilderCodePath `
         -Raw `
         -Encoding UTF8
+    $desktopItemVisualPresentationCode = Get-Content `
+        -LiteralPath $desktopItemVisualPresentationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopThumbnailRequestControllerCode = Get-Content `
+        -LiteralPath $desktopThumbnailRequestControllerCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopItemViewportCode = Get-Content `
+        -LiteralPath $desktopItemViewportCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopItemOpenCode = Get-Content `
+        -LiteralPath $desktopItemOpenCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopItemOpenReferenceResolverCode = Get-Content `
+        -LiteralPath $desktopItemOpenReferenceResolverCodePath `
+        -Raw `
+        -Encoding UTF8
+    $boxesSettingsCode = Get-Content `
+        -LiteralPath $boxesSettingsCodePath `
+        -Raw `
+        -Encoding UTF8
     $windowsDesktopHostWindowInspectorCode = Get-Content `
         -LiteralPath $windowsDesktopHostWindowInspectorCodePath `
         -Raw `
@@ -436,8 +525,52 @@ function Test-SourceContract {
         -LiteralPath $windowsDesktopHostReadOnlySurfaceCodePath `
         -Raw `
         -Encoding UTF8
+    $desktopContainerHeaderPresentationCode = Get-Content `
+        -LiteralPath $desktopContainerHeaderPresentationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopContainerHeaderCommandCode = Get-Content `
+        -LiteralPath $desktopContainerHeaderCommandCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopContainerHeaderCommandControllerCode = Get-Content `
+        -LiteralPath $desktopContainerHeaderCommandControllerCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopContainerMenuCode = Get-Content `
+        -LiteralPath $desktopContainerMenuCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopContainerMenuNavigationCode = Get-Content `
+        -LiteralPath $desktopContainerMenuNavigationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopContainerDeleteControllerCode = Get-Content `
+        -LiteralPath $desktopContainerDeleteControllerCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopInteractionActivationSourceCode = Get-Content `
+        -LiteralPath $desktopInteractionActivationSourceCodePath `
+        -Raw `
+        -Encoding UTF8
     $desktopWorkspaceCreateAdmissionCode = Get-Content `
         -LiteralPath $desktopWorkspaceCreateAdmissionCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceContainerCreationDefaultsCode = Get-Content `
+        -LiteralPath $workspaceContainerCreationDefaultsCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopWorkspaceCreatePreviewCode = Get-Content `
+        -LiteralPath $desktopWorkspaceCreatePreviewCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopWorkspaceCreatePreviewPlacementCode = Get-Content `
+        -LiteralPath $desktopWorkspaceCreatePreviewPlacementCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopWorkspaceCreateInlinePreviewCode = Get-Content `
+        -LiteralPath $desktopWorkspaceCreateInlinePreviewCodePath `
         -Raw `
         -Encoding UTF8
     $windowsDesktopHostUiaProviderCode = Get-Content `
@@ -538,6 +671,8 @@ function Test-SourceContract {
         'DesktopHostCard',
         'BoxesEnabledToggle',
         'BoxesEnabledStatus',
+        'ThumbnailsEnabledToggle',
+        'ThumbnailsEnabledStatus',
         'CurrentModeValue',
         'FileOperationValue',
         'DesktopHostValue',
@@ -571,6 +706,8 @@ function Test-SourceContract {
         'ProductWorkspaceContainerCollapseButton',
         'ProductWorkspaceContainerColorSelector',
         'ProductWorkspaceContainerOpacitySelector',
+        'ProductWorkspaceContainerTitleVisibilitySelector',
+        'ProductWorkspaceContainerTitleDoubleClickSelector',
         'ProductWorkspaceContainerAppearanceButton',
         'ProductWorkspaceContainerPositionSelector',
         'ProductWorkspaceContainerSizeSelector',
@@ -586,6 +723,7 @@ function Test-SourceContract {
         'ProductWorkspaceResolvedReferenceRemovalSelector',
         'ProductWorkspaceResolvedReferenceSelectContainerBatchButton',
         'ProductWorkspaceResolvedReferenceRemovalClearSelectionButton',
+        'ProductWorkspaceSelectedReferenceCreateButton',
         'ProductWorkspaceResolvedReferenceReassignmentTargetSelector',
         'ProductWorkspaceResolvedReferenceRemovalButton',
         'ProductWorkspaceResolvedReferenceReassignmentButton',
@@ -600,6 +738,12 @@ function Test-SourceContract {
         'ProductWorkspaceOpenReviewButton',
         'ProductWorkspaceContainerList',
         'ProductWorkspaceViewStatus',
+        'DesktopWorkspaceCreateSafePreviewOverlay',
+        'DesktopWorkspaceCreateSafePreviewNameEditor',
+        'DesktopWorkspaceCreateSafePreviewPlacementSummary',
+        'DesktopWorkspaceCreateSafePreviewValidation',
+        'DesktopWorkspaceCreateSafePreviewCancelButton',
+        'DesktopWorkspaceCreateSafePreviewConfirmButton',
         'ProductWorkspaceReferenceReviewCard',
         'ProductWorkspaceReferenceReviewTitle',
         'ProductWorkspaceReferenceReviewDetail',
@@ -624,6 +768,29 @@ function Test-SourceContract {
     foreach ($automationId in $requiredIds) {
         $null = Get-XamlNodeByAutomationId $document $automationId
     }
+
+    Assert-Condition (
+        $pf002AppEvidenceCode.Contains(
+            'LONGGRID_PF002_APP_EVIDENCE_SESSION') -and
+        $pf002AppEvidenceCode.Contains('Path.GetTempPath()') -and
+        $pf002AppEvidenceCode.Contains('ReparsePoint') -and
+        $pf002AppEvidenceCode.Contains(
+            'Directory.EnumerateFileSystemEntries(directoryPath).Any()') -and
+        $appCode.Contains('RunPf002AppEvidenceSessionAsync') -and
+        $appCode.Contains('HidingFormalWindowFromKnownUnsafeUiaRuntime') -and
+        $appCode.Contains('ExecutingFormalLatestUndo') -and
+        $codeBehind.Contains(
+            'ExecuteProductWorkspaceLatestUndoForEvidence') -and
+        $appCode.Contains('VisibleViewPublication = "BlockedByKnownUpstream"')
+    ) 'PF-002 App evidence must remain opt-in, temporary, non-reparse, UI-thread driven, and honest about blocked visible publication.'
+    Assert-Condition (
+        $winUiRuntimeSafetyCode.Contains(
+            'Microsoft.WindowsAppRuntime.2_2.4.0.0_') -and
+        $winUiRuntimeSafetyCode.Contains('FileMajorPart == 3') -and
+        $winUiRuntimeSafetyCode.Contains('FileBuildPart == 3') -and
+        $appCode.Contains('RequiresSingleWindowPreview()') -and
+        $codeBehind.Contains('ShowDesktopWorkspaceCreateSafePreviewAsync')
+    ) 'The attested unsafe WinUI pair must fail closed to the persistent single-window preview surface.'
 
     $rootNode = Get-XamlNodeByAutomationId $document 'LongGridRoot'
     Assert-Condition ($rootNode.GetAttribute('AutomationProperties.Name').Length -gt 0) `
@@ -895,6 +1062,38 @@ function Test-SourceContract {
         -not ($workspaceContainerNameIntentPolicyCode -match `
             'Catalog|PersistedTarget|CanonicalTarget|DesktopHost|File\.|Directory\.|Save|Telemetry')
     ) 'Formal container name intent must remain a pure UI admission policy without persistence, catalog, telemetry, or desktop authority.'
+    Assert-Condition (
+        $desktopWorkspaceCreatePublicationCode.Contains(
+            'ProductDesktopWorkspaceCreatePublicationDecision.RollbackRequired') -and
+        $desktopWorkspaceCreatePublicationCode.Contains(
+            'currentWorkspaceRevision != token.WorkspaceRevision') -and
+        $desktopWorkspaceCreatePublicationCode.Contains(
+            'save.CurrentRevision != token.SaveRevision') -and
+        $appCode.Contains('desktopWorkspaceCreatePublication = new(') -and
+        $appCode.Contains('ApplyProductWorkspaceCreateSaveRollbackState(') -and
+        $codeBehind.Contains('WorkspaceCreateRolledBack:')
+    ) 'Desktop create publication must bind workspace/save revisions, compensate matching failures, and expose a finite rollback state.'
+    Assert-Condition (
+        $workspaceReducerCode.Contains(
+            'CreateContainerFromResolvedReferences(') -and
+        $workspaceReducerCode.Contains(
+            'selected.Any(item => item.Resolution !=') -and
+        $workspaceReducerCode.Contains(
+            'Items = selected.Select(Clone).ToArray()') -and
+        $referenceCommitCode.Contains(
+            'CommitSelectedReferenceContainer(') -and
+        $referenceCommitCode.Contains(
+            'itemIds.Length > MaximumResolvedReferenceBatchSize') -and
+        $referenceCommitCode.Contains(
+            'ProductWorkspaceReferenceBatchAdditionUndo.Prepare(') -and
+        $referenceCommitCode.Contains('saves.Submit(edit)') -and
+        $appCode.Contains('RequestProductWorkspaceSelectedReferenceCreate(') -and
+        $appCode.Contains('SelectedReferenceCreateStillCurrent(') -and
+        $appCode.Contains('publication.RestoreToken is { } restoreToken') -and
+        $appCode.Contains('CommitProductWorkspaceReferenceBatchAdditionUndo(') -and
+        $codeBehind.Contains(
+            'ProductWorkspaceSelectedReferenceCreateButton_Click(')
+    ) 'Selected-reference container creation must capture one bounded Long Grid selection, reuse preview, atomically move references, and restore the whole prior state on matching save failure.'
     foreach ($buttonId in @(
             'ProductWorkspaceContainerCreateButton',
             'ProductWorkspaceContainerRenameButton',
@@ -925,7 +1124,9 @@ function Test-SourceContract {
     }
     foreach ($selectorId in @(
             'ProductWorkspaceContainerColorSelector',
-            'ProductWorkspaceContainerOpacitySelector'
+            'ProductWorkspaceContainerOpacitySelector',
+            'ProductWorkspaceContainerTitleVisibilitySelector',
+            'ProductWorkspaceContainerTitleDoubleClickSelector'
         )) {
         $selectorNode = Get-XamlNodeByAutomationId $document $selectorId
         Assert-Condition (
@@ -1019,6 +1220,8 @@ function Test-SourceContract {
                 'ProductWorkspaceResolvedReferenceSelectContainerBatchButton_Click'
             ProductWorkspaceResolvedReferenceRemovalClearSelectionButton =
                 'ProductWorkspaceResolvedReferenceRemovalClearSelectionButton_Click'
+            ProductWorkspaceSelectedReferenceCreateButton =
+                'ProductWorkspaceSelectedReferenceCreateButton_Click'
         }.GetEnumerator()) {
         $node = Get-XamlNodeByAutomationId $document $entry.Key
         Assert-Condition (
@@ -1187,6 +1390,22 @@ function Test-SourceContract {
         $appCode -match 'SetUserEnabled' -and
         $codeBehind -match '_suppressBoxesEnabledChange'
     ) 'The product boxes switch must use one persisted controller and suppress programmatic toggles.'
+    $thumbnailsEnabledToggleNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ThumbnailsEnabledToggle'
+    Assert-Condition (
+        $thumbnailsEnabledToggleNode.GetAttribute(
+            'AutomationProperties.Name').Length -gt 0 -and
+        $thumbnailsEnabledToggleNode.GetAttribute('Toggled') -eq `
+            'ThumbnailsEnabledToggle_Toggled'
+    ) 'The thumbnail switch must remain named and bound to one audited handler.'
+    $thumbnailsEnabledStatusNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ThumbnailsEnabledStatus'
+    Assert-Condition (
+        $thumbnailsEnabledStatusNode.GetAttribute(
+            'AutomationProperties.LiveSetting') -eq 'Polite'
+    ) 'Thumbnail settings changes and failures must be politely announced.'
     Assert-Condition (
         $desktopInteractionAdmissionCode -match `
             'LONGGRID_ENABLE_DESKTOP_INTERACTION' -and
@@ -1723,6 +1942,23 @@ function Test-SourceContract {
     ) `
         'B6c7 must combine public system-surface events with authoritative read-only topology fingerprints, invalidate and hide on unsafe generation, require stabilized joint recovery, retain manual evidence, and keep product Explicit and files disconnected.'
     Assert-Condition (
+        $desktopHostProductSessionLauncherCode -match `
+            "'PF003D5-01'.*'PF003D5-02'.*'PF003D5-03'.*'PF003D5-04'.*'PF003D5-05'" -and
+        $desktopHostProductSessionLauncherCode -match `
+            'physicalDeviceInputAutomaticallyVerified\s*=\s*\$false' -and
+        $desktopHostProductSessionLauncherCode -match `
+            'visibleScreenshotAutomaticallyCaptured\s*=\s*\$false' -and
+        $desktopHostProductSessionLauncherCode -match `
+            'touchOrPenRequiredOnlyWhenAvailable\s*=\s*\$true' -and
+        $desktopHostProductSessionLauncherCode -match `
+            'sendsSyntheticInput\s*=\s*\$false' -and
+        $desktopHostProductSessionLauncherCode -match `
+            'finalResultStatus\s*=\s*''PendingManualEvidence''' -and
+        -not ($desktopHostProductSessionLauncherCode -match `
+            'SendInput\(|SetDisplayConfig|ChangeDisplaySettings|Start-Process|Stop-Process')
+    ) `
+        'PF-003D5 manual launcher must admit all five real-device scenarios while sending no input, changing no display state, capturing no screenshot, and retaining PendingManualEvidence.'
+    Assert-Condition (
         $desktopHostLifecycleControllerCode -match 'DisabledBySafetyPolicy' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingHost' -and
         $desktopHostLifecycleControllerCode -match 'AwaitingWorkspace' -and
@@ -1812,6 +2048,241 @@ function Test-SourceContract {
         $windowsDesktopHostUiaProviderCode -match 'IsInteractiveItem'
     ) `
         'The A5/M2 product surface must expose bounded UIA Fragments, keep Passive item patterns unavailable, gate root/item selection to Explicit, and attest non-topmost behavior.'
+    Assert-Condition (
+        $desktopItemOpenCode -match 'KeyboardEnter' -and
+        $desktopItemOpenCode -match 'PointerDoubleClick' -and
+        $desktopItemOpenCode -match 'AssistiveInvoke' -and
+        $desktopItemOpenCode -match 'ShellExecuteEx' -and
+        $desktopItemOpenCode -match 'ReparsePointRejected' -and
+        $desktopItemOpenCode -match 'File\.GetAttributes' -and
+        $desktopHostLifecycleControllerCode -match 'BindItemOpen' -and
+        $desktopInteractionActivationSourceCode -match 'KeyboardEnter' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'PointerDoubleClick' -and
+        $windowsDesktopHostUiaProviderCode -match 'requestItemOpen' -and
+        $windowsDesktopHostUiaProviderCode -match 'InvokeItem'
+    ) `
+        'PF-006B1 must converge Enter, item double-click, and UIA Invoke on one authority-safe File/Folder ShellExecuteEx boundary while fail-closing reparse targets.'
+    Assert-Condition (
+        $desktopItemOpenReferenceResolverCode -match 'IShellLinkW' -and
+        $desktopItemOpenReferenceResolverCode -match 'IPersistFile' -and
+        $desktopItemOpenReferenceResolverCode -match `
+            'MaximumShortcutBytes\s*=\s*1024\s*\*\s*1024' -and
+        $desktopItemOpenReferenceResolverCode -match `
+            'MaximumInternetShortcutBytes\s*=\s*64\s*\*\s*1024' -and
+        $desktopItemOpenReferenceResolverCode -match 'UTF8Encoding' -and
+        $desktopItemOpenReferenceResolverCode -match 'Encoding\.Unicode' -and
+        $desktopItemOpenReferenceResolverCode -match 'UriSchemeHttp' -and
+        $desktopItemOpenReferenceResolverCode -match 'UriSchemeHttps' -and
+        $desktopItemOpenReferenceResolverCode -match 'ProtocolRejected' -and
+        $desktopItemOpenReferenceResolverCode -match 'SHA256\.HashData' -and
+        $desktopItemOpenReferenceResolverCode -match `
+            'CryptographicOperations\.FixedTimeEquals' -and
+        $desktopItemOpenReferenceResolverCode -match 'FileAttributes\.ReparsePoint' -and
+        $desktopItemOpenCode -match 'UserMessage' -and
+        $desktopHostLifecycleControllerCode -match `
+            'PublishItemOpenFeedbackUnsafe' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'ApplyItemOpenFeedback' -and
+        $windowsDesktopHostUiaProviderCode -match `
+            'PublishItemOpenFeedback'
+    ) `
+        'PF-006B2A must bound real Shell Link and InternetShortcut parsing, allow only HTTP/HTTPS URLs, recheck references, and publish finite path-free HWND/UIA feedback.'
+    Assert-Condition (
+        $boxesSettingsCode -match `
+            'JsonPropertyName\("openItemsWithSingleClick"\)' -and
+        $boxesSettingsCode -match 'OpenItemsWithSingleClick' -and
+        $appCode -match 'ChangeSingleClickOpenAsync' -and
+        $appCode -match 'ApplyItemOpenPolicy' -and
+        $desktopItemOpenCode -match 'PointerSingleClick' -and
+        $desktopHostLifecycleControllerCode -match 'ApplyItemOpenPolicy' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'openItemsWithSingleClick' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'SubmitPrimaryPointerForEvidence' -and
+        $codeBehind -match 'ApplySingleClickOpenState'
+    ) `
+        'PF-006B2B1 must default single-click open off, persist only explicit opt-in, flow policy to current/new HWND surfaces, select before open, and preserve modified-click selection.'
+    Assert-Condition (
+        $desktopItemOpenCode -match 'FeedbackRetry' -and
+        $desktopItemOpenCode -match 'FeedbackLocateInExplorer' -and
+        $desktopItemOpenCode -match 'TryResolveExplorerLocation' -and
+        $desktopItemOpenCode -match 'ExplorerParentUnsafe' -and
+        $desktopItemOpenCode -match `
+            'Environment\.SpecialFolder\.Windows' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'HandleItemOpenFeedbackContextMenu' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'GetCurrentInputMessageSource' -and
+        $desktopHostLifecycleControllerCode -match `
+            'CanLocateInExplorer'
+    ) `
+        'PF-006B2B2 must expose finite native retry/locate actions, revalidate current authority, use absolute system Explorer only for a present non-reparse parent, and keep paths outside HWND/UIA feedback.'
+    Assert-Condition (
+        $desktopContainerHeaderPresentationCode -match 'VisualTitle' -and
+        $desktopContainerHeaderPresentationCode -match 'VisualStatus' -and
+        $desktopContainerHeaderPresentationCode -match 'AccessibilityName' -and
+        $desktopContainerHeaderPresentationCode -match 'AccessibilityStatus' -and
+        $desktopContainerHeaderPresentationCode -match 'SafeReferences' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'header\.VisualTitle' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'header\.VisualStatus' -and
+        $windowsDesktopHostUiaProviderCode -match `
+            'projection\.Header\.AccessibilityName' -and
+        $windowsDesktopHostUiaProviderCode -match `
+            'projection\.Header\.AccessibilityStatus'
+    ) `
+        'PF-004A must render one bounded title/status contract and expose the same state to UIA.'
+    Assert-Condition (
+        $desktopHostProjectionBuilderCode -match `
+            'ProductDesktopItemVisualPresentation\.Create' -and
+        $desktopItemVisualPresentationCode -match `
+            'ReadyTypeIcon[\s\S]*LoadingThumbnail[\s\S]*ReadyThumbnail' -and
+        $desktopItemVisualPresentationCode -match `
+            'Offline[\s\S]*TargetChanged[\s\S]*Ambiguous[\s\S]*Unsupported[\s\S]*AccessDenied[\s\S]*FailedFallback' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'SHGetStockIconInfo' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'DrawIconEx' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'DestroyIcon' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'StockIconWarning' -and
+        $windowsDesktopHostUiaProviderCode -match `
+            'ItemVisuals\[itemIndex\]\.AccessibilityName\(name\)'
+    ) `
+        'PF-005A must project finite item visual states, draw released Windows Shell stock icons, and expose only privacy-safe UIA names.'
+    Assert-Condition (
+        $desktopThumbnailRequestControllerCode -match `
+            'MaximumVisibleRequests\s*=\s*12' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'MaximumCacheEntries\s*=\s*64' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'TimeSpan\.FromMilliseconds\(1500\)' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'if \(!enabled\)[\s\S]{0,300}StopRuntime\(\)' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'file\.LastWriteTimeUtc\.Ticks' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'SHA256\.HashData' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'string SafeIdentity' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'file\.Attributes & FileAttributes\.ReparsePoint' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'ReadyThumbnail' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'FailedFallback' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'IsZeroCapabilityAppContainer' -and
+        $desktopThumbnailRequestControllerCode -match `
+            'UsesKillOnJobClose'
+    ) `
+        'PF-005B1/PF-005C must keep thumbnail work lazy, 12-request bounded, version/theme cached, 1500 ms limited, isolation-attested, and finite-fallback safe.'
+    Assert-Condition (
+        $boxesSettingsCode -match `
+            'JsonPropertyName\("thumbnailsEnabled"\)' -and
+        $codeBehind -match 'ThumbnailsEnabledChangeRequested' -and
+        $appCode -match 'ChangeThumbnailsAsync' -and
+        $appCode -match `
+            'ProductDesktopThumbnailCandidateBuilder\.Build' -and
+        $appCode -match `
+            'ProductDesktopThumbnailRefreshAdmission\.CanPublish' -and
+        $appCode -match 'desktopThumbnailRefreshGeneration' -and
+        $desktopHostProjectionBuilderCode -match 'LoadingThumbnail' -and
+        $desktopHostProjectionBuilderCode -match `
+            'Status = ProductDesktopItemVisualStatus\.ReadyThumbnail' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'StretchDIBits' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'SourceCopy' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'ProductDesktopThumbnailFrame'
+    ) `
+        'PF-005B2 must persist its switch, derive authoritative candidates, reject stale facts, project finite states, and draw bounded BGRA pixels on the HWND.'
+    Assert-Condition (
+        $desktopHostProjectionBatchCode -match 'PresentationGeneration' -and
+        $desktopHostLifecycleControllerCode -match `
+            'ApplyPresentationUpdateUnsafe' -and
+        $desktopHostLifecycleControllerCode -match `
+            'PresentationStructuresEqual' -and
+        $desktopItemViewportCode -match `
+            'ProductDesktopItemViewportPolicy' -and
+        $desktopItemViewportCode -match `
+            'MaximumVisibleItems' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'WmMouseWheel' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'BindItemViewport' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'ApplyPresentation' -and
+        $appCode -match 'desktopItemViewportStarts' -and
+        $appCode -match 'RequestDesktopItemViewport' -and
+        $appCode -match 'BindItemViewport'
+    ) `
+        'PF-005C must sequence presentation-only updates in place and page 13-500 items through an authority-stamped 12-item viewport.'
+    Assert-Condition (
+        $desktopContainerHeaderCommandCode -match 'ToggleCollapsed' -and
+        $desktopContainerHeaderCommandCode -match 'ToggleLocked' -and
+        $desktopContainerHeaderCommandCode -match 'ExpectedWorkspaceRevision' -and
+        $desktopContainerHeaderCommandCode -match 'ExpectedTopologyGeneration' -and
+        $desktopInteractionActivationSourceCode -match `
+            'ActivationButtonSizeDip\s*=\s*32' -and
+        $desktopInteractionActivationSourceCode -match `
+            'BindContainerHeaderCommand' -and
+        $desktopInteractionActivationSourceCode -match `
+            'IsInjected[\s\S]*IsAutoRepeat' -and
+        $desktopHostLifecycleControllerCode -match `
+            'BindContainerHeaderCommand' -and
+        $desktopContainerHeaderCommandControllerCode -match `
+            'ProductWorkspaceCommitCoordinator' -and
+        $desktopContainerHeaderCommandControllerCode -match `
+            'ProductWorkspaceSaveStatus\.Failed' -and
+        $desktopContainerHeaderCommandControllerCode -match `
+            'Compensated' -and
+        $appCode -match 'ProductDesktopContainerHeaderCommandController' -and
+        $appCode -match 'ObserveSave'
+    ) `
+        'PF-004B must expose finite 32 DIP header commands, stamp source/revision/topology facts, use the formal commit/save chain, and compensate failed persistence.'
+    Assert-Condition (
+        $desktopContainerMenuCode -match 'OpenRename' -and
+        $desktopContainerMenuCode -match 'OpenAppearance' -and
+        $desktopContainerMenuCode -match 'OpenSort' -and
+        $desktopContainerMenuCode -match 'ExpectedWorkspaceRevision' -and
+        $desktopContainerMenuCode -match 'ExpectedTopologyGeneration' -and
+        $desktopContainerMenuNavigationCode -match `
+            'ProductWorkspaceSaveStatus\.Failed' -and
+        $desktopContainerMenuNavigationCode -match 'IsInjected' -and
+        $desktopContainerMenuNavigationCode -match 'IsAutoRepeat' -and
+        $desktopInteractionActivationSourceCode -match 'CreatePopupMenu' -and
+        $desktopInteractionActivationSourceCode -match 'TrackPopupMenuEx' -and
+        $desktopInteractionActivationSourceCode -match `
+            '创建规则（后续功能）' -and
+        $desktopHostLifecycleControllerCode -match 'BindContainerMenu' -and
+        $appCode -match 'RequestDesktopContainerMenuNavigation' -and
+        $codeBehind -match 'OpenProductWorkspaceContainerMenuTarget' -and
+        $codeBehind -match 'Changed=False:DesktopFilesChanged=False'
+    ) `
+        'PF-004C must expose a finite native menu, pre-disable unsafe/future actions, stamp source and generation facts, and navigate the unique control center without writing configuration.'
+    Assert-Condition (
+        $desktopContainerMenuCode -match `
+            'DeleteContainerConfiguration' -and
+        $desktopContainerMenuCode -match `
+            'CanDeleteContainerConfiguration' -and
+        $desktopInteractionActivationSourceCode -match `
+            'MenuDeleteCommand' -and
+        $desktopInteractionActivationSourceCode -match `
+            '删除方格配置…' -and
+        $desktopContainerDeleteControllerCode -match `
+            'CommitContainerRemovalUndo' -and
+        $desktopContainerDeleteControllerCode -match `
+            'ProductWorkspaceSaveStatus\.Failed' -and
+        $desktopContainerDeleteControllerCode -match 'Compensated' -and
+        $codeBehind -match `
+            'DesktopContainerDeleteConfirmationDialog' -and
+        $codeBehind -match `
+            'DefaultButton\s*=\s*ContentDialogButton\.Close' -and
+        $codeBehind -match `
+            '真实桌面文件不会被删除、移动或重命名' -and
+        $appCode -match `
+            'HandleDesktopContainerMenuRequestAsync' -and
+        $appCode -match `
+            'ProductDesktopContainerMenuNavigationController\.Handle' -and
+        $appCode -match `
+            'desktopContainerDeletes\.CommitConfirmed' -and
+        $latestUndoPresentationCode -match `
+            'ProductWorkspaceLatestUndoKind\.ContainerRemoval'
+    ) `
+        'PF-004D must bind delete confirmation to current facts, default to cancel, preserve desktop files, compensate failed persistence, and expose unified undo.'
     Assert-Condition (
         ([regex]::Matches(
             $appCode,
@@ -2195,7 +2666,7 @@ function Test-SourceContract {
         $workspaceReadPresentationCode -match 'IsKnownEmptyWorkspace' -and
         $codeBehind -match 'ProductWorkspaceEmptyCreateShortcutPolicy\.Evaluate' -and
         $codeBehind -match 'ApplyProductWorkspaceReadModel[\s\S]{0,1200}UpdateProductWorkspaceEmptyCreateShortcut' -and
-        $codeBehind -match 'ApplyProductWorkspaceContainerEditor[\s\S]{0,2400}UpdateProductWorkspaceEmptyCreateShortcut' -and
+        $codeBehind -match 'ApplyProductWorkspaceContainerEditor[\s\S]{0,4000}UpdateProductWorkspaceEmptyCreateShortcut' -and
         $codeBehind -match 'ProductWorkspaceContainerNameEditor\.Focus\(\s*FocusState\.Programmatic\)' -and
         $codeBehind -match 'WorkspaceEmptyCreateShortcutOpened' -and
         $codeBehind -match 'Changed=False:DesktopFilesChanged=False'
@@ -2229,6 +2700,20 @@ function Test-SourceContract {
         $desktopWorkspaceCreateAdmissionCode -match 'AutoRepeat' -and
         $desktopWorkspaceCreateAdmissionCode -match 'StaleWorkspace' -and
         $desktopWorkspaceCreateAdmissionCode -match 'StaleTopology' -and
+        $desktopWorkspaceCreateAdmissionCode -match 'PointerDrag' -and
+        $desktopWorkspaceCreateAdmissionCode -match 'RequestedBoundsPixels' -and
+        $workspaceContainerCreationDefaultsCode -match `
+            'MinimumDraggedWidthDip\s*=\s*160' -and
+        $workspaceContainerCreationDefaultsCode -match `
+            'MinimumDraggedHeightDip\s*=\s*120' -and
+        $workspaceContainerCreationDefaultsCode -match `
+            'requested\.Intersect\(workArea\)' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'WmMouseMove' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'WmLButtonUp' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'SetCapture' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'ReleaseCapture' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'SubmitWorkspaceCreateDragInput' -and
         $windowsDesktopHostUiaProviderCode -match `
             'LongGrid\.DesktopHost\.EmptyCreateButton' -and
         $windowsDesktopHostUiaProviderCode -match `
@@ -2238,10 +2723,61 @@ function Test-SourceContract {
         $appCode -match `
             'BindWorkspaceCreate\(\s*RequestDesktopWorkspaceCreate\)' -and
         $appCode -match `
+            'BindContainerLayout\(\s*RequestDesktopContainerLayout\)' -and
+        $appCode -match `
+            'private bool RequestDesktopContainerLayout[\s\S]{0,5000}desktopContainerLayoutInteractions\.Handle[\s\S]{0,5000}ApplyContainerLayoutPreview' -and
+        $desktopHostLifecycleControllerCode -match `
+            'ApplyContainerLayoutPreview' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'containerLayoutPreview' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'ApplyContainerLayoutPreview\(\s*ProductDesktopHostReadOnlyProjection source' -and
+        $desktopHostLifecycleControllerCode -match `
+            'placement\.DisplayKey[\s\S]{0,1200}ApplyContainerLayoutPreview' -and
+        $appCode -match `
+            'DrivingFormalHardwareCrossDisplayMove' -and
+        $appCode -match `
             'RequestDesktopWorkspaceCreate[\s\S]{0,2400}ProductDesktopHostLifecycleStatus\.ReadyReadOnly' -and
         $appCode -match `
-            'RequestDesktopWorkspaceCreate[\s\S]{0,2800}CommitProductWorkspaceContainerActionCore'
-    ) 'DesktopHost workspace-create entries must keep bounded non-activating surfaces before and after the first box, normalize pointer/context-menu/hotkey/UIA input, reject unsafe or stale requests, and use the unified configuration commit path.'
+            'RequestDesktopWorkspaceCreate[\s\S]{0,2200}RunDesktopWorkspaceCreatePreviewAsync' -and
+        $appCode -match `
+            'RunDesktopWorkspaceCreatePreviewAsync[\s\S]{0,12000}DesktopWorkspaceCreatePreviewWindow[\s\S]{0,12000}ShowDesktopWorkspaceCreatePreviewAsync[\s\S]{0,12000}CommitProductWorkspaceContainerActionCore' -and
+        $appCode -match `
+            'ProductDesktopWorkspaceCreatePreviewPlacement\.ResolveWindowBounds' -and
+        $appCode -match `
+            'request\.RequestedBoundsPixels' -and
+        $appCode -match `
+            'createBoundsPixels:\s*request\.RequestedBoundsPixels' -and
+        $desktopWorkspaceCreatePreviewPlacementCode -match `
+            'workArea\.Left\s*\+\s*relativeLeft' -and
+        $desktopWorkspaceCreatePreviewPlacementCode -match `
+            'workArea\.Top\s*\+\s*relativeTop' -and
+        $desktopWorkspaceCreateInlinePreviewCode -match `
+            'DesktopWorkspaceCreateInlinePreviewRoot' -and
+        $desktopWorkspaceCreateInlinePreviewCode -match `
+            'DesktopWorkspaceCreateInlinePreviewNameEditor' -and
+        $desktopWorkspaceCreateInlinePreviewCode -match `
+            'DesktopWorkspaceCreateInlinePreviewConfirmButton' -and
+        $desktopWorkspaceCreateInlinePreviewCode -match `
+            'DesktopWorkspaceCreateInlinePreviewCancelButton' -and
+        $desktopWorkspaceCreateInlinePreviewCode -match `
+            'IsShownInSwitchers\s*=\s*false' -and
+        $desktopWorkspaceCreateInlinePreviewCode -match `
+            'SetBorderAndTitleBar\(false,\s*false\)' -and
+        $desktopWorkspaceCreateInlinePreviewCode -match `
+            'WindowActivationState\.Deactivated' -and
+        $codeBehind -match 'DesktopWorkspaceCreatePreviewDialog' -and
+        $codeBehind -match 'DesktopWorkspaceCreatePreviewNameEditor' -and
+        $codeBehind -match 'DesktopWorkspaceCreatePreviewPlacementSummary' -and
+        $codeBehind -match 'DesktopWorkspaceCreatePreviewValidation' -and
+        $codeBehind -match 'IsPrimaryButtonEnabled\s*=\s*current\.CanSubmit' -and
+        $desktopWorkspaceCreatePreviewCode -match 'Editing' -and
+        $desktopWorkspaceCreatePreviewCode -match 'Submitting' -and
+        $desktopWorkspaceCreatePreviewCode -match 'Cancelled' -and
+        $desktopWorkspaceCreatePreviewCode -match 'StaleWorkspace' -and
+        $desktopWorkspaceCreatePreviewCode -match 'StaleTopology' -and
+        $desktopWorkspaceCreatePreviewCode -match 'DuplicateName'
+    ) 'DesktopHost workspace-create entries must keep bounded non-activating inputs, open one editable preview before the unified commit, expose finite UIA validation, and reject unsafe, invalid, cancelled, or stale sessions.'
     $workspaceOpenReviewNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceOpenReviewButton'
@@ -2399,8 +2935,30 @@ function Test-SourceContract {
         $codeBehind -match 'ProductWorkspaceHealthFilterSelector_SelectionChanged' -and
         -not ($codeBehind -match 'ProductWorkspaceRead.*(State|CatalogEntry|PersistedTarget|CanonicalTarget)')
     ) 'MainWindow must filter only the presentation contract, never workspace identity state.'
+    $selectedReferenceContainerCommitStart = $referenceCommitCode.IndexOf(
+        'public ProductWorkspaceSelectedReferenceContainerCommitResult',
+        [System.StringComparison]::Ordinal)
+    $selectedReferenceContainerCommitEnd = if ($selectedReferenceContainerCommitStart -ge 0) {
+        $referenceCommitCode.IndexOf(
+            '    public ',
+            $selectedReferenceContainerCommitStart + 1,
+            [System.StringComparison]::Ordinal)
+    }
+    else {
+        -1
+    }
+    $selectedReferenceContainerCommitCode = if (
+        $selectedReferenceContainerCommitStart -ge 0 -and
+        $selectedReferenceContainerCommitEnd -gt $selectedReferenceContainerCommitStart) {
+        $referenceCommitCode.Substring(
+            $selectedReferenceContainerCommitStart,
+            $selectedReferenceContainerCommitEnd - $selectedReferenceContainerCommitStart)
+    }
+    else {
+        ''
+    }
     Assert-Condition (
-        ([regex]::Matches($referenceCommitCode, 'saves\.Submit\(').Count -eq 13) -and
+        ([regex]::Matches($selectedReferenceContainerCommitCode, 'saves\.Submit\(edit\)').Count -eq 1) -and
         $referenceCommitCode -match 'editRevision\s*=\s*checked\(editRevision\s*\+\s*1\)' -and
         $referenceCommitCode -match 'ProductWorkspaceReferenceGate\.Evaluate' -and
         $referenceCommitCode -match 'ProductWorkspaceConfigurationProjector\.Project' -and
@@ -2478,7 +3036,7 @@ function Test-SourceContract {
         $codeBehind -match 'AutomationEvents\.LiveRegionChanged' -and
         ([regex]::Matches(
                 $codeBehind,
-                'RaiseLiveRegionChanged\(ProductWorkspaceResolvedReference(Add|Removal)Status\)').Count -eq 2) -and
+                'RaiseLiveRegionChanged\(ProductWorkspaceResolvedReference(Add|Removal)Status\)').Count -ge 2) -and
         $codeBehind -match 'ResolvedReferenceBatchAddSelection:Count=0' -and
         $codeBehind -match 'ResolvedReferenceBatchRemovalSelection:Count=0'
     ) 'Batch selection changes must publish one explicit live-region event and clear stale empty-selection state.'
@@ -2860,19 +3418,22 @@ function Test-SourceContract {
         configurationRepair = 'confirmed-recovery-bounded-import-export-anonymous-interaction-evidence-and-single-removal'
         configurationShutdownDrain = 'controller-owned-bounded-explicit-edit-retry'
         productDesktopCatalog = 'physical-read-only-generation-latest-authoritative-only'
+        productDesktopItemVisuals = 'windows-shell-stock-icons-finite-resolution-status-privacy-safe-uia-500-first-surface-bounded-20dip-100-to-400-percent'
+        productDesktopThumbnailRequests = 'lazy-zero-disabled-12-visible-64-cache-version-size-theme-1500ms-circuit-breaker-appcontainer-job-finite-fallback'
+        productDesktopThumbnailPresentation = 'persistent-switch-authoritative-candidates-loading-ready-fallback-stale-rejected-real-hwnd-bgra-1500ms-success-inplace-generation-500-item-viewport'
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-review-shortcut-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-drag-bounds-inline-preview-fallback-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
         productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-single-undo'
-        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-placement-remove-single-undo-config-only'
+        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-title-visibility-title-double-click-placement-remove-unified-edit-undo-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only-desktop-layout-session-candidate-publish-compensate-keyboard-title-focus-transaction-cross-display-mixed-dpi'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'
-                    productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-invoke-no-file-operations'
+                    productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-title-layout-select-then-authority-safe-file-folder-lnk-http-https-open-finite-path-free-feedback-default-double-click-persisted-single-click-opt-in-authoritative-retry-safe-explorer-locate-zero-file-mutation'
                     readOnlyBoundary = 'explicit-reference-config-writes-no-desktop-file-mutations'
     }
 }
@@ -3022,6 +3583,31 @@ function Wait-UiaElementOnscreen {
 function Test-LiveUi {
     if ($env:OS -ne 'Windows_NT') {
         throw 'The live Long Grid UI smoke requires Windows.'
+    }
+
+    $runtimePreflightPath = Join-Path $PSScriptRoot `
+        'Test-LongGridWinUiUiaRuntime.ps1'
+    $runtimePreflightJson = & powershell `
+        -NoProfile `
+        -ExecutionPolicy Bypass `
+        -File $runtimePreflightPath
+    Assert-Condition ($LASTEXITCODE -eq 0) `
+        'The WinUI cross-process UIA runtime preflight failed to execute.'
+    $runtimePreflight = $runtimePreflightJson | ConvertFrom-Json
+    if (
+        $runtimePreflight.outcome -eq 'BlockedByKnownUpstream' -and
+        -not $AcknowledgeKnownUiaCrashRisk)
+    {
+        throw (
+            'Live cross-process UIA was blocked before application launch: ' +
+            'WindowsAppRuntime ' +
+            $runtimePreflight.actual.runtimePackageVersion +
+            ' / Microsoft.UI.Xaml.dll ' +
+            $runtimePreflight.actual.xamlFileVersion +
+            ' matches the audited RPC_E_WRONG_THREAD fail-fast pair. ' +
+            'Use -ContractOnly, install an upstream-fixed stable runtime, or ' +
+            'explicitly pass -AcknowledgeKnownUiaCrashRisk in a disposable ' +
+            'diagnostic session.')
     }
 
     if (-not $NoBuild) {

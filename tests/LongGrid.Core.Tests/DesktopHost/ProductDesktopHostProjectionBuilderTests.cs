@@ -60,6 +60,15 @@ public sealed class ProductDesktopHostProjectionBuilderTests
         Assert.Equal(
             ["item:1", "item:2"],
             batch.Displays[0].Containers[0].ItemIds);
+        Assert.All(
+            batch.Displays[0].Containers[0].ItemVisuals,
+            visual =>
+            {
+                Assert.Equal(ProductDesktopItemTypeIconKind.File, visual.TypeIcon);
+                Assert.Equal(
+                    ProductDesktopItemVisualStatus.ReadyTypeIcon,
+                    visual.Status);
+            });
         Assert.DoesNotContain(
             batch.Displays[0].Containers[0].ItemIds,
             id => id.Contains("persisted", StringComparison.Ordinal));
@@ -120,6 +129,113 @@ public sealed class ProductDesktopHostProjectionBuilderTests
             read,
             topology,
             workspaceRevision: 14));
+    }
+
+    [Fact]
+    public void ThumbnailResultsProjectLoadingReadyAndFiniteFallbackStates()
+    {
+        ProductWorkspaceState state = CreateState();
+        ProductWorkspaceReadSnapshot read =
+            ProductWorkspaceReadModel.Create(state).Snapshot!;
+        var topology = new ProductDisplayTopologySnapshot(
+            ProductDisplayTopologyStatus.Ready,
+            9,
+            [Primary, Secondary],
+            2,
+            2,
+            1);
+        ProductDesktopThumbnailFrame frame = ProductDesktopThumbnailFrame.Create(
+            2,
+            2,
+            8,
+            new byte[16]);
+        var results = new Dictionary<string, ProductDesktopThumbnailResult>
+        {
+            [ProductDesktopThumbnailItemKey.Create("container-fallback", 1)] =
+                new("loading", ProductDesktopThumbnailStatus.LoadingThumbnail,
+                    false, null),
+            [ProductDesktopThumbnailItemKey.Create("container-fallback", 2)] =
+                new("ready", ProductDesktopThumbnailStatus.ReadyThumbnail,
+                    false, frame),
+        };
+
+        ProductDesktopHostProjectionBatch batch = Assert.IsType<
+            ProductDesktopHostProjectionBatch>(
+                ProductDesktopHostProjectionBuilder.Build(
+                    state, read, topology, 14, results));
+        ProductDesktopHostReadOnlyProjection container =
+            batch.Displays[0].Containers[0];
+
+        Assert.Equal(
+            ProductDesktopItemVisualStatus.LoadingThumbnail,
+            container.ItemVisuals[0].Status);
+        Assert.Equal(
+            ProductDesktopItemVisualStatus.ReadyThumbnail,
+            container.ItemVisuals[1].Status);
+        Assert.Same(frame, container.ItemVisuals[1].Thumbnail);
+
+        results[ProductDesktopThumbnailItemKey.Create("container-fallback", 1)] =
+            new("failed", ProductDesktopThumbnailStatus.Unsupported, false, null);
+        ProductDesktopHostProjectionBatch fallbackBatch = Assert.IsType<
+            ProductDesktopHostProjectionBatch>(
+                ProductDesktopHostProjectionBuilder.Build(
+                    state, read, topology, 14, results));
+        Assert.Equal(
+            ProductDesktopItemVisualStatus.FailedFallback,
+            fallbackBatch.Displays[0].Containers[0].ItemVisuals[0].Status);
+    }
+
+    [Fact]
+    public void FiveHundredItemViewportProjectsOnlyRequestedLastTwelveItems()
+    {
+        ProductItemReferenceState[] items = Enumerable.Range(1, 500)
+            .Select(index => CreateResolvedItem(
+                $"persisted-{index}",
+                $"项目 {index}"))
+            .ToArray();
+        ProductWorkspaceState state = CreateState() with
+        {
+            Containers =
+            [
+                CreateContainer(
+                    "container-fallback",
+                    "unknown-display",
+                    24,
+                    items: items),
+            ],
+        };
+        ProductWorkspaceReadSnapshot read =
+            ProductWorkspaceReadModel.Create(state).Snapshot!;
+        var topology = new ProductDisplayTopologySnapshot(
+            ProductDisplayTopologyStatus.Ready,
+            9,
+            [Primary],
+            1,
+            1,
+            1);
+        var viewports = new Dictionary<string, int>
+        {
+            ["container-fallback"] = 488,
+        };
+
+        ProductDesktopHostProjectionBatch batch = Assert.IsType<
+            ProductDesktopHostProjectionBatch>(
+                ProductDesktopHostProjectionBuilder.Build(
+                    state,
+                    read,
+                    topology,
+                    14,
+                    viewportStarts: viewports,
+                    presentationGeneration: 3));
+        ProductDesktopHostReadOnlyProjection actual =
+            Assert.Single(batch.Displays[0].Containers);
+
+        Assert.Equal(489, actual.VisibleItemStartOrdinal);
+        Assert.Equal(500, actual.TotalItemCount);
+        Assert.Equal(12, actual.ItemIds.Count);
+        Assert.Equal("item:489", actual.ItemIds[0]);
+        Assert.Equal("item:500", actual.ItemIds[^1]);
+        Assert.Equal(3, batch.PresentationGeneration);
     }
 
     [Fact]
@@ -223,6 +339,108 @@ public sealed class ProductDesktopHostProjectionBuilderTests
         Assert.Equal(Primary.StableId, display.DisplayId);
         Assert.Empty(display.Containers);
         Assert.Equal(Primary.WorkArea, display.WorkArea);
+    }
+
+    [Fact]
+    public void BuildUpdatePublishesReadyBatchAndRejectsMissingAuthoritativeInput()
+    {
+        ProductWorkspaceState state = CreateState();
+        ProductWorkspaceReadSnapshot read =
+            ProductWorkspaceReadModel.Create(state).Snapshot!;
+        var topology = new ProductDisplayTopologySnapshot(
+            ProductDisplayTopologyStatus.Ready,
+            10,
+            [Primary, Secondary],
+            2,
+            2,
+            1);
+
+        ProductDesktopHostProjectionUpdate ready =
+            ProductDesktopHostProjectionBuilder.BuildUpdate(
+                state,
+                read,
+                topology,
+                workspaceRevision: 15,
+                presentationGeneration: 4);
+        ProductDesktopHostProjectionUpdate missingState =
+            ProductDesktopHostProjectionBuilder.BuildUpdate(
+                null,
+                read,
+                topology,
+                workspaceRevision: 15);
+        ProductDesktopHostProjectionUpdate missingRead =
+            ProductDesktopHostProjectionBuilder.BuildUpdate(
+                state,
+                null,
+                topology,
+                workspaceRevision: 15);
+
+        Assert.Equal(ProductDesktopHostProjectionDisposition.Ready,
+            ready.Disposition);
+        Assert.NotNull(ready.Batch);
+        Assert.Equal(4, ready.PresentationGeneration);
+        Assert.Equal(ProductDesktopHostProjectionDisposition.Invalid,
+            missingState.Disposition);
+        Assert.Equal(ProductDesktopHostProjectionDisposition.Invalid,
+            missingRead.Disposition);
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ProductDesktopHostProjectionBuilder.BuildUpdate(
+                state, read, topology, workspaceRevision: -1));
+    }
+
+    [Fact]
+    public void ProjectionUpdateRejectsMismatchedDispositionAndMetadata()
+    {
+        ProductWorkspaceState state = CreateState();
+        ProductWorkspaceReadSnapshot read =
+            ProductWorkspaceReadModel.Create(state).Snapshot!;
+        var topology = new ProductDisplayTopologySnapshot(
+            ProductDisplayTopologyStatus.Ready,
+            10,
+            [Primary, Secondary],
+            2,
+            2,
+            1);
+        ProductDesktopHostProjectionBatch readyBatch =
+            ProductDesktopHostProjectionBuilder.Build(
+                state, read, topology, workspaceRevision: 15)!;
+        ProductWorkspaceState emptyState = state with
+        {
+            Containers = Array.Empty<ProductContainerState>(),
+        };
+        ProductDesktopHostProjectionBatch emptyBatch =
+            ProductDesktopHostProjectionBuilder.BuildUpdate(
+                emptyState,
+                ProductWorkspaceReadModel.Create(emptyState).Snapshot!,
+                topology,
+                workspaceRevision: 15).Batch!;
+
+        Assert.Throws<ArgumentNullException>(() =>
+            ProductDesktopHostProjectionUpdate.Create(
+                15, 10, ProductDesktopHostProjectionDisposition.Ready));
+        Assert.Throws<ArgumentException>(() =>
+            ProductDesktopHostProjectionUpdate.Create(
+                16, 10, ProductDesktopHostProjectionDisposition.Ready,
+                readyBatch));
+        Assert.Throws<ArgumentException>(() =>
+            ProductDesktopHostProjectionUpdate.Create(
+                15, 10, ProductDesktopHostProjectionDisposition.Ready,
+                emptyBatch));
+        Assert.Throws<ArgumentException>(() =>
+            ProductDesktopHostProjectionUpdate.Create(
+                15, 10, ProductDesktopHostProjectionDisposition.EmptyWorkspace,
+                readyBatch));
+        Assert.Throws<ArgumentException>(() =>
+            ProductDesktopHostProjectionUpdate.Create(
+                15, 10, ProductDesktopHostProjectionDisposition.Invalid,
+                readyBatch));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ProductDesktopHostProjectionUpdate.Create(
+                0, -1, ProductDesktopHostProjectionDisposition.Invalid));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ProductDesktopHostProjectionUpdate.Create(
+                0, 0, ProductDesktopHostProjectionDisposition.Invalid,
+                presentationGeneration: -1));
     }
 
     private static ProductWorkspaceState CreateState() => new()

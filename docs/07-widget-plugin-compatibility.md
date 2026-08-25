@@ -5,6 +5,8 @@
 审计提交：`0d1366f`（本次本地读取的 `master` 基线）
 状态：Proposal
 
+> 2026-08-21 实施复审：协议、Schema 和示例清单已存在，但 Long方格尚无包发现、权限/签名验证、隔离 Widget Host、生命周期/资源配额、设置 UI 或真实 Long助手兼容矩阵；当前仍是 P2 协议准备，不是运行时兼容完成。详见 [Stage 176](176-current-development-requirement-alignment-audit.md)。
+
 正式开发契约见：[Long 插件小组件兼容协议（LPWP）1.0](protocol/LONG_WIDGET_PROTOCOL_V1.md)。本文保留产品与架构层面的审计结论，字段、Bridge、IPC、安全和一致性测试以正式协议为准。
 
 ## 1. 结论

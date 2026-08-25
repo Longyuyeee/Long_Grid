@@ -126,7 +126,9 @@ public static class ProductConfigurationValidator
                 container.Appearance.ExtensionData,
                 "color",
                 "opacity",
-                "collapsed"))
+                "collapsed",
+                "titleVisibility",
+                "titleDoubleClickAction"))
             {
                 return new(ProductConfigurationError.InvalidExtensionData);
             }
@@ -256,7 +258,9 @@ public static class ProductConfigurationValidator
         appearance is not null
         && IsRgbColor(appearance.Color)
         && double.IsFinite(appearance.Opacity)
-        && appearance.Opacity is >= 0 and <= 1;
+        && appearance.Opacity is >= 0 and <= 1
+        && Enum.IsDefined(appearance.TitleVisibility)
+        && Enum.IsDefined(appearance.TitleDoubleClickAction);
 
     private static bool IsValidPlacement(ContainerPlacementConfiguration? placement) =>
         placement is not null

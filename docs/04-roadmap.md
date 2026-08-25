@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准，PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，PF-002 空态入口、统一创建默认值、空态多输入和非空持续入口证据分别见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)至 [Stage 158](158-pf002c2-persistent-desktop-create-audit.md)；当前真实完成度、计划偏移审计和 PF-002D～PF-010 的严格验收顺序见 [Stage 159](159-current-development-status-and-next-plan-audit.md)。外部证据和发布门禁仍以 [Stage 149 专用环境预检](149-m4c2c-dedicated-environment-preflight-audit.md)为准。历史状态见 [Stage 133](133-current-development-status-and-closeout-audit.md)与[开发状态审计](11-development-status-and-direction-audit.md)。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准，最新开发与需求对齐见 [Stage 197](197-current-development-original-requirement-alignment-audit.md)，PF-001 冷启动/运行期开启性能见 [Stage 198](198-pf001-cold-start-performance-gate-semantics-audit.md)与 [Stage 199](199-pf001-runtime-boxes-enable-real-window-performance-audit.md)，PR #225 Windows PowerShell/无障碍合同与覆盖率集成纠偏见 [Stage 200](200-pr225-windows-powershell-ui-contract-ci-correction-audit.md)及 [Stage 201](201-pr225-coverage-gate-recovery-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)；历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁仍以 [Stage 149](149-m4c2c-dedicated-environment-preflight-audit.md)为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 ## Phase 0：立项与技术验证
 
@@ -210,6 +210,14 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 | Could | 插件、小组件、端到端加密同步 |
 | Won't now | 壁纸商城、天气、截图、系统清理、自研保险箱 |
 
+2026-08-20 PF-002D1 补充：桌面创建请求已从“admission 后立即默认创建”改为唯一可编辑 Preview Session；正式 App 对话框显示名称和候选位置/尺寸，非法名称禁用确认，取消、revision/topology/display/host 变化均零提交，确认后二次复核才进入唯一提交器。当前仍不是 DesktopHost 候选位置内的原生就地编辑表面，实机打开—编辑—取消证据未取得，且全量测试保留一个既有 UIA activation 失败；因此 PF-002D/PF-002 继续 `InProgress`。下一顺序为恢复真实测试门、完成 PF-002D2 原生表面，再进入 PF-002E 保存与可见发布补偿，详见 [Stage 160](160-pf002d1-editable-create-preview-audit.md)。
+
+2026-08-20 原生 UIA 恢复补充：Stage 160 的 982/983 差异已定位为 UIA Invoke 错误依赖键盘代理前台切换，以及切换受拒后未恢复 Passive。辅助技术激活现保持 NoActivate；pointer/keyboard 代理受 Windows 拒绝时恢复窗口策略和再次激活能力。真实 HWND/UIA 聚焦测试与全量 983/983 通过；完整 App 预览旅程仍 Pending，PF-002D2 顺序不变，详见 [Stage 161](161-native-uia-activation-recovery-audit.md)。
+
+2026-08-20 PF-002D2a 补充：正式 App 优先在目标显示器候选方格的绝对像素位置创建无标题栏、无任务切换项的现代 WinUI 编辑窗口，支持名称即时校验、Enter/Escape、失焦取消、六个动态 UIA 标识和控制中心安全回退。负坐标/DPI/越界几何、17 项聚焦、全量 989/989、Release 构建及正式 App 8 秒启动通过；真实打开—编辑—取消仍因窗口会话并发输入阻断而 Pending。下一步先补实机证据，再进入 PF-002E，详见 [Stage 162](162-pf002d2-native-inline-preview-audit.md)。
+
+2026-08-20 PF-002D 实机尝试补充：正式窗口捕获通过，但外部控制器激活时 Long方格以 `Microsoft.UI.Xaml.dll / 0xc000027b / 0x8001010e` 退出；刷新后目标句柄失效，按安全流程停止输入。无外部激活对照运行 20 秒稳定，当前证据不足以区分产品与云桌面前台桥，未以猜测修改线程模型。PF-002D 继续 Pending；PF-002E 可并行使用受控存储故障注入推进，详见 [Stage 163](163-pf002d-real-app-interaction-attempt-audit.md)。
+
 ## 决策节奏
 
 - 每个高风险技术选择写 ADR。
@@ -340,3 +348,45 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-16 PF-002C2 非空持续创建：非空工作区为全部权威显示器保留 Surface，并在不与现有方格相交的有限空位显示“新建方格”；鼠标/UIA绑定所在显示器，主显示器唯一注册 `Ctrl+Alt+N`。进入 Explicit 时入口、UIA导航和快捷键同步关闭，Passive 恢复；无空位时隐藏而不覆盖。全量 972/972、Release 构建、格式和 146-ID UI 合同通过。PF-002 仍为 `InProgress`，下一步固定 PF-002D 就地预览与命名，详见 [Stage 158](158-pf002c2-persistent-desktop-create-audit.md)。
 
 2026-08-16 当前开发状态与计划对齐审计：`main@1f2294d` 与远端一致、无开放 PR，主分支 CI `31951221413` 为 972/972，lines 90.45%、branches 77.30%，800/800 交付文件通过；制品仍未签名、不可安装、未批准分发。Stage 153 后五个功能实现 PR 均沿 PF-001/PF-002 推进，方向未偏移；严格顶层口径仍为 0/30 Complete、2/30 InProgress。PF-001 欠桌面优先呈现，PF-002 欠 D 预览命名、E 保存发布补偿、拖画矩形、已选引用创建与正式证据，禁止提前进入 PF-003。详细根因、逐步验收目标和统一推送门见 [Stage 159](159-current-development-status-and-next-plan-audit.md)。
+
+2026-08-21 PF-003A 布局预览与吸附策略：PF-002 正式 App 创建/保存/补偿/最近撤销工程证据完成后，将其调整为 `EngineeringComplete / ProductEvidencePending`；上游 WinUI UIA 缺陷继续阻止可见物理/无障碍完成证据，但不再冻结安全功能编码。PF-003A 新增移动/八向缩放纯内存预览、网格/工作区/同显示器方格边缘吸附、Shift 反转、锁定和 revision/topology 失败关闭；100 方格 2,000 次生产计算 P95 满足 16.7 ms 预算。正式 DesktopHost 输入、手势结束一次提交、保存失败恢复和跨显示器仍 Pending，详见 [Stage 172](172-pf003a-layout-preview-snap-policy-audit.md)。
+
+2026-08-24 PF-003D3 键盘布局事务：新增独立标题焦点，方向键 1 DIP、Shift 8 DIP 与 Alt 宽高缩放全部复用 PF-003D2 的 Begin/Update/Complete、唯一提交和保存补偿；原生来源补齐 `WM_SYSKEYDOWN`，不破坏项目方向导航。正式 App/Store 微移 +1 DIP、扩宽 +8 DIP，save revision=5/6，外部 `Difference=None`；Release 全量 1068/1068、build 0 warning/error。跨显示器 DPI 和物理键盘/Narrator/UIA Bounds 仍 Pending，PF-003 保持 `InProgress`，下一步为 PF-003D4，详见 [Stage 178](178-pf003d3-keyboard-layout-transaction-audit.md)。
+
+2026-08-24 PF-003D4 跨显示器混合 DPI：Move 现保持逻辑 DIP 尺寸/抓取偏移跨权威显示器，按目标 DPI、WorkArea 与同屏方格吸附夹取；Resize 不跨屏，离开权威显示器或 topology/revision/目标/锁定变化即恢复源 placement。生命周期把候选从源 Surface 路由到目标 Surface，并复用唯一提交、正式保存和失败补偿。本机双屏 192/240 DPI、负虚拟坐标下，正式 App/Store 重载目标一致且 X/Y 差值 0 DIP，外部 `Difference=None`；Release 全量 1075/1075、build 0 warning/error。物理鼠标/触控、截图及 UIA Bounds 仍 Pending，PF-003 保持 `InProgress`，下一步为 PF-003D5，详见 [Stage 179](179-pf003d4-cross-display-mixed-dpi-audit.md)。
+
+2026-08-24 PF-003D5 证据准入纠偏：人工手册已定义但启动器无法接受的 PF003D5-01～05 现全部接入正式受控会话入口；合同继续固定不发送输入、不改显示/会话、不截屏、不写 Pass，并新增机器字段禁止把 SendInput 标成物理设备。Stage 153/README 的过期 D4/B6C3 下一步已同步为 D5→PF-001 收口→PF-004～010。两次正式 App 可见自动化均在截图观察阶段被操作者 Escape 中止，零输入、零证据升级；物理/截图/UIA 继续 Pending，详见 [Stage 180](180-pf003d5-real-input-evidence-readiness-audit.md)。
+
+2026-08-24 PF-003D5 可见捕获阻断：正式 Release App 的 Windows Capture 两次只得到透明 Surface 下层内容，随后进程退出；零点击、零拖动、零配置提交。Application Error/WER 均为 Microsoft.UI.Xaml 3.2.3.0、`0xc000027b`、P7 `8001010e`，与既有 RPC_E_WRONG_THREAD 上游签名一致。Stage 172–180 已关闭 PF-003 生产工程范围，状态调整为 `EngineeringComplete / ProductEvidencePending`；物理/截图/UIA 继续在安全环境补证，下一产品切片转入 PF-001 桌面优先启动，详见 [Stage 181](181-pf003d5-visible-capture-upstream-blocker-audit.md)。
+
+2026-08-24 PF-001 桌面优先启动收口：正常启动不再无条件弹出控制中心；可用/空工作区 DesktopHost 保持桌面优先，方格关闭、配置需注意、Host 不可用或第二次用户启动时激活唯一控制中心。正式 Release App 首次 DesktopHost 1 个、控制中心 0 个，`1,378 ms` 冷启动并稳定 20 秒，重定向/退出/临时配置 Expected/Actual 均无差异。PF-001 调整为 `EngineeringComplete / ProductEvidencePending`，顶层仍为 0/30 Complete，下一切片进入 PF-004，详见 [Stage 182](182-pf001-desktop-first-startup-audit.md)。
+
+2026-08-24 PF-004A 正式标题信息：GDI 标题和 UIA 现在共用名称、真实项目总数、安全引用、锁定/折叠状态；可见项目仍为 12，上限仍为 500。真实原生 HWND 的标题、Passive 合同、视觉状态和无障碍名称 Expected/Actual 无差异。首次全量发现 ItemStatus 丢失“只读”并修正，最终 1091/1091。PF-004 仍为 `InProgress`，下一切片进入 PF-004B 桌面直接折叠/锁定，详见 [Stage 183](183-pf004a-desktop-container-header-presentation-audit.md)。
+
+2026-08-24 PF-004B 桌面标题栏直接命令：每方格新增折叠/展开和锁定/解锁，与进入交互共同形成三个有限 32 DIP/UIA 按钮；命令绑定 container/display/revision/topology/来源事实，锁定折叠与不安全输入失败关闭，锁定仍可解锁。正式 App 复用唯一提交/保存链并在写租约失败时恢复内存原值、保留可重试补偿。真实 HWND、Store 成功/失败/重试和正式 App 20 秒均为 `Difference=None`；全量 1094/1094、build 0 warning/error。PF-004 仍为 `InProgress`，下一切片进入 PF-004C 更多菜单与安全管理入口，详见 [Stage 184](184-pf004b-desktop-header-command-audit.md)。
+
+2026-08-24 PF-004C 原生更多菜单：标题命令面扩为四个 32 DIP/UIA 目标，真实 Win32 `#32768` 菜单把重命名、外观和方格列表排序导航到唯一控制中心，规则/Portal-Tab/删除明确显示并禁用。锁定、只读、保存失败、revision/topology/来源事实决定打开前状态；取消和导航零配置写入。真实菜单 6 项状态、Store 字节/写入时间、写租约失败和正式 App 20 秒均为 `Difference=None`；全量 1097/1097、build 0 warning/error。PF-004 仍为 `InProgress`，下一切片进入 PF-004D 删除确认与统一撤销，详见 [Stage 185](185-pf004c-desktop-container-more-menu-audit.md)。
+
+2026-08-24 PF-004D 删除确认与统一撤销：原生菜单删除项按锁定/只读/保存失败/待发布状态动态启用；正式确认默认取消并绑定 container/display/revision/topology，确认后二次复核。真实 Store 默认取消零字节/时间变化，确认删除后统一撤销恢复完整方格和引用；真实写租约失败自动补偿并在重试后持久化原状态，两组 Expected/Actual 均 `Difference=None`，真实文件内容始终不变。全量 1099/1099、build 0 warning/error、153-ID UI 合同及正式 App 20 秒通过。PF-004 仍缺标题策略和其余就近编辑撤销，下一切片为 PF-004E，详见 [Stage 186](186-pf004d-desktop-delete-confirmation-undo-audit.md)。
+
+2026-08-24 PF-004E 工程收口：标题 Always/Hover/Hidden 与双击 ToggleCollapsed/None 已进入正式 Schema、控制中心和精确命中的真实桌面 HWND；重命名、锁定、折叠、外观/标题策略及布局使用完整指纹令牌进入唯一最近撤销，控制中心和桌面标题命令均具备异步保存失败补偿。复审同时修复 PF-004D 删除 Enabled 但生命周期漏放行的真实偏差。真实 HWND、真实 Store 四类编辑/撤销/重载和真实写租约失败均 `Difference=None`，全量 1102/1102、build 0 warning/error、155-ID 合同通过；Live UIA 因已知上游 fail-fast 组合保持 Pending。PF-004 转为 `EngineeringComplete / ProductEvidencePending`，下一切片为 PF-005，详见 [Stage 187](187-pf004e-title-policy-edit-undo-closeout-audit.md)。
+
+2026-08-24 PF-005A 系统类型图标与有限状态：复审确认现有隔离 worker 只在受控资源遥测会话启动且正式 UI 零消费，因此先交付可独立验收的系统类型图标层。File/Folder/Shortcut/URL 和五类引用解析状态进入正式投影，真实 DesktopHost HWND 用 Shell32 stock icon 绘制，UIA 只含可见名称/类型/状态。真实 Shell 图标、500→12 首屏有界投影和 100%～400% DPI 为 `Difference=None`。PF-005 仍为 `InProgress`，下一切片 PF-005B 才接正式 worker、缓存和开关，详见 [Stage 188](188-pf005a-system-type-icons-finite-state-audit.md)。
+
+2026-08-24 PF-005B1 缩略图按需队列与缓存：worker 新增并发串行化的产品提取门面，正式请求控制器按需建立经 AppContainer/Job 复核的 runtime；图片关闭时零启动/零请求，候选最多 12，缓存最多 64 且包含文件长度/修改时间/尺寸/主题，重解析点和超限输入拒绝。真实 BMP 在本机 250 ms 提取进入有限失败回退，真实 Hang/Exit、Profile 清理均 `Difference=None`。PF-005 仍为 `InProgress`，PF-005B2 才接 DesktopHost 像素绘制和持久化开关，详见 [Stage 189](189-pf005b1-thumbnail-request-queue-cache-audit.md)。
+
+2026-08-24 PF-005B2 缩略图正式呈现与过期结果：持久化图片开关、权威首屏图片候选、Loading/Ready/FailedFallback 投影与 top-down BGRA32 真实 HWND 绘制已进入正式 App；generation、workspace revision、topology generation、开关或状态实例变化均拒绝旧结果。真实 Store 重启、真实文件、真实 worker 有限回退及确定性帧真实 HWND 绘制均为 `Difference=None`；Release 1125/1125、157-ID 合同、格式和 build 通过。成功 worker 像素端到端截图与 13～500 项视口调度仍 Pending，PF-005 保持 `InProgress`，下一切片为 PF-005C，详见 [Stage 190](190-pf005b2-thumbnail-presentation-stale-result-audit.md)。
+
+2026-08-24 PF-005C 工程收口：独立 presentation generation 修复 Loading→Ready 同 revision/topology 被误判冲突的问题，状态现在原位更新同一真实 HWND；500 项按每页 12 项滚动，候选随视口变化且旧 CTS/结果取消。真实 BMP 经受限 worker 返回 16,384-byte BGRA，真实 HWND 接受 64/64 行，100%/200%/400% DPI 中心像素一致。Release 全量首次暴露 750 ms 下实际回退，最终按证据校准为 1.5 秒异步预算并增加首故障整轮熔断，1135/1135 通过。PF-005 转为 `EngineeringComplete / ProductEvidencePending`，下一工程切片为 PF-006，详见 [Stage 191](191-pf005c-viewport-visual-engineering-closeout-audit.md)。
+
+2026-08-24 PF-006A：审计发现 12 项视口翻页会重建 Surface 并撤销选择租约，现改为同 HWND presentation + lease-bound reconcile；不相交页面清空旧选择并聚焦新页首项，重叠页面保留可见选择。Ctrl+A 只选当前视口，内容空白单击清除。真实 HWND/UIA 与生命周期 Expected/Actual 均无差异，Release 1142/1142。PF-006 保持 `InProgress`，下一步 PF-006B 统一安全打开；框选、PageUp/PageDown 与产品证据继续 Pending，详见 [Stage 192](192-pf006a-viewport-selection-convergence-audit.md)。
+
+2026-08-24 PF-006B1：Enter、项目双击、UIA Invoke 已共用 lifecycle/App 权威打开命令；File/Folder 经来源/代次/目标/现场类型/ReparsePoint 复核后交给真实 `ShellExecuteExW`，Shortcut/URL 固定 ReviewRequired。真实 `where.exe` Shell 启动和真实 HWND UIA Invoke 均 `Difference=None`；缺失、类型变化、陈旧、注入、auto-repeat、Shell 失败全部有限拒绝。Release 1150/1150。PF-006 保持 `InProgress`，下一步 PF-006B2，详见 [Stage 193](193-pf006b1-unified-safe-file-folder-open-audit.md)。
+
+2026-08-24 PF-006B2A：真实 `.lnk` 通过 `IShellLinkW/IPersistFile` 有界读取目标和参数，真实 `.url` 只接受严格 UTF-8/UTF-16LE 与 HTTP/HTTPS；解析前后复核引用版本，嵌套 Shortcut、ReparsePoint、超限、畸形和未知协议有限拒绝。结果回写真实 DesktopHost 项目标签和 UIA `ItemStatus`，不公开路径。真实 `.lnk` → `where.exe cmd.exe` Shell、UTF-16LE `.url` 和 HWND/UIA 反馈均 `Difference=None`，Release 1155/1155。PF-006 保持 `InProgress`，下一步 PF-006B2B，详见 [Stage 194](194-pf006b2a-shortcut-url-feedback-audit.md)。
+
+2026-08-24 PF-006B2B1：控制中心新增默认关闭、显式持久化的单击打开策略；加载/保存成功后策略同步到当前和后续真实 DesktopHost Surface。单击始终先选择，只有无修饰键的可信非注入普通单击才提交 `PointerSingleClick`，Ctrl/Shift、非可信来源和单击模式下重复双击入口失败关闭。真实磁盘 Store 重启及真实 HWND Expected/Actual 均 `Difference=None`，Release 1157/1157、157-ID 合同通过。PF-006 保持 `InProgress`，下一步 PF-006B2B2 权威重试和安全 Explorer 定位，详见 [Stage 195](195-pf006b2b1-single-click-open-policy-audit.md)。
+
+2026-08-24 PF-006B2B2：失败项目新增标准原生右键 Retry/Locate；动作只提交匿名项目/来源，当前 revision/topology 和 workspace/Catalog/现场路径全部重新验证。定位要求父目录存在且非 ReparsePoint，现存目标才 `/select`，并只调用绝对系统 Explorer。真实文件出现前后重试、真实安全/缺失/ReparsePoint 父目录、真实 HWND、非可信/Injected 和一次显式可见 Explorer 均 `Difference=None`；首轮测试证据 CA1861 已纠正，最终 Release 1163/1163、157-ID 合同通过。PF-006 保持 `InProgress`，下一步 PF-006C1，详见 [Stage 196](196-pf006b2b2-authoritative-retry-safe-explorer-locate-audit.md)。
+
+2026-08-25 PR #225 覆盖率恢复：第三次远端 CI 已通过前两轮 Windows PowerShell/157-ID 修正和 1163/1163 测试，但真实覆盖率为 lines 87.89%、branches 73.22%。未降低 90%/75% 门槛，也未排除正式原生适配器；首轮补测本机 1170/1170、90.05%/75.34%，远端 run `32800465632` 则因 headless topology 少覆盖 76 个唯一行而为 89.68%/75.20%。硬件无关矩阵扩大余量后，run `32801490556` 又以 1197/1198 暴露真实 `.lnk` 进程寿命断言；现以 `cmd.exe` 参数写标记验证真实效果。重复全量进一步用匿名 evidence 将缩略图差异锁定为 1507.37 ms 超时，在不延长 1500 ms 预算的前提下增加受限 worker BMP 原生 DIB 快速路径；随后 2 分钟 blame-hang 又发现真实菜单 evidence 的窗口定时器偶发未闭合，改为有限 `TIMERPROC` 并在注册失败时立即失败。最终 run `32803174900` 为 1198/1198、90.01%/75.51%，全部后续门通过；Gate A 等待最终文档 CI 与 main 集成，下一功能仍为 PF-006C1，详见 [Stage 201](201-pr225-coverage-gate-recovery-audit.md)。

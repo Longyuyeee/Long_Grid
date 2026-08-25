@@ -297,3 +297,159 @@ PF-002D 的最小交付不是视觉稿，也不是新增验证脚本，而是可
 - 经批准的发布证书、可安装签名包和最终分发授权。
 
 这些门禁不应抢占 PF-002D/E 的产品开发主线，也不能被静默关闭；它们在具备合规环境时独立执行并如实记录。
+
+## 11. 2026-08-20 增量复审
+
+从最新 `main@b5af34c4` 建立的 PF-002D1 分支，已把 DesktopHost 请求后的“立即默认创建”改为唯一 Preview Session、实时名称校验、明确确认/取消和 submit 前 revision/topology/display/host 二次复核。正式 App 使用可访问的 WinUI 对话框承载该闭环，确认前不提交配置、不建立正式容器且不操作桌面文件。
+
+严格结论没有升级为 PF-002D 完成：当前预览会激活控制中心，并非 Stage 159 D2 要求的候选 DesktopHost 区域原生就地表面；Windows 自动化窗口枚举连续超时，正式 App 虽真实启动但没有取得打开—编辑—取消的可复核实机证据；全量测试实际为 `982/983`，既有 activation UIA Invoke 的 `ElementNotEnabledException` 独立重跑仍失败。详细预期—实际差异、零副作用矩阵和后续门禁见 [Stage 160](160-pf002d1-editable-create-preview-audit.md)。
+
+因此下一顺序细化为：先恢复全量测试和真实预览证据，再完成 PF-002D2 原生就地表面，然后进入 PF-002E。PF-002、PF-001 和顶层 `0/30 Complete` 口径保持不变。
+
+## 12. 2026-08-20 PF-002D2 增量复审
+
+Stage 161 已恢复 UIA 无前台激活与键盘代理受拒后的 Passive，Release 全量回到 983/983。Stage 162 随后增加候选 DIP 到目标显示器绝对像素的有限映射，并让正式 App 优先创建位于候选方格位置的现代 WinUI 原生编辑窗口；窗口支持名称即时校验、Enter/Escape、失焦取消、六个动态 UIA 标识和控制中心安全回退。新增几何测试后全量为 989/989，Release 构建和正式 App 8 秒启动通过。
+
+严格口径仍不变化：实机控制器在窗口状态抓取时检测到最小化/并发用户输入，按安全流程停止，未取得原生窗口打开—编辑—取消—确认证据。因此 PF-002D2a 只记 Engineering Pass，PF-002D、PF-002、PF-001 和顶层 `0/30 Complete` 均保持不变。下一门禁先补完整 App 真实交互，再进入 PF-002E 保存与可见发布补偿，详见 [Stage 162](162-pf002d2-native-inline-preview-audit.md)。
+
+## 13. 2026-08-20 PF-002E 增量复审
+
+Stage 164 已把桌面创建的可见结果绑定到创建容器 ID、工作区修订和保存修订。真实文件系统故障注入先确认旧链在保存失败后仍保留 1 个内存方格，再确认新链只在同次保存失败且没有后续编辑时经唯一提交协调器撤回；解除故障并重试后，真实磁盘重载为 0 个方格。若修订、保存代次或容器事实已变化，补偿判定为 `Superseded`，不会覆盖后续用户编辑。
+
+PF-002E 记为 Engineering Complete；PF-002D 的真实打开—编辑—取消—确认证据仍 Pending，PF-002/PF-001 和顶层完成口径不变。下一产品切片为 PF-002 的桌面拖画矩形创建，随后是使用已选引用创建和 PF-002F 正式物理/无障碍证据。
+
+## 14. 2026-08-20 拖画矩形增量复审
+
+Stage 165 已让 `PointerDrag` 请求携带绝对像素矩形，真实 Win32 Surface 在 Explicit 模式使用 capture、move、button-up 和 capture-cancel 生命周期绘制内存 outline；App 在同一 admission、Preview、提交和 PF-002E 补偿链中保留该矩形。显示器工作区、负坐标、DPI、最小尺寸和越界均由正式创建策略验证。真实 Win32 Surface 没有取得前台，真实配置文件重载保留精确 DIP 几何。
+
+本切片记 Engineering Pass，不记物理交互 Pass：当前会话没有执行真实鼠标 down/move/up 到正式 App 的全链，因此 PF-002 继续 `InProgress`。下一开发项为“使用 Long方格已选引用创建”；物理拖画与 PF-002D 预览输入矩阵在合规 Windows 会话并行补证。
+
+## 15. 2026-08-20 PF-002H 原子事务基础增量复审
+
+Stage 166 已把“建新方格”和“已选引用从来源改归属到新方格”收敛为一个 reducer 状态转换、一个配置投影和一次保存提交。请求最多 256 项，只接受非空、唯一、存在且已解析的 Long方格引用；来源锁定、陈旧修订或任一无效项均整批拒绝，零保存、零修订推进。该链不读取 Explorer 选择，也不移动真实文件。
+
+真实临时目录中创建的两个文本文件经正式配置保存、重载和一次撤销后内容保持不变；实际独占 `.lock` 文件令保存进入 `Failed/WriteLeaseUnavailable`，磁盘重载仍为旧状态，解除租约后完整状态恢复成功。首次静态合同因旧的全协调器提交次数硬编码真实失败，已改为检查新方法范围内恰好一次提交并重新通过。全量测试为 1005/1005。
+
+严格结论是 PF-002H 的**原子事务基础通过**，不是用户闭环完成。下一切片须从正式 Long方格选择捕获带 revision/topology/source/fingerprint 的有限快照，复用唯一 Preview Session，并将完整恢复令牌接入 PF-002E 同次保存失败自动补偿；同时补 256/257、选择变化、取消、连续编辑和 UIA/Narrator。PF-002H、PF-002、PF-001 与顶层完成口径均保持不变，详见 [Stage 166](166-pf002h-selected-reference-atomic-transaction-audit.md)。
+
+## 16. 2026-08-20 PF-002H 正式 App 接线增量复审
+
+Stage 167 已增加正式“使用选择创建新方格”入口，并把同一方格 1–256 项选择快照接入已有 admission、候选显示器、原生/fallback Preview、原子提交、PF-002E 发布事务和最近撤销。快照绑定配置指纹，选择、revision 或 topology 变化均取消；保存失败使用完整旧状态恢复令牌，不能只删除新方格。最近撤销也已从错误的“撤销批量加入”区分为“撤销使用选择创建方格”。
+
+真实测试创建 257 个文本文件：257 项请求拒绝后磁盘仍为旧 257 项，随后 256 项请求真实保存并重载为来源 1 项、新方格 256 项，所有文件内容逐项不变。Release 全量为 1010/1010，147-ID 静态合同通过。首次合同因旧的 live-region 全文件次数硬编码失败，修成新入口专项合同后通过。
+
+正式 App 结果必须分开记录：Windows 捕获获得完整控制中心截图，说明 Release 界面真实渲染；但 UIA 连续两次找不到首元素，整树读取导致 `Microsoft.UI.Xaml.dll` 崩溃。对 `fff20f2` 建立独立 worktree、重新构建并执行相同操作，得到相同截图成功和相同 UIA 崩溃，证明不是本切片回归。Stage 168 完成上游缺陷对齐和真实窗口生命周期测试；Stage 169 又证明当前控制器的无文本截图路径也触发同一 fail-fast，并把已知 `2.4.0.0 + 3.2.3.0` 组合改为 App 启动前失败关闭。因此 PF-002H 仍为 `EngineeringComplete / ProductEvidencePending`；下一步以专用临时配置的进程内 UI evidence session 补正式 App 接线证据，上游修复后再补物理输入/UIA/Narrator，详见 [Stage 169](169-winui-uia-fail-closed-preflight-audit.md)。
+
+## 17. 2026-08-21 PF-002 正式 App 进程内证据增量复审
+
+Stage 170 新增默认关闭、GUID 限定、专用临时配置且拒绝重解析点的正式 App evidence session。真实 Release App 先加载 MainWindow/XAML、正式配置、显示拓扑和 DesktopHost，再在 UI 线程驱动取消与确认，通过正式保存控制器写入并由正式 store 重载。连续两次实际均为：初始/取消 `0 + Missing`，确认 `1 + PF-002 证据方格`，保存 `Completed`，重载 `1 + LoadedPrimary`；桌面元数据、用户配置元数据与临时清理均无差异。
+
+真实失败不能被忽略：当前 `WindowsAppRuntime 2.4.0.0 + Microsoft.UI.Xaml.dll 3.2.3.0` 下，第二顶层窗口、ContentDialog、可见持久 Preview 面板以及确认后的动态可访问列表都能触发同一 WinUI fail-fast。产品因此对该精确组合选择主窗口持久 Preview；证据进程在 XAML readiness 后隐藏窗口，并明确输出 `PreviewActivatedCount=0`、`VisibleInteractionStatus/VisibleViewPublication=BlockedByKnownUpstream`。这证明正式 App 的不可见 UI 线程接线、提交、保存和重载，不证明可见点击、UIA 或 Narrator。PF-002 保持 `EngineeringComplete / ProductEvidencePending`；下一门禁为上游修复/独立机器的可见与物理矩阵，以及最近撤销的正式 App 证据。详见 [Stage 170](170-pf002-formal-app-inprocess-evidence-audit.md)。
+
+## 18. 2026-08-21 PF-002 正式 App 最近撤销证据增量复审
+
+Stage 171 在同一正式 App evidence session 中补齐最近撤销工程证据。普通创建没有通用撤销令牌，因此没有伪造“撤销创建”；真实链先让创建保存修订 1 落盘，再通过 App 正式容器提交委托删除并让保存修订 2 落盘，随后由主窗口统一最近撤销选择器认定唯一种类为 `ContainerRemoval`，执行与真实按钮相同的分派与正式恢复委托，最终 `CompleteAsync` 排空保存并从正式 store 重载为原方格。
+
+两轮最终实际均为创建 `1/LoadedPrimary`、删除 `0/LoadedPrimary`、最近撤销选择与执行 `ContainerRemoval`、恢复 `1/LoadedPrimary`，名称仍为“PF-002 证据方格”；外部脚本对每一字段独立复核，桌面与用户配置元数据不变、临时目录删除、进程退出 0。开发中先真实发现工作区编辑修订与保存修订被混用，再发现 Windows PowerShell 5.1 对无 BOM UTF-8 中文常量解码不一致；分别改为读取保存控制器权威目标修订和以 Unicode 码点构造期望名称后重跑通过。
+
+此证据关闭“最近撤销的正式 App 工程证据”缺口，但仍是当前已知不安全 WinUI 组合下隐藏窗口的进程内 UI 线程驱动，不等同于可见按钮点击、物理输入、UIA 或 Narrator。PF-002 继续 `EngineeringComplete / ProductEvidencePending`；下一主门禁仍是上游修复或独立安全机器上的可见 Preview/发布、鼠标/键盘/触控和无障碍矩阵。详见 [Stage 171](171-pf002-formal-app-latest-undo-evidence-audit.md)。
+
+## 19. 2026-08-21 PF-003A 布局预览与吸附策略增量复审
+
+官方 WinUI 上游问题 #11139 仍为 Open/Backlog，且明确说明跨进程 UIA fail-fast 不能由应用代码捕获或规避；本机框架依赖 App 虽引用 Windows App SDK 2.3.1，实际选择已安装 Runtime 2.4.0.0。强制 UIA、删除辅助语义或猜测回退运行时都不能成为真实修正。PF-002 因此保持 `EngineeringComplete / ProductEvidencePending`，同时按本文“外部证据不阻断安全功能编码”的规则进入 PF-003A。
+
+PF-003A 新增正式 Core 的移动/四边四角缩放预览策略。每次请求绑定容器 ID、edit revision、topology generation 和显示器；锁定、陈旧、显示身份不唯一、跨显示器未准入、非有限或极端 delta 均零预览失败关闭。策略只计算 DIP 内存候选，支持 8 DIP 网格、工作区和同显示器方格边缘吸附，Shift 对默认吸附开关取反，最终候选约束在 DPI 换算后的工作区并保留最小 160×120 DIP。
+
+真实规模预检在正式 100 方格状态上预热 100 次后执行 2,000 次生产预览，首轮 P95 为 `0.067 ms`，预期 `<16.7 ms`，差异为无；工具同时证明不读取真实桌面、无真实文件操作且临时保存沙箱已清理。该结果只关闭 Core 计算和性能门，不证明视觉延迟、物理鼠标、UIA Bounds、一次保存或失败补偿。下一切片固定为 PF-003B 手势会话和唯一结束提交，详见 [Stage 172](172-pf003a-layout-preview-snap-policy-audit.md)。
+
+## 20. 2026-08-21 PF-003B 手势会话与唯一提交增量复审
+
+Stage 173 已把 Stage 172 的无状态预览收敛为一次 begin/update/cancel/complete 会话。begin 冻结容器、原 placement、edit revision、topology generation 和 display；update 使用累计 delta 且不接触保存；陈旧事实自动取消并恢复；complete 再验证后只产生一个内部构造完成凭据。现有统一提交协调器检查当前原 placement（含扩展字段）未变，通过既有 reducer/projection/save controller 提交，并以权威 edit revision 阻止凭据重复消费。
+
+真实临时配置测试执行 1,000 次 update，实际保存 revision=0、配置 `Missing`；complete 首次接受后保存 revision=1，重复提交返回 `StaleEditRevision`，最终重载 X/Y 误差均为 0 DIP，桌面哨兵文件内容不变。陈旧 update、显式/重复取消、并发 placement 改变和 complete 后 topology 改变均返回有限状态并零保存。首次扩展字段合同编译暴露 `IDictionary`/`IReadOnlyDictionary` 类型差异；末轮审计又补齐 complete—commit 间的 topology 竞争窗口，修正后聚焦 24/24 通过。
+
+该结果关闭 PF-003B 工程门，不代表正式桌面可操作。PF-003 保持 `InProgress`；下一切片固定为 PF-003C 保存失败补偿，随后才接 DesktopHost 标题栏移动、八向缩放命中和键盘微调。跨显示器、视觉/物理输入和 UIA Bounds 仍为后续独立证据，详见 [Stage 173](173-pf003b-gesture-session-single-commit-audit.md)。
+
+## 21. 2026-08-21 PF-003C 布局保存失败补偿增量复审
+
+Stage 174 已为布局唯一提交增加发布凭据和有限 `AwaitingSave / Published / CompensationRequired / Superseded` 判定。同次保存失败只有在工作区 revision、保存 revision 和当前完整 placement 均匹配时才能恢复冻结原 placement；协调器直接读取权威保存快照，按自己签发的 token 对象身份验真，并用与公开 token 分离的私有 placement 深拷贝恢复。复制/伪造 token 返回 `InvalidRequest`，公开扩展字典变异不能污染恢复事实，后续编辑或重复补偿返回 `Superseded`。
+
+真实测试先落盘 100/100 旧布局，再独占正式 store 的 `.lock` 文件。布局提交后内存为 200/150，正式保存实际失败为 `WriteLeaseUnavailable`，磁盘仍为 100/100；补偿后内存恢复 100/100，锁占期间补偿保存仍有限失败，解除锁并重试后真实 store 重载误差 0 DIP，桌面哨兵文件未变化。首轮聚焦通过后安全复审发现公开字段 token 可伪造，补充内部对象身份核对、深拷贝和伪造测试后最终 30/30 通过。
+
+该结果关闭 PF-003C 工程门，但正式桌面还没有布局输入接线。PF-003 保持 `InProgress`；下一切片固定为 PF-003D DesktopHost 标题栏移动、八向缩放命中、取消和键盘微调，复用 Stage 172–174 的唯一事务链。跨显示器、真实物理输入和 UIA Bounds 继续作为后续独立门，详见 [Stage 174](174-pf003c-layout-save-failure-compensation-audit.md)。
+
+## 22. 2026-08-21 PF-003D1 DesktopHost 布局输入合同增量复审
+
+Stage 175 已在正式每显示器 DesktopHost Surface 上增加标题栏 Move、四边四角 Resize 的九向命中和原生 capture 四阶段协议。锁定、重叠歧义、内容区和 Surface 外输入失败关闭；96/144/192/288/384 DPI 使用同一 8 DIP 边框语义。lifecycle 把 Surface 请求绑定到创建时的 display、workspace revision 和 topology generation，update 若被上层拒绝则立即 `HostInvalidated` cancel。
+
+专项测试实际创建原生 Surface，验证非零 HWND、Explicit window contract、Begin/Update/Complete 顺序和异常隔离；生产命中与 lifecycle 聚焦共 48/48。首次编译真实发现 `PixelRect` using 缺失和局部变量冲突，修复后通过；聚焦通过后的状态机复审又修正 rejected update 仍可能晚到 complete 的缺口；完整门禁发现并修正 19 行格式缩进差异。Release 全量为 1058/1058、solution build 为 0 warning / 0 error，100 方格、2,000 次生产布局预览 P95 为 `0.107 ms < 16.7 ms`；153-ID UI 合同、PF-002 正式 App Expected/Actual、两轮 20 秒真实窗口生命周期、漏洞与格式门禁均通过。
+
+该切片只关闭 Surface 工程合同。App 尚未绑定请求、Surface 尚未绘制动态候选，pointer-up 也尚未进入 Stage 173/174 提交和补偿，因此 PF-003 保持 `InProgress`。下一切片固定为 PF-003D2 App 消费、可见候选、唯一提交/补偿和键盘微调；物理鼠标与 UIA Bounds 仍不得伪报，详见 [Stage 175](175-pf003d1-desktop-host-layout-input-contract-audit.md)。
+
+## 23. 2026-08-21 当前开发与最初需求全量对齐复审
+
+Stage 176 按 PRD、竞品功能计划、交互、任务栏、Widget/Long助手协议和品牌交付要求重新记账。30 个 PF 项中仍为 `0 Complete`：PF-002 为 `EngineeringComplete / ProductEvidencePending`，PF-001/PF-003 为 `InProgress`，16 项只有底座/原型，11 项尚未实现。配置安全、保存补偿和测试证据的工程深度不能替代正式桌面标题栏、项目呈现、拖放、规则、隐藏/托盘、快照和首次引导的用户可见宽度。
+
+当前 `f991d24` 基线重新实测为 Release 全量 `1058/1058`、build `0 warning / 0 error`；100 方格、500 项、2,000 次布局预览 P95 `0.090 ms < 16.7 ms`。PF-002 正式 App 外部 Expected/Actual 为 `Difference=None`，桌面与用户配置元数据不变；真实窗口 `1,175 ms` 就绪并稳定 20 秒。与此同时 App 明确输出 `VisibleInteractionStatus=BlockedByKnownUpstream` 和 `PreviewActivatedCount=0`，所以可见物理/UIA/Narrator 不得升级为通过。
+
+任务栏只有安全设计边界，Widget/Long助手只有协议与 Schema，均没有产品运行时。开发顺序保持 PF-003D2 → PF-003 跨显示器/物理证据 → PF-004–010 日常桌面操作 → 首次引导/规则 → 隐藏/托盘/快照 → 视觉/无障碍 → 发布门禁；P1/P2 扩展不抢占核心 MVP。详见 [Stage 176](176-current-development-requirement-alignment-audit.md)。
+
+## 24. 2026-08-24 PF-003D2 App 布局组合根增量复审
+
+Stage 177 已让正式 App 绑定 DesktopHost 布局请求，并以独立控制器组合 Stage 173 会话、Surface 内存候选、唯一提交和 Stage 174 保存补偿。lifecycle 只接受 display/revision/topology 精确匹配的候选；Surface 绘制独立候选及焦点轮廓，取消、隐藏和宿主失效恢复原 projection。极端有限 double 在 GDI 换算前失败关闭。
+
+真实 App 首轮为 Begin=true、Update/Complete=false、位移/保存 0，证明证据模式跳过主窗口刷新时也错误跳过了安全 DesktopHost 投影。拆分宿主投影刷新后，正式 App Begin/Update/Complete 全为 true，内存和真实 Store 重载均移动 32/16 DIP，save revision=4，外部 `Difference=None`。真实写租约故障又证明交互控制器能自动恢复原内存/磁盘布局且不触碰桌面哨兵。
+
+聚焦为 52/52、Release 全量 1063/1063、build 0 warning / 0 error，100 方格布局预览 P95 `0.083 ms < 16.7 ms`；真实窗口 1,744 ms 就绪并稳定 20 秒。物理鼠标、键盘微调、跨显示器和 UIA Bounds 仍未通过，PF-003 与顶层 `0 Complete` 口径不变。下一切片固定为 PF-003D3 键盘移动/缩放并复用同一事务链，详见 [Stage 177](177-pf003d2-app-layout-session-visible-candidate-audit.md)。
+
+## 25. 2026-08-24 PF-003D3 键盘布局事务增量复审
+
+Stage 178 在不破坏既有项目方向导航的前提下增加独立标题焦点：Tab 切入后方向键移动 1 DIP，Shift 使用 8 DIP 大步，Alt+方向键调整宽高；标题焦点在正式 Surface 标题区可见，退出、隐藏和释放时清除。原生来源同时处理 `WM_KEYDOWN` 和 Alt 组合实际使用的 `WM_SYSKEYDOWN`，继续拒绝注入来源。每枚键由 lifecycle 重新核对 source、Explicit transaction、display、锁定、revision/topology 和有限 delta，再展开为同一 `Begin → Update → Complete`，没有新增坐标直写或保存入口。
+
+正式 Release App/Store Expected/Actual 实测：键盘语义微移内存/重载均为 X `+1 DIP`、save revision=5；Shift 大步扩宽内存/重载均为 `+8 DIP`、save revision=6；外部 `Difference=None`，桌面和用户配置元数据不变。首轮编译暴露 double/int 元组推断错误并修正；后续 Win32 复审暴露只监听 `WM_KEYDOWN` 会漏掉 Alt 缩放，补入 `WM_SYSKEYDOWN` 后再过门禁。
+
+聚焦 27/27、Release 全量 1068/1068、build 0 warning / 0 error，100 方格布局预览 P95 `0.055 ms < 16.7 ms`；真实窗口 2,329 ms 就绪并稳定 20 秒。live UIA 仍被已知 Windows App Runtime/Xaml 崩溃组合在启动前安全拒绝，ContractOnly 通过。PF-003 和顶层 `0 Complete` 口径不变；下一切片固定为 PF-003D4 跨显示器 DPI/边界迁移，物理输入、Narrator/UIA Bounds 继续为独立 Product Evidence，详见 [Stage 178](178-pf003d3-keyboard-layout-transaction-audit.md)。
+
+## 26. 2026-08-24 PF-003D4 跨显示器混合 DPI 增量复审
+
+Stage 179 已让 Move 在一次手势中保持逻辑 DIP 尺寸和抓取偏移跨越权威显示器；目标局部坐标按目标 DPI 与 WorkArea 计算，只对目标显示器吸附、夹取。Resize 继续禁止跨屏，指针离开权威显示器、拓扑/revision/目标/锁定变化均取消并恢复源 placement。lifecycle 会清理源 Surface 候选并把外部源投影路由到目标 Surface，取消时清理全部 Surface；没有扩大输入 region 或增加坐标直写入口。
+
+本机只读实际拓扑为双显示器、DPI 192/240、含负虚拟坐标。正式 Release App/Store 的跨屏 Begin/Update/Complete 均为 true，目标显示器改变并在重载后保持，X/Y 差值均为 0 DIP，save revision=7，外部 `Difference=None`。真实 `.lock` 写租约故障证明跨屏发布失败后内存和磁盘均恢复源显示器；两个非零 HWND Surface 证明目标像素候选正确。
+
+聚焦 63/63、Release 全量 1075/1075、build 0 warning / 0 error，布局预览 P95 `0.056 ms < 16.7 ms`；真实窗口 1,853 ms 就绪并稳定 20 秒，NuGet 无已知漏洞。live UIA 仍由已知崩溃组合在启动前安全拒绝。本轮是跨屏工程和真实硬件语义证据，不是物理鼠标/触控或 UIA Bounds 证据。PF-003 与顶层 `0 Complete` 口径不变；下一切片固定 PF-003D5 物理输入、截图与无障碍证据，详见 [Stage 179](179-pf003d4-cross-display-mixed-dpi-audit.md)。
+
+## 27. 2026-08-24 PF-003D5 真实输入证据准入纠偏复审
+
+审计发现 Stage 179 已在人工手册定义 PF003D5-01～05，但正式产品会话启动器仍只接受 A5-01～06，导致手册场景在参数绑定阶段无法执行；Stage 153 和 README 的下一步也分别停留在 D4 与 B6C3。Stage 180 已把五个场景接入同一受控入口，并用机器合同固定“不发送输入、不改变显示状态、不截屏、不自动写 Pass”，同时明确 SendInput 只能记 `VisibleSyntheticInputEvidence`，不能升级为物理设备证据。
+
+五个场景的参数绑定/ValidateOnly 和 153-ID UI 合同均通过。正式 Release App 可见自动化两次在截图观察阶段收到操作者物理 Escape，按安全规范立即停止，实际没有执行点击、拖动或配置提交，因此物理/截图结果继续 Pending。该切片关闭流程实现偏移，不增加 PF 完成数；PF-003 保持 `InProgress`，下一步仍为不被中止的可见合成输入证据和真人物理矩阵，详见 [Stage 180](180-pf003d5-real-input-evidence-readiness-audit.md)。
+
+## 28. 2026-08-24 PF-003D5 正式 App 可见捕获阻断复审
+
+在干净提交基础上再次启动正式 Release App，Windows Capture 两次都只得到透明 Surface 下层内容，随后目标窗口消失；由于没有可信产品截图，控制器没有发送任何点击、拖动或键盘输入。Windows Application Error/WER 的两个独立报告均指向 `Microsoft.UI.Xaml.dll 3.2.3.0`、异常 `0xc000027b` 和 P7 `8001010e`，与 Stage 169 已审计的 RPC_E_WRONG_THREAD fail-fast 完全一致。
+
+Stage 172–180 已覆盖 PF-003 的全部计划生产工程与证据准入，剩余均为物理/截图/Narrator/UIA/热插拔 Product Evidence。因此 PF-003 调整为 `EngineeringComplete / ProductEvidencePending`，不是 `Complete`，顶层仍为 0/30 Complete。下一开发项转为 PF-001 桌面优先启动收口；PF-003 外部证据只在上游安全运行时或独立机器并行补证，详见 [Stage 181](181-pf003d5-visible-capture-upstream-blocker-audit.md)。
+
+## 29. 2026-08-24 PF-001 桌面优先启动收口复审
+
+Stage 182 已把正常启动从“无条件显示控制中心”改为有限状态决策：方格开启且 DesktopHost 可用/空工作区/系统表面暂挂时保持桌面优先；方格关闭、配置需注意、Host 故障/超时/不安全或第二次用户启动时激活唯一控制中心。真实 Release App 首次控制中心 0 个、DesktopHost 1 个，`1,378 ms` 冷启动就绪并稳定 20 秒；第二进程退出码 0，重定向后控制中心 1 个，退出后活进程和临时配置写入均为 0。
+
+本轮还从真实门禁发现并修正 PowerShell `Add-Type` 旧 C# 语法不兼容、历史 `$LASTEXITCODE` 误报以及干净会话仍硬编码 146-ID（正式合同已为 153-ID）的测试偏移。Release 全量 1087/1087、build 0 warning / 0 error。PF-001 调整为 `EngineeringComplete / ProductEvidencePending`；PF-001～PF-003 均未取得完整物理/无障碍证据，顶层仍为 0/30 Complete。下一开发项严格进入 PF-004，详见 [Stage 182](182-pf001-desktop-first-startup-audit.md)。
+
+## 30. 2026-08-24 PF-004A 正式桌面标题信息复审
+
+Stage 183 已在正式 GDI DesktopHost 标题显示折叠方向、名称、真实项目总数、安全引用来源、锁定和折叠状态，并让 UIA 读取同一有限 presentation。可见项目仍限制为 12，标题总数限制为正式 500 项；跨显示器布局预览复制总数，不扩大输入 region、文件访问或窗口权限。
+
+真实测试创建非零原生 HWND，窗口标题、Passive 合同、`▸ 工作资料`、`7 项 · 安全引用 · 已锁定 · 已折叠` 和中文无障碍名称全部与 Expected 一致。首轮编译修正 CA1838；首轮全量又真实发现 ItemStatus 丢失“只读”导致 1/1091 失败，保留安全前缀后 1091/1091。PF-004 顶层仍为 `InProgress`，下一切片固定 PF-004B 桌面直接折叠/锁定命令，详见 [Stage 183](183-pf004a-desktop-container-header-presentation-audit.md)。
+
+## 31. 2026-08-24 PF-004B 桌面标题栏直接命令复审
+
+Stage 184 已在每个正式方格标题命令面提供进入、折叠/展开和锁定/解锁三个有限 32 DIP/UIA 按钮。生命周期与 App 双重复核 container/display/workspace revision/topology generation 和来源事实；陈旧、错误显示器、注入、自动重复、锁定折叠和并发未发布命令全部失败关闭。锁定后仍可解锁，布局与折叠继续拒绝。
+
+命令复用唯一配置提交和保存控制器；App 应用文档后复读当前保存快照，覆盖极快 Store 在 publication 登记前已完成通知的竞态。真实 Store 验证折叠成功后内存/重载均为 true；真实写租约冲突得到 `WriteLeaseUnavailable`，内存恢复原锁定值，冲突期间磁盘保持原值，释放租约后 Retry 把补偿版本落盘。真实 activation HWND/UIA 验证 3 个 32×32 按钮和精确来源请求；正式 App 1,776 ms 就绪并响应 20 秒。全量 1094/1094、build 0 warning/error、153-ID/PF-004B 合同通过，Expected/Actual `Difference=None`。PF-004 继续 `InProgress`，下一切片固定 PF-004C 更多菜单与安全管理入口，详见 [Stage 184](184-pf004b-desktop-header-command-audit.md)。
+
+## 32. 2026-08-24 PF-004C 原生更多菜单与安全导航复审
+
+Stage 185 已把标题命令面扩为锁定、折叠、进入、更多四个 32 DIP/UIA 目标；更多由 activation HWND 拥有线程建立真实 Win32 `#32768` 菜单。重命名、外观和方格列表排序导航到唯一控制中心；规则、Portal/Tab 和删除明确显示但禁用。锁定/只读/真实保存失败会在菜单打开前禁用编辑入口，排序仍可用；所有选择继续双重绑定 container/display/revision/topology/来源事实。
+
+真实测试通过 OS UIA 读取实际菜单 6 项及 `true/true/true/false/false/false` 状态，取消零请求；真实 Store 验证三项导航均命中 ordinal 1 且配置字节/写入时间不变，写租约失败为 `WriteLeaseUnavailable`、磁盘名称保持 `Work`。首轮跨线程 EndMenu 挂起被改为拥有线程 WM_TIMER 关闭；四按钮排序又暴露键盘仍硬取 regions[0]，已改为按 Kind 选择 Enter。最终 1097/1097、build 0 warning/error、153-ID/PF-004C 合同通过；正式 App 1,304 ms 就绪并响应 20 秒，Expected/Actual `Difference=None`。PF-004 继续 `InProgress`，下一切片固定 PF-004D 删除确认与统一撤销，详见 [Stage 185](185-pf004c-desktop-container-more-menu-audit.md)。

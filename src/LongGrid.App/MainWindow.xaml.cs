@@ -17,6 +17,9 @@ namespace LongGrid.App;
 
 public sealed partial class MainWindow : Window
 {
+    internal bool IsProductXamlReady =>
+        RootLayout.IsLoaded && RootLayout.XamlRoot is not null;
+
     private const double CompactBreakpoint = 760;
     private const double DefaultWidth = 1180;
     private const double DefaultHeight = 760;
@@ -30,9 +33,19 @@ public sealed partial class MainWindow : Window
     private bool _desktopHostFeatureEnabled;
     private bool _desktopHostConnected;
     private bool _suppressBoxesEnabledChange;
+    private bool _suppressThumbnailsEnabledChange;
+    private bool _suppressSingleClickOpenChange;
+    private ContentDialog? _desktopWorkspaceCreatePreviewDialog;
+    private ContentDialog? _desktopContainerDeleteConfirmationDialog;
+    private TaskCompletionSource<string?>? _safePreviewCompletion;
+    private Func<string, ProductDesktopWorkspaceCreatePreviewSnapshot>?
+        _evaluateSafePreviewName;
+    private ProductDesktopWorkspaceCreatePreviewSnapshot? _safePreviewSnapshot;
 
     internal event EventHandler? DesktopKeyboardInteractionRequested;
     internal event Action<bool>? BoxesEnabledChangeRequested;
+    internal event Action<bool>? ThumbnailsEnabledChangeRequested;
+    internal event Action<bool>? SingleClickOpenChangeRequested;
     private string _organizationStartChoice = "suggested";
     private bool _practiceItemsAdded;
     private ProductConfigurationStartupMode _configurationStartupMode;
@@ -83,6 +96,10 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceResolvedReferenceBatchRemovalCommitResult>
         _commitProductWorkspaceResolvedReferenceBatchRemoval;
     private readonly Func<
+        long,
+        IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>,
+        bool> _requestProductWorkspaceSelectedReferenceCreate;
+    private readonly Func<
         ProductWorkspaceReferenceRemovalUndoToken,
         bool,
         ProductWorkspaceReferenceRemovalUndoCommitResult>
@@ -108,6 +125,8 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerOpacityPreset?,
         ProductWorkspaceContainerPositionPreset?,
         ProductWorkspaceContainerSizePreset?,
+        ProductContainerTitleVisibilityPolicy?,
+        ProductContainerTitleDoubleClickAction?,
         bool,
         ProductWorkspaceContainerCommitResult> _commitProductWorkspaceContainerAction;
     private readonly Func<
@@ -115,6 +134,11 @@ public sealed partial class MainWindow : Window
         bool,
         ProductWorkspaceContainerRemovalUndoCommitResult>
         _commitProductWorkspaceContainerRemovalUndo;
+    private readonly Func<
+        ProductWorkspaceContainerEditUndoToken,
+        bool,
+        ProductWorkspaceContainerEditUndoCommitResult>
+        _commitProductWorkspaceContainerEditUndo;
     private readonly Func<
         ProductWorkspaceLayoutRecoveryReviewToken,
         bool,
@@ -199,6 +223,10 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceResolvedReferenceBatchRemovalCommitResult>
             commitProductWorkspaceResolvedReferenceBatchRemoval,
         Func<
+            long,
+            IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>,
+            bool> requestProductWorkspaceSelectedReferenceCreate,
+        Func<
             ProductWorkspaceReferenceRemovalUndoToken,
             bool,
             ProductWorkspaceReferenceRemovalUndoCommitResult>
@@ -224,6 +252,8 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerOpacityPreset?,
             ProductWorkspaceContainerPositionPreset?,
             ProductWorkspaceContainerSizePreset?,
+            ProductContainerTitleVisibilityPolicy?,
+            ProductContainerTitleDoubleClickAction?,
             bool,
             ProductWorkspaceContainerCommitResult> commitProductWorkspaceContainerAction,
         Func<
@@ -231,6 +261,11 @@ public sealed partial class MainWindow : Window
             bool,
             ProductWorkspaceContainerRemovalUndoCommitResult>
             commitProductWorkspaceContainerRemovalUndo,
+        Func<
+            ProductWorkspaceContainerEditUndoToken,
+            bool,
+            ProductWorkspaceContainerEditUndoCommitResult>
+            commitProductWorkspaceContainerEditUndo,
         Func<
             ProductWorkspaceLayoutRecoveryReviewToken,
             bool,
@@ -259,6 +294,8 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceReferenceBatchAdditionUndo);
         ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceResolvedReferenceBatchRemoval);
+        ArgumentNullException.ThrowIfNull(
+            requestProductWorkspaceSelectedReferenceCreate);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceReferenceRemovalUndo);
         ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceResolvedReferenceReassignment);
@@ -267,6 +304,8 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceContainerAction);
         ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceContainerRemovalUndo);
+        ArgumentNullException.ThrowIfNull(
+            commitProductWorkspaceContainerEditUndo);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecovery);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecoveryUndo);
         _recoverConfiguration = recoverConfiguration;
@@ -288,6 +327,8 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceReferenceBatchAdditionUndo;
         _commitProductWorkspaceResolvedReferenceBatchRemoval =
             commitProductWorkspaceResolvedReferenceBatchRemoval;
+        _requestProductWorkspaceSelectedReferenceCreate =
+            requestProductWorkspaceSelectedReferenceCreate;
         _commitProductWorkspaceReferenceRemovalUndo =
             commitProductWorkspaceReferenceRemovalUndo;
         _commitProductWorkspaceResolvedReferenceReassignment =
@@ -298,6 +339,8 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceContainerAction;
         _commitProductWorkspaceContainerRemovalUndo =
             commitProductWorkspaceContainerRemovalUndo;
+        _commitProductWorkspaceContainerEditUndo =
+            commitProductWorkspaceContainerEditUndo;
         _commitProductWorkspaceLayoutRecovery =
             commitProductWorkspaceLayoutRecovery;
         _commitProductWorkspaceLayoutRecoveryUndo =
@@ -477,6 +520,86 @@ public sealed partial class MainWindow : Window
         if (!_suppressBoxesEnabledChange)
         {
             BoxesEnabledChangeRequested?.Invoke(BoxesEnabledToggle.IsOn);
+        }
+    }
+
+    internal void ApplyThumbnailsEnabledState(
+        bool thumbnailsEnabled,
+        bool canChange,
+        string status)
+    {
+        _suppressThumbnailsEnabledChange = true;
+        try
+        {
+            ThumbnailsEnabledToggle.IsOn = thumbnailsEnabled;
+            ThumbnailsEnabledToggle.IsEnabled = canChange;
+            ThumbnailsEnabledStatus.Text = status;
+            AutomationProperties.SetItemStatus(
+                ThumbnailsEnabledToggle,
+                $"ThumbnailsEnabled={thumbnailsEnabled}:CanChange={canChange}");
+        }
+        finally
+        {
+            _suppressThumbnailsEnabledChange = false;
+        }
+    }
+
+    internal void ApplyThumbnailsEnabledChangePending(bool requestedValue)
+    {
+        ThumbnailsEnabledToggle.IsEnabled = false;
+        ThumbnailsEnabledStatus.Text = requestedValue
+            ? "正在保存并启用图片缩略图…"
+            : "正在保存并切换到类型图标…";
+    }
+
+    private void ThumbnailsEnabledToggle_Toggled(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (!_suppressThumbnailsEnabledChange)
+        {
+            ThumbnailsEnabledChangeRequested?.Invoke(
+                ThumbnailsEnabledToggle.IsOn);
+        }
+    }
+
+    internal void ApplySingleClickOpenState(
+        bool enabled,
+        bool canChange,
+        string status)
+    {
+        _suppressSingleClickOpenChange = true;
+        try
+        {
+            SingleClickOpenToggle.IsOn = enabled;
+            SingleClickOpenToggle.IsEnabled = canChange;
+            SingleClickOpenStatus.Text = status;
+            AutomationProperties.SetItemStatus(
+                SingleClickOpenToggle,
+                $"SingleClickOpen={enabled}:CanChange={canChange}");
+        }
+        finally
+        {
+            _suppressSingleClickOpenChange = false;
+        }
+    }
+
+    internal void ApplySingleClickOpenChangePending(bool requestedValue)
+    {
+        SingleClickOpenToggle.IsEnabled = false;
+        SingleClickOpenStatus.Text = requestedValue
+            ? "正在保存单击打开设置…"
+            : "正在恢复推荐的双击打开…";
+    }
+
+    private void SingleClickOpenToggle_Toggled(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (!_suppressSingleClickOpenChange)
+        {
+            SingleClickOpenChangeRequested?.Invoke(
+                SingleClickOpenToggle.IsOn);
         }
     }
 
@@ -788,6 +911,373 @@ public sealed partial class MainWindow : Window
                 : "DesktopWorkspaceCreateRejected:DesktopFilesChanged=False");
     }
 
+    public void ApplyDesktopWorkspaceCreatePreviewResult(
+        ProductDesktopWorkspaceCreatePreviewSnapshot snapshot,
+        bool created)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ProductWorkspaceViewStatus.Text = created
+            ? $"已创建“{snapshot.Name}”并提交保存；没有移动或读取桌面文件。"
+            : snapshot.Status ==
+                ProductDesktopWorkspaceCreatePreviewStatus.Cancelled
+                ? "已取消新方格预览；没有创建方格或修改桌面文件。"
+                : snapshot.Status ==
+                    ProductDesktopWorkspaceCreatePreviewStatus.Submitting
+                    ? "创建请求未能提交；没有留下新方格或修改桌面文件。"
+                : DescribeDesktopWorkspaceCreatePreviewFailure(snapshot.Failure);
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceViewStatus,
+            $"DesktopWorkspaceCreatePreview{snapshot.Status}:" +
+                $"Failure={snapshot.Failure}:Created={created}:" +
+                "DesktopFilesChanged=False");
+    }
+
+    public void ApplyDesktopWorkspaceCreatePreviewOpened(
+        ProductDesktopWorkspaceCreatePreviewSnapshot snapshot,
+        bool inline)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ProductWorkspaceViewStatus.Text = inline
+            ? $"正在桌面候选位置预览新方格{DescribeSelectedReferenceCount(snapshot)}；确认前配置和桌面文件均未改变。"
+            : "桌面就地预览不可用，已安全回退到控制中心预览。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceViewStatus,
+            inline
+                ? "DesktopWorkspaceCreateInlinePreviewEditing:" +
+                    "Changed=False:DesktopFilesChanged=False"
+                : "DesktopWorkspaceCreatePreviewFallbackEditing:" +
+                    "Changed=False:DesktopFilesChanged=False");
+    }
+
+    internal async Task<string?> ShowDesktopWorkspaceCreateSafePreviewAsync(
+        ProductDesktopWorkspaceCreatePreviewSnapshot initial,
+        Func<
+            string,
+            ProductDesktopWorkspaceCreatePreviewSnapshot> evaluateName,
+        bool evidenceMode = false,
+        string? evidenceResponse = null,
+        Action<bool>? observeEvidence = null)
+    {
+        ArgumentNullException.ThrowIfNull(initial);
+        ArgumentNullException.ThrowIfNull(evaluateName);
+        if (!initial.CanSubmit || _safePreviewCompletion is not null)
+        {
+            return null;
+        }
+
+        _evaluateSafePreviewName = evaluateName;
+        _safePreviewSnapshot = initial;
+        _safePreviewCompletion = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<string?> completion = _safePreviewCompletion;
+        DesktopWorkspaceCreateSafePreviewNameEditor.Text = initial.Name;
+        ApplyDesktopWorkspaceCreateSafePreviewValidation();
+        if (!evidenceMode)
+        {
+            DesktopWorkspaceCreateSafePreviewOverlay.Visibility =
+                Visibility.Visible;
+            ProductWorkspaceViewStatus.Text =
+                "正在安全预览新方格；确认前配置和桌面文件均未改变。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceViewStatus,
+                "DesktopWorkspaceCreateSafePreviewEditing:Changed=False:" +
+                    "DesktopFilesChanged=False");
+        }
+        observeEvidence?.Invoke(
+            DesktopWorkspaceCreateSafePreviewOverlay.IsLoaded
+            && !string.IsNullOrWhiteSpace(AutomationProperties.GetAutomationId(
+                DesktopWorkspaceCreateSafePreviewNameEditor))
+            && !string.IsNullOrWhiteSpace(AutomationProperties.GetAutomationId(
+                DesktopWorkspaceCreateSafePreviewConfirmButton)));
+
+        if (evidenceMode)
+        {
+            await Task.Yield();
+            if (evidenceResponse is null)
+            {
+                CompleteDesktopWorkspaceCreateSafePreview(null);
+            }
+            else
+            {
+                DesktopWorkspaceCreateSafePreviewNameEditor.Text = evidenceResponse;
+                ApplyDesktopWorkspaceCreateSafePreviewValidation();
+                CompleteDesktopWorkspaceCreateSafePreview(
+                    _safePreviewSnapshot?.CanSubmit == true
+                        ? _safePreviewSnapshot.Name
+                        : null);
+            }
+        }
+        else
+        {
+            _ = DesktopWorkspaceCreateSafePreviewNameEditor.Focus(
+                FocusState.Programmatic);
+            DesktopWorkspaceCreateSafePreviewNameEditor.SelectAll();
+        }
+
+        return await completion.Task;
+    }
+
+    private void DesktopWorkspaceCreateSafePreviewNameEditor_TextChanged(
+        object sender,
+        TextChangedEventArgs args) =>
+        ApplyDesktopWorkspaceCreateSafePreviewValidation();
+
+    private void DesktopWorkspaceCreateSafePreviewCancelButton_Click(
+        object sender,
+        RoutedEventArgs args) =>
+        CompleteDesktopWorkspaceCreateSafePreview(null);
+
+    private void DesktopWorkspaceCreateSafePreviewConfirmButton_Click(
+        object sender,
+        RoutedEventArgs args)
+    {
+        ApplyDesktopWorkspaceCreateSafePreviewValidation();
+        if (_safePreviewSnapshot?.CanSubmit == true)
+        {
+            CompleteDesktopWorkspaceCreateSafePreview(_safePreviewSnapshot.Name);
+        }
+    }
+
+    private void ApplyDesktopWorkspaceCreateSafePreviewValidation()
+    {
+        if (_evaluateSafePreviewName is null)
+        {
+            return;
+        }
+
+        _safePreviewSnapshot = _evaluateSafePreviewName(
+            DesktopWorkspaceCreateSafePreviewNameEditor.Text);
+        DesktopWorkspaceCreateSafePreviewConfirmButton.IsEnabled =
+            _safePreviewSnapshot.CanSubmit;
+        DesktopWorkspaceCreateSafePreviewValidation.Text =
+            DescribeDesktopWorkspaceCreatePreviewFailure(
+                _safePreviewSnapshot.Failure);
+        DesktopWorkspaceCreateSafePreviewPlacementSummary.Text =
+            DescribeDesktopWorkspaceCreatePlacement(_safePreviewSnapshot);
+        AutomationProperties.SetHelpText(
+            DesktopWorkspaceCreateSafePreviewNameEditor,
+            DesktopWorkspaceCreateSafePreviewValidation.Text);
+    }
+
+    private void CompleteDesktopWorkspaceCreateSafePreview(string? name)
+    {
+        TaskCompletionSource<string?>? completion = _safePreviewCompletion;
+        if (completion is null)
+        {
+            return;
+        }
+
+        DesktopWorkspaceCreateSafePreviewOverlay.Visibility = Visibility.Collapsed;
+        _safePreviewCompletion = null;
+        _evaluateSafePreviewName = null;
+        _safePreviewSnapshot = null;
+        _ = completion.TrySetResult(name);
+    }
+
+    internal async Task<string?> ShowDesktopWorkspaceCreatePreviewAsync(
+        ProductDesktopWorkspaceCreatePreviewSnapshot initial,
+        Func<
+            string,
+            ProductDesktopWorkspaceCreatePreviewSnapshot> evaluateName,
+        bool evidenceMode = false,
+        string? evidenceResponse = null,
+        Action<bool>? observeEvidence = null)
+    {
+        ArgumentNullException.ThrowIfNull(initial);
+        ArgumentNullException.ThrowIfNull(evaluateName);
+        if (!initial.CanSubmit || _desktopWorkspaceCreatePreviewDialog is not null)
+        {
+            return null;
+        }
+
+        var nameEditor = new TextBox
+        {
+            Header = "方格名称",
+            Text = initial.Name,
+            MaxLength = ProductConfigurationLimits.MaximumNameLength,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            SelectionStart = 0,
+            SelectionLength = initial.Name.Length,
+        };
+        AutomationProperties.SetAutomationId(
+            nameEditor,
+            "DesktopWorkspaceCreatePreviewNameEditor");
+        AutomationProperties.SetName(nameEditor, "方格名称");
+
+        var placementSummary = new TextBlock
+        {
+            Text = DescribeDesktopWorkspaceCreatePlacement(initial),
+            TextWrapping = TextWrapping.Wrap,
+        };
+        AutomationProperties.SetAutomationId(
+            placementSummary,
+            "DesktopWorkspaceCreatePreviewPlacementSummary");
+
+        var validation = new TextBlock
+        {
+            Text = "名称可用；确认前不会创建方格或修改配置。",
+            TextWrapping = TextWrapping.Wrap,
+        };
+        AutomationProperties.SetAutomationId(
+            validation,
+            "DesktopWorkspaceCreatePreviewValidation");
+        AutomationProperties.SetLiveSetting(validation, AutomationLiveSetting.Polite);
+
+        var content = new StackPanel
+        {
+            Spacing = 12,
+            Children =
+            {
+                new TextBlock
+                {
+                    Text = $"检查名称和候选位置后再创建{DescribeSelectedReferenceCount(initial)}。取消不会留下方格，也不会读取、移动或修改桌面文件。",
+                    TextWrapping = TextWrapping.Wrap,
+                },
+                nameEditor,
+                placementSummary,
+                validation,
+            },
+        };
+        var dialog = new ContentDialog
+        {
+            Title = "预览新方格",
+            Content = content,
+            PrimaryButtonText = "创建并保存",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary,
+            IsPrimaryButtonEnabled = true,
+            XamlRoot = RootLayout.XamlRoot,
+        };
+        AutomationProperties.SetAutomationId(
+            dialog,
+            "DesktopWorkspaceCreatePreviewDialog");
+
+        ProductDesktopWorkspaceCreatePreviewSnapshot current = initial;
+        void ApplyValidation()
+        {
+            current = evaluateName(nameEditor.Text);
+            dialog.IsPrimaryButtonEnabled = current.CanSubmit;
+            validation.Text = DescribeDesktopWorkspaceCreatePreviewFailure(
+                current.Failure);
+            placementSummary.Text = DescribeDesktopWorkspaceCreatePlacement(
+                current);
+            AutomationProperties.SetHelpText(nameEditor, validation.Text);
+            AutomationProperties.SetItemStatus(
+                validation,
+                $"DesktopWorkspaceCreatePreview:{current.Status}:" +
+                    $"Failure={current.Failure}:CanSubmit={current.CanSubmit}:" +
+                    "ConfigurationChanged=False:DesktopFilesChanged=False");
+        }
+
+        nameEditor.TextChanged += (_, _) => ApplyValidation();
+        dialog.Opened += (_, _) =>
+        {
+            _ = nameEditor.Focus(FocusState.Programmatic);
+            nameEditor.SelectAll();
+            observeEvidence?.Invoke(
+                content.Children.Count == 4
+                && !string.IsNullOrWhiteSpace(
+                    AutomationProperties.GetAutomationId(nameEditor))
+                && !string.IsNullOrWhiteSpace(
+                    AutomationProperties.GetAutomationId(dialog)));
+            if (evidenceMode)
+            {
+                _ = DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (evidenceResponse is not null)
+                    {
+                        nameEditor.Text = evidenceResponse;
+                        ApplyValidation();
+                    }
+                    dialog.Hide();
+                });
+            }
+        };
+        dialog.PrimaryButtonClick += (_, args) =>
+        {
+            ApplyValidation();
+            args.Cancel = !current.CanSubmit;
+        };
+
+        _desktopWorkspaceCreatePreviewDialog = dialog;
+        ProductWorkspaceViewStatus.Text =
+            "正在预览新方格；确认前配置和桌面文件均未改变。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceViewStatus,
+            "DesktopWorkspaceCreatePreviewEditing:Changed=False:" +
+                "DesktopFilesChanged=False");
+        try
+        {
+            ApplyValidation();
+            ContentDialogResult result = await dialog.ShowAsync();
+            if (evidenceMode)
+            {
+                return evidenceResponse is not null && current.CanSubmit
+                    ? current.Name
+                    : null;
+            }
+            return result == ContentDialogResult.Primary && current.CanSubmit
+                ? current.Name
+                : null;
+        }
+        finally
+        {
+            if (ReferenceEquals(_desktopWorkspaceCreatePreviewDialog, dialog))
+            {
+                _desktopWorkspaceCreatePreviewDialog = null;
+            }
+        }
+    }
+
+    public void CancelDesktopWorkspaceCreatePreview()
+    {
+        ContentDialog? dialog = _desktopWorkspaceCreatePreviewDialog;
+        _desktopWorkspaceCreatePreviewDialog = null;
+        dialog?.Hide();
+    }
+
+    private static string DescribeDesktopWorkspaceCreatePlacement(
+        ProductDesktopWorkspaceCreatePreviewSnapshot snapshot)
+    {
+        ProductContainerPlacementState? placement = snapshot.CandidatePlacement;
+        return placement is null
+            ? "候选位置当前不可用；不会提交。"
+            : $"目标显示器上的候选位置：{placement.XDip:0}，{placement.YDip:0} DIP · " +
+                $"大小 {placement.WidthDip:0} × {placement.HeightDip:0} DIP";
+    }
+
+    private static string DescribeDesktopWorkspaceCreatePreviewFailure(
+        ProductDesktopWorkspaceCreatePreviewFailure failure) => failure switch
+        {
+            ProductDesktopWorkspaceCreatePreviewFailure.None =>
+                "名称可用；确认前不会创建方格或修改配置。",
+            ProductDesktopWorkspaceCreatePreviewFailure.InvalidName =>
+                "请输入非空、不过长且不含控制字符的名称。",
+            ProductDesktopWorkspaceCreatePreviewFailure.DuplicateName =>
+                "已有同名方格，请换一个名称。",
+            ProductDesktopWorkspaceCreatePreviewFailure.LimitReached =>
+                "方格数量已达到上限，无法继续创建。",
+            ProductDesktopWorkspaceCreatePreviewFailure.PlacementUnavailable =>
+                "当前显示器没有可用候选位置。",
+            ProductDesktopWorkspaceCreatePreviewFailure.StaleWorkspace =>
+                "工作区已变化，本次预览已失效。",
+            ProductDesktopWorkspaceCreatePreviewFailure.StaleTopology =>
+                "显示器状态已变化，本次预览已失效。",
+            ProductDesktopWorkspaceCreatePreviewFailure.StaleSelection =>
+                "所选引用已变化，本次预览已取消；配置和桌面文件未改变。",
+            ProductDesktopWorkspaceCreatePreviewFailure.DisplayUnavailable =>
+                "目标显示器已不可用，本次预览已失效。",
+            ProductDesktopWorkspaceCreatePreviewFailure.HostUnavailable =>
+                "桌面方格当前不可用，本次预览已取消。",
+            _ => "本次预览不可提交；配置和桌面文件均未改变。",
+        };
+
+    private static string DescribeSelectedReferenceCount(
+        ProductDesktopWorkspaceCreatePreviewSnapshot snapshot) =>
+        snapshot.Request.SelectedReferences is { } selected
+            ? $"，包含 {selected.ItemIds.Count} 个 Long方格引用"
+            : string.Empty;
+
     private void ProductWorkspaceResetViewButton_Click(
         object sender,
         RoutedEventArgs e)
@@ -1037,11 +1527,21 @@ public sealed partial class MainWindow : Window
         object sender,
         RoutedEventArgs e)
     {
+        _ = ExecuteProductWorkspaceLatestUndo();
+    }
+
+    internal ProductWorkspaceLatestUndoKind
+        ExecuteProductWorkspaceLatestUndoForEvidence() =>
+        ExecuteProductWorkspaceLatestUndo();
+
+    private ProductWorkspaceLatestUndoKind ExecuteProductWorkspaceLatestUndo()
+    {
         if (!_latestUndo.CanUndo)
         {
-            return;
+            return ProductWorkspaceLatestUndoKind.Unavailable;
         }
 
+        ProductWorkspaceLatestUndoKind executedKind = _latestUndo.Selection.Kind;
         switch (_latestUndo.Selection.Kind)
         {
             case ProductWorkspaceLatestUndoKind.LayoutRecovery
@@ -1054,7 +1554,11 @@ public sealed partial class MainWindow : Window
                 break;
             case ProductWorkspaceLatestUndoKind.ReferenceBatchAddition
                 when _latestUndo.ReferenceBatchAdditionToken is { } token:
-                UndoLatestReferenceBatchAddition(token);
+                UndoLatestReferenceBatchAddition(token, selectedCreate: false);
+                break;
+            case ProductWorkspaceLatestUndoKind.SelectedReferenceContainer
+                when _latestUndo.SelectedReferenceContainerToken is { } token:
+                UndoLatestReferenceBatchAddition(token, selectedCreate: true);
                 break;
             case ProductWorkspaceLatestUndoKind.ReferenceRemoval
                 when _latestUndo.ReferenceRemovalToken is { } token:
@@ -1064,7 +1568,19 @@ public sealed partial class MainWindow : Window
                 when _latestUndo.ReferenceReassignmentToken is { } token:
                 UndoLatestReferenceReassignment(token);
                 break;
+            case ProductWorkspaceLatestUndoKind.ContainerEdit
+                when _latestUndo.ContainerEditToken is { } token:
+                ProductWorkspaceContainerEditUndoCommitResult editUndo =
+                    _commitProductWorkspaceContainerEditUndo(token, true);
+                ProductWorkspaceContainerEditStatus.Text = editUndo.IsAccepted
+                    ? "最近一次方格编辑已撤销并进入安全保存队列；桌面文件未改变。"
+                    : "最近一次方格编辑撤销已安全拒绝；配置与桌面文件均未改变。";
+                break;
+            default:
+                return ProductWorkspaceLatestUndoKind.Unavailable;
         }
+
+        return executedKind;
     }
 
     private void UndoLatestLayoutRecovery(
@@ -1099,16 +1615,20 @@ public sealed partial class MainWindow : Window
     }
 
     private void UndoLatestReferenceBatchAddition(
-        ProductWorkspaceReferenceBatchAdditionUndoToken token)
+        ProductWorkspaceReferenceBatchAdditionUndoToken token,
+        bool selectedCreate)
     {
         ProductWorkspaceReferenceBatchAdditionUndoCommitResult result =
             _commitProductWorkspaceReferenceBatchAdditionUndo(token, true);
         ProductWorkspaceResolvedReferenceAddStatus.Text = result.IsAccepted
-            ? "最近一次批量加入已即时整体撤销并保存；桌面文件未改变。"
+            ? selectedCreate
+                ? "最近一次使用选择创建的方格及引用改归属已整体撤销并保存；桌面文件未改变。"
+                : "最近一次批量加入已即时整体撤销并保存；桌面文件未改变。"
             : "批量加入撤销令牌已失效或保存不可用；配置与桌面文件均未改变。";
         AutomationProperties.SetItemStatus(
             ProductWorkspaceResolvedReferenceAddStatus,
-            $"LatestWorkspaceEditUndo:{result.Status}:Kind=ReferenceBatchAddition:" +
+            $"LatestWorkspaceEditUndo:{result.Status}:Kind=" +
+                $"{(selectedCreate ? "SelectedReferenceContainer" : "ReferenceBatchAddition")}:" +
                 $"Gate={result.UndoStatus}:Revision={result.EditRevision}:" +
                 $"Changed={result.IsAccepted}:DesktopFilesChanged=False:" +
                 "DesktopWindowsChanged=False");
@@ -1309,6 +1829,10 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerEditPresentation.ColorChoices;
         ProductWorkspaceContainerOpacitySelector.ItemsSource =
             ProductWorkspaceContainerEditPresentation.OpacityChoices;
+        ProductWorkspaceContainerTitleVisibilitySelector.ItemsSource =
+            ProductWorkspaceContainerEditPresentation.TitleVisibilityChoices;
+        ProductWorkspaceContainerTitleDoubleClickSelector.ItemsSource =
+            ProductWorkspaceContainerEditPresentation.TitleDoubleClickChoices;
         ProductWorkspaceContainerPositionSelector.ItemsSource =
             ProductWorkspaceContainerEditPresentation.PositionChoices;
         ProductWorkspaceContainerSizeSelector.ItemsSource =
@@ -1335,6 +1859,192 @@ public sealed partial class MainWindow : Window
         UpdateProductWorkspaceEmptyCreateShortcut();
     }
 
+    internal bool OpenProductWorkspaceContainerMenuTarget(
+        int containerOrdinal,
+        ProductDesktopContainerMenuAction action)
+    {
+        if (!IsProductXamlReady
+            || containerOrdinal <= 0
+            || !Enum.IsDefined(action))
+        {
+            return false;
+        }
+
+        int candidateIndex = _containerEditor.Candidates
+            .Select((candidate, index) => (candidate, index))
+            .Where(pair => pair.candidate.Ordinal == containerOrdinal)
+            .Select(pair => pair.index)
+            .DefaultIfEmpty(-1)
+            .First();
+        if (candidateIndex < 0)
+        {
+            return false;
+        }
+
+        NavigationViewItem? overview = ShellNavigation.MenuItems
+            .OfType<NavigationViewItem>()
+            .FirstOrDefault(item => string.Equals(
+                item.Tag as string,
+                "overview",
+                StringComparison.Ordinal));
+        if (overview is null)
+        {
+            return false;
+        }
+
+        ShellNavigation.SelectedItem = overview;
+        ProductWorkspaceContainerEditSelector.SelectedIndex = candidateIndex;
+        FrameworkElement target = action switch
+        {
+            ProductDesktopContainerMenuAction.OpenRename =>
+                ProductWorkspaceContainerNameEditor,
+            ProductDesktopContainerMenuAction.OpenAppearance =>
+                ProductWorkspaceContainerColorSelector,
+            ProductDesktopContainerMenuAction.OpenSort =>
+                ProductWorkspaceSortSelector,
+            _ => throw new ArgumentOutOfRangeException(nameof(action)),
+        };
+        target.StartBringIntoView();
+        bool focused = target.Focus(FocusState.Programmatic);
+        if (focused
+            && action == ProductDesktopContainerMenuAction.OpenRename)
+        {
+            ProductWorkspaceContainerNameEditor.SelectAll();
+        }
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceContainerEditStatus,
+            $"DesktopContainerMenuNavigation:{action}:" +
+                $"Ordinal={containerOrdinal}:Focused={focused}:" +
+                "Changed=False:DesktopFilesChanged=False");
+        return focused;
+    }
+
+    internal async Task<bool> ConfirmDesktopContainerDeletionAsync(
+        int containerOrdinal,
+        string containerName,
+        int itemCount,
+        long editRevision,
+        long topologyGeneration)
+    {
+        if (!IsProductXamlReady
+            || containerOrdinal <= 0
+            || string.IsNullOrWhiteSpace(containerName)
+            || itemCount < 0
+            || _desktopContainerDeleteConfirmationDialog is not null)
+        {
+            return false;
+        }
+
+        int candidateIndex = _containerEditor.Candidates
+            .Select((candidate, index) => (candidate, index))
+            .Where(pair => pair.candidate.Ordinal == containerOrdinal)
+            .Select(pair => pair.index)
+            .DefaultIfEmpty(-1)
+            .First();
+        if (candidateIndex < 0)
+        {
+            return false;
+        }
+
+        NavigationViewItem? overview = ShellNavigation.MenuItems
+            .OfType<NavigationViewItem>()
+            .FirstOrDefault(item => string.Equals(
+                item.Tag as string,
+                "overview",
+                StringComparison.Ordinal));
+        if (overview is null)
+        {
+            return false;
+        }
+
+        ShellNavigation.SelectedItem = overview;
+        ProductWorkspaceContainerEditSelector.SelectedIndex = candidateIndex;
+        var dialog = new ContentDialog
+        {
+            Title = "删除方格配置",
+            Content = $"确认删除“{containerName}”及其中 {itemCount} 个配置引用。只删除 Long方格的组织关系；真实桌面文件不会被删除、移动或重命名。",
+            PrimaryButtonText = "确认删除方格配置",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = RootLayout.XamlRoot,
+        };
+        AutomationProperties.SetAutomationId(
+            dialog,
+            "DesktopContainerDeleteConfirmationDialog");
+        AutomationProperties.SetItemStatus(
+            dialog,
+            $"DesktopContainerDeleteConfirmation:Ordinal={containerOrdinal}:" +
+                $"Revision={editRevision}:Topology={topologyGeneration}:" +
+                "Default=Cancel:Changed=False:DesktopFilesChanged=False");
+        _desktopContainerDeleteConfirmationDialog = dialog;
+        try
+        {
+            bool confirmed;
+            try
+            {
+                confirmed = await dialog.ShowAsync() == ContentDialogResult.Primary;
+            }
+            catch (InvalidOperationException)
+            {
+                ProductWorkspaceContainerEditStatus.Text =
+                    "当前已有确认窗口，请关闭后重新操作；配置未改变。";
+                AutomationProperties.SetItemStatus(
+                    ProductWorkspaceContainerEditStatus,
+                    "DesktopContainerDeleteDialogBusy:Changed=False:" +
+                        "DesktopFilesChanged=False");
+                return false;
+            }
+            if (!confirmed)
+            {
+                ProductWorkspaceContainerEditStatus.Text =
+                    "已取消删除；Long方格配置和真实桌面文件均未改变。";
+                AutomationProperties.SetItemStatus(
+                    ProductWorkspaceContainerEditStatus,
+                    "DesktopContainerDeleteCancelled:Changed=False:" +
+                        "DesktopFilesChanged=False");
+            }
+            return confirmed;
+        }
+        finally
+        {
+            _desktopContainerDeleteConfirmationDialog = null;
+        }
+    }
+
+    internal void ApplyDesktopContainerDeleteCommitResult(
+        ProductDesktopContainerDeleteResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        ProductWorkspaceContainerEditStatus.Text = result.Status switch
+        {
+            ProductDesktopContainerDeleteStatus.Accepted =>
+                "方格配置及其中引用已删除并进入安全保存队列；真实桌面文件未改变，可通过统一撤销恢复。",
+            ProductDesktopContainerDeleteStatus.Compensated =>
+                "删除保存失败，Long方格已恢复原方格及引用；真实桌面文件始终未改变。",
+            ProductDesktopContainerDeleteStatus.Rejected
+                when result.EditError == ProductWorkspaceEditError.ContainerLocked =>
+                "确认期间方格已锁定，请先解锁再删除；配置未改变。",
+            _ => "删除确认已失效或请求无效；配置和真实桌面文件均未改变。",
+        };
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceContainerEditStatus,
+            $"DesktopContainerDeleteCommit:{result.Status}:" +
+                $"Revision={result.EditRevision}:Changed={result.IsAccepted}:" +
+                $"Compensated={result.IsCompensated}:" +
+                "DesktopFilesChanged=False");
+        UpdateProductWorkspaceContainerEditButtons();
+    }
+
+    internal void ApplyDesktopContainerDeleteRevalidationFailure()
+    {
+        ProductWorkspaceContainerEditStatus.Text =
+            "确认期间方格、显示器或工作区状态已变化，删除会话已安全取消。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceContainerEditStatus,
+            "DesktopContainerDeleteRevalidationRejected:Changed=False:" +
+                "DesktopFilesChanged=False");
+    }
+
     private void ProductWorkspaceContainerEditSelector_SelectionChanged(
         object sender,
         SelectionChangedEventArgs e)
@@ -1350,6 +2060,8 @@ public sealed partial class MainWindow : Window
         {
             ProductWorkspaceContainerColorSelector.SelectedIndex = -1;
             ProductWorkspaceContainerOpacitySelector.SelectedIndex = -1;
+            ProductWorkspaceContainerTitleVisibilitySelector.SelectedIndex = -1;
+            ProductWorkspaceContainerTitleDoubleClickSelector.SelectedIndex = -1;
             ProductWorkspaceContainerPositionSelector.SelectedIndex = -1;
             ProductWorkspaceContainerSizeSelector.SelectedIndex = -1;
         }
@@ -1418,6 +2130,20 @@ public sealed partial class MainWindow : Window
             FindColorChoiceIndex(selected.Color);
         ProductWorkspaceContainerOpacitySelector.SelectedIndex =
             FindOpacityChoiceIndex(selected.Opacity);
+        ProductWorkspaceContainerTitleVisibilitySelector.SelectedIndex =
+            ProductWorkspaceContainerEditPresentation.TitleVisibilityChoices
+                .Select((choice, index) => (choice, index))
+                .Where(pair => pair.choice.Policy == selected.TitleVisibility)
+                .Select(pair => pair.index)
+                .DefaultIfEmpty(-1)
+                .First();
+        ProductWorkspaceContainerTitleDoubleClickSelector.SelectedIndex =
+            ProductWorkspaceContainerEditPresentation.TitleDoubleClickChoices
+                .Select((choice, index) => (choice, index))
+                .Where(pair => pair.choice.Action == selected.TitleDoubleClickAction)
+                .Select(pair => pair.index)
+                .DefaultIfEmpty(-1)
+                .First();
     }
 
     private void ApplyProductWorkspaceContainerPlacementSelection(
@@ -1480,21 +2206,35 @@ public sealed partial class MainWindow : Window
             && !selected.IsLocked;
         ProductWorkspaceContainerColorSelector.IsEnabled = canEditAppearance;
         ProductWorkspaceContainerOpacitySelector.IsEnabled = canEditAppearance;
+        ProductWorkspaceContainerTitleVisibilitySelector.IsEnabled =
+            canEditAppearance;
+        ProductWorkspaceContainerTitleDoubleClickSelector.IsEnabled =
+            canEditAppearance;
         ProductWorkspaceContainerColorChoicePresentation? colorChoice =
             ProductWorkspaceContainerColorSelector.SelectedItem as
                 ProductWorkspaceContainerColorChoicePresentation;
         ProductWorkspaceContainerOpacityChoicePresentation? opacityChoice =
             ProductWorkspaceContainerOpacitySelector.SelectedItem as
                 ProductWorkspaceContainerOpacityChoicePresentation;
+        ProductWorkspaceContainerTitleVisibilityChoicePresentation? titleVisibility =
+            ProductWorkspaceContainerTitleVisibilitySelector.SelectedItem as
+                ProductWorkspaceContainerTitleVisibilityChoicePresentation;
+        ProductWorkspaceContainerTitleDoubleClickChoicePresentation? titleDoubleClick =
+            ProductWorkspaceContainerTitleDoubleClickSelector.SelectedItem as
+                ProductWorkspaceContainerTitleDoubleClickChoicePresentation;
         ProductWorkspaceContainerAppearanceButton.IsEnabled =
             canEditAppearance
             && colorChoice is not null
             && opacityChoice is not null
+            && titleVisibility is not null
+            && titleDoubleClick is not null
             && (!string.Equals(
                     colorChoice.Color,
                     selected!.Color,
                     StringComparison.OrdinalIgnoreCase)
-                || Math.Abs(opacityChoice.Opacity - selected.Opacity) >= 0.000001);
+                || Math.Abs(opacityChoice.Opacity - selected.Opacity) >= 0.000001
+                || titleVisibility.Policy != selected.TitleVisibility
+                || titleDoubleClick.Action != selected.TitleDoubleClickAction);
         bool canEditPlacement = _containerEditor.CanUpdatePlacement
             && selected is not null
             && !selected.IsLocked;
@@ -1590,7 +2330,11 @@ public sealed partial class MainWindow : Window
             || ProductWorkspaceContainerColorSelector.SelectedItem is not
                 ProductWorkspaceContainerColorChoicePresentation color
             || ProductWorkspaceContainerOpacitySelector.SelectedItem is not
-                ProductWorkspaceContainerOpacityChoicePresentation opacity)
+                ProductWorkspaceContainerOpacityChoicePresentation opacity
+            || ProductWorkspaceContainerTitleVisibilitySelector.SelectedItem is not
+                ProductWorkspaceContainerTitleVisibilityChoicePresentation titleVisibility
+            || ProductWorkspaceContainerTitleDoubleClickSelector.SelectedItem is not
+                ProductWorkspaceContainerTitleDoubleClickChoicePresentation titleDoubleClick)
         {
             return;
         }
@@ -1599,7 +2343,9 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerCommitAction.SetAppearancePreset,
             selected.Ordinal,
             colorPreset: color.Preset,
-            opacityPreset: opacity.Preset);
+            opacityPreset: opacity.Preset,
+            titleVisibility: titleVisibility.Policy,
+            titleDoubleClickAction: titleDoubleClick.Action);
     }
 
     private void ProductWorkspaceContainerPlacementButton_Click(
@@ -1711,6 +2457,8 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerOpacityPreset? opacityPreset = null,
         ProductWorkspaceContainerPositionPreset? positionPreset = null,
         ProductWorkspaceContainerSizePreset? sizePreset = null,
+        ProductContainerTitleVisibilityPolicy? titleVisibility = null,
+        ProductContainerTitleDoubleClickAction? titleDoubleClickAction = null,
         bool confirmed = false)
     {
         string name = action == ProductWorkspaceContainerCommitAction.Remove
@@ -1727,6 +2475,8 @@ public sealed partial class MainWindow : Window
                 opacityPreset,
                 positionPreset,
                 sizePreset,
+                titleVisibility,
+                titleDoubleClickAction,
                 confirmed);
         bool changed = result.IsAccepted;
         ProductWorkspaceContainerEditStatus.Text = result.Status switch
@@ -2202,6 +2952,11 @@ public sealed partial class MainWindow : Window
             && sources.Length <=
                 ProductWorkspaceCommitCoordinator
                     .MaximumResolvedReferenceRemovalBatchSize;
+        ProductWorkspaceSelectedReferenceCreateButton.IsEnabled =
+            _resolvedReferenceRemoval.CanRemove
+            && sameContainer
+            && sources.Length <=
+                ProductWorkspaceSelectedReferenceCreateSnapshot.MaximumItemCount;
         ProductWorkspaceResolvedReferenceSelectContainerBatchButton.IsEnabled =
             _resolvedReferenceRemoval.CanRemove && sameContainer;
         ProductWorkspaceResolvedReferenceRemovalClearSelectionButton.IsEnabled =
@@ -2224,6 +2979,12 @@ public sealed partial class MainWindow : Window
                 : sources.Length > 0
                     ? $"批量移除 {sources.Length} 项并保存"
                     : "选择项目后批量移除";
+        ProductWorkspaceSelectedReferenceCreateButton.Content = !sameContainer
+            && sources.Length > 0
+                ? "跨方格不可创建"
+                : sources.Length > 0
+                    ? $"使用 {sources.Length} 项创建新方格"
+                    : "使用选择创建新方格";
         ProductWorkspaceResolvedReferenceReassignmentButton.Content = !sameContainer
             && sources.Length > 0
                 ? "跨方格不可批量改归属"
@@ -2233,6 +2994,36 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceResolvedReferenceRemovalUndoButton.IsEnabled =
             _resolvedReferenceRemoval.UndoToken is not null
             || _resolvedReferenceReassignment.UndoToken is not null;
+    }
+
+    internal IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>
+        CaptureProductWorkspaceSelectedReferences() =>
+        ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems
+            .OfType<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>()
+            .ToArray();
+
+    private void ProductWorkspaceSelectedReferenceCreateButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>
+            selected = CaptureProductWorkspaceSelectedReferences();
+        bool requested = selected.Count is > 0 and <=
+                ProductWorkspaceSelectedReferenceCreateSnapshot.MaximumItemCount
+            && selected.Select(candidate => candidate.ContainerOrdinal)
+                .Distinct()
+                .Count() == 1
+            && _requestProductWorkspaceSelectedReferenceCreate(
+                _resolvedReferenceRemoval.EditRevision,
+                selected);
+        ProductWorkspaceResolvedReferenceRemovalStatus.Text = requested
+            ? $"已为 {selected.Count} 个所选引用打开新方格预览；确认前配置和桌面文件均未改变。"
+            : "所选引用已变化或当前无法创建；没有修改配置和桌面文件。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceResolvedReferenceRemovalStatus,
+            $"SelectedReferenceCreateRequested={requested}:Count={selected.Count}:" +
+                "Changed=False:DesktopFilesChanged=False");
+        RaiseLiveRegionChanged(ProductWorkspaceResolvedReferenceRemovalStatus);
     }
 
     private void PublishResolvedReferenceRemovalSelectionStatus()
@@ -2828,6 +3619,23 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetItemStatus(
             ProductSaveStatusDetail,
             automationStatus);
+    }
+
+    internal void ApplyProductWorkspaceCreateSaveRollbackState(
+        ProductWorkspaceSaveFailure failure,
+        long rollbackRevision)
+    {
+        ProductSaveStatusTitle.Text = "新方格未保存，已撤回";
+        ProductSaveStatusDetail.Text =
+            "创建结果未能安全写入配置，桌面投影已撤回；正在保存撤回后的安全状态。";
+        ProductSaveStatusIcon.Symbol = Symbol.Important;
+        ProductSaveRetryButton.Visibility = Visibility.Collapsed;
+        ProductSaveRetryButton.IsEnabled = false;
+        ImportConfigurationButton.IsEnabled = false;
+        ExportConfigurationButton.IsEnabled = false;
+        AutomationProperties.SetItemStatus(
+            ProductSaveStatusDetail,
+            $"WorkspaceCreateRolledBack:{failure}:Revision={rollbackRevision}:Motion=Static");
     }
 
     private static (

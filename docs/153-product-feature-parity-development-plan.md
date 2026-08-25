@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：后续产品功能开发的权威任务清单
-- 当前开发项：**PF-002 桌面直接创建方格**
-- 最新状态审计：[Stage 159](159-current-development-status-and-next-plan-audit.md)；下一切片固定为 **PF-002D 提交前就地预览与命名**，PF-002 完成前不进入 PF-003
+- 当前开发项：**PF-006 项目选择、键盘导航与安全打开命令（PF-001～PF-005 产品证据并行 Pending）**
+- 最新主线集成审计：[Stage 201](201-pr225-coverage-gate-recovery-audit.md)；PR #225 已按真实失败修正 PowerShell/157-ID、headless 覆盖、`.lnk` 参数证据、BMP worker 1507 ms 超时与原生菜单 hang；run `32803174900` 为 1198/1198、90.01%/75.51% 全绿，等待最终文档复核与主线集成；30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -41,29 +41,30 @@
 
 - 配置模型已有方格名称、锁定、颜色、透明度、折叠、显示器、DIP 位置/尺寸和 File/Folder/Shortcut/URL 安全引用；
 - 控制中心已有创建、重命名、锁定、折叠、外观预设、位置/尺寸预设、删除、引用加入/移除/改归属、搜索、健康筛选、排序和最近动作撤销；
-- 正式只读桌面目录、配置保存/恢复、布局恢复预览、DesktopHost 投影、输入准入、选择和 UIA 底座已存在；
-- 独立受限缩略图 worker 已存在，但正式项目 UI 尚未消费；
-- 多显示器/DPI 恢复、500 项规模、失败补偿等工程底座可以复用于用户功能。
+- 正式桌面目录、配置保存/恢复、布局恢复预览、DesktopHost 投影、输入准入、选择、UIA 和有限 Shell 操作底座已存在；
+- 正式 DesktopHost 已消费系统类型图标和受限缩略图 worker，并支持有限状态、视口、选择、File/Folder/Shortcut/URL 安全打开、失败重试和安全 Explorer 定位；
+- 多显示器/混合 DPI 恢复、500 项规模、失败补偿和桌面优先单实例启动等工程底座已建立；
+- WinUI 3 控制中心、Mica/Desktop Acrylic、自定义标题栏、品牌 RC1、一键启动和内部 unsigned RC 打包链均已存在。
 
 ### 3.2 用户可感知的主要差距
 
-- 主要操作集中在控制中心表单，用户不能像 Fences/iTop 一样直接在桌面完成创建、拖动、缩放、放入项目和就近编辑；
-- 正式桌面方格仍缺完整项目图标、缩略图、打开、多选和拖放闭环；
+- 创建、拖动、缩放、标题栏操作、图标/缩略图、选择和安全打开已有正式工程链，但物理输入/Narrator/高对比证据债务仍使 PF-001～PF-005 无法产品完成；
+- 用户仍不能像 Fences/iTop 一样完成桌面/Explorer 直接拖入、框选与完整低摩擦整理旅程；
 - 没有自动整理规则、Folder Portal、Tab、Roll-up、Peek、Quick-hide、托盘与全局快捷键；
 - 没有可命名布局快照、场景/页面、应用工作空间捕获与启动；
-- 外观只有有限预设，尚无竞品级标题、间距、图标尺寸、视图模式、主题融合和细节反馈；
+- 外观已有正式 Design Token、Mica/Acrylic 和品牌 RC1，但桌面 Surface、主题持久化、竞品级标题/间距/图标尺寸/视图模式、动效和无障碍矩阵尚未收口；
 - 安装更新、Widgets、壁纸/任务栏和 Private Box 等产品宽度尚未实现。
 
 ## 4. 功能优先级总表
 
 | 顺序 | ID | 用户功能 | 当前状态 | 对标目标 |
 | ---: | --- | --- | --- | --- |
-| 1 | PF-001 | 桌面方格总开关与桌面优先启动 | `InProgress`：总开关和桌面空状态已完成，桌面优先最终呈现待收口 | iTop Enable Boxes |
-| 2 | PF-002 | 桌面直接创建方格 | `InProgress`：空态/非空态多输入持续入口与统一命名/布局已完成，预览和补偿待开发 | iTop/Fences 多入口创建 |
-| 3 | PF-003 | 桌面拖动、缩放、吸附 | 预设位置/尺寸 | Fences/Nimi 直接布局 |
-| 4 | PF-004 | 方格标题栏与就近操作 | 部分 Core | Fences 标题栏操作 |
-| 5 | PF-005 | 正式项目图标、缩略图与状态 | worker 有、UI 无 | Fences/Nimi 项目呈现 |
-| 6 | PF-006 | 项目选择、键盘导航与打开 | 选择底座 | Fences/Portal 日常访问 |
+| 1 | PF-001 | 桌面方格总开关与桌面优先启动 | `EngineeringComplete / ProductEvidencePending`：正式桌面优先与单实例唤起已通过，物理无障碍证据待补 | iTop Enable Boxes |
+| 2 | PF-002 | 桌面直接创建方格 | `EngineeringComplete / ProductEvidencePending`：正式 App 创建、保存、补偿与最近撤销工程证据通过；可见物理输入和 UIA/Narrator 待补 | iTop/Fences 多入口创建 |
+| 3 | PF-003 | 桌面拖动、缩放、吸附 | `EngineeringComplete / ProductEvidencePending`：生产工程链、正式 Store 与双屏混合 DPI 已完成；物理鼠标/触控/截图与 UIA Bounds 待安全环境补证 | Fences/Nimi 直接布局 |
+| 4 | PF-004 | 方格标题栏与就近操作 | `EngineeringComplete / ProductEvidencePending`：A～E 正式工程链完成；物理菜单/双击、触控截图和 Narrator 待补 | Fences 标题栏操作 |
+| 5 | PF-005 | 正式项目图标、缩略图与状态 | `EngineeringComplete / ProductEvidencePending` | Fences/Nimi 项目呈现 |
+| 6 | PF-006 | 项目选择、键盘导航与打开 | `InProgress`：A 选择收敛完成；B1 File/Folder、B2A Shortcut/URL 与有限反馈、B2B1 单击策略、B2B2 重试/定位完成；C 跨视口导航/框选待实现 | Fences/Portal 日常访问 |
 | 7 | PF-007 | Explorer 拖入与方格间拖放 | 配置表单批量加入 | iTop/Fences 直接拖放 |
 | 8 | PF-008 | 方格内视图、排序、滚动与间距 | 方格级排序有限 | Nimi/Fences 视图控制 |
 | 9 | PF-009 | 桌面搜索、筛选与快速定位 | 控制中心搜索 | iTop Search |
@@ -117,7 +118,7 @@
 - 自动化覆盖首次值、迁移、重复点击、失败回滚和进程重启；
 - 完成后用户不需要开发参数即可使用正式桌面方格。
 
-**2026-08-16 实施状态**：`InProgress`。用户级设置、原子备份、失败回滚、控制中心无障碍开关、默认产品启用、紧急禁用优先级、关闭资源释放、最新布局恢复和桌面空工作区首个方格入口已经完成；应用仍默认激活控制中心，桌面优先启动的最终呈现尚未满足，不能标记完成。总开关证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，桌面空状态证据见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)。
+**2026-08-25 实施状态**：`EngineeringComplete / ProductEvidencePending`。用户级设置、原子备份、失败回滚、默认产品启用、紧急禁用优先级、关闭资源释放、最新布局恢复和桌面空工作区首建入口均已完成；Stage 182 已完成桌面优先与单实例真实窗口链。Stage 199 又让控制中心 Toggle 与证据共用唯一异步设置路径，并以正式 App、真实原子保存和外部 Win32 HWND 三段握手证明关闭/开启 1→0→1，三次恢复 41/92/40 ms，满足 ≤1000 ms；1 ms 负向门正确失败。物理 Narrator/UIA、高对比、签名安装证据仍 Pending，因此不能标记产品 `Complete`。证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)、[Stage 182](182-pf001-desktop-first-startup-audit.md)与 [Stage 199](199-pf001-runtime-boxes-enable-real-window-performance-audit.md)。
 
 ### PF-002：桌面直接创建方格
 
@@ -146,7 +147,7 @@
 - 创建过程不读取文件内容、不移动真实文件；
 - 完成后用户无需进入控制中心即可建立第一个方格。
 
-**2026-08-16 实施状态**：`InProgress`。空工作区在权威主显示器显示首建卡片；工作区非空后，每个权威显示器在不覆盖方格的安全空位继续显示“新建方格”。主点击、产品菜单、主显示器 `Ctrl+Alt+N` 和标准 UIA Invoke 均构造同一种带 revision/topology/source 事实的请求，经 App 入队前和执行时双重准入后复用确定性名称/布局策略与唯一提交协调器；Explicit 选择期间入口和快捷键关闭。自动名称为“新方格”“新方格 2”……，20 次 Core/reducer 与 20 次最新 Surface/revision 合同通过。该入口不是 Explorer 任意桌面空白区集成；就地预览/命名、物理 UI 连续创建/焦点及保存失败窗口补偿仍未完成。证据见 [Stage 155](155-pf002-desktop-empty-create-entry-audit.md)、[Stage 156](156-pf002b-deterministic-create-defaults-audit.md)、[Stage 157](157-pf002c-desktop-context-keyboard-create-audit.md)与 [Stage 158](158-pf002c2-persistent-desktop-create-audit.md)。
+**2026-08-20 实施状态**：`InProgress`。空态/非空态主点击、产品菜单、`Ctrl+Alt+N`、UIA Invoke、Explicit 桌面拖画和 Long方格已选引用均复用唯一创建 Preview。已选引用入口只接受同一未锁定方格内 1–256 项，捕获配置指纹并在名称编辑、确认和提交前复核；选择变化以 `StaleSelection` 取消。确认后建格与引用改归属一次提交，保存失败恢复完整旧状态，最近动作明确显示“撤销使用选择创建方格”。257 个真实文件实测 257 项整批拒绝、随后 256 项成功，磁盘为来源 1 项/新方格 256 项且所有文件内容不变；全量 1010/1010，Release 构建和 147-ID 静态合同通过。正式 App 截图实际渲染成功，但 UIA 树读取在本版本与 `fff20f2` 隔离基线均导致 `Microsoft.UI.Xaml.dll` 崩溃，因此 PF-002H 只记 `EngineeringComplete / ProductEvidencePending`；完整 App 物理鼠标、Preview 操作和正式无障碍证据仍 Pending，PF-002 不得标记 Complete。证据见 [Stage 167](167-pf002h-selected-reference-app-integration-audit.md)。
 
 ### PF-003：桌面拖动、缩放与吸附
 
@@ -173,6 +174,8 @@
 - 100 个方格布局操作不产生持续卡顿或窗口泄漏；
 - UIA Bounds 与最终视觉 Bounds 一致。
 
+**2026-08-24 实施状态**：`EngineeringComplete / ProductEvidencePending`。Stage 172–179 已实现预览/吸附、冻结事实会话、唯一提交、真实重载、写租约失败补偿、正式 Surface 九向输入、App 候选/提交、标题焦点、1/8 DIP 键盘微调和跨显示器混合 DPI；本机双屏 192/240 DPI、负虚拟坐标下正式 Store 重载误差为 0 DIP。Stage 180 建立五项真人证据入口；Stage 181 又以正式 Release App 两次复现 Microsoft.UI.Xaml 3.2.3.0 / RPC_E_WRONG_THREAD 上游捕获崩溃。物理鼠标/键盘/触控、可见截图和 UIA Bounds 仍未完成，因此 PF-003 不得标记 `Complete`。
+
 ### PF-004：方格标题栏与就近操作
 
 **用户故事**：我在方格上就能完成常用管理，不必来回打开设置页。
@@ -197,6 +200,8 @@
 - Narrator 按名称、项目数、锁定/折叠状态、操作顺序读取；
 - 标题隐藏不使方格失去键盘管理能力；
 - 多方格同时操作不会把命令应用到错误目标。
+
+**2026-08-24 实施状态**：`EngineeringComplete / ProductEvidencePending`。Stage 183～186 已完成标题事实、直接命令、原生更多菜单和安全删除；Stage 187/PF-004E 增加标题 `Always/Hover/Hidden`、双击 `ToggleCollapsed/None` 的正式 Schema/控制中心/真实 HWND 链，并让重命名、锁定、折叠、外观/标题策略进入唯一最近撤销和异步失败补偿。真实 HWND、真实 Store 四类编辑/撤销/重载及写租约失败均 `Difference=None`。物理菜单/双击、触控截图和 Narrator 顺序证据仍 Pending，因此不能标记 `Complete`；下一工程切片为 PF-005。
 
 ### PF-005：正式项目图标、缩略图与有限状态
 
@@ -223,6 +228,8 @@
 - 图片缩略图开关关闭时零 worker 请求；
 - 类型图标、缩略图与失败回退都有视觉回归样例。
 
+**2026-08-24 实施状态**：`EngineeringComplete / ProductEvidencePending`。Stage 188/PF-005A 已将 File/Folder/Shortcut/URL 和五类引用状态接入正式 DesktopHost 系统图标/UIA；Stage 189/PF-005B1 建立真实受限 worker 产品提取门面、关闭零启动、12 项队列与 64 项版本缓存；Stage 190/PF-005B2 接入持久化开关、Loading/Ready/FailedFallback、过期结果拒绝和 BGRA32 绘制；Stage 191/PF-005C 修复同 revision/topology 呈现误入 Faulted，新增原位 presentation generation 与 500 项/12 项视口。真实 BMP 经 worker 返回 16,384-byte BGRA 并由真实 HWND 接受 64/64 行，100%～400% DPI 像素一致。Release 全量发现 750 ms 仍回退后，按实测校准为 1.5 秒异步预算并增加首故障整轮熔断，最终 1135/1135。物理滚轮、真人浅/深截图和 Narrator/UIA Scroll 仍 Pending，因此不得标记 Complete；工程下一步转入 PF-006。
+
 ### PF-006：项目选择、键盘导航与打开
 
 **用户故事**：我可以像使用文件列表一样选择、导航和打开方格项目。
@@ -247,6 +254,8 @@
 - 锁定方格仍允许选择和打开；
 - 高对比和 Narrator 下选中、焦点、不可用三种状态可区分；
 - 自动化覆盖重复打开、目标变化、取消和进程启动失败。
+
+**2026-08-24 实施状态**：`InProgress`。Stage 192/PF-006A 完成选择收敛；Stage 193/PF-006B1 完成 File/Folder；Stage 194/PF-006B2A 完成 `.lnk/.url` 和无路径反馈；Stage 195/PF-006B2B1 完成默认双击/显式单击。Stage 196/PF-006B2B2 又加入原生右键权威重试和安全 Explorer 定位，真实文件出现前后、真实安全/缺失/ReparsePoint 父目录、真实 HWND 和一次显式可见 Explorer 均 `Difference=None`，Release 1163/1163。框选、PageUp/PageDown 和物理/高对比/Narrator 仍 Pending；下一切片 PF-006C1。
 
 ### PF-007：Explorer 拖入与方格间拖放
 
@@ -879,6 +888,6 @@
 
 ## 15. 当前立即执行项
 
-当前开发项为 **PF-002：桌面直接创建方格**。PF-002A 空状态首个入口与 PF-002B 统一名称/布局策略已经完成，下一切片固定为 PF-002C 桌面右键和键盘入口；两者必须进入既有统一创建策略与协调器，不得建立第二套保存链。
+当前治理门为 **Gate A：长期分支 PR、完整 CI 与主线集成**，完成后工程切片仍为 **PF-006C1：PageUp/PageDown 跨视口键盘导航**。PF-001 的冷启动与运行期开启性能门已完成；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
 
-随后依次完成 PF-002D 就地预览/命名、PF-002E 保存失败可见补偿和 PF-002F 正式设备/无障碍证据。PF-002 全部验收关闭后才进入 PF-003。G0 外部证据并行保留，任何版本在 G0/签名/安装未完成前不得分发，但不再用这些门禁替代产品功能开发。
+Stage 199 以正式 App、真实原子设置保存和外部 Win32 HWND 三段握手完成运行期开启 ≤1000 ms 证据：三次 41/92/40 ms，最慢余量 908 ms；1 ms 负向门以 31 ms、超出 30 ms 和退出码 1 正确失败。Stage 201 在不降低门槛、不排除正式原生适配器的前提下，先把覆盖率从 87.89%/73.22% 提升到本机 90.05%/75.34%；远端 headless topology 差异仍使行覆盖为 89.68%，再补硬件无关矩阵后本机为 1198/1198、90.41%/75.71%。现在必须由 PR/完整 GitHub CI 复核并集成当前长期分支。之后 PF-006C1 在同一显式租约和真实 HWND 中把 PageUp/PageDown 的 viewport、选择、焦点与 UIA 快照原子收敛；框选留给 C2。PF-007 后优先转入首次引导和自动整理闭环，任何版本在签名和安装门禁完成前不得分发。

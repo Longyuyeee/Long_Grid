@@ -19,6 +19,7 @@ try
         containerCount = result.ContainerCount,
         itemCount = result.ItemCount,
         iterations = result.Iterations,
+        layoutPreviewIterations = result.LayoutPreviewIterations,
         resolvedItemCount = result.ResolvedItemCount,
         projectedItemCount = result.ProjectedItemCount,
         selectionActionCount = result.SelectionActionCount,

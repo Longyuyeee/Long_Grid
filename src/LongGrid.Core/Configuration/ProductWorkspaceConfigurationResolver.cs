@@ -91,6 +91,9 @@ public static class ProductWorkspaceConfigurationResolver
                 Color = container.Appearance.Color,
                 Opacity = container.Appearance.Opacity,
                 Collapsed = container.Appearance.Collapsed,
+                TitleVisibility = container.Appearance.TitleVisibility,
+                TitleDoubleClickAction =
+                    container.Appearance.TitleDoubleClickAction,
                 ExtensionData = container.Appearance.ExtensionData,
             },
             Placement = new ProductContainerPlacementState

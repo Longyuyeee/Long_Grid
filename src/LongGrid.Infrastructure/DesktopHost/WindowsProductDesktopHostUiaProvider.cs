@@ -17,6 +17,8 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
         selectionSnapshot;
     private readonly Func<string, ProductDesktopSelectionRequest, bool>
         applySelection;
+    private readonly Func<string, string, bool> requestItemOpen;
+    private readonly Func<string, string, string?> itemOpenFeedback;
     private readonly WindowsProductDesktopHostUiaWorkspaceCreateProvider?
         workspaceCreate;
     private ProductDesktopInteractionSurfaceTransactionSnapshot? lastPublished;
@@ -30,7 +32,9 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
             selectionSnapshot = null,
         Func<string, ProductDesktopSelectionRequest, bool>? applySelection = null,
         Func<bool>? requestWorkspaceCreate = null,
-        Func<bool>? workspaceKeyboardCreateAvailable = null)
+        Func<bool>? workspaceKeyboardCreateAvailable = null,
+        Func<string, string, bool>? requestItemOpen = null,
+        Func<string, string, string?>? itemOpenFeedback = null)
     {
         this.window = window != nint.Zero
             ? window
@@ -40,6 +44,8 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
         this.isExplicit = isExplicit ?? (() => false);
         this.selectionSnapshot = selectionSnapshot ?? (() => null);
         this.applySelection = applySelection ?? ((_, _) => false);
+        this.requestItemOpen = requestItemOpen ?? ((_, _) => false);
+        this.itemOpenFeedback = itemOpenFeedback ?? ((_, _) => null);
         int marker = unchecked((int)instanceMarker.ToInt64());
         containers = projection.Containers.Select((container, index) =>
             new WindowsProductDesktopHostUiaContainerProvider(
@@ -204,6 +210,42 @@ internal sealed class WindowsProductDesktopHostUiaRootProvider
                 ProductDesktopSelectionAccessibilityActionStatus.AlreadySatisfied
             || (mapped.Request is not null
                 && applySelection(containerId, mapped.Request));
+    }
+    internal bool InvokeItem(string containerId, string itemId) =>
+        IsInteractiveItem(containerId, itemId)
+        && requestItemOpen(containerId, itemId);
+    internal string? ItemOpenFeedback(string containerId, string itemId) =>
+        itemOpenFeedback(containerId, itemId);
+    internal void PublishItemOpenFeedback(
+        string containerId,
+        string itemId,
+        string? previous,
+        string current)
+    {
+        WindowsProductDesktopHostUiaItemProvider? item = FindItems(containerId)
+            .SingleOrDefault(candidate => string.Equals(
+                candidate.ItemId,
+                itemId,
+                StringComparison.Ordinal));
+        if (item is null)
+        {
+            return;
+        }
+        try
+        {
+            AutomationInteropProvider.RaiseAutomationPropertyChangedEvent(
+                item,
+                new AutomationPropertyChangedEventArgs(
+                    AutomationElementIdentifiers.ItemStatusProperty,
+                    previous ?? string.Empty,
+                    current));
+        }
+        catch (InvalidOperationException)
+        {
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
     }
     internal void PublishSelectionChanges()
     {
@@ -374,7 +416,11 @@ internal sealed class WindowsProductDesktopHostUiaContainerProvider
             Math.Max(0, (bounds.Height - header) / height));
         items = projection.ItemNames.Take(count).Select((name, itemIndex) =>
             new WindowsProductDesktopHostUiaItemProvider(
-                this, name, projection.ItemIds[itemIndex], itemIndex, marker))
+                this,
+                projection.ItemVisuals[itemIndex].AccessibilityName(name),
+                projection.ItemIds[itemIndex],
+                itemIndex,
+                marker))
             .ToArray();
     }
     internal IReadOnlyList<WindowsProductDesktopHostUiaItemProvider> Items => items;
@@ -389,7 +435,7 @@ internal sealed class WindowsProductDesktopHostUiaContainerProvider
     public object? GetPropertyValue(int propertyId) => propertyId switch
     {
         var id when id == AutomationElementIdentifiers.NameProperty.Id =>
-            $"{projection.Title}; {items.Length} visible items",
+            projection.Header.AccessibilityName,
         var id when id == AutomationElementIdentifiers.AutomationIdProperty.Id =>
             $"LongGrid.DesktopHost.Container.{index + 1}",
         var id when id == AutomationElementIdentifiers.ControlTypeProperty.Id =>
@@ -399,7 +445,7 @@ internal sealed class WindowsProductDesktopHostUiaContainerProvider
         var id when id == AutomationElementIdentifiers.IsEnabledProperty.Id => true,
         var id when id == AutomationElementIdentifiers.IsKeyboardFocusableProperty.Id => false,
         var id when id == AutomationElementIdentifiers.ItemStatusProperty.Id =>
-            "\u53ea\u8bfb\u65b9\u683c\uff1b\u4e0d\u652f\u6301\u7f16\u8f91",
+            projection.Header.AccessibilityStatus,
         _ => null,
     };
     public IRawElementProviderFragment? Navigate(NavigateDirection direction) =>
@@ -481,8 +527,10 @@ internal sealed class WindowsProductDesktopHostUiaItemProvider
         var id when id == AutomationElementIdentifiers.IsKeyboardFocusableProperty.Id =>
             Root.IsInteractiveItem(container.ContainerId, itemId),
         var id when id == AutomationElementIdentifiers.ItemStatusProperty.Id =>
-            Root.IsInteractiveItem(container.ContainerId, itemId)
-                ? "\u663e\u5f0f\u9009\u62e9\u9879\u76ee\uff1b\u672a\u516c\u5f00\u8def\u5f84\u6216\u6587\u4ef6\u64cd\u4f5c"
+            Root.ItemOpenFeedback(container.ContainerId, itemId) is { } feedback
+                ? $"{feedback}；不公开路径或移动文件"
+                : Root.IsInteractiveItem(container.ContainerId, itemId)
+                ? "显式选择项目；Invoke 按安全引用打开；不公开路径或移动文件"
                 : "\u53ea\u8bfb\u9879\u76ee\u540d\u79f0\uff1b\u672a\u516c\u5f00\u8def\u5f84\u6216\u6587\u4ef6\u64cd\u4f5c",
         _ => null,
     };
@@ -509,7 +557,14 @@ internal sealed class WindowsProductDesktopHostUiaItemProvider
         Apply(ProductDesktopSelectionAccessibilityAction.AddToSelection);
     public void RemoveFromSelection() =>
         Apply(ProductDesktopSelectionAccessibilityAction.RemoveFromSelection);
-    public void Invoke() => Select();
+    public void Invoke()
+    {
+        Select();
+        if (!Root.InvokeItem(container.ContainerId, itemId))
+        {
+            throw new ElementNotEnabledException();
+        }
+    }
     private void Apply(ProductDesktopSelectionAccessibilityAction action)
     {
         if (!Root.ApplyAccessibilityAction(container.ContainerId, itemId, action))

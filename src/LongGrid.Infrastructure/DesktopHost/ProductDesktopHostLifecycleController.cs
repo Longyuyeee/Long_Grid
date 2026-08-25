@@ -8,7 +8,8 @@ internal sealed record ProductDesktopWorkspaceCreateInput(
     ProductDesktopWorkspaceCreateInputKind Kind,
     bool SourceAttested,
     bool IsInjected,
-    bool IsAutoRepeat);
+    bool IsAutoRepeat,
+    PixelRect? RequestedBoundsPixels = null);
 
 public enum ProductDesktopHostLifecycleStatus
 {
@@ -65,7 +66,12 @@ public sealed record ProductDesktopHostReadOnlyProjection
         double widthDip,
         double heightDip,
         bool isLocked,
-        IReadOnlyList<string> itemIds)
+        IReadOnlyList<string> itemIds,
+        int totalItemCount,
+        IReadOnlyList<ProductDesktopItemVisualPresentation> itemVisuals,
+        ProductContainerTitleVisibilityPolicy titleVisibility,
+        ProductContainerTitleDoubleClickAction titleDoubleClickAction,
+        int visibleItemStartOrdinal)
     {
         ContainerId = containerId;
         Title = title;
@@ -79,6 +85,11 @@ public sealed record ProductDesktopHostReadOnlyProjection
         HeightDip = heightDip;
         IsLocked = isLocked;
         ItemIds = itemIds;
+        TotalItemCount = totalItemCount;
+        ItemVisuals = itemVisuals;
+        TitleVisibility = titleVisibility;
+        TitleDoubleClickAction = titleDoubleClickAction;
+        VisibleItemStartOrdinal = visibleItemStartOrdinal;
     }
 
     public string ContainerId { get; }
@@ -105,6 +116,25 @@ public sealed record ProductDesktopHostReadOnlyProjection
 
     public IReadOnlyList<string> ItemIds { get; }
 
+    public int TotalItemCount { get; }
+
+    public IReadOnlyList<ProductDesktopItemVisualPresentation> ItemVisuals { get; }
+
+    public ProductContainerTitleVisibilityPolicy TitleVisibility { get; }
+
+    public ProductContainerTitleDoubleClickAction TitleDoubleClickAction { get; }
+
+    public int VisibleItemStartOrdinal { get; }
+
+    public ProductDesktopContainerHeaderPresentation Header =>
+        ProductDesktopContainerHeaderPresentation.Create(
+            Title,
+            TotalItemCount,
+            IsLocked,
+            IsCollapsed,
+            TitleVisibility,
+            TitleDoubleClickAction);
+
     public static ProductDesktopHostReadOnlyProjection Create(
         string containerId,
         string title,
@@ -117,7 +147,14 @@ public sealed record ProductDesktopHostReadOnlyProjection
         double widthDip,
         double heightDip,
         bool isLocked = false,
-        IEnumerable<string>? itemIds = null)
+        IEnumerable<string>? itemIds = null,
+        int? totalItemCount = null,
+        IEnumerable<ProductDesktopItemVisualPresentation>? itemVisuals = null,
+        ProductContainerTitleVisibilityPolicy titleVisibility =
+            ProductContainerTitleVisibilityPolicy.Always,
+        ProductContainerTitleDoubleClickAction titleDoubleClickAction =
+            ProductContainerTitleDoubleClickAction.ToggleCollapsed,
+        int visibleItemStartOrdinal = 1)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(containerId);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
@@ -130,16 +167,35 @@ public sealed record ProductDesktopHostReadOnlyProjection
                     .Select(ordinal => $"item:{ordinal}"))
             .Take(MaximumVisibleItems)
             .ToArray();
+        int boundedTotalItemCount = totalItemCount ?? visibleItems.Length;
+        int boundedVisibleItemStartOrdinal = boundedTotalItemCount == 0
+            ? 0
+            : visibleItemStartOrdinal;
+        ProductDesktopItemVisualPresentation[] visibleItemVisuals =
+            (itemVisuals ?? visibleItems.Select(_ =>
+                ProductDesktopItemVisualPresentation.Create(
+                    ConfigurationItemKind.File,
+                    ProductItemReferenceResolution.Resolved)))
+            .Take(MaximumVisibleItems)
+            .ToArray();
         if (visibleItems.Any(string.IsNullOrWhiteSpace)
             || containerId.Length > ProductConfigurationLimits.MaximumIdLength
             || title.Length > ProductConfigurationLimits.MaximumNameLength
             || visibleItems.Any(item => item.Length > MaximumVisibleNameLength)
             || visibleItemIds.Length != visibleItems.Length
+            || visibleItemVisuals.Length != visibleItems.Length
             || visibleItemIds.Any(string.IsNullOrWhiteSpace)
             || visibleItemIds.Any(id => id.Length
                 > ProductConfigurationLimits.MaximumIdLength)
             || visibleItemIds.Distinct(StringComparer.Ordinal).Count()
                 != visibleItemIds.Length
+            || boundedTotalItemCount < visibleItems.Length
+            || boundedTotalItemCount > ProductConfigurationLimits.MaximumItems
+            || (boundedTotalItemCount > 0
+                && (boundedVisibleItemStartOrdinal < 1
+                    || boundedVisibleItemStartOrdinal > boundedTotalItemCount
+                    || boundedVisibleItemStartOrdinal - 1 + visibleItems.Length
+                        > boundedTotalItemCount))
             || color is null
             || color.Length != 7
             || color[0] != '#'
@@ -150,6 +206,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
             || !double.IsFinite(yDip)
             || !double.IsFinite(widthDip)
             || !double.IsFinite(heightDip)
+            || !Enum.IsDefined(titleVisibility)
+            || !Enum.IsDefined(titleDoubleClickAction)
             || widthDip <= 0
             || heightDip <= 0)
         {
@@ -169,7 +227,12 @@ public sealed record ProductDesktopHostReadOnlyProjection
             widthDip,
             heightDip,
             isLocked,
-            Array.AsReadOnly(visibleItemIds));
+            Array.AsReadOnly(visibleItemIds),
+            boundedTotalItemCount,
+            Array.AsReadOnly(visibleItemVisuals),
+            titleVisibility,
+            titleDoubleClickAction,
+            boundedVisibleItemStartOrdinal);
     }
 }
 
@@ -207,6 +270,44 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
         Func<ProductDesktopWorkspaceCreateInput, bool> requestCreate)
     {
     }
+
+    void BindContainerLayout(
+        Func<ProductDesktopContainerLayoutSurfaceInput, bool> requestLayout)
+    {
+    }
+
+    void BindContainerHeaderCommand(
+        Func<ProductDesktopContainerHeaderSurfaceInput, bool> requestCommand)
+    {
+    }
+
+    void BindItemViewport(
+        Func<ProductDesktopItemViewportSurfaceInput, bool> requestViewport)
+    {
+    }
+
+    void BindItemOpen(
+        Func<ProductDesktopItemOpenSurfaceInput, bool> requestOpen)
+    {
+    }
+
+    bool ApplyItemOpenFeedback(ProductDesktopItemOpenFeedback feedback) => false;
+
+    bool ApplyItemOpenPolicy(bool openItemsWithSingleClick) => true;
+
+    bool ApplyPresentation(ProductDesktopHostDisplayProjection projection) =>
+        false;
+
+    bool ApplyContainerLayoutPreview(
+        string containerId,
+        ProductContainerPlacementState? placement) => false;
+
+    bool ApplyContainerLayoutPreview(
+        ProductDesktopHostReadOnlyProjection source,
+        ProductContainerPlacementState placement) =>
+        ApplyContainerLayoutPreview(source.ContainerId, placement);
+
+    bool ApplyContainerLayoutKeyboardFocus(string? containerId) => false;
 
     void RefreshSelection()
     {
@@ -250,12 +351,29 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     private ProductDesktopHostProjectionUpdate? currentUpdate;
     private long lastWorkspaceRevision = -1;
     private long lastTopologyGeneration = -1;
+    private long lastPresentationGeneration = -1;
     private long lastSystemSurfaceSequence;
     private long windowGeneration;
     private ProductDesktopHostPassiveSurfaceModeAdapter? interactionSurface;
     private bool disposed;
     private Func<ProductDesktopWorkspaceCreateRequest, bool>
         requestWorkspaceCreate = static _ => false;
+    private Func<ProductDesktopContainerLayoutRequest, bool>
+        requestContainerLayout = static _ => false;
+    private Func<ProductDesktopContainerHeaderCommandRequest, bool>
+        requestContainerHeaderCommand = static _ => false;
+    private Func<string, string, ProductDesktopContainerMenuAvailability>
+        containerMenuAvailability = static (_, _) =>
+            ProductDesktopContainerMenuAvailability.Unavailable;
+    private Func<ProductDesktopContainerMenuRequest, bool>
+        requestContainerMenu = static _ => false;
+    private Func<ProductDesktopItemViewportRequest, bool>
+        requestItemViewport = static _ => false;
+    private Func<ProductDesktopItemOpenRequest, ProductDesktopItemOpenResult>
+        requestItemOpen = static request => new(
+            ProductDesktopItemOpenStatus.InvalidRequest,
+            request.Source);
+    private bool openItemsWithSingleClick;
 
     public ProductDesktopHostLifecycleController(
         ProductDesktopHostFeatureDecision featureDecision)
@@ -381,6 +499,155 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         }
     }
 
+    public void BindContainerLayout(
+        Func<ProductDesktopContainerLayoutRequest, bool> requestLayout)
+    {
+        ArgumentNullException.ThrowIfNull(requestLayout);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            requestContainerLayout = requestLayout;
+        }
+    }
+
+    public void BindContainerHeaderCommand(
+        Func<ProductDesktopContainerHeaderCommandRequest, bool> requestCommand)
+    {
+        ArgumentNullException.ThrowIfNull(requestCommand);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            requestContainerHeaderCommand = requestCommand;
+        }
+    }
+
+    public void BindContainerMenu(
+        Func<string, string, ProductDesktopContainerMenuAvailability>
+            availability,
+        Func<ProductDesktopContainerMenuRequest, bool> requestMenu)
+    {
+        ArgumentNullException.ThrowIfNull(availability);
+        ArgumentNullException.ThrowIfNull(requestMenu);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            containerMenuAvailability = availability;
+            requestContainerMenu = requestMenu;
+        }
+    }
+
+    public void BindItemViewport(
+        Func<ProductDesktopItemViewportRequest, bool> requestViewport)
+    {
+        ArgumentNullException.ThrowIfNull(requestViewport);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            requestItemViewport = requestViewport;
+        }
+    }
+
+    public void BindItemOpen(
+        Func<ProductDesktopItemOpenRequest, ProductDesktopItemOpenResult>
+            requestOpen)
+    {
+        ArgumentNullException.ThrowIfNull(requestOpen);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            requestItemOpen = requestOpen;
+        }
+    }
+
+    public void ApplyItemOpenPolicy(bool singleClickEnabled)
+    {
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            openItemsWithSingleClick = singleClickEnabled;
+            foreach (IProductDesktopHostReadOnlySurface surface in surfaces)
+            {
+                _ = surface.ApplyItemOpenPolicy(singleClickEnabled);
+            }
+        }
+    }
+
+    public bool ApplyContainerLayoutPreview(
+        string displayId,
+        string containerId,
+        long expectedWorkspaceRevision,
+        long expectedTopologyGeneration,
+        ProductContainerPlacementState? placement)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(containerId);
+        lock (gate)
+        {
+            if (disposed
+                || currentBatch is null
+                || currentBatch.WorkspaceRevision != expectedWorkspaceRevision
+                || currentBatch.TopologyGeneration != expectedTopologyGeneration
+                || surfaces.Count != currentBatch.Displays.Count)
+            {
+                return false;
+            }
+
+            ProductDesktopHostReadOnlyProjection[] sources = currentBatch.Displays
+                .Where(display => string.Equals(
+                    display.DisplayId,
+                    displayId,
+                    StringComparison.Ordinal))
+                .SelectMany(display => display.Containers)
+                .Where(container => string.Equals(
+                    container.ContainerId,
+                    containerId,
+                    StringComparison.Ordinal))
+                .Take(2)
+                .ToArray();
+            if (sources.Length != 1)
+            {
+                return false;
+            }
+            if (placement is null)
+            {
+                bool cleared = true;
+                foreach (IProductDesktopHostReadOnlySurface surface in surfaces)
+                {
+                    cleared &= surface.ApplyContainerLayoutPreview(
+                        containerId,
+                        placement: null);
+                }
+                return cleared;
+            }
+
+            int[] targets = currentBatch.Displays
+                .Select((display, index) => new { display.DisplayId, Index = index })
+                .Where(candidate => string.Equals(
+                    candidate.DisplayId,
+                    placement.DisplayKey,
+                    StringComparison.Ordinal))
+                .Select(candidate => candidate.Index)
+                .ToArray();
+            if (targets.Length != 1)
+            {
+                return false;
+            }
+            for (int index = 0; index < surfaces.Count; index++)
+            {
+                if (index != targets[0]
+                    && !surfaces[index].ApplyContainerLayoutPreview(
+                        containerId,
+                        placement: null))
+                {
+                    return false;
+                }
+            }
+            return surfaces[targets[0]].ApplyContainerLayoutPreview(
+                sources[0],
+                placement);
+        }
+    }
+
     public bool CanRequestKeyboardInteraction
     {
         get
@@ -391,9 +658,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     && snapshot.Status
                         == ProductDesktopHostLifecycleStatus.ReadyReadOnly
                     && IsPassiveInteractionAvailableUnsafe()
-                    && activationSources.Count > 0
-                    && activationSources.All(source =>
-                        source.CanActivate);
+                    && activationSources.Any(source => source.CanActivate);
             }
         }
     }
@@ -526,13 +791,18 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             if (!userEnabled)
             {
                 if (update.WorkspaceRevision < lastWorkspaceRevision
-                    || update.TopologyGeneration < lastTopologyGeneration)
+                    || update.TopologyGeneration < lastTopologyGeneration
+                    || (update.WorkspaceRevision == lastWorkspaceRevision
+                        && update.TopologyGeneration == lastTopologyGeneration
+                        && update.PresentationGeneration
+                            < lastPresentationGeneration))
                 {
                     return snapshot;
                 }
 
                 lastWorkspaceRevision = update.WorkspaceRevision;
                 lastTopologyGeneration = update.TopologyGeneration;
+                lastPresentationGeneration = update.PresentationGeneration;
                 currentUpdate = update;
                 currentBatch = update.Batch;
                 return snapshot;
@@ -547,12 +817,17 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             if (update.WorkspaceRevision == lastWorkspaceRevision
                 && update.TopologyGeneration == lastTopologyGeneration)
             {
+                if (update.PresentationGeneration < lastPresentationGeneration)
+                {
+                    return snapshot;
+                }
                 if (UpdatesEqual(currentUpdate, update))
                 {
                     return snapshot;
                 }
 
-                if (currentUpdate?.Disposition !=
+                if (update.PresentationGeneration == lastPresentationGeneration
+                    && currentUpdate?.Disposition !=
                     ProductDesktopHostProjectionDisposition.TopologyRefreshing)
                 {
                     ReleaseSurfaceUnsafe();
@@ -566,7 +841,13 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                 }
                 else
                 {
-                    published = ApplyNewUpdateUnsafe(update);
+                    published = currentUpdate?.Batch is not null
+                        && update.Batch is not null
+                        && PresentationStructuresEqual(
+                            currentUpdate.Batch,
+                            update.Batch)
+                            ? ApplyPresentationUpdateUnsafe(update)
+                            : ApplyNewUpdateUnsafe(update);
                 }
             }
             else
@@ -867,6 +1148,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
     {
         lastWorkspaceRevision = update.WorkspaceRevision;
         lastTopologyGeneration = update.TopologyGeneration;
+        lastPresentationGeneration = update.PresentationGeneration;
         ReleaseSurfaceUnsafe();
         currentUpdate = update;
         if (update.Disposition is ProductDesktopHostProjectionDisposition.Ready
@@ -890,6 +1172,72 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             ownedWindowCount: 0,
             workspaceRevision: update.WorkspaceRevision,
             topologyGeneration: update.TopologyGeneration);
+    }
+
+    private ProductDesktopHostLifecycleSnapshot ApplyPresentationUpdateUnsafe(
+        ProductDesktopHostProjectionUpdate update)
+    {
+        ProductDesktopHostProjectionBatch batch = update.Batch!;
+        if (surfaces.Count != batch.Displays.Count)
+        {
+            return ApplyNewUpdateUnsafe(update);
+        }
+        for (int index = 0; index < surfaces.Count; index++)
+        {
+            if (!surfaces[index].ApplyPresentation(batch.Displays[index]))
+            {
+                ReleaseSurfaceUnsafe();
+                currentUpdate = update;
+                return UpdateSnapshotUnsafe(
+                    ProductDesktopHostLifecycleStatus.Faulted,
+                    connected: false,
+                    ownedWindowCount: 0,
+                    workspaceRevision: update.WorkspaceRevision,
+                    topologyGeneration: update.TopologyGeneration);
+            }
+        }
+        ProductDesktopInteractionSurfaceTransactionSnapshot? transaction =
+            intentConsumption?.Snapshot.Transaction;
+        if (transaction?.IsExplicit == true
+            && transaction.Selection is { } activeSelection)
+        {
+            ProductDesktopHostReadOnlyProjection? activeContainer = batch.Displays
+                .SelectMany(display => display.Containers)
+                .SingleOrDefault(container => string.Equals(
+                    container.ContainerId,
+                    activeSelection.ContainerId,
+                    StringComparison.Ordinal));
+            if (activeContainer is null)
+            {
+                return ApplyNewUpdateUnsafe(update);
+            }
+
+            ProductDesktopInteractionIntentConsumptionResult reconciled =
+                intentConsumption!.ReconcileVisibleItems(
+                    activeContainer.ItemIds,
+                    DateTimeOffset.UtcNow);
+            if (!reconciled.IsExplicit
+                || reconciled.Snapshot.Transaction?.Selection?.Status
+                    != ProductDesktopSelectionStatus.Reconciled)
+            {
+                return ApplyNewUpdateUnsafe(update);
+            }
+            foreach (IProductDesktopHostReadOnlySurface surface in surfaces)
+            {
+                surface.RefreshSelection();
+            }
+        }
+        lastPresentationGeneration = update.PresentationGeneration;
+        currentUpdate = update;
+        currentBatch = batch;
+        snapshot = snapshot with
+        {
+            Generation = checked(snapshot.Generation + 1),
+            WorkspaceRevision = update.WorkspaceRevision,
+            TopologyGeneration = update.TopologyGeneration,
+            RenderedContainerCount = batch.ContainerCount,
+        };
+        return snapshot;
     }
 
     private ProductDesktopHostLifecycleSnapshot RestoreCurrentUpdateUnsafe()
@@ -991,7 +1339,42 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                         batch.TopologyGeneration,
                         input.SourceAttested,
                         input.IsInjected,
-                        input.IsAutoRepeat)));
+                        input.IsAutoRepeat,
+                        input.RequestedBoundsPixels)));
+                created.BindContainerLayout(input =>
+                    requestContainerLayout(new(
+                        input.Phase,
+                        input.Kind,
+                        input.ContainerId,
+                        display.DisplayId,
+                        batch.WorkspaceRevision,
+                        batch.TopologyGeneration,
+                        input.CumulativeDeltaXDip,
+                        input.CumulativeDeltaYDip,
+                        input.SnapEnabled,
+                        input.ShiftPressed,
+                        input.CancellationReason,
+                        input.PointerScreenX,
+                        input.PointerScreenY)));
+                created.BindContainerHeaderCommand(input =>
+                    ApplyContainerHeaderCommandFromSurface(
+                        created,
+                        display,
+                        input));
+                created.BindItemViewport(input =>
+                    ApplyItemViewportFromSurface(
+                        created,
+                        display,
+                        input));
+                created.BindItemOpen(input => ApplyItemOpenFromSurface(
+                    created,
+                    display,
+                    input));
+                if (!created.ApplyItemOpenPolicy(openItemsWithSingleClick))
+                {
+                    throw new InvalidOperationException(
+                        "Every display surface must accept the item-open policy.");
+                }
                 if (!created.ReadOnlyAccessibilityAttested
                     || (controlledSurfaceLifecycle
                         ? !created.HiddenWindowContractAttested
@@ -1081,8 +1464,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
 
                     foreach (ProductDesktopHostDisplayProjection display
                         in batch.Displays.Where(candidate =>
-                            candidate.Containers.Any(container =>
-                                !container.IsLocked)))
+                            candidate.Containers.Count > 0))
                     {
                         IProductDesktopInteractionActivationSource source =
                             activationSourceFactory.Create(
@@ -1097,6 +1479,36 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                                 display,
                                 request),
                             () => CancelInteractionFromActivationSource(source));
+                        source.BindItemOpen(input =>
+                            ApplyItemOpenFromActivationSource(
+                                source,
+                                display,
+                                input));
+                        source.BindContainerLayout(
+                            command => ApplyContainerLayoutFromActivationSource(
+                                source,
+                                display,
+                                command),
+                            containerId =>
+                                ApplyContainerLayoutKeyboardFocusFromActivationSource(
+                                    source,
+                                    display,
+                                    containerId));
+                        source.BindContainerHeaderCommand(input =>
+                            ApplyContainerHeaderCommandFromActivationSource(
+                                source,
+                                display,
+                                input));
+                        source.BindContainerMenu(
+                            containerId =>
+                                GetContainerMenuAvailabilityFromActivationSource(
+                                    source,
+                                    display,
+                                    containerId),
+                            input => ApplyContainerMenuFromActivationSource(
+                                source,
+                                display,
+                                input));
                         if (!source.IsVisible || !source.ContractAttested)
                         {
                             ReleaseSurfaceUnsafe();
@@ -1195,6 +1607,519 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             }
         }
         return entered;
+    }
+
+    private bool ApplyContainerLayoutFromActivationSource(
+        IProductDesktopInteractionActivationSource source,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopContainerLayoutKeyboardCommand command)
+    {
+        lock (gate)
+        {
+            ProductDesktopInteractionSurfaceTransactionSnapshot? transaction =
+                intentConsumption?.Snapshot.Transaction;
+            ProductDesktopHostReadOnlyProjection[] targets = display.Containers
+                .Where(container => string.Equals(
+                    container.ContainerId,
+                    command.ContainerId,
+                    StringComparison.Ordinal))
+                .Take(2)
+                .ToArray();
+            if (disposed
+                || currentBatch is null
+                || !activationSources.Contains(source)
+                || !string.Equals(source.DisplayId, display.DisplayId,
+                    StringComparison.Ordinal)
+                || transaction?.IsExplicit != true
+                || !string.Equals(
+                    transaction.Selection?.ContainerId,
+                    command.ContainerId,
+                    StringComparison.Ordinal)
+                || targets.Length != 1
+                || targets[0].IsLocked
+                || !double.IsFinite(command.DeltaXDip)
+                || !double.IsFinite(command.DeltaYDip)
+                || (command.DeltaXDip == 0 && command.DeltaYDip == 0))
+            {
+                return false;
+            }
+
+            var begin = new ProductDesktopContainerLayoutRequest(
+                ProductDesktopContainerLayoutInputPhase.Begin,
+                command.Kind,
+                command.ContainerId,
+                display.DisplayId,
+                currentBatch.WorkspaceRevision,
+                currentBatch.TopologyGeneration,
+                0,
+                0,
+                SnapEnabled: command.ShiftPressed,
+                command.ShiftPressed,
+                ProductDesktopContainerLayoutCancellationReason.None);
+            if (!TryRequestContainerLayoutUnsafe(begin))
+            {
+                return false;
+            }
+
+            ProductDesktopContainerLayoutRequest update = begin with
+            {
+                Phase = ProductDesktopContainerLayoutInputPhase.Update,
+                CumulativeDeltaXDip = command.DeltaXDip,
+                CumulativeDeltaYDip = command.DeltaYDip,
+            };
+            if (!TryRequestContainerLayoutUnsafe(update))
+            {
+                _ = TryRequestContainerLayoutUnsafe(begin with
+                {
+                    Phase = ProductDesktopContainerLayoutInputPhase.Cancel,
+                    CancellationReason =
+                        ProductDesktopContainerLayoutCancellationReason
+                            .HostInvalidated,
+                });
+                return false;
+            }
+
+            if (TryRequestContainerLayoutUnsafe(update with
+            {
+                Phase = ProductDesktopContainerLayoutInputPhase.Complete,
+            }))
+            {
+                return true;
+            }
+
+            _ = TryRequestContainerLayoutUnsafe(begin with
+            {
+                Phase = ProductDesktopContainerLayoutInputPhase.Cancel,
+                CancellationReason =
+                    ProductDesktopContainerLayoutCancellationReason
+                        .HostInvalidated,
+            });
+            return false;
+        }
+    }
+
+    private bool ApplyContainerHeaderCommandFromActivationSource(
+        IProductDesktopInteractionActivationSource source,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopContainerHeaderSurfaceInput input)
+    {
+        lock (gate)
+        {
+            ProductDesktopHostReadOnlyProjection[] targets = display.Containers
+                .Where(container => string.Equals(
+                    container.ContainerId,
+                    input.ContainerId,
+                    StringComparison.Ordinal))
+                .Take(2)
+                .ToArray();
+            if (disposed
+                || currentBatch is null
+                || !activationSources.Contains(source)
+                || !string.Equals(
+                    source.DisplayId,
+                    display.DisplayId,
+                    StringComparison.Ordinal)
+                || targets.Length != 1
+                || !input.SourceAttested
+                || input.IsInjected
+                || input.IsAutoRepeat
+                || (input.Kind ==
+                        ProductDesktopContainerHeaderCommandKind.ToggleCollapsed
+                    && targets[0].IsLocked))
+            {
+                return false;
+            }
+
+            try
+            {
+                return requestContainerHeaderCommand(new(
+                    input.Kind,
+                    input.ContainerId,
+                    display.DisplayId,
+                    currentBatch.WorkspaceRevision,
+                    currentBatch.TopologyGeneration,
+                    input.SourceAttested,
+                    input.IsInjected,
+                    input.IsAutoRepeat));
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException
+                    or InvalidOperationException
+                    or OverflowException)
+            {
+                return false;
+            }
+        }
+    }
+
+    private bool ApplyContainerHeaderCommandFromSurface(
+        IProductDesktopHostReadOnlySurface surface,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopContainerHeaderSurfaceInput input)
+    {
+        lock (gate)
+        {
+            ProductDesktopHostReadOnlyProjection[] targets = display.Containers
+                .Where(container => string.Equals(
+                    container.ContainerId,
+                    input.ContainerId,
+                    StringComparison.Ordinal))
+                .Take(2)
+                .ToArray();
+            if (disposed
+                || currentBatch is null
+                || !surfaces.Contains(surface)
+                || targets.Length != 1
+                || input.Kind !=
+                    ProductDesktopContainerHeaderCommandKind.ToggleCollapsed
+                || targets[0].TitleDoubleClickAction !=
+                    ProductContainerTitleDoubleClickAction.ToggleCollapsed
+                || targets[0].IsLocked
+                || !input.SourceAttested
+                || input.IsInjected
+                || input.IsAutoRepeat)
+            {
+                return false;
+            }
+
+            try
+            {
+                return requestContainerHeaderCommand(new(
+                    input.Kind,
+                    input.ContainerId,
+                    display.DisplayId,
+                    currentBatch.WorkspaceRevision,
+                    currentBatch.TopologyGeneration,
+                    input.SourceAttested,
+                    input.IsInjected,
+                    input.IsAutoRepeat));
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException
+                    or InvalidOperationException
+                    or OverflowException)
+            {
+                return false;
+            }
+        }
+    }
+
+    private bool ApplyItemViewportFromSurface(
+        IProductDesktopHostReadOnlySurface surface,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopItemViewportSurfaceInput input)
+    {
+        lock (gate)
+        {
+            ProductDesktopHostReadOnlyProjection[] targets = display.Containers
+                .Where(container => string.Equals(
+                    container.ContainerId,
+                    input.ContainerId,
+                    StringComparison.Ordinal))
+                .Take(2)
+                .ToArray();
+            if (disposed
+                || currentBatch is null
+                || !surfaces.Contains(surface)
+                || targets.Length != 1
+                || targets[0].TotalItemCount <=
+                    ProductDesktopHostReadOnlyProjection.MaximumVisibleItems
+                || input.WheelDelta == 0
+                || !input.SourceAttested
+                || input.IsInjected)
+            {
+                return false;
+            }
+            try
+            {
+                return requestItemViewport(new(
+                    input.ContainerId,
+                    display.DisplayId,
+                    currentBatch.WorkspaceRevision,
+                    currentBatch.TopologyGeneration,
+                    input.WheelDelta,
+                    input.SourceAttested,
+                    input.IsInjected));
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException
+                    or InvalidOperationException
+                    or OverflowException)
+            {
+                return false;
+            }
+        }
+    }
+
+    private bool ApplyItemOpenFromSurface(
+        IProductDesktopHostReadOnlySurface surface,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopItemOpenSurfaceInput input)
+    {
+        lock (gate)
+        {
+            if (disposed || !surfaces.Contains(surface))
+            {
+                return false;
+            }
+            return ApplyItemOpenUnsafe(display, input);
+        }
+    }
+
+    private bool ApplyItemOpenFromActivationSource(
+        IProductDesktopInteractionActivationSource source,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopItemOpenSurfaceInput input)
+    {
+        lock (gate)
+        {
+            if (disposed
+                || !activationSources.Contains(source)
+                || !string.Equals(
+                    source.DisplayId,
+                    display.DisplayId,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+            return ApplyItemOpenUnsafe(display, input);
+        }
+    }
+
+    private bool ApplyItemOpenUnsafe(
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopItemOpenSurfaceInput input)
+    {
+        ProductDesktopInteractionSurfaceTransactionSnapshot? transaction =
+            intentConsumption?.Snapshot.Transaction;
+        if (currentBatch is null
+            || transaction?.IsExplicit != true
+            || transaction.Selection is not { } activeSelection
+            || !string.Equals(
+                activeSelection.ContainerId,
+                input.ContainerId,
+                StringComparison.Ordinal)
+            || !activeSelection.VisibleItemIds.Contains(
+                input.ItemId,
+                StringComparer.Ordinal)
+            || !display.Containers.Any(container =>
+                string.Equals(
+                    container.ContainerId,
+                    input.ContainerId,
+                    StringComparison.Ordinal)
+                && container.ItemIds.Contains(
+                    input.ItemId,
+                    StringComparer.Ordinal)))
+        {
+            return false;
+        }
+        try
+        {
+            ProductDesktopItemOpenResult result = requestItemOpen(new(
+                input.ContainerId,
+                display.DisplayId,
+                currentBatch.WorkspaceRevision,
+                currentBatch.TopologyGeneration,
+                input.ItemId,
+                input.Source,
+                input.SourceAttested,
+                input.IsInjected,
+                input.IsAutoRepeat));
+            PublishItemOpenFeedbackUnsafe(display, input, result);
+            return result.IsAccepted;
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException
+                or InvalidOperationException
+                or OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private void PublishItemOpenFeedbackUnsafe(
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopItemOpenSurfaceInput input,
+        ProductDesktopItemOpenResult result)
+    {
+        if (currentBatch is null)
+        {
+            return;
+        }
+        int displayIndex = -1;
+        for (int index = 0; index < currentBatch.Displays.Count; index++)
+        {
+            if (ReferenceEquals(currentBatch.Displays[index], display)
+                || string.Equals(
+                    currentBatch.Displays[index].DisplayId,
+                    display.DisplayId,
+                    StringComparison.Ordinal))
+            {
+                displayIndex = index;
+                break;
+            }
+        }
+        if (displayIndex < 0 || displayIndex >= surfaces.Count)
+        {
+            return;
+        }
+        _ = surfaces[displayIndex].ApplyItemOpenFeedback(new(
+            input.ContainerId,
+            input.ItemId,
+            result.Status,
+            ItemOpenFeedbackMessage(result),
+            result.CanRetry,
+            result.CanLocateInExplorer));
+    }
+
+    private static string ItemOpenFeedbackMessage(
+        ProductDesktopItemOpenResult result) =>
+        (result.CanRetry, result.CanLocateInExplorer) switch
+        {
+            (true, true) => $"{result.UserMessage}；右键可重试或定位",
+            (true, false) => $"{result.UserMessage}；右键可重试",
+            (false, true) => $"{result.UserMessage}；右键可定位",
+            _ => result.UserMessage,
+        };
+
+    private ProductDesktopContainerMenuAvailability
+        GetContainerMenuAvailabilityFromActivationSource(
+            IProductDesktopInteractionActivationSource source,
+            ProductDesktopHostDisplayProjection display,
+            string containerId)
+    {
+        lock (gate)
+        {
+            if (disposed
+                || currentBatch is null
+                || !activationSources.Contains(source)
+                || !string.Equals(
+                    source.DisplayId,
+                    display.DisplayId,
+                    StringComparison.Ordinal)
+                || display.Containers.Count(container => string.Equals(
+                    container.ContainerId,
+                    containerId,
+                    StringComparison.Ordinal)) != 1)
+            {
+                return ProductDesktopContainerMenuAvailability.Unavailable;
+            }
+
+            try
+            {
+                return containerMenuAvailability(
+                    containerId,
+                    display.DisplayId);
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException
+                    or InvalidOperationException
+                    or OverflowException)
+            {
+                return ProductDesktopContainerMenuAvailability.Unavailable;
+            }
+        }
+    }
+
+    private bool ApplyContainerMenuFromActivationSource(
+        IProductDesktopInteractionActivationSource source,
+        ProductDesktopHostDisplayProjection display,
+        ProductDesktopContainerMenuSurfaceInput input)
+    {
+        lock (gate)
+        {
+            ProductDesktopContainerMenuAvailability availability =
+                GetContainerMenuAvailabilityFromActivationSource(
+                    source,
+                    display,
+                    input.ContainerId);
+            bool actionAvailable = input.Action switch
+            {
+                ProductDesktopContainerMenuAction.OpenRename =>
+                    availability.CanOpenRename,
+                ProductDesktopContainerMenuAction.OpenAppearance =>
+                    availability.CanOpenAppearance,
+                ProductDesktopContainerMenuAction.OpenSort =>
+                    availability.CanOpenSort,
+                ProductDesktopContainerMenuAction.DeleteContainerConfiguration =>
+                    availability.CanDeleteContainerConfiguration,
+                _ => false,
+            };
+            if (currentBatch is null
+                || !actionAvailable
+                || !input.SourceAttested
+                || input.IsInjected
+                || input.IsAutoRepeat)
+            {
+                return false;
+            }
+
+            try
+            {
+                return requestContainerMenu(new(
+                    input.Action,
+                    input.ContainerId,
+                    display.DisplayId,
+                    currentBatch.WorkspaceRevision,
+                    currentBatch.TopologyGeneration,
+                    input.SourceAttested,
+                    input.IsInjected,
+                    input.IsAutoRepeat));
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException
+                    or InvalidOperationException
+                    or OverflowException)
+            {
+                return false;
+            }
+        }
+    }
+
+    private bool TryRequestContainerLayoutUnsafe(
+        ProductDesktopContainerLayoutRequest request)
+    {
+        try
+        {
+            return requestContainerLayout(request);
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException
+                or InvalidOperationException
+                or OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private bool ApplyContainerLayoutKeyboardFocusFromActivationSource(
+        IProductDesktopInteractionActivationSource source,
+        ProductDesktopHostDisplayProjection display,
+        string? containerId)
+    {
+        lock (gate)
+        {
+            if (disposed
+                || !activationSources.Contains(source)
+                || !string.Equals(source.DisplayId, display.DisplayId,
+                    StringComparison.Ordinal)
+                || surfaces.Count != currentBatch?.Displays.Count)
+            {
+                return false;
+            }
+
+            int displayIndex = currentBatch.Displays
+                .Select((candidate, index) => new { candidate.DisplayId, index })
+                .Where(candidate => string.Equals(
+                    candidate.DisplayId,
+                    display.DisplayId,
+                    StringComparison.Ordinal))
+                .Select(candidate => candidate.index)
+                .SingleOrDefault(-1);
+            return displayIndex >= 0
+                && surfaces[displayIndex]
+                    .ApplyContainerLayoutKeyboardFocus(containerId);
+        }
     }
 
     private ProductDesktopInteractionSurfaceTransactionSnapshot?
@@ -1521,14 +2446,38 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         && left.YDip.Equals(right.YDip)
         && left.WidthDip.Equals(right.WidthDip)
         && left.HeightDip.Equals(right.HeightDip)
+        && left.IsLocked == right.IsLocked
+        && left.TotalItemCount == right.TotalItemCount
+        && left.VisibleItemStartOrdinal == right.VisibleItemStartOrdinal
+        && left.TitleVisibility == right.TitleVisibility
+        && left.TitleDoubleClickAction == right.TitleDoubleClickAction
         && left.ItemIds.SequenceEqual(
             right.ItemIds,
             StringComparer.Ordinal)
         && left.ItemNames.SequenceEqual(
             right.ItemNames,
-            StringComparer.Ordinal);
+            StringComparer.Ordinal)
+        && left.ItemVisuals.SequenceEqual(right.ItemVisuals);
 
     private static bool BatchesEqual(
+        ProductDesktopHostProjectionBatch left,
+        ProductDesktopHostProjectionBatch right) =>
+        left.WorkspaceRevision == right.WorkspaceRevision
+        && left.TopologyGeneration == right.TopologyGeneration
+        && left.PresentationGeneration == right.PresentationGeneration
+        && left.TopologyFingerprint == right.TopologyFingerprint
+        && left.Displays.Count == right.Displays.Count
+        && left.Displays.Zip(right.Displays).All(pair =>
+            pair.First.DisplayId == pair.Second.DisplayId
+            && pair.First.WorkArea == pair.Second.WorkArea
+            && pair.First.EffectiveDpi == pair.Second.EffectiveDpi
+            && pair.First.IsPrimary == pair.Second.IsPrimary
+            && pair.First.WorkspaceIsEmpty == pair.Second.WorkspaceIsEmpty
+            && pair.First.Containers.Count == pair.Second.Containers.Count
+            && pair.First.Containers.Zip(pair.Second.Containers).All(container =>
+                ProjectionsEqual(container.First, container.Second)));
+
+    private static bool PresentationStructuresEqual(
         ProductDesktopHostProjectionBatch left,
         ProductDesktopHostProjectionBatch right) =>
         left.WorkspaceRevision == right.WorkspaceRevision
@@ -1539,9 +2488,30 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             pair.First.DisplayId == pair.Second.DisplayId
             && pair.First.WorkArea == pair.Second.WorkArea
             && pair.First.EffectiveDpi == pair.Second.EffectiveDpi
+            && pair.First.IsPrimary == pair.Second.IsPrimary
+            && pair.First.WorkspaceIsEmpty == pair.Second.WorkspaceIsEmpty
             && pair.First.Containers.Count == pair.Second.Containers.Count
             && pair.First.Containers.Zip(pair.Second.Containers).All(container =>
-                ProjectionsEqual(container.First, container.Second)));
+            {
+                ProductDesktopHostReadOnlyProjection first = container.First;
+                ProductDesktopHostReadOnlyProjection second = container.Second;
+                return first.ContainerId == second.ContainerId
+                    && first.Title == second.Title
+                    && first.Color == second.Color
+                    && first.Opacity.Equals(second.Opacity)
+                    && first.IsCollapsed == second.IsCollapsed
+                    && first.XDip.Equals(second.XDip)
+                    && first.YDip.Equals(second.YDip)
+                    && first.WidthDip.Equals(second.WidthDip)
+                    && first.HeightDip.Equals(second.HeightDip)
+                    && first.IsLocked == second.IsLocked
+                    && first.TotalItemCount == second.TotalItemCount
+                    && first.TitleVisibility == second.TitleVisibility
+                    && first.TitleDoubleClickAction ==
+                        second.TitleDoubleClickAction
+                    && first.ItemIds.Count == second.ItemIds.Count
+                    && first.ItemNames.Count == second.ItemNames.Count;
+            }));
 
     private static bool UpdatesEqual(
         ProductDesktopHostProjectionUpdate? left,
@@ -1549,6 +2519,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         left is not null
         && left.WorkspaceRevision == right.WorkspaceRevision
         && left.TopologyGeneration == right.TopologyGeneration
+        && left.PresentationGeneration == right.PresentationGeneration
         && left.Disposition == right.Disposition
         && (left.Batch is null
             ? right.Batch is null

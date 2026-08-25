@@ -25,6 +25,7 @@ public sealed record ProductWorkspaceScalePreflightResult(
     int ContainerCount,
     int ItemCount,
     int Iterations,
+    int LayoutPreviewIterations,
     int ResolvedItemCount,
     int ProjectedItemCount,
     int SelectionActionCount,
@@ -42,10 +43,12 @@ public static class ProductWorkspaceScalePreflight
     public const int ItemCount = ProductConfigurationLimits.MaximumItems;
     public const int Iterations = 20;
     public const int PersistenceIterations = 5;
+    public const int LayoutPreviewIterations = 2_000;
 
     private const double CorePipelineP95LimitMilliseconds = 1_000;
     private const double SaveP95LimitMilliseconds = 3_000;
     private const double RecoveryP95LimitMilliseconds = 1_000;
+    private const double LayoutPreviewP95LimitMilliseconds = 16.7;
 
     public static async Task<ProductWorkspaceScalePreflightResult> RunAsync(
         CancellationToken cancellationToken = default)
@@ -161,6 +164,45 @@ public static class ProductWorkspaceScalePreflight
                 coreSamples.Add(Stopwatch.GetElapsedTime(started).TotalMilliseconds);
             }
 
+            ProductWorkspaceResolutionResult layoutResolution =
+                ProductWorkspaceConfigurationResolver.Resolve(candidate, catalog);
+            ProductWorkspaceState layoutState = layoutResolution.State
+                ?? throw new InvalidOperationException(
+                    "The scale layout state was unavailable.");
+            ProductDisplayTopologySnapshot layoutTopology = Topology();
+            var layoutSamples = new List<double>(LayoutPreviewIterations);
+            for (int iteration = -100;
+                iteration < LayoutPreviewIterations;
+                iteration++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                long layoutStarted = Stopwatch.GetTimestamp();
+                ProductWorkspaceContainerLayoutPreviewDecision preview =
+                    ProductWorkspaceContainerLayoutPreview.Evaluate(
+                        layoutState,
+                        currentEditRevision: 1,
+                        currentTopologyGeneration: layoutTopology.Generation,
+                        layoutTopology.Displays,
+                        new(
+                            ProductWorkspaceContainerLayoutGestureKind.Move,
+                            "scale-container-000",
+                            ExpectedEditRevision: 1,
+                            ExpectedTopologyGeneration: layoutTopology.Generation,
+                            DisplayId: "scale-display",
+                            DeltaXDip: (iteration % 13) - 6,
+                            DeltaYDip: (iteration % 11) - 5,
+                            SnapEnabled: true,
+                            ShiftPressed: iteration % 2 == 0));
+                Require(
+                    preview.CanPreview,
+                    "The 100-container layout preview was rejected.");
+                if (iteration >= 0)
+                {
+                    layoutSamples.Add(
+                        Stopwatch.GetElapsedTime(layoutStarted).TotalMilliseconds);
+                }
+            }
+
             Directory.CreateDirectory(sandbox);
             var store = new ProductConfigurationStore(sandbox);
             var saveSamples = new List<double>(PersistenceIterations);
@@ -193,6 +235,10 @@ public static class ProductWorkspaceScalePreflight
                     CorePipelineP95LimitMilliseconds),
                 Metric("save", saveSamples, SaveP95LimitMilliseconds),
                 Metric("recovery", recoverySamples, RecoveryP95LimitMilliseconds),
+                Metric(
+                    "layout-preview-100-containers",
+                    layoutSamples,
+                    LayoutPreviewP95LimitMilliseconds),
             ];
             ProductWorkspaceScalePreflightOutcome outcome = metrics.All(metric =>
                     metric.Passed)
@@ -207,6 +253,7 @@ public static class ProductWorkspaceScalePreflight
                 ContainerCount,
                 ItemCount,
                 Iterations,
+                LayoutPreviewIterations,
                 ItemCount,
                 projectedItems,
                 selectionActions,

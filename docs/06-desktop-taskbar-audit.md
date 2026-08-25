@@ -3,6 +3,8 @@
 审计日期：2026-07-29
 范围：iTop Easy Desktop、Stardock Fences、Nimi Places、Portals、PowerToys Workspaces，以及 TranslucentTB、RoundedTB、Windhawk、Start11、TaskbarX 等任务栏工具。
 
+> 2026-08-21 实施复审：安全边界和 P1 实验方向仍有效，但仓库尚无任务栏透明度/着色运行时、设置 UI、恢复守护或 Windows build 实机矩阵；不得把本审计写成已实现功能。当前优先级与全量对齐状态见 [Stage 176](176-current-development-requirement-alignment-audit.md)。
+
 ## 1. 结论先行
 
 桌面整理产品表面上都在画“盒子”，实际可分为三种模型：

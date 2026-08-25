@@ -2,21 +2,21 @@
 
 日期：2026-08-03
 
-状态：**Product Requirement / 尚未实现**
+状态：**Product Requirement / Partially Implemented / 尚不可发布**
 
 适用范围：正式 `LongGrid.App`、`LongGrid.DesktopHost`、安装包、开始菜单/桌面快捷方式、商店素材和开发脚本
 
 ## 1. 当前事实
 
-当前仓库已经建立开发期只读 UI Shell，但仍没有可发布产品 UI：
+截至 Stage 197，仓库已经建立正式工程预览 App 与产品 DesktopHost Surface，但仍没有可发布产品 UI：
 
-- 已有 `LongGrid.App`、WinUI/XAML 导航骨架和 Design Token；正式工作区会只读枚举用户/Public 桌面第一层元数据，练习区仍为匿名内存数据，DesktopHost 和桌面文件写入保持关闭，也不是可发布设置中心；
-- 没有正式 `LongGrid.DesktopHost` 产品工程；
-- P0-04/P0-05b1 只有 GDI 系统色的交互探针，用于验证 HWND、输入、焦点和 UI Automation，不代表最终视觉；
+- 已有 `LongGrid.App`、WinUI/XAML NavigationView、Design Token、自定义标题栏、Mica 与 Desktop Acrylic；控制中心已有正式产品状态与设置链，但主题选择仍只保留在内存；
+- 产品 DesktopHost 由 Infrastructure 中的生命周期与原生 Surface 承载，而不是独立 `LongGrid.DesktopHost` 工程；它已接入正式配置、项目图标/缩略图、选择、打开和 UIA，但视觉仍偏工程化；
+- 早期 GDI 交互探针已经演进为产品 Surface 底座，但不能据此宣称最终视觉、动效、触控和无障碍矩阵完成；
 - 已有经像素校正的 RC1 SVG/PNG 品牌资产，并能在 MSIX 暂存区生成 44/150/50 px 精确图标；最终商标、ICO/商店素材和 Windows 外壳实机矩阵仍未完成；
-- 已有 `eng/Start-LongGrid.ps1` 开发启动入口、`eng/Pack-LongGrid.ps1` self-contained 便携 ZIP 和 `eng/Pack-LongGridMsix.ps1` 未签名 MSIX 验证入口；受保护签名和正式安装入口仍不存在。
+- 已有 `eng/Start-LongGrid.ps1` 开发启动入口和 `eng/Build-LongGridReleaseCandidate.ps1` 内部 RC 编排，可生成 portable ZIP、unsigned MSIX、SBOM、哈希和源码提交清单；受保护签名和正式安装入口仍不存在。
 
-因此开发期 UI Shell、任何探针窗口、命令行入口或 `dotnet run` 命令都不得宣传为 Long方格正式 MVP 或安装体验。
+因此当前工程预览 App、DesktopHost Surface、任何探针窗口、命令行入口或 `dotnet run` 命令都不得宣传为 Long方格正式 MVP、Beta 或安装体验。
 
 ## 2. 产品名称与标识
 
@@ -151,7 +151,7 @@ Long方格的正式 UI 必须同时满足：**现代化、扁平化、精致华�
 ## 10. 阶段门禁
 
 - Phase 0：确认名称、视觉方向、图标概念和 UI/动效可用性任务；不要求已有正式应用；
-- 首个生产切片：建立 Design Token、正式 UI Shell、一键启动脚本和未签名开发包；
+- 首个生产切片：建立 Design Token、正式 UI Shell、一键启动脚本和未签名开发包（工程目标已完成，产品视觉与安装证据未完成）；
 - MVP 内测：完整 UI 状态、主题/无障碍、品牌图标、自动化 UI smoke 和一键开发打包通过；
 - Beta：签名、升级/降级/卸载、开始菜单/快捷方式、图标资产和多系统矩阵通过；
 - Stable：品牌、商店素材、隐私、SBOM、哈希、签名和回滚全部批准。

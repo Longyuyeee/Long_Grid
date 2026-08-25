@@ -15,12 +15,14 @@ public sealed record ProductDesktopHostProjectionUpdate
         long workspaceRevision,
         long topologyGeneration,
         ProductDesktopHostProjectionDisposition disposition,
-        ProductDesktopHostProjectionBatch? batch)
+        ProductDesktopHostProjectionBatch? batch,
+        long presentationGeneration)
     {
         WorkspaceRevision = workspaceRevision;
         TopologyGeneration = topologyGeneration;
         Disposition = disposition;
         Batch = batch;
+        PresentationGeneration = presentationGeneration;
     }
 
     public long WorkspaceRevision { get; }
@@ -31,21 +33,26 @@ public sealed record ProductDesktopHostProjectionUpdate
 
     public ProductDesktopHostProjectionBatch? Batch { get; }
 
+    public long PresentationGeneration { get; }
+
     public static ProductDesktopHostProjectionUpdate Create(
         long workspaceRevision,
         long topologyGeneration,
         ProductDesktopHostProjectionDisposition disposition,
-        ProductDesktopHostProjectionBatch? batch = null)
+        ProductDesktopHostProjectionBatch? batch = null,
+        long presentationGeneration = 0)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(workspaceRevision);
         ArgumentOutOfRangeException.ThrowIfNegative(topologyGeneration);
+        ArgumentOutOfRangeException.ThrowIfNegative(presentationGeneration);
 
         if (disposition is ProductDesktopHostProjectionDisposition.Ready
             or ProductDesktopHostProjectionDisposition.EmptyWorkspace)
         {
             ArgumentNullException.ThrowIfNull(batch);
             if (batch.WorkspaceRevision != workspaceRevision
-                || batch.TopologyGeneration != topologyGeneration)
+                || batch.TopologyGeneration != topologyGeneration
+                || batch.PresentationGeneration != presentationGeneration)
             {
                 throw new ArgumentException(
                     "Ready projection update metadata must match its batch.",
@@ -75,6 +82,7 @@ public sealed record ProductDesktopHostProjectionUpdate
             workspaceRevision,
             topologyGeneration,
             disposition,
-            batch);
+            batch,
+            presentationGeneration);
     }
 }

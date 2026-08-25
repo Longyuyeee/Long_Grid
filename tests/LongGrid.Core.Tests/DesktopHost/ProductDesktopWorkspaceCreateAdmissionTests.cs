@@ -1,3 +1,4 @@
+using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopHost;
 
 namespace LongGrid.Core.Tests.DesktopHost;
@@ -6,6 +7,7 @@ public sealed class ProductDesktopWorkspaceCreateAdmissionTests
 {
     [Theory]
     [InlineData(ProductDesktopWorkspaceCreateInputKind.PrimaryPointer)]
+    [InlineData(ProductDesktopWorkspaceCreateInputKind.PointerDrag)]
     [InlineData(ProductDesktopWorkspaceCreateInputKind.ContextMenu)]
     [InlineData(ProductDesktopWorkspaceCreateInputKind.KeyboardShortcut)]
     [InlineData(ProductDesktopWorkspaceCreateInputKind.AssistiveInvoke)]
@@ -79,10 +81,72 @@ public sealed class ProductDesktopWorkspaceCreateAdmissionTests
         Assert.Equal(
             ProductDesktopWorkspaceCreateAdmissionStatus.Invalid,
             ProductDesktopWorkspaceCreateAdmission.Evaluate(
+                Request(ProductDesktopWorkspaceCreateInputKind.PointerDrag) with
+                {
+                    RequestedBoundsPixels = new(
+                        int.MaxValue,
+                        int.MaxValue,
+                        2,
+                        2),
+                },
+                7,
+                11).Status);
+        Assert.Equal(
+            ProductDesktopWorkspaceCreateAdmissionStatus.Invalid,
+            ProductDesktopWorkspaceCreateAdmission.Evaluate(
                 Request() with
                 {
                     Kind = (ProductDesktopWorkspaceCreateInputKind)int.MaxValue,
                 },
+                7,
+                11).Status);
+        Assert.Equal(
+            ProductDesktopWorkspaceCreateAdmissionStatus.Invalid,
+            ProductDesktopWorkspaceCreateAdmission.Evaluate(
+                Request(ProductDesktopWorkspaceCreateInputKind.PointerDrag) with
+                {
+                    RequestedBoundsPixels = null,
+                },
+                7,
+                11).Status);
+        Assert.Equal(
+            ProductDesktopWorkspaceCreateAdmissionStatus.Invalid,
+            ProductDesktopWorkspaceCreateAdmission.Evaluate(
+                Request() with
+                {
+                    RequestedBoundsPixels = new(100, 200, 400, 300),
+                },
+                7,
+                11).Status);
+    }
+
+    [Fact]
+    public void SelectedReferenceInputRequiresBoundedSnapshotAndRejectsPayloadElsewhere()
+    {
+        var selected = new ProductWorkspaceSelectedReferenceCreateSnapshot(
+            1,
+            ["item-1"],
+            new string('A', 64));
+        ProductDesktopWorkspaceCreateRequest request = Request(
+            ProductDesktopWorkspaceCreateInputKind.SelectedReferences) with
+        {
+            SelectedReferences = selected,
+        };
+
+        Assert.True(ProductDesktopWorkspaceCreateAdmission.Evaluate(
+            request,
+            7,
+            11).CanCreate);
+        Assert.Equal(
+            ProductDesktopWorkspaceCreateAdmissionStatus.Invalid,
+            ProductDesktopWorkspaceCreateAdmission.Evaluate(
+                request with { SelectedReferences = null },
+                7,
+                11).Status);
+        Assert.Equal(
+            ProductDesktopWorkspaceCreateAdmissionStatus.Invalid,
+            ProductDesktopWorkspaceCreateAdmission.Evaluate(
+                Request() with { SelectedReferences = selected },
                 7,
                 11).Status);
     }
@@ -97,5 +161,8 @@ public sealed class ProductDesktopWorkspaceCreateAdmissionTests
             TopologyGeneration: 11,
             SourceAttested: true,
             IsInjected: false,
-            IsAutoRepeat: false);
+            IsAutoRepeat: false,
+            kind == ProductDesktopWorkspaceCreateInputKind.PointerDrag
+                ? new(100, 200, 400, 300)
+                : null);
 }

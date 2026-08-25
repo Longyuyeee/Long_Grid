@@ -168,3 +168,15 @@ DesktopHost 状态卡新增标准 WinUI `ToggleSwitch`：
 4. PF-033 增加托盘时必须调用同一个 `ProductBoxesSettingsController`，不得增加第二份开关；
 5. PF-005～PF-007 完成真实项目呈现和打开后，清理控制中心遗留的开发期/只读文案；
 6. 在真人环境补充 Narrator、UIA 树归零和 1 秒呈现证据后，再评估 PF-001 是否达到 `EngineeringComplete / ProductEvidencePending`。
+
+## 8. 2026-08-24 桌面优先启动收口增量
+
+Stage 182 已移除正常启动无条件激活控制中心的遗留行为，并以有限状态策略区分可用桌面、空工作区、系统表面挂起、方格关闭、配置需注意、Host 故障和第二次用户启动。正式 Release App 真实窗口验证首次只显示 DesktopHost，20 秒持续响应；第二进程退出码 0 并激活唯一控制中心，退出后零活进程、零临时配置写入。
+
+PF-001 因此调整为 `EngineeringComplete / ProductEvidencePending`。Narrator、跨进程 UIA 子树和物理输入仍未在安全环境取得完整产品证据，顶层完成数不增加。详细 Expected/Actual、测试差异和下一 PF-004 方向见 [Stage 182](182-pf001-desktop-first-startup-audit.md)。
+
+## 9. 2026-08-25 运行期开启性能增量
+
+Stage 199 将控制中心 Toggle 与证据会话统一到包含原子设置保存、生命周期恢复和投影刷新的 `ChangeBoxesEnabledAsync` 产品路径。正式 Release App 通过随机临时设置、独立 AppInstance 和外部 Win32 顶层窗口三段握手，连续三次确认 DesktopHost HWND 1→0→1，开启耗时 41/92/40 ms，全部满足 ≤1000 ms；1 ms 负向门以实际 31 ms、超出 30 ms 和退出码 1 正确失败。
+
+这关闭了本审计原“开启后 1 秒”性能 Pending，但不替代真人 Narrator、跨进程 UIA、高对比和签名安装证据。PF-001 继续为 `EngineeringComplete / ProductEvidencePending`。详见 [Stage 199](199-pf001-runtime-boxes-enable-real-window-performance-audit.md)。

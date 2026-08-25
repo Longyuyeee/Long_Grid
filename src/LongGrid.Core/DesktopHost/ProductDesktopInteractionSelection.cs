@@ -9,6 +9,7 @@ public enum ProductDesktopSelectionStatus
     LeaseMismatch,
     LeaseExpired,
     VisibleItemsChanged,
+    Reconciled,
 }
 
 [Flags]
@@ -26,6 +27,7 @@ public enum ProductDesktopSelectionAction
     MoveNext,
     MoveFirst,
     MoveLast,
+    SelectAll,
     Clear,
 }
 
@@ -66,7 +68,7 @@ public sealed class ProductDesktopInteractionSelectionController
 
     private readonly object sync = new();
     private readonly ProductDesktopInteractionLease lease;
-    private readonly string[] visibleItemIds;
+    private string[] visibleItemIds;
     private readonly HashSet<string> selected = new(StringComparer.Ordinal);
     private string? focusedItemId;
     private string? anchorItemId;
@@ -173,6 +175,7 @@ public sealed class ProductDesktopInteractionSelectionController
                     MoveTo(0, request.Modifiers),
                 ProductDesktopSelectionAction.MoveLast =>
                     MoveTo(visibleItemIds.Length - 1, request.Modifiers),
+                ProductDesktopSelectionAction.SelectAll => SelectAll(),
                 ProductDesktopSelectionAction.Clear => Clear(request),
                 _ => false,
             };
@@ -186,13 +189,83 @@ public sealed class ProductDesktopInteractionSelectionController
         }
     }
 
+    public ProductDesktopSelectionSnapshot ReconcileVisibleItems(
+        ProductDesktopInteractionLease currentLease,
+        IReadOnlyList<string> currentVisibleItemIds,
+        DateTimeOffset nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(currentLease);
+        ArgumentNullException.ThrowIfNull(currentVisibleItemIds);
+        lock (sync)
+        {
+            if (!LeaseMatches(currentLease))
+            {
+                return CreateSnapshot(ProductDesktopSelectionStatus.LeaseMismatch);
+            }
+
+            if (currentLease.ExpiresAtUtc <= nowUtc)
+            {
+                return CreateSnapshot(ProductDesktopSelectionStatus.LeaseExpired);
+            }
+
+            string[] next = currentVisibleItemIds.ToArray();
+            if (next.Length > MaximumVisibleItems
+                || next.Any(string.IsNullOrWhiteSpace)
+                || next.Distinct(StringComparer.Ordinal).Count() != next.Length)
+            {
+                return CreateSnapshot(ProductDesktopSelectionStatus.InvalidModel);
+            }
+
+            if (visibleItemIds.SequenceEqual(next, StringComparer.Ordinal))
+            {
+                return CreateSnapshot(ProductDesktopSelectionStatus.Reconciled);
+            }
+
+            visibleItemIds = next;
+            selected.IntersectWith(next);
+            if (focusedItemId is null || !next.Contains(
+                    focusedItemId,
+                    StringComparer.Ordinal))
+            {
+                focusedItemId = next.FirstOrDefault();
+            }
+            if (anchorItemId is null || !next.Contains(
+                    anchorItemId,
+                    StringComparer.Ordinal))
+            {
+                anchorItemId = focusedItemId;
+            }
+
+            selectionRevision++;
+
+            return CreateSnapshot(ProductDesktopSelectionStatus.Reconciled);
+        }
+    }
+
     private bool RequestIsValid(ProductDesktopSelectionRequest request) =>
         request.Action == ProductDesktopSelectionAction.SelectItem
             ? IndexOf(request.ItemId) >= 0
-            : request.Action == ProductDesktopSelectionAction.Clear
+            : request.Action is ProductDesktopSelectionAction.Clear
+                or ProductDesktopSelectionAction.SelectAll
                 ? request.ItemId is null
                     && request.Modifiers == ProductDesktopSelectionModifiers.None
                 : request.ItemId is null;
+
+    private bool SelectAll()
+    {
+        string? oldFocus = focusedItemId;
+        string? oldAnchor = anchorItemId;
+        string[] oldSelection = OrderedSelection();
+        selected.Clear();
+        selected.UnionWith(visibleItemIds);
+        focusedItemId ??= visibleItemIds.FirstOrDefault();
+        anchorItemId ??= focusedItemId;
+        return !string.Equals(oldFocus, focusedItemId, StringComparison.Ordinal)
+            || !string.Equals(oldAnchor, anchorItemId, StringComparison.Ordinal)
+            || !oldSelection.SequenceEqual(
+                OrderedSelection(),
+                StringComparer.Ordinal);
+    }
 
     private bool Select(
         string? itemId,

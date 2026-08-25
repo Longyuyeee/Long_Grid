@@ -27,6 +27,8 @@ public static class ProductWorkspaceContainerCreationDefaults
     public const string BaseName = "新方格";
     public const double DefaultWidthDip = 360;
     public const double DefaultHeightDip = 240;
+    public const double MinimumDraggedWidthDip = 160;
+    public const double MinimumDraggedHeightDip = 120;
     private const double InitialXDip = 32;
     private const double InitialYDip = 48;
     private const double CascadeStepDip = 24;
@@ -65,7 +67,8 @@ public static class ProductWorkspaceContainerCreationDefaults
         string? requestedName,
         string? displayId,
         PixelRect workArea,
-        uint effectiveDpi)
+        uint effectiveDpi,
+        PixelRect? requestedBoundsPixels = null)
     {
         if (existingContainers is null
             || existingContainers.Any(container => container is null
@@ -108,6 +111,39 @@ public static class ProductWorkspaceContainerCreationDefaults
         double scale = effectiveDpi / 96d;
         double workWidthDip = workArea.Width / scale;
         double workHeightDip = workArea.Height / scale;
+        if (requestedBoundsPixels is PixelRect requested)
+        {
+            if ((long)requested.Left + requested.Width > int.MaxValue
+                || (long)requested.Top + requested.Height > int.MaxValue)
+            {
+                return Failure(
+                    ProductWorkspaceContainerCreationDefaultsStatus.Invalid);
+            }
+            PixelRect visible = requested.Intersect(workArea);
+            double requestedWidthDip = requested.Width / scale;
+            double requestedHeightDip = requested.Height / scale;
+            if (visible != requested
+                || requestedWidthDip < MinimumDraggedWidthDip
+                || requestedHeightDip < MinimumDraggedHeightDip)
+            {
+                return Failure(
+                    ProductWorkspaceContainerCreationDefaultsStatus
+                        .PlacementUnavailable);
+            }
+
+            return new(
+                ProductWorkspaceContainerCreationDefaultsStatus.Ready,
+                name,
+                new()
+                {
+                    DisplayKey = displayId,
+                    XDip = (requested.Left - workArea.Left) / scale,
+                    YDip = (requested.Top - workArea.Top) / scale,
+                    WidthDip = requestedWidthDip,
+                    HeightDip = requestedHeightDip,
+                });
+        }
+
         double widthDip = Math.Min(DefaultWidthDip, workWidthDip);
         double heightDip = Math.Min(DefaultHeightDip, workHeightDip);
         if (!double.IsFinite(widthDip)

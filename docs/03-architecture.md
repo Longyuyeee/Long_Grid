@@ -67,6 +67,8 @@ flowchart LR
 
 Shell COM 对象、PIDL、HWND 和原生句柄不得泄漏进 Core。
 
+PF-005C 后，缩略图慢路径必须经过 `ProductDesktopThumbnailRequestController`：首个合法可见图片 cache miss 才启动经零 Capability AppContainer 与 Kill-on-Job-close 复核的 worker；每轮最多 12 请求，缓存最多 64 项并按 SHA-256 安全身份、文件长度/修改时间/尺寸/主题失效。App 从权威 workspace 的当前 12 项视口建立匿名候选，先投影 Loading，再把有限 BGRA32 帧用 top-down `StretchDIBits` 绘制到 DesktopHost；独立 presentation generation 允许相同 workspace/topology 下原位更新真实 HWND，viewport/revision/topology/开关或状态实例变化的旧结果一律拒绝。提取异步上限为实测校准后的 1.5 秒，首个 timeout/exit/protocol/runtime 故障立即停止 worker 并让本轮剩余项有限回退，避免 12 倍串行放大。关闭时取消刷新、停止 worker 且零新请求；不允许主进程改走 Shell 提取，也不允许路径进入缓存、DesktopHost 投影或 UIA。
+
 P0-01a/P0-01b 已验证物理目录与 Desktop Namespace 的只读发现和对账：当前机器上 96 个物理项目全部在 Shell 枚举中匹配，Shell 另有 9 个文件系统命名空间项目和 11 个纯虚拟项目。因此生产发现链必须以 Shell 为完整视图、以 Known Folder 扫描作为对账与降级来源；虚拟项目不得误判为可移动文件。
 
 P0-01c 已验证当前 96 个物理桌面项目均可读取 Volume/File ID；临时沙箱内文件和目录重命名保持身份，复制产生新身份。72 个现存快捷方式目标与 `.lnk` 文件自身均为不同身份。生产模型应保存 Long Grid 领域 UUID、可变定位信息和可选文件系统稳定身份；快捷方式另存链接文件身份与可选目标身份。File ID 仅在同一计算机/卷语境内有效，不支持或返回全零时降级为规范化路径并保留不确定状态。
@@ -369,3 +371,23 @@ App 把正式方格投影成有限的 `ProductDesktopHostReadOnlyProjection`；S
 `ProductDesktopHostProjectionBuilder` 只接受权威 `ProductDisplayTopologySnapshot`，把最多 100 个正式方格按稳定 DisplayKey 分组；未知键回退唯一主显示器。批次携带 workspace revision、拓扑 generation 与 SHA-256 拓扑指纹，限制最多 16 个使用中显示器、全局唯一方格 ID 和有限显示文本。
 
 生命周期为每个实际含方格的显示器创建一个 HWND，同一显示器内所有方格由一个 `SetWindowRgn` 联合 Region 和一次 GDI 绘制承载。每个显示器 HWND 仍需进程、线程、实例标记与 Bounds 所有权复读；第二个或后续显示器失败时，先前已注册窗口也整批注销销毁。当前 GDI 用颜色与桌面基色混合近似有限透明度，不是最终逐像素 Composition 材质；A4 必须继续审计动态拓扑/关闭/资源，阶段 B 才能开放输入和 UIA Fragment。
+
+## Stage 192：PF-006A 视口选择收敛
+
+视口 ordinal/ID/名称变化在权威 workspace/topology、容器结构和总数不变时作为原位 presentation；唯一 selection transaction 以同一 lease 对新可见 ID 做 bounded reconcile，保留交集、删除不可见选择，焦点与 anchor 在不相交页面落到首项，并推进 selection revision/UIA 快照。Ctrl+A 与内容空白 Clear 复用同一权威控制器。真实 HWND/UIA 第二页与正式生命周期均 `Difference=None`；框选、跨视口 PageUp/PageDown 和安全打开仍 Pending，详见 [Stage 192](192-pf006a-viewport-selection-convergence-audit.md)。
+
+## Stage 193：PF-006B1 统一安全打开
+
+DesktopHost/UIA 继续只持有可见名称和 `item:ordinal`，Enter、精确项目双击与 UIA Invoke 经 lifecycle 附加 container/display/workspace revision/topology/source attestation 后，由 App 当前权威 workspace 解析真实目标。File/Folder 必须复核 resolved 状态、filesystem provider、persisted/catalog target、现场类型和非重解析点，才由 `ShellExecuteExW` 的 `open` verb 提交系统关联；只有 Shell API 明确接受才发布 `LaunchAccepted`。Shortcut/URL 在专用解析和协议白名单前保持 `ReviewRequiredKind`。详见 [Stage 193](193-pf006b1-unified-safe-file-folder-open-audit.md)。
+
+## Stage 194：PF-006B2A Shortcut/URL 与有限反馈
+
+App 权威打开控制器现在通过独立 Windows 引用解析边界处理 `.lnk/.url`：Shell Link 用 `IShellLinkW/IPersistFile` 只读解析并复核目标、参数、大小、类型、重解析点和解析前后长度/时间/SHA-256；InternetShortcut 只接受有界严格 UTF-8/UTF-16LE、唯一 URL 和 HTTP/HTTPS。解析后的目标才进入既有 `ShellExecuteExW`。有限结果经生命周期回到对应 Surface，GDI 项目标签与 UIA `ItemStatus` 共用无路径消息；动作型重试/定位仍由下一切片实现。详见 [Stage 194](194-pf006b2a-shortcut-url-feedback-audit.md)。
+
+## Stage 195：PF-006B2B1 可配置单击打开策略
+
+`ProductBoxesSettings` 以默认 `false` 的 `openItemsWithSingleClick` 保存用户选择；缺失/安全配置不会隐式开启或写盘。App 把成功加载/保存后的策略交给 DesktopHost 生命周期，生命周期对当前和后续 Surface 保持一致。真实 Surface 始终先提交共享选择；只有显式开启、普通、可信、非注入且无 Ctrl/Shift 的项目单击才以 `PointerSingleClick` 进入既有权威打开命令，并在单击模式抑制重复双击入口。路径仍不下放到 HWND/UIA。详见 [Stage 195](195-pf006b2b1-single-click-open-policy-audit.md)。
+
+## Stage 196：PF-006B2B2 权威重试与安全 Explorer 定位
+
+打开结果只向 Surface 投影有限状态、无路径消息和 Retry/Locate 可用位；原生项目右键菜单把可信、非注入动作作为新的打开来源交回既有生命周期，生命周期重新附加当前 display/revision/topology。Retry 完整重跑安全打开；Locate 在 App 权威边界重新验证 resolved filesystem 引用、Catalog/Persisted 一致性、现场父目录/目标及 ReparsePoint，再调用绝对 `%WINDIR%\explorer.exe`。存在目标才用 `/select`，缺失目标只打开安全父目录。详见 [Stage 196](196-pf006b2b2-authoritative-retry-safe-explorer-locate-audit.md)。

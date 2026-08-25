@@ -9,8 +9,10 @@ public enum ProductWorkspaceLatestUndoKind
     LayoutRecovery,
     ContainerRemoval,
     ReferenceBatchAddition,
+    SelectedReferenceContainer,
     ReferenceRemoval,
     ReferenceReassignment,
+    ContainerEdit,
 }
 
 public sealed record ProductWorkspaceLatestUndoSelection(
@@ -27,8 +29,10 @@ public static class ProductWorkspaceLatestUndoSelector
         ProductWorkspaceLayoutRecoveryUndoToken? layoutRecovery,
         ProductWorkspaceContainerRemovalUndoToken? containerRemoval,
         ProductWorkspaceReferenceBatchAdditionUndoToken? referenceBatchAddition,
+        ProductWorkspaceReferenceBatchAdditionUndoToken? selectedReferenceContainer,
         ProductWorkspaceReferenceRemovalUndoToken? referenceRemoval,
-        ProductWorkspaceReferenceReassignmentUndoToken? referenceReassignment)
+        ProductWorkspaceReferenceReassignmentUndoToken? referenceReassignment,
+        ProductWorkspaceContainerEditUndoToken? containerEdit = null)
     {
         (ProductWorkspaceLatestUndoKind Kind, bool IsPresent, Guid OperationId,
             long Revision)[]
@@ -47,6 +51,10 @@ public static class ProductWorkspaceLatestUndoSelector
                     referenceBatchAddition?.OperationId,
                     referenceBatchAddition?.AdditionEditRevision),
                 Candidate(
+                    ProductWorkspaceLatestUndoKind.SelectedReferenceContainer,
+                    selectedReferenceContainer?.OperationId,
+                    selectedReferenceContainer?.AdditionEditRevision),
+                Candidate(
                     ProductWorkspaceLatestUndoKind.ReferenceRemoval,
                     referenceRemoval?.OperationId,
                     referenceRemoval?.RemovalEditRevision),
@@ -54,6 +62,10 @@ public static class ProductWorkspaceLatestUndoSelector
                     ProductWorkspaceLatestUndoKind.ReferenceReassignment,
                     referenceReassignment?.OperationId,
                     referenceReassignment?.ReassignmentEditRevision),
+                Candidate(
+                    ProductWorkspaceLatestUndoKind.ContainerEdit,
+                    containerEdit?.OperationId,
+                    containerEdit?.EditRevision),
             ];
 
         (ProductWorkspaceLatestUndoKind Kind, bool IsPresent, Guid OperationId,

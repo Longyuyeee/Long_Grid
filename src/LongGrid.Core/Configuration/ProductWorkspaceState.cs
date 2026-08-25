@@ -39,7 +39,26 @@ public sealed record ProductContainerAppearanceState
 
     public bool Collapsed { get; init; }
 
+    public ProductContainerTitleVisibilityPolicy TitleVisibility { get; init; } =
+        ProductContainerTitleVisibilityPolicy.Always;
+
+    public ProductContainerTitleDoubleClickAction TitleDoubleClickAction
+    { get; init; } = ProductContainerTitleDoubleClickAction.ToggleCollapsed;
+
     public IDictionary<string, JsonElement>? ExtensionData { get; init; }
+}
+
+public enum ProductContainerTitleVisibilityPolicy
+{
+    Always,
+    Hover,
+    Hidden,
+}
+
+public enum ProductContainerTitleDoubleClickAction
+{
+    ToggleCollapsed,
+    None,
 }
 
 public sealed record ProductContainerPlacementState

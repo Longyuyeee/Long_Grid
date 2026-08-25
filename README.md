@@ -1,8 +1,8 @@
 # Long方格（Long Grid）
 
-Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于立项与技术验证阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
+Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-001 总开关主闭环已完成；PF-002 的空态与非空态按钮、产品自有右键菜单、`Ctrl+Alt+N` 和 UIA 已统一到同一安全创建请求，并完成“新方格 / 新方格 N”、多显示器有限布局、20 次 Core 连续创建及 20 次最新 Surface/revision 合同。PF-001/PF-002 均仍为 `InProgress`：桌面优先启动、提交前就地预览/命名、保存失败补偿、拖画矩形、使用已选引用创建和正式物理证据仍待完成；严格现状与后续验收顺序见 [Stage 159](docs/159-current-development-status-and-next-plan-audit.md)。真实文件写入、完整桌面交互、签名、安装与外部证据仍由各自安全门控制，所有产物仍不可公开分发。
+> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。PF-001 运行期开启真实性能已由 [Stage 199](docs/199-pf001-runtime-boxes-enable-real-window-performance-audit.md)关闭；PR #225 的 Windows PowerShell/157-ID 偏差已由 [Stage 200](docs/200-pr225-windows-powershell-ui-contract-ci-correction-audit.md)纠正，[Stage 201](docs/201-pr225-coverage-gate-recovery-audit.md)继续按远端/重复全量证据修正 headless 覆盖差异、真实 `.lnk` 参数证据、BMP worker 1507 ms 超时和原生菜单 hang。PR run `32803174900` 已为 1198/1198、90.01%/75.51% 全绿，等待最终文档提交复核及主线集成。PF-001～PF-005 仍为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`，30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -20,6 +20,48 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [技术架构与数据设计](docs/03-architecture.md)
 - [路线图与验收门槛](docs/04-roadmap.md)
 - [当前开发状态、计划对齐与后续验收审计（Stage 159）](docs/159-current-development-status-and-next-plan-audit.md)
+- [PF-002D1 可编辑创建预览工程审计（Stage 160）](docs/160-pf002d1-editable-create-preview-audit.md)
+- [原生 UIA 激活与前台拒绝恢复审计（Stage 161）](docs/161-native-uia-activation-recovery-audit.md)
+- [PF-002D2 桌面候选位置原生预览审计（Stage 162）](docs/162-pf002d2-native-inline-preview-audit.md)
+- [PF-002D 正式 App 实机交互尝试审计（Stage 163）](docs/163-pf002d-real-app-interaction-attempt-audit.md)
+- [PF-002E 创建保存与可见发布补偿审计（Stage 164）](docs/164-pf002e-create-save-publication-compensation-audit.md)
+- [PF-002 桌面拖画矩形创建工程审计（Stage 165）](docs/165-pf002-drag-rectangle-create-engineering-audit.md)
+- [PF-002H 已选引用创建方格原子事务基础审计（Stage 166）](docs/166-pf002h-selected-reference-atomic-transaction-audit.md)
+- [PF-002H 已选引用创建方格正式 App 接线审计（Stage 167）](docs/167-pf002h-selected-reference-app-integration-audit.md)
+- [WinUI 跨进程 UIA 阻断与真实窗口冒烟审计（Stage 168）](docs/168-winui-cross-process-uia-blocker-and-window-smoke-audit.md)
+- [WinUI UIA 已知崩溃运行时失败关闭审计（Stage 169）](docs/169-winui-uia-fail-closed-preflight-audit.md)
+- [PF-002 正式 App 进程内证据与 WinUI 安全预览审计（Stage 170）](docs/170-pf002-formal-app-inprocess-evidence-audit.md)
+- [PF-002 正式 App 最近撤销证据审计（Stage 171）](docs/171-pf002-formal-app-latest-undo-evidence-audit.md)
+- [PF-003A 布局预览与吸附策略审计（Stage 172）](docs/172-pf003a-layout-preview-snap-policy-audit.md)
+- [PF-003B 手势会话与唯一完成提交审计（Stage 173）](docs/173-pf003b-gesture-session-single-commit-audit.md)
+- [PF-003C 布局保存失败补偿审计（Stage 174）](docs/174-pf003c-layout-save-failure-compensation-audit.md)
+- [PF-003D1 DesktopHost 布局输入合同审计（Stage 175）](docs/175-pf003d1-desktop-host-layout-input-contract-audit.md)
+- [当前开发情况与最初需求对齐审计（Stage 176）](docs/176-current-development-requirement-alignment-audit.md)
+- [PF-003D2 App 布局会话、可见候选与提交补偿审计（Stage 177）](docs/177-pf003d2-app-layout-session-visible-candidate-audit.md)
+- [PF-003D3 键盘布局事务与真实重载审计（Stage 178）](docs/178-pf003d3-keyboard-layout-transaction-audit.md)
+- [PF-003D4 跨显示器混合 DPI 布局审计（Stage 179）](docs/179-pf003d4-cross-display-mixed-dpi-audit.md)
+- [PF-003D5 真实输入证据准入纠偏审计（Stage 180）](docs/180-pf003d5-real-input-evidence-readiness-audit.md)
+- [PF-003D5 正式 App 可见捕获上游阻断审计（Stage 181）](docs/181-pf003d5-visible-capture-upstream-blocker-audit.md)
+- [PF-001 桌面优先启动收口与真实窗口审计（Stage 182）](docs/182-pf001-desktop-first-startup-audit.md)
+- [PF-004A 正式桌面方格标题信息与无障碍状态审计（Stage 183）](docs/183-pf004a-desktop-container-header-presentation-audit.md)
+- [PF-004B 桌面标题栏直接折叠/锁定命令审计（Stage 184）](docs/184-pf004b-desktop-header-command-audit.md)
+- [PF-004C 桌面方格“更多”菜单与安全导航审计（Stage 185）](docs/185-pf004c-desktop-container-more-menu-audit.md)
+- [PF-004D 桌面删除确认、失败补偿与统一撤销审计（Stage 186）](docs/186-pf004d-desktop-delete-confirmation-undo-audit.md)
+- [PF-004E 标题策略、编辑撤销与 PF-004 工程收口审计（Stage 187）](docs/187-pf004e-title-policy-edit-undo-closeout-audit.md)
+- [PF-005A 系统类型图标与有限项目状态审计（Stage 188）](docs/188-pf005a-system-type-icons-finite-state-audit.md)
+- [PF-005B1 缩略图按需队列与缓存审计（Stage 189）](docs/189-pf005b1-thumbnail-request-queue-cache-audit.md)
+- [PF-005B2 缩略图正式呈现与过期结果审计（Stage 190）](docs/190-pf005b2-thumbnail-presentation-stale-result-audit.md)
+- [PF-005C 视口、真实像素与 PF-005 工程收口审计（Stage 191）](docs/191-pf005c-viewport-visual-engineering-closeout-audit.md)
+- [PF-006A 视口选择收敛与真实 HWND 审计（Stage 192）](docs/192-pf006a-viewport-selection-convergence-audit.md)
+- [PF-006B1 统一 File/Folder 安全打开审计（Stage 193）](docs/193-pf006b1-unified-safe-file-folder-open-audit.md)
+- [PF-006B2A Shortcut/URL 与有限反馈审计（Stage 194）](docs/194-pf006b2a-shortcut-url-feedback-audit.md)
+- [PF-006B2B1 可配置单击打开策略审计（Stage 195）](docs/195-pf006b2b1-single-click-open-policy-audit.md)
+- [PF-006B2B2 权威重试与安全 Explorer 定位审计（Stage 196）](docs/196-pf006b2b2-authoritative-retry-safe-explorer-locate-audit.md)
+- [当前开发与初始需求对齐审计（Stage 197）](docs/197-current-development-original-requirement-alignment-audit.md)
+- [PF-001 冷启动性能门禁与语义纠偏审计（Stage 198）](docs/198-pf001-cold-start-performance-gate-semantics-audit.md)
+- [PF-001 运行期开启真实窗口性能审计（Stage 199）](docs/199-pf001-runtime-boxes-enable-real-window-performance-audit.md)
+- [PR #225 Windows PowerShell UI 合同 CI 纠偏审计（Stage 200）](docs/200-pr225-windows-powershell-ui-contract-ci-correction-audit.md)
+- [PR #225 覆盖率门禁恢复审计（Stage 201）](docs/201-pr225-coverage-gate-recovery-audit.md)
 - [Phase 0、桌面 MVP 与内部 RC 收尾执行计划](docs/125-phase0-internal-rc-closeout-plan.md)
 - [E2a 原子 Intent 消费边界审计](docs/131-atomic-intent-consumption-audit.md)
 - [E2b 正式输入源设计审计](docs/132-formal-input-source-design-audit.md)
@@ -177,11 +219,11 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[后续产品开发执行计划](docs/103-next-product-development-execution-plan.md)推进。B6c7 已把独立系统表面人工会话与权威只读显示拓扑采样合并：probe 自有来源在失焦、Win+D/桌面显示、全屏、会话/RDP、Explorer 身份变化、拓扑指纹变化或非权威读取时立即失效 Prepared 并隐藏；只有系统表面安全且拓扑经过静默期与两个一致样本后，才以非激活 AwaitingPassiveSurface 恢复。它不启动正式 App、不改变系统或显示配置、不进入 Explicit 或文件操作，也不自动写 Pass。下一阶段执行 B6C3 真人矩阵并复核匿名证据，再决定是否进入正式 App 输入接线。A5、B6c2–B6c7 真实会话结果继续 PendingManualEvidence；任务栏美化、小组件/插件运行时和广泛窗口特效属于 MVP 后续。
+按 [Stage 201](docs/201-pr225-coverage-gate-recovery-audit.md)先让 PR #225 全新 Windows runner 复核 1198 项测试与 90%/75% 覆盖率门，再完成主线集成；之后按 [Stage 153 功能对标总文档](docs/153-product-feature-parity-development-plan.md)进入 PF-006C1 PageUp/PageDown 跨视口键盘导航。随后优先完成框选、桌面直接拖入、首次引导、自动整理、快速隐藏/托盘和命名快照。任务栏美化维持 P1 默认关闭实验模块，小组件/Long助手运行时维持 P2；两者均不得提前伪报完成。
 
 ## 开发启动
 
-在 Windows x64 开发机上使用统一入口启动当前只读 UI Shell：
+在 Windows x64 开发机上使用统一入口启动当前工程预览 App 与 DesktopHost：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `

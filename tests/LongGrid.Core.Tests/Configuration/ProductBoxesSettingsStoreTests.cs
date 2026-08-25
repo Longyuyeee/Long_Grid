@@ -1,10 +1,60 @@
+using System.Text.Json;
 using LongGrid.Core.Configuration;
 using LongGrid.Infrastructure.Configuration;
+using Xunit.Abstractions;
 
 namespace LongGrid.Core.Tests.Configuration;
 
-public sealed class ProductBoxesSettingsStoreTests
+public sealed class ProductBoxesSettingsStoreTests(ITestOutputHelper output)
 {
+    [Fact]
+    public async Task RealStorePersistsSingleClickOpenOnlyAfterExplicitOptIn()
+    {
+        string directory = Path.Combine(
+            Path.GetTempPath(),
+            $"LongGrid.SingleClick.{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            using var store = new ProductBoxesSettingsStore(directory);
+            using var controller = new ProductBoxesSettingsController(store);
+            ProductBoxesSettingsLoadResult initial = await store.LoadAsync();
+            controller.Initialize(initial.Settings);
+
+            Assert.False(initial.Settings.OpenItemsWithSingleClick);
+            ProductBoxesSettingsChangeResult saved =
+                await controller.ChangeSingleClickOpenAsync(true);
+            ProductBoxesSettingsLoadResult restarted =
+                await new ProductBoxesSettingsStore(directory).LoadAsync();
+
+            Assert.Equal(ProductBoxesSettingsChangeStatus.Saved, saved.Status);
+            Assert.True(restarted.Settings.OpenItemsWithSingleClick);
+            output.WriteLine(JsonSerializer.Serialize(new
+            {
+                Purpose = "Pf006b2b1RealStoreSingleClickPolicy",
+                Expected = new
+                {
+                    DefaultEnabled = false,
+                    RestartedEnabled = true,
+                    Status = "Saved",
+                },
+                Actual = new
+                {
+                    DefaultEnabled = initial.Settings.OpenItemsWithSingleClick,
+                    RestartedEnabled =
+                        restarted.Settings.OpenItemsWithSingleClick,
+                    Status = saved.Status.ToString(),
+                },
+                Difference = "None",
+                Outcome = "Pass",
+            }));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task MissingSettingsDefaultToEnabledWithoutWritingAFile()
     {
@@ -19,6 +69,7 @@ public sealed class ProductBoxesSettingsStoreTests
                 ProductBoxesSettingsLoadStatus.MissingDefaulted,
                 result.Status);
             Assert.True(result.Settings.BoxesEnabled);
+            Assert.True(result.Settings.ThumbnailsEnabled);
             Assert.False(File.Exists(Path.Combine(directory, "settings.json")));
         }
         finally
@@ -34,7 +85,11 @@ public sealed class ProductBoxesSettingsStoreTests
         try
         {
             var first = new ProductBoxesSettingsStore(directory);
-            await first.SaveAsync(new() { BoxesEnabled = false });
+            await first.SaveAsync(new()
+            {
+                BoxesEnabled = false,
+                ThumbnailsEnabled = false,
+            });
 
             var restarted = new ProductBoxesSettingsStore(directory);
             ProductBoxesSettingsLoadResult result = await restarted.LoadAsync();
@@ -43,6 +98,7 @@ public sealed class ProductBoxesSettingsStoreTests
                 ProductBoxesSettingsLoadStatus.LoadedPrimary,
                 result.Status);
             Assert.False(result.Settings.BoxesEnabled);
+            Assert.False(result.Settings.ThumbnailsEnabled);
         }
         finally
         {
@@ -97,6 +153,7 @@ public sealed class ProductBoxesSettingsStoreTests
                 result.Status);
             Assert.True(result.RequiresAttention);
             Assert.False(result.Settings.BoxesEnabled);
+            Assert.False(result.Settings.ThumbnailsEnabled);
         }
         finally
         {
@@ -136,6 +193,44 @@ public sealed class ProductBoxesSettingsStoreTests
         Assert.True(result.Settings.BoxesEnabled);
         Assert.True(controller.Current.BoxesEnabled);
         Assert.Equal(1, store.SaveCount);
+    }
+
+    [Fact]
+    public async Task ThumbnailSwitchPersistsOnceAndRollsBackOnRealSaveFailure()
+    {
+        string directory = CreateTemporaryDirectory();
+        try
+        {
+            var realStore = new ProductBoxesSettingsStore(directory);
+            using var controller = new ProductBoxesSettingsController(realStore);
+            controller.Initialize(ProductBoxesSettings.Default);
+
+            ProductBoxesSettingsChangeResult saved =
+                await controller.ChangeThumbnailsAsync(false);
+            ProductBoxesSettingsChangeResult duplicate =
+                await controller.ChangeThumbnailsAsync(false);
+            ProductBoxesSettingsLoadResult restarted =
+                await new ProductBoxesSettingsStore(directory).LoadAsync();
+
+            Assert.Equal(ProductBoxesSettingsChangeStatus.Saved, saved.Status);
+            Assert.Equal(
+                ProductBoxesSettingsChangeStatus.Unchanged,
+                duplicate.Status);
+            Assert.False(restarted.Settings.ThumbnailsEnabled);
+
+            var failedStore = new RecordingStore { ThrowOnSave = true };
+            using var failed = new ProductBoxesSettingsController(failedStore);
+            failed.Initialize(ProductBoxesSettings.Default);
+            ProductBoxesSettingsChangeResult rejected =
+                await failed.ChangeThumbnailsAsync(false);
+
+            Assert.Equal(ProductBoxesSettingsChangeStatus.Failed, rejected.Status);
+            Assert.True(failed.Current.ThumbnailsEnabled);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     private static string CreateTemporaryDirectory()

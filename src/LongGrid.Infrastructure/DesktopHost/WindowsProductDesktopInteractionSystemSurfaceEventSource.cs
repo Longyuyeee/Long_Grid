@@ -197,6 +197,8 @@ public sealed class WindowsProductDesktopInteractionSystemSurfaceEventSource
     private readonly object gate = new();
     private readonly ProductDesktopSystemSurfaceEventClassifier classifier = new();
     private readonly IProductDesktopSystemSurfaceNativeSampler sampler;
+    private readonly TimeSpan sampleDueTime;
+    private readonly TimeSpan samplePeriod;
     private Timer? timer;
     private long sequence;
     private int sampleInProgress;
@@ -204,12 +206,17 @@ public sealed class WindowsProductDesktopInteractionSystemSurfaceEventSource
     private bool disposed;
 
     public WindowsProductDesktopInteractionSystemSurfaceEventSource()
-        : this(new WindowsProductDesktopSystemSurfaceNativeSampler())
+        : this(
+            new WindowsProductDesktopSystemSurfaceNativeSampler(),
+            TimeSpan.Zero,
+            SampleInterval)
     {
     }
 
     internal WindowsProductDesktopInteractionSystemSurfaceEventSource(
-        IProductDesktopSystemSurfaceNativeSampler sampler)
+        IProductDesktopSystemSurfaceNativeSampler sampler,
+        TimeSpan? sampleDueTime = null,
+        TimeSpan? samplePeriod = null)
     {
         ArgumentNullException.ThrowIfNull(sampler);
         if (!sampler.IsSupported)
@@ -219,6 +226,8 @@ public sealed class WindowsProductDesktopInteractionSystemSurfaceEventSource
         }
 
         this.sampler = sampler;
+        this.sampleDueTime = sampleDueTime ?? TimeSpan.Zero;
+        this.samplePeriod = samplePeriod ?? SampleInterval;
     }
 
     public event EventHandler<ProductDesktopInteractionSystemSurfaceEvent>?
@@ -238,7 +247,7 @@ public sealed class WindowsProductDesktopInteractionSystemSurfaceEventSource
             {
                 SystemEvents.SessionSwitch += SystemEvents_SessionSwitch;
                 SystemEvents.PowerModeChanged += SystemEvents_PowerModeChanged;
-                timer = new(Sample, null, TimeSpan.Zero, SampleInterval);
+                timer = new(Sample, null, sampleDueTime, samplePeriod);
                 started = true;
             }
             catch
@@ -253,6 +262,14 @@ public sealed class WindowsProductDesktopInteractionSystemSurfaceEventSource
     }
 
     public void ReportFocusLost() => Classify(classifier.ObserveFocusLost);
+
+    internal void SampleForEvidence() => Sample(state: null);
+
+    internal void ReportSessionSwitchForEvidence(SessionSwitchReason reason) =>
+        ObserveSessionSwitch(reason);
+
+    internal void ReportPowerModeForEvidence(PowerModes mode) =>
+        ObservePowerMode(mode);
 
     public void Dispose()
     {
@@ -302,17 +319,19 @@ public sealed class WindowsProductDesktopInteractionSystemSurfaceEventSource
 
     private void SystemEvents_SessionSwitch(
         object sender,
-        SessionSwitchEventArgs args)
+        SessionSwitchEventArgs args) => ObserveSessionSwitch(args.Reason);
+
+    private void ObserveSessionSwitch(SessionSwitchReason reason)
     {
-        bool unavailable = args.Reason is SessionSwitchReason.SessionLock
+        bool unavailable = reason is SessionSwitchReason.SessionLock
             or SessionSwitchReason.SessionLogoff
             or SessionSwitchReason.ConsoleDisconnect
             or SessionSwitchReason.RemoteDisconnect;
-        bool available = args.Reason is SessionSwitchReason.SessionUnlock
+        bool available = reason is SessionSwitchReason.SessionUnlock
             or SessionSwitchReason.SessionLogon
             or SessionSwitchReason.ConsoleConnect
             or SessionSwitchReason.RemoteConnect;
-        if (args.Reason == SessionSwitchReason.SessionRemoteControl)
+        if (reason == SessionSwitchReason.SessionRemoteControl)
         {
             Classify(() => classifier.ObserveSessionAvailability(
                 available: true,
@@ -325,7 +344,7 @@ public sealed class WindowsProductDesktopInteractionSystemSurfaceEventSource
             return;
         }
 
-        bool remote = args.Reason is SessionSwitchReason.RemoteConnect
+        bool remote = reason is SessionSwitchReason.RemoteConnect
             or SessionSwitchReason.RemoteDisconnect
             or SessionSwitchReason.SessionRemoteControl;
         Classify(() =>
@@ -334,14 +353,16 @@ public sealed class WindowsProductDesktopInteractionSystemSurfaceEventSource
 
     private void SystemEvents_PowerModeChanged(
         object sender,
-        PowerModeChangedEventArgs args)
+        PowerModeChangedEventArgs args) => ObservePowerMode(args.Mode);
+
+    private void ObservePowerMode(PowerModes mode)
     {
-        if (args.Mode == PowerModes.Suspend)
+        if (mode == PowerModes.Suspend)
         {
             Classify(() =>
                 classifier.ObservePowerAvailability(available: false));
         }
-        else if (args.Mode == PowerModes.Resume)
+        else if (mode == PowerModes.Resume)
         {
             Classify(() =>
                 classifier.ObservePowerAvailability(available: true));
