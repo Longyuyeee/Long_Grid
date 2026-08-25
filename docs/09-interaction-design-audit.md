@@ -1,11 +1,25 @@
 # Long Grid 交互设计审计与体验规范
 
-审计日期：2026-07-30
-状态：UX Proposal
+初始审计日期：2026-07-30
+最近复审：2026-08-25
+状态：Required
 主要对标：iTop Easy Desktop
-补充参考：Stardock Fences 6、Portals、Nimi Places、PowerToys Workspaces、FancyZones、DropIt
+补充参考：Stardock Fences 6、Portals、Nimi Places、PowerToys Workspaces、FancyZones、DropIt、Longyuyeee/long_Decompress
 
 ## 1. 审计结论
+
+2026-08-25 代码与界面复审确认：现有正式 App 仍以“概览、首次整理、外观与 Token、安全边界、恢复预览”为一级导航，并在首屏长期展示开发期只读说明、匿名练习、证据清单和产品门槛。该结构只适合早期验证，不符合桌面管理软件的信息架构，必须按[统一开发计划](PRODUCT_EXECUTION_PLAN.md)中的 UI-R1 退出生产主路径。
+
+同日审计 [Long_Decompress](https://github.com/Longyuyeee/long_Decompress) 的实际布局、Design Token、路由和截图后，确定 Long 产品家族共同语言为：固定品牌侧栏、有限任务导航、页面大标题和一句说明、右侧唯一主操作、真实对象内容区、清晰选中态、可压缩侧栏、统一浅深主题与克制平滑动效。Long方格只吸收这种产品壳层语言，不复制解压业务结构、Web 技术实现或具体配色。
+
+立即生效的交互纠偏：
+
+- “首次整理”降级为可跳过的一次性引导；
+- “外观与 Token”改为可即时应用的“个性化”；
+- “安全边界”、证据与开发状态迁入设置中的隐私/高级诊断；
+- “恢复预览”改为绑定真实快照与显示器状态的“布局与恢复”；
+- 默认首屏改为“桌面概览”，直接展示真实方格和“新建方格”主操作；
+- 未实现能力不进入发布版一级导航。
 
 Long Grid 现有文档定义了功能、安全和技术边界，但还没有形成完整交互系统，主要缺少：
 

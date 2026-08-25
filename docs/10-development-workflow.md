@@ -42,6 +42,7 @@ flowchart LR
 | 文档 | 回答的问题 |
 |---|---|
 | `02-product-requirements.md` | 做什么、不做什么、怎样算产品成功 |
+| `PRODUCT_EXECUTION_PLAN.md` | 当前真实状态、唯一执行项、后续里程碑和产品完成度 |
 | `09-interaction-design-audit.md` | 用户如何操作、各状态如何反馈 |
 | `03-architecture.md` | 模块边界、数据和技术结构 |
 | `05-quality-security.md` | 安全、隐私、质量与发布阻断 |
@@ -61,6 +62,15 @@ flowchart LR
 7. 同一 PR 或前置 PR 修正文档后再继续。
 
 不能在代码注释、聊天记录或 Issue 评论里静默替代正式决策。
+
+### 3.1 当前计划与审计文档治理
+
+- `PRODUCT_EXECUTION_PLAN.md` 是唯一滚动开发计划；README 只摘要并链接，不另建第二份当前计划。
+- `153-product-feature-parity-development-plan.md` 只保留详细 PF backlog；编号 Stage 文档只保留历史证据，不决定当前优先级。
+- 普通功能 PR 不再创建新的编号 Stage 审计文档。预期效果、真实测试、实际效果、差异与修正写入 PR、测试产物和统一计划状态。
+- 只有 R3/R4 Windows 平台风险、架构/ADR、协议版本、安全边界或发布门禁允许新建专项审计文档。
+- 每个 PR 必须交付一个用户可演示结果；“新增脚本、合同、适配器或文档”只有在它关闭当前用户旅程阻断时才计入产品进度。
+- 任一时刻只允许一个当前执行项；当前项未满足验收或明确阻断前，不扩展任务栏、小组件、插件或相邻探针。
 
 ## 4. 工作项类型
 

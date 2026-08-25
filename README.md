@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品功能主线按 [Stage 153](docs/153-product-feature-parity-development-plan.md) 逐项推进。[Stage 207](docs/207-pf007a1-real-ole-hdrop-reference-admission-audit.md)已完成 PF-007A1 本地工程收敛：真实 OLE HDROP、真实沙箱文件、一次原子保存、1233/1233 和 90.43%/75.77% 通过，当前等待 PR/main 集成。PF-001～PF-006 均为 `EngineeringComplete / ProductEvidencePending`，PF-007 为 `InProgress`；30 个 PF 项仍为 `0 Complete`，所有产物仍不可公开分发。
+> 当前状态：安全工程底座已经形成，但 M1 可用产品旅程尚未完成。当前唯一执行项是 [UI-R1 产品壳层与信息架构重构](docs/PRODUCT_EXECUTION_PLAN.md)，先把现有教程/审计式 Shell 改造成正常桌面管理控制中心，再完成 PF-007 真实 Explorer 拖入、方格间拖放和集中产品证据。所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -13,6 +13,20 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 5. **渐进增强**：先把桌面分组和布局恢复做可靠，再扩展工作空间、插件和智能能力。
 
 ## 文档导航
+
+当前工作只需要优先阅读以下文档：
+
+- [当前唯一开发计划：产品重对齐、UI 重构、里程碑与执行队列](docs/PRODUCT_EXECUTION_PLAN.md)
+- [产品需求文档（PRD）](docs/02-product-requirements.md)
+- [交互设计与产品体验规范](docs/09-interaction-design-audit.md)
+- [开发流程与交付规范](docs/10-development-workflow.md)
+- [技术架构](docs/03-architecture.md)
+- [质量、安全与隐私基线](docs/05-quality-security.md)
+- [PF 功能详细 backlog（Stage 153）](docs/153-product-feature-parity-development-plan.md)
+
+<details>
+<summary>展开历史审计与专项文档索引</summary>
+
 
 - [仓库与工程审计](docs/00-repository-audit.md)
 - [竞品研究与机会地图](docs/01-competitive-analysis.md)
@@ -221,9 +235,11 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [ADR-0001：首选 Windows 技术路线](docs/adr/0001-windows-technology-stack.md)
 - [ADR-0002：缩略图工作进程文件隔离](docs/adr/0002-thumbnail-worker-file-isolation.md)
 
+</details>
+
 ## 建议的下一步
 
-PF-007A1 已按 [Stage 207](docs/207-pf007a1-real-ole-hdrop-reference-admission-audit.md)完成本地 OLE 数据准入与原子配置收敛；先完成远端集成，再进入 PF-007A2 DesktopHost `IDropTarget`、悬停反馈与真实窗口路由。随后完成 PF-007B 方格间改归属。任务栏美化维持 P1 默认关闭实验模块，小组件/Long助手运行时维持 P2；两者均不得提前伪报完成。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)执行 UI-R1：先拆分产品壳层、建立正常侧栏与桌面概览，把首次练习、安全边界、Token 和证据清单移出一级导航；完成真实界面差异测试后，再继续 PF-007A2 DesktopHost `IDropTarget` 和 PF-007B 方格间拖放。任务栏、小组件和 Long助手运行时在核心体验稳定前不抢占当前执行项。
 
 ## 开发启动
 

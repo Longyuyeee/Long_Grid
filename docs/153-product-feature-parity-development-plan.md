@@ -4,9 +4,9 @@
 - 代码基线：`main@08a83f441a5f0ab0b0330712260498a09aae6c9d`
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
-- 文档性质：后续产品功能开发的权威任务清单
-- 当前开发项：**PF-007 Explorer 拖入与方格间拖放（PF-001～PF-006 产品证据并行 Pending）**
-- 最新开发审计：[Stage 207](207-pf007a1-real-ole-hdrop-reference-admission-audit.md)；PF-007A1 已在本地以真实 OLE HDROP、真实沙箱文件、一次原子保存、1233/1233 和 90.43%/75.77% 收敛，当前等待 PR/main 集成；PF-007 仍为 `InProgress`，30 个 PF 项仍为 `0 Complete`
+- 文档性质：PF 功能详细 backlog 与历史验收账本；当前状态、执行顺序和里程碑以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
+- 当前开发项：**UI-R1 产品壳层与信息架构重构**；PF-007A2 在 UI-R1 验收后恢复，顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
+- 最新功能工程审计：[Stage 207](207-pf007a1-real-ole-hdrop-reference-admission-audit.md)；PF-007A1 已通过 PR #235 合入 `main@e081a2b`，完成真实 OLE HDROP、真实沙箱文件、一次原子保存、1233/1233 和 90.43%/75.77%；正式 DesktopHost DropTarget、物理 Explorer 拖入和方格间改归属仍 Pending，PF-007 保持 `InProgress`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -890,6 +890,6 @@
 
 ## 15. 当前立即执行项
 
-**Gate A 与 PF-006C1 已完成**；当前工程切片为 **PF-006C2：鼠标框选**。PF-001 的冷启动与运行期开启性能门已完成；PF-001～PF-005 均为 `EngineeringComplete / ProductEvidencePending`，PF-006 为 `InProgress`。
+PF-001～PF-006 均为 `EngineeringComplete / ProductEvidencePending`；Stage 206 已完成 PF-006 框选并集成，Stage 207/PF-007A1 已通过 PR #235 合入 `main@e081a2b`。PF-007 仍为 `InProgress`，正式 DesktopHost DropTarget、物理 Explorer 拖入和方格间改归属尚未完成。
 
-Stage 206 已完成 PF-006 框选并完成工程集成；Stage 207/PF-007A1 正在把真实 OLE HDROP 收敛到安全引用原子配置链。下一步为 PF-007A2 正式 DesktopHost DropTarget，PF-007 后优先转入首次引导和自动整理闭环；任何版本在签名和安装门禁完成前不得分发。
+2026-08-25 产品 UI 复审确认现有控制中心仍是教程/审计式 Shell。当前唯一执行项改为 [UI-R1 产品壳层与信息架构重构](PRODUCT_EXECUTION_PLAN.md)；UI-R1 完成后恢复 PF-007A2、PF-007B，并以完整 M1 用户旅程补齐产品证据。任何版本在签名和安装门禁完成前不得分发。
