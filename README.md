@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A 创建激活合同已经通过真实首进程、第二实例和重复 nonce 测试；当前唯一执行项是 [BOX-R1-B 原生 Explorer 命令与 MSIX 清单](docs/PRODUCT_EXECUTION_PLAN.md)。三项 Core 仍未形成完整产品旅程，所有产物仍不可公开分发。
+> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A 激活合同与 BOX-R1-B 原生命令/真实 unsigned MSIX 已完成；真实 Explorer 菜单仍待 BOX-R1-C 的签名包/可丢弃账户证据。当前可执行开发项转入真实文件夹绑定，详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)。三项 Core 仍未形成完整产品旅程，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -240,7 +240,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)执行 BOX-R1-B：完成原生 Explorer 背景命令 DLL 与 MSIX 清单静态/打包门禁；随后在受批准签名和可丢弃账户中补真实安装、菜单和卸载证据，再进入单文件夹绑定、Explorer/盒子间拖放和 M1 集中证据，最后完成任务栏预设、应用、回退与兼容矩阵。自动整理、Tab、小组件、工作空间和 Long助手运行时不得抢占这三项 Core。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)执行 FOLDER-R1-A 单文件夹绑定合同；BOX-R1-C 的真实安装、菜单和卸载证据等待受批准签名和可丢弃账户，再继续 Explorer/盒子间拖放与 M1 集中证据，最后完成任务栏预设、应用、回退与兼容矩阵。自动整理、Tab、小组件、工作空间和 Long助手运行时不得抢占这三项 Core。
 
 ## 开发启动
 

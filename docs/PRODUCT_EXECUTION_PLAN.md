@@ -6,7 +6,7 @@
 
 更新日期：2026-08-26
 
-代码审计基线：`origin/main@33e8c3a`；BOX-R1-A 实现分支 `codex/box-r1-activation`
+代码审计基线：`origin/main@026d6f2`；BOX-R1-B 实现分支 `codex/box-r1-b-explorer-command`
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -265,7 +265,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**BOX-R1-B 原生 Explorer 命令与 MSIX 清单**。BOX-R1-A 已完成有限、可版本化、一次性的创建激活合同，首进程与已运行单实例都只进入既有创建预览；UI-R1E 人工矩阵继续保留为 M1 出口门禁。
+当前执行项：**FOLDER-R1-A 单文件夹绑定合同**。BOX-R1-A 已完成有限创建激活合同，BOX-R1-B 已完成原生命令 DLL 与真实 unsigned MSIX；BOX-R1-C 的菜单可见/点击/卸载证据因缺少受批准签名与可丢弃账户保持 Pending，不阻塞继续实现其余 M1 核心。UI-R1E 人工矩阵继续保留为 M1 出口门禁。
 
 严格按下列顺序交付，不再插入相邻探针或新宽度功能：
 
@@ -274,7 +274,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 3. **UI-R1C 盒子管理（EngineeringComplete / ProductEvidencePending）**：已将页面重排为盒子列表与就近设置两栏，窄窗口改为上下排列；基本设置默认展开，外观与布局、删除与恢复、盒子内容按需展开；用户文案统一为盒子/项目，并删除匿名工作区样例。隔离真实存储旅程已通过，可见键鼠证据待 UI-R1E 补齐。
 4. **UI-R1D 设置迁移（EngineeringComplete / ProductEvidencePending）**：配置导入导出归入“常规”，隐私承诺使用用户语言，一次性匿名证据归入默认折叠的“高级诊断”；开发门槛和 Design Token 样例已从发布表面删除。真实磁盘往返与损坏输入保护通过，可见交互证据随 UI-R1E 完成。
 5. **UI-R1E 视觉与响应式验收（EngineeringComplete / ManualEvidencePending）**：UI-R1E-A 已完成浅/深色、1120/720 effective px、200% 缩放、焦点和真实 XAML PNG；UI-R1E-B 已确保根目录/显式启动直接显示唯一控制中心，同时保留 `--background` 桌面优先模式。I19/BSA 自动预检均通过且明确不修改系统设置；高对比、关闭系统动画、Narrator、物理键盘及其他 DPI 继续作为 M1 出口人工门禁。
-6. **BOX-R1（进行中）**：A 有限激活合同（EngineeringComplete / RealProcessPass）→ B 原生 `IExplorerCommand` 与 MSIX `Directory\Background` 清单（当前）→ C 可丢弃账户真实安装/菜单/卸载证据 → D Explorer 重启、显示器、DPI 与失败恢复；全部复用统一创建预览和事务。
+6. **BOX-R1（B 已完成，C Pending）**：A 有限激活合同（EngineeringComplete / RealProcessPass）→ B 原生 `IExplorerCommand` 与真实 unsigned MSIX（EngineeringComplete / NativeDllPass / RealUnsignedPackagePass）→ C 可丢弃账户真实安装/菜单/卸载证据（PendingApproval）→ D Explorer 重启、显示器、DPI 与失败恢复；全部复用统一创建预览和事务。
 7. **FOLDER-R1**：盒子选择并绑定单个文件夹，完成内容呈现、刷新、解绑、权限/离线/失效状态。
 8. **PF-007A2/PF-007B**：真实 Explorer 拖入、盒子间改归属、无效目标、失败补偿和一次撤销。
 9. **M1 产品证据冲刺**：完整两分钟旅程，而不是分散控件证据。
@@ -406,6 +406,18 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 | CI 干净会话链 | 普通重定向与 BOX-R1 重定向分别跨入现有窗口 UI 队列 | 首次 CI 仍按拆分前的 `App.xaml.cs` 单一路径字符串检查，实际在 `App.BoxR1.cs` 已有两条正确调度路径，因此静态契约失败 | 将旧断言拆为普通激活与 BOX-R1 创建激活两项明确断言；本机两项契约均 Pass，新 CI 的干净会话链、单实例契约及其余门禁全部 Pass |
 | 证据脚本宿主兼容 | 仓库声明的 Windows PowerShell 5.1 与 PowerShell 7 入口均可执行 | 首次用 `powershell.exe` 复验时，5.1 缺少 `Convert.ToHexString` 和 `ConvertFrom-Json -Depth`，脚本在产品启动/结果读取边界失败 | 改为 `BitConverter` 十六进制编码并使用兼容的 JSON 读取；5.1 下 Initial、Redirect、DuplicateRedirect 均 `Outcome=Pass / Difference=None`，7 下 ContractOnly Pass |
 
+### 9.9 BOX-R1-B 原生命令与清单阶段记录
+
+本阶段只完成可安装包中的原生 Shell 扩展工程和打包门禁，不安装未签名包、不修改包状态、不重启 Explorer。菜单真实可见、点击位置、多显示器和卸载清理仍属于 BOX-R1-C。
+
+| 检查 | 预期效果 | 当前实际 | 差异与修正 |
+|---|---|---|---|
+| 原生工程 | x64 `IExplorerCommand` DLL 以编译器/链接器 `/W4 /WX` 编译 | 首次链接因 `.def` 的冗余 `LIBRARY` 输出名产生 2 个 LNK4070；删除该指令并启用链接器警告即错误后重建为 0 warning / 0 error；CLSID `78A940C1-2E65-4A03-9D09-3AC62CEF30BB` | 差异已修正，不接受“有警告但成功” |
+| 菜单回调 | 标题、图标、Enabled、CanonicalName、默认 Flags 有界返回，无产品 I/O/等待 | 初版 `noexcept` 回调仍使用动态 `std::wstring`，极端 OOM 可能终止 surrogate；改为 257 字符以内固定缓冲、静态 CRT 与 CFG 后，真实 DLL 经 COM 类工厂创建，200 轮调用 0 ms；句柄 142→144（预算 ≤2），`DllCanUnloadNow=S_OK` | 安全差异已修正；不调用工作区、文件、网络、注册表或等待 API |
+| 激活边界 | Invoke 只捕获当前光标、生成新 nonce/时间并调用包身份激活 | 源码合同使用唯一 AUMID 和 BOX-R1-A v1 参数；未安装包环境不执行 Invoke，避免意外改变包/应用状态 | App 端真实 Initial/Redirect/DuplicateRedirect 已由 BOX-R1-A 覆盖；Explorer→Invoke 留给 BOX-R1-C |
+| MSIX 清单 | 同一 CLSID 同时进入 `com:SurrogateServer` 与唯一 `Directory\Background` Verb | 官方 MakeAppx 已接受清单；首次解包审计 XPath 漏掉 foundation namespace 的 `Extensions` 层而误报缺失；修正后真实包 `be1bc363...` 通过，双份解包布局指纹均为 `1f7439a9...`，CLSID/ItemType 正确 | XPath 已修正，并新增包内 DLL SHA-256 必须等于原生输出；`deterministicLayout=true`，MakeAppx 容器元数据导致 `byteReproducible=false` 如实保留 |
+| 脚本兼容 | Windows PowerShell 5.1 能执行审计入口 | 首轮中文断言字面量被 5.1 按本地代码页解释为乱码 | 改为检查稳定符号名；C++ 仍以 `/utf-8` 编译真实中文标题，重跑合同与 DLL 探针 Pass |
+
 ## 10. 真实测试与差异修正规则
 
 每个用户可见 PR 必须在描述和本文状态中记录：
@@ -436,7 +448,7 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 
 - 工程底座：较强，PF-001～PF-006 已具备大量正式链路；
 - GitHub 主分支交付：UI-R1A～UI-R1E-A 已按 #239 → #240 → #241 → #242 合入，文档收口 #243 与显式启动修正 #244 也已合入 `main@288838c`；#238 已作为重复路径关闭；
-- M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A 激活合同已完成，当前进入 BOX-R1-B 原生 Explorer 命令；随后仍缺真实文件夹绑定、Explorer 拖放和集中物理证据；
+- M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A/B 工程链已完成，BOX-R1-C 真实菜单证据 Pending；当前转入单文件夹绑定，随后仍缺 Explorer 拖放和集中物理证据；
 - M2 任务栏美化核心：技术审计存在，产品运行时尚未开始；
 - M3 桌面管理增强：未开始闭环；
 - M4 工作空间/小组件/插件：协议或文档阶段；
@@ -450,4 +462,4 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 
 ## 13. 下一步开始条件
 
-下一次开发直接进入 BOX-R1-B：新增最小 x64 `IExplorerCommand` DLL，将唯一 CLSID 同步注册到 `windows.comServer` 与 `windows.fileExplorerContextMenus`，只声明 `Directory\Background`，并把 v1 激活参数交给正式 App。该阶段必须证明 Shell 回调无产品 I/O、DLL 与清单进入同一 MSIX，但仍不得把静态清单或编译成功写成真实 Explorer 菜单已完成；真实安装/菜单/卸载留在 BOX-R1-C 的受批准签名与可丢弃账户中执行。
+下一次开发进入 FOLDER-R1-A：定义一个盒子绑定一个真实文件夹的显式选择、权威解析、失效/重连和配置事务合同，默认仍为安全引用模式，不移动用户文件。BOX-R1-C 的真实安装、菜单与卸载只在取得受批准签名和可丢弃 Windows 账户后恢复；在此之前不得关闭系统安全策略安装 unsigned 包，也不得把 B 阶段的真实包/原生 DLL 证据写成菜单可见证据。
