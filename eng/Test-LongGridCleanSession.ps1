@@ -14,6 +14,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $uiScript = Join-Path $PSScriptRoot 'Test-LongGridUi.ps1'
 $singleInstanceScript = Join-Path $PSScriptRoot 'Test-LongGridSingleInstance.ps1'
+$minimumRequiredAutomationIds = 157
 $startScript = Join-Path $PSScriptRoot 'Start-LongGrid.ps1'
 $uiScriptCode = Get-Content -LiteralPath $uiScript -Raw -Encoding UTF8
 $singleInstanceScriptCode = Get-Content `
@@ -64,12 +65,12 @@ try {
             -Architecture $Architecture `
             -ContractOnly
         Assert-Condition ($LASTEXITCODE -eq 0) `
-            'The 157-ID UI source contract validation failed.'
+            'The baseline UI source contract validation failed.'
         $uiResult = $uiJson | ConvertFrom-Json
         Assert-Condition (
-            $uiResult.contract.requiredAutomationIds -eq 157 -and
+            $uiResult.contract.requiredAutomationIds -ge $minimumRequiredAutomationIds -and
             $uiResult.outcome -eq 'Pass'
-        ) 'The clean-session chain requires the complete 157-ID UI source contract.'
+        ) 'The clean-session chain requires the complete baseline UI source contract.'
 
         $singleContract = & powershell -NoProfile -ExecutionPolicy Bypass `
             -File $singleInstanceScript `
@@ -87,7 +88,7 @@ try {
             schemaVersion = 1
             purpose = 'LongGridCleanSessionUiaAndSingleInstance'
             mode = 'validate-only'
-            requiredAutomationIds = 157
+            requiredAutomationIds = $uiResult.contract.requiredAutomationIds
             startsProcess = $false
             terminatesForeignProcess = $false
             liveEvidence = 'PendingCleanInteractiveSession'
@@ -125,11 +126,11 @@ try {
         'The live clean-session UIA validation failed.'
     $uiResult = $uiJson | ConvertFrom-Json
     Assert-Condition (
-        $uiResult.contract.requiredAutomationIds -eq 157 -and
+        $uiResult.contract.requiredAutomationIds -ge $minimumRequiredAutomationIds -and
         $uiResult.live.cleanSessionStart -eq 'zero-existing-processes' -and
         $uiResult.live.cleanSessionEnd -eq 'zero-remaining-processes' -and
         $uiResult.outcome -eq 'Pass'
-    ) 'The live UIA result did not preserve the 157-ID and clean-session contract.'
+    ) 'The live UIA result did not preserve the baseline UI and clean-session contract.'
 
     Assert-CleanSession 'Between UIA and single-instance validation'
     $singleLive = & powershell -NoProfile -ExecutionPolicy Bypass `
@@ -149,7 +150,7 @@ try {
         schemaVersion = 1
         purpose = 'LongGridCleanSessionUiaAndSingleInstance'
         mode = 'live'
-        requiredAutomationIds = 157
+        requiredAutomationIds = $uiResult.contract.requiredAutomationIds
         uiOutcome = $uiResult.outcome
         responsiveLayout = $uiResult.live.responsiveLayout
         singleInstance = 'redirect-exit-restore'

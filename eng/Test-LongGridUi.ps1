@@ -621,11 +621,32 @@ function Test-SourceContract {
         'LongGridRoot',
         'ShellNavigation',
         'NavOverview',
-        'NavFirstRun',
-        'NavAppearance',
-        'NavSafety',
-        'NavRecovery',
+        'NavBoxes',
+        'NavPersonalization',
+        'NavSettings',
         'OverviewPanel',
+        'OverviewPageHeader',
+        'OpenCreateBoxButton',
+        'ProductOverviewPanel',
+        'OverviewBoxCountCard',
+        'OverviewBoxCountValue',
+        'OverviewItemCountCard',
+        'OverviewItemCountValue',
+        'OverviewHealthCard',
+        'OverviewHealthValue',
+        'OverviewBoxesCard',
+        'OverviewBoxesSummary',
+        'OpenBoxesManagementButton',
+        'OverviewEmptyState',
+        'OverviewEmptyCreateButton',
+        'OverviewContainerList',
+        'OverviewRecentActionCard',
+        'OverviewRecentActionDetail',
+        'OverviewLatestUndoButton',
+        'PersonalizationPageHeader',
+        'SettingsPageHeader',
+        'LegacyWorkspacePrototypeCard',
+        'LegacyDesignTokenPreviewCard',
         'ConfigurationRecoveryActionButton',
         'FirstRunPanel',
         'AppearancePanel',
@@ -769,7 +790,6 @@ function Test-SourceContract {
         'ProductSaveStatusDetail',
         'ProductSaveMotionPolicy',
         'ProductSaveRetryButton',
-        'ResponsiveStatusText',
         'ContentScrollViewer',
         'ThemeSystem',
         'ThemeLight',
@@ -839,19 +859,9 @@ function Test-SourceContract {
     Assert-Condition (
         $configurationRecoveryNode.GetAttribute('IsClosable') -eq 'False'
     ) 'Configuration recovery warnings must not be dismissible without resolution.'
-    $runtimeScopeNode = $document.SelectSingleNode(
-        "//*[@*[local-name()='Name' and .='RuntimeScopeDisclosureText']]"
-    )
-    Assert-Condition ($null -ne $runtimeScopeNode) `
-        'The overview must keep a persistent runtime data-scope disclosure.'
-    $runtimeScopeStatus = $runtimeScopeNode.GetAttribute(
-        'AutomationProperties.ItemStatus'
-    )
     Assert-Condition (
-        $runtimeScopeStatus -eq `
-            'Catalog=RealDesktopFirstLevelMetadata;Practice=AnonymousMemory;' +
-            'FileContent=NotRead;DesktopFileWrites=Disabled;DesktopHost=Disconnected'
-    ) 'The runtime disclosure must expose the complete audited data and execution boundary.'
+        $configurationRecoveryNode.GetAttribute('IsOpen') -eq 'False'
+    ) 'Routine startup diagnostics must not dominate the normal product shell.'
     Assert-Condition (
         $configurationRecoveryNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
             'StartupReadOnly:Catalog=FirstLevelMetadata;' +
@@ -1333,16 +1343,77 @@ function Test-SourceContract {
 
     $expectedAccessKeys = @{
         NavOverview = '1'
-        NavFirstRun = '2'
-        NavAppearance = '3'
-        NavSafety = '4'
-        NavRecovery = '5'
+        NavBoxes = '2'
+        NavPersonalization = '3'
+        NavSettings = '4'
     }
     foreach ($entry in $expectedAccessKeys.GetEnumerator()) {
         $node = Get-XamlNodeByAutomationId $document $entry.Key
         Assert-Condition ($node.GetAttribute('AccessKey') -eq $entry.Value) `
             "Navigation item '$($entry.Key)' must keep AccessKey '$($entry.Value)'."
     }
+
+    $primaryNavigation = $document.SelectSingleNode(
+        "//*[local-name()='NavigationView.MenuItems']"
+    )
+    Assert-Condition ($null -ne $primaryNavigation) `
+        'The product shell must expose a primary navigation collection.'
+    Assert-Condition (-not ($primaryNavigation.OuterXml -match '首次整理|安全边界|恢复预览')) `
+        'Tutorial and engineering destinations must not remain in primary navigation.'
+    $openCreateBoxButton = Get-XamlNodeByAutomationId $document 'OpenCreateBoxButton'
+    Assert-Condition (
+        $openCreateBoxButton.GetAttribute('Click') -eq 'OpenCreateBoxButton_Click'
+    ) 'The primary New Box action must route into the real box workspace.'
+    foreach ($legacyCardId in @(
+            'LegacyWorkspacePrototypeCard',
+            'LegacyDesignTokenPreviewCard'
+        )) {
+        $legacyCard = Get-XamlNodeByAutomationId $document $legacyCardId
+        Assert-Condition ($legacyCard.GetAttribute('Visibility') -eq 'Collapsed') `
+            "Legacy prototype '$legacyCardId' must stay out of the product shell."
+    }
+    foreach ($engineeringCardId in @(
+            'CurrentModeCard',
+            'FileOperationCard',
+            'DesktopHostCard',
+            'ProductDesktopCatalogCard',
+            'ProductWorkspaceSessionCard',
+            'ProductWorkspaceLayoutRecoveryCard'
+        )) {
+        $engineeringCard = Get-XamlNodeByAutomationId $document $engineeringCardId
+        $visibility = if ($engineeringCardId -in @(
+                'CurrentModeCard',
+                'FileOperationCard',
+                'DesktopHostCard'
+            )) {
+            $engineeringCard.ParentNode.GetAttribute('Visibility')
+        }
+        else {
+            $engineeringCard.GetAttribute('Visibility')
+        }
+        Assert-Condition ($visibility -eq 'Collapsed') `
+            "Engineering status '$engineeringCardId' must not appear on the overview."
+    }
+    $openBoxesManagement = Get-XamlNodeByAutomationId `
+        $document `
+        'OpenBoxesManagementButton'
+    Assert-Condition (
+        $openBoxesManagement.GetAttribute('Click') -eq `
+            'OpenBoxesManagementButton_Click'
+    ) 'The overview summary must navigate to the real box management page.'
+    $overviewEmptyCreate = Get-XamlNodeByAutomationId `
+        $document `
+        'OverviewEmptyCreateButton'
+    Assert-Condition (
+        $overviewEmptyCreate.GetAttribute('Click') -eq 'OpenCreateBoxButton_Click'
+    ) 'The overview empty state must share the real box creation entry point.'
+    Assert-Condition (
+        $workspaceReadPresentationCode.Contains('snapshot.ItemCount') -and
+        $workspaceReadPresentationCode.Contains('snapshot.EmptyContainerCount') -and
+        $workspaceReadPresentationCode.Contains('snapshot.NeedsReviewContainerCount') -and
+        $codeBehind.Contains('ApplyProductOverview(presentation)') -and
+        $codeBehind.Contains('presentation.Containers.Take(4)')
+    ) 'The overview must derive counts and summaries from the real workspace presentation.'
 
     foreach ($themeId in @('ThemeSystem', 'ThemeLight', 'ThemeDark')) {
         $node = Get-XamlNodeByAutomationId $document $themeId

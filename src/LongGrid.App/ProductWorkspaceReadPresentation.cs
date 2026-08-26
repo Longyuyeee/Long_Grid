@@ -50,6 +50,9 @@ internal sealed record ProductWorkspaceReadPresentation(
     string Detail,
     string MachineStatus,
     int UnresolvedReferenceCount,
+    int ItemCount,
+    int EmptyContainerCount,
+    int NeedsReviewContainerCount,
     bool CanFilter,
     bool IsKnownEmptyWorkspace,
     IReadOnlyList<ProductWorkspaceReadContainerPresentation> Containers)
@@ -57,6 +60,9 @@ internal sealed record ProductWorkspaceReadPresentation(
     public static ProductWorkspaceReadPresentation Unavailable { get; } = new(
         "等待正式产品会话；当前没有展示或修改任何桌面内容。",
         "WorkspaceViewUnavailable:Containers=0:Items=0",
+        0,
+        0,
+        0,
         0,
         false,
         false,
@@ -66,6 +72,9 @@ internal sealed record ProductWorkspaceReadPresentation(
         new(
             "尚无正式配置；可以创建第一个方格，系统不会自动生成示例。",
             "WorkspaceViewNoSavedConfiguration:Containers=0:Items=0",
+            0,
+            0,
+            0,
             0,
             false,
             true,
@@ -121,6 +130,9 @@ internal sealed record ProductWorkspaceReadPresentation(
                 $"EmptyContainers={snapshot.EmptyContainerCount}:" +
                 $"NeedsReviewContainers={snapshot.NeedsReviewContainerCount}",
             snapshot.UnresolvedCount,
+            snapshot.ItemCount,
+            snapshot.EmptyContainerCount,
+            snapshot.NeedsReviewContainerCount,
             true,
             snapshot.Containers.Count == 0,
             containers);

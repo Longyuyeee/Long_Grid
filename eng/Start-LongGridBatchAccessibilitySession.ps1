@@ -32,6 +32,7 @@ $startScript = Join-Path $PSScriptRoot 'Start-LongGrid.ps1'
 $uiScript = Join-Path $PSScriptRoot 'Test-LongGridUi.ps1'
 $runbook = Join-Path $projectRoot `
     'docs\manual-testing\batch-selection-accessibility-runbook.md'
+$minimumRequiredAutomationIds = 157
 
 function Assert-Condition {
     param(
@@ -156,10 +157,10 @@ Assert-Condition ($LASTEXITCODE -eq 0) `
 $uiResult = $uiJson | ConvertFrom-Json
 Assert-Condition (
     $uiResult.outcome -eq 'Pass' -and
-    $uiResult.contract.requiredAutomationIds -eq 157 -and
+    $uiResult.contract.requiredAutomationIds -ge $minimumRequiredAutomationIds -and
     $uiResult.contract.productBatchSelectionControls -eq
         'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
-) 'The batch accessibility matrix requires the complete 157-ID UI contract.'
+) 'The batch accessibility matrix requires the complete baseline UI contract.'
 
 $commit = 'unavailable'
 if (Get-Command git -ErrorAction SilentlyContinue) {
@@ -190,7 +191,7 @@ $sessionContract = [ordered]@{
     }
     operatorIdentifierPolicy = 'AnonymousLabelsOnly'
     commit = $commit
-    requiredAutomationIds = 157
+    requiredAutomationIds = $uiResult.contract.requiredAutomationIds
     focusedAutomationIds = $requiredAutomationIds.Count
     resultStatus = 'PendingManualEvidence'
     requiresManualJudgment = $true

@@ -733,6 +733,7 @@ public sealed partial class MainWindow : Window
     {
         ArgumentNullException.ThrowIfNull(presentation);
         _workspaceRead = presentation;
+        ApplyProductOverview(presentation);
         ProductWorkspaceViewDetail.Text = presentation.Detail;
         ProductWorkspaceHealthFilterSelector.IsEnabled = presentation.CanFilter;
         ProductWorkspaceSearchBox.IsEnabled = presentation.CanFilter;
@@ -750,6 +751,74 @@ public sealed partial class MainWindow : Window
                 "DesktopFilesChanged=False");
         ApplyProductWorkspaceFilters();
         UpdateProductWorkspaceEmptyCreateShortcut();
+    }
+
+    private void ApplyProductOverview(
+        ProductWorkspaceReadPresentation presentation)
+    {
+        bool hasKnownWorkspace = presentation.CanFilter
+            || presentation.IsKnownEmptyWorkspace;
+        int containerCount = presentation.Containers.Count;
+        OverviewBoxCountValue.Text = hasKnownWorkspace
+            ? containerCount.ToString(System.Globalization.CultureInfo.CurrentCulture)
+            : "—";
+        OverviewItemCountValue.Text = hasKnownWorkspace
+            ? presentation.ItemCount.ToString(
+                System.Globalization.CultureInfo.CurrentCulture)
+            : "—";
+        OverviewBoxCountDetail.Text = hasKnownWorkspace
+            ? containerCount == 0
+                ? "创建第一个盒子，开始整理桌面"
+                : $"{presentation.EmptyContainerCount} 个空盒子"
+            : "正在读取真实工作区";
+        OverviewItemCountDetail.Text = hasKnownWorkspace
+            ? presentation.ItemCount == 0
+                ? "盒子里还没有项目"
+                : $"{presentation.UnresolvedReferenceCount} 个项目需要检查"
+            : "等待真实数据";
+
+        if (!hasKnownWorkspace)
+        {
+            OverviewHealthValue.Text = "正在连接";
+            OverviewHealthDetail.Text = "正在检查盒子与项目状态";
+        }
+        else if (presentation.NeedsReviewContainerCount > 0)
+        {
+            OverviewHealthValue.Text = "需要检查";
+            OverviewHealthDetail.Text =
+                $"{presentation.NeedsReviewContainerCount} 个盒子存在待处理项目";
+        }
+        else
+        {
+            OverviewHealthValue.Text = "运行正常";
+            OverviewHealthDetail.Text = containerCount == 0
+                ? "工作区已就绪，可以创建盒子"
+                : "所有盒子状态正常";
+        }
+
+        ProductWorkspaceReadContainerPresentation[] overviewContainers =
+            presentation.Containers.Take(4).ToArray();
+        OverviewContainerList.ItemsSource = overviewContainers;
+        OverviewContainerList.Visibility = overviewContainers.Length > 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        OverviewEmptyState.Visibility = hasKnownWorkspace
+            && overviewContainers.Length == 0
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        OverviewBoxesSummary.Text = !hasKnownWorkspace
+            ? "正在读取真实工作区"
+            : containerCount == 0
+                ? "创建第一个盒子，开始整理桌面"
+                : containerCount > overviewContainers.Length
+                    ? $"共 {containerCount} 个盒子，显示最近的 {overviewContainers.Length} 个"
+                    : $"共 {containerCount} 个盒子";
+
+        AutomationProperties.SetItemStatus(
+            ProductOverviewPanel,
+            $"ProductOverview:Known={hasKnownWorkspace}:" +
+                $"Containers={containerCount}:Items={presentation.ItemCount}:" +
+                $"NeedsReview={presentation.NeedsReviewContainerCount}");
     }
 
     private void ProductWorkspaceHealthFilterSelector_SelectionChanged(
@@ -1515,11 +1584,28 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceLatestUndoButton.Visibility = presentation.CanUndo
             ? Visibility.Visible
             : Visibility.Collapsed;
+        OverviewRecentActionDetail.Text = presentation.CanUndo
+            ? $"可撤销的最近操作：{presentation.ButtonText.Replace(
+                "撤销",
+                string.Empty,
+                StringComparison.Ordinal)}"
+            : "暂无可撤销的盒子操作";
+        OverviewLatestUndoButton.Content = presentation.ButtonText;
+        OverviewLatestUndoButton.IsEnabled = presentation.CanUndo;
+        OverviewLatestUndoButton.Visibility = presentation.CanUndo
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         AutomationProperties.SetName(
             ProductWorkspaceLatestUndoButton,
             presentation.AccessibilityName);
         AutomationProperties.SetItemStatus(
             ProductWorkspaceLatestUndoButton,
+            presentation.MachineStatus);
+        AutomationProperties.SetName(
+            OverviewLatestUndoButton,
+            presentation.AccessibilityName);
+        AutomationProperties.SetItemStatus(
+            OverviewLatestUndoButton,
             presentation.MachineStatus);
     }
 
@@ -1885,7 +1971,7 @@ public sealed partial class MainWindow : Window
             .OfType<NavigationViewItem>()
             .FirstOrDefault(item => string.Equals(
                 item.Tag as string,
-                "overview",
+                "boxes",
                 StringComparison.Ordinal));
         if (overview is null)
         {
@@ -1950,7 +2036,7 @@ public sealed partial class MainWindow : Window
             .OfType<NavigationViewItem>()
             .FirstOrDefault(item => string.Equals(
                 item.Tag as string,
-                "overview",
+                "boxes",
                 StringComparison.Ordinal));
         if (overview is null)
         {
@@ -3827,9 +3913,6 @@ public sealed partial class MainWindow : Window
         ContentFrame.Padding = compact
             ? new Thickness(16, 20, 16, 24)
             : new Thickness(32, 28, 32, 32);
-        DevelopmentBadgeText.Text = compact
-            ? "只读 · 紧凑布局"
-            : "开发期 · 只读 UI Shell";
         ThemeOptions.Orientation = compact
             ? Orientation.Vertical
             : Orientation.Horizontal;
@@ -3877,6 +3960,24 @@ public sealed partial class MainWindow : Window
             CurrentModeCard,
             row: 0,
             column: 0,
+            columnSpan: compact ? 3 : 1);
+
+        ProductOverviewMetricsGrid.ColumnSpacing = compact ? 0 : 14;
+        ProductOverviewMetricsGrid.RowSpacing = compact ? 12 : 0;
+        SetGridPosition(
+            OverviewBoxCountCard,
+            row: 0,
+            column: 0,
+            columnSpan: compact ? 3 : 1);
+        SetGridPosition(
+            OverviewItemCountCard,
+            row: compact ? 1 : 0,
+            column: compact ? 0 : 1,
+            columnSpan: compact ? 3 : 1);
+        SetGridPosition(
+            OverviewHealthCard,
+            row: compact ? 2 : 0,
+            column: compact ? 0 : 2,
             columnSpan: compact ? 3 : 1);
         SetGridPosition(
             FileOperationCard,
@@ -3970,12 +4071,75 @@ public sealed partial class MainWindow : Window
         NavigationViewSelectionChangedEventArgs args)
     {
         var tag = (args.SelectedItemContainer?.Tag as string) ?? "overview";
+        bool overviewVisible = tag is "overview" or "boxes";
+        bool boxesOnly = tag == "boxes";
 
-        OverviewPanel.Visibility = tag == "overview" ? Visibility.Visible : Visibility.Collapsed;
-        FirstRunPanel.Visibility = tag == "first-run" ? Visibility.Visible : Visibility.Collapsed;
-        RecoveryPanel.Visibility = tag == "recovery" ? Visibility.Visible : Visibility.Collapsed;
-        AppearancePanel.Visibility = tag == "appearance" ? Visibility.Visible : Visibility.Collapsed;
-        SafetyPanel.Visibility = tag == "safety" ? Visibility.Visible : Visibility.Collapsed;
+        OverviewPanel.Visibility = overviewVisible
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        AppearancePanel.Visibility = tag == "personalization"
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        SafetyPanel.Visibility = tag == "settings"
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        FirstRunPanel.Visibility = Visibility.Collapsed;
+        RecoveryPanel.Visibility = Visibility.Collapsed;
+
+        if (overviewVisible)
+        {
+            OverviewPageHeader.Title = boxesOnly ? "盒子管理" : "桌面概览";
+            OverviewPageHeader.Subtitle = boxesOnly
+                ? "创建和管理桌面盒子，调整外观、位置与内容。"
+                : "管理桌面盒子、文件夹绑定与最近操作。";
+            ProductOverviewPanel.Visibility = boxesOnly
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+            OverviewMetricsGrid.Visibility = Visibility.Collapsed;
+            ProductDesktopCatalogCard.Visibility = Visibility.Collapsed;
+            ProductWorkspaceSessionCard.Visibility = Visibility.Collapsed;
+            ProductWorkspaceLayoutRecoveryCard.Visibility = Visibility.Collapsed;
+            ProductWorkspaceViewCard.Visibility = boxesOnly
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            ProductWorkspaceReferenceReviewCard.Visibility = boxesOnly
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            ProductSaveStatusCard.Visibility = boxesOnly
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+    }
+
+    private void OpenBoxesManagementButton_Click(
+        object sender,
+        RoutedEventArgs e) => SelectBoxesNavigation();
+
+    private bool SelectBoxesNavigation()
+    {
+        NavigationViewItem? boxes = ShellNavigation.MenuItems
+            .OfType<NavigationViewItem>()
+            .FirstOrDefault(item => string.Equals(
+                item.Tag as string,
+                "boxes",
+                StringComparison.Ordinal));
+        if (boxes is null)
+        {
+            return false;
+        }
+
+        ShellNavigation.SelectedItem = boxes;
+        return true;
+    }
+
+    private void OpenCreateBoxButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!SelectBoxesNavigation())
+        {
+            return;
+        }
+        ProductWorkspaceContainerNameEditor.StartBringIntoView();
+        ProductWorkspaceContainerNameEditor.Focus(FocusState.Programmatic);
     }
 
     internal void ApplyConfigurationStartupState(
@@ -3993,18 +4157,21 @@ public sealed partial class MainWindow : Window
         switch (state.Mode)
         {
             case ProductConfigurationStartupMode.NoSavedConfiguration:
+                ConfigurationRecoveryBanner.IsOpen = false;
                 ConfigurationRecoveryBanner.Severity = InfoBarSeverity.Informational;
                 ConfigurationRecoveryBanner.Title = "尚无保存配置";
                 ConfigurationRecoveryBanner.Message =
                     "本次启动没有创建配置目录或文件；当前继续使用安全只读界面。";
                 break;
             case ProductConfigurationStartupMode.LoadedPrimary:
+                ConfigurationRecoveryBanner.IsOpen = false;
                 ConfigurationRecoveryBanner.Severity = InfoBarSeverity.Success;
                 ConfigurationRecoveryBanner.Title = "配置已安全读取";
                 ConfigurationRecoveryBanner.Message =
                     "配置内容已通过校验；当前开发期界面仍不会自动写回或移动文件。";
                 break;
             case ProductConfigurationStartupMode.RecoveredBackupReadOnly:
+                ConfigurationRecoveryBanner.IsOpen = true;
                 ConfigurationRecoveryBanner.Severity = InfoBarSeverity.Warning;
                 ConfigurationRecoveryBanner.Title = "已从备份只读恢复设置";
                 ConfigurationRecoveryBanner.Message =
@@ -4017,12 +4184,13 @@ public sealed partial class MainWindow : Window
                 ConfigurationRecoveryActionButton.Visibility = Visibility.Visible;
                 break;
             case ProductConfigurationStartupMode.SafeMode:
+                ConfigurationRecoveryBanner.IsOpen = true;
                 ConfigurationRecoveryBanner.Severity = InfoBarSeverity.Error;
                 ConfigurationRecoveryBanner.Title = "已进入配置安全模式";
                 ConfigurationRecoveryBanner.Message =
                     $"主配置{DescribeConfigurationFailure(state.PrimaryFailure)}，" +
                     $"备份{DescribeConfigurationFailure(state.BackupFailure)}。" +
-                    "当前没有加载或覆盖任何配置；请查看“安全边界”页。";
+                    "当前没有加载或覆盖任何配置；请在“设置”中查看恢复选项。";
                 ConfigurationRecoveryActionButton.Content = "检查安全重置";
                 AutomationProperties.SetName(
                     ConfigurationRecoveryActionButton,
