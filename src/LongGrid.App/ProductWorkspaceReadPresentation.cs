@@ -19,7 +19,9 @@ internal sealed record ProductWorkspaceReadContainerPresentation(
     string Detail,
     string Appearance,
     string MachineStatus,
-    IReadOnlyList<ProductWorkspaceReadItemPresentation> Items)
+    IReadOnlyList<ProductWorkspaceReadItemPresentation> Items,
+    ProductWorkspaceFolderContentStatus? FolderContentStatus = null,
+    int FolderContentItemCount = 0)
 {
     public string NavigationAccessibilityName =>
         $"查看并管理方格 {Ordinal}，{DisplayName}";
@@ -114,7 +116,9 @@ internal sealed record ProductWorkspaceReadPresentation(
                         $"Collapsed={container.IsCollapsed}",
                     container.IsCollapsed
                         ? Array.Empty<ProductWorkspaceReadItemPresentation>()
-                        : container.Items.Select(CreateItem).ToArray());
+                        : container.Items.Select(CreateItem).ToArray(),
+                    container.FolderContentStatus,
+                    container.FolderContentItemCount);
             })
             .ToArray();
 
@@ -251,12 +255,16 @@ internal sealed record ProductWorkspaceReadPresentation(
             ProductItemReferenceResolution.UnsupportedTarget => "目标不受支持",
             _ => "状态不可用",
         };
+        string source = item.Source == ProductWorkspaceReadItemSource.BoundFolder
+            ? "绑定文件夹"
+            : "桌面引用";
         return new(
             displayName,
             resolved
                 ? $"引用 {item.Ordinal}，{displayName}，{kind}，{resolution}"
                 : $"匿名引用 {item.Ordinal}，{kind}，{resolution}",
-            $"{kind} · {resolution}",
-            $"WorkspaceItem:{item.Ordinal}:Kind={item.Kind}:Resolution={item.Resolution}");
+            $"{source} · {kind} · {resolution}",
+            $"WorkspaceItem:{item.Ordinal}:Kind={item.Kind}:Resolution={item.Resolution}:" +
+                $"Source={item.Source}");
     }
 }

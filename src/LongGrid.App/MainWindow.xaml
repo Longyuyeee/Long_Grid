@@ -745,6 +745,13 @@
                                                 Click="ProductWorkspaceFolderUnbindButton_Click"
                                                 Content="解除绑定"
                                                 IsEnabled="False" />
+                                            <Button
+                                                x:Name="ProductWorkspaceFolderRefreshButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceFolderRefreshButton"
+                                                AutomationProperties.Name="刷新所选盒子的绑定文件夹内容"
+                                                Click="ProductWorkspaceFolderRefreshButton_Click"
+                                                Content="刷新内容"
+                                                IsEnabled="False" />
                                         </StackPanel>
                                             </StackPanel>
                                         </Expander>

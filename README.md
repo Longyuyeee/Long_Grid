@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A 激活合同与 BOX-R1-B 原生命令/真实 unsigned MSIX 已完成；真实 Explorer 菜单仍待 BOX-R1-C 的签名包/可丢弃账户证据。当前可执行开发项转入真实文件夹绑定，详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)。三项 Core 仍未形成完整产品旅程，所有产物仍不可公开分发。
+> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B 已完成，真实 Explorer 菜单仍待 BOX-R1-C 物理证据；FOLDER-R1-A～C 已完成绑定合同、显式绑定和有界只读内容投影/刷新工程链，当前进入 FOLDER-R1-D 权限、离线、失效恢复与可见证据。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)。三项 Core 仍未形成完整产品旅程，所有产物仍不可公开分发。
 
 ## 产品原则
 

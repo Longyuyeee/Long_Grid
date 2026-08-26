@@ -4,7 +4,10 @@ public sealed record ProductWorkspaceReadItem(
     int Ordinal,
     string? UserVisibleName,
     ConfigurationItemKind Kind,
-    ProductItemReferenceResolution Resolution);
+    ProductItemReferenceResolution Resolution,
+    string? ItemId = null,
+    ProductWorkspaceReadItemSource Source =
+        ProductWorkspaceReadItemSource.Reference);
 
 public enum ProductWorkspaceContainerHealth
 {
@@ -63,7 +66,9 @@ public sealed record ProductWorkspaceReadContainer(
     int ResolvedCount,
     int UnresolvedCount,
     ProductWorkspaceContainerHealth Health,
-    ProductContainerFolderBindingResolution? FolderBindingResolution = null);
+    ProductContainerFolderBindingResolution? FolderBindingResolution = null,
+    ProductWorkspaceFolderContentStatus? FolderContentStatus = null,
+    int FolderContentItemCount = 0);
 
 public sealed record ProductWorkspaceReadSnapshot(
     IReadOnlyList<ProductWorkspaceReadContainer> Containers,
@@ -84,7 +89,9 @@ public sealed record ProductWorkspaceReadResult(
 
 public static class ProductWorkspaceReadModel
 {
-    public static ProductWorkspaceReadResult Create(ProductWorkspaceState state)
+    public static ProductWorkspaceReadResult Create(
+        ProductWorkspaceState state,
+        ProductWorkspaceFolderContentSet? folderContents = null)
     {
         ArgumentNullException.ThrowIfNull(state);
 
@@ -123,7 +130,36 @@ public static class ProductWorkspaceReadModel
                         ? ProductWorkspaceIdentityPolicy.MapKind(
                             item.CatalogEntry!.Kind)
                         : item.PersistedKind,
-                    item.Resolution));
+                    item.Resolution,
+                    $"item:{itemIndex + 1}",
+                    ProductWorkspaceReadItemSource.Reference));
+            }
+
+            ProductWorkspaceContainerFolderContent? folderContent =
+                folderContents?.Find(container.Id);
+            ProductWorkspaceFolderContentStatus? folderContentStatus =
+                folderContent is { HasValidShape: false }
+                    ? ProductWorkspaceFolderContentStatus.EnumerationFailed
+                    : folderContent?.Status;
+            bool usableFolderContent = folderContent?.HasUsableProjection == true
+                && container.FolderBinding?.Resolution ==
+                    ProductContainerFolderBindingResolution.Resolved;
+            int folderContentItemCount = 0;
+            if (usableFolderContent)
+            {
+                foreach (ProductWorkspaceFolderContentItem folderItem in
+                    folderContent!.Items)
+                {
+                    folderContentItemCount++;
+                    items.Add(new(
+                        items.Count + 1,
+                        folderItem.DisplayName,
+                        folderItem.Kind,
+                        ProductItemReferenceResolution.Resolved,
+                        folderItem.ItemId,
+                        ProductWorkspaceReadItemSource.BoundFolder));
+                }
+                resolved += folderContentItemCount;
             }
 
             int unresolved = items.Count - resolved;
@@ -132,8 +168,13 @@ public static class ProductWorkspaceReadModel
             bool folderNeedsReview = folderBinding is not null
                 && folderBinding.Resolution !=
                     ProductContainerFolderBindingResolution.Resolved;
+            bool folderContentNeedsReview = folderContent is not null
+                && !folderContent.HasUsableProjection
+                && folderContentStatus !=
+                    ProductWorkspaceFolderContentStatus.AwaitingRefresh;
             ProductWorkspaceContainerHealth health = unresolved > 0
                 || folderNeedsReview
+                || folderContentNeedsReview
                 ? ProductWorkspaceContainerHealth.NeedsReview
                 : items.Count == 0 && folderBinding is null
                     ? ProductWorkspaceContainerHealth.Empty
@@ -166,7 +207,9 @@ public static class ProductWorkspaceReadModel
                 resolved,
                 unresolved,
                 health,
-                folderBinding?.Resolution));
+                folderBinding?.Resolution,
+                folderContentStatus,
+                folderContentItemCount));
         }
 
         return new(

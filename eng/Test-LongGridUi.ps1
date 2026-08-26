@@ -741,6 +741,7 @@ function Test-SourceContract {
         'ProductWorkspaceFolderBindingStatus',
         'ProductWorkspaceFolderBindButton',
         'ProductWorkspaceFolderUnbindButton',
+        'ProductWorkspaceFolderRefreshButton',
         'ProductWorkspaceContainerColorSelector',
         'ProductWorkspaceContainerOpacitySelector',
         'ProductWorkspaceContainerTitleVisibilitySelector',
@@ -1223,6 +1224,8 @@ function Test-SourceContract {
                 'ProductWorkspaceFolderBindButton_Click'
             ProductWorkspaceFolderUnbindButton =
                 'ProductWorkspaceFolderUnbindButton_Click'
+            ProductWorkspaceFolderRefreshButton =
+                'ProductWorkspaceFolderRefreshButton_Click'
         }.GetEnumerator()) {
         $node = Get-XamlNodeByAutomationId $document $entry.Key
         Assert-Condition (
@@ -2762,7 +2765,8 @@ function Test-SourceContract {
         $workspaceReadModelCode -match 'CatalogEntry!\.DisplayName' -and
         $workspaceReadModelCode -match 'isResolved\s*\?[^\r\n]*CatalogEntry' -and
         -not ($workspaceReadModelCode -match 'PersistedTarget') -and
-        -not ($workspaceReadModelCode -match '\.Id|ProfileId|CanonicalTarget|SourceId|ParsingName|VolumeId|FileId')
+        $workspaceReadModelCode -match 'ProductWorkspaceReadItemSource\.BoundFolder' -and
+        -not ($workspaceReadModelCode -match 'PersistedTarget|ProfileId|CanonicalTarget|SourceId|ParsingName|VolumeId|FileId|folderItem\.Target')
     ) 'Core read model must validate first, expose resolved visible names, and omit persistence identity.'
     Assert-Condition ($workspaceReadPresentationCode.Contains('WorkspaceViewReady:Containers=')) `
         'Workspace presentation must expose a finite ready status.'
@@ -2774,6 +2778,12 @@ function Test-SourceContract {
         $workspaceReadPresentationCode -match 'NeedsReviewContainers=' -and
         $document.OuterXml.Contains('Text="{Binding Health}"')
     ) 'Formal containers must expose finite empty, ready, and review health states.'
+    Assert-Condition (
+        $resolvedReferenceRemovalPresentationCode -match `
+            'ProductWorkspaceReadItemSource\.Reference' -and
+        $resolvedReferenceReassignmentPresentationCode -match `
+            'ProductWorkspaceReadItemSource\.Reference'
+    ) 'Bound-folder projections must remain read-only and excluded from reference removal or reassignment.'
     $workspaceHealthFilterNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceHealthFilterSelector'

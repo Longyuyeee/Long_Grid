@@ -34,7 +34,9 @@ internal sealed record ProductWorkspaceResolvedReferenceRemovalPresentation(
                 .Where(container => !container.IsLocked)
                 .SelectMany(container => container.Items
                     .Where(item => item.Resolution ==
-                        ProductItemReferenceResolution.Resolved)
+                        ProductItemReferenceResolution.Resolved
+                        && item.Source ==
+                            ProductWorkspaceReadItemSource.Reference)
                     .Select(item =>
                         new ProductWorkspaceResolvedReferenceRemovalCandidatePresentation(
                             container.Ordinal,
