@@ -52,7 +52,8 @@ public static class WindowsProductContainerFolderContentReader
             return Failure(
                 containerId,
                 generation,
-                MapBindingFailure(resolved.Resolution));
+                MapBindingFailure(resolved.Resolution),
+                resolved.Resolution);
         }
 
         string root = resolved.ResolvedTarget;
@@ -101,7 +102,8 @@ public static class WindowsProductContainerFolderContentReader
             return Failure(
                 containerId,
                 generation,
-                ProductWorkspaceFolderContentStatus.AccessDenied);
+                ProductWorkspaceFolderContentStatus.AccessDenied,
+                ProductContainerFolderBindingResolution.AccessDenied);
         }
         catch (Exception exception) when (exception is
             ArgumentException or IOException or NotSupportedException
@@ -110,7 +112,8 @@ public static class WindowsProductContainerFolderContentReader
             return Failure(
                 containerId,
                 generation,
-                ProductWorkspaceFolderContentStatus.EnumerationFailed);
+                ProductWorkspaceFolderContentStatus.EnumerationFailed,
+                ProductContainerFolderBindingResolution.Unavailable);
         }
 
         var ordered = entries
@@ -136,7 +139,8 @@ public static class WindowsProductContainerFolderContentReader
             generation,
             status,
             ordered,
-            skippedReparsePoints);
+            skippedReparsePoints,
+            ProductContainerFolderBindingResolution.Resolved);
     }
 
     private static ProductWorkspaceFolderContentStatus MapBindingFailure(
@@ -171,9 +175,11 @@ public static class WindowsProductContainerFolderContentReader
     private static ProductWorkspaceContainerFolderContent Failure(
         string containerId,
         long generation,
-        ProductWorkspaceFolderContentStatus status) => new(
+        ProductWorkspaceFolderContentStatus status,
+        ProductContainerFolderBindingResolution bindingResolution) => new(
             containerId,
             generation,
             status,
-            Array.Empty<ProductWorkspaceFolderContentItem>());
+            Array.Empty<ProductWorkspaceFolderContentItem>(),
+            BindingResolution: bindingResolution);
 }

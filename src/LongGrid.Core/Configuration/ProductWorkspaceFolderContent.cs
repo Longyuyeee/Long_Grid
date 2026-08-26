@@ -24,7 +24,8 @@ public sealed record ProductWorkspaceContainerFolderContent(
     long Generation,
     ProductWorkspaceFolderContentStatus Status,
     IReadOnlyList<ProductWorkspaceFolderContentItem> Items,
-    int SkippedReparsePointCount = 0)
+    int SkippedReparsePointCount = 0,
+    ProductContainerFolderBindingResolution? BindingResolution = null)
 {
     public const int MaximumItems = 256;
 
@@ -32,6 +33,7 @@ public sealed record ProductWorkspaceContainerFolderContent(
         !string.IsNullOrWhiteSpace(ContainerId)
         && Generation > 0
         && Items is not null
+        && (BindingResolution is null || Enum.IsDefined(BindingResolution.Value))
         && Items.Count <= MaximumItems
         && Items.All(item => item is not null
             && !string.IsNullOrWhiteSpace(item.ItemId)

@@ -37,6 +37,10 @@ $resolvedReferenceReassignmentPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceResolvedReferenceReassignmentPresentation.cs'
 $workspaceReadModelCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReadModel.cs'
+$folderContentReaderCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\Configuration\WindowsProductContainerFolderContentReader.cs'
+$folderContentWatcherCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceFolderContentWatcher.cs'
 $workspaceReviewShortcutPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReviewShortcutPolicy.cs'
 $workspaceContainerNavigationPolicyCodePath = Join-Path $projectRoot `
@@ -279,6 +283,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $workspaceReadModelCode = Get-Content `
         -LiteralPath $workspaceReadModelCodePath `
+        -Raw `
+        -Encoding UTF8
+    $folderContentReaderCode = Get-Content `
+        -LiteralPath $folderContentReaderCodePath `
+        -Raw `
+        -Encoding UTF8
+    $folderContentWatcherCode = Get-Content `
+        -LiteralPath $folderContentWatcherCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceReviewShortcutPolicyCode = Get-Content `
@@ -1271,6 +1283,16 @@ function Test-SourceContract {
         $appCode -match 'CommitProductWorkspaceContainerFolderBinding' -and
         $appCode -match 'CommitProductWorkspaceContainerActionCore'
     ) 'Folder binding and unbinding must use the shared revision, reducer, save, undo, and compensation path.'
+    Assert-Condition (
+        $workspaceReadModelCode -match 'effectiveBindingResolution' -and
+        $folderContentReaderCode -match 'BindingResolution:' -and
+        $folderContentWatcherCode -match 'HealthPollInterval' -and
+        $folderContentWatcherCode -match 'NotifyFilters\.Security' -and
+        $folderContentWatcherCode -match 'Path\.GetDirectoryName' -and
+        $folderContentWatcherCode -match 'WindowsProductContainerFolderBinding\.Resolve' -and
+        $folderContentWatcherCode -match 'private void OnError' -and
+        $folderContentWatcherCode -match 'ScheduleInvalidation\(\)'
+    ) 'Folder contents must publish authoritative finite binding health and recover through root, ACL, polling, and watcher-error invalidation paths.'
     $resolvedReferenceSelectorNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceResolvedReferenceSelector'
