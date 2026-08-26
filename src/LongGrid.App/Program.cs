@@ -25,9 +25,10 @@ public static class Program
             .GetActivatedEventArgs();
         string instanceKey = ProductBoxesRuntimeEnableEvidenceSession
             .ResolveInstanceKey(
-                ProductDesktopFirstStartupEvidenceSession.ResolveInstanceKey(
-                    ProductPf002AppEvidenceSession.ResolveInstanceKey(
-                        MainInstanceKey)));
+                ProductUiR1eEvidenceSession.ResolveInstanceKey(
+                    ProductDesktopFirstStartupEvidenceSession.ResolveInstanceKey(
+                        ProductPf002AppEvidenceSession.ResolveInstanceKey(
+                            MainInstanceKey))));
         AppInstance mainInstance = AppInstance.FindOrRegisterForKey(instanceKey);
 
         if (!mainInstance.IsCurrent)

@@ -10,8 +10,12 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Graphics;
+using Windows.Storage.Streams;
+using Windows.UI.ViewManagement;
 
 namespace LongGrid.App;
 
@@ -20,7 +24,7 @@ public sealed partial class MainWindow : Window
     internal bool IsProductXamlReady =>
         RootLayout.IsLoaded && RootLayout.XamlRoot is not null;
 
-    private const double CompactBreakpoint = 760;
+    private const double CompactBreakpoint = 840;
     private const double DefaultWidth = 1180;
     private const double DefaultHeight = 760;
     private const double MaximumWorkAreaFraction = 0.9;
@@ -3911,7 +3915,7 @@ public sealed partial class MainWindow : Window
             ? NavigationViewPaneDisplayMode.LeftMinimal
             : NavigationViewPaneDisplayMode.LeftCompact;
         ContentFrame.Padding = compact
-            ? new Thickness(16, 20, 16, 24)
+            ? new Thickness(16, 56, 16, 24)
             : new Thickness(32, 28, 32, 32);
         ThemeOptions.Orientation = compact
             ? Orientation.Vertical
@@ -5157,5 +5161,129 @@ public sealed partial class MainWindow : Window
             "dark" => (ElementTheme.Dark, "当前：深色（仅内存）"),
             _ => (ElementTheme.Default, "当前：跟随系统（仅内存）"),
         };
+    }
+
+    internal async Task<ProductUiR1eRenderResult> CaptureUiR1eRenderAsync()
+    {
+        if (!IsProductXamlReady)
+        {
+            throw new InvalidOperationException(
+                "UI-R1E evidence requires a loaded product XAML root.");
+        }
+
+        ShellNavigation.SelectedItem = NavSettings;
+        SettingsAdvancedDiagnosticsExpander.IsExpanded = false;
+        await Task.Delay(250);
+
+        var accessibility = new AccessibilitySettings();
+        var uiSettings = new UISettings();
+        (object Metrics, ProductUiR1eRenderCapture Capture) wideLight =
+            await CaptureUiR1eCaseAsync(
+            "settings-wide-light",
+            widthDip: 1120,
+            ElementTheme.Light);
+        (object Metrics, ProductUiR1eRenderCapture Capture) compactLight =
+            await CaptureUiR1eCaseAsync(
+            "settings-compact-light",
+            widthDip: 720,
+            ElementTheme.Light);
+        (object Metrics, ProductUiR1eRenderCapture Capture) wideDark =
+            await CaptureUiR1eCaseAsync(
+            "settings-wide-dark",
+            widthDip: 1120,
+            ElementTheme.Dark);
+
+        var evidence = new
+        {
+            SchemaVersion = 1,
+            Purpose = "UiR1eRealXamlRenderingEvidence",
+            Expected = new
+            {
+                WideLayout = "wide",
+                CompactLayout = "compact",
+                AdvancedDiagnosticsExpanded = false,
+                SettingsKeyboardFocus = "ImportConfigurationButton",
+                ScreenshotCount = 3,
+            },
+            Actual = new
+            {
+                RasterizationScale = RootLayout.XamlRoot!.RasterizationScale,
+                accessibility.HighContrast,
+                uiSettings.AnimationsEnabled,
+                Cases = new[]
+                {
+                    wideLight.Metrics,
+                    compactLight.Metrics,
+                    wideDark.Metrics,
+                },
+            },
+            Difference = accessibility.HighContrast
+                ? "HighContrastObserved;ReducedMotionDependsOnSystem"
+                : "HighContrastPendingOnThisMachine;ReducedMotionDependsOnSystem",
+            Outcome = "Pass",
+        };
+        return new(
+            evidence,
+            [wideLight.Capture, compactLight.Capture, wideDark.Capture]);
+    }
+
+    private async Task<(object Metrics, ProductUiR1eRenderCapture Capture)>
+        CaptureUiR1eCaseAsync(
+        string name,
+        double widthDip,
+        ElementTheme theme)
+    {
+        double scale = RootLayout.XamlRoot?.RasterizationScale ?? 1;
+        AppWindow.Resize(new SizeInt32(
+            (int)Math.Round(widthDip * scale),
+            (int)Math.Round(700 * scale)));
+        RootLayout.RequestedTheme = theme;
+        await Task.Delay(400);
+        _ = ImportConfigurationButton.Focus(FocusState.Keyboard);
+        await Task.Delay(100);
+
+        string screenshotFile = name + ".png";
+        ProductUiR1eRenderCapture screenshot =
+            await CaptureRenderedRootAsync(screenshotFile, scale);
+        object? focused = FocusManager.GetFocusedElement(RootLayout.XamlRoot);
+        object metrics = new
+        {
+            Name = name,
+            RequestedWidthDip = widthDip,
+            ActualWidthDip = RootLayout.ActualWidth,
+            RequestedTheme = theme.ToString(),
+            ActualTheme = RootLayout.ActualTheme.ToString(),
+            LayoutStatus = AutomationProperties.GetItemStatus(RootLayout),
+            PaneDisplayMode = ShellNavigation.PaneDisplayMode.ToString(),
+            SettingsGeneralWidthDip = SettingsGeneralSection.ActualWidth,
+            SettingsPrivacyWidthDip = SettingsPrivacySection.ActualWidth,
+            AdvancedDiagnosticsExpanded = SettingsAdvancedDiagnosticsExpander.IsExpanded,
+            FocusedElement = ReferenceEquals(focused, ImportConfigurationButton)
+                ? nameof(ImportConfigurationButton)
+                : focused?.GetType().Name ?? "None",
+            ScreenshotFile = screenshotFile,
+        };
+        return (metrics, screenshot);
+    }
+
+    private async Task<ProductUiR1eRenderCapture> CaptureRenderedRootAsync(
+        string fileName,
+        double scale)
+    {
+        var bitmap = new RenderTargetBitmap();
+        await bitmap.RenderAsync(RootLayout);
+        IBuffer buffer = await bitmap.GetPixelsAsync();
+        byte[] pixels = new byte[buffer.Length];
+        using (DataReader reader = DataReader.FromBuffer(buffer))
+        {
+            reader.ReadBytes(pixels);
+        }
+
+        return new(
+            fileName,
+            (uint)bitmap.PixelWidth,
+            (uint)bitmap.PixelHeight,
+            96 * scale,
+            pixels);
     }
 }

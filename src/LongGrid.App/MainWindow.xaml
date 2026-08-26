@@ -84,6 +84,7 @@
             </NavigationView.MenuItems>
             <NavigationView.FooterMenuItems>
                 <NavigationViewItem
+                    x:Name="NavSettings"
                     AccessKey="4"
                     AutomationProperties.AutomationId="NavSettings"
                     Content="设置"
@@ -1854,6 +1855,7 @@
                                 Title="设置"
                                 Subtitle="管理配置、隐私与高级诊断。核心盒子设置将在盒子管理中就近完成。" />
                             <Border
+                                x:Name="SettingsGeneralSection"
                                 AutomationProperties.AutomationId="SettingsGeneralSection"
                                 AutomationProperties.Name="常规设置"
                                 Style="{StaticResource LongGridCardStyle}">
@@ -1914,6 +1916,7 @@
                                 </StackPanel>
                             </Border>
                             <Border
+                                x:Name="SettingsPrivacySection"
                                 AutomationProperties.AutomationId="SettingsPrivacySection"
                                 AutomationProperties.Name="隐私与安全"
                                 Style="{StaticResource LongGridCardStyle}">
@@ -1932,6 +1935,7 @@
                                 </StackPanel>
                             </Border>
                             <Expander
+                                x:Name="SettingsAdvancedDiagnosticsExpander"
                                 AutomationProperties.AutomationId="SettingsAdvancedDiagnosticsExpander"
                                 AutomationProperties.Name="高级诊断"
                                 Header="高级诊断"

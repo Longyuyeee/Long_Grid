@@ -49,6 +49,7 @@ public partial class App : Application
     private readonly ProductPf002AppEvidenceSession? pf002AppEvidenceSession;
     private readonly ProductDesktopFirstStartupEvidenceSession?
         desktopFirstStartupEvidenceSession;
+    private readonly ProductUiR1eEvidenceSession? uiR1eEvidenceSession;
     private readonly ProductBoxesRuntimeEnableEvidenceSession?
         boxesRuntimeEnableEvidenceSession;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
@@ -79,11 +80,13 @@ public partial class App : Application
             ProductPf002AppEvidenceSession.TryCreateFromEnvironment();
         desktopFirstStartupEvidenceSession =
             ProductDesktopFirstStartupEvidenceSession.TryCreateFromEnvironment();
+        uiR1eEvidenceSession = ProductUiR1eEvidenceSession.TryCreateFromEnvironment();
         boxesRuntimeEnableEvidenceSession =
             ProductBoxesRuntimeEnableEvidenceSession.TryCreateFromEnvironment();
         int evidenceSessionCount =
             (pf002AppEvidenceSession is null ? 0 : 1)
             + (desktopFirstStartupEvidenceSession is null ? 0 : 1)
+            + (uiR1eEvidenceSession is null ? 0 : 1)
             + (boxesRuntimeEnableEvidenceSession is null ? 0 : 1);
         if (evidenceSessionCount > 1)
         {
@@ -92,6 +95,7 @@ public partial class App : Application
         }
         string configurationDirectory = pf002AppEvidenceSession?.DirectoryPath
             ?? desktopFirstStartupEvidenceSession?.DirectoryPath
+            ?? uiR1eEvidenceSession?.DirectoryPath
             ?? boxesRuntimeEnableEvidenceSession?.DirectoryPath
             ?? Path.Combine(
                 Environment.GetFolderPath(
@@ -270,6 +274,11 @@ public partial class App : Application
             _ = RunBoxesRuntimeEnableEvidenceSessionAsync(
                 boxesRuntimeEnableEvidenceSession);
         }
+        else if (uiR1eEvidenceSession is not null)
+        {
+            window.Activate();
+            _ = RunUiR1eEvidenceSessionAsync(uiR1eEvidenceSession);
+        }
         else
         {
             _ = InitializeDesktopFirstStartupAsync();
@@ -279,6 +288,58 @@ public partial class App : Application
         {
             activationPending = false;
             ActivateMainWindow();
+        }
+    }
+
+    private async Task RunUiR1eEvidenceSessionAsync(
+        ProductUiR1eEvidenceSession evidence)
+    {
+        object result;
+        IReadOnlyList<ProductUiR1eRenderCapture>? captures = null;
+        try
+        {
+            await LoadBoxesSettingsAsync();
+            await LoadConfigurationStartupStateAsync();
+            MainWindow currentWindow = window ?? throw new InvalidOperationException(
+                "UI-R1E evidence requires the formal main window.");
+            DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+            while (!currentWindow.IsProductXamlReady && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(50);
+            }
+
+            ProductUiR1eRenderResult render =
+                await currentWindow.CaptureUiR1eRenderAsync();
+            result = render.Evidence;
+            captures = render.Captures;
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException
+                or IOException
+                or UnauthorizedAccessException)
+        {
+            result = new
+            {
+                SchemaVersion = 1,
+                Purpose = "UiR1eRealXamlRenderingEvidence",
+                Expected = "Pass",
+                Actual = new
+                {
+                    Error = exception.GetType().Name,
+                    ErrorDetail = exception.Message,
+                },
+                Difference = "EvidenceSessionFailed",
+                Outcome = "Fail",
+            };
+        }
+
+        try
+        {
+            await evidence.WriteResultAsync(result, captures);
+        }
+        finally
+        {
+            window?.Close();
         }
     }
 
