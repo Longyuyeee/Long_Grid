@@ -1029,6 +1029,7 @@ public sealed partial class MainWindow : Window
             ProductDesktopWorkspaceCreatePreviewSnapshot> evaluateName,
         bool evidenceMode = false,
         string? evidenceResponse = null,
+        bool showInEvidenceMode = false,
         Action<bool>? observeEvidence = null)
     {
         ArgumentNullException.ThrowIfNull(initial);
@@ -1045,7 +1046,7 @@ public sealed partial class MainWindow : Window
         TaskCompletionSource<string?> completion = _safePreviewCompletion;
         DesktopWorkspaceCreateSafePreviewNameEditor.Text = initial.Name;
         ApplyDesktopWorkspaceCreateSafePreviewValidation();
-        if (!evidenceMode)
+        if (!evidenceMode || showInEvidenceMode)
         {
             DesktopWorkspaceCreateSafePreviewOverlay.Visibility =
                 Visibility.Visible;
@@ -1058,6 +1059,9 @@ public sealed partial class MainWindow : Window
         }
         observeEvidence?.Invoke(
             DesktopWorkspaceCreateSafePreviewOverlay.IsLoaded
+            && (!showInEvidenceMode
+                || DesktopWorkspaceCreateSafePreviewOverlay.Visibility
+                    == Visibility.Visible)
             && !string.IsNullOrWhiteSpace(AutomationProperties.GetAutomationId(
                 DesktopWorkspaceCreateSafePreviewNameEditor))
             && !string.IsNullOrWhiteSpace(AutomationProperties.GetAutomationId(
@@ -1065,7 +1069,17 @@ public sealed partial class MainWindow : Window
 
         if (evidenceMode)
         {
-            await Task.Yield();
+            if (showInEvidenceMode)
+            {
+                _ = DesktopWorkspaceCreateSafePreviewNameEditor.Focus(
+                    FocusState.Programmatic);
+                DesktopWorkspaceCreateSafePreviewNameEditor.SelectAll();
+                await Task.Delay(250);
+            }
+            else
+            {
+                await Task.Yield();
+            }
             if (evidenceResponse is null)
             {
                 CompleteDesktopWorkspaceCreateSafePreview(null);

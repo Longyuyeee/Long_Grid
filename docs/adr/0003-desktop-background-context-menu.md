@@ -46,11 +46,15 @@ Windows 11 正式安装形态采用带应用身份的原生 `IExplorerCommand`�
 
 ### BOX-R1-A：有限激活合同
 
+状态：EngineeringComplete / RealProcessPass（2026-08-26）
+
 - 定义唯一命令 `--long-grid-create-box` 与有界屏幕坐标；
 - 首进程与已运行单实例都能消费同一激活；
 - 无效、重复、越界或陈旧输入有限拒绝；
 - 只打开创建预览，不直接保存；
 - 真实进程测试验证预览窗口、取消零写入和第二实例重定向。
+
+实际合同为 `--long-grid-create-box=v1,x,y,issuedAtUnixMs,nonce`；Initial、Redirect 与 DuplicateRedirect 三个真实 Release 场景均为 `Difference=None`。这只证明 App 激活边界，不能替代 BOX-R1-B/C 的 Explorer DLL、安装与菜单证据。
 
 ### BOX-R1-B：原生 Explorer 命令与清单
 
@@ -92,4 +96,3 @@ Windows 11 正式安装形态采用带应用身份的原生 `IExplorerCommand`�
 | 安全 | Explorer 响应、注册残留、配置次数和桌面文件哈希 |
 
 静态源码、Mock COM、清单 XPath 和 DLL 编译只属于自动门禁，不能替代 BOX-R1-C 的真实 Explorer 菜单证据。
-

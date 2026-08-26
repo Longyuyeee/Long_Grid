@@ -2,32 +2,36 @@ using System.Text.Json;
 
 namespace LongGrid.App;
 
-internal sealed class ProductPf002AppEvidenceSession :
+internal sealed class ProductBoxR1ActivationEvidenceSession :
     IProductDesktopWorkspaceCreateEvidenceSession
 {
     internal const string EnvironmentVariableName =
-        "LONGGRID_PF002_APP_EVIDENCE_SESSION";
-    private const string EvidenceDirectoryName = "LongGridEvidence";
-    private static readonly JsonSerializerOptions EvidenceJsonOptions = new()
+        "LONGGRID_BOX_R1_ACTIVATION_EVIDENCE_SESSION";
+    private const string EvidenceDirectoryName = "LongGridBoxR1Evidence";
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
     };
     private readonly Queue<string?> previewResponses = new();
+    private readonly TaskCompletionSource previewCompleted = new(
+        TaskCreationOptions.RunContinuationsAsynchronously);
 
-    private ProductPf002AppEvidenceSession(Guid sessionId, string directoryPath)
+    private ProductBoxR1ActivationEvidenceSession(
+        Guid sessionId,
+        string directoryPath)
     {
         SessionId = sessionId;
         DirectoryPath = directoryPath;
-        ResultPath = Path.Combine(directoryPath, "result.json");
         previewResponses.Enqueue(null);
-        previewResponses.Enqueue("PF-002 证据方格");
     }
 
     internal Guid SessionId { get; }
 
     internal string DirectoryPath { get; }
 
-    internal string ResultPath { get; }
+    internal string ReadyPath => Path.Combine(DirectoryPath, "ready.json");
+
+    internal string ResultPath => Path.Combine(DirectoryPath, "result.json");
 
     internal string ProgressPath => Path.Combine(DirectoryPath, "progress.txt");
 
@@ -37,18 +41,18 @@ internal sealed class ProductPf002AppEvidenceSession :
 
     internal int PreviewDrivenCount { get; private set; }
 
-    internal static ProductPf002AppEvidenceSession? TryCreateFromEnvironment()
+    internal static ProductBoxR1ActivationEvidenceSession?
+        TryCreateFromEnvironment()
     {
         string? raw = Environment.GetEnvironmentVariable(EnvironmentVariableName);
         if (string.IsNullOrWhiteSpace(raw))
         {
             return null;
         }
-
         if (!Guid.TryParseExact(raw, "N", out Guid sessionId))
         {
             throw new InvalidOperationException(
-                "PF-002 App evidence session id must be a 32-character GUID.");
+                "BOX-R1 evidence session id must be a 32-character GUID.");
         }
 
         string evidenceRoot = Path.GetFullPath(Path.Combine(
@@ -60,11 +64,13 @@ internal sealed class ProductPf002AppEvidenceSession :
         string expectedPrefix = evidenceRoot.TrimEnd(
             Path.DirectorySeparatorChar,
             Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        if (!directoryPath.StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase)
+        if (!directoryPath.StartsWith(
+                expectedPrefix,
+                StringComparison.OrdinalIgnoreCase)
             || !Directory.Exists(directoryPath))
         {
             throw new InvalidOperationException(
-                "PF-002 App evidence directory must already exist under the system temporary evidence root.");
+                "BOX-R1 evidence directory must already exist under the system temporary evidence root.");
         }
 
         FileAttributes attributes = File.GetAttributes(directoryPath);
@@ -72,7 +78,7 @@ internal sealed class ProductPf002AppEvidenceSession :
             || Directory.EnumerateFileSystemEntries(directoryPath).Any())
         {
             throw new InvalidOperationException(
-                "PF-002 App evidence directory must be empty and must not be a reparse point.");
+                "BOX-R1 evidence directory must be empty and must not be a reparse point.");
         }
 
         return new(sessionId, directoryPath);
@@ -82,7 +88,7 @@ internal sealed class ProductPf002AppEvidenceSession :
     {
         string? raw = Environment.GetEnvironmentVariable(EnvironmentVariableName);
         return Guid.TryParseExact(raw, "N", out Guid sessionId)
-            ? $"LongGrid.Pf002Evidence.{sessionId:N}"
+            ? $"LongGrid.BoxR1Evidence.{sessionId:N}"
             : defaultKey;
     }
 
@@ -95,8 +101,7 @@ internal sealed class ProductPf002AppEvidenceSession :
         File.AppendAllText(ProgressPath, stage + Environment.NewLine);
     }
 
-    public void ObservePreview(
-        DesktopWorkspaceCreatePreviewWindow previewWindow)
+    public void ObservePreview(DesktopWorkspaceCreatePreviewWindow previewWindow)
     {
         ArgumentNullException.ThrowIfNull(previewWindow);
         if (previewWindow.HasEvidenceVisualTree)
@@ -107,6 +112,8 @@ internal sealed class ProductPf002AppEvidenceSession :
         {
             PreviewActivatedCount++;
         }
+        PreviewDrivenCount++;
+        previewCompleted.TrySetResult();
     }
 
     public void ObserveFallbackPreview(bool hasEvidenceVisualTree)
@@ -116,6 +123,8 @@ internal sealed class ProductPf002AppEvidenceSession :
             PreviewVisualTreeCount++;
         }
         PreviewActivatedCount++;
+        PreviewDrivenCount++;
+        previewCompleted.TrySetResult();
     }
 
     public void ObserveSafePreview(bool hasEvidenceVisualTree)
@@ -124,17 +133,21 @@ internal sealed class ProductPf002AppEvidenceSession :
         {
             PreviewVisualTreeCount++;
         }
+        PreviewActivatedCount++;
         PreviewDrivenCount++;
+        previewCompleted.TrySetResult();
     }
 
-    internal async Task WriteResultAsync(object result)
+    internal Task WaitForPreviewAsync(TimeSpan timeout) =>
+        previewCompleted.Task.WaitAsync(timeout);
+
+    internal static async Task WriteJsonAsync(string path, object value)
     {
-        ArgumentNullException.ThrowIfNull(result);
-        string temporaryPath = ResultPath + ".new";
-        byte[] payload = JsonSerializer.SerializeToUtf8Bytes(
-            result,
-            EvidenceJsonOptions);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(value);
+        string temporaryPath = path + ".new";
+        byte[] payload = JsonSerializer.SerializeToUtf8Bytes(value, JsonOptions);
         await File.WriteAllBytesAsync(temporaryPath, payload);
-        File.Move(temporaryPath, ResultPath, overwrite: true);
+        File.Move(temporaryPath, path, overwrite: true);
     }
 }

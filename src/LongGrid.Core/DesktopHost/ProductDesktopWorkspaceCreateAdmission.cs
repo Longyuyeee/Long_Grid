@@ -10,6 +10,7 @@ public enum ProductDesktopWorkspaceCreateInputKind
     KeyboardShortcut,
     AssistiveInvoke,
     SelectedReferences,
+    ExplorerContextMenu,
 }
 
 public sealed record ProductDesktopWorkspaceCreateRequest(

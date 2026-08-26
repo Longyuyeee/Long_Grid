@@ -1,12 +1,12 @@
 # Long方格产品重对齐与统一开发计划
 
-版本：1.9
+版本：2.0
 
 状态：Required / 当前唯一执行计划
 
 更新日期：2026-08-26
 
-代码审计基线：`origin/main@288838ccb6845b282aa98664291b72e944329a54`；BOX-R1 Shell 合同分支 `codex/box-r1-shell-contract`
+代码审计基线：`origin/main@33e8c3a`；BOX-R1-A 实现分支 `codex/box-r1-activation`
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -265,7 +265,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**BOX-R1-A Explorer 背景菜单有限激活合同**。UI-R1E 自动化与可观测工程范围已完成，显式启动入口已经进入 `main`；I19/BSA 专用链通过 ValidateOnly，但高对比、关闭系统动画、Narrator 与物理键盘仍为 `PendingManualEvidence`，保留为 M1 出口门禁，不再阻塞 BOX-R1 工程开发。
+当前执行项：**BOX-R1-B 原生 Explorer 命令与 MSIX 清单**。BOX-R1-A 已完成有限、可版本化、一次性的创建激活合同，首进程与已运行单实例都只进入既有创建预览；UI-R1E 人工矩阵继续保留为 M1 出口门禁。
 
 严格按下列顺序交付，不再插入相邻探针或新宽度功能：
 
@@ -274,7 +274,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 3. **UI-R1C 盒子管理（EngineeringComplete / ProductEvidencePending）**：已将页面重排为盒子列表与就近设置两栏，窄窗口改为上下排列；基本设置默认展开，外观与布局、删除与恢复、盒子内容按需展开；用户文案统一为盒子/项目，并删除匿名工作区样例。隔离真实存储旅程已通过，可见键鼠证据待 UI-R1E 补齐。
 4. **UI-R1D 设置迁移（EngineeringComplete / ProductEvidencePending）**：配置导入导出归入“常规”，隐私承诺使用用户语言，一次性匿名证据归入默认折叠的“高级诊断”；开发门槛和 Design Token 样例已从发布表面删除。真实磁盘往返与损坏输入保护通过，可见交互证据随 UI-R1E 完成。
 5. **UI-R1E 视觉与响应式验收（EngineeringComplete / ManualEvidencePending）**：UI-R1E-A 已完成浅/深色、1120/720 effective px、200% 缩放、焦点和真实 XAML PNG；UI-R1E-B 已确保根目录/显式启动直接显示唯一控制中心，同时保留 `--background` 桌面优先模式。I19/BSA 自动预检均通过且明确不修改系统设置；高对比、关闭系统动画、Narrator、物理键盘及其他 DPI 继续作为 M1 出口人工门禁。
-6. **BOX-R1（进行中）**：A 有限激活合同 → B 原生 `IExplorerCommand` 与 MSIX `Directory\Background` 清单 → C 可丢弃账户真实安装/菜单/卸载证据 → D Explorer 重启、显示器、DPI 与失败恢复；全部复用统一创建预览和事务。
+6. **BOX-R1（进行中）**：A 有限激活合同（EngineeringComplete / RealProcessPass）→ B 原生 `IExplorerCommand` 与 MSIX `Directory\Background` 清单（当前）→ C 可丢弃账户真实安装/菜单/卸载证据 → D Explorer 重启、显示器、DPI 与失败恢复；全部复用统一创建预览和事务。
 7. **FOLDER-R1**：盒子选择并绑定单个文件夹，完成内容呈现、刷新、解绑、权限/离线/失效状态。
 8. **PF-007A2/PF-007B**：真实 Explorer 拖入、盒子间改归属、无效目标、失败补偿和一次撤销。
 9. **M1 产品证据冲刺**：完整两分钟旅程，而不是分散控件证据。
@@ -389,7 +389,20 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 | Release 核心套件 | 1,236 项零失败 | 1,236/1,236 通过，0 跳过 | 无差异 |
 | 真实启动/单实例 | 显式启动唯一控制中心；后台启动唯一 DesktopHost；二次显式启动唤起控制中心；退出零进程、零临时配置写入 | 显式启动 2,302 ms；后台宿主 1,828 ms；二次进程退出码 0 且控制中心数 1；3 秒响应；最终进程 0、临时配置写入 0 | 无差异，均低于 10 秒预算 |
 | UI 合同 | 正式 XAML 合同与唯一 AutomationId 集通过 | 184 个必需 AutomationId，结果 Pass | 无差异；不替代人工 Narrator/物理键盘证据 |
-| Explorer 背景命令 | 桌面任意空白处出现“新建 Long方格盒子” | 尚无原生命令 DLL、清单注册或已签名安装证据 | BOX-R1-A～C 待实现；禁止将按钮菜单或静态清单计为完成 |
+| Explorer 背景命令 | 桌面任意空白处出现“新建 Long方格盒子” | App 已能安全消费首进程/第二实例创建意图，但尚无原生命令 DLL、清单注册或已签名安装证据 | BOX-R1-B～C 待实现；禁止将 App 激活合同或静态清单计为菜单完成 |
+
+### 9.8 BOX-R1-A 有限激活合同实测记录
+
+正式 App 新增单一参数 `--long-grid-create-box=v1,x,y,issuedAtUnixMs,nonce`。解析器限制参数长度、版本、绝对坐标、30 秒有效期、5 秒未来时钟偏差和非空 GUID nonce；多命令、畸形、越界、过期、过度未来和重复 nonce 均有限拒绝。App 只使用坐标重新匹配当前权威 WorkArea，再以当前 workspace revision/topology generation 构造 `ExplorerContextMenu` 创建请求；成功路径只打开既有创建预览，不新增直接保存入口。
+
+| 真实验证 | 预期 | 首次实际 | 修正后实际 |
+|---|---|---|---|
+| Release 编译 | 0 warning / 0 error | CA1859 阻断宽泛返回类型，随后接口合并暴露 C# 推导错误 | 收紧返回数组并显式提升证据接口后 0/0 |
+| 首进程激活 | 首次 Shell 启动显示一次真实预览，取消零写入 | 首轮预览被驱动但视觉树尚未加载，`PreviewVisualTreeCount=0` | 激活安全回退窗口后有限等待 100 ms；预览/视觉树/激活均为 1，盒子 0→0，Difference=None |
+| 已运行单实例 | 第二进程退出 0，主进程显示一次预览 | 第二进程退出 0；预览/视觉树/激活均为 1 | 无产品差异 |
+| 重复 nonce | 两个发送进程退出，但只消费一次 | 两个进程退出码均为 0，主进程预览次数 1 | 无差异，重复输入未生成第二预览 |
+| 文件安全 | 隔离配置、用户正常配置与桌面元数据均不改变 | Initial / Redirect / DuplicateRedirect 三场景均为 false；最终活动进程 0 | 无差异 |
+| 回归 | 普通显式/后台/单实例和 UI 合同保持 | 显式 4,965 ms、后台 3,261 ms、二次唤起通过、零临时配置写入；184-ID Pass；核心 1,247/1,247 | 无差异，均低于 10 秒启动预算 |
 
 ## 10. 真实测试与差异修正规则
 
@@ -421,7 +434,7 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 
 - 工程底座：较强，PF-001～PF-006 已具备大量正式链路；
 - GitHub 主分支交付：UI-R1A～UI-R1E-A 已按 #239 → #240 → #241 → #242 合入，文档收口 #243 与显式启动修正 #244 也已合入 `main@288838c`；#238 已作为重复路径关闭；
-- M1 桌面盒子/文件夹绑定：未完成；产品壳层、真实概览、盒子管理、设置分层和显式启动入口已形成；UI-R1E 人工辅助功能矩阵保留为出口门禁，当前工程进入 BOX-R1-A，随后仍缺真实文件夹绑定、Explorer 拖放和集中物理证据；
+- M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A 激活合同已完成，当前进入 BOX-R1-B 原生 Explorer 命令；随后仍缺真实文件夹绑定、Explorer 拖放和集中物理证据；
 - M2 任务栏美化核心：技术审计存在，产品运行时尚未开始；
 - M3 桌面管理增强：未开始闭环；
 - M4 工作空间/小组件/插件：协议或文档阶段；
@@ -435,4 +448,4 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 
 ## 13. 下一步开始条件
 
-下一次开发直接进入 BOX-R1-A：定义唯一、有限、可版本化的 Explorer 背景创建激活参数，使首进程和已运行单实例都只打开既有创建预览，不直接保存；用真实 Release 进程验证预览窗口、取消零配置写入和第二实例重定向。随后才进入原生 COM DLL 与 MSIX 清单。UI-R1E 人工矩阵必须在 M1 出口前由专用账户完成；系统状态只能由操作者明确设置，不由自动化修改安全、隐私或辅助功能设置。
+下一次开发直接进入 BOX-R1-B：新增最小 x64 `IExplorerCommand` DLL，将唯一 CLSID 同步注册到 `windows.comServer` 与 `windows.fileExplorerContextMenus`，只声明 `Directory\Background`，并把 v1 激活参数交给正式 App。该阶段必须证明 Shell 回调无产品 I/O、DLL 与清单进入同一 MSIX，但仍不得把静态清单或编译成功写成真实 Explorer 菜单已完成；真实安装/菜单/卸载留在 BOX-R1-C 的受批准签名与可丢弃账户中执行。
