@@ -555,8 +555,9 @@ PF-007B DesktopHost 盒子间改归属记录（2026-08-26，基线 `origin/main@
 | 验证面 | 预期 | 实际 | 差异与修正 |
 |---|---|---|---|
 | 正式 Release 启动 | 隔离进程存活，并依次到达唯一实例、配置隔离和 App 构造阶段 | 真实 `LongGrid.App.exe` 存活；记录 `InstanceKeyResolved → AppInstanceCurrent → ConfigurationIsolationAccepted → AppConstructed` | `Difference=None`；新增启动阶段日志，避免只凭进程号推断成功 |
-| 配置与文件安全 | 测试配置必须位于精确临时会话；正常配置和 Unicode 夹具前后哈希不变 | 配置路径位于精确会话；本机正常配置前后均为 `MISSING`；夹具 SHA-256 指纹前后均为 `BD2BDC65...D7ADC` | `Difference=None`；会话根要求精确 GUID marker 并拒绝 reparse point |
+| 配置与文件安全 | 测试配置必须位于精确临时会话；正常配置和 Unicode 夹具前后哈希不变 | 配置路径位于精确会话；本机正常配置前后均为 `MISSING`；最终 Windows PowerShell 5.1 实测夹具 SHA-256 指纹前后均为 `A697FC8C...6001` | `Difference=None`；会话根要求精确 GUID marker 并拒绝 reparse point |
 | 构建编排 | Release 0 warning / 0 error | 首次把格式化和构建组合执行时，中间 XAML DLL 被并发任务占用，实际出现 CS2012/WMC9999；等待残留任务结束并严格串行后 0/0 | 已修正测试编排，不删除中间文件、不放宽编译门禁 |
+| CI PowerShell 兼容 | GitHub Windows runner 的 Windows PowerShell 5.1 能执行同一 ValidateOnly 合同 | PR #254 首轮实际因无 BOM UTF-8 中文脚本被 ANSI 误读而解析失败；同款本机 5.1 复测又暴露 `Path.GetRelativePath`、`SHA256.HashData` 不存在 | 保留 Unicode 夹具但改由 ASCII 源码按 code point 生成；路径改为验证前缀后的 `Substring`，哈希改为 `SHA256.Create/ComputeHash`；没有改 CI shell 或跳过合同 |
 | 真实产品窗口 | 正式窗口可见并可由物理输入完成创建/绑定 | 正式 Release 正常产品窗口已显示“桌面概览/盒子管理/个性化/设置”；隔离窗口恢复时连续检测到活跃用户输入和最小化，Computer Use 按规则停止抢占 | `ProductEvidencePending`；没有把启动日志或截图冒充点击通过，待空闲桌面或可丢弃账户继续 |
 | DesktopHost 完整旅程 | 桌面右键、Explorer 拖入、盒子间拖动和撤销均用真实鼠标完成 | 当前已有一份无法由本会话结束的高权限 Long方格常驻进程；隔离控制中心会话为避免双宿主显式禁用 DesktopHost | `EnvironmentBlocked / ProductEvidencePending`；不绕过权限、不强杀、不修改安全策略 |
 

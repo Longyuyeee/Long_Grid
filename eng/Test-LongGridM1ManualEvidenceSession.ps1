@@ -26,18 +26,34 @@ function Get-DirectoryFingerprint {
     if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
         return 'MISSING'
     }
+    $root = [IO.Path]::GetFullPath($Path).TrimEnd(
+        [IO.Path]::DirectorySeparatorChar,
+        [IO.Path]::AltDirectorySeparatorChar) +
+        [IO.Path]::DirectorySeparatorChar
     $lines = @(
         Get-ChildItem -LiteralPath $Path -File -Recurse -Force |
             Sort-Object FullName |
             ForEach-Object {
-                $relative = [IO.Path]::GetRelativePath($Path, $_.FullName)
+                $fullName = [IO.Path]::GetFullPath($_.FullName)
+                Assert-Condition `
+                    ($fullName.StartsWith(
+                        $root,
+                        [StringComparison]::OrdinalIgnoreCase)) `
+                    'Fingerprint input escaped its expected root.'
+                $relative = $fullName.Substring($root.Length)
                 $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
                 "$relative|$($_.Length)|$hash"
             }
     )
     $payload = [Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))
-    return [Convert]::ToHexString(
-        [Security.Cryptography.SHA256]::HashData($payload))
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        return [BitConverter]::ToString(
+            $sha256.ComputeHash($payload)).Replace('-', '')
+    }
+    finally {
+        $sha256.Dispose()
+    }
 }
 
 if ($ValidateOnly) {

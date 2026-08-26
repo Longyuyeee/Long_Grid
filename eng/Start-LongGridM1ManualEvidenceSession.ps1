@@ -30,6 +30,11 @@ function Assert-Condition {
     }
 }
 
+function ConvertFrom-CodePoints {
+    param([int[]]$CodePoints)
+    return -join @($CodePoints | ForEach-Object { [char]$_ })
+}
+
 function Resolve-EvidenceDirectory {
     param([string]$SessionId)
 
@@ -130,21 +135,35 @@ $previousSession = [Environment]::GetEnvironmentVariable($environmentName, 'Proc
 $previousDisableHost = [Environment]::GetEnvironmentVariable(
     $disableHostEnvironmentName,
     'Process')
+$unicodeSubdirectory = ConvertFrom-CodePoints @(0x5B50, 0x76EE, 0x5F55)
+$unicodeKeepFile =
+    (ConvertFrom-CodePoints @(0x4FDD, 0x7559, 0x6587, 0x4EF6)) + '.txt'
+$unicodeSecondFile =
+    (ConvertFrom-CodePoints @(0x7B2C, 0x4E8C, 0x4E2A, 0x9879, 0x76EE)) +
+    '.txt'
+$navigation = @(
+    (ConvertFrom-CodePoints @(0x684C, 0x9762, 0x6982, 0x89C8)),
+    (ConvertFrom-CodePoints @(0x76D2, 0x5B50, 0x7BA1, 0x7406)),
+    (ConvertFrom-CodePoints @(0x4E2A, 0x6027, 0x5316)),
+    (ConvertFrom-CodePoints @(0x8BBE, 0x7F6E))
+)
 
 New-Item -ItemType Directory -Path $configurationDirectory -Force | Out-Null
-New-Item -ItemType Directory -Path (Join-Path $fixtureDirectory '子目录') -Force |
+New-Item -ItemType Directory `
+    -Path (Join-Path $fixtureDirectory $unicodeSubdirectory) `
+    -Force |
     Out-Null
 Set-Content `
     -LiteralPath (Join-Path $evidenceDirectory '.longgrid-m1-session') `
     -Value $sessionId `
     -NoNewline
 Set-Content `
-    -LiteralPath (Join-Path $fixtureDirectory '保留文件.txt') `
-    -Value 'Long方格 M1 真实文件夹绑定测试；内容不得被修改。' `
+    -LiteralPath (Join-Path $fixtureDirectory $unicodeKeepFile) `
+    -Value 'Long Grid M1 folder-binding fixture; content must not change.' `
     -NoNewline
 Set-Content `
-    -LiteralPath (Join-Path $fixtureDirectory '第二个项目.txt') `
-    -Value 'Explorer Link 拖入和打开测试；内容不得被修改。' `
+    -LiteralPath (Join-Path $fixtureDirectory $unicodeSecondFile) `
+    -Value 'Explorer Link and open fixture; content must not change.' `
     -NoNewline
 
 $expected = [ordered]@{
@@ -153,7 +172,7 @@ $expected = [ordered]@{
     sessionId = $sessionId
     expected = [ordered]@{
         productWindowVisible = $true
-        normalProductNavigation = @('桌面概览', '盒子管理', '个性化', '设置')
+        normalProductNavigation = $navigation
         createBox = 'Visible physical input creates one persisted box in the control center.'
         bindFolder = 'FolderPicker binds the fixture without modifying its files.'
         refreshAndOpen = 'The box shows direct children and opens by the system handler.'
