@@ -6,7 +6,7 @@
 
 更新日期：2026-08-26
 
-代码审计基线：`origin/main@2980857`；PF-007B 实现分支 `codex/pf-007b-reassignment`
+代码审计基线：`origin/main@183829a`；最新统一审计见 [Stage 209](209-current-development-alignment-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -198,8 +198,8 @@ GitHub 集成结果：#238 已注明被 #239 覆盖并关闭；#239、#240、#24
 | 原始需求 | 当前事实 | 目标里程碑 |
 |---|---|---|
 | 桌面右键创建盒子与基本管理 | PF-001～PF-006 有大量工程链；右键菜单目前只覆盖宿主“新建”按钮区域，桌面任意空白处创建与完整物理旅程待补 | M1 |
-| 盒子绑定文件夹 | 只有引用、目录枚举和 Portal 设计底座，真实绑定盒子未闭环 | M1 |
-| Explorer 拖入和方格间整理 | PF-007A1 基础完成，真实 DropTarget/方格间拖放未完成 | M1 |
+| 盒子绑定文件夹 | FOLDER-R1 A～D 工程链与真实 NTFS 身份、内容、事件、权限/离线恢复已完成；物理 Picker、可见刷新/打开、键盘和 Narrator 未闭环 | M1 |
+| Explorer 拖入和方格间整理 | PF-007A2/B 已完成正式 OLE Link、盒子间改归属、原子提交和撤销；真实 Explorer/盒子间物理指针证据未完成 | M1 |
 | 正常、现代的软件 UI | UI-R1A～UI-R1D 已完成产品结构；UI-R1E-A 已取得真实浅/深色、宽/紧凑渲染并修正标题重叠，高对比/减少动画仍待补 | M1，持续纠偏 |
 | 任务栏美化 | 竞品/技术边界文档存在，运行时和设置 UI 未实现 | M2，核心支柱 |
 | 自动分类整理 | 未形成真实规则用户闭环 | M3 扩展 |
@@ -447,7 +447,7 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 ## 12. 当前完成度口径
 
 - 工程底座：较强，PF-001～PF-006 已具备大量正式链路；
-- GitHub 主分支交付：UI-R1A～UI-R1E-A 已按 #239 → #240 → #241 → #242 合入，文档收口 #243 与显式启动修正 #244 也已合入 `main@288838c`；#238 已作为重复路径关闭；
+- GitHub 主分支交付：UI-R1A～UI-R1E、BOX-R1-A/B、FOLDER-R1-A～D、PF-007A2/B 与 M1-A/B 证据安全入口均已合入 `origin/main@183829a`；完整事实见 [Stage 209](209-current-development-alignment-audit.md)；
 - M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，BOX-R1-C、FOLDER-R1、真实 Explorer 指针拖入和盒子间物理拖动证据 Pending；当前执行 M1 集中物理证据；
 - M2 任务栏美化核心：技术审计存在，产品运行时尚未开始；
 - M3 桌面管理增强：未开始闭环；
