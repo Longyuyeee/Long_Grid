@@ -481,7 +481,7 @@ FOLDER-R1-B 真实提交记录（2026-08-26，基线 `origin/main@e1fd469`）：
 | 显式选择与取消 | 只在用户点击后打开系统 `FolderPicker`；取消必须在提交前返回且零写入 | 187-ID 正式 XAML/代码合同通过，确认 Picker 绑定窗口句柄、`folder is null` 分支先于提交并声明 `Changed=False` | 自动合同对齐；跨进程工具未完成实际取消点击，不能把这一行标为物理证据通过 |
 | 绑定/重连 | 成功选择转换为 A 阶段稳定身份，并以当前盒子序号和共享修订提交；失效绑定可选择新目录覆盖 | `BindFolder` 只接受 `Resolved` 身份，走 `SetFolderBinding → Project → saves.Submit`；真实 NTFS 目录提交通过，路径/文件 ID 经真实配置 Store 重载一致 | 对齐；相同绑定为 NoChange，Picker 等待期间修订变化为 `StaleEditRevision` |
 | 解绑与锁定 | 已绑定盒子可显式解绑；锁定盒子、夹带字段和无绑定解绑失败关闭 | `UnbindFolder` 只接受已绑定目标和显式确认；锁定返回 `ContainerLocked`，非绑定动作夹带身份返回 `InvalidRequest`，均零提交 | 对齐；解绑只清除 Long方格引用，不删除目录 |
-| 保存失败与撤销 | 绑定和解绑复用已有一次撤销与保存失败补偿，不产生旁路写入 | 两个动作映射 `FolderBinding` undo kind，App 继续登记同一 `pendingControlCenterContainerEdit`，失败时经 `CommitContainerEditUndo` 恢复 | 对齐工程合同；远端完整 CI 通过后再关闭本阶段集成门禁 |
+| 保存失败与撤销 | 绑定和解绑复用已有一次撤销与保存失败补偿，不产生旁路写入 | 两个动作映射 `FolderBinding` undo kind，App 继续登记同一 `pendingControlCenterContainerEdit`，失败时经 `CommitContainerEditUndo` 恢复 | 对齐；PR #249 首轮完整 `build-test` 7m32s 通过，包括测试、覆盖率、文件安全、资源、依赖和 RC 门禁 |
 | 用户文件安全 | 绑定、解绑、重连均不改变目录内容 | 真实临时目录的 `keep.txt` / `user.txt` 内容前后完全一致；真实 Store 只写隔离配置目录 | 对齐；未读取或写入用户桌面目录与正常配置 |
 | 回归 | Release 编译、完整核心测试、格式、UI/无障碍链通过 | 本地 Release 0 warning / 0 error；1,256/1,256；格式通过；187-ID 和 BSA ValidateOnly 通过 | 自动化对齐；BSA 物理 Narrator/键盘仍按既有门禁 Pending |
 
