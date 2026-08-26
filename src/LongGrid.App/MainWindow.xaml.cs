@@ -79,6 +79,7 @@ public sealed partial class MainWindow : Window
         Task<ProductConfigurationEvidenceRemovalResult>> _removeConfigurationEvidence;
     private readonly Func<ProductWorkspaceSaveRetryResult> _retryProductWorkspaceSave;
     private readonly Func<Task> _refreshProductDesktopCatalog;
+    private readonly Func<Task> _refreshProductWorkspaceFolderContents;
     private readonly Func<
         ProductWorkspaceReferenceReviewToken,
         ProductWorkspaceReferenceAction,
@@ -213,6 +214,7 @@ public sealed partial class MainWindow : Window
             Task<ProductConfigurationEvidenceRemovalResult>> removeConfigurationEvidence,
         Func<ProductWorkspaceSaveRetryResult> retryProductWorkspaceSave,
         Func<Task> refreshProductDesktopCatalog,
+        Func<Task> refreshProductWorkspaceFolderContents,
         Func<
             ProductWorkspaceReferenceReviewToken,
             ProductWorkspaceReferenceAction,
@@ -308,6 +310,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(removeConfigurationEvidence);
         ArgumentNullException.ThrowIfNull(retryProductWorkspaceSave);
         ArgumentNullException.ThrowIfNull(refreshProductDesktopCatalog);
+        ArgumentNullException.ThrowIfNull(refreshProductWorkspaceFolderContents);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceReferenceAction);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceResolvedReferenceBatch);
         ArgumentNullException.ThrowIfNull(
@@ -341,6 +344,8 @@ public sealed partial class MainWindow : Window
         _removeConfigurationEvidence = removeConfigurationEvidence;
         _retryProductWorkspaceSave = retryProductWorkspaceSave;
         _refreshProductDesktopCatalog = refreshProductDesktopCatalog;
+        _refreshProductWorkspaceFolderContents =
+            refreshProductWorkspaceFolderContents;
         _commitProductWorkspaceReferenceAction =
             commitProductWorkspaceReferenceAction;
         _commitProductWorkspaceResolvedReferenceBatch =
@@ -2426,9 +2431,62 @@ public sealed partial class MainWindow : Window
             _ => ("尚未绑定文件夹。", "Unbound"),
         };
         ProductWorkspaceFolderBindingStatus.Text = text;
+        ProductWorkspaceReadContainerPresentation? readContainer = selected is null
+            ? null
+            : _workspaceRead.Containers.FirstOrDefault(container =>
+                container.Ordinal == selected.Ordinal);
+        if (readContainer?.FolderContentStatus is { } contentStatus)
+        {
+            ProductWorkspaceFolderBindingStatus.Text += contentStatus switch
+            {
+                ProductWorkspaceFolderContentStatus.Ready =>
+                    $" 已显示 {readContainer.FolderContentItemCount} 个直属项目。",
+                ProductWorkspaceFolderContentStatus.Empty => " 文件夹当前为空。",
+                ProductWorkspaceFolderContentStatus.Truncated =>
+                    $" 已显示前 {readContainer.FolderContentItemCount} 个项目；目录较大，可缩小范围后刷新。",
+                ProductWorkspaceFolderContentStatus.ReadyWithSkippedEntries =>
+                    $" 已显示 {readContainer.FolderContentItemCount} 个安全项目；链接或重解析点未展示。",
+                ProductWorkspaceFolderContentStatus.AccessDenied =>
+                    " 当前没有权限读取内容。",
+                ProductWorkspaceFolderContentStatus.InvalidTarget =>
+                    " 绑定目标无效，未展示内容。",
+                ProductWorkspaceFolderContentStatus.BindingUnavailable =>
+                    " 绑定已失效，请重新选择文件夹。",
+                ProductWorkspaceFolderContentStatus.EnumerationFailed =>
+                    " 读取被中断，未展示部分结果，请重试。",
+                _ => " 正在准备文件夹内容。",
+            };
+        }
+        ProductWorkspaceFolderRefreshButton.IsEnabled = selected is not null
+            && selected.FolderBindingResolution ==
+                ProductContainerFolderBindingResolution.Resolved;
         AutomationProperties.SetItemStatus(
             ProductWorkspaceFolderBindingStatus,
-            $"FolderBinding{machineState}:Changed=False:DesktopFilesChanged=False");
+            $"FolderBinding{machineState}:Content=" +
+                $"{readContainer?.FolderContentStatus?.ToString() ?? "None"}:" +
+                $"Items={readContainer?.FolderContentItemCount ?? 0}:" +
+                "Changed=False:DesktopFilesChanged=False");
+    }
+
+    private async void ProductWorkspaceFolderRefreshButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ProductWorkspaceFolderRefreshButton.IsEnabled = false;
+        ProductWorkspaceFolderBindingStatus.Text = "正在刷新绑定文件夹内容……";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceFolderBindingStatus,
+            "FolderContentRefreshing:Changed=False:DesktopFilesChanged=False");
+        try
+        {
+            await _refreshProductWorkspaceFolderContents();
+        }
+        finally
+        {
+            ApplyProductWorkspaceFolderBindingStatus(
+                ProductWorkspaceContainerEditSelector.SelectedItem as
+                    ProductWorkspaceContainerEditCandidatePresentation);
+        }
     }
 
     private async void ProductWorkspaceFolderBindButton_Click(

@@ -41,7 +41,8 @@ internal sealed record ProductWorkspaceResolvedReferenceReassignmentPresentation
         bool hasResolvedSource = snapshot.Containers.Any(container =>
             !container.IsLocked
             && container.Items.Any(item => item.Resolution ==
-                ProductItemReferenceResolution.Resolved));
+                ProductItemReferenceResolution.Resolved
+                && item.Source == ProductWorkspaceReadItemSource.Reference));
         return new(
             editRevision,
             canEdit && hasResolvedSource && targets.Length >= 2,

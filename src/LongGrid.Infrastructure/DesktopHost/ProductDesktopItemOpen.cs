@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using LongGrid.Core.Configuration;
+using LongGrid.Infrastructure.Configuration;
 
 namespace LongGrid.Infrastructure.DesktopHost;
 
@@ -209,7 +210,8 @@ public sealed class ProductDesktopItemOpenController
         ProductDesktopItemOpenRequest request,
         ProductWorkspaceState? state,
         long currentWorkspaceRevision,
-        ProductDisplayTopologySnapshot topology)
+        ProductDisplayTopologySnapshot topology,
+        ProductWorkspaceFolderContentSet? folderContents = null)
     {
         lock (gate)
         {
@@ -219,12 +221,14 @@ public sealed class ProductDesktopItemOpenController
                         request,
                         state,
                         currentWorkspaceRevision,
-                        topology)
+                        topology,
+                        folderContents)
                     : OpenUnsafe(
                         request,
                         state,
                         currentWorkspaceRevision,
-                        topology);
+                        topology,
+                        folderContents);
             return result with
             {
                 CanRetry = CanRetry(result.Status),
@@ -234,6 +238,7 @@ public sealed class ProductDesktopItemOpenController
                         state,
                         currentWorkspaceRevision,
                         topology,
+                        folderContents,
                         out _,
                         out _),
             };
@@ -244,15 +249,17 @@ public sealed class ProductDesktopItemOpenController
         ProductDesktopItemOpenRequest request,
         ProductWorkspaceState? state,
         long currentWorkspaceRevision,
-        ProductDisplayTopologySnapshot topology)
+        ProductDisplayTopologySnapshot topology,
+        ProductWorkspaceFolderContentSet? folderContents)
     {
         LastLaunchProcessIdForEvidence = 0;
         if (!TryResolveExplorerLocation(
                 request,
-                state,
-                currentWorkspaceRevision,
-                topology,
-                out string? location,
+            state,
+            currentWorkspaceRevision,
+            topology,
+            folderContents,
+            out string? location,
                 out bool selectTarget,
                 out ProductDesktopItemOpenStatus failure))
         {
@@ -298,12 +305,14 @@ public sealed class ProductDesktopItemOpenController
         ProductWorkspaceState? state,
         long currentWorkspaceRevision,
         ProductDisplayTopologySnapshot topology,
+        ProductWorkspaceFolderContentSet? folderContents,
         out string? location,
         out bool selectTarget) => TryResolveExplorerLocation(
             request,
             state,
             currentWorkspaceRevision,
             topology,
+            folderContents,
             out location,
             out selectTarget,
             out _);
@@ -313,6 +322,7 @@ public sealed class ProductDesktopItemOpenController
         ProductWorkspaceState? state,
         long currentWorkspaceRevision,
         ProductDisplayTopologySnapshot topology,
+        ProductWorkspaceFolderContentSet? folderContents,
         out string? location,
         out bool selectTarget,
         out ProductDesktopItemOpenStatus failure)
@@ -340,8 +350,27 @@ public sealed class ProductDesktopItemOpenController
             .Take(2)
             .ToArray();
         if (containers.Length != 1
-            || !DisplayMatches(containers[0], request.DisplayId, topology)
-            || !TryParseOrdinal(request.ItemId, out int ordinal)
+            || !DisplayMatches(containers[0], request.DisplayId, topology))
+        {
+            failure = ProductDesktopItemOpenStatus.TargetUnavailable;
+            return false;
+        }
+        if (request.ItemId.StartsWith("folder:", StringComparison.Ordinal))
+        {
+            if (!TryResolveFolderContentItem(
+                    request,
+                    containers[0],
+                    folderContents,
+                    out ProductWorkspaceFolderContentItem? folderItem,
+                    out failure))
+            {
+                return false;
+            }
+            location = folderItem!.Target;
+            selectTarget = true;
+            return true;
+        }
+        if (!TryParseOrdinal(request.ItemId, out int ordinal)
             || ordinal > containers[0].Items.Count)
         {
             failure = ProductDesktopItemOpenStatus.TargetUnavailable;
@@ -426,7 +455,8 @@ public sealed class ProductDesktopItemOpenController
         ProductDesktopItemOpenRequest request,
         ProductWorkspaceState? state,
         long currentWorkspaceRevision,
-        ProductDisplayTopologySnapshot topology)
+        ProductDisplayTopologySnapshot topology,
+        ProductWorkspaceFolderContentSet? folderContents)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(topology);
@@ -451,8 +481,39 @@ public sealed class ProductDesktopItemOpenController
             .Take(2)
             .ToArray();
         if (containers.Length != 1
-            || !DisplayMatches(containers[0], request.DisplayId, topology)
-            || !TryParseOrdinal(request.ItemId, out int ordinal)
+            || !DisplayMatches(containers[0], request.DisplayId, topology))
+        {
+            return Result(ProductDesktopItemOpenStatus.TargetUnavailable, request);
+        }
+
+        if (request.ItemId.StartsWith("folder:", StringComparison.Ordinal))
+        {
+            if (!TryResolveFolderContentItem(
+                    request,
+                    containers[0],
+                    folderContents,
+                    out ProductWorkspaceFolderContentItem? folderItem,
+                    out ProductDesktopItemOpenStatus failure))
+            {
+                return Result(failure, request);
+            }
+            string folderTarget = folderItem!.Target;
+            string? folderParameters = null;
+            if (folderItem.Kind is ConfigurationItemKind.Shortcut
+                or ConfigurationItemKind.Url)
+            {
+                ProductDesktopItemOpenReferenceResolution reference =
+                    referenceResolver.Resolve(folderItem.Kind, folderTarget);
+                if (!reference.IsResolved)
+                {
+                    return Result(reference.Status, request);
+                }
+                folderTarget = reference.Target!;
+                folderParameters = reference.Parameters;
+            }
+            return Launch(folderTarget, folderParameters, request);
+        }
+        if (!TryParseOrdinal(request.ItemId, out int ordinal)
             || ordinal > containers[0].Items.Count)
         {
             return Result(ProductDesktopItemOpenStatus.TargetUnavailable, request);
@@ -548,6 +609,14 @@ public sealed class ProductDesktopItemOpenController
             parameters = resolved.Parameters;
         }
 
+        return Launch(target, parameters, request);
+    }
+
+    private ProductDesktopItemOpenResult Launch(
+        string target,
+        string? parameters,
+        ProductDesktopItemOpenRequest request)
+    {
         try
         {
             ProductDesktopShellLaunchResult launched = launcher.Launch(
@@ -566,6 +635,81 @@ public sealed class ProductDesktopItemOpenController
                 or NotSupportedException)
         {
             return Result(ProductDesktopItemOpenStatus.LaunchFailed, request);
+        }
+    }
+
+    private static bool TryResolveFolderContentItem(
+        ProductDesktopItemOpenRequest request,
+        ProductContainerState container,
+        ProductWorkspaceFolderContentSet? folderContents,
+        out ProductWorkspaceFolderContentItem? item,
+        out ProductDesktopItemOpenStatus failure)
+    {
+        item = null;
+        failure = ProductDesktopItemOpenStatus.TargetUnavailable;
+        ProductWorkspaceContainerFolderContent? content =
+            folderContents?.Find(container.Id);
+        ProductWorkspaceFolderContentItem[] matches = content?.HasUsableProjection == true
+            ? content.Items.Where(candidate => string.Equals(
+                candidate.ItemId,
+                request.ItemId,
+                StringComparison.Ordinal)).Take(2).ToArray()
+            : Array.Empty<ProductWorkspaceFolderContentItem>();
+        if (matches.Length != 1
+            || container.FolderBinding is null
+            || container.FolderBinding.Resolution !=
+                ProductContainerFolderBindingResolution.Resolved)
+        {
+            return false;
+        }
+
+        ProductContainerFolderBindingState binding =
+            WindowsProductContainerFolderBinding.Resolve(container.FolderBinding);
+        if (binding.Resolution != ProductContainerFolderBindingResolution.Resolved
+            || string.IsNullOrWhiteSpace(binding.ResolvedTarget))
+        {
+            return false;
+        }
+
+        try
+        {
+            string root = Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(binding.ResolvedTarget));
+            string target = Path.GetFullPath(matches[0].Target);
+            if (target.Contains('"')
+                || !string.Equals(
+                    Path.GetDirectoryName(target),
+                    root,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                failure = ProductDesktopItemOpenStatus.InvalidRequest;
+                return false;
+            }
+            bool file = File.Exists(target);
+            bool directory = Directory.Exists(target);
+            if (!file && !directory)
+            {
+                return false;
+            }
+            if ((matches[0].Kind == ConfigurationItemKind.Folder && !directory)
+                || (matches[0].Kind != ConfigurationItemKind.Folder && !file))
+            {
+                failure = ProductDesktopItemOpenStatus.TypeChanged;
+                return false;
+            }
+            if ((File.GetAttributes(target) & FileAttributes.ReparsePoint) != 0)
+            {
+                failure = ProductDesktopItemOpenStatus.ReparsePointRejected;
+                return false;
+            }
+            item = matches[0] with { Target = target };
+            return true;
+        }
+        catch (Exception exception) when (exception is
+            ArgumentException or IOException or NotSupportedException
+                or PathTooLongException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 

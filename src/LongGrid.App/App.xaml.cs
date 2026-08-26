@@ -228,6 +228,7 @@ public partial class App : Application
             item => configurationStore.RemoveEvidenceAsync(item, userConfirmed: true),
             () => productWorkspaceSaves.Retry(),
             RefreshProductDesktopCatalogAsync,
+            RefreshProductWorkspaceFolderContentsAsync,
             CommitProductWorkspaceReferenceAction,
             CommitProductWorkspaceResolvedReferenceBatch,
             CommitProductWorkspaceReferenceBatchAdditionUndo,
@@ -260,6 +261,8 @@ public partial class App : Application
         productDesktopHostLifecycle.BindItemViewport(
             RequestDesktopItemViewport);
         productDesktopHostLifecycle.BindItemOpen(RequestDesktopItemOpen);
+        folderContentWatcher.Invalidated +=
+            ProductWorkspaceFolderContentWatcher_Invalidated;
         window.DesktopKeyboardInteractionRequested +=
             MainWindow_DesktopKeyboardInteractionRequested;
         window.BoxesEnabledChangeRequested +=
@@ -1806,6 +1809,7 @@ public partial class App : Application
         }
 
         currentWindow.ApplyProductWorkspaceSessionState(productWorkspaceSession);
+        EnsureProductWorkspaceFolderContents();
         ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
         ProductWorkspaceLayoutRecoveryReviewResult layoutReview =
             ProductWorkspaceLayoutRecoveryReview.Prepare(
@@ -1833,7 +1837,9 @@ public partial class App : Application
                 ProductWorkspaceProjectionError.InvalidState,
                 ProductConfigurationError.None,
                 null)
-            : ProductWorkspaceReadModel.Create(productWorkspaceSession.State);
+            : ProductWorkspaceReadModel.Create(
+                productWorkspaceSession.State,
+                folderContents);
         ApplyProductDesktopHostProjection(topology);
         ProductWorkspaceReadPresentation readPresentation = readModel.IsSuccess
             ? ProductWorkspaceReadPresentation.Create(readModel.Snapshot!)
@@ -2571,8 +2577,16 @@ public partial class App : Application
                     StringComparison.Ordinal))
                 .Take(2)
                 .ToArray();
+            ProductWorkspaceReadContainer? visible = targets.Length == 1
+                ? ProductWorkspaceReadModel.Create(state, folderContents)
+                    .Snapshot?.Containers.SingleOrDefault(container =>
+                        container.Ordinal == Array.FindIndex(
+                            state.Containers.ToArray(),
+                            candidate => ReferenceEquals(candidate, targets[0])) + 1)
+                : null;
             if (targets.Length != 1
-                || targets[0].Items.Count <=
+                || visible is null
+                || visible.Items.Count <=
                     ProductDesktopHostReadOnlyProjection.MaximumVisibleItems)
             {
                 return;
@@ -2598,7 +2612,7 @@ public partial class App : Application
                     : 0;
             int nextStart = ProductDesktopItemViewportPolicy.Move(
                 currentStart,
-                targets[0].Items.Count,
+                visible.Items.Count,
                 request.WheelDelta);
             if (nextStart == currentStart)
             {
@@ -2622,7 +2636,8 @@ public partial class App : Application
             request,
             productWorkspaceSession.State,
             workspaceCommits.CurrentEditRevision,
-            productDisplayTopology.Snapshot);
+            productDisplayTopology.Snapshot,
+            folderContents);
     }
 
     private bool RequestDesktopContainerLayout(
@@ -3333,8 +3348,8 @@ public partial class App : Application
                 ProductWorkspaceProjectionError.InvalidState,
                 ProductConfigurationError.None,
                 null)
-            : ProductWorkspaceReadModel.Create(desktopHostState);
-        NormalizeDesktopItemViewports(desktopHostState);
+            : ProductWorkspaceReadModel.Create(desktopHostState, folderContents);
+        NormalizeDesktopItemViewports(desktopHostState, desktopHostReadModel.Snapshot);
         long workspaceRevision = workspaceCommits.CurrentEditRevision;
         IReadOnlyList<ProductDesktopThumbnailCandidate> candidates =
             ProductDesktopThumbnailCandidateBuilder.Build(
@@ -3377,17 +3392,28 @@ public partial class App : Application
             desktopThumbnailRefreshCancellation.Token);
     }
 
-    private void NormalizeDesktopItemViewports(ProductWorkspaceState? state)
+    private void NormalizeDesktopItemViewports(
+        ProductWorkspaceState? state,
+        ProductWorkspaceReadSnapshot? readSnapshot)
     {
         if (state is null)
         {
             desktopItemViewportStarts.Clear();
             return;
         }
-        var valid = state.Containers.ToDictionary(
-            container => container.Id,
-            container => container.Items.Count,
-            StringComparer.Ordinal);
+        var valid = state.Containers
+            .Select((container, index) => new
+            {
+                container.Id,
+                Count = readSnapshot is not null
+                    && index < readSnapshot.Containers.Count
+                        ? readSnapshot.Containers[index].Items.Count
+                        : container.Items.Count,
+            })
+            .ToDictionary(
+                entry => entry.Id,
+                entry => entry.Count,
+                StringComparer.Ordinal);
         foreach (string stale in desktopItemViewportStarts.Keys
             .Where(key => !valid.ContainsKey(key))
             .ToArray())
@@ -4036,6 +4062,12 @@ public partial class App : Application
             await productResourceTelemetry.DisposeAsync();
         }
         productThumbnailWorker.Dispose();
+        folderContentWatcher.Invalidated -=
+            ProductWorkspaceFolderContentWatcher_Invalidated;
+        folderContentWatcher.Dispose();
+        folderContentRefreshCancellation?.Cancel();
+        folderContentRefreshCancellation?.Dispose();
+        folderContentRefreshCancellation = null;
         desktopThumbnailRefreshCancellation?.Cancel();
         desktopThumbnailRefreshCancellation?.Dispose();
         desktopThumbnailRefreshCancellation = null;

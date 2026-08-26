@@ -142,7 +142,7 @@ public static class ProductDesktopHostProjectionBuilder
                     : name[..ProductDesktopHostReadOnlyProjection.MaximumVisibleNameLength];
             });
             IEnumerable<string> itemIds = viewportItems.Select(item =>
-                $"item:{item.Ordinal}");
+                item.ItemId ?? $"item:{item.Ordinal}");
             IEnumerable<ProductDesktopItemVisualPresentation> itemVisuals =
                 viewportItems.Select(item => ApplyThumbnailResult(
                     source.Id,
@@ -200,7 +200,8 @@ public static class ProductDesktopHostProjectionBuilder
             ProductDesktopItemVisualPresentation.Create(
                 item.Kind,
                 item.Resolution);
-        if (thumbnailResults is null
+        if (item.Source != ProductWorkspaceReadItemSource.Reference
+            || thumbnailResults is null
             || !thumbnailResults.TryGetValue(
                 ProductDesktopThumbnailItemKey.Create(containerId, item.Ordinal),
                 out ProductDesktopThumbnailResult? thumbnail))
