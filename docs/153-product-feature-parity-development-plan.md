@@ -52,7 +52,7 @@
 
 - 创建、拖动、缩放、标题栏操作、图标/缩略图、选择和安全打开已有正式工程链，但物理输入/Narrator/高对比证据债务仍使 PF-001～PF-005 无法产品完成；
 - 用户仍不能像 Fences/iTop 一样完成桌面/Explorer 直接拖入与完整低摩擦整理旅程；框选工程链已完成，但物理鼠标/高对比/Narrator 证据待补；
-- 没有单文件夹绑定盒子、自动整理规则、高级 Portal、Tab、Roll-up、Peek、Quick-hide、托盘与全局快捷键；
+- 单文件夹绑定盒子 A～D 工程链已完成，但物理 Picker、可见刷新/打开、键盘和 Narrator 仍待 M1；自动整理规则、高级 Portal、Tab、Roll-up、Peek、Quick-hide、托盘与全局快捷键尚未实现；
 - 没有可命名布局快照、场景/页面、应用工作空间捕获与启动；
 - 外观已有正式 Design Token、Mica/Acrylic 和品牌 RC1，但桌面 Surface、主题持久化、竞品级标题/间距/图标尺寸/视图模式、动效和无障碍矩阵尚未收口；
 - 核心任务栏美化，以及安装更新、Widgets、壁纸和 Private Box 等能力尚未实现。
@@ -67,7 +67,7 @@
 | 4 | PF-004 | 方格标题栏与就近操作 | `EngineeringComplete / ProductEvidencePending`：A～E 正式工程链完成；物理菜单/双击、触控截图和 Narrator 待补 | Fences 标题栏操作 |
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | `EngineeringComplete / ProductEvidencePending` | Fences/Nimi 项目呈现 |
 | 6 | PF-006 | 项目选择、键盘导航与打开 | `EngineeringComplete / ProductEvidencePending`：A/B/C 工程范围含框选均已集成；物理输入/Narrator/高对比仍 Pending | Fences/Portal 日常访问 |
-| 7 | PF-007 | Explorer 拖入与方格间拖放 | `InProgress`：A1 安全准入、A2 正式 DesktopHost OLE DropTarget 工程链完成；B 方格间拖放和 M1 物理证据待完成 | iTop/Fences 直接拖放 |
+| 7 | PF-007 | Explorer 拖入与方格间拖放 | `EngineeringComplete / ProductEvidencePending`：A1/A2/B 工程链完成；真实 Explorer 指针、盒子间物理拖动和撤销证据待 M1 | iTop/Fences 直接拖放 |
 | 8 | PF-008 | 方格内视图、排序、滚动与间距 | 方格级排序有限 | Nimi/Fences 视图控制 |
 | 9 | PF-009 | 桌面搜索、筛选与快速定位 | 控制中心搜索 | iTop Search |
 | 10 | PF-010 | 统一撤销、重做与操作历史 | 最近动作撤销 | iTop Snapshot/安全恢复 |
@@ -79,7 +79,7 @@
 | 16 | PF-031 | Quick-hide 与 Chameleon 模式 | 未实现 | Fences distraction-free |
 | 17 | PF-032 | Peek 临时置顶访问 | 未实现 | Fences Peek |
 | 18 | PF-033 | 托盘菜单与全局快捷键 | 未实现 | Fences/iTop 快速入口 |
-| 19 | PF-040 | 单文件夹绑定盒子（Core）与高级 Portal | 未实现 | Fences/iTop Portal |
+| 19 | PF-040 | 单文件夹绑定盒子（Core）与高级 Portal | Core 单文件夹绑定 A～D `EngineeringComplete / ProductEvidencePending`；高级多目录 Portal 未实现 | Fences/iTop Portal |
 | 20 | PF-041 | Portal 导航、视图与刷新 | 未实现 | Fences 6 Portal |
 | 21 | PF-042 | Portal 文件操作与拖放边界 | 未实现 | Portal 日常工作流 |
 | 22 | PF-050 | 方格 Tab 合并、切换与拆分 | 未实现 | Fences 6/iTop Tab Mode |
@@ -892,6 +892,6 @@
 
 ## 15. 当前立即执行项
 
-PF-001～PF-006 均为 `EngineeringComplete / ProductEvidencePending`；PF-007A1/A2 工程链已完成。PF-007 仍为 `InProgress`，物理 Explorer 拖入和方格间改归属尚未完成。
+PF-001～PF-006、PF-007A1/A2/B 与单文件夹绑定 A～D 均为 `EngineeringComplete / ProductEvidencePending`。PF-007 的物理 Explorer 拖入和方格间改归属尚未完成，但不得再把 B 写成工程未实现。
 
 2026-08-26 PF-007A/B 工程链完成后，当前唯一执行项为 [M1 集中产品证据冲刺](PRODUCT_EXECUTION_PLAN.md)，以完整用户旅程补齐 BOX、FOLDER、Explorer/盒子拖动和 UI-R1E 人工证据。任何版本在签名和安装门禁完成前不得分发。

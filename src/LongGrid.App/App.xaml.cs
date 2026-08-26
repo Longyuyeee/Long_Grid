@@ -53,6 +53,7 @@ public partial class App : Application
     private readonly ProductUiR1eEvidenceSession? uiR1eEvidenceSession;
     private readonly ProductBoxesRuntimeEnableEvidenceSession?
         boxesRuntimeEnableEvidenceSession;
+    private readonly ProductM1ManualEvidenceSession? m1ManualEvidenceSession;
     private readonly bool backgroundStartup;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
@@ -99,12 +100,16 @@ public partial class App : Application
         uiR1eEvidenceSession = ProductUiR1eEvidenceSession.TryCreateFromEnvironment();
         boxesRuntimeEnableEvidenceSession =
             ProductBoxesRuntimeEnableEvidenceSession.TryCreateFromEnvironment();
+        m1ManualEvidenceSession =
+            ProductM1ManualEvidenceSession.TryCreateFromEnvironment();
+        m1ManualEvidenceSession?.RecordStage("ConfigurationIsolationAccepted");
         int evidenceSessionCount =
             (pf002AppEvidenceSession is null ? 0 : 1)
             + (boxR1ActivationEvidenceSession is null ? 0 : 1)
             + (desktopFirstStartupEvidenceSession is null ? 0 : 1)
             + (uiR1eEvidenceSession is null ? 0 : 1)
-            + (boxesRuntimeEnableEvidenceSession is null ? 0 : 1);
+            + (boxesRuntimeEnableEvidenceSession is null ? 0 : 1)
+            + (m1ManualEvidenceSession is null ? 0 : 1);
         if (evidenceSessionCount > 1)
         {
             throw new InvalidOperationException(
@@ -115,6 +120,7 @@ public partial class App : Application
             ?? desktopFirstStartupEvidenceSession?.DirectoryPath
             ?? uiR1eEvidenceSession?.DirectoryPath
             ?? boxesRuntimeEnableEvidenceSession?.DirectoryPath
+            ?? m1ManualEvidenceSession?.ConfigurationDirectory
             ?? Path.Combine(
                 Environment.GetFolderPath(
                     Environment.SpecialFolder.LocalApplicationData),
