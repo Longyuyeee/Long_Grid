@@ -17,6 +17,10 @@ $artifactRoot = Join-Path $projectRoot 'artifacts'
 $portableZipPath = Join-Path $artifactRoot "LongGrid-$PortableVersion-win-x64.zip"
 $manifestTemplatePath = Join-Path $projectRoot 'packaging\msix\AppxManifest.template.xml'
 $msixReadmePath = Join-Path $projectRoot 'packaging\msix\MSIX-README.txt'
+$explorerCommandBuildScript = Join-Path $PSScriptRoot `
+    'Build-LongGridExplorerCommand.ps1'
+$explorerCommandTestScript = Join-Path $PSScriptRoot `
+    'Test-LongGridExplorerCommand.ps1'
 $logoSourcePath = Join-Path $projectRoot 'assets\brand\rc1\sizes\png\longfangge-256.png'
 $packageBaseName = "LongGrid-$PackageVersion-win-x64-unsigned"
 $msixPath = Join-Path $artifactRoot "$packageBaseName.msix"
@@ -198,6 +202,7 @@ function Test-MsixLayout {
         'AppxManifest.xml',
         'AppxBlockMap.xml',
         'LongGrid.App.exe',
+        'LongGrid.ExplorerCommand.dll',
         'Assets\Square44x44Logo.png',
         'Assets\Square150x150Logo.png',
         'Assets\StoreLogo.png',
@@ -215,6 +220,9 @@ function Test-MsixLayout {
     [xml]$manifest = Get-Content -LiteralPath (Join-Path $LayoutRoot 'AppxManifest.xml') -Raw -Encoding UTF8
     $namespace = [System.Xml.XmlNamespaceManager]::new($manifest.NameTable)
     $namespace.AddNamespace('f', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10')
+    $namespace.AddNamespace('com', 'http://schemas.microsoft.com/appx/manifest/com/windows10')
+    $namespace.AddNamespace('desktop4', 'http://schemas.microsoft.com/appx/manifest/desktop/windows10/4')
+    $namespace.AddNamespace('desktop5', 'http://schemas.microsoft.com/appx/manifest/desktop/windows10/5')
     $namespace.AddNamespace('uap', 'http://schemas.microsoft.com/appx/manifest/uap/windows10')
     $namespace.AddNamespace('rescap', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities')
     $identity = $manifest.SelectSingleNode('/f:Package/f:Identity', $namespace)
@@ -239,6 +247,30 @@ function Test-MsixLayout {
         $application.Executable -ne 'LongGrid.App.exe' -or
         $application.EntryPoint -ne 'Windows.FullTrustApplication') {
         throw 'MSIX application entry point does not match the desktop contract.'
+    }
+
+    $commandClass = $manifest.SelectSingleNode(
+        "/f:Package/f:Applications/f:Application/com:Extension[@Category='windows.comServer']/com:ComServer/com:SurrogateServer/com:Class",
+        $namespace)
+    if ($null -eq $commandClass -or
+        $commandClass.Id -ne '78A940C1-2E65-4A03-9D09-3AC62CEF30BB' -or
+        $commandClass.Path -ne 'LongGrid.ExplorerCommand.dll' -or
+        $commandClass.ThreadingModel -ne 'STA') {
+        throw 'MSIX Explorer command COM registration is invalid.'
+    }
+
+    $itemTypes = @($manifest.SelectNodes(
+        "/f:Package/f:Applications/f:Application/desktop4:Extension[@Category='windows.fileExplorerContextMenus']/desktop4:FileExplorerContextMenus/desktop5:ItemType",
+        $namespace))
+    if ($itemTypes.Count -ne 1 -or
+        $itemTypes[0].Type -ne 'Directory\Background') {
+        throw 'MSIX must expose exactly one Directory\Background command.'
+    }
+    $verb = $itemTypes[0].SelectSingleNode('desktop5:Verb', $namespace)
+    if ($null -eq $verb -or
+        $verb.Id -ne 'CreateLongGridBox' -or
+        $verb.Clsid -ne $commandClass.Id) {
+        throw 'MSIX Explorer command verb does not match its COM class.'
     }
 
     $visualElements = $manifest.SelectSingleNode('/f:Package/f:Applications/f:Application/uap:VisualElements', $namespace)
@@ -305,7 +337,13 @@ if ($env:OS -ne 'Windows_NT') {
     throw 'Long Grid MSIX packaging only supports Windows.'
 }
 
-foreach ($requiredPath in @($manifestTemplatePath, $msixReadmePath, $logoSourcePath)) {
+foreach ($requiredPath in @(
+    $manifestTemplatePath,
+    $msixReadmePath,
+    $logoSourcePath,
+    $explorerCommandBuildScript,
+    $explorerCommandTestScript
+)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required MSIX input is missing: $requiredPath"
     }
@@ -315,12 +353,18 @@ $manifestTemplate = Get-Content -LiteralPath $manifestTemplatePath -Raw -Encodin
 [xml]$manifestContract = $manifestTemplate.Replace('{{PACKAGE_VERSION}}', $PackageVersion)
 if ($manifestTemplate.IndexOf('CN=LongGrid Development', [System.StringComparison]::Ordinal) -lt 0 -or
     $manifestTemplate.IndexOf('Longyuyeee.LongGrid.DeveloperPreview', [System.StringComparison]::Ordinal) -lt 0 -or
+    $manifestTemplate.IndexOf('78A940C1-2E65-4A03-9D09-3AC62CEF30BB', [System.StringComparison]::Ordinal) -lt 0 -or
+    $manifestTemplate.IndexOf('Directory\Background', [System.StringComparison]::Ordinal) -lt 0 -or
     $manifestTemplate.IndexOf('runFullTrust', [System.StringComparison]::Ordinal) -lt 0) {
     throw 'MSIX manifest template is missing the approved Developer Preview identity contract.'
 }
 
 $makeAppxPath = Find-MakeAppx
 if ($ValidateOnly) {
+    & $explorerCommandBuildScript -ValidateOnly | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Native Explorer command build contract validation failed.'
+    }
     [ordered]@{
         outcome = 'Pass'
         mode = 'ValidateOnly'
@@ -329,6 +373,8 @@ if ($ValidateOnly) {
         publisher = 'CN=LongGrid Development'
         packageVersion = $PackageVersion
         makeAppxAvailable = $null -ne $makeAppxPath
+        explorerCommandClsid = '78A940C1-2E65-4A03-9D09-3AC62CEF30BB'
+        explorerCommandItemType = 'Directory\Background'
         signed = $false
         installable = $false
         distributionApproved = $false
@@ -383,6 +429,20 @@ try {
         throw 'Portable package does not match the current source commit.'
     }
 
+    $nativeBuildJson = & $explorerCommandBuildScript | Out-String
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Native Explorer command build failed.'
+    }
+    $nativeBuild = $nativeBuildJson | ConvertFrom-Json
+    if ($nativeBuild.Outcome -ne 'Pass' -or
+        -not (Test-Path -LiteralPath $nativeBuild.CommandDll -PathType Leaf)) {
+        throw 'Native Explorer command output contract did not pass.'
+    }
+    & $explorerCommandTestScript -NoBuild | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Native Explorer command real DLL evidence failed.'
+    }
+
     [System.IO.Directory]::CreateDirectory($artifactRoot) | Out-Null
     $stagingRoot = Join-Path $artifactRoot ('.msix-' + [System.Guid]::NewGuid().ToString('N'))
     Assert-ChildPath -Parent $artifactRoot -Child $stagingRoot
@@ -410,6 +470,9 @@ try {
     New-MsixLogo -SourcePath $logoSourcePath -DestinationPath (Join-Path $assetsRoot 'Square44x44Logo.png') -Size 44
     New-MsixLogo -SourcePath $logoSourcePath -DestinationPath (Join-Path $assetsRoot 'Square150x150Logo.png') -Size 150
     New-MsixLogo -SourcePath $logoSourcePath -DestinationPath (Join-Path $assetsRoot 'StoreLogo.png') -Size 50
+    Copy-Item `
+        -LiteralPath $nativeBuild.CommandDll `
+        -Destination (Join-Path $layoutRoot 'LongGrid.ExplorerCommand.dll')
 
     $manifestText = $manifestTemplate.Replace('{{PACKAGE_VERSION}}', $PackageVersion)
     [System.IO.File]::WriteAllText(
@@ -466,6 +529,12 @@ try {
         distributionApproved = $false
         licenseStatus = 'Deferred'
         desktopHostExecutionEnabled = $false
+        explorerCommand = [ordered]@{
+            clsid = '78A940C1-2E65-4A03-9D09-3AC62CEF30BB'
+            itemType = 'Directory\Background'
+            dll = 'LongGrid.ExplorerCommand.dll'
+            sha256 = $nativeBuild.CommandDllSha256
+        }
         deterministicLayout = $true
         byteReproducible = $byteReproducible
         layoutFingerprint = $layoutFingerprint
@@ -488,6 +557,8 @@ try {
         deterministicLayout = $true
         byteReproducible = $byteReproducible
         layoutFingerprint = $layoutFingerprint
+        explorerCommandClsid = '78A940C1-2E65-4A03-9D09-3AC62CEF30BB'
+        explorerCommandItemType = 'Directory\Background'
         signed = $false
         installable = $false
         distributionApproved = $false

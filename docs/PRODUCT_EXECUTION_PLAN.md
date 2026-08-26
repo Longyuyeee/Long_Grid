@@ -406,6 +406,18 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 | CI 干净会话链 | 普通重定向与 BOX-R1 重定向分别跨入现有窗口 UI 队列 | 首次 CI 仍按拆分前的 `App.xaml.cs` 单一路径字符串检查，实际在 `App.BoxR1.cs` 已有两条正确调度路径，因此静态契约失败 | 将旧断言拆为普通激活与 BOX-R1 创建激活两项明确断言；本机两项契约均 Pass，新 CI 的干净会话链、单实例契约及其余门禁全部 Pass |
 | 证据脚本宿主兼容 | 仓库声明的 Windows PowerShell 5.1 与 PowerShell 7 入口均可执行 | 首次用 `powershell.exe` 复验时，5.1 缺少 `Convert.ToHexString` 和 `ConvertFrom-Json -Depth`，脚本在产品启动/结果读取边界失败 | 改为 `BitConverter` 十六进制编码并使用兼容的 JSON 读取；5.1 下 Initial、Redirect、DuplicateRedirect 均 `Outcome=Pass / Difference=None`，7 下 ContractOnly Pass |
 
+### 9.9 BOX-R1-B 原生命令与清单阶段记录
+
+本阶段只完成可安装包中的原生 Shell 扩展工程和打包门禁，不安装未签名包、不修改包状态、不重启 Explorer。菜单真实可见、点击位置、多显示器和卸载清理仍属于 BOX-R1-C。
+
+| 检查 | 预期效果 | 当前实际 | 差异与修正 |
+|---|---|---|---|
+| 原生工程 | x64 `IExplorerCommand` DLL 以编译器/链接器 `/W4 /WX` 编译 | 首次链接因 `.def` 的冗余 `LIBRARY` 输出名产生 2 个 LNK4070；删除该指令并启用链接器警告即错误后重建为 0 warning / 0 error；CLSID `78A940C1-2E65-4A03-9D09-3AC62CEF30BB` | 差异已修正，不接受“有警告但成功” |
+| 菜单回调 | 标题、图标、Enabled、CanonicalName、默认 Flags 有界返回，无产品 I/O/等待 | 初版 `noexcept` 回调仍使用动态 `std::wstring`，极端 OOM 可能终止 surrogate；改为 257 字符以内固定缓冲、静态 CRT 与 CFG 后，真实 DLL 经 COM 类工厂创建，200 轮调用 0 ms；句柄 142→144（预算 ≤2），`DllCanUnloadNow=S_OK` | 安全差异已修正；不调用工作区、文件、网络、注册表或等待 API |
+| 激活边界 | Invoke 只捕获当前光标、生成新 nonce/时间并调用包身份激活 | 源码合同使用唯一 AUMID 和 BOX-R1-A v1 参数；未安装包环境不执行 Invoke，避免意外改变包/应用状态 | App 端真实 Initial/Redirect/DuplicateRedirect 已由 BOX-R1-A 覆盖；Explorer→Invoke 留给 BOX-R1-C |
+| MSIX 清单 | 同一 CLSID 同时进入 `com:SurrogateServer` 与唯一 `Directory\Background` Verb | 模板和 ValidateOnly 通过，DLL 已接入打包脚本 | 精确提交的真实 MSIX 生成/解包尚待本阶段提交后执行 |
+| 脚本兼容 | Windows PowerShell 5.1 能执行审计入口 | 首轮中文断言字面量被 5.1 按本地代码页解释为乱码 | 改为检查稳定符号名；C++ 仍以 `/utf-8` 编译真实中文标题，重跑合同与 DLL 探针 Pass |
+
 ## 10. 真实测试与差异修正规则
 
 每个用户可见 PR 必须在描述和本文状态中记录：
