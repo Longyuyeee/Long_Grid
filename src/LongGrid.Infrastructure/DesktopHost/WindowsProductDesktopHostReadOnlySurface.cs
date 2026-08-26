@@ -122,10 +122,14 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         requestItemOpen = static _ => false;
     private Func<object, string, bool> requestExplorerReferenceDrop =
         static (_, _) => false;
+    private Func<ProductDesktopReferenceReassignmentSurfaceInput, bool>
+        requestReferenceReassignment = static _ => false;
     private ProductDesktopItemOpenFeedback? itemOpenFeedback;
     private bool openItemsWithSingleClick;
     private ActiveContainerLayout? activeContainerLayout;
     private ProductDesktopMarqueeSelectionSession? activeMarqueeSelection;
+    private ProductDesktopReferenceReassignmentSession?
+        activeReferenceReassignment;
     private ProductDesktopHostReadOnlyProjection? containerLayoutPreview;
     private string? containerLayoutKeyboardFocusId;
     private NativePoint workspaceCreateDragStart;
@@ -347,7 +351,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             case NativeMethods.WmMouseActivate:
                 return new nint(NativeMethods.MaNoActivate);
             case NativeMethods.WmLButtonDown:
-                if (!TryStartContainerLayout(window, wordParameter, longParameter)
+                if (!TryStartReferenceReassignment(
+                        window,
+                        wordParameter,
+                        longParameter)
+                    && !TryStartContainerLayout(window, wordParameter, longParameter)
                     && !HandleWorkspaceCreatePress(longParameter))
                 {
                     if (!TryStartMarqueeSelection(
@@ -371,7 +379,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 return nint.Zero;
             case NativeMethods.WmMouseMove:
                 UpdateHeaderHover(window, longParameter);
-                if (activeContainerLayout is not null)
+                if (activeReferenceReassignment is not null)
+                {
+                    UpdateReferenceReassignment(longParameter);
+                }
+                else if (activeContainerLayout is not null)
                 {
                     UpdateContainerLayout(longParameter);
                 }
@@ -396,7 +408,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 _ = HandleItemViewportWheel(wordParameter, longParameter);
                 return nint.Zero;
             case NativeMethods.WmLButtonUp:
-                if (activeContainerLayout is not null)
+                if (activeReferenceReassignment is not null)
+                {
+                    CompleteReferenceReassignment(window, longParameter);
+                }
+                else if (activeContainerLayout is not null)
                 {
                     CompleteContainerLayout(window, longParameter);
                 }
@@ -415,6 +431,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                     ProductDesktopContainerLayoutCancellationReason.CancelMode);
                 CancelMarqueeSelection(window);
                 CancelWorkspaceCreateDrag(window);
+                CancelReferenceReassignment(window);
                 return nint.Zero;
             case NativeMethods.WmCaptureChanged:
                 CancelContainerLayout(
@@ -422,6 +439,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                     ProductDesktopContainerLayoutCancellationReason.CaptureLost);
                 CancelMarqueeSelection(window);
                 CancelWorkspaceCreateDrag(window);
+                CancelReferenceReassignment(window);
                 return nint.Zero;
             case NativeMethods.WmKeyDown
                 when wordParameter.ToInt64() == NativeMethods.VkEscape:
@@ -430,6 +448,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                     ProductDesktopContainerLayoutCancellationReason.EscapePressed);
                 CancelMarqueeSelection(window);
                 CancelWorkspaceCreateDrag(window);
+                CancelReferenceReassignment(window);
                 return nint.Zero;
             case NativeMethods.WmRButtonUp:
                 if (!HandleItemOpenFeedbackContextMenu(window, longParameter))
@@ -477,6 +496,13 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     {
         ArgumentNullException.ThrowIfNull(requestDrop);
         requestExplorerReferenceDrop = requestDrop;
+    }
+
+    public void BindReferenceReassignment(
+        Func<ProductDesktopReferenceReassignmentSurfaceInput, bool> request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        requestReferenceReassignment = request;
     }
 
     public void BindContainerLayout(
@@ -576,6 +602,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             return false;
         }
         CancelMarqueeSelection(Handle);
+        CancelReferenceReassignment(Handle);
         projection = nextProjection;
         if (itemOpenFeedback is { } feedback
             && !projection.Containers.Any(container =>
@@ -661,6 +688,26 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             shift,
             sourceAttested,
             isInjected);
+
+    internal bool BeginReferenceReassignmentForEvidence(
+        int x,
+        int y,
+        bool sourceAttested = true,
+        bool isInjected = false) => TryStartReferenceReassignmentCore(
+            Handle,
+            x,
+            y,
+            sourceAttested,
+            isInjected);
+
+    internal bool UpdateReferenceReassignmentForEvidence(int x, int y) =>
+        UpdateReferenceReassignmentCore(x, y);
+
+    internal bool CompleteReferenceReassignmentForEvidence(int x, int y) =>
+        CompleteReferenceReassignmentCore(Handle, x, y);
+
+    internal void CancelReferenceReassignmentForEvidence() =>
+        CancelReferenceReassignment(Handle);
 
     internal bool BeginMarqueeSelectionForEvidence(
         int x,
@@ -1114,6 +1161,173 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             uiaProvider?.PublishSelectionChanges();
 #endif
         }
+    }
+
+    private bool TryStartReferenceReassignment(
+        nint window,
+        nint wordParameter,
+        nint longParameter)
+    {
+        if ((wordParameter.ToInt64()
+                & (NativeMethods.MkControl | NativeMethods.MkShift)) != 0)
+        {
+            return false;
+        }
+        InputMessageSource source = default;
+        if (!NativeMethods.GetCurrentInputMessageSource(ref source))
+        {
+            return false;
+        }
+        return TryStartReferenceReassignmentCore(
+            window,
+            SignedLowWord(longParameter),
+            SignedHighWord(longParameter),
+            sourceAttested: true,
+            isInjected: source.OriginId == NativeMethods.ImoInjected);
+    }
+
+    private bool TryStartReferenceReassignmentCore(
+        nint window,
+        int x,
+        int y,
+        bool sourceAttested,
+        bool isInjected)
+    {
+        if (mode != ProductDesktopInteractionSurfaceMode.Explicit
+            || activeReferenceReassignment is not null
+            || activeContainerLayout is not null
+            || activeMarqueeSelection is not null
+            || workspaceCreateDragActive
+            || !sourceAttested
+            || isInjected)
+        {
+            return false;
+        }
+
+        ProductDesktopReferenceReassignmentSession? session =
+            ProductDesktopReferenceReassignmentAdapter.TryStart(
+                projection,
+                selectionSnapshot(),
+                x,
+                y);
+        if (session is null)
+        {
+            return false;
+        }
+
+        activeReferenceReassignment = session;
+        _ = NativeMethods.SetCapture(window);
+        if (NativeMethods.GetCapture() == window)
+        {
+            return true;
+        }
+        activeReferenceReassignment = null;
+        return false;
+    }
+
+    private void UpdateReferenceReassignment(nint longParameter) =>
+        _ = UpdateReferenceReassignmentCore(
+            SignedLowWord(longParameter),
+            SignedHighWord(longParameter));
+
+    private bool UpdateReferenceReassignmentCore(int x, int y)
+    {
+        if (activeReferenceReassignment is not { } session)
+        {
+            return false;
+        }
+        ProductDesktopReferenceReassignmentSession? updated =
+            ProductDesktopReferenceReassignmentAdapter.TryUpdate(
+                projection,
+                selectionSnapshot(),
+                session,
+                x,
+                y);
+        if (updated is null)
+        {
+            CancelReferenceReassignment(Handle);
+            return false;
+        }
+        activeReferenceReassignment = updated;
+        ApplyExplorerDropHover(updated.HoveredTargetContainerId);
+        return true;
+    }
+
+    private bool CompleteReferenceReassignment(
+        nint window,
+        nint longParameter) => CompleteReferenceReassignmentCore(
+            window,
+            SignedLowWord(longParameter),
+            SignedHighWord(longParameter));
+
+    private bool CompleteReferenceReassignmentCore(
+        nint window,
+        int x,
+        int y)
+    {
+        if (activeReferenceReassignment is not { } session)
+        {
+            return false;
+        }
+        ProductDesktopReferenceReassignmentSession? updated =
+            ProductDesktopReferenceReassignmentAdapter.TryUpdate(
+                projection,
+                selectionSnapshot(),
+                session,
+                x,
+                y);
+        ProductDesktopReferenceReassignmentSurfaceInput? input =
+            updated is null
+                ? null
+                : ProductDesktopReferenceReassignmentAdapter.TryComplete(
+                    projection,
+                    selectionSnapshot(),
+                    updated,
+                    x,
+                    y);
+        bool restoreClick = updated is { DragThresholdReached: false };
+        activeReferenceReassignment = null;
+        if (NativeMethods.GetCapture() == window)
+        {
+            _ = NativeMethods.ReleaseCapture();
+        }
+        ApplyExplorerDropHover(null);
+        if (input is null)
+        {
+            return restoreClick
+                && HandlePrimaryPointerPressCore(
+                    session.StartX,
+                    session.StartY,
+                    control: false,
+                    shift: false,
+                    sourceAttested: true,
+                    isInjected: false);
+        }
+        try
+        {
+            return requestReferenceReassignment(input);
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException
+                or InvalidOperationException
+                or OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private void CancelReferenceReassignment(nint window)
+    {
+        if (activeReferenceReassignment is null)
+        {
+            return;
+        }
+        activeReferenceReassignment = null;
+        if (NativeMethods.GetCapture() == window)
+        {
+            _ = NativeMethods.ReleaseCapture();
+        }
+        ApplyExplorerDropHover(null);
     }
 
     private void HandlePrimaryPointerPress(nint wordParameter, nint longParameter)

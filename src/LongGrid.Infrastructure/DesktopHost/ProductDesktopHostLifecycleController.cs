@@ -296,6 +296,11 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
     {
     }
 
+    void BindReferenceReassignment(
+        Func<ProductDesktopReferenceReassignmentSurfaceInput, bool> request)
+    {
+    }
+
     bool ApplyItemOpenFeedback(ProductDesktopItemOpenFeedback feedback) => false;
 
     bool ApplyItemOpenPolicy(bool openItemsWithSingleClick) => true;
@@ -380,6 +385,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             request.Source);
     private Func<object, string, bool> requestExplorerReferenceDrop =
         static (_, _) => false;
+    private Func<ProductDesktopReferenceReassignmentRequest, bool>
+        requestReferenceReassignment = static _ => false;
     private bool openItemsWithSingleClick;
 
     public ProductDesktopHostLifecycleController(
@@ -574,6 +581,17 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             requestExplorerReferenceDrop = requestDrop;
+        }
+    }
+
+    public void BindReferenceReassignment(
+        Func<ProductDesktopReferenceReassignmentRequest, bool> request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            requestReferenceReassignment = request;
         }
     }
 
@@ -1437,6 +1455,11 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     input));
                 created.BindExplorerReferenceDrop((dataObject, containerId) =>
                     requestExplorerReferenceDrop(dataObject, containerId));
+                created.BindReferenceReassignment(input =>
+                    ApplyReferenceReassignmentFromSurface(
+                        created,
+                        display,
+                        input));
                 if (!created.ApplyItemOpenPolicy(openItemsWithSingleClick))
                 {
                     throw new InvalidOperationException(
@@ -2286,6 +2309,100 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
             return ApplySelectionAndRefreshUnsafe(request);
         }
     }
+
+    private bool ApplyReferenceReassignmentFromSurface(
+        IProductDesktopHostReadOnlySurface source,
+        ProductDesktopHostDisplayProjection sourceDisplay,
+        ProductDesktopReferenceReassignmentSurfaceInput input)
+    {
+        lock (gate)
+        {
+            ProductDesktopHostProjectionBatch? batch = currentBatch;
+            ProductDesktopInteractionSurfaceTransactionSnapshot? transaction =
+                intentConsumption?.Snapshot.Transaction;
+            if (disposed
+                || batch is null
+                || !surfaces.Contains(source)
+                || !sourceDisplay.Containers.Any(container => string.Equals(
+                    container.ContainerId,
+                    input.SourceContainerId,
+                    StringComparison.Ordinal))
+                || !input.SourceAttested
+                || input.IsInjected
+                || input.ItemIds.Count is < 1
+                    or > ProductDesktopReferenceReassignmentAdapter.MaximumItemCount
+                || input.ItemIds.Distinct(StringComparer.Ordinal).Count()
+                    != input.ItemIds.Count
+                || input.WorkspaceRevision != batch.WorkspaceRevision
+                || input.TopologyGeneration != batch.TopologyGeneration
+                || transaction?.IsExplicit != true
+                || transaction.Selection is not { } selection
+                || !string.Equals(selection.ContainerId, input.SourceContainerId,
+                    StringComparison.Ordinal)
+                || !selection.SelectedItemIds.SequenceEqual(
+                    input.ItemIds,
+                    StringComparer.Ordinal))
+            {
+                return false;
+            }
+
+            ProductDesktopHostReadOnlyProjection? sourceContainer =
+                sourceDisplay.Containers.SingleOrDefault(container =>
+                    string.Equals(
+                        container.ContainerId,
+                        input.SourceContainerId,
+                        StringComparison.Ordinal));
+            if (sourceContainer is null || sourceContainer.IsLocked)
+            {
+                return false;
+            }
+
+            ProductDesktopHostDisplayProjection? targetDisplay = batch.Displays
+                .SingleOrDefault(display =>
+                    input.PointerScreenX >= display.WorkArea.Left
+                    && input.PointerScreenX < display.WorkArea.Right
+                    && input.PointerScreenY >= display.WorkArea.Top
+                    && input.PointerScreenY < display.WorkArea.Bottom);
+            if (targetDisplay is null)
+            {
+                return false;
+            }
+
+            int clientX = input.PointerScreenX - targetDisplay.WorkArea.Left;
+            int clientY = input.PointerScreenY - targetDisplay.WorkArea.Top;
+            ProductDesktopHostReadOnlyProjection[] targets = targetDisplay.Containers
+                .Where(container => !container.IsLocked
+                    && !string.Equals(
+                        container.ContainerId,
+                        input.SourceContainerId,
+                        StringComparison.Ordinal)
+                    && ContainsPoint(
+                        ProductDesktopHostSurfaceLayout.GetContainerBounds(
+                            targetDisplay,
+                            container),
+                        clientX,
+                        clientY))
+                .ToArray();
+            if (targets.Length != 1)
+            {
+                return false;
+            }
+
+            return requestReferenceReassignment(new(
+                input.SourceContainerId,
+                input.ItemIds,
+                targets[0].ContainerId,
+                targetDisplay.DisplayId,
+                input.WorkspaceRevision,
+                input.TopologyGeneration,
+                input.SourceAttested,
+                input.IsInjected));
+        }
+    }
+
+    private static bool ContainsPoint(PixelRect bounds, int x, int y) =>
+        x >= bounds.Left && x < bounds.Right
+        && y >= bounds.Top && y < bounds.Bottom;
 
     private bool ApplySelectionFromActivationSource(
         IProductDesktopInteractionActivationSource source,

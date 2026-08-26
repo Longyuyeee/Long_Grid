@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：PF 功能详细 backlog 与历史验收账本；当前状态、执行顺序和里程碑以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 当前开发项：**PF-007B 盒子间改归属**；顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 最新功能工程审计：PF-007A2 已完成正式 DesktopHost HWND OLE DropTarget、Link-only 反馈、App 权威 Catalog 和原子保存/撤销接线；真实 STA/HWND/RegisterDragDrop/CF_HDROP 与文件零变化通过，物理 Explorer 指针证据仍 Pending。PF-007 保持 `InProgress`，30 个 PF 项仍为 `0 Complete`
+- 当前开发项：**M1 集中产品证据冲刺**；顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
+- 最新功能工程审计：PF-007A2 已完成正式 OLE Link 拖入；PF-007B 已完成已选正式引用在盒子间的原生有限拖动、冻结权威准入、原子保存/补偿和一次撤销。真实 STA/HWND/隔离文件路径与 SHA-256 零变化通过，物理鼠标与屏幕证据仍 Pending。PF-007 保持 `InProgress`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -284,7 +284,7 @@
 - Narrator/键盘有等价“添加引用”“移动到方格”操作；
 - 视觉效果不能暗示真实文件已经移动。
 
-**2026-08-26 实施状态**：`InProgress`。PF-007A1 已完成真实 `CF_HDROP` HGLOBAL 的 1～256 项有界解析和权威准入；PF-007A2 已在正式 DesktopHost HWND 注册/撤销 OLE `IDropTarget`，只发布 Link，并经 Lifecycle/App 接入原子批量引用、保存补偿和一次撤销。真实 STA/HWND/RegisterDragDrop/Unicode CF_HDROP 实际一次回调、一次保存，源文件路径和哈希不变；专项 9/9、全量 1,267/1,267、覆盖率 90.35%/75.93%。物理 Explorer 指针证据仍 Pending，下一切片 PF-007B 方格间改归属。
+**2026-08-26 实施状态**：`InProgress`。PF-007A1 已完成真实 `CF_HDROP` HGLOBAL 的 1～256 项有界解析和权威准入；PF-007A2 已在正式 DesktopHost HWND 注册/撤销 OLE `IDropTarget`，只发布 Link，并经 Lifecycle/App 接入原子批量引用、保存补偿和一次撤销。PF-007B 已完成已选正式引用在盒子间的有限原生手势，冻结 lease/workspace/topology/window/selection 权威信息，并拒绝同源、锁定、BoundFolder 临时项目、失效引用和超过 256 项。真实 STA/HWND/Unicode 文件实际一次回调、一次保存、源 1→0、目标 0→1且路径/哈希不变；物理 Explorer 与盒子间鼠标证据仍 Pending，当前进入 M1 集中产品证据冲刺。
 
 ### PF-008：方格内视图、排序、滚动与间距
 
@@ -894,4 +894,4 @@
 
 PF-001～PF-006 均为 `EngineeringComplete / ProductEvidencePending`；PF-007A1/A2 工程链已完成。PF-007 仍为 `InProgress`，物理 Explorer 拖入和方格间改归属尚未完成。
 
-2026-08-26 PF-007A2 工程链完成后，当前唯一执行项为 [PF-007B 盒子间改归属](PRODUCT_EXECUTION_PLAN.md)，随后以完整 M1 用户旅程补齐产品证据。任何版本在签名和安装门禁完成前不得分发。
+2026-08-26 PF-007A/B 工程链完成后，当前唯一执行项为 [M1 集中产品证据冲刺](PRODUCT_EXECUTION_PLAN.md)，以完整用户旅程补齐 BOX、FOLDER、Explorer/盒子拖动和 UI-R1E 人工证据。任何版本在签名和安装门禁完成前不得分发。

@@ -6,7 +6,7 @@
 
 更新日期：2026-08-26
 
-代码审计基线：`origin/main@53c8b5e`；PF-007A2 实现分支 `codex/pf-007a2-drop-target`
+代码审计基线：`origin/main@2980857`；PF-007B 实现分支 `codex/pf-007b-reassignment`
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -79,7 +79,7 @@ UI-R1A 开始前的代码审计显示，正式控制中心仍沿用早期“开�
 | 桌面右键创建 | DesktopHost 已具备创建事务、预览、快捷键、拖画入口和产品内弹出菜单 | 右键“新建方格”当前仅在宿主绘制的“新建”按钮区域触发，不是 Explorer 桌面任意空白区域 | BOX-R1 仍未达到原始核心旅程，必须通过受支持的 Explorer 背景命令补齐入口、冲突处理和物理证据 |
 | 文件夹绑定 | 有安全引用、目录枚举、打开与 Portal/Tab 设计底座 | FOLDER-R1-A/B 已建立 schema v3、稳定身份和绑定事务；C 已将最多 256 个直属项目投影到盒子管理页和 DesktopHost；D 已让运行时快照发布权威有限绑定状态，并以根目录/父目录事件与低频健康探测处理权限拒绝、离线、归来和同路径替换 | A～D 工程链已通过真实文件系统；物理 Picker、可见刷新/打开、键盘和 Narrator 仍 `ProductEvidencePending`，不得写成完整用户旅程已完成 |
 | 任务栏美化 | 有技术审计和产品边界文档 | `DwmSetWindowAttribute` 只修饰 Long方格自己的宿主窗口；个性化页明确仍为适配器占位文案 | TASKBAR-R1～R4 尚无产品运行时，M2 未开始 |
-| Explorer 拖放 | PF-007A1 已完成 `CF_HDROP` 有界解析、安全准入和原子配置请求 | PF-007A2 已在正式 DesktopHost HWND 注册/撤销 OLE `IDropTarget`，只对未锁定盒子发布 Link，并接入 App 权威 Catalog、原子保存、补偿和一次撤销链；真实 STA/HWND/OLE 注册与文件安全通过 | A2 `EngineeringComplete / RealOleRegistrationPass / ProductEvidencePending`；盒子间改归属仍待 B，物理 Explorer 指针拖入留在 M1 集中证据 |
+| Explorer 与盒子拖放 | PF-007A1 已完成 `CF_HDROP` 有界解析、安全准入和原子配置请求 | PF-007A2 已完成正式 OLE Link 拖入工程链；PF-007B 已完成已选正式引用在盒子间的原生有限拖动、冻结权威准入、原子保存/补偿和一次撤销；真实 STA/HWND/隔离文件零变化通过 | A/B `EngineeringComplete / RealHwndPass / ProductEvidencePending`；物理 Explorer 与盒子间指针证据留在 M1 集中证据 |
 | 小组件/Long助手插件 | LPWP 1.0 等协议文档存在 | 只有 Windows App SDK Widgets 的传递依赖，没有 Widget Host 或插件小组件运行时 | 方向对齐但仍是 M4；不得抢占三根核心支柱 |
 | 启动与打包 | 根目录 `启动Long方格.cmd` 和 `eng` 启动、打包、MSIX、RC/SBOM 脚本存在 | 内部未签名链可用，正式签名和发布矩阵仍待 M5 | 工程入口基本对齐，发布能力未闭环 |
 
@@ -265,7 +265,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**PF-007B 盒子间改归属**。PF-007A2 已完成正式 DesktopHost `IDropTarget` 的注册、Link-only 悬停/投递、App 权威准入和现有原子保存/补偿/撤销接线，为 `EngineeringComplete / RealOleRegistrationPass / ProductEvidencePending`。物理 Explorer 指针拖入，连同 BOX-R1-C、FOLDER-R1 和 UI-R1E 人工门禁，统一留在 M1 产品证据冲刺。
+当前执行项：**M1 产品证据冲刺**。PF-007A2 已完成正式 DesktopHost OLE Link 拖入，PF-007B 已完成选中正式引用拖到另一盒子的有限原生手势、App 权威准入和现有原子保存/补偿/撤销接线；两者均为 `EngineeringComplete / RealHwndPass / ProductEvidencePending`。现在集中补齐物理 Explorer/盒子拖动、BOX-R1-C、FOLDER-R1 和 UI-R1E 人工门禁。
 
 严格按下列顺序交付，不再插入相邻探针或新宽度功能：
 
@@ -276,8 +276,8 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 5. **UI-R1E 视觉与响应式验收（EngineeringComplete / ManualEvidencePending）**：UI-R1E-A 已完成浅/深色、1120/720 effective px、200% 缩放、焦点和真实 XAML PNG；UI-R1E-B 已确保根目录/显式启动直接显示唯一控制中心，同时保留 `--background` 桌面优先模式。I19/BSA 自动预检均通过且明确不修改系统设置；高对比、关闭系统动画、Narrator、物理键盘及其他 DPI 继续作为 M1 出口人工门禁。
 6. **BOX-R1（B 已完成，C Pending）**：A 有限激活合同（EngineeringComplete / RealProcessPass）→ B 原生 `IExplorerCommand` 与真实 unsigned MSIX（EngineeringComplete / NativeDllPass / RealUnsignedPackagePass）→ C 可丢弃账户真实安装/菜单/卸载证据（PendingApproval）→ D Explorer 重启、显示器、DPI 与失败恢复；全部复用统一创建预览和事务。
 7. **FOLDER-R1（A～D EngineeringComplete / RealFilesystemPass / ProductEvidencePending）**：A 持久化/身份/健康合同 → B 显式选择、取消零写入、绑定/解绑/重连原子提交 → C 目录内容呈现、显式刷新、变更通知和安全打开 → D 权限、离线、同路径替换、失效恢复和有限状态；物理 Picker、可见刷新/打开、键盘和 Narrator 进入 M1 集中证据。
-8. **PF-007A2（EngineeringComplete / RealOleRegistrationPass / ProductEvidencePending）→ PF-007B（当前执行）**：A2 已完成正式 HWND OLE DropTarget 和安全 Link 引用提交；B 完成盒子间改归属、无效目标、失败补偿和一次撤销。
-9. **M1 产品证据冲刺**：完整两分钟旅程，而不是分散控件证据。
+8. **PF-007A2 / PF-007B（EngineeringComplete / RealHwndPass / ProductEvidencePending）**：A2 已完成正式 HWND OLE DropTarget 和安全 Link 引用提交；B 已完成盒子间改归属、无效目标、失败补偿和一次撤销。
+9. **M1 产品证据冲刺（当前执行）**：完整两分钟旅程，而不是分散控件证据。
 10. **TASKBAR-R1～R4**：完成核心任务栏预设、应用、回退和真实兼容矩阵，关闭 M2。
 
 UI-R1 允许重构产品壳层，但不得重写已经验证的 Core、配置事务和 DesktopHost 安全边界。
@@ -448,7 +448,7 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 
 - 工程底座：较强，PF-001～PF-006 已具备大量正式链路；
 - GitHub 主分支交付：UI-R1A～UI-R1E-A 已按 #239 → #240 → #241 → #242 合入，文档收口 #243 与显式启动修正 #244 也已合入 `main@288838c`；#238 已作为重复路径关闭；
-- M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A2 工程链已完成，BOX-R1-C、FOLDER-R1 和真实 Explorer 指针拖入证据 Pending；当前进入 PF-007B，随后执行 M1 集中物理证据；
+- M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，BOX-R1-C、FOLDER-R1、真实 Explorer 指针拖入和盒子间物理拖动证据 Pending；当前执行 M1 集中物理证据；
 - M2 任务栏美化核心：技术审计存在，产品运行时尚未开始；
 - M3 桌面管理增强：未开始闭环；
 - M4 工作空间/小组件/插件：协议或文档阶段；
@@ -529,8 +529,21 @@ PF-007A2 DesktopHost OLE DropTarget 记录（2026-08-26，基线 `origin/main@53
 | CI 原生资源收敛 | 原生交互表面在相同 USER/GDI 上限内稳定回落；句柄按探针声明在 warm-up 后验证有限增长 | PR 前两轮产品行为全部通过，但均得到 `RepeatedResourcePlateau=false`；公开日志中的 USER 已回基线、GDI 为允许的 +1、句柄 +2。第一轮只暴露 1 秒时序风险；第二轮仍在 1 秒内失败，证明隐藏原因不是 USER/GDI 等待，而是句柄将第二个 UIA 宿主与第一个宿主销毁后的旧基线比较 | 不重跑掩盖；USER/GDI 精确上限保持不变并等待 2 秒。句柄改为与说明一致：长寿命宿主三轮 warm-up 后取平台值，每轮不得增长超过 +3；最终报告仍记录进程句柄但不把异步进程级 UIA 初始化误算为 HWND 泄漏 |
 | 产品物理证据 | 用户从真实 Explorer 用鼠标拖到桌面盒子，看到 Link 光标/轮廓并出现引用 | 本轮使用真实 STA、真实 HWND、原生 RegisterDragDrop 和真实 CF_HDROP，但最终回调由证据入口驱动，不是物理鼠标；未将其伪报为物理 Explorer 拖入 | `ProductEvidencePending`；与 BOX/FOLDER/UI 人工项一起进入 M1 集中证据 |
 
-PF-007A2 的完成边界：正式产品已经拥有原生 OLE DropTarget 和端到端安全引用提交工程链，真实注册、有限效果、一次提交及文件零变化已证明；尚未取得物理 Explorer 指针和屏幕可见证据，因此不能标为用户旅程 Complete。下一批只做 PF-007B 盒子间改归属，不再扩展 A2 邻接底座。
+PF-007A2 的完成边界：正式产品已经拥有原生 OLE DropTarget 和端到端安全引用提交工程链，真实注册、有限效果、一次提交及文件零变化已证明；尚未取得物理 Explorer 指针和屏幕可见证据，因此不能标为用户旅程 Complete。A2 邻接底座不再扩展，其物理证据并入 M1。
+
+PF-007B DesktopHost 盒子间改归属记录（2026-08-26，基线 `origin/main@2980857`）：
+
+| 检查 | 预期效果 | 实际效果 | 差异与修正 |
+|---|---|---|---|
+| 手势与反馈 | 从已选正式引用拖到另一盒子，短点击不误提交也不吞掉原动作，安全目标有反馈 | 首轮阈值内释放零提交但吞掉单击；已修正为恢复原选择/单击打开链，真实 HWND 实际各调用一次；6 DIP 后才拖动，同显示器安全目标绘制焦点框 | 首轮差异已修正；最终 `Difference=None` |
+| 权威与目标 | 拖动期间状态变化、同源、锁定、缺失或非唯一目标必须拒绝 | 会话冻结 lease/workspace/topology/window/selection；Lifecycle 以最终屏幕坐标在当前批次命中唯一未锁定目标；App 再复核当前权威状态 | `Difference=None` |
+| 项目准入 | 只允许 1..256 个同源已解析正式引用 | `folder:*` 临时项目、Missing 引用、重复序号、0/越界、257 项和注入输入实际有限拒绝 | `Difference=None` |
+| 原子提交与文件安全 | 一次提交源→目标，可一次撤销，真实文件不变化 | 真实 STA/HWND/Unicode 隔离文件实际 callback=1、save=1、source 1→0、target 0→1、undo token 非空；路径与 SHA-256 相同 | `Difference=None` |
+| 回归门禁 | 专项、全量、覆盖率、原生宿主和 UI 合同不得退化 | 专项 4/4、全量 1,271/1,271、Release 0 warning/error；lines 90.08%、branches 75.48%；真实原生交互表面资源平台与 188-ID ContractOnly 均通过 | `Difference=None`；完整跨进程 UIA 仍被已审计运行时组合在启动前阻断 |
+| 产品物理证据 | 真实鼠标完成拖动并取得可见、键盘和 Narrator 证据 | 真实 HWND 使用正式手势代码，但坐标由证据入口驱动；不是物理鼠标和录像 | `ProductEvidencePending`，并入 M1 |
+
+详细证据见 [PF-007B 桌面盒子间原生引用改归属审计](208-pf007b-native-reference-reassignment-audit.md)。PF-007B 的完成边界是正式工程路径与真实 HWND/文件安全已闭环；没有物理鼠标与屏幕证据，因此 PF-007 和 M1 均不能标为用户旅程 Complete。
 
 ## 13. 下一步开始条件
 
-下一次开发进入 PF-007B：复用现有选择、目标盒子命中、`CommitResolvedReferenceReassignment` 和一次撤销合同，建立盒子内项目拖到另一盒子的有限内部拖放协议。必须拒绝同源目标、锁定源/目标、BoundFolder 临时项目、失效引用、修订/代次漂移和超过 256 项；保存失败必须恢复源/目标原状态。测试继续使用真实隔离文件并比较路径和 SHA-256，原生 HWND 拖放应记录预期、实际和差异；不得把 reducer 单测冒充完整产品链。B 完成后进入 M1 产品证据冲刺，集中补齐物理 Explorer 拖入、BOX-R1-C、FOLDER-R1 与 UI-R1E 的可见、键盘和 Narrator 证据。
+下一次开发进入 M1 产品证据冲刺，不再增加 PF-007 相邻底座。使用可丢弃 Windows 测试账户，按“安装 BOX-R1 命令 → 桌面空白处创建盒子 → Picker 绑定真实文件夹并刷新/打开 → Explorer Link 拖入 → 选中项目拖到另一盒子并撤销 → 高对比/减少动画/键盘/Narrator → 卸载并核对恢复”的完整旅程记录预期、实际、差异和修正。任何环境阻断必须保持 Pending，不能再以 reducer、源码合同或证据入口冒充物理 Pass。M1 通过后才进入 TASKBAR-R1～R4。

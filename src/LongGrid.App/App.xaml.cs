@@ -263,6 +263,8 @@ public partial class App : Application
         productDesktopHostLifecycle.BindItemOpen(RequestDesktopItemOpen);
         productDesktopHostLifecycle.BindExplorerReferenceDrop(
             RequestDesktopExplorerReferenceDrop);
+        productDesktopHostLifecycle.BindReferenceReassignment(
+            RequestDesktopReferenceReassignment);
         folderContentWatcher.Invalidated +=
             ProductWorkspaceFolderContentWatcher_Invalidated;
         window.DesktopKeyboardInteractionRequested +=
@@ -2058,6 +2060,45 @@ public partial class App : Application
         if (result.IsAccepted)
         {
             ApplyAcceptedProductWorkspaceDocument(result.Document!, catalog);
+        }
+        return result.IsAccepted;
+    }
+
+    private bool RequestDesktopReferenceReassignment(
+        ProductDesktopReferenceReassignmentRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ProductWorkspaceState? state = productWorkspaceSession.State;
+        ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
+        if (state is null
+            || productWorkspaceSession.IsReadOnly
+            || !topology.IsAuthoritative)
+        {
+            return false;
+        }
+
+        ProductWorkspaceState authoritativeState =
+            StampAuthoritativeDisplayTopology(state);
+        ProductDesktopReferenceReassignmentPreparation preparation =
+            ProductDesktopReferenceReassignmentAdmissionAdapter.Prepare(
+                authoritativeState,
+                workspaceCommits.CurrentEditRevision,
+                topology.Generation,
+                request);
+        if (!preparation.IsAccepted)
+        {
+            return false;
+        }
+
+        ProductWorkspaceResolvedReferenceReassignmentCommitResult result =
+            workspaceCommits.CommitResolvedReferenceReassignment(
+                authoritativeState,
+                preparation.CommitRequest!);
+        if (result.IsAccepted)
+        {
+            ApplyAcceptedProductWorkspaceDocument(
+                result.Document!,
+                productDesktopCatalog.Snapshot);
         }
         return result.IsAccepted;
     }
