@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：PF 功能详细 backlog 与历史验收账本；当前状态、执行顺序和里程碑以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 当前开发项：**UI-R1 产品壳层与信息架构重构**；PF-007A2 在 UI-R1 验收后恢复，顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 最新功能工程审计：[Stage 207](207-pf007a1-real-ole-hdrop-reference-admission-audit.md)；PF-007A1 已通过 PR #235 合入 `main@e081a2b`，完成真实 OLE HDROP、真实沙箱文件、一次原子保存、1233/1233 和 90.43%/75.77%；正式 DesktopHost DropTarget、物理 Explorer 拖入和方格间改归属仍 Pending，PF-007 保持 `InProgress`，30 个 PF 项仍为 `0 Complete`
+- 当前开发项：**PF-007B 盒子间改归属**；顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
+- 最新功能工程审计：PF-007A2 已完成正式 DesktopHost HWND OLE DropTarget、Link-only 反馈、App 权威 Catalog 和原子保存/撤销接线；真实 STA/HWND/RegisterDragDrop/CF_HDROP 与文件零变化通过，物理 Explorer 指针证据仍 Pending。PF-007 保持 `InProgress`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
 
@@ -67,7 +67,7 @@
 | 4 | PF-004 | 方格标题栏与就近操作 | `EngineeringComplete / ProductEvidencePending`：A～E 正式工程链完成；物理菜单/双击、触控截图和 Narrator 待补 | Fences 标题栏操作 |
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | `EngineeringComplete / ProductEvidencePending` | Fences/Nimi 项目呈现 |
 | 6 | PF-006 | 项目选择、键盘导航与打开 | `EngineeringComplete / ProductEvidencePending`：A/B/C 工程范围含框选均已集成；物理输入/Narrator/高对比仍 Pending | Fences/Portal 日常访问 |
-| 7 | PF-007 | Explorer 拖入与方格间拖放 | `InProgress`：A1 真实 OLE HDROP 安全准入与原子配置请求完成；A2 DesktopHost DropTarget、B 方格间拖放待实现 | iTop/Fences 直接拖放 |
+| 7 | PF-007 | Explorer 拖入与方格间拖放 | `InProgress`：A1 安全准入、A2 正式 DesktopHost OLE DropTarget 工程链完成；B 方格间拖放和 M1 物理证据待完成 | iTop/Fences 直接拖放 |
 | 8 | PF-008 | 方格内视图、排序、滚动与间距 | 方格级排序有限 | Nimi/Fences 视图控制 |
 | 9 | PF-009 | 桌面搜索、筛选与快速定位 | 控制中心搜索 | iTop Search |
 | 10 | PF-010 | 统一撤销、重做与操作历史 | 最近动作撤销 | iTop Snapshot/安全恢复 |
@@ -284,7 +284,7 @@
 - Narrator/键盘有等价“添加引用”“移动到方格”操作；
 - 视觉效果不能暗示真实文件已经移动。
 
-**2026-08-25 实施状态**：`InProgress`。Stage 207/PF-007A1 已完成真实 `CF_HDROP` HGLOBAL 的 1～256 项有界解析、现存路径/重复/权威 Catalog/目标锁定门禁，并把结果收敛到既有原子批量引用请求；真实沙箱文件两项一次保存，哈希和位置零变化，定向 8/8、全量 1233/1233、覆盖率 90.43%/75.77%。当前等待远端集成；正式 DesktopHost `IDropTarget`、悬停 Link 反馈、物理 Explorer 拖入和方格间改归属仍 Pending，下一切片 PF-007A2。
+**2026-08-26 实施状态**：`InProgress`。PF-007A1 已完成真实 `CF_HDROP` HGLOBAL 的 1～256 项有界解析和权威准入；PF-007A2 已在正式 DesktopHost HWND 注册/撤销 OLE `IDropTarget`，只发布 Link，并经 Lifecycle/App 接入原子批量引用、保存补偿和一次撤销。真实 STA/HWND/RegisterDragDrop/Unicode CF_HDROP 实际一次回调、一次保存，源文件路径和哈希不变；专项 9/9、全量 1,267/1,267、覆盖率 90.35%/75.93%。物理 Explorer 指针证据仍 Pending，下一切片 PF-007B 方格间改归属。
 
 ### PF-008：方格内视图、排序、滚动与间距
 
@@ -892,6 +892,6 @@
 
 ## 15. 当前立即执行项
 
-PF-001～PF-006 均为 `EngineeringComplete / ProductEvidencePending`；Stage 206 已完成 PF-006 框选并集成，Stage 207/PF-007A1 已通过 PR #235 合入 `main@e081a2b`。PF-007 仍为 `InProgress`，正式 DesktopHost DropTarget、物理 Explorer 拖入和方格间改归属尚未完成。
+PF-001～PF-006 均为 `EngineeringComplete / ProductEvidencePending`；PF-007A1/A2 工程链已完成。PF-007 仍为 `InProgress`，物理 Explorer 拖入和方格间改归属尚未完成。
 
-2026-08-25 产品 UI 复审确认现有控制中心仍是教程/审计式 Shell。当前唯一执行项改为 [UI-R1 产品壳层与信息架构重构](PRODUCT_EXECUTION_PLAN.md)；UI-R1 完成后恢复 PF-007A2、PF-007B，并以完整 M1 用户旅程补齐产品证据。任何版本在签名和安装门禁完成前不得分发。
+2026-08-26 PF-007A2 工程链完成后，当前唯一执行项为 [PF-007B 盒子间改归属](PRODUCT_EXECUTION_PLAN.md)，随后以完整 M1 用户旅程补齐产品证据。任何版本在签名和安装门禁完成前不得分发。

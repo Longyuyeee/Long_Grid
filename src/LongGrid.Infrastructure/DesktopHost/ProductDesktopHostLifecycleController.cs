@@ -291,6 +291,11 @@ internal interface IProductDesktopHostReadOnlySurface : IDisposable
     {
     }
 
+    void BindExplorerReferenceDrop(
+        Func<object, string, bool> requestDrop)
+    {
+    }
+
     bool ApplyItemOpenFeedback(ProductDesktopItemOpenFeedback feedback) => false;
 
     bool ApplyItemOpenPolicy(bool openItemsWithSingleClick) => true;
@@ -373,6 +378,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         requestItemOpen = static request => new(
             ProductDesktopItemOpenStatus.InvalidRequest,
             request.Source);
+    private Func<object, string, bool> requestExplorerReferenceDrop =
+        static (_, _) => false;
     private bool openItemsWithSingleClick;
 
     public ProductDesktopHostLifecycleController(
@@ -556,6 +563,17 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             requestItemOpen = requestOpen;
+        }
+    }
+
+    public void BindExplorerReferenceDrop(
+        Func<object, string, bool> requestDrop)
+    {
+        ArgumentNullException.ThrowIfNull(requestDrop);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            requestExplorerReferenceDrop = requestDrop;
         }
     }
 
@@ -1417,6 +1435,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     created,
                     display,
                     input));
+                created.BindExplorerReferenceDrop((dataObject, containerId) =>
+                    requestExplorerReferenceDrop(dataObject, containerId));
                 if (!created.ApplyItemOpenPolicy(openItemsWithSingleClick))
                 {
                     throw new InvalidOperationException(

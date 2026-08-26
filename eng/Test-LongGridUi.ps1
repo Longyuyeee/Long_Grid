@@ -167,6 +167,8 @@ $windowsDesktopHostReadOnlySurfaceCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostReadOnlySurface.cs'
 $desktopExplorerReferenceDropCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopExplorerReferenceDrop.cs'
+$windowsDesktopHostDropTargetCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostDropTarget.cs'
 $desktopContainerHeaderPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\DesktopHost\ProductDesktopContainerHeaderPresentation.cs'
 $desktopContainerHeaderCommandCodePath = Join-Path $projectRoot `
@@ -547,6 +549,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopExplorerReferenceDropCode = Get-Content `
         -LiteralPath $desktopExplorerReferenceDropCodePath `
+        -Raw `
+        -Encoding UTF8
+    $windowsDesktopHostDropTargetCode = Get-Content `
+        -LiteralPath $windowsDesktopHostDropTargetCodePath `
         -Raw `
         -Encoding UTF8
     $desktopContainerHeaderPresentationCode = Get-Content `
@@ -1761,6 +1767,27 @@ function Test-SourceContract {
             'File\.(Move|Copy|Delete)|Directory\.(Move|Delete)')
     ) `
         'PF-007A1 Explorer drop admission must accept only bounded real CF_HDROP paths, release OLE storage, require existing authoritative-catalog identities, emit the existing atomic reference request, and retain zero file mutation.'
+    Assert-Condition (
+        $windowsDesktopHostDropTargetCode -match 'OleInitialize' -and
+        $windowsDesktopHostDropTargetCode -match 'RegisterDragDrop' -and
+        $windowsDesktopHostDropTargetCode -match 'RevokeDragDrop' -and
+        $windowsDesktopHostDropTargetCode -match 'EffectLink\s*=\s*4' -and
+        $windowsDesktopHostDropTargetCode -match 'QueryGetData' -and
+        $windowsDesktopHostDropTargetCode -match 'ScreenToClient' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'WindowsProductDesktopHostDropTarget\.TryRegister' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'ResolveExplorerDropTarget' -and
+        $desktopHostLifecycleControllerCode -match `
+            'BindExplorerReferenceDrop' -and
+        $appCode -match 'RequestDesktopExplorerReferenceDrop' -and
+        $appCode -match `
+            'ProductDesktopExplorerReferenceDropAdapter\.Prepare' -and
+        $appCode -match 'CommitResolvedReferenceBatch' -and
+        -not ($windowsDesktopHostDropTargetCode -match `
+            'File\.(Move|Copy|Delete)|Directory\.(Move|Delete)')
+    ) `
+        'PF-007A2 must register and revoke a real OLE drop target on the DesktopHost HWND, advertise Link only over an unlocked container, and route one accepted HDROP through the existing authoritative atomic reference commit without file mutation.'
     Assert-Condition (
         $desktopInteractionSurfaceModeCode -match `
             'IProductDesktopInteractionSurfaceModeAdapter' -and

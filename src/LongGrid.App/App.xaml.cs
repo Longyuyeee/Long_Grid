@@ -261,6 +261,8 @@ public partial class App : Application
         productDesktopHostLifecycle.BindItemViewport(
             RequestDesktopItemViewport);
         productDesktopHostLifecycle.BindItemOpen(RequestDesktopItemOpen);
+        productDesktopHostLifecycle.BindExplorerReferenceDrop(
+            RequestDesktopExplorerReferenceDrop);
         folderContentWatcher.Invalidated +=
             ProductWorkspaceFolderContentWatcher_Invalidated;
         window.DesktopKeyboardInteractionRequested +=
@@ -2017,6 +2019,47 @@ public partial class App : Application
         }
 
         return result;
+    }
+
+    private bool RequestDesktopExplorerReferenceDrop(
+        object dataObject,
+        string targetContainerId)
+    {
+        ProductDesktopCatalogSnapshot catalog = productDesktopCatalog.Snapshot;
+        ProductWorkspaceState? state = productWorkspaceSession.State;
+        if (!catalog.IsAuthoritative
+            || state is null
+            || productWorkspaceSession.IsReadOnly)
+        {
+            return false;
+        }
+
+        ProductWorkspaceState authoritativeState =
+            StampAuthoritativeDisplayTopology(state);
+        ProductDesktopExplorerReferenceDropPreparation preparation =
+            ProductDesktopExplorerReferenceDropAdapter.Prepare(
+                dataObject,
+                authoritativeState,
+                workspaceCommits.CurrentEditRevision,
+                catalog.Generation,
+                catalog.Entries,
+                targetContainerId);
+        if (!preparation.IsAccepted)
+        {
+            return false;
+        }
+
+        ProductWorkspaceResolvedReferenceBatchCommitResult result =
+            workspaceCommits.CommitResolvedReferenceBatch(
+                authoritativeState,
+                catalog.Generation,
+                catalog.Entries,
+                preparation.CommitRequest!);
+        if (result.IsAccepted)
+        {
+            ApplyAcceptedProductWorkspaceDocument(result.Document!, catalog);
+        }
+        return result.IsAccepted;
     }
 
     private ProductWorkspaceReferenceBatchAdditionUndoCommitResult
