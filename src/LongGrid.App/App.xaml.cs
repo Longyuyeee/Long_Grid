@@ -2850,7 +2850,12 @@ public partial class App : Application
             if (showBoxR1Evidence)
             {
                 currentWindow.Activate();
-                await Task.Delay(100);
+                DateTime xamlReadyDeadline = DateTime.UtcNow.AddSeconds(2);
+                while (!currentWindow.IsProductXamlReady
+                    && DateTime.UtcNow < xamlReadyDeadline)
+                {
+                    await Task.Delay(25);
+                }
             }
             currentWindow.ApplyDesktopWorkspaceCreatePreviewOpened(
                 session.Snapshot,

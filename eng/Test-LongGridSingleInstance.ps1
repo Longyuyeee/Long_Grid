@@ -18,6 +18,8 @@ $programPath = Join-Path $projectRoot 'src\LongGrid.App\Program.cs'
 $programCode = Get-Content -LiteralPath $programPath -Raw -Encoding UTF8
 $appPath = Join-Path $projectRoot 'src\LongGrid.App\App.xaml.cs'
 $appCode = Get-Content -LiteralPath $appPath -Raw -Encoding UTF8
+$boxActivationPath = Join-Path $projectRoot 'src\LongGrid.App\App.BoxR1.cs'
+$boxActivationCode = Get-Content -LiteralPath $boxActivationPath -Raw -Encoding UTF8
 $desktopFirstScript = Join-Path $PSScriptRoot `
     'Test-LongGridDesktopFirstStartup.ps1'
 
@@ -44,8 +46,16 @@ Assert-Condition ($programCode.Contains('PendingActivations.Enqueue(activation)'
     'Activations arriving before App construction must be retained in memory.'
 Assert-Condition ($appCode.Contains('Program.ReleaseMainInstance()')) `
     'The primary key must be released immediately before the drained window closes.'
-Assert-Condition ($appCode.Contains('window.DispatcherQueue.TryEnqueue(ActivateMainWindow)')) `
-    'Redirected activation must cross onto the existing window UI queue.'
+Assert-Condition (
+    $boxActivationCode.Contains(
+        'window.DispatcherQueue.TryEnqueue(ActivateMainWindow)')) `
+    'Ordinary redirected activation must cross onto the existing window UI queue.'
+Assert-Condition (
+    $boxActivationCode.Contains(
+        'window.DispatcherQueue.TryEnqueue(() =>') -and
+    $boxActivationCode.Contains(
+        '_ = TryDispatchExplorerCreateActivation()')) `
+    'BOX-R1 redirected activation must cross onto the existing window UI queue.'
 Assert-Condition ($appCode.Contains('OverlappedPresenterState.Minimized')) `
     'Redirected activation must restore a minimized main window.'
 Assert-Condition ($appCode.Contains('InitializeDesktopFirstStartupAsync')) `

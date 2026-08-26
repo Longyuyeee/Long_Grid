@@ -63,7 +63,7 @@ function Get-DirectoryMetadataFingerprint {
     $sha = [Security.Cryptography.SHA256]::Create()
     try {
         $payload = [Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))
-        return [Convert]::ToHexString($sha.ComputeHash($payload))
+        return [BitConverter]::ToString($sha.ComputeHash($payload)).Replace('-', '')
     }
     finally {
         $sha.Dispose()
@@ -201,7 +201,7 @@ try {
     Assert-Condition ($primaryProcess.WaitForExit(10000)) `
         'The BOX-R1 evidence primary process did not close.'
     $appResult = Get-Content -LiteralPath $resultPath -Raw |
-        ConvertFrom-Json -Depth 20
+        ConvertFrom-Json
     $userConfigurationAfter = Get-DirectoryMetadataFingerprint `
         $userConfigurationDirectory
     $desktopAfter = Get-DirectoryMetadataFingerprint $desktopDirectory

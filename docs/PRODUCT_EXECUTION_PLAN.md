@@ -398,11 +398,13 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 | 真实验证 | 预期 | 首次实际 | 修正后实际 |
 |---|---|---|---|
 | Release 编译 | 0 warning / 0 error | CA1859 阻断宽泛返回类型，随后接口合并暴露 C# 推导错误 | 收紧返回数组并显式提升证据接口后 0/0 |
-| 首进程激活 | 首次 Shell 启动显示一次真实预览，取消零写入 | 首轮预览被驱动但视觉树尚未加载，`PreviewVisualTreeCount=0` | 激活安全回退窗口后有限等待 100 ms；预览/视觉树/激活均为 1，盒子 0→0，Difference=None |
+| 首进程激活 | 首次 Shell 启动显示一次真实预览，取消零写入 | 首轮及 Windows PowerShell 5.1 复验都曾出现预览已驱动、窗口已激活但视觉树尚未加载，`PreviewVisualTreeCount=0`；固定 100 ms 延时不稳定 | 改为激活后在 2 秒总预算内每 25 ms 轮询真实 `IsProductXamlReady`，不无限等待、不伪造视觉树；连续 3 次 Initial 均预览/视觉树/激活为 1、盒子 0→0、Difference=None |
 | 已运行单实例 | 第二进程退出 0，主进程显示一次预览 | 第二进程退出 0；预览/视觉树/激活均为 1 | 无产品差异 |
 | 重复 nonce | 两个发送进程退出，但只消费一次 | 两个进程退出码均为 0，主进程预览次数 1 | 无差异，重复输入未生成第二预览 |
 | 文件安全 | 隔离配置、用户正常配置与桌面元数据均不改变 | Initial / Redirect / DuplicateRedirect 三场景均为 false；最终活动进程 0 | 无差异 |
 | 回归 | 普通显式/后台/单实例和 UI 合同保持 | 显式 4,965 ms、后台 3,261 ms、二次唤起通过、零临时配置写入；184-ID Pass；核心 1,247/1,247 | 无差异，均低于 10 秒启动预算 |
+| CI 干净会话链 | 普通重定向与 BOX-R1 重定向分别跨入现有窗口 UI 队列 | 首次 CI 仍按拆分前的 `App.xaml.cs` 单一路径字符串检查，实际在 `App.BoxR1.cs` 已有两条正确调度路径，因此静态契约失败 | 将旧断言拆为普通激活与 BOX-R1 创建激活两项明确断言；本机 `Test-LongGridSingleInstance -ContractOnly` 与 `Test-LongGridCleanSession -ValidateOnly` 均 Pass，等待 CI 复验 |
+| 证据脚本宿主兼容 | 仓库声明的 Windows PowerShell 5.1 与 PowerShell 7 入口均可执行 | 首次用 `powershell.exe` 复验时，5.1 缺少 `Convert.ToHexString` 和 `ConvertFrom-Json -Depth`，脚本在产品启动/结果读取边界失败 | 改为 `BitConverter` 十六进制编码并使用兼容的 JSON 读取；5.1 下 Initial、Redirect、DuplicateRedirect 均 `Outcome=Pass / Difference=None`，7 下 ContractOnly Pass |
 
 ## 10. 真实测试与差异修正规则
 
