@@ -366,6 +366,7 @@ test(shell): cover coalesced change notifications
 建立正式 `LongGrid.App` 后必须维护统一的一键入口，详细合同见[视觉品牌、动效与交付要求](14-visual-branding-and-delivery-requirements.md)：
 
 - `eng/Start-LongGrid.ps1` 负责依赖检查、必要构建和启动，不默认提权或修改真实桌面文件；
+- 用户从根目录或 `eng/Start-LongGrid.ps1` 显式启动时必须直接出现唯一控制中心；只有自启动/托盘等明确后台调用方才可传入 `--background` 保持桌面优先隐藏。两条路径及“后台运行后再次显式启动”的单实例唤起必须由真实进程和顶层窗口证据共同验证；
 - `eng/Pack-LongGrid.ps1` 负责 restore、format、Release build、test、覆盖率、安全探针、包结构和哈希；
 - `eng/Pack-LongGridMsix.ps1` 只生成并验证固定开发身份的 unsigned MSIX；`eng/New-LongGridSbom.ps1` 使用仓库固定工具对其解包布局生成并官方复核 SPDX 2.2；
 - `eng/Build-LongGridReleaseCandidate.ps1` 是内部 RC 交付集合的唯一推荐入口；只有 ZIP/MSIX/SBOM 同提交、哈希、版本和否定性状态全部一致才生成聚合成功标记；

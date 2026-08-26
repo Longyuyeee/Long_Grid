@@ -24,6 +24,7 @@ $sessionId = [Guid]::NewGuid().ToString('N')
 $evidenceRoot = [System.IO.Path]::GetFullPath((Join-Path ([System.IO.Path]::GetTempPath()) 'LongGridDesktopFirstEvidence'))
 $evidenceDirectory = [System.IO.Path]::GetFullPath((Join-Path $evidenceRoot $sessionId))
 $previousEnvironment = [Environment]::GetEnvironmentVariable($environmentName, 'Process')
+$explicit = $null
 $primary = $null
 $secondary = $null
 $cleanExitObserved = $false
@@ -142,9 +143,54 @@ try {
         'Desktop-first evidence directory must not be a reparse point.'
 
     [Environment]::SetEnvironmentVariable($environmentName, $sessionId, 'Process')
+
+    $explicitStartedAt = Get-Date
+    $explicit = Start-Process `
+        -FilePath $executablePath `
+        -WorkingDirectory $outputDirectory `
+        -PassThru
+    $explicitDeadline = $explicitStartedAt.AddSeconds(15)
+    $explicitWindows = @()
+    do {
+        Start-Sleep -Milliseconds 25
+        $explicit.Refresh()
+        if (-not $explicit.HasExited) {
+            $explicitWindows = Get-ProductWindows -ProcessId $explicit.Id
+        }
+    } while (
+        -not $explicit.HasExited -and
+        @($explicitWindows | Where-Object {
+            $_.Visible -and $_.Title -eq $controlCenterTitle }).Count -eq 0 -and
+        (Get-Date) -lt $explicitDeadline)
+
+    $explicitControlCenters = @(
+        $explicitWindows |
+            Where-Object { $_.Visible -and $_.Title -eq $controlCenterTitle }
+    )
+    Assert-Condition (-not $explicit.HasExited) `
+        'Explicit LongGrid.App launch exited before showing the control center.'
+    Assert-Condition ($explicitControlCenters.Count -eq 1) `
+        'Explicit LongGrid.App launch did not expose exactly one control center.'
+    Assert-Condition $explicit.Responding `
+        'The explicitly launched control center is not responding.'
+    $explicitLaunchReadyMilliseconds =
+        [int]((Get-Date) - $explicitStartedAt).TotalMilliseconds
+    $explicitCloseRequested = [LongGridDesktopFirstNative]::PostMessage(
+        $explicitControlCenters[0].Handle,
+        0x0010,
+        [IntPtr]::Zero,
+        [IntPtr]::Zero)
+    Assert-Condition $explicitCloseRequested `
+        'Windows did not accept WM_CLOSE for the explicitly launched control center.'
+    Assert-Condition ($explicit.WaitForExit(10000)) `
+        'Explicit LongGrid.App launch did not complete shutdown within 10 seconds.'
+    Assert-Condition ($explicit.ExitCode -eq 0) `
+        "Expected explicit launch exit code 0; actual $($explicit.ExitCode)."
+
     $startedAt = Get-Date
     $primary = Start-Process `
         -FilePath $executablePath `
+        -ArgumentList '--background' `
         -WorkingDirectory $outputDirectory `
         -PassThru
 
@@ -253,8 +299,14 @@ try {
 
     $coldProcessDifferenceMilliseconds =
         $firstLaunchReadyMilliseconds - $MaximumColdProcessReadyMilliseconds
+    $explicitLaunchDifferenceMilliseconds =
+        $explicitLaunchReadyMilliseconds - $MaximumColdProcessReadyMilliseconds
     $coldProcessWithinBudget = $coldProcessDifferenceMilliseconds -le 0
-    $difference = if ($coldProcessWithinBudget) {
+    $explicitLaunchWithinBudget = $explicitLaunchDifferenceMilliseconds -le 0
+    $difference = if (-not $explicitLaunchWithinBudget) {
+        "ExplicitControlCenterReadyExceededBy$($explicitLaunchDifferenceMilliseconds)Milliseconds"
+    }
+    elseif ($coldProcessWithinBudget) {
         'None'
     }
     else {
@@ -265,6 +317,9 @@ try {
         SchemaVersion = 1
         Purpose = 'Pf001DesktopFirstStartupRealWindowEvidence'
         Expected = [pscustomobject]@{
+            ExplicitLaunchControlCenterCount = 1
+            ExplicitLaunchReadyBudgetMilliseconds =
+                $MaximumColdProcessReadyMilliseconds
             FirstLaunchControlCenterVisible = $false
             FirstLaunchDesktopHostVisible = $true
             SecondaryExitCode = 0
@@ -279,6 +334,10 @@ try {
             RuntimeBoxesEnableMeasuredByThisScenario = $false
         }
         Actual = [pscustomobject]@{
+            ExplicitLaunchControlCenterCount = $explicitControlCenters.Count
+            ExplicitLaunchReadyMilliseconds = $explicitLaunchReadyMilliseconds
+            ExplicitLaunchReadyDifferenceMilliseconds =
+                $explicitLaunchDifferenceMilliseconds
             FirstLaunchControlCenterVisible = $visibleControlCentersAtFirstLaunch.Count -gt 0
             FirstLaunchDesktopHostCount = $visibleDesktopHosts.Count
             FirstLaunchReadyMilliseconds = $firstLaunchReadyMilliseconds
@@ -295,9 +354,16 @@ try {
             RuntimeBoxesEnableMilliseconds = $null
         }
         Difference = $difference
-        Outcome = if ($coldProcessWithinBudget) { 'Pass' } else { 'Fail' }
+        Outcome = if ($explicitLaunchWithinBudget -and $coldProcessWithinBudget) {
+            'Pass'
+        }
+        else {
+            'Fail'
+        }
     } | ConvertTo-Json -Depth 4
 
+    Assert-Condition $explicitLaunchWithinBudget `
+        "Explicit control center ready exceeded the $MaximumColdProcessReadyMilliseconds-ms product budget by $explicitLaunchDifferenceMilliseconds ms."
     Assert-Condition $coldProcessWithinBudget `
         "Cold-process DesktopHost ready exceeded the $MaximumColdProcessReadyMilliseconds-ms product recovery budget by $coldProcessDifferenceMilliseconds ms."
 }
@@ -310,6 +376,23 @@ finally {
     if ($null -ne $secondary -and -not $secondary.HasExited) {
         Stop-Process -Id $secondary.Id -Force -ErrorAction SilentlyContinue
         $secondary.WaitForExit()
+    }
+    if ($null -ne $explicit -and -not $explicit.HasExited) {
+        $explicitControlCenter = @(
+            Get-ProductWindows -ProcessId $explicit.Id |
+                Where-Object { $_.Title -eq $controlCenterTitle }
+        ) | Select-Object -First 1
+        if ($null -ne $explicitControlCenter) {
+            $null = [LongGridDesktopFirstNative]::PostMessage(
+                $explicitControlCenter.Handle,
+                0x0010,
+                [IntPtr]::Zero,
+                [IntPtr]::Zero)
+        }
+        if (-not $explicit.WaitForExit(5000)) {
+            Stop-Process -Id $explicit.Id -Force -ErrorAction SilentlyContinue
+            $explicit.WaitForExit()
+        }
     }
     if ($null -ne $primary -and -not $primary.HasExited) {
         $controlCenter = @(

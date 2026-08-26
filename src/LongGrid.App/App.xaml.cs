@@ -52,6 +52,7 @@ public partial class App : Application
     private readonly ProductUiR1eEvidenceSession? uiR1eEvidenceSession;
     private readonly ProductBoxesRuntimeEnableEvidenceSession?
         boxesRuntimeEnableEvidenceSession;
+    private readonly bool backgroundStartup;
     private ProductWorkspaceSessionSnapshot productWorkspaceSession =
         ProductWorkspaceSessionSnapshot.Initial;
     private ProductConfigurationLoadResult? currentConfigurationLoadResult;
@@ -76,6 +77,11 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
+        backgroundStartup = Environment.GetCommandLineArgs().Any(argument =>
+            string.Equals(
+                argument,
+                "--background",
+                StringComparison.OrdinalIgnoreCase));
         pf002AppEvidenceSession =
             ProductPf002AppEvidenceSession.TryCreateFromEnvironment();
         desktopFirstStartupEvidenceSession =
@@ -371,6 +377,7 @@ public partial class App : Application
                     new(
                         EvidenceSession: false,
                         RedirectedActivationPending: activationPending,
+                        ExplicitUserLaunch: !backgroundStartup,
                         BoxesEnabled: boxesSettingsController.Current.BoxesEnabled,
                         ConfigurationRequiresAttention:
                             configuration?.RequiresRecoveryNotice != false,

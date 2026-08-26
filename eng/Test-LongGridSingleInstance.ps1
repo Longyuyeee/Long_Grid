@@ -50,6 +50,14 @@ Assert-Condition ($appCode.Contains('OverlappedPresenterState.Minimized')) `
     'Redirected activation must restore a minimized main window.'
 Assert-Condition ($appCode.Contains('InitializeDesktopFirstStartupAsync')) `
     'Normal startup must use the desktop-first decision path.'
+Assert-Condition (
+    $appCode.Contains('"--background"') -and
+    $appCode.Contains('ExplicitUserLaunch: !backgroundStartup')) `
+    'Explicit launch must show the control center while --background may remain desktop-first.'
+Assert-Condition (
+    (Get-Content -LiteralPath $desktopFirstScript -Raw -Encoding UTF8).Contains(
+        "-ArgumentList '--background'")) `
+    'Desktop-first evidence must opt into the background startup path.'
 Assert-Condition (Test-Path -LiteralPath $desktopFirstScript -PathType Leaf) `
     'The real desktop-first single-instance evidence script is missing.'
 
@@ -78,6 +86,8 @@ Assert-Condition (
     $evidence.Expected.ColdProcessDesktopHostReadyBudgetMilliseconds -eq 10000 -and
     $evidence.Expected.RuntimeBoxesEnableBudgetMilliseconds -eq 1000 -and
     $evidence.Expected.RuntimeBoxesEnableMeasuredByThisScenario -eq $false -and
+    $evidence.Expected.ExplicitLaunchControlCenterCount -eq 1 -and
+    $evidence.Actual.ExplicitLaunchControlCenterCount -eq 1 -and
     $null -eq $evidence.Actual.RuntimeBoxesEnableMilliseconds -and
     $evidence.Actual.SecondaryExitCode -eq 0 -and
     $evidence.Actual.RedirectedControlCenterCount -eq 1 -and
