@@ -526,7 +526,7 @@ PF-007A2 DesktopHost OLE DropTarget 记录（2026-08-26，基线 `origin/main@53
 | Drop 与提交 | Drop 只提交一次，并复用当前编辑修订、权威 Catalog、原子批量引用、保存失败补偿和一次撤销 | 正式 Surface → Lifecycle → App → `Prepare` → `CommitResolvedReferenceBatch` 链已接通；真实 STA/HWND 场景实际回调 1 次、保存 1 次、盒子增加 1 个引用 | 对齐；COM 回调异常失败关闭为 None，不越过现有事务链 |
 | 文件安全 | 安全 Link 不移动、复制、删除、重命名或改写源文件 | 真实隔离 Unicode 文件以真实 CF_HDROP HGLOBAL 投递；投递前后规范路径和 SHA-256 相同 | `Difference=None`；代码与 UI 合同同时禁止文件变更 API进入 DropTarget |
 | 回归 | 专项、全量、Release、格式、覆盖率与 UI 合同通过 | 专项 9/9，真实 STA/OLE 场景连续 3/3；全量 1,267/1,267；Release 0 warning / 0 error；最终 lines 90.35% / branches 75.93%；格式和 188-ID UI 合同通过 | 对齐，未降低门槛 |
-| CI 原生资源收敛 | 原生交互表面在相同 USER/GDI 上限内稳定回落，不因异步释放时序误报 | PR 首轮产品行为全部通过，但 CI 的 1 秒资源平台窗口得到 `RepeatedResourcePlateau=false`；USER 已回基线、GDI 为允许的 +1、句柄 +2。本机同命令连续 3/3 通过 | 不重跑掩盖；保持资源上限不变，将每次及最终收敛等待统一为 2 秒，随后同一探针连续复测并重跑完整 CI |
+| CI 原生资源收敛 | 原生交互表面在相同 USER/GDI 上限内稳定回落；句柄按探针声明在 warm-up 后验证有限增长 | PR 前两轮产品行为全部通过，但均得到 `RepeatedResourcePlateau=false`；公开日志中的 USER 已回基线、GDI 为允许的 +1、句柄 +2。第一轮只暴露 1 秒时序风险；第二轮仍在 1 秒内失败，证明隐藏原因不是 USER/GDI 等待，而是句柄将第二个 UIA 宿主与第一个宿主销毁后的旧基线比较 | 不重跑掩盖；USER/GDI 精确上限保持不变并等待 2 秒。句柄改为与说明一致：长寿命宿主三轮 warm-up 后取平台值，每轮不得增长超过 +3；最终报告仍记录进程句柄但不把异步进程级 UIA 初始化误算为 HWND 泄漏 |
 | 产品物理证据 | 用户从真实 Explorer 用鼠标拖到桌面盒子，看到 Link 光标/轮廓并出现引用 | 本轮使用真实 STA、真实 HWND、原生 RegisterDragDrop 和真实 CF_HDROP，但最终回调由证据入口驱动，不是物理鼠标；未将其伪报为物理 Explorer 拖入 | `ProductEvidencePending`；与 BOX/FOLDER/UI 人工项一起进入 M1 集中证据 |
 
 PF-007A2 的完成边界：正式产品已经拥有原生 OLE DropTarget 和端到端安全引用提交工程链，真实注册、有限效果、一次提交及文件零变化已证明；尚未取得物理 Explorer 指针和屏幕可见证据，因此不能标为用户旅程 Complete。下一批只做 PF-007B 盒子间改归属，不再扩展 A2 邻接底座。

@@ -162,8 +162,7 @@ internal static class NativeInteractionSurfaceModeProbe
         int handlesAfter = ProcessHandleCount();
         bool resourcePlateau = VerifyResourcePlateau(
             userAfter,
-            gdiAfter,
-            handlesAfter);
+            gdiAfter);
         bool cleanup = userAfter == userBefore
             && gdiAfter <= gdiBefore + 1
             && resourcePlateau;
@@ -250,9 +249,9 @@ internal static class NativeInteractionSurfaceModeProbe
 
     private static bool VerifyResourcePlateau(
         uint expectedUser,
-        uint expectedGdi,
-        int expectedHandles)
+        uint expectedGdi)
     {
+        int plateauHandles;
         using (var host = NativeInteractionProbeHost.Create())
         {
             for (int warmupCycle = 0; warmupCycle < 3; warmupCycle++)
@@ -262,13 +261,15 @@ internal static class NativeInteractionSurfaceModeProbe
             CollectGarbage();
             uint plateauUser = Resources(NativeMethods.GrUserObjects);
             uint plateauGdi = Resources(NativeMethods.GrGdiObjects);
+            plateauHandles = ProcessHandleCount();
             for (int cycle = 0; cycle < 3; cycle++)
             {
                 RunResourcePlateauCycle(host);
                 if (!WaitForResourceCeiling(
                     plateauUser,
                     plateauGdi,
-                    ResourceReleaseTimeout))
+                    ResourceReleaseTimeout)
+                    || ProcessHandleCount() > plateauHandles + 3)
                 {
                     return false;
                 }
@@ -281,7 +282,7 @@ internal static class NativeInteractionSurfaceModeProbe
             expectedGdi,
             ResourceReleaseTimeout);
         return returnedToCeiling
-            && ProcessHandleCount() <= expectedHandles + 3;
+            && ProcessHandleCount() <= plateauHandles + 3;
     }
 
     private static void RunResourcePlateauCycle(
