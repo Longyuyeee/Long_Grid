@@ -195,7 +195,10 @@ function Test-MsixLayout {
         [string]$LayoutRoot,
 
         [Parameter(Mandatory)]
-        [string]$ExpectedVersion
+        [string]$ExpectedVersion,
+
+        [Parameter(Mandatory)]
+        [string]$ExpectedExplorerCommandSha256
     )
 
     foreach ($requiredFile in @(
@@ -215,6 +218,12 @@ function Test-MsixLayout {
 
     if (Test-Path -LiteralPath (Join-Path $LayoutRoot 'AppxSignature.p7x') -PathType Leaf) {
         throw 'Unsigned Developer Preview unexpectedly contains AppxSignature.p7x.'
+    }
+    $packagedExplorerCommandHash = (Get-FileHash `
+        -LiteralPath (Join-Path $LayoutRoot 'LongGrid.ExplorerCommand.dll') `
+        -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($packagedExplorerCommandHash -ne $ExpectedExplorerCommandSha256) {
+        throw 'Packaged Explorer command DLL does not match the native build output.'
     }
 
     [xml]$manifest = Get-Content -LiteralPath (Join-Path $LayoutRoot 'AppxManifest.xml') -Raw -Encoding UTF8
@@ -501,8 +510,14 @@ try {
     Invoke-CheckedCommand 'MakeAppx comparison unpack verification' {
         & $makeAppxPath unpack /o /p $comparisonPath /d $comparisonVerificationRoot | Out-Null
     }
-    Test-MsixLayout -LayoutRoot $verificationRoot -ExpectedVersion $PackageVersion
-    Test-MsixLayout -LayoutRoot $comparisonVerificationRoot -ExpectedVersion $PackageVersion
+    Test-MsixLayout `
+        -LayoutRoot $verificationRoot `
+        -ExpectedVersion $PackageVersion `
+        -ExpectedExplorerCommandSha256 $nativeBuild.CommandDllSha256
+    Test-MsixLayout `
+        -LayoutRoot $comparisonVerificationRoot `
+        -ExpectedVersion $PackageVersion `
+        -ExpectedExplorerCommandSha256 $nativeBuild.CommandDllSha256
     $layoutFingerprint = Get-LayoutFingerprint -LayoutRoot $verificationRoot
     $comparisonLayoutFingerprint = Get-LayoutFingerprint -LayoutRoot $comparisonVerificationRoot
     if ($layoutFingerprint -ne $comparisonLayoutFingerprint) {

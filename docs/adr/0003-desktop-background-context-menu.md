@@ -58,7 +58,7 @@ Windows 11 正式安装形态采用带应用身份的原生 `IExplorerCommand`�
 
 ### BOX-R1-B：原生 Explorer 命令与清单
 
-状态：ImplementationComplete / NativeDllPass / ExactCommitPackagePending（2026-08-26）
+状态：EngineeringComplete / NativeDllPass / RealUnsignedPackagePass（2026-08-26）
 
 - x64 `IExplorerCommand` DLL；
 - COM CLSID、清单 CLSID 和测试常量唯一一致；
@@ -66,7 +66,7 @@ Windows 11 正式安装形态采用带应用身份的原生 `IExplorerCommand`�
 - 菜单构建方法有界且无产品 I/O；
 - 打包链证明 DLL、资源和清单进入同一 MSIX。
 
-实现采用 CLSID `78A940C1-2E65-4A03-9D09-3AC62CEF30BB`，唯一 AUMID 为 `Longyuyeee.LongGrid.DeveloperPreview!LongGrid.App`。真实 x64 DLL 探针已通过类工厂创建、200 轮标题/图标/状态/CanonicalName/Flags/SubCommands 调用、模块卸载和句柄边界；该结果不等于 Explorer 已加载菜单。精确提交 MSIX 的生成、解包与同包哈希复核完成前，本切片不得改为 Complete。
+实现采用 CLSID `78A940C1-2E65-4A03-9D09-3AC62CEF30BB`，唯一 AUMID 为 `Longyuyeee.LongGrid.DeveloperPreview!LongGrid.App`。真实 x64 DLL 探针已通过类工厂创建、200 轮标题/图标/状态/CanonicalName/Flags/SubCommands 调用、模块卸载和句柄边界；官方 MakeAppx 已生成并双份解包真实 unsigned MSIX，内容布局、COM/Verb 注册与 DLL 哈希门禁通过。该结果仍不等于 Explorer 已加载菜单。
 
 ### BOX-R1-C：真实安装/卸载证据
 
