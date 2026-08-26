@@ -547,3 +547,17 @@ PF-007B DesktopHost 盒子间改归属记录（2026-08-26，基线 `origin/main@
 ## 13. 下一步开始条件
 
 下一次开发进入 M1 产品证据冲刺，不再增加 PF-007 相邻底座。使用可丢弃 Windows 测试账户，按“安装 BOX-R1 命令 → 桌面空白处创建盒子 → Picker 绑定真实文件夹并刷新/打开 → Explorer Link 拖入 → 选中项目拖到另一盒子并撤销 → 高对比/减少动画/键盘/Narrator → 卸载并核对恢复”的完整旅程记录预期、实际、差异和修正。任何环境阻断必须保持 Pending，不能再以 reducer、源码合同或证据入口冒充物理 Pass。M1 通过后才进入 TASKBAR-R1～R4。
+
+### 13.1 M1-A 隔离人工产品会话（2026-08-26）
+
+为避免继续用自动驱动坐标冒充真人输入，也避免物理测试污染正常配置，本轮新增 `LONGGRID_M1_MANUAL_EVIDENCE_SESSION`、唯一 AppInstance 和仓库脚本 `eng/Start-LongGridM1ManualEvidenceSession.ps1`。会话只建立临时配置、真实 Unicode 文件夹夹具和预期/实际记录，不点击控件、不自动判定物理通过；现有高权限 Long方格 DesktopHost 无法在当前账户结束时，默认隔离会话显式禁用 DesktopHost，只允许验证控制中心，桌面物理项继续 Pending。可丢弃专用账户确认没有既有 Long方格进程后，必须显式传入 `-EnableDesktopHost` 才能进入完整桌面旅程。
+
+| 验证面 | 预期 | 实际 | 差异与修正 |
+|---|---|---|---|
+| 正式 Release 启动 | 隔离进程存活，并依次到达唯一实例、配置隔离和 App 构造阶段 | 真实 `LongGrid.App.exe` 存活；记录 `InstanceKeyResolved → AppInstanceCurrent → ConfigurationIsolationAccepted → AppConstructed` | `Difference=None`；新增启动阶段日志，避免只凭进程号推断成功 |
+| 配置与文件安全 | 测试配置必须位于精确临时会话；正常配置和 Unicode 夹具前后哈希不变 | 配置路径位于精确会话；本机正常配置前后均为 `MISSING`；夹具 SHA-256 指纹前后均为 `BD2BDC65...D7ADC` | `Difference=None`；会话根要求精确 GUID marker 并拒绝 reparse point |
+| 构建编排 | Release 0 warning / 0 error | 首次把格式化和构建组合执行时，中间 XAML DLL 被并发任务占用，实际出现 CS2012/WMC9999；等待残留任务结束并严格串行后 0/0 | 已修正测试编排，不删除中间文件、不放宽编译门禁 |
+| 真实产品窗口 | 正式窗口可见并可由物理输入完成创建/绑定 | 正式 Release 正常产品窗口已显示“桌面概览/盒子管理/个性化/设置”；隔离窗口恢复时连续检测到活跃用户输入和最小化，Computer Use 按规则停止抢占 | `ProductEvidencePending`；没有把启动日志或截图冒充点击通过，待空闲桌面或可丢弃账户继续 |
+| DesktopHost 完整旅程 | 桌面右键、Explorer 拖入、盒子间拖动和撤销均用真实鼠标完成 | 当前已有一份无法由本会话结束的高权限 Long方格常驻进程；隔离控制中心会话为避免双宿主显式禁用 DesktopHost | `EnvironmentBlocked / ProductEvidencePending`；不绕过权限、不强杀、不修改安全策略 |
+
+专项真实探针预期进程存活、四阶段齐全、配置隔离、正常配置零变化和夹具零变化，实际全部通过，`Difference=None`。CI 只运行 `-ValidateOnly` 验证入口合同，不把无交互 runner 当作物理证据；下一次仍从 M1 物理输入继续，而不是转入 TASKBAR-R1。

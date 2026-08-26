@@ -23,14 +23,18 @@ public static class Program
         AppActivationArguments activation = AppInstance
             .GetCurrent()
             .GetActivatedEventArgs();
-        string instanceKey = ProductBoxesRuntimeEnableEvidenceSession
-            .ResolveInstanceKey(
+        string instanceKey = ProductM1ManualEvidenceSession.ResolveInstanceKey(
+            ProductBoxesRuntimeEnableEvidenceSession.ResolveInstanceKey(
                 ProductBoxR1ActivationEvidenceSession.ResolveInstanceKey(
                     ProductUiR1eEvidenceSession.ResolveInstanceKey(
                         ProductDesktopFirstStartupEvidenceSession.ResolveInstanceKey(
                             ProductPf002AppEvidenceSession.ResolveInstanceKey(
-                                MainInstanceKey)))));
+                                MainInstanceKey))))));
         AppInstance mainInstance = AppInstance.FindOrRegisterForKey(instanceKey);
+        ProductM1ManualEvidenceSession.TryRecordStage(
+            mainInstance.IsCurrent
+                ? "AppInstanceCurrent"
+                : "AppInstanceRedirected");
 
         if (!mainInstance.IsCurrent)
         {
@@ -58,6 +62,7 @@ public static class Program
                     new DispatcherQueueSynchronizationContext(dispatcher));
 
                 App app = new();
+                ProductM1ManualEvidenceSession.TryRecordStage("AppConstructed");
                 Attach(app);
             });
         }

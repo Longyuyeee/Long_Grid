@@ -49,6 +49,14 @@ try {
     }
 
     if ($ValidateOnly) {
+        $m1Validation = & (Join-Path `
+            $PSScriptRoot `
+            'Test-LongGridM1ManualEvidenceSession.ps1') `
+            -ValidateOnly |
+            ConvertFrom-Json
+        if ($m1Validation.outcome -ne 'Pass') {
+            throw 'M1 manual product journey harness validation failed.'
+        }
         Write-Output "Long Grid startup chain validation passed: $Configuration / $Architecture"
         exit 0
     }
