@@ -62,7 +62,9 @@ public sealed record ProductWorkspaceReadContainer(
     IReadOnlyList<ProductWorkspaceReadItem> Items,
     int ResolvedCount,
     int UnresolvedCount,
-    ProductWorkspaceContainerHealth Health);
+    ProductWorkspaceContainerHealth Health,
+    ProductContainerFolderBindingResolution? FolderBindingResolution = null,
+    string? FolderBindingTarget = null);
 
 public sealed record ProductWorkspaceReadSnapshot(
     IReadOnlyList<ProductWorkspaceReadContainer> Containers,
@@ -126,9 +128,15 @@ public static class ProductWorkspaceReadModel
             }
 
             int unresolved = items.Count - resolved;
+            ProductContainerFolderBindingState? folderBinding =
+                container.FolderBinding;
+            bool folderNeedsReview = folderBinding is not null
+                && folderBinding.Resolution !=
+                    ProductContainerFolderBindingResolution.Resolved;
             ProductWorkspaceContainerHealth health = unresolved > 0
+                || folderNeedsReview
                 ? ProductWorkspaceContainerHealth.NeedsReview
-                : items.Count == 0
+                : items.Count == 0 && folderBinding is null
                     ? ProductWorkspaceContainerHealth.Empty
                     : ProductWorkspaceContainerHealth.Ready;
             if (health == ProductWorkspaceContainerHealth.Empty)
@@ -158,7 +166,9 @@ public static class ProductWorkspaceReadModel
                 items.ToArray(),
                 resolved,
                 unresolved,
-                health));
+                health,
+                folderBinding?.Resolution,
+                folderBinding?.ResolvedTarget ?? folderBinding?.PersistedTarget));
         }
 
         return new(

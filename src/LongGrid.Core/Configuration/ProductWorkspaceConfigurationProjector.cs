@@ -82,7 +82,8 @@ public static class ProductWorkspaceConfigurationProjector
         if (container is null
             || container.Appearance is null
             || container.Placement is null
-            || container.Items is null)
+            || container.Items is null
+            || !IsValidFolderBindingState(container.FolderBinding))
         {
             return Failure(ProductWorkspaceProjectionError.InvalidState);
         }
@@ -126,10 +127,40 @@ public static class ProductWorkspaceConfigurationProjector
                 ExtensionData = container.Placement.ExtensionData,
             },
             Items = items,
+            FolderBinding = ProjectFolderBinding(container.FolderBinding),
             ExtensionData = container.ExtensionData,
         };
         return null;
     }
+
+    private static ContainerFolderBindingConfiguration? ProjectFolderBinding(
+        ProductContainerFolderBindingState? binding)
+    {
+        if (binding is null)
+        {
+            return null;
+        }
+
+        return new()
+        {
+            Target = binding.PersistedTarget,
+            VolumeSerialNumber = binding.VolumeSerialNumber.ToString(
+                "X16",
+                System.Globalization.CultureInfo.InvariantCulture),
+            FileId = binding.FileId,
+            ExtensionData = binding.ExtensionData,
+        };
+    }
+
+    private static bool IsValidFolderBindingState(
+        ProductContainerFolderBindingState? binding) =>
+        binding is null
+        || (Enum.IsDefined(binding.Resolution)
+            && binding.FileId.Length == 32
+            && binding.FileId.All(Uri.IsHexDigit)
+            && (binding.Resolution == ProductContainerFolderBindingResolution.Resolved
+                ? !string.IsNullOrWhiteSpace(binding.ResolvedTarget)
+                : binding.ResolvedTarget is null));
 
     private static ProductWorkspaceProjectionResult? TryProjectItem(
         ProductItemReferenceState? item,

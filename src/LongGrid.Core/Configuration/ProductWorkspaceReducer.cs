@@ -83,6 +83,18 @@ public static class ProductWorkspaceReducer
             container => container with { IsLocked = isLocked },
             allowLockedContainer: true);
 
+    public static ProductWorkspaceEditResult SetFolderBinding(
+        ProductWorkspaceState state,
+        string containerId,
+        ProductContainerFolderBindingState? binding) =>
+        EditContainer(
+            state,
+            containerId,
+            container => container with
+            {
+                FolderBinding = binding is null ? null : Clone(binding),
+            });
+
     public static ProductWorkspaceEditResult RemoveContainer(
         ProductWorkspaceState state,
         string containerId,
@@ -595,7 +607,17 @@ public static class ProductWorkspaceReducer
             Appearance = Clone(container.Appearance),
             Placement = Clone(container.Placement),
             Items = container.Items.Select(Clone).ToArray(),
+            FolderBinding = container.FolderBinding is null
+                ? null
+                : Clone(container.FolderBinding),
             ExtensionData = CloneExtensions(container.ExtensionData),
+        };
+
+    private static ProductContainerFolderBindingState Clone(
+        ProductContainerFolderBindingState binding) =>
+        binding with
+        {
+            ExtensionData = CloneExtensions(binding.ExtensionData),
         };
 
     private static ProductContainerAppearanceState Clone(

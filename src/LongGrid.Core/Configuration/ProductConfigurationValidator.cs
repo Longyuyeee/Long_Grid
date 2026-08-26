@@ -2,8 +2,7 @@ namespace LongGrid.Core.Configuration;
 
 public static class ProductConfigurationLimits
 {
-    public const int CurrentSchemaVersion = 2;
-    public const int PreviousSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 3;
     public const int MaximumSerializedBytes = 4 * 1024 * 1024;
     public const int MaximumContainers = 100;
     public const int MaximumItems = 500;
@@ -112,7 +111,8 @@ public static class ProductConfigurationValidator
                 "isLocked",
                 "appearance",
                 "placement",
-                "items"))
+                "items",
+                "folderBinding"))
             {
                 return new(ProductConfigurationError.InvalidExtensionData);
             }
@@ -136,6 +136,11 @@ public static class ProductConfigurationValidator
             if (!IsValidPlacement(container.Placement))
             {
                 return new(ProductConfigurationError.InvalidPlacement);
+            }
+
+            if (!IsValidFolderBinding(container.FolderBinding))
+            {
+                return new(ProductConfigurationError.InvalidContainer);
             }
 
             if (!IsValidExtensionData(
@@ -282,6 +287,28 @@ public static class ProductConfigurationValidator
         && IsBoundedText(item.Target, ProductConfigurationLimits.MaximumTargetLength)
         && Enum.IsDefined(item.Kind)
         && item.Behavior == ConfigurationItemBehavior.Reference;
+
+    private static bool IsValidFolderBinding(
+        ContainerFolderBindingConfiguration? binding)
+    {
+        if (binding is null)
+        {
+            return true;
+        }
+
+        return IsBoundedText(
+                binding.Target,
+                ProductConfigurationLimits.MaximumTargetLength)
+            && binding.VolumeSerialNumber.Length == 16
+            && binding.VolumeSerialNumber.All(Uri.IsHexDigit)
+            && binding.FileId.Length == 32
+            && binding.FileId.All(Uri.IsHexDigit)
+            && IsValidExtensionData(
+                binding.ExtensionData,
+                "target",
+                "volumeSerialNumber",
+                "fileId");
+    }
 
     private static bool IsBoundedCoordinate(double value) =>
         double.IsFinite(value)

@@ -82,7 +82,9 @@ public sealed class ProductConfigurationContractTests
         using JsonDocument roundTrip = JsonDocument.Parse(serialized);
 
         JsonElement root = roundTrip.RootElement;
-        Assert.Equal(2, root.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(
+            ProductConfigurationLimits.CurrentSchemaVersion,
+            root.GetProperty("schemaVersion").GetInt32());
         Assert.Null(document.SavedDisplayTopology);
         JsonElement container = root.GetProperty("containers")[0];
         Assert.True(root.GetProperty("rootFuture").GetProperty("enabled").GetBoolean());
@@ -103,7 +105,7 @@ public sealed class ProductConfigurationContractTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(3)]
+    [InlineData(4)]
     public void UnsupportedSchemaIsRejectedWithoutDocumentContent(int schemaVersion)
     {
         ProductConfigurationDocument source = CreateValidDocument() with
@@ -179,11 +181,66 @@ public sealed class ProductConfigurationContractTests
     }
 
     [Fact]
+    public void VersionTwoMigratesWithoutInventingFolderBindings()
+    {
+        byte[] source = Encoding.UTF8.GetBytes(
+            """
+            { "schemaVersion": 2, "profileId": "default", "containers": [] }
+            """);
+
+        ProductConfigurationDocument migrated = ProductConfigurationJson.Deserialize(source);
+
+        Assert.Equal(ProductConfigurationLimits.CurrentSchemaVersion, migrated.SchemaVersion);
+        Assert.Empty(migrated.Containers);
+    }
+
+    [Fact]
+    public void VersionTwoCannotSmuggleVersionThreeFolderBinding()
+    {
+        byte[] source = Encoding.UTF8.GetBytes(
+            """
+            {
+              "schemaVersion": 2,
+              "profileId": "default",
+              "containers": [{
+                "id": "container-1",
+                "name": "Work",
+                "isLocked": false,
+                "appearance": {
+                  "color": "#2563EB",
+                  "opacity": 0.88,
+                  "collapsed": false
+                },
+                "placement": {
+                  "displayKey": "display-a",
+                  "xDip": 0,
+                  "yDip": 0,
+                  "widthDip": 360,
+                  "heightDip": 240
+                },
+                "items": [],
+                "folderBinding": {
+                  "target": "C:\\Work",
+                  "volumeSerialNumber": "0000000000000001",
+                  "fileId": "00000000000000000000000000000001"
+                }
+              }]
+            }
+            """);
+
+        ProductConfigurationContractException exception = Assert.Throws<
+            ProductConfigurationContractException>(
+            () => ProductConfigurationJson.Deserialize(source));
+
+        Assert.Equal(ProductConfigurationError.UnsupportedSchema, exception.Error);
+    }
+
+    [Fact]
     public void FutureSchemaIsRejectedDuringDeserialize()
     {
         byte[] source = Encoding.UTF8.GetBytes(
             """
-            { "schemaVersion": 3, "profileId": "default", "containers": [] }
+            { "schemaVersion": 4, "profileId": "default", "containers": [] }
             """);
 
         ProductConfigurationContractException exception = Assert.Throws<

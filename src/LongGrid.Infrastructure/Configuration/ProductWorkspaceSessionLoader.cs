@@ -190,13 +190,16 @@ public static class ProductWorkspaceSessionLoader
                 source);
         }
 
+        ProductWorkspaceState state =
+            WindowsProductContainerFolderBinding.ResolveWorkspace(
+                resolution.State!);
         return new(
             isReadOnly
                 ? ProductWorkspaceSessionStatus.RecoveredBackupReadOnly
                 : ProductWorkspaceSessionStatus.Ready,
             source,
             catalogSnapshot.Availability,
-            resolution.State,
+            state,
             resolution.Summary,
             ProductWorkspaceSessionFailure.None,
             isReadOnly);
