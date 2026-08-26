@@ -34,8 +34,9 @@
 ## 4. 测试与门禁
 
 - PF-007B 专项：4/4；包括真实 STA、真实 HWND、真实隔离文件、一次提交和文件哈希差异表。
-- 全量 Release：1,271/1,271，0 skipped；Release 构建 0 warning / 0 error。
-- 单份 Cobertura 为 lines 90.08%（22,072/24,502）、branches 75.48%（7,285/9,651），继续通过 90%/75% 门槛。
+- 全量 Release：1,272/1,272，0 skipped；Release 构建 0 warning / 0 error。
+- 首轮 PR CI 的所有功能/原生测试通过，但干净 runner 报告 lines 89.75%（21,991/24,502），暴露本地报告对 Lifecycle 新分支的覆盖余量判断不可靠。没有降低门槛或重跑掩盖，而是新增 Surface→Lifecycle 的真实权威目标路由测试，覆盖接受、注入、陈旧修订、同源、空白目标和选择漂移。
+- 修正后单份 Cobertura 为 lines 90.40%（22,150/24,502）、branches 75.94%（7,329/9,651），稳定通过 90%/75% 门槛。
 - `dotnet format --verify-no-changes`、`git diff --check` 和 188-ID UI 合同通过。
 - 完整跨进程 UIA 仍在应用启动前被已审计 WindowsAppRuntime 2.4 / Microsoft.UI.Xaml 3.2 线程 fail-fast 组合阻断；`-ContractOnly` 通过。未绕过风险、未把未执行物理证据写成 Pass。
 

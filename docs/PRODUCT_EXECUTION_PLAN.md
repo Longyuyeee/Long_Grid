@@ -539,7 +539,7 @@ PF-007B DesktopHost 盒子间改归属记录（2026-08-26，基线 `origin/main@
 | 权威与目标 | 拖动期间状态变化、同源、锁定、缺失或非唯一目标必须拒绝 | 会话冻结 lease/workspace/topology/window/selection；Lifecycle 以最终屏幕坐标在当前批次命中唯一未锁定目标；App 再复核当前权威状态 | `Difference=None` |
 | 项目准入 | 只允许 1..256 个同源已解析正式引用 | `folder:*` 临时项目、Missing 引用、重复序号、0/越界、257 项和注入输入实际有限拒绝 | `Difference=None` |
 | 原子提交与文件安全 | 一次提交源→目标，可一次撤销，真实文件不变化 | 真实 STA/HWND/Unicode 隔离文件实际 callback=1、save=1、source 1→0、target 0→1、undo token 非空；路径与 SHA-256 相同 | `Difference=None` |
-| 回归门禁 | 专项、全量、覆盖率、原生宿主和 UI 合同不得退化 | 专项 4/4、全量 1,271/1,271、Release 0 warning/error；lines 90.08%、branches 75.48%；真实原生交互表面资源平台与 188-ID ContractOnly 均通过 | `Difference=None`；完整跨进程 UIA 仍被已审计运行时组合在启动前阻断 |
+| 回归门禁 | 专项、全量、覆盖率、原生宿主和 UI 合同不得退化 | 首轮 PR 功能/原生测试全过，但干净 runner lines=89.75%；未降门槛，补充 Surface→Lifecycle 接受与失败路由测试后，专项 5/5、全量 1,272/1,272、Release 0 warning/error，lines 90.40%、branches 75.94%；真实原生交互资源平台与 188-ID ContractOnly 通过 | 发现本地覆盖余量误判并已修正；完整跨进程 UIA 仍被已审计运行时组合在启动前阻断 |
 | 产品物理证据 | 真实鼠标完成拖动并取得可见、键盘和 Narrator 证据 | 真实 HWND 使用正式手势代码，但坐标由证据入口驱动；不是物理鼠标和录像 | `ProductEvidencePending`，并入 M1 |
 
 详细证据见 [PF-007B 桌面盒子间原生引用改归属审计](208-pf007b-native-reference-reassignment-audit.md)。PF-007B 的完成边界是正式工程路径与真实 HWND/文件安全已闭环；没有物理鼠标与屏幕证据，因此 PF-007 和 M1 均不能标为用户旅程 Complete。
