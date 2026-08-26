@@ -403,7 +403,7 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 | 重复 nonce | 两个发送进程退出，但只消费一次 | 两个进程退出码均为 0，主进程预览次数 1 | 无差异，重复输入未生成第二预览 |
 | 文件安全 | 隔离配置、用户正常配置与桌面元数据均不改变 | Initial / Redirect / DuplicateRedirect 三场景均为 false；最终活动进程 0 | 无差异 |
 | 回归 | 普通显式/后台/单实例和 UI 合同保持 | 显式 4,965 ms、后台 3,261 ms、二次唤起通过、零临时配置写入；184-ID Pass；核心 1,247/1,247 | 无差异，均低于 10 秒启动预算 |
-| CI 干净会话链 | 普通重定向与 BOX-R1 重定向分别跨入现有窗口 UI 队列 | 首次 CI 仍按拆分前的 `App.xaml.cs` 单一路径字符串检查，实际在 `App.BoxR1.cs` 已有两条正确调度路径，因此静态契约失败 | 将旧断言拆为普通激活与 BOX-R1 创建激活两项明确断言；本机 `Test-LongGridSingleInstance -ContractOnly` 与 `Test-LongGridCleanSession -ValidateOnly` 均 Pass，等待 CI 复验 |
+| CI 干净会话链 | 普通重定向与 BOX-R1 重定向分别跨入现有窗口 UI 队列 | 首次 CI 仍按拆分前的 `App.xaml.cs` 单一路径字符串检查，实际在 `App.BoxR1.cs` 已有两条正确调度路径，因此静态契约失败 | 将旧断言拆为普通激活与 BOX-R1 创建激活两项明确断言；本机两项契约均 Pass，新 CI 的干净会话链、单实例契约及其余门禁全部 Pass |
 | 证据脚本宿主兼容 | 仓库声明的 Windows PowerShell 5.1 与 PowerShell 7 入口均可执行 | 首次用 `powershell.exe` 复验时，5.1 缺少 `Convert.ToHexString` 和 `ConvertFrom-Json -Depth`，脚本在产品启动/结果读取边界失败 | 改为 `BitConverter` 十六进制编码并使用兼容的 JSON 读取；5.1 下 Initial、Redirect、DuplicateRedirect 均 `Outcome=Pass / Difference=None`，7 下 ContractOnly Pass |
 
 ## 10. 真实测试与差异修正规则
