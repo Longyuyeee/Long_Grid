@@ -415,7 +415,7 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 | 原生工程 | x64 `IExplorerCommand` DLL 以编译器/链接器 `/W4 /WX` 编译 | 首次链接因 `.def` 的冗余 `LIBRARY` 输出名产生 2 个 LNK4070；删除该指令并启用链接器警告即错误后重建为 0 warning / 0 error；CLSID `78A940C1-2E65-4A03-9D09-3AC62CEF30BB` | 差异已修正，不接受“有警告但成功” |
 | 菜单回调 | 标题、图标、Enabled、CanonicalName、默认 Flags 有界返回，无产品 I/O/等待 | 初版 `noexcept` 回调仍使用动态 `std::wstring`，极端 OOM 可能终止 surrogate；改为 257 字符以内固定缓冲、静态 CRT 与 CFG 后，真实 DLL 经 COM 类工厂创建，200 轮调用 0 ms；句柄 142→144（预算 ≤2），`DllCanUnloadNow=S_OK` | 安全差异已修正；不调用工作区、文件、网络、注册表或等待 API |
 | 激活边界 | Invoke 只捕获当前光标、生成新 nonce/时间并调用包身份激活 | 源码合同使用唯一 AUMID 和 BOX-R1-A v1 参数；未安装包环境不执行 Invoke，避免意外改变包/应用状态 | App 端真实 Initial/Redirect/DuplicateRedirect 已由 BOX-R1-A 覆盖；Explorer→Invoke 留给 BOX-R1-C |
-| MSIX 清单 | 同一 CLSID 同时进入 `com:SurrogateServer` 与唯一 `Directory\Background` Verb | 模板和 ValidateOnly 通过，DLL 已接入打包脚本 | 精确提交的真实 MSIX 生成/解包尚待本阶段提交后执行 |
+| MSIX 清单 | 同一 CLSID 同时进入 `com:SurrogateServer` 与唯一 `Directory\Background` Verb | 官方 MakeAppx 已接受清单并生成包；首次解包审计 XPath 漏掉 foundation namespace 的 `Extensions` 层，因此错误报告 COM 注册缺失 | 将审计路径修正为 `f:Application/f:Extensions/com:Extension` 和对应 desktop4 路径；提交后重新生成/解包复验 |
 | 脚本兼容 | Windows PowerShell 5.1 能执行审计入口 | 首轮中文断言字面量被 5.1 按本地代码页解释为乱码 | 改为检查稳定符号名；C++ 仍以 `/utf-8` 编译真实中文标题，重跑合同与 DLL 探针 Pass |
 
 ## 10. 真实测试与差异修正规则

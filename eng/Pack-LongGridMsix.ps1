@@ -250,7 +250,7 @@ function Test-MsixLayout {
     }
 
     $commandClass = $manifest.SelectSingleNode(
-        "/f:Package/f:Applications/f:Application/com:Extension[@Category='windows.comServer']/com:ComServer/com:SurrogateServer/com:Class",
+        "/f:Package/f:Applications/f:Application/f:Extensions/com:Extension[@Category='windows.comServer']/com:ComServer/com:SurrogateServer/com:Class",
         $namespace)
     if ($null -eq $commandClass -or
         $commandClass.Id -ne '78A940C1-2E65-4A03-9D09-3AC62CEF30BB' -or
@@ -260,7 +260,7 @@ function Test-MsixLayout {
     }
 
     $itemTypes = @($manifest.SelectNodes(
-        "/f:Package/f:Applications/f:Application/desktop4:Extension[@Category='windows.fileExplorerContextMenus']/desktop4:FileExplorerContextMenus/desktop5:ItemType",
+        "/f:Package/f:Applications/f:Application/f:Extensions/desktop4:Extension[@Category='windows.fileExplorerContextMenus']/desktop4:FileExplorerContextMenus/desktop5:ItemType",
         $namespace))
     if ($itemTypes.Count -ne 1 -or
         $itemTypes[0].Type -ne 'Directory\Background') {
