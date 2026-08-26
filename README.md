@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。安全工程底座已经形成，但三项 Core 均未形成完整产品旅程。当前唯一执行项是 [UI-R1 产品壳层与信息架构重构](docs/PRODUCT_EXECUTION_PLAN.md)，随后依次关闭 BOX-R1、FOLDER-R1、PF-007 和 TASKBAR-R1～R4。所有产物仍不可公开分发。
+> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。安全工程底座和 UI-R1 工程范围已经形成，但三项 Core 均未形成完整产品旅程。当前唯一执行项是 [BOX-R1-A Explorer 创建意图有限激活合同](docs/PRODUCT_EXECUTION_PLAN.md)，随后依次关闭 BOX-R1、FOLDER-R1、PF-007、M1 集中证据和 TASKBAR-R1～R4。所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -234,12 +234,13 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [LPWP Widget JSON Schema](docs/protocol/long-widget.schema.json)
 - [ADR-0001：首选 Windows 技术路线](docs/adr/0001-windows-technology-stack.md)
 - [ADR-0002：缩略图工作进程文件隔离](docs/adr/0002-thumbnail-worker-file-isolation.md)
+- [ADR-0003：桌面背景“新建方格”使用受支持的 Explorer 命令](docs/adr/0003-desktop-background-context-menu.md)
 
 </details>
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)执行 UI-R1：先拆分产品壳层、建立正常侧栏与桌面概览，把首次练习、安全边界、Token 和证据清单移出一级导航；随后完成桌面右键创建盒子、单文件夹绑定、真实 Explorer/盒子间拖放，再进入核心任务栏预设、应用、回退与兼容矩阵。自动整理、Tab、小组件、工作空间和 Long助手运行时不得抢占这三项 Core。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)执行 BOX-R1-A：先让首进程和已运行单实例安全消费有限、可版本化的 Explorer 创建意图，并只打开既有创建预览；再完成原生 Explorer 背景命令、单文件夹绑定、真实 Explorer/盒子间拖放和 M1 集中证据，最后进入核心任务栏预设、应用、回退与兼容矩阵。自动整理、Tab、小组件、工作空间和 Long助手运行时不得抢占这三项 Core。
 
 ## 开发启动
 

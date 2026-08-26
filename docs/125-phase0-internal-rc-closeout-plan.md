@@ -2,7 +2,7 @@
 
 - 审计日期：2026-08-14
 - 当前执行基线：`main@272dad6`（PR #184；main CI 31727572596 通过）
-- 状态：当前唯一权威执行顺序；后续每个切片均从本文领取范围和验收目标
+- 状态：Historical / 已由 [`PRODUCT_EXECUTION_PLAN.md`](PRODUCT_EXECUTION_PLAN.md) 取代；本文仅保留 Phase 0 与内部 RC 历史证据
 - 适用范围：Phase 0 退出、桌面 MVP 垂直切片、内部 RC 与发布准备
 
 ## 1. 计划权威与目标分层
