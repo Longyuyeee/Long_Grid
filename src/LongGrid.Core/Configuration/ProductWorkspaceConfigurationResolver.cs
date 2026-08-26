@@ -108,8 +108,29 @@ public static class ProductWorkspaceConfigurationResolver
             Items = container.Items
                 .Select(item => ResolveItem(item, index, summary))
                 .ToArray(),
+            FolderBinding = RestoreFolderBinding(container.FolderBinding),
             ExtensionData = container.ExtensionData,
         };
+
+    private static ProductContainerFolderBindingState? RestoreFolderBinding(
+        ContainerFolderBindingConfiguration? binding)
+    {
+        if (binding is null)
+        {
+            return null;
+        }
+
+        return new()
+        {
+            PersistedTarget = binding.Target,
+            VolumeSerialNumber = Convert.ToUInt64(
+                binding.VolumeSerialNumber,
+                16),
+            FileId = binding.FileId,
+            Resolution = ProductContainerFolderBindingResolution.Unavailable,
+            ExtensionData = binding.ExtensionData,
+        };
+    }
 
     private static ProductItemReferenceState ResolveItem(
         DesktopItemReferenceConfiguration item,

@@ -29,7 +29,9 @@ public sealed class ProductWorkspaceLayoutRecoveryCommitCoordinatorTests
         Assert.Equal(1, result.EditRevision);
         Assert.Equal(ProductWorkspaceSaveSubmissionStatus.Accepted, result.SubmissionStatus);
         Assert.Equal(1, workflow.SaveCalls);
-        Assert.Equal(2, result.Document!.SchemaVersion);
+        Assert.Equal(
+            ProductConfigurationLimits.CurrentSchemaVersion,
+            result.Document!.SchemaVersion);
         Assert.Equal(144u, result.Document.SavedDisplayTopology![0].EffectiveDpi);
         Assert.NotNull(coordinator.CurrentLayoutRecoveryUndoToken);
     }

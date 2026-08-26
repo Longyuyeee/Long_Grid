@@ -96,8 +96,18 @@ public static class ProductConfigurationJson
             return document;
         }
 
-        if (document.SchemaVersion == ProductConfigurationLimits.PreviousSchemaVersion
-            && document.SavedDisplayTopology is null)
+        if (document.SchemaVersion == 1
+            && document.SavedDisplayTopology is null
+            && document.Containers.All(container => container.FolderBinding is null))
+        {
+            return document with
+            {
+                SchemaVersion = ProductConfigurationLimits.CurrentSchemaVersion,
+            };
+        }
+
+        if (document.SchemaVersion == 2
+            && document.Containers.All(container => container.FolderBinding is null))
         {
             return document with
             {

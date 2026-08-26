@@ -85,6 +85,25 @@ public sealed record ContainerConfiguration
     [JsonPropertyName("items")]
     public required IReadOnlyList<DesktopItemReferenceConfiguration> Items { get; init; }
 
+    [JsonPropertyName("folderBinding")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ContainerFolderBindingConfiguration? FolderBinding { get; init; }
+
+    [JsonExtensionData]
+    public IDictionary<string, JsonElement>? ExtensionData { get; init; }
+}
+
+public sealed record ContainerFolderBindingConfiguration
+{
+    [JsonPropertyName("target")]
+    public required string Target { get; init; }
+
+    [JsonPropertyName("volumeSerialNumber")]
+    public required string VolumeSerialNumber { get; init; }
+
+    [JsonPropertyName("fileId")]
+    public required string FileId { get; init; }
+
     [JsonExtensionData]
     public IDictionary<string, JsonElement>? ExtensionData { get; init; }
 }

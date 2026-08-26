@@ -28,6 +28,33 @@ public sealed record ProductContainerState
 
     public required IReadOnlyList<ProductItemReferenceState> Items { get; init; }
 
+    public ProductContainerFolderBindingState? FolderBinding { get; init; }
+
+    public IDictionary<string, JsonElement>? ExtensionData { get; init; }
+}
+
+public enum ProductContainerFolderBindingResolution
+{
+    Resolved,
+    Missing,
+    AccessDenied,
+    Replaced,
+    InvalidTarget,
+    Unavailable,
+}
+
+public sealed record ProductContainerFolderBindingState
+{
+    public required string PersistedTarget { get; init; }
+
+    public required ulong VolumeSerialNumber { get; init; }
+
+    public required string FileId { get; init; }
+
+    public ProductContainerFolderBindingResolution Resolution { get; init; }
+
+    public string? ResolvedTarget { get; init; }
+
     public IDictionary<string, JsonElement>? ExtensionData { get; init; }
 }
 
