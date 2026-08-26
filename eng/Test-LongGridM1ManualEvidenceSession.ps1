@@ -60,6 +60,13 @@ if ($ValidateOnly) {
     $validation = & $startScript -ValidateOnly | ConvertFrom-Json
     Assert-Condition ($validation.outcome -eq 'Pass') `
         'M1 manual evidence launch contract validation failed.'
+    $startScriptCode = Get-Content -LiteralPath $startScript -Raw
+    Assert-Condition `
+        ($startScriptCode.Contains("if (`$ExternalAutomation)") -and
+            $startScriptCode.Contains('startsProcess = $false') -and
+            $startScriptCode.Contains('createsEvidenceSession = $false') -and
+            $startScriptCode.Contains("outcome = `$runtimePreflight.outcome")) `
+        'M1 external automation must fail closed before creating a session or process.'
     [ordered]@{
         schemaVersion = 1
         purpose = 'M1ManualProductJourneyHarnessTest'
