@@ -8,7 +8,6 @@ using LongGrid.Infrastructure.DesktopHost;
 using LongGrid.Infrastructure.DesktopItems;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
-using Microsoft.Windows.AppLifecycle;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 
@@ -47,6 +46,8 @@ public partial class App : Application
         productThumbnailWorker;
     private readonly ProductResourceTelemetryServer? productResourceTelemetry;
     private readonly ProductPf002AppEvidenceSession? pf002AppEvidenceSession;
+    private readonly ProductBoxR1ActivationEvidenceSession?
+        boxR1ActivationEvidenceSession;
     private readonly ProductDesktopFirstStartupEvidenceSession?
         desktopFirstStartupEvidenceSession;
     private readonly ProductUiR1eEvidenceSession? uiR1eEvidenceSession;
@@ -77,13 +78,22 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
-        backgroundStartup = Environment.GetCommandLineArgs().Any(argument =>
+        string[] commandLineArguments = Environment.GetCommandLineArgs();
+        ProductExplorerCreateActivationDecision explorerCreateActivation =
+            ProductExplorerCreateActivation.Parse(
+                commandLineArguments,
+                DateTimeOffset.UtcNow);
+        backgroundStartup = explorerCreateActivation.IsCommand
+            || commandLineArguments.Any(argument =>
             string.Equals(
                 argument,
                 "--background",
                 StringComparison.OrdinalIgnoreCase));
+        _ = QueueExplorerCreateActivation(explorerCreateActivation);
         pf002AppEvidenceSession =
             ProductPf002AppEvidenceSession.TryCreateFromEnvironment();
+        boxR1ActivationEvidenceSession =
+            ProductBoxR1ActivationEvidenceSession.TryCreateFromEnvironment();
         desktopFirstStartupEvidenceSession =
             ProductDesktopFirstStartupEvidenceSession.TryCreateFromEnvironment();
         uiR1eEvidenceSession = ProductUiR1eEvidenceSession.TryCreateFromEnvironment();
@@ -91,6 +101,7 @@ public partial class App : Application
             ProductBoxesRuntimeEnableEvidenceSession.TryCreateFromEnvironment();
         int evidenceSessionCount =
             (pf002AppEvidenceSession is null ? 0 : 1)
+            + (boxR1ActivationEvidenceSession is null ? 0 : 1)
             + (desktopFirstStartupEvidenceSession is null ? 0 : 1)
             + (uiR1eEvidenceSession is null ? 0 : 1)
             + (boxesRuntimeEnableEvidenceSession is null ? 0 : 1);
@@ -100,6 +111,7 @@ public partial class App : Application
                 "Product App evidence sessions cannot run together.");
         }
         string configurationDirectory = pf002AppEvidenceSession?.DirectoryPath
+            ?? boxR1ActivationEvidenceSession?.DirectoryPath
             ?? desktopFirstStartupEvidenceSession?.DirectoryPath
             ?? uiR1eEvidenceSession?.DirectoryPath
             ?? boxesRuntimeEnableEvidenceSession?.DirectoryPath
@@ -275,6 +287,11 @@ public partial class App : Application
             window.Activate();
             _ = RunPf002AppEvidenceSessionAsync(pf002AppEvidenceSession);
         }
+        else if (boxR1ActivationEvidenceSession is not null)
+        {
+            _ = RunBoxR1ActivationEvidenceSessionAsync(
+                boxR1ActivationEvidenceSession);
+        }
         else if (boxesRuntimeEnableEvidenceSession is not null)
         {
             _ = RunBoxesRuntimeEnableEvidenceSessionAsync(
@@ -387,6 +404,8 @@ public partial class App : Application
             {
                 ActivateMainWindow();
             }
+
+            _ = TryDispatchExplorerCreateActivation();
         }
         catch (Exception exception) when (
             exception is IOException
@@ -2766,8 +2785,10 @@ public partial class App : Application
         }
 
         string? confirmedName = null;
-        ProductPf002AppEvidenceSession? evidenceSession =
-            pf002AppEvidenceSession;
+        IProductDesktopWorkspaceCreateEvidenceSession? evidenceSession =
+            (IProductDesktopWorkspaceCreateEvidenceSession?)
+                pf002AppEvidenceSession
+            ?? boxR1ActivationEvidenceSession;
         string? evidenceResponse = null;
         bool hasEvidenceResponse = evidenceSession is not null
             && evidenceSession.TryTakePreviewResponse(out evidenceResponse);
@@ -2825,6 +2846,17 @@ public partial class App : Application
 
         if (singleWindowSafetyRequired)
         {
+            bool showBoxR1Evidence = boxR1ActivationEvidenceSession is not null;
+            if (showBoxR1Evidence)
+            {
+                currentWindow.Activate();
+                DateTime xamlReadyDeadline = DateTime.UtcNow.AddSeconds(2);
+                while (!currentWindow.IsProductXamlReady
+                    && DateTime.UtcNow < xamlReadyDeadline)
+                {
+                    await Task.Delay(25);
+                }
+            }
             currentWindow.ApplyDesktopWorkspaceCreatePreviewOpened(
                 session.Snapshot,
                 inline: false);
@@ -2835,6 +2867,7 @@ public partial class App : Application
                     enteredName),
                 evidenceMode: hasEvidenceResponse,
                 evidenceResponse,
+                showInEvidenceMode: showBoxR1Evidence,
                 observeEvidence: hasEvidenceResponse
                     ? evidenceSession!.ObserveSafePreview
                     : null);
@@ -3705,25 +3738,6 @@ public partial class App : Application
     private sealed record SelectedExportDestination(
         string Path,
         ProductConfigurationExportDestination Metadata);
-
-    internal void HandleActivation(AppActivationArguments activation)
-    {
-        ArgumentNullException.ThrowIfNull(activation);
-
-        if (window is null)
-        {
-            activationPending = true;
-            return;
-        }
-
-        if (!window.DispatcherQueue.HasThreadAccess)
-        {
-            _ = window.DispatcherQueue.TryEnqueue(ActivateMainWindow);
-            return;
-        }
-
-        ActivateMainWindow();
-    }
 
     private void ActivateMainWindow()
     {
