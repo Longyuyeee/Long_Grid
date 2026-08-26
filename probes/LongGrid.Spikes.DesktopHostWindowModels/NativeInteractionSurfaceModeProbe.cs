@@ -8,6 +8,8 @@ internal static class NativeInteractionSurfaceModeProbe
 {
     private static readonly DateTimeOffset FixedNow =
         new(2026, 8, 13, 1, 0, 0, TimeSpan.Zero);
+    private static readonly TimeSpan ResourceReleaseTimeout =
+        TimeSpan.FromSeconds(2);
 
     internal static NativeInteractionSurfaceModeReport Run(
         bool perMonitorV2Requested)
@@ -160,8 +162,7 @@ internal static class NativeInteractionSurfaceModeProbe
         int handlesAfter = ProcessHandleCount();
         bool resourcePlateau = VerifyResourcePlateau(
             userAfter,
-            gdiAfter,
-            handlesAfter);
+            gdiAfter);
         bool cleanup = userAfter == userBefore
             && gdiAfter <= gdiBefore + 1
             && resourcePlateau;
@@ -248,9 +249,9 @@ internal static class NativeInteractionSurfaceModeProbe
 
     private static bool VerifyResourcePlateau(
         uint expectedUser,
-        uint expectedGdi,
-        int expectedHandles)
+        uint expectedGdi)
     {
+        int plateauHandles;
         using (var host = NativeInteractionProbeHost.Create())
         {
             for (int warmupCycle = 0; warmupCycle < 3; warmupCycle++)
@@ -260,13 +261,15 @@ internal static class NativeInteractionSurfaceModeProbe
             CollectGarbage();
             uint plateauUser = Resources(NativeMethods.GrUserObjects);
             uint plateauGdi = Resources(NativeMethods.GrGdiObjects);
+            plateauHandles = ProcessHandleCount();
             for (int cycle = 0; cycle < 3; cycle++)
             {
                 RunResourcePlateauCycle(host);
                 if (!WaitForResourceCeiling(
                     plateauUser,
                     plateauGdi,
-                    TimeSpan.FromSeconds(1)))
+                    ResourceReleaseTimeout)
+                    || ProcessHandleCount() > plateauHandles + 3)
                 {
                     return false;
                 }
@@ -274,9 +277,12 @@ internal static class NativeInteractionSurfaceModeProbe
         }
 
         CollectGarbage();
-        return Resources(NativeMethods.GrUserObjects) <= expectedUser
-            && Resources(NativeMethods.GrGdiObjects) <= expectedGdi
-            && ProcessHandleCount() <= expectedHandles + 3;
+        bool returnedToCeiling = WaitForResourceCeiling(
+            expectedUser,
+            expectedGdi,
+            ResourceReleaseTimeout);
+        return returnedToCeiling
+            && ProcessHandleCount() <= plateauHandles + 3;
     }
 
     private static void RunResourcePlateauCycle(

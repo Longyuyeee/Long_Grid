@@ -120,6 +120,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         requestItemViewport = static _ => false;
     private Func<ProductDesktopItemOpenSurfaceInput, bool>
         requestItemOpen = static _ => false;
+    private Func<object, string, bool> requestExplorerReferenceDrop =
+        static (_, _) => false;
     private ProductDesktopItemOpenFeedback? itemOpenFeedback;
     private bool openItemsWithSingleClick;
     private ActiveContainerLayout? activeContainerLayout;
@@ -130,9 +132,11 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     private NativePoint workspaceCreateDragCurrent;
     private bool workspaceCreateDragActive;
     private string? hoveredHeaderContainerId;
+    private string? hoveredDropContainerId;
     private bool trackingMouseLeave;
     private volatile ProductDesktopInteractionSurfaceMode mode;
     private bool workspaceCreateHotKeyRegistered;
+    private WindowsProductDesktopHostDropTarget? explorerDropTarget;
 #if WINDOWS
     private WindowsProductDesktopHostUiaRootProvider? uiaProvider;
 #endif
@@ -307,6 +311,13 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             throw new InvalidOperationException(
                 "DesktopHost surface failed its initial mode attestation.");
         }
+
+        explorerDropTarget = WindowsProductDesktopHostDropTarget.TryRegister(
+            Handle,
+            ResolveExplorerDropTarget,
+            (dataObject, containerId) =>
+                requestExplorerReferenceDrop(dataObject, containerId),
+            ApplyExplorerDropHover);
     }
 
     private nint WindowProc(
@@ -459,6 +470,13 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     {
         ArgumentNullException.ThrowIfNull(requestCreate);
         requestWorkspaceCreate = requestCreate;
+    }
+
+    public void BindExplorerReferenceDrop(
+        Func<object, string, bool> requestDrop)
+    {
+        ArgumentNullException.ThrowIfNull(requestDrop);
+        requestExplorerReferenceDrop = requestDrop;
     }
 
     public void BindContainerLayout(
@@ -2185,6 +2203,19 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             }
 
             if (string.Equals(
+                hoveredDropContainerId,
+                container.ContainerId,
+                StringComparison.Ordinal))
+            {
+                NativeRect dropOutline = new(
+                    bounds.Left + 2,
+                    bounds.Top + 2,
+                    bounds.Right - 2,
+                    bounds.Bottom - 2);
+                _ = NativeMethods.DrawFocusRect(deviceContext, ref dropOutline);
+            }
+
+            if (string.Equals(
                 containerLayoutKeyboardFocusId,
                 container.ContainerId,
                 StringComparison.Ordinal))
@@ -2517,6 +2548,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
         disposed = true;
         if (Handle != nint.Zero)
         {
+            explorerDropTarget?.Dispose();
+            explorerDropTarget = null;
             ReleaseWorkspaceCreateHotKey();
 #if WINDOWS
             _ = NativeMethods.UiaReturnRawElementProvider(
@@ -2535,6 +2568,68 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
 
         _ = NativeMethods.UnregisterClass(className, module);
         GC.KeepAlive(windowProcedure);
+    }
+
+    internal bool ExplorerDropTargetRegistered =>
+        explorerDropTarget?.IsRegistered == true;
+
+    internal uint DispatchExplorerDragEnterForEvidence(
+        object dataObject,
+        int screenX,
+        int screenY,
+        uint allowedEffects) =>
+        explorerDropTarget?.DispatchDragEnterForEvidence(
+            dataObject,
+            screenX,
+            screenY,
+            allowedEffects) ?? WindowsProductDesktopHostDropTarget.EffectNone;
+
+    internal uint DispatchExplorerDropForEvidence(
+        object dataObject,
+        int screenX,
+        int screenY,
+        uint allowedEffects) =>
+        explorerDropTarget?.DispatchDropForEvidence(
+            dataObject,
+            screenX,
+            screenY,
+            allowedEffects) ?? WindowsProductDesktopHostDropTarget.EffectNone;
+
+    private string? ResolveExplorerDropTarget(int x, int y)
+    {
+        if (disposed || mode == ProductDesktopInteractionSurfaceMode.Hidden)
+        {
+            return null;
+        }
+
+        ProductDesktopHostReadOnlyProjection? target = projection.Containers
+            .LastOrDefault(container =>
+            {
+                NativeRect bounds = GetContainerBounds(container);
+                return !container.IsLocked
+                    && x >= bounds.Left
+                    && x < bounds.Right
+                    && y >= bounds.Top
+                    && y < bounds.Bottom;
+            });
+        return target?.ContainerId;
+    }
+
+    private void ApplyExplorerDropHover(string? containerId)
+    {
+        if (string.Equals(
+            hoveredDropContainerId,
+            containerId,
+            StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        hoveredDropContainerId = containerId;
+        if (!disposed && Handle != nint.Zero)
+        {
+            _ = NativeMethods.InvalidateRect(Handle, nint.Zero, erase: false);
+        }
     }
 
     public bool ApplyPassive()
@@ -2571,6 +2666,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
     public bool ApplyHidden()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        _ = explorerDropTarget?.DragLeave();
         CancelContainerLayout(
             Handle,
             ProductDesktopContainerLayoutCancellationReason.HostInvalidated);
