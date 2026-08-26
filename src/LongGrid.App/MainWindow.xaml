@@ -616,38 +616,63 @@
                                 AutomationProperties.Name="正式工作区只读视图"
                                 Visibility="Collapsed"
                                 Style="{StaticResource LongGridCardStyle}">
-                                <StackPanel Spacing="12">
-                                    <StackPanel Spacing="4">
+                                <Grid
+                                    x:Name="ProductWorkspaceManagementGrid"
+                                    AutomationProperties.AutomationId="ProductWorkspaceManagementGrid"
+                                    ColumnSpacing="20"
+                                    RowSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition x:Name="ProductWorkspaceListColumn" Width="5*" />
+                                        <ColumnDefinition x:Name="ProductWorkspaceEditorColumn" Width="4*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Grid.ColumnSpan="2" Spacing="4">
                                         <TextBlock
                                             x:Name="ProductWorkspaceViewTitle"
                                             AutomationProperties.AutomationId="ProductWorkspaceViewTitle"
                                             FontSize="20"
                                             FontWeight="SemiBold"
-                                            Text="正式工作区" />
+                                            Text="全部盒子" />
                                         <TextBlock
                                             x:Name="ProductWorkspaceViewDetail"
                                             AutomationProperties.AutomationId="ProductWorkspaceViewDetail"
                                             Style="{StaticResource LongGridSubtitleTextStyle}"
-                                            Text="等待正式产品会话；当前没有展示或修改任何桌面内容。"
+                                            Text="正在读取盒子…"
                                             TextWrapping="Wrap" />
                                     </StackPanel>
                                     <StackPanel
                                         x:Name="ProductWorkspaceContainerEditorPanel"
+                                        Grid.Row="1"
+                                        Grid.RowSpan="5"
+                                        Grid.Column="1"
                                         AutomationProperties.AutomationId="ProductWorkspaceContainerEditorPanel"
                                         Spacing="8">
+                                        <Expander
+                                            AutomationProperties.AutomationId="ProductWorkspaceBasicSettingsExpander"
+                                            Header="基本设置"
+                                            IsExpanded="True">
+                                            <StackPanel Spacing="8">
                                         <ComboBox
                                             x:Name="ProductWorkspaceContainerEditSelector"
                                             AutomationProperties.AutomationId="ProductWorkspaceContainerEditSelector"
                                             AutomationProperties.Name="选择要重命名的正式方格"
                                             DisplayMemberPath="DisplayName"
-                                            Header="已有方格"
+                                            Header="选择盒子"
                                             HorizontalAlignment="Stretch"
                                             SelectionChanged="ProductWorkspaceContainerEditSelector_SelectionChanged" />
                                         <TextBox
                                             x:Name="ProductWorkspaceContainerNameEditor"
                                             AutomationProperties.AutomationId="ProductWorkspaceContainerNameEditor"
                                             AutomationProperties.Name="正式方格名称"
-                                            Header="方格名称"
+                                            Header="盒子名称"
                                             MaxLength="256"
                                             PlaceholderText="输入方格名称"
                                             TextChanged="ProductWorkspaceContainerNameEditor_TextChanged" />
@@ -665,14 +690,14 @@
                                                 AutomationProperties.AutomationId="ProductWorkspaceContainerCreateButton"
                                                 AutomationProperties.Name="创建并保存正式方格"
                                                 Click="ProductWorkspaceContainerCreateButton_Click"
-                                                Content="创建并保存"
+                                                Content="创建盒子"
                                                 IsEnabled="False" />
                                             <Button
                                                 x:Name="ProductWorkspaceContainerRenameButton"
                                                 AutomationProperties.AutomationId="ProductWorkspaceContainerRenameButton"
                                                 AutomationProperties.Name="重命名并保存所选正式方格"
                                                 Click="ProductWorkspaceContainerRenameButton_Click"
-                                                Content="重命名并保存"
+                                                Content="保存名称"
                                                 IsEnabled="False" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -681,16 +706,23 @@
                                                 AutomationProperties.AutomationId="ProductWorkspaceContainerLockButton"
                                                 AutomationProperties.Name="切换所选正式方格锁定状态并保存"
                                                 Click="ProductWorkspaceContainerLockButton_Click"
-                                                Content="锁定并保存"
+                                                Content="锁定盒子"
                                                 IsEnabled="False" />
                                             <Button
                                                 x:Name="ProductWorkspaceContainerCollapseButton"
                                                 AutomationProperties.AutomationId="ProductWorkspaceContainerCollapseButton"
                                                 AutomationProperties.Name="切换所选正式方格折叠状态并保存"
                                                 Click="ProductWorkspaceContainerCollapseButton_Click"
-                                                Content="折叠并保存"
+                                                Content="折叠盒子"
                                                 IsEnabled="False" />
                                         </StackPanel>
+                                            </StackPanel>
+                                        </Expander>
+                                        <Expander
+                                            AutomationProperties.AutomationId="ProductWorkspaceAppearanceSettingsExpander"
+                                            Header="外观与布局"
+                                            IsExpanded="False">
+                                            <StackPanel Spacing="8">
                                         <Grid ColumnSpacing="8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
@@ -746,7 +778,7 @@
                                             AutomationProperties.AutomationId="ProductWorkspaceContainerAppearanceButton"
                                             AutomationProperties.Name="应用所选正式方格外观预设并保存"
                                             Click="ProductWorkspaceContainerAppearanceButton_Click"
-                                            Content="应用外观并保存"
+                                            Content="保存外观"
                                             IsEnabled="False" />
                                         <Grid ColumnSpacing="8">
                                             <Grid.ColumnDefinitions>
@@ -778,28 +810,40 @@
                                             AutomationProperties.AutomationId="ProductWorkspaceContainerPlacementButton"
                                             AutomationProperties.Name="应用所选正式方格布局预设并保存"
                                             Click="ProductWorkspaceContainerPlacementButton_Click"
-                                            Content="应用布局并保存"
+                                            Content="保存布局"
                                             IsEnabled="False" />
+                                            </StackPanel>
+                                        </Expander>
+                                        <Expander
+                                            AutomationProperties.AutomationId="ProductWorkspaceDeleteSettingsExpander"
+                                            Header="删除与恢复"
+                                            IsExpanded="False">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <Button
                                                 x:Name="ProductWorkspaceContainerRemoveButton"
                                                 AutomationProperties.AutomationId="ProductWorkspaceContainerRemoveButton"
                                                 AutomationProperties.Name="删除所选正式方格配置但保留桌面文件"
                                                 Click="ProductWorkspaceContainerRemoveButton_Click"
-                                                Content="删除方格配置"
+                                                Content="删除盒子"
                                                 IsEnabled="False" />
                                             <Button
                                                 x:Name="ProductWorkspaceContainerRemovalUndoButton"
                                                 AutomationProperties.AutomationId="ProductWorkspaceContainerRemovalUndoButton"
                                                 AutomationProperties.Name="撤销最近一次正式方格删除"
                                                 Click="ProductWorkspaceContainerRemovalUndoButton_Click"
-                                                Content="撤销删除方格"
+                                                Content="撤销删除"
                                                 IsEnabled="False" />
                                         </StackPanel>
+                                        </Expander>
+                                        <Expander
+                                            AutomationProperties.AutomationId="ProductWorkspaceContentSettingsExpander"
+                                            Header="盒子内容"
+                                            IsExpanded="False">
+                                            <StackPanel Spacing="8">
                                         <TextBlock
                                             FontSize="13"
                                             FontWeight="SemiBold"
-                                            Text="把桌面项目加入所选方格" />
+                                            Text="添加桌面项目" />
                                         <ListView
                                             x:Name="ProductWorkspaceResolvedReferenceSelector"
                                             AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceSelector"
@@ -843,7 +887,7 @@
                                                 AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceAddButton"
                                                 AutomationProperties.Name="把所选桌面项目作为引用批量加入正式方格并保存"
                                                 Click="ProductWorkspaceResolvedReferenceAddButton_Click"
-                                                Content="选择项目后批量加入"
+                                                Content="添加所选项目"
                                                 IsEnabled="False" />
                                             <Button
                                                 x:Name="ProductWorkspaceReferenceBatchAdditionUndoButton"
@@ -865,7 +909,7 @@
                                         <TextBlock
                                             FontSize="13"
                                             FontWeight="SemiBold"
-                                            Text="管理已加入的引用" />
+                                            Text="管理盒子中的项目" />
                                         <ListView
                                             x:Name="ProductWorkspaceResolvedReferenceRemovalSelector"
                                             AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceRemovalSelector"
@@ -916,7 +960,7 @@
                                             AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceReassignmentTargetSelector"
                                             AutomationProperties.Name="选择批量改归属的目标正式方格"
                                             DisplayMemberPath="DisplayName"
-                                            Header="改归属到方格"
+                                            Header="移动到其他盒子"
                                             HorizontalAlignment="Stretch"
                                             IsEnabled="False"
                                             SelectionChanged="ProductWorkspaceResolvedReferenceReassignmentTargetSelector_SelectionChanged" />
@@ -931,7 +975,7 @@
                                                 AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceRemovalButton"
                                                 AutomationProperties.Name="从同一正式方格批量移除所选引用并保存"
                                                 Click="ProductWorkspaceResolvedReferenceRemovalButton_Click"
-                                                Content="选择项目后批量移除"
+                                                Content="从盒子移除"
                                                 IsEnabled="False" />
                                             <Button
                                                 x:Name="ProductWorkspaceResolvedReferenceReassignmentButton"
@@ -939,7 +983,7 @@
                                                 AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceReassignmentButton"
                                                 AutomationProperties.Name="把同一源方格内所选引用批量改归属到目标正式方格并保存"
                                                 Click="ProductWorkspaceResolvedReferenceReassignmentButton_Click"
-                                                Content="选择项目后批量改归属"
+                                                Content="移动所选项目"
                                                 IsEnabled="False" />
                                             <Button
                                                 x:Name="ProductWorkspaceResolvedReferenceRemovalUndoButton"
@@ -959,6 +1003,8 @@
                                             Foreground="{ThemeResource LongGridTextSecondaryBrush}"
                                             Text="等待可编辑的已加入引用；桌面文件未改变。"
                                             TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Expander>
                                         <TextBlock
                                             x:Name="ProductWorkspaceContainerEditStatus"
                                             AutomationProperties.AutomationId="ProductWorkspaceContainerEditStatus"
@@ -971,14 +1017,19 @@
                                     </StackPanel>
                                     <TextBox
                                         x:Name="ProductWorkspaceSearchBox"
+                                        Grid.Row="1"
                                         AutomationProperties.AutomationId="ProductWorkspaceSearchBox"
                                         AutomationProperties.Name="搜索正式方格和当前可见引用"
                                         Header="搜索"
                                         IsEnabled="False"
                                         MaxLength="64"
-                                        PlaceholderText="方格或当前可见引用名称"
+                                        PlaceholderText="搜索盒子或项目"
                                         TextChanged="ProductWorkspaceSearchBox_TextChanged" />
-                                    <Grid ColumnSpacing="8">
+                                    <Grid
+                                        x:Name="ProductWorkspaceFilterGrid"
+                                        Grid.Row="2"
+                                        AutomationProperties.AutomationId="ProductWorkspaceFilterGrid"
+                                        ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
@@ -992,10 +1043,10 @@
                                             IsEnabled="False"
                                             SelectedIndex="0"
                                             SelectionChanged="ProductWorkspaceHealthFilterSelector_SelectionChanged">
-                                            <ComboBoxItem Content="全部方格" />
-                                            <ComboBoxItem Content="待审查方格" />
-                                            <ComboBoxItem Content="空方格" />
-                                            <ComboBoxItem Content="引用正常方格" />
+                                            <ComboBoxItem Content="全部盒子" />
+                                            <ComboBoxItem Content="需要检查" />
+                                            <ComboBoxItem Content="空盒子" />
+                                            <ComboBoxItem Content="状态正常" />
                                         </ComboBox>
                                         <Button
                                             x:Name="ProductWorkspaceOpenReviewButton"
@@ -1011,6 +1062,7 @@
                                     </Grid>
                                     <ComboBox
                                         x:Name="ProductWorkspaceSortSelector"
+                                        Grid.Row="3"
                                         AutomationProperties.AutomationId="ProductWorkspaceSortSelector"
                                         AutomationProperties.Name="排列正式方格"
                                         Header="方格排序"
@@ -1025,6 +1077,7 @@
                                     </ComboBox>
                                     <Border
                                         x:Name="ProductWorkspaceEmptyCreateCard"
+                                        Grid.Row="4"
                                         Padding="14"
                                         AutomationProperties.AccessibilityView="Content"
                                         AutomationProperties.Name="尚未创建正式方格"
@@ -1034,11 +1087,11 @@
                                         <StackPanel Spacing="8">
                                             <TextBlock
                                                 FontWeight="SemiBold"
-                                                Text="还没有正式方格"
+                                                Text="还没有盒子"
                                                 TextWrapping="Wrap" />
                                             <TextBlock
                                                 Foreground="{ThemeResource LongGridTextSecondaryBrush}"
-                                                Text="先为第一个方格命名；此入口只移动焦点，仍需明确点击“创建并保存”。"
+                                                Text="创建第一个盒子，开始整理桌面。"
                                                 TextWrapping="Wrap" />
                                             <Button
                                                 x:Name="ProductWorkspaceEmptyCreateButton"
@@ -1047,12 +1100,13 @@
                                                 AutomationProperties.ItemStatus="WorkspaceEmptyCreateShortcutUnavailable:Focused=False:Changed=False:DesktopFilesChanged=False"
                                                 AutomationProperties.Name="开始创建第一个正式方格"
                                                 Click="ProductWorkspaceEmptyCreateButton_Click"
-                                                Content="开始创建第一个方格"
+                                                Content="创建第一个盒子"
                                                 IsEnabled="False" />
                                         </StackPanel>
                                     </Border>
                                     <Border
                                         x:Name="ProductWorkspaceNoResultsCard"
+                                        Grid.Row="4"
                                         Padding="14"
                                         AutomationProperties.AccessibilityView="Content"
                                         AutomationProperties.Name="没有符合当前条件的正式方格"
@@ -1062,11 +1116,11 @@
                                         <StackPanel Spacing="8">
                                             <TextBlock
                                                 FontWeight="SemiBold"
-                                                Text="没有符合当前条件的方格"
+                                                Text="没有符合条件的盒子"
                                                 TextWrapping="Wrap" />
                                             <TextBlock
                                                 Foreground="{ThemeResource LongGridTextSecondaryBrush}"
-                                                Text="可以重置搜索、筛选和排序，恢复全部正式方格。"
+                                                Text="重置搜索、筛选和排序即可查看全部盒子。"
                                                 TextWrapping="Wrap" />
                                             <Button
                                                 x:Name="ProductWorkspaceResetViewButton"
@@ -1075,12 +1129,13 @@
                                                 AutomationProperties.ItemStatus="WorkspaceViewResetUnavailable:DesktopFilesChanged=False"
                                                 AutomationProperties.Name="重置正式工作区视图"
                                                 Click="ProductWorkspaceResetViewButton_Click"
-                                                Content="重置工作区视图"
+                                                Content="重置筛选"
                                                 IsEnabled="False" />
                                         </StackPanel>
                                     </Border>
                                     <ListView
                                         x:Name="ProductWorkspaceContainerList"
+                                        Grid.Row="4"
                                         AutomationProperties.AutomationId="ProductWorkspaceContainerList"
                                         AutomationProperties.Name="正式方格列表"
                                         IsItemClickEnabled="False"
@@ -1207,6 +1262,7 @@
                                     </ListView>
                                     <TextBlock
                                         x:Name="ProductWorkspaceViewStatus"
+                                        Grid.Row="5"
                                         AutomationProperties.AutomationId="ProductWorkspaceViewStatus"
                                         AutomationProperties.ItemStatus="WorkspaceViewUnavailable:Containers=0:Items=0"
                                         AutomationProperties.LiveSetting="Polite"
@@ -1214,7 +1270,7 @@
                                         Foreground="{ThemeResource LongGridTextSecondaryBrush}"
                                         Text="只读视图未连接；桌面文件未改变。"
                                         TextWrapping="Wrap" />
-                                </StackPanel>
+                                </Grid>
                             </Border>
 
                             <Border
@@ -1327,49 +1383,6 @@
                                 </Grid>
                             </Border>
 
-                            <Border
-                                x:Name="LegacyWorkspacePrototypeCard"
-                                AutomationProperties.AutomationId="LegacyWorkspacePrototypeCard"
-                                Style="{StaticResource LongGridCardStyle}"
-                                Visibility="Collapsed">
-                                <StackPanel Spacing="18">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Spacing="4">
-                                            <TextBlock FontSize="20" FontWeight="SemiBold" Text="示例工作区" />
-                                            <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="仅用于验证容器层级、间距和小尺寸图标。" />
-                                        </StackPanel>
-                                        <Border
-                                            Grid.Column="1"
-                                            Padding="10,5"
-                                            Background="{ThemeResource LongGridSurfaceMutedBrush}"
-                                            CornerRadius="10">
-                                            <TextBlock FontSize="12" Text="4 个匿名引用" />
-                                        </Border>
-                                    </Grid>
-                                    <Grid x:Name="WorkspaceItemsGrid" ColumnSpacing="12">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-                                        <Border x:Name="WorkspaceItemProject" Grid.Column="0" Padding="14" Background="{ThemeResource LongGridSurfaceMutedBrush}" CornerRadius="12"><TextBlock Text="项目 A" /></Border>
-                                        <Border x:Name="WorkspaceItemReference" Grid.Column="1" Padding="14" Background="{ThemeResource LongGridSurfaceMutedBrush}" CornerRadius="12"><TextBlock Text="资料" /></Border>
-                                        <Border x:Name="WorkspaceItemPending" Grid.Column="2" Padding="14" Background="{ThemeResource LongGridSurfaceMutedBrush}" CornerRadius="12"><TextBlock Text="待处理" /></Border>
-                                        <Border x:Name="WorkspaceItemArchive" Grid.Column="3" Padding="14" Background="{ThemeResource LongGridSurfaceMutedBrush}" CornerRadius="12"><TextBlock Text="归档引用" /></Border>
-                                    </Grid>
-                                </StackPanel>
-                            </Border>
                         </StackPanel>
 
                         <StackPanel

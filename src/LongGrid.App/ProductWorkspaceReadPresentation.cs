@@ -58,7 +58,7 @@ internal sealed record ProductWorkspaceReadPresentation(
     IReadOnlyList<ProductWorkspaceReadContainerPresentation> Containers)
 {
     public static ProductWorkspaceReadPresentation Unavailable { get; } = new(
-        "等待正式产品会话；当前没有展示或修改任何桌面内容。",
+        "正在读取盒子…",
         "WorkspaceViewUnavailable:Containers=0:Items=0",
         0,
         0,
@@ -70,7 +70,7 @@ internal sealed record ProductWorkspaceReadPresentation(
 
     public static ProductWorkspaceReadPresentation NoSavedConfiguration { get; } =
         new(
-            "尚无正式配置；可以创建第一个方格，系统不会自动生成示例。",
+            "还没有盒子；创建第一个盒子，开始整理桌面。",
             "WorkspaceViewNoSavedConfiguration:Containers=0:Items=0",
             0,
             0,
@@ -89,22 +89,22 @@ internal sealed record ProductWorkspaceReadPresentation(
             {
                 string health = container.Health switch
                 {
-                    ProductWorkspaceContainerHealth.Empty => "空方格",
-                    ProductWorkspaceContainerHealth.Ready => "引用正常",
-                    ProductWorkspaceContainerHealth.NeedsReview => "有引用待审查",
+                    ProductWorkspaceContainerHealth.Empty => "空盒子",
+                    ProductWorkspaceContainerHealth.Ready => "状态正常",
+                    ProductWorkspaceContainerHealth.NeedsReview => "需要检查",
                     _ => "状态不可用",
                 };
                 return new ProductWorkspaceReadContainerPresentation(
                     container.Ordinal,
                     container.UserVisibleName,
-                    $"方格 {container.Ordinal}，{container.UserVisibleName}，引用状态：{health}",
+                    $"盒子 {container.Ordinal}，{container.UserVisibleName}，状态：{health}",
                     container.IsLocked,
                     container.IsCollapsed,
                     container.Health,
                     health,
                     $"{(container.IsLocked ? "已锁定" : "未锁定")} · " +
-                        $"{container.Items.Count} 个引用 · " +
-                        $"{container.UnresolvedCount} 个待审查",
+                        $"{container.Items.Count} 个项目 · " +
+                        $"{container.UnresolvedCount} 个待处理",
                     $"{(container.IsCollapsed ? "已折叠" : "已展开")} · " +
                         $"不透明度 {container.Opacity:P0} · " +
                         $"{container.WidthDip:0} × {container.HeightDip:0} DIP",
@@ -120,10 +120,10 @@ internal sealed record ProductWorkspaceReadPresentation(
 
         return new(
             snapshot.Containers.Count == 0
-                ? "当前正式配置没有方格；这里只读呈现，不会自动创建示例。"
-                : $"{snapshot.Containers.Count} 个方格 · {snapshot.ItemCount} 个引用 · " +
-                    $"{snapshot.EmptyContainerCount} 个空方格 · " +
-                    $"{snapshot.NeedsReviewContainerCount} 个方格待审查",
+                ? "还没有盒子；创建第一个盒子，开始整理桌面。"
+                : $"{snapshot.Containers.Count} 个盒子 · {snapshot.ItemCount} 个项目 · " +
+                    $"{snapshot.EmptyContainerCount} 个空盒子 · " +
+                    $"{snapshot.NeedsReviewContainerCount} 个需要检查",
             $"WorkspaceViewReady:Containers={snapshot.Containers.Count}:" +
                 $"Items={snapshot.ItemCount}:Resolved={snapshot.ResolvedCount}:" +
                 $"Unresolved={snapshot.UnresolvedCount}:" +
@@ -151,10 +151,10 @@ internal sealed record ProductWorkspaceReadPresentation(
 
         string label = filter switch
         {
-            ProductWorkspaceContainerHealthFilter.All => "全部方格",
-            ProductWorkspaceContainerHealthFilter.NeedsReview => "待审查方格",
-            ProductWorkspaceContainerHealthFilter.Empty => "空方格",
-            ProductWorkspaceContainerHealthFilter.Ready => "引用正常方格",
+            ProductWorkspaceContainerHealthFilter.All => "全部盒子",
+            ProductWorkspaceContainerHealthFilter.NeedsReview => "需要检查",
+            ProductWorkspaceContainerHealthFilter.Empty => "空盒子",
+            ProductWorkspaceContainerHealthFilter.Ready => "状态正常",
             _ => "筛选不可用",
         };
         if (!ProductWorkspaceContainerHealthFilterPolicy.IsSupported(filter))
@@ -222,7 +222,7 @@ internal sealed record ProductWorkspaceReadPresentation(
         };
         return new(
             $"筛选：{label}{searchDetail} · 排序：{sortLabel} · " +
-                $"显示 {visible.Length}/{Containers.Count} 个方格；桌面文件未改变。",
+                $"显示 {visible.Length}/{Containers.Count} 个盒子",
             $"{MachineStatus}:Filter={filter}:Search={search.Status}:Sort={sort}:" +
                 $"VisibleContainers={visible.Length}:" +
                 "DesktopFilesChanged=False",
