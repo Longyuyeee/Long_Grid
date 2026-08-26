@@ -17,6 +17,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 当前工作只需要优先阅读以下文档：
 
 - [当前唯一开发计划：产品重对齐、UI 重构、里程碑与执行队列](docs/PRODUCT_EXECUTION_PLAN.md)
+- [当前开发情况与原始需求对齐审计（Stage 209）](docs/209-current-development-alignment-audit.md)
 - [产品需求文档（PRD）](docs/02-product-requirements.md)
 - [交互设计与产品体验规范](docs/09-interaction-design-audit.md)
 - [开发流程与交付规范](docs/10-development-workflow.md)
