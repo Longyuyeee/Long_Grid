@@ -4037,23 +4037,6 @@ public sealed partial class MainWindow : Window
             column: compact ? 0 : 2,
             columnSpan: compact ? 3 : 1);
 
-        BrandSurfaceGrid.ColumnSpacing = compact ? 0 : 12;
-        BrandSurfaceGrid.RowSpacing = compact ? 12 : 0;
-        SetGridPosition(
-            BrandPrimarySurface,
-            row: 0,
-            column: 0,
-            columnSpan: compact ? 3 : 1);
-        SetGridPosition(
-            BrandMutedSurface,
-            row: compact ? 1 : 0,
-            column: compact ? 0 : 1,
-            columnSpan: compact ? 3 : 1);
-        SetGridPosition(
-            BrandCardSurface,
-            row: compact ? 2 : 0,
-            column: compact ? 0 : 2,
-            columnSpan: compact ? 3 : 1);
     }
 
     private static void SetGridPosition(

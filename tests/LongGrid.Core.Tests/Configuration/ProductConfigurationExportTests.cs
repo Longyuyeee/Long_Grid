@@ -874,6 +874,59 @@ public sealed class ProductConfigurationExportTests
         Assert.Equal(evidence, await File.ReadAllBytesAsync(evidencePath));
     }
 
+    [Fact]
+    public async Task RealExportImportAndDamagedRetryPreserveConfigurationAndDesktopGuard()
+    {
+        using TemporaryDirectory sourceDirectory = new();
+        using TemporaryDirectory destination = new();
+        using TemporaryDirectory importedDirectory = new(create: false);
+        ProductConfigurationStore sourceStore = new(sourceDirectory.Path);
+        ProductConfigurationStore importedStore = new(importedDirectory.Path);
+        ProductConfigurationDocument expected = CreateDocument("settings-real-journey");
+        string desktopGuardPath = Path.Combine(destination.Path, "desktop-file.guard");
+        byte[] desktopGuardBefore = "Long方格不得修改此桌面替身"u8.ToArray();
+        await File.WriteAllBytesAsync(desktopGuardPath, desktopGuardBefore);
+        await sourceStore.SaveAsync(expected);
+
+        ProductConfigurationExportPlan exportPlan = await sourceStore.PrepareExportAsync();
+        ProductConfigurationExportResult exportResult = await sourceStore.ExportAsync(
+            exportPlan,
+            destination.Path,
+            LocalDestination(),
+            userConfirmed: true);
+        string exportedPath = Path.Combine(destination.Path, exportResult.FileName);
+        await using (FileStream exported = File.OpenRead(exportedPath))
+        {
+            ProductConfigurationImportPlan importPlan = await importedStore.PrepareImportAsync(
+                exported,
+                new(true, ".json", true, false));
+            await importedStore.ImportAsync(importPlan, userConfirmed: true);
+        }
+
+        ProductConfigurationDocument actual = Assert.IsType<ProductConfigurationDocument>(
+            (await importedStore.LoadAsync()).Document);
+        Assert.Equal(
+            ProductWorkspaceConfigurationFingerprint.Compute(expected),
+            ProductWorkspaceConfigurationFingerprint.Compute(actual));
+        byte[] importedPrimaryBeforeDamagedRetry =
+            await File.ReadAllBytesAsync(importedStore.PrimaryPath);
+
+        await using MemoryStream damaged = new("{ damaged"u8.ToArray());
+        ProductConfigurationImportException damagedException = await Assert.ThrowsAsync<
+            ProductConfigurationImportException>(() => importedStore.PrepareImportAsync(
+                damaged,
+                new(true, ".json", true, false)));
+
+        Assert.Equal(
+            ProductConfigurationImportError.InvalidConfiguration,
+            damagedException.Error);
+        Assert.Equal(
+            importedPrimaryBeforeDamagedRetry,
+            await File.ReadAllBytesAsync(importedStore.PrimaryPath));
+        Assert.Equal(desktopGuardBefore, await File.ReadAllBytesAsync(desktopGuardPath));
+        Assert.True(new FileInfo(exportedPath).Length > 0);
+    }
+
     private static ProductConfigurationExportDestination LocalDestination() =>
         new(UserSelected: true, IsLocalFileSystem: true, IsReparsePoint: false);
 

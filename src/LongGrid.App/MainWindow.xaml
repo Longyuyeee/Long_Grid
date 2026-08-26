@@ -1840,31 +1840,6 @@
                                         Text="当前：跟随系统（仅内存）" />
                                 </StackPanel>
                             </Border>
-                            <Border
-                                x:Name="LegacyDesignTokenPreviewCard"
-                                AutomationProperties.AutomationId="LegacyDesignTokenPreviewCard"
-                                Style="{StaticResource LongGridCardStyle}"
-                                Visibility="Collapsed">
-                                <StackPanel Spacing="18">
-                                    <TextBlock FontSize="20" FontWeight="SemiBold" Text="品牌与表面" />
-                                    <Grid x:Name="BrandSurfaceGrid" ColumnSpacing="12">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-                                        <Border x:Name="BrandPrimarySurface" Grid.Column="0" Height="116" Background="{StaticResource LongGridBrandBrush}" CornerRadius="16"><TextBlock Margin="16" VerticalAlignment="Bottom" Foreground="White" FontWeight="SemiBold" Text="Brand · #5B5FF5" /></Border>
-                                        <Border x:Name="BrandMutedSurface" Grid.Column="1" Height="116" Background="{ThemeResource LongGridSurfaceMutedBrush}" BorderBrush="{ThemeResource LongGridBorderBrush}" BorderThickness="1" CornerRadius="16"><TextBlock Margin="16" VerticalAlignment="Bottom" Text="Muted Surface" /></Border>
-                                        <Border x:Name="BrandCardSurface" Grid.Column="2" Height="116" Background="{ThemeResource LongGridSurfaceBrush}" BorderBrush="{ThemeResource LongGridBorderBrush}" BorderThickness="1" CornerRadius="16"><TextBlock Margin="16" VerticalAlignment="Bottom" Text="Card Surface" /></Border>
-                                    </Grid>
-                                    <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="系统强调色继续承担选择、焦点和交互状态；品牌靛蓝不作为唯一状态线索。" />
-                                </StackPanel>
-                            </Border>
                         </StackPanel>
 
                         <StackPanel
@@ -1878,13 +1853,17 @@
                                 AutomationProperties.AutomationId="SettingsPageHeader"
                                 Title="设置"
                                 Subtitle="管理配置、隐私与高级诊断。核心盒子设置将在盒子管理中就近完成。" />
-                            <Border Style="{StaticResource LongGridCardStyle}">
+                            <Border
+                                AutomationProperties.AutomationId="SettingsGeneralSection"
+                                AutomationProperties.Name="常规设置"
+                                Style="{StaticResource LongGridCardStyle}">
                                 <StackPanel Spacing="14">
-                                    <InfoBar IsClosable="False" IsOpen="True" Severity="Success" Title="真实桌面保持不变" Message="没有目录枚举、Shell 通知、文件移动、删除、规则执行或自动配置写入。" />
-                                    <TextBlock FontSize="16" FontWeight="SemiBold" Text="受限配置导入" />
+                                    <TextBlock FontSize="20" FontWeight="SemiBold" Text="常规" />
+                                    <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="备份、恢复或迁移你的 Long方格配置。" />
+                                    <TextBlock FontSize="16" FontWeight="SemiBold" Text="导入配置" />
                                     <TextBlock
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
-                                        Text="仅从你明确选择的本地 .json 文件生成有限预览；确认前不写入，导入不会扫描桌面或移动文件。" />
+                                        Text="选择本地 .json 配置，预览内容并确认后再恢复。" />
                                     <Grid ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
@@ -1906,10 +1885,10 @@
                                             Text="尚未选择配置。"
                                             TextWrapping="Wrap" />
                                     </Grid>
-                                    <TextBlock FontSize="16" FontWeight="SemiBold" Text="安全导出" />
+                                    <TextBlock FontSize="16" FontWeight="SemiBold" Text="导出配置" />
                                     <TextBlock
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
-                                        Text="先生成有限预览并确认，再由你选择本地文件夹；导出内容包含配置中保存的引用目标，使用唯一文件名，不覆盖既有文件，也不修改 Long方格配置存储。"
+                                        Text="将当前配置保存为独立备份文件；同名文件不会被覆盖。"
                                         TextWrapping="Wrap" />
                                     <Grid ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
@@ -1932,11 +1911,39 @@
                                             Text="尚未准备导出。"
                                             TextWrapping="Wrap" />
                                     </Grid>
-                                    <TextBlock FontSize="16" FontWeight="SemiBold" Text="证据清单" />
+                                </StackPanel>
+                            </Border>
+                            <Border
+                                AutomationProperties.AutomationId="SettingsPrivacySection"
+                                AutomationProperties.Name="隐私与安全"
+                                Style="{StaticResource LongGridCardStyle}">
+                                <StackPanel Spacing="12">
+                                    <TextBlock FontSize="20" FontWeight="SemiBold" Text="隐私与安全" />
+                                    <InfoBar
+                                        IsClosable="False"
+                                        IsOpen="True"
+                                        Severity="Success"
+                                        Title="你的桌面文件由你掌控"
+                                        Message="Long方格保存盒子布局和文件夹引用；导入、导出和诊断都需要你主动操作。" />
                                     <TextBlock
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
-                                        Text="可在明确确认后保存一条当前交互的匿名快照；清单仅显示类型、角色、大小和时间，不显示路径。不会持续记录；导出和永久清理都只作用于明确选择的一条。"
+                                        Text="配置操作不会移动或删除桌面文件。执行任何可能影响文件的动作前，软件必须显示清晰预览并再次确认。"
                                         TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                            <Expander
+                                AutomationProperties.AutomationId="SettingsAdvancedDiagnosticsExpander"
+                                AutomationProperties.Name="高级诊断"
+                                Header="高级诊断"
+                                IsExpanded="False">
+                                <Border Margin="0,8,0,0" Style="{StaticResource LongGridCardStyle}">
+                                    <StackPanel Spacing="14">
+                                        <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="仅在排查问题或提供支持信息时使用。这里的功能默认关闭，不会持续记录操作。" TextWrapping="Wrap" />
+                                        <TextBlock FontSize="16" FontWeight="SemiBold" Text="匿名诊断快照" />
+                                        <TextBlock
+                                            Style="{StaticResource LongGridSubtitleTextStyle}"
+                                            Text="确认后保存一次当前交互状态；清单不显示文件路径，也不会持续记录。"
+                                            TextWrapping="Wrap" />
                                     <Grid ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
@@ -1989,10 +1996,9 @@
                                         Content="清理所选证据…"
                                         IsEnabled="False"
                                         HorizontalAlignment="Left" />
-                                    <TextBlock FontSize="16" FontWeight="SemiBold" Text="仍需关闭的产品门槛" />
-                                    <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="• Issue #19–#24 实机与负责人决策&#x0a;• ADR-0001 最终 Go / Revise / No-Go&#x0a;• UI Automation、Narrator、高对比和 DPI 实机矩阵&#x0a;• 真实产品状态保存、DesktopHost 与正式渲染接线" />
-                                </StackPanel>
-                            </Border>
+                                    </StackPanel>
+                                </Border>
+                            </Expander>
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>
