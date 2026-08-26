@@ -63,8 +63,7 @@ public sealed record ProductWorkspaceReadContainer(
     int ResolvedCount,
     int UnresolvedCount,
     ProductWorkspaceContainerHealth Health,
-    ProductContainerFolderBindingResolution? FolderBindingResolution = null,
-    string? FolderBindingTarget = null);
+    ProductContainerFolderBindingResolution? FolderBindingResolution = null);
 
 public sealed record ProductWorkspaceReadSnapshot(
     IReadOnlyList<ProductWorkspaceReadContainer> Containers,
@@ -167,8 +166,7 @@ public static class ProductWorkspaceReadModel
                 resolved,
                 unresolved,
                 health,
-                folderBinding?.Resolution,
-                folderBinding?.ResolvedTarget ?? folderBinding?.PersistedTarget));
+                folderBinding?.Resolution));
         }
 
         return new(
