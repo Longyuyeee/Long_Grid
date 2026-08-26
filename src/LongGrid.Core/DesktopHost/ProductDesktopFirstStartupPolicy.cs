@@ -25,6 +25,7 @@ public enum ProductDesktopFirstStartupReason
     SystemSurfaceSuspended,
     EvidenceSession,
     RedirectedActivation,
+    ExplicitUserLaunch,
     BoxesDisabled,
     ConfigurationRequiresAttention,
     DesktopHostUnavailable,
@@ -33,6 +34,7 @@ public enum ProductDesktopFirstStartupReason
 public sealed record ProductDesktopFirstStartupRequest(
     bool EvidenceSession,
     bool RedirectedActivationPending,
+    bool ExplicitUserLaunch,
     bool BoxesEnabled,
     bool ConfigurationRequiresAttention,
     ProductDesktopFirstHostReadiness HostReadiness);
@@ -59,6 +61,10 @@ public static class ProductDesktopFirstStartupPolicy
         if (request.RedirectedActivationPending)
         {
             return Activate(ProductDesktopFirstStartupReason.RedirectedActivation);
+        }
+        if (request.ExplicitUserLaunch)
+        {
+            return Activate(ProductDesktopFirstStartupReason.ExplicitUserLaunch);
         }
         if (!request.BoxesEnabled)
         {

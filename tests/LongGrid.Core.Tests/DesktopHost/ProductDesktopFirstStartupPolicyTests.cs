@@ -83,6 +83,23 @@ public sealed class ProductDesktopFirstStartupPolicyTests
     }
 
     [Fact]
+    public void EvaluateActivatesForExplicitUserLaunch()
+    {
+        ProductDesktopFirstStartupDecision decision =
+            ProductDesktopFirstStartupPolicy.Evaluate(
+                CreateRequest(
+                    ProductDesktopFirstHostReadiness.Ready) with
+                {
+                    ExplicitUserLaunch = true,
+                });
+
+        Assert.True(decision.ActivateControlCenter);
+        Assert.Equal(
+            ProductDesktopFirstStartupReason.ExplicitUserLaunch,
+            decision.Reason);
+    }
+
+    [Fact]
     public void EvaluateActivatesWhenBoxesAreDisabled()
     {
         ProductDesktopFirstStartupDecision decision =
@@ -119,6 +136,7 @@ public sealed class ProductDesktopFirstStartupPolicyTests
         new(
             EvidenceSession: false,
             RedirectedActivationPending: false,
+            ExplicitUserLaunch: false,
             BoxesEnabled: true,
             ConfigurationRequiresAttention: false,
             HostReadiness: readiness);
