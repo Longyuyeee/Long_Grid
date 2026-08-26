@@ -6,7 +6,7 @@
 
 更新日期：2026-08-26
 
-代码审计基线：`origin/main@8bf2dff`；FOLDER-R1-C 实现分支 `codex/folder-r1-c-projection`
+代码审计基线：`origin/main@803299c`；FOLDER-R1-D 实现分支 `codex/folder-r1-d-recovery`
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -77,7 +77,7 @@ UI-R1A 开始前的代码审计显示，正式控制中心仍沿用早期“开�
 |---|---|---|---|
 | 产品 UI | `origin/main@288838c` 已包含 UI-R1A～UI-R1E-B 工程范围 | 产品导航、真实概览、盒子管理、设置分层、显式启动入口和真实 XAML 渲染证据均已进入主线 | 工程范围完成；高对比、减少动画、Narrator 和物理键盘仍为 `ManualEvidencePending`，不能把 UI-R1 整体标为 Complete |
 | 桌面右键创建 | DesktopHost 已具备创建事务、预览、快捷键、拖画入口和产品内弹出菜单 | 右键“新建方格”当前仅在宿主绘制的“新建”按钮区域触发，不是 Explorer 桌面任意空白区域 | BOX-R1 仍未达到原始核心旅程，必须通过受支持的 Explorer 背景命令补齐入口、冲突处理和物理证据 |
-| 文件夹绑定 | 有安全引用、目录枚举、打开与 Portal/Tab 设计底座 | FOLDER-R1-A/B 已建立 schema v3、稳定身份和绑定事务；FOLDER-R1-C 已将 `Resolved` 绑定目录以最多 256 个直属项目的只读快照投影到盒子管理页和 DesktopHost，提供显式刷新、真实变更通知失效重读与打开前重验证 | A～C 工程链已形成并通过真实文件系统；权限、离线、根目录失效恢复和完整可见证据仍待 D，物理 Picker 点击仍 Pending |
+| 文件夹绑定 | 有安全引用、目录枚举、打开与 Portal/Tab 设计底座 | FOLDER-R1-A/B 已建立 schema v3、稳定身份和绑定事务；C 已将最多 256 个直属项目投影到盒子管理页和 DesktopHost；D 已让运行时快照发布权威有限绑定状态，并以根目录/父目录事件与低频健康探测处理权限拒绝、离线、归来和同路径替换 | A～D 工程链已通过真实文件系统；物理 Picker、可见刷新/打开、键盘和 Narrator 仍 `ProductEvidencePending`，不得写成完整用户旅程已完成 |
 | 任务栏美化 | 有技术审计和产品边界文档 | `DwmSetWindowAttribute` 只修饰 Long方格自己的宿主窗口；个性化页明确仍为适配器占位文案 | TASKBAR-R1～R4 尚无产品运行时，M2 未开始 |
 | Explorer 拖放 | PF-007A1 已完成 `CF_HDROP` 有界解析、安全准入和原子配置请求 | 真实 `IDropTarget`、方格间改归属、失败补偿和撤销尚未闭环 | 属于 M1 核心必要交互，继续排在文件夹绑定之后 |
 | 小组件/Long助手插件 | LPWP 1.0 等协议文档存在 | 只有 Windows App SDK Widgets 的传递依赖，没有 Widget Host 或插件小组件运行时 | 方向对齐但仍是 M4；不得抢占三根核心支柱 |
@@ -265,7 +265,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**FOLDER-R1-D 权限、离线、失效恢复与可见证据**。FOLDER-R1-A～C 已完成持久化/身份/健康、显式绑定事务，以及绑定目录内容的有界只读投影、刷新、变更通知与安全打开前重验证；C 为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`。B 的物理 Picker 点击、C 的真实可见刷新/打开和 BOX-R1-C、UI-R1E 人工门禁继续 Pending。
+当前执行项：**PF-007A2/PF-007B Explorer 拖入与盒子间改归属**。FOLDER-R1-A～D 已完成持久化/身份/健康、显式绑定事务、有界只读内容投影，以及权限、离线、替换与恢复工程链；D 为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`。文件夹绑定的物理 Picker、刷新/打开、键盘与 Narrator 证据，连同 BOX-R1-C、UI-R1E 人工门禁，统一留在 M1 产品证据冲刺，不再以相邻底座开发代替产品旅程。
 
 严格按下列顺序交付，不再插入相邻探针或新宽度功能：
 
@@ -275,8 +275,8 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 4. **UI-R1D 设置迁移（EngineeringComplete / ProductEvidencePending）**：配置导入导出归入“常规”，隐私承诺使用用户语言，一次性匿名证据归入默认折叠的“高级诊断”；开发门槛和 Design Token 样例已从发布表面删除。真实磁盘往返与损坏输入保护通过，可见交互证据随 UI-R1E 完成。
 5. **UI-R1E 视觉与响应式验收（EngineeringComplete / ManualEvidencePending）**：UI-R1E-A 已完成浅/深色、1120/720 effective px、200% 缩放、焦点和真实 XAML PNG；UI-R1E-B 已确保根目录/显式启动直接显示唯一控制中心，同时保留 `--background` 桌面优先模式。I19/BSA 自动预检均通过且明确不修改系统设置；高对比、关闭系统动画、Narrator、物理键盘及其他 DPI 继续作为 M1 出口人工门禁。
 6. **BOX-R1（B 已完成，C Pending）**：A 有限激活合同（EngineeringComplete / RealProcessPass）→ B 原生 `IExplorerCommand` 与真实 unsigned MSIX（EngineeringComplete / NativeDllPass / RealUnsignedPackagePass）→ C 可丢弃账户真实安装/菜单/卸载证据（PendingApproval）→ D Explorer 重启、显示器、DPI 与失败恢复；全部复用统一创建预览和事务。
-7. **FOLDER-R1（D 当前执行）**：A 持久化/身份/健康合同（EngineeringComplete / RealFilesystemPass）→ B 显式选择、取消零写入、绑定/解绑/重连原子提交（EngineeringComplete / RealFilesystemPass / ManualPickerEvidencePending）→ C 目录内容呈现、显式刷新、变更通知和安全打开（EngineeringComplete / RealFilesystemPass / ProductEvidencePending）→ D 权限、离线、失效恢复和可见证据。
-8. **PF-007A2/PF-007B**：真实 Explorer 拖入、盒子间改归属、无效目标、失败补偿和一次撤销。
+7. **FOLDER-R1（A～D EngineeringComplete / RealFilesystemPass / ProductEvidencePending）**：A 持久化/身份/健康合同 → B 显式选择、取消零写入、绑定/解绑/重连原子提交 → C 目录内容呈现、显式刷新、变更通知和安全打开 → D 权限、离线、同路径替换、失效恢复和有限状态；物理 Picker、可见刷新/打开、键盘和 Narrator 进入 M1 集中证据。
+8. **PF-007A2/PF-007B（当前执行）**：真实 Explorer 拖入、盒子间改归属、无效目标、失败补偿和一次撤销。
 9. **M1 产品证据冲刺**：完整两分钟旅程，而不是分散控件证据。
 10. **TASKBAR-R1～R4**：完成核心任务栏预设、应用、回退和真实兼容矩阵，关闭 M2。
 
@@ -448,7 +448,7 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 
 - 工程底座：较强，PF-001～PF-006 已具备大量正式链路；
 - GitHub 主分支交付：UI-R1A～UI-R1E-A 已按 #239 → #240 → #241 → #242 合入，文档收口 #243 与显式启动修正 #244 也已合入 `main@288838c`；#238 已作为重复路径关闭；
-- M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A/B 与 FOLDER-R1-A～C 工程链已完成，BOX-R1-C、FOLDER-R1-B/C 物理证据 Pending；当前进入 FOLDER-R1-D，随后仍缺 Explorer 拖放和集中物理证据；
+- M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A/B 与 FOLDER-R1-A～D 工程链已完成，BOX-R1-C、FOLDER-R1 物理证据 Pending；当前进入 PF-007A2/PF-007B，随后执行 M1 集中物理证据；
 - M2 任务栏美化核心：技术审计存在，产品运行时尚未开始；
 - M3 桌面管理增强：未开始闭环；
 - M4 工作空间/小组件/插件：协议或文档阶段；
@@ -503,6 +503,20 @@ FOLDER-R1-C 真实文件系统记录（2026-08-26，基线 `origin/main@8bf2dff`
 
 FOLDER-R1-C 的完成边界：内容投影、显式刷新、真实变更通知、桌面呈现和打开前重验证已具备；刷新生命周期已提取到独立 `App.FolderContents.cs`，没有继续把约 150 行协调逻辑集中进 `App.xaml.cs`。尚未完成权限实时切换、根目录离线/恢复、Watcher 溢出恢复、可见刷新/打开截图和物理键盘/Narrator 证据，因此保持 `ProductEvidencePending`，不得把 C 写成完整文件夹产品旅程已完成。
 
+FOLDER-R1-D 权限、离线与失效恢复记录（2026-08-26，基线 `origin/main@803299c`）：
+
+| 检查 | 预期效果 | 实际效果 | 差异与修正 |
+|---|---|---|---|
+| 权威有限状态 | 运行时目录变化后，控制中心与 DesktopHost 使用同一份 `Resolved / Missing / AccessDenied / Replaced / Unavailable` 事实，不得继续显示保存时的旧 `Resolved` | 首轮代码审计发现 C 的内容读取器会重新验证目录，却没有把新绑定状态送入读模型，可能同时显示“绑定正常”和“内容不可用”；D 在临时内容快照加入有限 `BindingResolution`，读模型只接受形状有效的新代次状态 | 已修正事实矛盾；正式视图仍不暴露路径、卷号或文件 ID，临时快照不进入配置存储 |
+| 根目录离线与归来 | 绑定目录被同卷移走后自动进入 `Missing`，原目录回到同一路径后自动恢复 `Resolved` 和原直属项目 | 真实 NTFS 目录经 `Directory.Move` 离线，父目录监听在 5 秒门限内触发；移回后再次触发并恢复 `keep.txt`，内容 SHA-256 前后一致 | C 只监听在线根目录，根目录消失后无法可靠观察归来；已增加持久化目标的父目录精确名称监听，并继续保留根目录监听与 250 ms 去抖 |
+| ACL 拒绝与恢复 | 当前用户权限从允许变为拒绝后自动进入 `AccessDenied` 且不显示内容；移除拒绝规则后自动恢复 | 使用真实 `icacls` 对隔离目录添加当前 SID deny：第一次预期 5 秒内收到 `FileSystemWatcher` 安全通知，实际超时；加入每 2 秒一次且禁止重叠的稳定身份权威健康探测后，拒绝与恢复两次失效通知均到达，读取结果依次为 `AccessDenied → Resolved`，文件哈希不变 | 差异已修正；健康探测去重相同绑定且只比较有限状态，不枚举内容、不写配置、不记录路径或身份；显式刷新仍作为手动恢复入口 |
+| 同路径替换 | 原目录被删除并在同一路径创建新目录时，不能显示替换目录内容 | 真实同路径替换继续得到 `Replaced`、0 项；读模型同步显示 `Replaced`，替换目录文件原文不变 | 对齐；没有按路径静默接受新身份 |
+| Watcher 错误恢复 | `FileSystemWatcher.Error` 或缓冲区溢出不能让旧状态永久卡住 | 正式 `Error` 路径与文件事件统一安排去抖失效重读；低频权威探测可在事件丢失时继续发现有限健康变化 | 代码和 188-ID 合同通过；本机未安全、确定地制造真实内部缓冲区溢出，因此物理 overflow 证据保持 Pending，不伪造 Pass |
+| 回归与文件安全 | 新恢复链不移动、删除、重命名或改写用户文件；Release、全量测试、覆盖率、格式与 UI 合同通过 | 专项 8/8；全量 1,266/1,266；Release 0 warning / 0 error；最终隔离覆盖率 lines 90.38% / branches 76.05%；格式与 188-ID 合同通过。离线测试只执行并完整恢复显式测试目录重命名，ACL 测试在 `finally` 移除 deny；保护文件哈希一致 | 对齐；没有触碰桌面目录、正常用户配置或系统任务栏设置 |
+| 可见物理证据 | 正式窗口显示拒绝、离线和恢复状态，并完成真实键盘/Narrator 检查 | 完整 UI 脚本在应用启动前再次识别 WindowsAppRuntime `2.4.0.0` / Microsoft.UI.Xaml `3.2.3.0` 的已审计 `RPC_E_WRONG_THREAD` fail-fast 组合并安全停止；BSA ValidateOnly 明确返回 `PendingManualEvidence` | `ProductEvidencePending`；未传风险绕过参数、未启动应用、未伪造点击或截图，待上游稳定运行时或可丢弃诊断环境在 M1 集中补证 |
+
+FOLDER-R1-D 的完成边界：真实权限拒绝/恢复、根目录离线/归来、同路径替换拒绝、事件丢失补偿和有限权威状态已形成工程闭环；监听器只读探测，内容枚举仍有界且不持久化。物理 overflow、可见状态、Picker、刷新/打开、键盘和 Narrator 仍待 M1 证据冲刺，因此 D 只能标为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`，不能标为产品旅程 Complete。
+
 ## 13. 下一步开始条件
 
-下一次开发进入 FOLDER-R1-D：在不修改 A～C 配置与投影合同的前提下，验证并补齐目录访问权限从允许到拒绝再恢复、绑定根目录离线/重新出现、同路径替换拒绝、Watcher 缓冲区错误后的权威重读，以及控制中心与 DesktopHost 的有限可见状态；随后集中取得 Picker 取消、显式刷新、自动刷新、双击安全打开、键盘和 Narrator 证据。必须继续使用真实隔离目录比较预期状态与实际状态，并证明每个失败/恢复分支都不移动、删除、重命名或改写用户文件；不可因本机无法制造某个系统状态而伪造物理证据。
+下一次开发进入 PF-007A2/PF-007B：将 PF-007A1 已有 `CF_HDROP` 有界解析和原子引用请求接到真实 DesktopHost `IDropTarget`，再完成盒子间改归属、无效目标拒绝、提交失败补偿和一次撤销。测试必须使用真实隔离文件与真实 OLE/Windows 消息链，对每个场景记录预期、实际、差异和修正；必须证明安全引用模式不移动、删除、重命名或改写源文件。不得把合成 DTO、静态合同或内存 reducer 测试冒充真实 Explorer 拖放通过。完成后进入 M1 产品证据冲刺，集中补齐 BOX-R1-C、FOLDER-R1 与 UI-R1E 的物理可见、键盘和 Narrator 证据；不可因当前运行时阻断而伪造证据。

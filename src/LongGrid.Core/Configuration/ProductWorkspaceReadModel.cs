@@ -141,8 +141,12 @@ public static class ProductWorkspaceReadModel
                 folderContent is { HasValidShape: false }
                     ? ProductWorkspaceFolderContentStatus.EnumerationFailed
                     : folderContent?.Status;
+            ProductContainerFolderBindingResolution? effectiveBindingResolution =
+                folderContent is { HasValidShape: true, BindingResolution: { } }
+                    ? folderContent.BindingResolution
+                    : container.FolderBinding?.Resolution;
             bool usableFolderContent = folderContent?.HasUsableProjection == true
-                && container.FolderBinding?.Resolution ==
+                && effectiveBindingResolution ==
                     ProductContainerFolderBindingResolution.Resolved;
             int folderContentItemCount = 0;
             if (usableFolderContent)
@@ -163,10 +167,8 @@ public static class ProductWorkspaceReadModel
             }
 
             int unresolved = items.Count - resolved;
-            ProductContainerFolderBindingState? folderBinding =
-                container.FolderBinding;
-            bool folderNeedsReview = folderBinding is not null
-                && folderBinding.Resolution !=
+            bool folderNeedsReview = effectiveBindingResolution is not null
+                && effectiveBindingResolution !=
                     ProductContainerFolderBindingResolution.Resolved;
             bool folderContentNeedsReview = folderContent is not null
                 && !folderContent.HasUsableProjection
@@ -176,7 +178,7 @@ public static class ProductWorkspaceReadModel
                 || folderNeedsReview
                 || folderContentNeedsReview
                 ? ProductWorkspaceContainerHealth.NeedsReview
-                : items.Count == 0 && folderBinding is null
+                : items.Count == 0 && container.FolderBinding is null
                     ? ProductWorkspaceContainerHealth.Empty
                     : ProductWorkspaceContainerHealth.Ready;
             if (health == ProductWorkspaceContainerHealth.Empty)
@@ -207,7 +209,7 @@ public static class ProductWorkspaceReadModel
                 resolved,
                 unresolved,
                 health,
-                folderBinding?.Resolution,
+                effectiveBindingResolution,
                 folderContentStatus,
                 folderContentItemCount));
         }

@@ -1,4 +1,7 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Security.Principal;
+using System.Threading.Channels;
 using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopHost;
 using LongGrid.Infrastructure.Configuration;
@@ -96,7 +99,15 @@ public sealed class WindowsProductContainerFolderContentReaderTests
         Assert.Equal(
             ProductWorkspaceFolderContentStatus.BindingUnavailable,
             actual.Status);
+        Assert.Equal(
+            ProductContainerFolderBindingResolution.Replaced,
+            actual.BindingResolution);
         Assert.Empty(actual.Items);
+        Assert.Equal(
+            ProductContainerFolderBindingResolution.Replaced,
+            ProductWorkspaceReadModel.Create(state,
+                WindowsProductContainerFolderContentReader.ReadWorkspace(state, 2))
+                .Snapshot!.Containers[0].FolderBindingResolution);
         Assert.Equal("do-not-project", File.ReadAllText(replacement));
     }
 
@@ -185,6 +196,105 @@ public sealed class WindowsProductContainerFolderContentReaderTests
         Assert.Equal(ProductWorkspaceContainerHealth.NeedsReview, actual.Health);
     }
 
+    [Fact]
+    public async Task RealRootOfflineAndReturnAreObservedByParentWatcher()
+    {
+        using var sandbox = RealFolderContentSandbox.Create();
+        string bound = sandbox.CreateDirectory("bound");
+        string keep = Path.Combine(bound, "keep.txt");
+        File.WriteAllText(keep, "offline-recovery");
+        string expectedHash = HashFile(keep);
+        ProductWorkspaceState state = CreateWorkspace(bound);
+        using var watcher = new ProductWorkspaceFolderContentWatcher();
+        Channel<bool> invalidations = Channel.CreateUnbounded<bool>();
+        watcher.Invalidated += (_, _) => invalidations.Writer.TryWrite(true);
+        watcher.Configure(state);
+
+        string offline = Path.Combine(sandbox.Root, "offline");
+        Directory.Move(bound, offline);
+        await WaitForInvalidationAsync(invalidations);
+        ProductWorkspaceFolderContentSet missing =
+            WindowsProductContainerFolderContentReader.ReadWorkspace(state, 2);
+        Drain(invalidations);
+        await Task.Delay(350);
+
+        Directory.Move(offline, bound);
+        await WaitForInvalidationAsync(invalidations);
+        ProductWorkspaceFolderContentSet recovered =
+            WindowsProductContainerFolderContentReader.ReadWorkspace(state, 3);
+
+        Assert.Equal(
+            ProductContainerFolderBindingResolution.Missing,
+            missing.Find("container-1")!.BindingResolution);
+        Assert.Empty(missing.Find("container-1")!.Items);
+        Assert.Equal(
+            ProductContainerFolderBindingResolution.Resolved,
+            recovered.Find("container-1")!.BindingResolution);
+        Assert.Equal(
+            ["keep.txt"],
+            recovered.Find("container-1")!.Items.Select(item => item.DisplayName));
+        Assert.Equal(expectedHash, HashFile(keep));
+    }
+
+    [Fact]
+    public async Task RealAclDenialAndRecoveryProduceFiniteAuthoritativeStates()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+        using var sandbox = RealFolderContentSandbox.Create();
+        string bound = sandbox.CreateDirectory("bound");
+        string keep = Path.Combine(bound, "keep.txt");
+        File.WriteAllText(keep, "acl-recovery");
+        string expectedHash = HashFile(keep);
+        ProductWorkspaceState state = CreateWorkspace(bound);
+        string sid = WindowsIdentity.GetCurrent().User?.Value
+            ?? throw new InvalidOperationException("A Windows user SID is required.");
+        using var watcher = new ProductWorkspaceFolderContentWatcher();
+        Channel<bool> invalidations = Channel.CreateUnbounded<bool>();
+        watcher.Invalidated += (_, _) => invalidations.Writer.TryWrite(true);
+        watcher.Configure(state);
+
+        try
+        {
+            Assert.Equal(0, RunIcacls(bound, "/deny", $"*{sid}:(OI)(CI)F"));
+            await WaitForInvalidationAsync(invalidations);
+            ProductWorkspaceFolderContentSet denied =
+                WindowsProductContainerFolderContentReader.ReadWorkspace(state, 4);
+
+            Assert.Equal(
+                ProductContainerFolderBindingResolution.AccessDenied,
+                denied.Find("container-1")!.BindingResolution);
+            Assert.Equal(
+                ProductWorkspaceFolderContentStatus.AccessDenied,
+                denied.Find("container-1")!.Status);
+            Assert.Empty(denied.Find("container-1")!.Items);
+            Assert.Equal(
+                ProductContainerFolderBindingResolution.AccessDenied,
+                ProductWorkspaceReadModel.Create(state, denied)
+                    .Snapshot!.Containers[0].FolderBindingResolution);
+            Drain(invalidations);
+            await Task.Delay(350);
+        }
+        finally
+        {
+            Assert.Equal(0, RunIcacls(bound, "/remove:d", $"*{sid}"));
+        }
+
+        await WaitForInvalidationAsync(invalidations);
+        ProductWorkspaceFolderContentSet recovered =
+            WindowsProductContainerFolderContentReader.ReadWorkspace(state, 5);
+        Assert.Equal(
+            ProductContainerFolderBindingResolution.Resolved,
+            recovered.Find("container-1")!.BindingResolution);
+        Assert.Equal(
+            ProductContainerFolderBindingResolution.Resolved,
+            ProductWorkspaceReadModel.Create(state, recovered)
+                .Snapshot!.Containers[0].FolderBindingResolution);
+        Assert.Equal(expectedHash, HashFile(keep));
+    }
+
     private static ProductWorkspaceState CreateWorkspace(string bound)
     {
         ProductContainerFolderBindingState binding =
@@ -231,6 +341,46 @@ public sealed class WindowsProductContainerFolderContentReaderTests
 
     private static string HashFile(string path) =>
         Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
+
+    private static async Task WaitForInvalidationAsync(Channel<bool> channel) =>
+        _ = await channel.Reader.ReadAsync().AsTask()
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+    private static void Drain(Channel<bool> channel)
+    {
+        while (channel.Reader.TryRead(out _))
+        {
+        }
+    }
+
+    private static int RunIcacls(
+        string path,
+        params string[] arguments)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "icacls.exe"),
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        startInfo.ArgumentList.Add(path);
+        foreach (string argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+        using Process process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("icacls did not start.");
+        if (!process.WaitForExit(10_000))
+        {
+            process.Kill(entireProcessTree: true);
+            throw new TimeoutException("icacls did not finish in time.");
+        }
+        return process.ExitCode;
+    }
 
     private sealed class RealFolderContentSandbox : IDisposable
     {
