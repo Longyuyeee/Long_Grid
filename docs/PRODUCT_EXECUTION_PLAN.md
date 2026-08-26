@@ -562,3 +562,18 @@ PF-007B DesktopHost 盒子间改归属记录（2026-08-26，基线 `origin/main@
 | DesktopHost 完整旅程 | 桌面右键、Explorer 拖入、盒子间拖动和撤销均用真实鼠标完成 | 当前已有一份无法由本会话结束的高权限 Long方格常驻进程；隔离控制中心会话为避免双宿主显式禁用 DesktopHost | `EnvironmentBlocked / ProductEvidencePending`；不绕过权限、不强杀、不修改安全策略 |
 
 专项真实探针预期进程存活、四阶段齐全、配置隔离、正常配置零变化和夹具零变化，实际全部通过，`Difference=None`。CI 只运行 `-ValidateOnly` 验证入口合同，不把无交互 runner 当作物理证据；下一次仍从 M1 物理输入继续，而不是转入 TASKBAR-R1。
+
+### 13.2 M1-B 控制中心物理旅程与外部自动化运行时门禁（2026-08-26）
+
+本轮从 M1-A 的隔离 Release 会话继续，目标是在真实产品窗口依次执行“创建盒子 → Picker 绑定 Unicode 夹具 → 刷新直属内容 → 系统打开”。第一次正式窗口已显示，但外部窗口捕获后进程立即退出；重新启动同一隔离会话作一次恢复核对时再次退出。两次均发生在发送任何产品点击之前，因此创建、绑定、刷新和打开都没有证据，必须继续保持 `ProductEvidencePending`。
+
+| 验证面 | 预期 | 首次实际 | 修正后实际/结论 |
+|---|---|---|---|
+| 正式窗口存活 | 外部自动化观察窗口后进程继续存活，随后才发送物理输入 | `2026-08-26 16:56:14` 与 `16:57:59` 两次 Application Error 均为正式 Release `LongGrid.App.exe`；故障模块 `Microsoft.UI.Xaml.dll 3.2.3.0`、运行时包 `Microsoft.WindowsAppRuntime.2 2.4.0.0`、异常 `0xc000027b`；对应 WER P7 均为 `8001010e` | 这是可复现的真实运行时差异，不是产品旅程通过。Microsoft WinUI 官方仓库问题 [#11139](https://github.com/microsoft/microsoft-ui-xaml/issues/11139) 当前仍为 Open/Backlog，描述了跨进程 UIA 查询导致同一 `RPC_E_WRONG_THREAD` / fail-fast，且应用代码无法捕获 |
+| 启动前风险门禁 | 已知危险或无法确认的跨进程 UIA 环境不得先启动产品再碰运气 | M1-A 人工会话脚本没有把已有 `Test-LongGridWinUiUiaRuntime.ps1` 接到外部自动化入口，因而允许了两次已知组合启动 | 新增显式 `-ExternalAutomation`；先运行同一真实系统运行时探针，非 `Pass` 时在创建会话目录和产品进程之前返回 `BlockedByKnownUpstream`。当前机器实际报告 runtime `2.4.0.0` / XAML `3.2.3.0`、`startsProcess=false`、`createsEvidenceSession=false` |
+| 产品与文件安全 | 崩溃和门禁均不得污染正常配置或测试文件 | 两次进程都完成四阶段隔离启动；正常配置仍不存在，会话配置文件为 0；两份 Unicode 夹具长度和 SHA-256 与创建值一致 | `Difference=None`；精确 GUID 临时会话已经通过原清理入口移除，未触碰现有高权限 PID 45524 |
+| 证据口径 | 自动门禁只能证明“没有再次进入已知危险路径”，不能证明用户旅程 | 首次实际只取得窗口出现和 WER 崩溃，未发送创建/Picker/刷新/打开输入 | 控制中心物理旅程仍为 `ProductEvidencePending`；当前账户不再运行 Computer Use。待官方修复后的安全运行时或专用可丢弃机器复跑；DesktopHost 项仍另需无既有 Long方格进程的专用账户 |
+| 门禁与普通会话回归 | 阻断外部自动化时不得新增产品进程、临时目录或 WER；普通人工入口仍能真实启动 | 第一版验证命令在会话目录列表为空时把空数组传给 `Compare-Object`，报告中断；改为稳定排序字符串后复验 | 门禁前后进程均只有既有 PID 45524、临时目录均为空、新 Application Error 为 0；普通隔离 Release 进程 PID 19164 实际存活并到达四阶段，配置/夹具指纹不变，`Difference=None`，随后精确清理通过 |
+| 完整工程门禁 | 不降低既有质量阈值 | 串行执行 restore、format、Release build、启动链、完整测试和独立覆盖率 | Release `0 warning / 0 error`；启动链 Pass；`1,272/1,272`、0 跳过；lines `90.38%`、branches `75.96%`；无差异 |
+
+本轮没有转向任务栏、小组件或外围功能，而是补上 M1 真实证据链在运行时风险前的安全缺口。普通真人手动会话保持原入口，不把“外部自动化阻断”泛化成产品不能启动；也不采用关闭 UIA/无障碍、强杀高权限进程或修改系统安全策略等规避方式。M1 尚未完成，下一开发目标仍是同一完整物理旅程，而不是将工程底座或启动前阻断写成用户功能完成。

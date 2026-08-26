@@ -6,6 +6,7 @@ param(
     [switch]$NoBuild,
     [switch]$ValidateOnly,
     [switch]$EnableDesktopHost,
+    [switch]$ExternalAutomation,
 
     [string]$CleanupSessionId
 )
@@ -19,6 +20,8 @@ $outputDirectory = Join-Path $projectRoot `
 $appPath = Join-Path $outputDirectory 'LongGrid.App.exe'
 $environmentName = 'LONGGRID_M1_MANUAL_EVIDENCE_SESSION'
 $disableHostEnvironmentName = 'LONGGRID_DISABLE_DESKTOP_HOST'
+$runtimePreflightPath = Join-Path $PSScriptRoot `
+    'Test-LongGridWinUiUiaRuntime.ps1'
 $evidenceRoot = [IO.Path]::GetFullPath((Join-Path `
     ([IO.Path]::GetTempPath()) `
     'LongGridM1ManualEvidence'))
@@ -71,6 +74,11 @@ if ($ValidateOnly) {
         ($sessionCode.Contains('MarkerFileName') -and
             $sessionCode.Contains('ReparsePoint')) `
         'M1 manual evidence must require an exact marker and reject reparse points.'
+    Assert-Condition `
+        ((Test-Path -LiteralPath $runtimePreflightPath -PathType Leaf) -and
+            $MyInvocation.MyCommand.ScriptBlock.ToString().Contains(
+                "if (`$ExternalAutomation)")) `
+        'External automation must be guarded by the WinUI runtime preflight.'
     [ordered]@{
         schemaVersion = 1
         purpose = 'M1ManualProductJourneyEvidence'
@@ -81,6 +89,24 @@ if ($ValidateOnly) {
         outcome = 'Pass'
     } | ConvertTo-Json
     exit 0
+}
+
+if ($ExternalAutomation) {
+    $runtimePreflight = & $runtimePreflightPath | ConvertFrom-Json
+    $safeForExternalAutomation = $runtimePreflight.outcome -eq 'Pass'
+    if (-not $safeForExternalAutomation) {
+        [ordered]@{
+            schemaVersion = 1
+            purpose = 'M1ManualProductJourneyLaunch'
+            mode = 'external-automation'
+            startsProcess = $false
+            createsEvidenceSession = $false
+            runtimePreflight = $runtimePreflight
+            difference = $runtimePreflight.difference
+            outcome = $runtimePreflight.outcome
+        } | ConvertTo-Json -Depth 8
+        exit 0
+    }
 }
 
 if (-not [string]::IsNullOrWhiteSpace($CleanupSessionId)) {
@@ -232,6 +258,8 @@ finally {
     configurationDirectory = $configurationDirectory
     expectedActualPath = Join-Path $evidenceDirectory 'journey.json'
     drivesUserInput = $false
+    externalAutomation = [bool]$ExternalAutomation
+    runtimePreflight = if ($ExternalAutomation) { $runtimePreflight } else { $null }
     desktopHostDisabledForIsolation = -not $EnableDesktopHost
     outcome = 'ReadyForPhysicalInput'
 } | ConvertTo-Json
