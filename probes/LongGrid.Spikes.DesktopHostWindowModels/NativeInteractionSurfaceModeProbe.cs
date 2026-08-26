@@ -8,6 +8,8 @@ internal static class NativeInteractionSurfaceModeProbe
 {
     private static readonly DateTimeOffset FixedNow =
         new(2026, 8, 13, 1, 0, 0, TimeSpan.Zero);
+    private static readonly TimeSpan ResourceReleaseTimeout =
+        TimeSpan.FromSeconds(2);
 
     internal static NativeInteractionSurfaceModeReport Run(
         bool perMonitorV2Requested)
@@ -266,7 +268,7 @@ internal static class NativeInteractionSurfaceModeProbe
                 if (!WaitForResourceCeiling(
                     plateauUser,
                     plateauGdi,
-                    TimeSpan.FromSeconds(1)))
+                    ResourceReleaseTimeout))
                 {
                     return false;
                 }
@@ -274,8 +276,11 @@ internal static class NativeInteractionSurfaceModeProbe
         }
 
         CollectGarbage();
-        return Resources(NativeMethods.GrUserObjects) <= expectedUser
-            && Resources(NativeMethods.GrGdiObjects) <= expectedGdi
+        bool returnedToCeiling = WaitForResourceCeiling(
+            expectedUser,
+            expectedGdi,
+            ResourceReleaseTimeout);
+        return returnedToCeiling
             && ProcessHandleCount() <= expectedHandles + 3;
     }
 
