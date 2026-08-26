@@ -465,6 +465,188 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
     }
 
     [Fact]
+    public async Task BindAndUnbindFolderUseSharedRevisionAndPreserveUserFile()
+    {
+        string sandbox = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid.FolderBindingCommit.Tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(sandbox);
+        string userFile = Path.Combine(sandbox, "keep.txt");
+        await File.WriteAllTextAsync(userFile, "keep-original");
+        try
+        {
+            ProductContainerFolderBindingState binding =
+                WindowsProductContainerFolderBinding.CreateResolved(
+                    WindowsProductContainerFolderBinding.Probe(sandbox));
+            var workflow = new FakeWorkflow();
+            await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+            var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+            ProductWorkspaceState state = State(Container("container-1", "Work"));
+            long revision = coordinator.AdvanceExternalRevision();
+
+            ProductWorkspaceContainerCommitResult bound = coordinator.CommitContainer(
+                state,
+                new(
+                    ProductWorkspaceContainerCommitAction.BindFolder,
+                    revision,
+                    1,
+                    string.Empty,
+                    FolderBinding: binding));
+            Assert.True(bound.IsAccepted);
+            Assert.Equal(binding.FileId, bound.State!.Containers[0].FolderBinding!.FileId);
+            Assert.Equal(
+                ProductWorkspaceContainerEditUndoKind.FolderBinding,
+                bound.EditUndoToken!.Kind);
+            ProductWorkspaceContainerEditUndoCommitResult undo =
+                coordinator.CommitContainerEditUndo(
+                    bound.State,
+                    bound.EditUndoToken,
+                    confirmed: true);
+            ProductWorkspaceContainerCommitResult rebound = coordinator.CommitContainer(
+                undo.State!,
+                new(
+                    ProductWorkspaceContainerCommitAction.BindFolder,
+                    undo.EditRevision,
+                    1,
+                    string.Empty,
+                    FolderBinding: binding));
+            ProductWorkspaceContainerCommitResult unbound = coordinator.CommitContainer(
+                rebound.State!,
+                new(
+                    ProductWorkspaceContainerCommitAction.UnbindFolder,
+                    rebound.EditRevision,
+                    1,
+                    string.Empty,
+                    Confirmed: true));
+
+            Assert.True(undo.IsAccepted);
+            Assert.Null(undo.State!.Containers[0].FolderBinding);
+            Assert.True(rebound.IsAccepted);
+            Assert.True(unbound.IsAccepted);
+            Assert.Null(unbound.State!.Containers[0].FolderBinding);
+            Assert.Equal(
+                ProductWorkspaceContainerEditUndoKind.FolderBinding,
+                unbound.EditUndoToken!.Kind);
+            Assert.Equal("keep-original", await File.ReadAllTextAsync(userFile));
+        }
+        finally
+        {
+            if (Directory.Exists(sandbox))
+            {
+                Directory.Delete(sandbox, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task FolderBindingRejectsStaleLockedAndMalformedRequestsWithoutSubmission()
+    {
+        string target = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid.FolderBindingCommit.Validation");
+        var binding = new ProductContainerFolderBindingState
+        {
+            PersistedTarget = target,
+            VolumeSerialNumber = 1,
+            FileId = new string('A', 32),
+            Resolution = ProductContainerFolderBindingResolution.Resolved,
+            ResolvedTarget = target,
+        };
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        long revision = coordinator.AdvanceExternalRevision();
+
+        ProductWorkspaceContainerCommitResult stale = coordinator.CommitContainer(
+            State(Container("container-1", "Work")),
+            new(
+                ProductWorkspaceContainerCommitAction.BindFolder,
+                revision - 1,
+                1,
+                string.Empty,
+                FolderBinding: binding));
+        ProductWorkspaceContainerCommitResult locked = coordinator.CommitContainer(
+            State(Container("container-1", "Work") with { IsLocked = true }),
+            new(
+                ProductWorkspaceContainerCommitAction.BindFolder,
+                revision,
+                1,
+                string.Empty,
+                FolderBinding: binding));
+        ProductWorkspaceContainerCommitResult smuggled = coordinator.CommitContainer(
+            State(Container("container-1", "Work")),
+            new(
+                ProductWorkspaceContainerCommitAction.Rename,
+                revision,
+                1,
+                "After",
+                FolderBinding: binding));
+
+        Assert.Equal(ProductWorkspaceContainerCommitStatus.StaleEditRevision, stale.Status);
+        Assert.Equal(ProductWorkspaceContainerCommitStatus.ReducerRejected, locked.Status);
+        Assert.Equal(ProductWorkspaceEditError.ContainerLocked, locked.EditError);
+        Assert.Equal(ProductWorkspaceContainerCommitStatus.InvalidRequest, smuggled.Status);
+        Assert.Equal(0, saves.Snapshot.CurrentRevision);
+        Assert.Equal(0, workflow.SaveCalls);
+    }
+
+    [Fact]
+    public async Task RealStorePersistsFolderBindingWithoutChangingDirectoryContent()
+    {
+        string sandbox = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid.FolderBindingCommit.Persistence",
+            Guid.NewGuid().ToString("N"));
+        string folder = Path.Combine(sandbox, "bound");
+        string storeDirectory = Path.Combine(sandbox, "store");
+        Directory.CreateDirectory(folder);
+        string userFile = Path.Combine(folder, "user.txt");
+        await File.WriteAllTextAsync(userFile, "unchanged-content");
+        try
+        {
+            ProductContainerFolderBindingState binding =
+                WindowsProductContainerFolderBinding.CreateResolved(
+                    WindowsProductContainerFolderBinding.Probe(folder));
+            ProductWorkspaceState state = State(Container("container-1", "Work"));
+            var store = new ProductConfigurationStore(storeDirectory);
+            await store.SaveAsync(
+                ProductWorkspaceConfigurationProjector.Project(state).Document!);
+            var workflow = new ProductConfigurationSaveWorkflow(
+                new ProductConfigurationSaveCoordinator(store));
+            await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+            var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+            long revision = coordinator.AdvanceExternalRevision();
+
+            ProductWorkspaceContainerCommitResult result = coordinator.CommitContainer(
+                state,
+                new(
+                    ProductWorkspaceContainerCommitAction.BindFolder,
+                    revision,
+                    1,
+                    string.Empty,
+                    FolderBinding: binding));
+            _ = await saves.CompleteAsync();
+            ProductConfigurationLoadResult reloaded = await store.LoadAsync();
+
+            Assert.True(result.IsAccepted);
+            Assert.Equal(
+                Path.GetFullPath(folder),
+                reloaded.Document!.Containers[0].FolderBinding!.Target);
+            Assert.Equal(binding.FileId,
+                reloaded.Document.Containers[0].FolderBinding!.FileId);
+            Assert.Equal("unchanged-content", await File.ReadAllTextAsync(userFile));
+        }
+        finally
+        {
+            if (Directory.Exists(sandbox))
+            {
+                Directory.Delete(sandbox, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task RealStoreReloadsContainerEditsWithoutChangingReferencedFile()
     {
         string sandbox = Path.Combine(

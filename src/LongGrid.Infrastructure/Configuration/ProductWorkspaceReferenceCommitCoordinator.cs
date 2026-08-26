@@ -35,6 +35,8 @@ public enum ProductWorkspaceContainerCommitAction
     SetCollapsed,
     SetAppearancePreset,
     SetPlacementPreset,
+    BindFolder,
+    UnbindFolder,
     Remove,
 }
 
@@ -95,7 +97,8 @@ public sealed record ProductWorkspaceContainerCommitRequest(
     bool Confirmed = false,
     ProductContainerTitleVisibilityPolicy? TitleVisibility = null,
     ProductContainerTitleDoubleClickAction? TitleDoubleClickAction = null,
-    bool TrackUndo = true);
+    bool TrackUndo = true,
+    ProductContainerFolderBindingState? FolderBinding = null);
 
 public sealed record ProductWorkspaceContainerCommitResult(
     ProductWorkspaceContainerCommitStatus Status,
@@ -1026,6 +1029,8 @@ public sealed class ProductWorkspaceCommitCoordinator
             bool hasTitleVisibility = request.TitleVisibility is not null;
             bool hasTitleDoubleClick = request.TitleDoubleClickAction is not null;
             if (hasTitleVisibility != hasTitleDoubleClick
+                || (request.Action != ProductWorkspaceContainerCommitAction.BindFolder
+                    && request.FolderBinding is not null)
                 || (hasTitleVisibility
                     && (request.Action !=
                             ProductWorkspaceContainerCommitAction.SetAppearancePreset
@@ -1144,6 +1149,41 @@ public sealed class ProductWorkspaceCommitCoordinator
                             WidthDip = ResolveSize(request.SizePreset.Value).WidthDip,
                             HeightDip = ResolveSize(request.SizePreset.Value).HeightDip,
                         }),
+                ProductWorkspaceContainerCommitAction.BindFolder
+                    when request.NewContainer is null
+                        && request.StateValue is null
+                        && request.ColorPreset is null
+                        && request.OpacityPreset is null
+                        && request.PositionPreset is null
+                        && request.SizePreset is null
+                        && request.FolderBinding is
+                        {
+                            Resolution:
+                                ProductContainerFolderBindingResolution.Resolved,
+                        }
+                        && string.IsNullOrEmpty(request.Name)
+                        && !request.Confirmed
+                        && target is not null =>
+                    ProductWorkspaceReducer.SetFolderBinding(
+                        state,
+                        target.Id,
+                        request.FolderBinding),
+                ProductWorkspaceContainerCommitAction.UnbindFolder
+                    when request.NewContainer is null
+                        && request.StateValue is null
+                        && request.ColorPreset is null
+                        && request.OpacityPreset is null
+                        && request.PositionPreset is null
+                        && request.SizePreset is null
+                        && request.FolderBinding is null
+                        && string.IsNullOrEmpty(request.Name)
+                        && request.Confirmed
+                        && target is not null
+                        && target.FolderBinding is not null =>
+                    ProductWorkspaceReducer.SetFolderBinding(
+                        state,
+                        target.Id,
+                        null),
                 ProductWorkspaceContainerCommitAction.Remove
                     when request.NewContainer is null
                         && request.StateValue is null
@@ -1274,6 +1314,9 @@ public sealed class ProductWorkspaceCommitCoordinator
                 ProductWorkspaceContainerEditUndoKind.Appearance,
             ProductWorkspaceContainerCommitAction.SetPlacementPreset =>
                 ProductWorkspaceContainerEditUndoKind.Placement,
+            ProductWorkspaceContainerCommitAction.BindFolder
+                or ProductWorkspaceContainerCommitAction.UnbindFolder =>
+                ProductWorkspaceContainerEditUndoKind.FolderBinding,
             _ => null,
         };
 

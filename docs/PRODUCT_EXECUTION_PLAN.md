@@ -77,7 +77,7 @@ UI-R1A 开始前的代码审计显示，正式控制中心仍沿用早期“开�
 |---|---|---|---|
 | 产品 UI | `origin/main@288838c` 已包含 UI-R1A～UI-R1E-B 工程范围 | 产品导航、真实概览、盒子管理、设置分层、显式启动入口和真实 XAML 渲染证据均已进入主线 | 工程范围完成；高对比、减少动画、Narrator 和物理键盘仍为 `ManualEvidencePending`，不能把 UI-R1 整体标为 Complete |
 | 桌面右键创建 | DesktopHost 已具备创建事务、预览、快捷键、拖画入口和产品内弹出菜单 | 右键“新建方格”当前仅在宿主绘制的“新建”按钮区域触发，不是 Explorer 桌面任意空白区域 | BOX-R1 仍未达到原始核心旅程，必须通过受支持的 Explorer 背景命令补齐入口、冲突处理和物理证据 |
-| 文件夹绑定 | 有安全引用、目录枚举、打开与 Portal/Tab 设计底座 | FOLDER-R1-A 已建立盒子级单文件夹 schema v3、NTFS 卷/文件 ID 身份、真实路径探测与 `Resolved/Missing/AccessDenied/Replaced/InvalidTarget/Unavailable` 状态；选择器、提交协调、内容呈现与用户操作仍待 B～D | 合同底座已开始但产品闭环未完成；不得将 A 阶段误报为用户已经可以绑定文件夹 |
+| 文件夹绑定 | 有安全引用、目录枚举、打开与 Portal/Tab 设计底座 | FOLDER-R1-A/B 已建立盒子级 schema v3、NTFS 稳定身份、有限健康状态，以及盒子管理中的真实 `FolderPicker`、绑定/解绑/重连、共享修订、保存和一次撤销/失败补偿链；目录内容呈现与刷新仍待 C，物理 Picker 点击证据仍 Pending | 工程入口已形成但产品闭环未完成；不能把选择器存在误报为桌面盒子已经显示绑定目录内容 |
 | 任务栏美化 | 有技术审计和产品边界文档 | `DwmSetWindowAttribute` 只修饰 Long方格自己的宿主窗口；个性化页明确仍为适配器占位文案 | TASKBAR-R1～R4 尚无产品运行时，M2 未开始 |
 | Explorer 拖放 | PF-007A1 已完成 `CF_HDROP` 有界解析、安全准入和原子配置请求 | 真实 `IDropTarget`、方格间改归属、失败补偿和撤销尚未闭环 | 属于 M1 核心必要交互，继续排在文件夹绑定之后 |
 | 小组件/Long助手插件 | LPWP 1.0 等协议文档存在 | 只有 Windows App SDK Widgets 的传递依赖，没有 Widget Host 或插件小组件运行时 | 方向对齐但仍是 M4；不得抢占三根核心支柱 |
@@ -265,7 +265,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**FOLDER-R1-B 显式选择与原子提交**。FOLDER-R1-A 已完成盒子级单文件夹持久化合同、旧 schema 安全迁移、Windows 目录身份探测和启动时权威健康解析；它不包含可见选择器，不能标为产品完成。BOX-R1-A/B 已完成，BOX-R1-C 的菜单可见/点击/卸载证据因缺少受批准签名与可丢弃账户保持 Pending，不阻塞继续实现其余 M1 核心。UI-R1E 人工矩阵继续保留为 M1 出口门禁。
+当前执行项：**FOLDER-R1-C 绑定目录内容呈现与刷新**。FOLDER-R1-A/B 已完成持久化/身份/健康合同与显式选择/绑定/解绑/重连原子提交；B 的真实目录和真实存储通过，但跨进程工具未取得可信 Picker 物理点击，因此仍为 `EngineeringComplete / RealFilesystemPass / ManualPickerEvidencePending`，不阻塞继续实现内容闭环。BOX-R1-C 与 UI-R1E 的人工门禁继续 Pending。
 
 严格按下列顺序交付，不再插入相邻探针或新宽度功能：
 
@@ -448,7 +448,7 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 
 - 工程底座：较强，PF-001～PF-006 已具备大量正式链路；
 - GitHub 主分支交付：UI-R1A～UI-R1E-A 已按 #239 → #240 → #241 → #242 合入，文档收口 #243 与显式启动修正 #244 也已合入 `main@288838c`；#238 已作为重复路径关闭；
-- M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A/B 与 FOLDER-R1-A 工程链已完成，BOX-R1-C 真实菜单证据 Pending；当前进入 FOLDER-R1-B，随后仍缺内容/刷新/恢复、Explorer 拖放和集中物理证据；
+- M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A/B 与 FOLDER-R1-A/B 工程链已完成，BOX-R1-C 与 FOLDER-R1-B 物理点击证据 Pending；当前进入 FOLDER-R1-C，随后仍缺刷新/恢复、Explorer 拖放和集中物理证据；
 - M2 任务栏美化核心：技术审计存在，产品运行时尚未开始；
 - M3 桌面管理增强：未开始闭环；
 - M4 工作空间/小组件/插件：协议或文档阶段；
@@ -474,6 +474,21 @@ FOLDER-R1-A 真实文件系统记录（2026-08-26，基线 `origin/main@a0fe422`
 
 FOLDER-R1-A 的完成边界：配置合同、真实身份和健康状态已具备，启动会对持久化路径做权威解析；正式 UI 尚无“选择文件夹 / 解绑 / 重连”操作，也尚未把绑定目录内容投影到桌面盒子。产品对用户仍不可用，下一阶段不得重复建设身份探针。
 
+FOLDER-R1-B 真实提交记录（2026-08-26，基线 `origin/main@e1fd469`）：
+
+| 检查 | 预期效果 | 实际效果 | 差异与修正 |
+|---|---|---|---|
+| 显式选择与取消 | 只在用户点击后打开系统 `FolderPicker`；取消必须在提交前返回且零写入 | 187-ID 正式 XAML/代码合同通过，确认 Picker 绑定窗口句柄、`folder is null` 分支先于提交并声明 `Changed=False` | 自动合同对齐；跨进程工具未完成实际取消点击，不能把这一行标为物理证据通过 |
+| 绑定/重连 | 成功选择转换为 A 阶段稳定身份，并以当前盒子序号和共享修订提交；失效绑定可选择新目录覆盖 | `BindFolder` 只接受 `Resolved` 身份，走 `SetFolderBinding → Project → saves.Submit`；真实 NTFS 目录提交通过，路径/文件 ID 经真实配置 Store 重载一致 | 对齐；相同绑定为 NoChange，Picker 等待期间修订变化为 `StaleEditRevision` |
+| 解绑与锁定 | 已绑定盒子可显式解绑；锁定盒子、夹带字段和无绑定解绑失败关闭 | `UnbindFolder` 只接受已绑定目标和显式确认；锁定返回 `ContainerLocked`，非绑定动作夹带身份返回 `InvalidRequest`，均零提交 | 对齐；解绑只清除 Long方格引用，不删除目录 |
+| 保存失败与撤销 | 绑定和解绑复用已有一次撤销与保存失败补偿，不产生旁路写入 | 两个动作映射 `FolderBinding` undo kind，App 继续登记同一 `pendingControlCenterContainerEdit`，失败时经 `CommitContainerEditUndo` 恢复 | 对齐；PR #249 首轮完整 `build-test` 7m32s 通过，包括测试、覆盖率、文件安全、资源、依赖和 RC 门禁 |
+| 用户文件安全 | 绑定、解绑、重连均不改变目录内容 | 真实临时目录的 `keep.txt` / `user.txt` 内容前后完全一致；真实 Store 只写隔离配置目录 | 对齐；未读取或写入用户桌面目录与正常配置 |
+| 回归 | Release 编译、完整核心测试、格式、UI/无障碍链通过 | 本地 Release 0 warning / 0 error；1,256/1,256；格式通过；187-ID 和 BSA ValidateOnly 通过 | 自动化对齐；BSA 物理 Narrator/键盘仍按既有门禁 Pending |
+
+真实窗口差异：预期由 Windows 应用控制取得“选择文件夹 → 取消 → 状态文本”证据；实际唯一 `Long方格` Release 窗口成功启动，但捕获时报 `foreground window did not report a process id`，重新枚举时窗口已退出。没有重用旧坐标或伪造点击，物理 Picker 证据保持 `ManualPickerEvidencePending`。本阶段的真实效果证据因此限定为真实 NTFS 身份、真实配置 Store 和用户文件不变；可见控件为工程完成，不等于人工交互完成。
+
+FOLDER-R1-B 的完成边界：用户界面和原子提交链已经存在，能表达未绑定、可访问、缺失、权限拒绝、路径被替换和不可用状态；它尚未枚举或显示绑定目录内容，也没有刷新/打开闭环。下一阶段不得转去任务栏、小组件或自动整理。
+
 ## 13. 下一步开始条件
 
-下一次开发进入 FOLDER-R1-B：在“盒子管理 → 基本设置”就近提供真实 `FolderPicker`，把成功选择转换为 A 阶段稳定身份，并经共享编辑修订与保存控制器原子提交；取消必须零写入，已绑定目标提供解绑，`Missing/Replaced/AccessDenied` 提供显式重连。B 阶段必须验证真实窗口、真实目录、正常配置与用户文件前后差异，但不得提前声明目录内容呈现完成。BOX-R1-C 只在取得受批准签名和可丢弃 Windows 账户后恢复。
+下一次开发进入 FOLDER-R1-C：仅对 `Resolved` 绑定进行有界目录枚举，把文件/子目录以只读引用投影到桌面盒子和盒子管理页；提供显式刷新、Shell 变化后的失效重读和安全打开，并为大目录、权限变化、重解析点、长路径和枚举中断建立有限状态。默认不递归、不移动、不删除、不重命名文件；必须用真实临时目录比较预期项目集与实际项目集，并证明刷新前后用户文件哈希和位置不变。FOLDER-R1-B 的物理 Picker 点击在可用测试环境中补证，不重复修改 A/B 合同。

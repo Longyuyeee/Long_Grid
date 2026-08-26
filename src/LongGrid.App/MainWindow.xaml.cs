@@ -14,6 +14,8 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Graphics;
+using Windows.Storage;
+using Windows.Storage.Pickers;
 using Windows.Storage.Streams;
 using Windows.UI.ViewManagement;
 
@@ -133,6 +135,13 @@ public sealed partial class MainWindow : Window
         ProductContainerTitleDoubleClickAction?,
         bool,
         ProductWorkspaceContainerCommitResult> _commitProductWorkspaceContainerAction;
+    private readonly Func<
+        long,
+        int,
+        ProductContainerFolderBindingState?,
+        bool,
+        ProductWorkspaceContainerCommitResult>
+        _commitProductWorkspaceContainerFolderBinding;
     private readonly Func<
         ProductWorkspaceContainerRemovalUndoToken,
         bool,
@@ -261,6 +270,13 @@ public sealed partial class MainWindow : Window
             bool,
             ProductWorkspaceContainerCommitResult> commitProductWorkspaceContainerAction,
         Func<
+            long,
+            int,
+            ProductContainerFolderBindingState?,
+            bool,
+            ProductWorkspaceContainerCommitResult>
+            commitProductWorkspaceContainerFolderBinding,
+        Func<
             ProductWorkspaceContainerRemovalUndoToken,
             bool,
             ProductWorkspaceContainerRemovalUndoCommitResult>
@@ -307,6 +323,8 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceReferenceReassignmentUndo);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceContainerAction);
         ArgumentNullException.ThrowIfNull(
+            commitProductWorkspaceContainerFolderBinding);
+        ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceContainerRemovalUndo);
         ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceContainerEditUndo);
@@ -341,6 +359,8 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceReferenceReassignmentUndo;
         _commitProductWorkspaceContainerAction =
             commitProductWorkspaceContainerAction;
+        _commitProductWorkspaceContainerFolderBinding =
+            commitProductWorkspaceContainerFolderBinding;
         _commitProductWorkspaceContainerRemovalUndo =
             commitProductWorkspaceContainerRemovalUndo;
         _commitProductWorkspaceContainerEditUndo =
@@ -1956,6 +1976,7 @@ public sealed partial class MainWindow : Window
                 $"CanUpdateState={presentation.CanUpdateState}:" +
                 $"CanUpdateAppearance={presentation.CanUpdateAppearance}:" +
                 $"CanUpdatePlacement={presentation.CanUpdatePlacement}:" +
+                $"CanUpdateFolderBinding={presentation.CanUpdateFolderBinding}:" +
                 $"CanRemove={presentation.CanRemove}:" +
                 $"CanUndoRemoval={presentation.RemovalUndoToken is not null}:" +
                 "Changed=False:DesktopFilesChanged=False");
@@ -2370,7 +2391,163 @@ public sealed partial class MainWindow : Window
             selected?.IsCollapsed == true
                 ? "展开并保存"
                 : "折叠并保存";
+        bool canEditFolderBinding =
+            _containerEditor.CanUpdateFolderBinding
+            && selected is { IsLocked: false };
+        ProductWorkspaceFolderBindButton.IsEnabled = canEditFolderBinding;
+        ProductWorkspaceFolderUnbindButton.IsEnabled =
+            canEditFolderBinding && selected!.HasFolderBinding;
+        ProductWorkspaceFolderBindButton.Content = selected?.HasFolderBinding == true
+            ? "重新连接文件夹"
+            : "选择文件夹";
+        ApplyProductWorkspaceFolderBindingStatus(selected);
         UpdateProductWorkspaceResolvedReferenceAddButton();
+    }
+
+    private void ApplyProductWorkspaceFolderBindingStatus(
+        ProductWorkspaceContainerEditCandidatePresentation? selected)
+    {
+        (string text, string machineState) = selected?.FolderBindingResolution switch
+        {
+            ProductContainerFolderBindingResolution.Resolved =>
+                ("已绑定文件夹且当前可访问；仅保存引用，不移动文件。", "Resolved"),
+            ProductContainerFolderBindingResolution.Missing =>
+                ("绑定文件夹已不存在或已移动，请重新连接。", "Missing"),
+            ProductContainerFolderBindingResolution.AccessDenied =>
+                ("当前无权访问绑定文件夹，请检查权限后重新连接。", "AccessDenied"),
+            ProductContainerFolderBindingResolution.Replaced =>
+                ("原路径现在指向另一个文件夹，为避免误用请重新连接。", "Replaced"),
+            ProductContainerFolderBindingResolution.InvalidTarget =>
+                ("绑定目标不是受支持的本地文件夹，请重新连接。", "InvalidTarget"),
+            ProductContainerFolderBindingResolution.Unavailable =>
+                ("暂时无法确认绑定文件夹状态，可以稍后重新连接。", "Unavailable"),
+            null when selected is null =>
+                ("选择盒子后可绑定一个真实文件夹；Long方格不会移动其中的文件。", "NoSelection"),
+            _ => ("尚未绑定文件夹。", "Unbound"),
+        };
+        ProductWorkspaceFolderBindingStatus.Text = text;
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceFolderBindingStatus,
+            $"FolderBinding{machineState}:Changed=False:DesktopFilesChanged=False");
+    }
+
+    private async void ProductWorkspaceFolderBindButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (ProductWorkspaceContainerEditSelector.SelectedItem is not
+                ProductWorkspaceContainerEditCandidatePresentation selected
+            || selected.IsLocked
+            || !_containerEditor.CanUpdateFolderBinding)
+        {
+            return;
+        }
+
+        long expectedRevision = _containerEditor.EditRevision;
+        ProductWorkspaceFolderBindingStatus.Text = "正在等待选择本地文件夹……";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceFolderBindingStatus,
+            "FolderBindingPickerOpen:Changed=False:DesktopFilesChanged=False");
+        var picker = new FolderPicker
+        {
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+        };
+        picker.FileTypeFilter.Add("*");
+        nint windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, windowHandle);
+        StorageFolder? folder = await picker.PickSingleFolderAsync();
+        if (folder is null)
+        {
+            ProductWorkspaceFolderBindingStatus.Text =
+                "已取消文件夹选择；绑定配置和用户文件均未改变。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceFolderBindingStatus,
+                "FolderBindingPickerCancelled:Changed=False:" +
+                    "DesktopFilesChanged=False");
+            return;
+        }
+
+        ProductContainerFolderBindingProbeResult probe =
+            WindowsProductContainerFolderBinding.Probe(folder.Path);
+        if (!probe.IsSuccess)
+        {
+            ProductWorkspaceFolderBindingStatus.Text = probe.Error switch
+            {
+                ProductContainerFolderBindingProbeError.AccessDenied =>
+                    "无法读取所选文件夹的身份，请检查访问权限后重试。",
+                ProductContainerFolderBindingProbeError.NotDirectory =>
+                    "所选目标不是文件夹，绑定配置未改变。",
+                ProductContainerFolderBindingProbeError.Missing =>
+                    "所选文件夹已不可用，绑定配置未改变。",
+                _ => "无法安全确认所选文件夹，绑定配置未改变。",
+            };
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceFolderBindingStatus,
+                $"FolderBindingProbe{probe.Error}:Changed=False:" +
+                    "DesktopFilesChanged=False");
+            return;
+        }
+
+        ProductContainerFolderBindingState binding =
+            WindowsProductContainerFolderBinding.CreateResolved(probe);
+        ProductWorkspaceContainerCommitResult result =
+            _commitProductWorkspaceContainerFolderBinding(
+                expectedRevision,
+                selected.Ordinal,
+                binding,
+                false);
+        ApplyProductWorkspaceFolderBindingCommitResult(result, unbind: false);
+    }
+
+    private void ProductWorkspaceFolderUnbindButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (ProductWorkspaceContainerEditSelector.SelectedItem is not
+                ProductWorkspaceContainerEditCandidatePresentation selected
+            || selected.IsLocked
+            || !selected.HasFolderBinding
+            || !_containerEditor.CanUpdateFolderBinding)
+        {
+            return;
+        }
+
+        ProductWorkspaceContainerCommitResult result =
+            _commitProductWorkspaceContainerFolderBinding(
+                _containerEditor.EditRevision,
+                selected.Ordinal,
+                null,
+                true);
+        ApplyProductWorkspaceFolderBindingCommitResult(result, unbind: true);
+    }
+
+    private void ApplyProductWorkspaceFolderBindingCommitResult(
+        ProductWorkspaceContainerCommitResult result,
+        bool unbind)
+    {
+        bool changed = result.IsAccepted;
+        ProductWorkspaceFolderBindingStatus.Text = result.Status switch
+        {
+            ProductWorkspaceContainerCommitStatus.Accepted when unbind =>
+                "已解除文件夹绑定并进入安全保存队列；文件夹和其中内容均未改变。",
+            ProductWorkspaceContainerCommitStatus.Accepted =>
+                "文件夹绑定已更新并进入安全保存队列；文件夹和其中内容均未改变。",
+            ProductWorkspaceContainerCommitStatus.StaleEditRevision =>
+                "选择期间工作区已更新，请按当前盒子重新操作。",
+            ProductWorkspaceContainerCommitStatus.ReducerRejected
+                when result.EditError == ProductWorkspaceEditError.ContainerLocked =>
+                "所选盒子已锁定，请先解锁再更改文件夹绑定。",
+            ProductWorkspaceContainerCommitStatus.NoChange =>
+                "文件夹绑定没有变化，因此没有提交保存。",
+            ProductWorkspaceContainerCommitStatus.SaveRejected =>
+                "保存控制器当前无法接受绑定变更；配置和用户文件均未改变。",
+            _ => "文件夹绑定请求未通过校验；配置和用户文件均未改变。",
+        };
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceFolderBindingStatus,
+            $"FolderBindingCommit{result.Status}:Unbind={unbind}:" +
+                $"Revision={result.EditRevision}:Changed={changed}:" +
+                "DesktopFilesChanged=False");
     }
 
     private void ProductWorkspaceContainerCreateButton_Click(

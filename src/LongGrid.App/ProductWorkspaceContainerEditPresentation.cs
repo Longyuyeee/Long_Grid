@@ -16,9 +16,12 @@ internal sealed record ProductWorkspaceContainerEditCandidatePresentation(
     double WidthDip,
     double HeightDip,
     ProductContainerTitleVisibilityPolicy TitleVisibility,
-    ProductContainerTitleDoubleClickAction TitleDoubleClickAction)
+    ProductContainerTitleDoubleClickAction TitleDoubleClickAction,
+    ProductContainerFolderBindingResolution? FolderBindingResolution)
 {
     public string AccessibilityName => $"方格 {Ordinal}，{DisplayName}";
+
+    public bool HasFolderBinding => FolderBindingResolution is not null;
 }
 
 internal sealed record ProductWorkspaceContainerColorChoicePresentation(
@@ -58,6 +61,7 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
     bool CanUpdateState,
     bool CanUpdateAppearance,
     bool CanUpdatePlacement,
+    bool CanUpdateFolderBinding,
     bool CanRemove,
     ProductWorkspaceContainerRemovalUndoToken? RemovalUndoToken,
     IReadOnlyList<ProductWorkspaceContainerEditCandidatePresentation> Candidates)
@@ -168,6 +172,7 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
             CanUpdateState: false,
             CanUpdateAppearance: false,
             CanUpdatePlacement: false,
+            CanUpdateFolderBinding: false,
             CanRemove: false,
             RemovalUndoToken: null,
             Array.Empty<ProductWorkspaceContainerEditCandidatePresentation>());
@@ -193,7 +198,8 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
                 container.WidthDip,
                 container.HeightDip,
                 container.TitleVisibility,
-                container.TitleDoubleClickAction))
+                container.TitleDoubleClickAction,
+                container.FolderBindingResolution))
             .ToArray();
         return new(
             editRevision,
@@ -202,6 +208,7 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
             CanUpdateState: canEdit && candidates.Length > 0,
             CanUpdateAppearance: canEdit && candidates.Length > 0,
             CanUpdatePlacement: canEdit && candidates.Length > 0,
+            CanUpdateFolderBinding: canEdit && candidates.Length > 0,
             CanRemove: canEdit && candidates.Any(candidate => !candidate.IsLocked),
             RemovalUndoToken: canEdit ? removalUndoToken : null,
             candidates);
@@ -216,6 +223,7 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
             CanUpdateState: false,
             CanUpdateAppearance: false,
             CanUpdatePlacement: false,
+            CanUpdateFolderBinding: false,
             CanRemove: false,
             RemovalUndoToken: null,
             Array.Empty<ProductWorkspaceContainerEditCandidatePresentation>());

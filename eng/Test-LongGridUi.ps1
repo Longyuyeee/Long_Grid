@@ -738,6 +738,9 @@ function Test-SourceContract {
         'ProductWorkspaceContainerRenameButton',
         'ProductWorkspaceContainerLockButton',
         'ProductWorkspaceContainerCollapseButton',
+        'ProductWorkspaceFolderBindingStatus',
+        'ProductWorkspaceFolderBindButton',
+        'ProductWorkspaceFolderUnbindButton',
         'ProductWorkspaceContainerColorSelector',
         'ProductWorkspaceContainerOpacitySelector',
         'ProductWorkspaceContainerTitleVisibilitySelector',
@@ -1207,6 +1210,64 @@ function Test-SourceContract {
         $containerEditStatusNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
             'WorkspaceContainerEditUnavailable:Changed=False:DesktopFilesChanged=False'
     ) 'Container editing must start finite, unchanged, and explicit about desktop files.'
+    $folderBindingStatusNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceFolderBindingStatus'
+    Assert-Condition (
+        $folderBindingStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite' -and
+        $folderBindingStatusNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
+            'FolderBindingUnavailable:Changed=False:DesktopFilesChanged=False'
+    ) 'Folder binding must start finite, unavailable, and non-mutating.'
+    foreach ($entry in @{
+            ProductWorkspaceFolderBindButton =
+                'ProductWorkspaceFolderBindButton_Click'
+            ProductWorkspaceFolderUnbindButton =
+                'ProductWorkspaceFolderUnbindButton_Click'
+        }.GetEnumerator()) {
+        $node = Get-XamlNodeByAutomationId $document $entry.Key
+        Assert-Condition (
+            $node.GetAttribute('IsEnabled') -eq 'False' -and
+            $node.GetAttribute('Click') -eq $entry.Value -and
+            -not [string]::IsNullOrWhiteSpace(
+                $node.GetAttribute('AutomationProperties.Name'))
+        ) "Folder-binding action '$($entry.Key)' must start disabled, named, and use its audited handler."
+    }
+    $folderPickerStart = $codeBehind.IndexOf(
+        'private async void ProductWorkspaceFolderBindButton_Click',
+        [StringComparison]::Ordinal)
+    $folderPickerEnd = if ($folderPickerStart -ge 0) {
+        $codeBehind.IndexOf(
+            'private void ProductWorkspaceFolderUnbindButton_Click',
+            $folderPickerStart,
+            [StringComparison]::Ordinal)
+    }
+    else {
+        -1
+    }
+    Assert-Condition ($folderPickerStart -ge 0 -and $folderPickerEnd -gt $folderPickerStart) `
+        'Folder binding must keep one bounded visible picker handler.'
+    $folderPickerCode = $codeBehind.Substring(
+        $folderPickerStart,
+        $folderPickerEnd - $folderPickerStart)
+    Assert-Condition (
+        $folderPickerCode -match 'FolderPicker' -and
+        $folderPickerCode -match 'InitializeWithWindow' -and
+        $folderPickerCode -match 'PickSingleFolderAsync' -and
+        $folderPickerCode -match 'folder\s+is\s+null' -and
+        $folderPickerCode.IndexOf('folder is null') -lt `
+            $folderPickerCode.IndexOf('_commitProductWorkspaceContainerFolderBinding') -and
+        $folderPickerCode -match 'FolderBindingPickerCancelled:Changed=False' -and
+        $folderPickerCode -match 'WindowsProductContainerFolderBinding\.Probe' -and
+        $folderPickerCode -match 'CreateResolved'
+    ) 'Folder picker cancellation must return before commit; accepted local folders must use the audited stable-identity probe.'
+    Assert-Condition (
+        $referenceCommitCode -match 'ProductWorkspaceContainerCommitAction\.BindFolder' -and
+        $referenceCommitCode -match 'ProductWorkspaceContainerCommitAction\.UnbindFolder' -and
+        $referenceCommitCode -match 'ProductWorkspaceReducer\.SetFolderBinding' -and
+        $referenceCommitCode -match 'ProductWorkspaceContainerEditUndoKind\.FolderBinding' -and
+        $appCode -match 'CommitProductWorkspaceContainerFolderBinding' -and
+        $appCode -match 'CommitProductWorkspaceContainerActionCore'
+    ) 'Folder binding and unbinding must use the shared revision, reducer, save, undo, and compensation path.'
     $resolvedReferenceSelectorNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceResolvedReferenceSelector'
@@ -3609,7 +3670,7 @@ function Test-SourceContract {
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
         productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-single-undo'
-        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-title-visibility-title-double-click-placement-remove-unified-edit-undo-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only-desktop-layout-session-candidate-publish-compensate-keyboard-title-focus-transaction-cross-display-mixed-dpi'
+        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-title-visibility-title-double-click-placement-single-folder-picker-cancel-zero-write-bind-unbind-reconnect-stable-identity-remove-unified-edit-undo-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only-desktop-layout-session-candidate-publish-compensate-keyboard-title-focus-transaction-cross-display-mixed-dpi'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'
                     productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-title-layout-select-then-authority-safe-file-folder-lnk-http-https-open-finite-path-free-feedback-default-double-click-persisted-single-click-opt-in-authoritative-retry-safe-explorer-locate-zero-file-mutation'
