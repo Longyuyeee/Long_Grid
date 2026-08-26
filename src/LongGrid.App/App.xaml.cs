@@ -237,6 +237,7 @@ public partial class App : Application
             CommitProductWorkspaceResolvedReferenceReassignment,
             CommitProductWorkspaceReferenceReassignmentUndo,
             CommitProductWorkspaceContainerAction,
+            CommitProductWorkspaceContainerFolderBinding,
             CommitProductWorkspaceContainerRemovalUndo,
             CommitProductWorkspaceContainerEditUndo,
             CommitProductWorkspaceLayoutRecovery,
@@ -2224,6 +2225,30 @@ public partial class App : Application
             titleDoubleClickAction: titleDoubleClickAction);
 
     private ProductWorkspaceContainerCommitResult
+        CommitProductWorkspaceContainerFolderBinding(
+            long expectedEditRevision,
+            int containerOrdinal,
+            ProductContainerFolderBindingState? folderBinding,
+            bool unbind) =>
+        CommitProductWorkspaceContainerActionCore(
+            unbind
+                ? ProductWorkspaceContainerCommitAction.UnbindFolder
+                : ProductWorkspaceContainerCommitAction.BindFolder,
+            expectedEditRevision,
+            containerOrdinal,
+            name: string.Empty,
+            stateValue: null,
+            colorPreset: null,
+            opacityPreset: null,
+            positionPreset: null,
+            sizePreset: null,
+            confirmed: unbind,
+            createDisplayId: null,
+            createBoundsPixels: null,
+            useDefaultName: false,
+            folderBinding: folderBinding);
+
+    private ProductWorkspaceContainerCommitResult
         CommitProductWorkspaceContainerActionCore(
             ProductWorkspaceContainerCommitAction action,
             long expectedEditRevision,
@@ -2239,7 +2264,8 @@ public partial class App : Application
             PixelRect? createBoundsPixels,
             bool useDefaultName,
             ProductContainerTitleVisibilityPolicy? titleVisibility = null,
-            ProductContainerTitleDoubleClickAction? titleDoubleClickAction = null)
+            ProductContainerTitleDoubleClickAction? titleDoubleClickAction = null,
+            ProductContainerFolderBindingState? folderBinding = null)
     {
         ProductWorkspaceState? state = productWorkspaceSession.State;
         bool creatingFirstConfiguration =
@@ -2301,7 +2327,8 @@ public partial class App : Application
                     sizePreset,
                     confirmed,
                     titleVisibility,
-                    titleDoubleClickAction));
+                    titleDoubleClickAction,
+                    FolderBinding: folderBinding));
         if (!result.IsAccepted)
         {
             return result;

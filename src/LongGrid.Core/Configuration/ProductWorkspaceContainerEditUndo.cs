@@ -7,6 +7,7 @@ public enum ProductWorkspaceContainerEditUndoKind
     Collapsed,
     Appearance,
     Placement,
+    FolderBinding,
 }
 
 public sealed record ProductWorkspaceContainerEditUndoToken(

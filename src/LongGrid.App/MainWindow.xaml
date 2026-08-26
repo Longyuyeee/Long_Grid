@@ -717,6 +717,35 @@
                                                 Content="折叠盒子"
                                                 IsEnabled="False" />
                                         </StackPanel>
+                                        <TextBlock
+                                            FontSize="13"
+                                            FontWeight="SemiBold"
+                                            Text="绑定文件夹" />
+                                        <TextBlock
+                                            x:Name="ProductWorkspaceFolderBindingStatus"
+                                            AutomationProperties.AutomationId="ProductWorkspaceFolderBindingStatus"
+                                            AutomationProperties.ItemStatus="FolderBindingUnavailable:Changed=False:DesktopFilesChanged=False"
+                                            AutomationProperties.LiveSetting="Polite"
+                                            FontSize="11"
+                                            Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                            Text="选择盒子后可绑定一个真实文件夹；Long方格不会移动其中的文件。"
+                                            TextWrapping="Wrap" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button
+                                                x:Name="ProductWorkspaceFolderBindButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceFolderBindButton"
+                                                AutomationProperties.Name="为所选盒子选择并绑定文件夹"
+                                                Click="ProductWorkspaceFolderBindButton_Click"
+                                                Content="选择文件夹"
+                                                IsEnabled="False" />
+                                            <Button
+                                                x:Name="ProductWorkspaceFolderUnbindButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceFolderUnbindButton"
+                                                AutomationProperties.Name="解除所选盒子的文件夹绑定但保留文件"
+                                                Click="ProductWorkspaceFolderUnbindButton_Click"
+                                                Content="解除绑定"
+                                                IsEnabled="False" />
+                                        </StackPanel>
                                             </StackPanel>
                                         </Expander>
                                         <Expander
