@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B 与 FOLDER-R1-A～D 工程链已完成，真实可见交互证据仍 Pending；PF-007A2 已把正式 DesktopHost HWND 注册为 OLE `IDropTarget`，并将安全 Link 拖入接到权威 Catalog、原子保存和一次撤销链。当前进入 PF-007B 盒子间改归属。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)。三项 Core 仍未形成完整产品旅程，所有产物仍不可公开分发。
+> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，真实可见交互证据仍 Pending；PF-007B 已让正式 DesktopHost 从已选引用拖到另一未锁定盒子，并复用原子保存、补偿和一次撤销。当前进入 M1 集中产品证据冲刺。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)。三项 Core 仍未形成完整产品旅程，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -225,6 +225,8 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [批量选择状态播报与紧凑布局审计](docs/84-batch-selection-live-region-responsive-audit.md)
 - [批量选择无障碍人工矩阵就绪审计](docs/85-batch-selection-accessibility-manual-matrix-audit.md)
 - [同源方格批量引用改归属与一次撤销审计](docs/86-batch-reference-reassignment-undo-audit.md)
+- [PF-007A1 真实 OLE HDROP 引用准入审计](docs/207-pf007a1-real-ole-hdrop-reference-admission-audit.md)
+- [PF-007B 桌面盒子间原生引用改归属审计](docs/208-pf007b-native-reference-reassignment-audit.md)
 - [批量选择无障碍人工矩阵运行手册](docs/manual-testing/batch-selection-accessibility-runbook.md)
 - [贡献指南](CONTRIBUTING.md)
 - [小组件与 Long助手插件兼容设计](docs/07-widget-plugin-compatibility.md)
@@ -240,7 +242,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)执行 PF-007B：完成盒子间改归属、无效目标、失败补偿和一次撤销；之后进入 M1 集中证据冲刺，补齐真实 Explorer 指针拖入以及 BOX-R1-C、FOLDER-R1 的可见证据，最后完成任务栏预设、应用、回退与兼容矩阵。自动整理、Tab、小组件、工作空间和 Long助手运行时不得抢占这三项 Core。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)执行 M1 集中证据冲刺：补齐 BOX-R1-C、FOLDER-R1、真实 Explorer Link 拖入、盒子间物理拖动和 UI-R1E 人工矩阵；通过后进入任务栏预设、应用、回退与兼容矩阵。自动整理、Tab、小组件、工作空间和 Long助手运行时不得抢占这三项 Core。
 
 ## 开发启动
 

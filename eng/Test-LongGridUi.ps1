@@ -167,6 +167,8 @@ $windowsDesktopHostReadOnlySurfaceCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostReadOnlySurface.cs'
 $desktopExplorerReferenceDropCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopExplorerReferenceDrop.cs'
+$desktopReferenceReassignmentCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopReferenceReassignment.cs'
 $windowsDesktopHostDropTargetCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\DesktopHost\WindowsProductDesktopHostDropTarget.cs'
 $desktopContainerHeaderPresentationCodePath = Join-Path $projectRoot `
@@ -549,6 +551,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $desktopExplorerReferenceDropCode = Get-Content `
         -LiteralPath $desktopExplorerReferenceDropCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopReferenceReassignmentCode = Get-Content `
+        -LiteralPath $desktopReferenceReassignmentCodePath `
         -Raw `
         -Encoding UTF8
     $windowsDesktopHostDropTargetCode = Get-Content `
@@ -1788,6 +1794,27 @@ function Test-SourceContract {
             'File\.(Move|Copy|Delete)|Directory\.(Move|Delete)')
     ) `
         'PF-007A2 must register and revoke a real OLE drop target on the DesktopHost HWND, advertise Link only over an unlocked container, and route one accepted HDROP through the existing authoritative atomic reference commit without file mutation.'
+    Assert-Condition (
+        $desktopReferenceReassignmentCode -match `
+            'MaximumItemCount\s*=\s*256' -and
+        $desktopReferenceReassignmentCode -match 'DragThresholdDip' -and
+        $desktopReferenceReassignmentCode -match 'LeaseIntentId' -and
+        $desktopReferenceReassignmentCode -match 'SelectionRevision' -and
+        $desktopReferenceReassignmentCode -match 'TopologyGeneration' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'TryStartReferenceReassignment' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match `
+            'CancelReferenceReassignment' -and
+        $desktopHostLifecycleControllerCode -match `
+            'BindReferenceReassignment' -and
+        $appCode -match 'RequestDesktopReferenceReassignment' -and
+        $appCode -match 'CommitResolvedReferenceReassignment' -and
+        $desktopReferenceReassignmentCode -match `
+            'ProductItemReferenceResolution\.Resolved' -and
+        -not ($desktopReferenceReassignmentCode -match `
+            'File\.(Move|Copy|Delete)|Directory\.(Move|Delete)')
+    ) `
+        'PF-007B must require an attested selected reference gesture, freeze lease/workspace/topology/selection authority, reject unsafe targets and temporary or unresolved items in App, then reuse one atomic reassignment commit without file mutation.'
     Assert-Condition (
         $desktopInteractionSurfaceModeCode -match `
             'IProductDesktopInteractionSurfaceModeAdapter' -and
@@ -3728,7 +3755,7 @@ function Test-SourceContract {
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
-        productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-single-undo'
+        productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-single-undo-native-selected-item-drag-authority-frozen'
         productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-title-visibility-title-double-click-placement-single-folder-picker-cancel-zero-write-bind-unbind-reconnect-stable-identity-remove-unified-edit-undo-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only-desktop-layout-session-candidate-publish-compensate-keyboard-title-focus-transaction-cross-display-mixed-dpi'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'

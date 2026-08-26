@@ -904,6 +904,139 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
+    public async Task ReferenceReassignmentResolvesOneCurrentUnlockedScreenTarget()
+    {
+        var factory = new RecordingSurfaceFactory();
+        ProductDesktopHostFeatureDecision host =
+            ProductDesktopHostFeaturePolicy.Evaluate("1");
+        ProductDesktopInteractionFeatureDecision interactionFeature =
+            ProductDesktopInteractionFeaturePolicy.Evaluate(host, "1");
+        var interaction = new ProductDesktopInteractionDevelopmentController(
+            interactionFeature);
+        ProductDesktopInteractionIntentBridgeFeatureDecision bridgeFeature =
+            ProductDesktopInteractionIntentBridgePolicy.Evaluate(
+                interactionFeature,
+                "1",
+                "1");
+        var bridge = new ProductDesktopInteractionIntentPreparationBridge(
+            bridgeFeature);
+        ProductDesktopInteractionInputForwardingFeatureDecision forwardingFeature =
+            ProductDesktopInteractionInputForwardingPolicy.Evaluate(
+                bridgeFeature,
+                "1",
+                "1");
+        var forwarding = new ProductDesktopInteractionInputForwardingAdapter(
+            forwardingFeature,
+            bridge);
+        var consumption =
+            new ProductDesktopInteractionIntentConsumptionController(
+                interactionFeature,
+                forwardingFeature,
+                bridge);
+        var activationFactory = new RecordingActivationSourceFactory();
+        var controller = new ProductDesktopHostLifecycleController(
+            host,
+            factory,
+            new FactoryBackedInspector(factory),
+            interaction,
+            bridge,
+            forwarding,
+            consumption,
+            activationFactory);
+        var accepted = new List<ProductDesktopReferenceReassignmentRequest>();
+        controller.BindReferenceReassignment(request =>
+        {
+            accepted.Add(request);
+            return true;
+        });
+        ProductDesktopHostReadOnlyProjection source =
+            ProductDesktopHostReadOnlyProjection.Create(
+                "container-1",
+                "工作",
+                ["项目"],
+                "#2457D6",
+                0.82,
+                false,
+                24,
+                36,
+                300,
+                240,
+                itemIds: ["item:1"]);
+        ProductDesktopHostReadOnlyProjection target =
+            ProductDesktopHostReadOnlyProjection.Create(
+                "container-2",
+                "归档",
+                [],
+                "#2D7D46",
+                0.82,
+                false,
+                400,
+                36,
+                300,
+                240);
+        ProductDesktopHostProjectionBatch batch = CreateBatch(
+            ProductDesktopHostDisplayProjection.Create(
+                "display-primary",
+                new(0, 0, 1920, 1040),
+                96,
+                [source, target]));
+        _ = controller.ApplyProjectionBatch(batch);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        ProductDesktopInteractionInputForwardingResult prepared =
+            controller.ForwardInteractionInput(
+                new(
+                    Guid.NewGuid(),
+                    1,
+                    now,
+                    ProductDesktopInteractionForwardedInputKind.PrimaryPointerPress,
+                    "display-primary",
+                    70,
+                    100,
+                    SourceAttested: true,
+                    IsInjected: false,
+                    IsAutoRepeat: false),
+                now);
+        Assert.True(controller.ConsumePreparedInteractionIntent(
+            prepared.PreparedIntent!, now).IsExplicit);
+        RecordingSurface surface = Assert.Single(factory.Surfaces);
+        Assert.True(surface.ApplyBoundSelection(
+            "container-1",
+            new(
+                ProductDesktopSelectionAction.SelectItem,
+                ItemId: "item:1")));
+        var valid = new ProductDesktopReferenceReassignmentSurfaceInput(
+            "container-1",
+            ["item:1"],
+            PointerScreenX: 450,
+            PointerScreenY: 100,
+            WorkspaceRevision: 7,
+            TopologyGeneration: 11,
+            SourceAttested: true,
+            IsInjected: false);
+
+        Assert.True(surface.ApplyBoundReferenceReassignment(valid));
+        ProductDesktopReferenceReassignmentRequest request =
+            Assert.Single(accepted);
+        Assert.Equal("container-1", request.SourceContainerId);
+        Assert.Equal("container-2", request.TargetContainerId);
+        Assert.Equal("display-primary", request.DisplayId);
+        Assert.Equal(["item:1"], request.ItemIds);
+        Assert.False(surface.ApplyBoundReferenceReassignment(
+            valid with { IsInjected = true }));
+        Assert.False(surface.ApplyBoundReferenceReassignment(
+            valid with { WorkspaceRevision = 8 }));
+        Assert.False(surface.ApplyBoundReferenceReassignment(
+            valid with { PointerScreenX = 80 }));
+        Assert.False(surface.ApplyBoundReferenceReassignment(
+            valid with { PointerScreenX = 1800, PointerScreenY = 900 }));
+        Assert.False(surface.ApplyBoundReferenceReassignment(
+            valid with { ItemIds = ["item:2"] }));
+        Assert.Single(accepted);
+
+        await controller.DisposeAsync();
+    }
+
+    [Fact]
     public async Task FormalActivationSourceOwnsFiniteKeyboardEntryAndRevokesWithSurface()
     {
         var surfaceFactory = new RecordingSurfaceFactory();
@@ -2151,6 +2284,8 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             requestItemViewport = static _ => false;
         private Func<ProductDesktopItemOpenSurfaceInput, bool>
             requestItemOpen = static _ => false;
+        private Func<ProductDesktopReferenceReassignmentSurfaceInput, bool>
+            requestReferenceReassignment = static _ => false;
 
         internal bool WasCreatedHidden { get; } = startHidden;
 
@@ -2250,6 +2385,10 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             Func<ProductDesktopItemOpenSurfaceInput, bool> requestOpen) =>
             requestItemOpen = requestOpen;
 
+        public void BindReferenceReassignment(
+            Func<ProductDesktopReferenceReassignmentSurfaceInput, bool> request) =>
+            requestReferenceReassignment = request;
+
         public bool ApplyItemOpenFeedback(
             ProductDesktopItemOpenFeedback feedback)
         {
@@ -2345,6 +2484,10 @@ public sealed class ProductDesktopHostLifecycleControllerTests
 
         internal bool ApplyBoundItemOpen(
             ProductDesktopItemOpenSurfaceInput input) => requestItemOpen(input);
+
+        internal bool ApplyBoundReferenceReassignment(
+            ProductDesktopReferenceReassignmentSurfaceInput input) =>
+            requestReferenceReassignment(input);
 
         internal bool RequestBoundWorkspaceDrag(PixelRect bounds) =>
             requestWorkspaceCreate(new(
