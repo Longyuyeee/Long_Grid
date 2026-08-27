@@ -63,6 +63,8 @@ dotnet test tests/LongGrid.Core.Tests/LongGrid.Core.Tests.csproj --configuration
 
 首次专项 `14/14`。审计发现初版 Confirm 会清理凭据，与崩溃/卸载恢复目标冲突；修正为确认后保留凭据并增加 `Staged/Applied/Confirmed` 单向更新，修正后 `16/16`。没有放宽断言。
 
+PR 首轮 CI 又发现真实时序差异：父测试最初只等待 `RecoveryRequired`，因此 GitHub runner 在子进程完成 `Staged → Applied` 原子更新前就可能强杀，实际读到安全但不符合该场景目标的 `Staged`；本机较快时已是 `Applied`。修正为父进程明确复读到 `Phase=Applied` 后才强杀，没有把两种阶段混为一次“应用后崩溃”，也没有放宽期望。
+
 回归门禁预期格式无差异、Release 构建零告警/零错误、完整测试零失败；实际 `dotnet format --verify-no-changes` 退出码 0、全解决方案 `0 warning / 0 error`、完整核心测试 `1301/1301`，差异为无。
 
 ## 5. 安全边界与下一步

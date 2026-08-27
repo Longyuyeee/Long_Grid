@@ -306,7 +306,7 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
             TaskbarAppearanceRecoveryJournalStore store = new(directory);
 
             TaskbarAppearanceRecoveryLoadResult beforeKill =
-                await WaitForRecoveryRequiredAsync(store, TimeSpan.FromSeconds(10));
+                await WaitForAppliedRecoveryAsync(store, TimeSpan.FromSeconds(10));
             child.Kill(entireProcessTree: true);
             await child.WaitForExitAsync();
             TaskbarAppearanceRecoveryLoadResult afterKill = await store.LoadAsync();
@@ -363,7 +363,7 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
     }
 
     private static async Task<TaskbarAppearanceRecoveryLoadResult>
-        WaitForRecoveryRequiredAsync(
+        WaitForAppliedRecoveryAsync(
             TaskbarAppearanceRecoveryJournalStore store,
             TimeSpan timeout)
     {
@@ -372,7 +372,9 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
         {
             TaskbarAppearanceRecoveryLoadResult result = await store.LoadAsync();
             if (result.Status
-                == TaskbarAppearanceRecoveryLoadStatus.RecoveryRequired)
+                    == TaskbarAppearanceRecoveryLoadStatus.RecoveryRequired
+                && result.Journal?.Phase
+                    == TaskbarAppearanceRecoveryPhase.Applied)
             {
                 return result;
             }
