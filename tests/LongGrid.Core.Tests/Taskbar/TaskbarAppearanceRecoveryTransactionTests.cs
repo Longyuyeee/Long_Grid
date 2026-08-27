@@ -198,6 +198,40 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
     }
 
     [Fact]
+    public void OutOfOrderTransitionRequestsAreDeterministicNoOps()
+    {
+        TaskbarAppearanceTransactionSnapshot denied =
+            TaskbarAppearanceTransactionPolicy.Begin(
+                TaskbarCompatibilityPolicy.Evaluate(Actual(), isWindows: true),
+                TaskbarAppearancePreset.Clear,
+                Now);
+
+        Assert.Equal(TaskbarAppearancePreset.SystemDefault, denied.RequestedPreset);
+        Assert.Null(denied.StartedUtc);
+        Assert.Same(
+            denied,
+            TaskbarAppearanceTransactionPolicy.Applied(
+                denied,
+                applySucceeded: true,
+                verificationSucceeded: true));
+        Assert.Same(
+            denied,
+            TaskbarAppearanceTransactionPolicy.Confirm(denied, Now));
+        Assert.Same(
+            denied,
+            TaskbarAppearanceTransactionPolicy.EvaluateRollback(
+                denied,
+                Now,
+                userRejected: true));
+        Assert.Same(
+            denied,
+            TaskbarAppearanceTransactionPolicy.CompleteRollback(
+                denied,
+                restoreSucceeded: true,
+                verificationSucceeded: true));
+    }
+
+    [Fact]
     public async Task RealDiskJournalRoundTripsAndClearsOnlyMatchingTransaction()
     {
         string directory = CreateTemporaryDirectory();
