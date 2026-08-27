@@ -131,6 +131,11 @@ public sealed class TaskbarAppearanceRecoveryLeaseRealProcessTests
             TaskbarAppearanceRecoveryJournalStore unowned = new(directory);
 
             Assert.False(await unowned.StageAsync(journal));
+            Assert.False(await unowned.UpdatePhaseAsync(
+                journal.TransactionId,
+                TaskbarAppearanceRecoveryPhase.Staged,
+                TaskbarAppearanceRecoveryPhase.Applied));
+            Assert.False(await unowned.ClearAsync(journal.TransactionId));
             Assert.False(File.Exists(Path.Combine(
                 directory,
                 "taskbar-appearance-recovery.json")));
@@ -146,6 +151,79 @@ public sealed class TaskbarAppearanceRecoveryLeaseRealProcessTests
             TaskbarAppearanceRecoveryLoadResult loaded =
                 await owned.LoadAsync();
             Assert.Equal(TaskbarAppearanceRecoveryLoadStatus.Missing, loaded.Status);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RealReadHandlePreventsDeleteAndPreservesRecoveryJournal()
+    {
+        string directory = CreateTemporaryDirectory();
+        try
+        {
+            TaskbarAppearanceRecoveryLeaseResult acquired =
+                TaskbarAppearanceRecoveryLease.TryAcquire(directory);
+            Assert.True(acquired.IsAcquired);
+            using TaskbarAppearanceRecoveryLease lease = acquired.Lease!;
+            TaskbarAppearanceRecoveryJournalStore store = new(directory, lease);
+            TaskbarAppearanceRecoveryJournal journal = Journal();
+            Assert.True(await store.StageAsync(journal));
+
+            string journalPath = Path.Combine(
+                directory,
+                "taskbar-appearance-recovery.json");
+            using (FileStream reader = new(
+                journalPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read))
+            {
+                Assert.False(await store.ClearAsync(journal.TransactionId));
+                TaskbarAppearanceRecoveryLoadResult preserved =
+                    await store.LoadAsync();
+                Assert.Equal(
+                    TaskbarAppearanceRecoveryLoadStatus.RecoveryRequired,
+                    preserved.Status);
+                Assert.Equal(journal.TransactionId, preserved.Journal!.TransactionId);
+            }
+
+            Assert.True(await store.ClearAsync(journal.TransactionId));
+            lease.Dispose();
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RealExclusiveJournalHandleFailsClosedOnLoad()
+    {
+        string directory = CreateTemporaryDirectory();
+        try
+        {
+            string journalPath = Path.Combine(
+                directory,
+                "taskbar-appearance-recovery.json");
+            await File.WriteAllTextAsync(journalPath, "{}");
+            TaskbarAppearanceRecoveryJournalStore store = new(directory);
+            using (FileStream exclusive = new(
+                journalPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.None))
+            {
+                TaskbarAppearanceRecoveryLoadResult result = await store.LoadAsync();
+
+                Assert.Equal(
+                    TaskbarAppearanceRecoveryLoadStatus.IoFailure,
+                    result.Status);
+                Assert.Equal("IoFailure", result.DiagnosticCode);
+                Assert.Null(result.Journal);
+            }
         }
         finally
         {
