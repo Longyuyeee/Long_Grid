@@ -18,6 +18,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 - [当前唯一开发计划：产品重对齐、UI 重构、里程碑与执行队列](docs/PRODUCT_EXECUTION_PLAN.md)
 - [当前开发情况与原始需求对齐审计（Stage 209）](docs/209-current-development-alignment-audit.md)
+- [TASKBAR-R1A 只读兼容性探测审计（Stage 210）](docs/210-taskbar-r1a-readonly-compatibility-audit.md)
 - [产品需求文档（PRD）](docs/02-product-requirements.md)
 - [交互设计与产品体验规范](docs/09-interaction-design-audit.md)
 - [开发流程与交付规范](docs/10-development-workflow.md)
@@ -243,7 +244,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)执行 M1 集中证据冲刺：补齐 BOX-R1-C、FOLDER-R1、真实 Explorer Link 拖入、盒子间物理拖动和 UI-R1E 人工矩阵；通过后进入任务栏预设、应用、回退与兼容矩阵。自动整理、Tab、小组件、工作空间和 Long助手运行时不得抢占这三项 Core。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)执行 TASKBAR-R1B：将已通过真实环境测试的独立只读 Worker 以有界协议接入个性化页，并保持未认证 Windows build 失败关闭。M1 物理证据因已确认的 WinUI 上游 UIA 缺陷和专用环境条件保持 Pending，条件具备后立即恢复；自动整理、Tab、小组件、工作空间和 Long助手运行时不得抢占三项 Core。
 
 ## 开发启动
 
