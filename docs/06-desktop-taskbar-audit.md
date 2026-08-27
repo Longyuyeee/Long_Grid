@@ -3,7 +3,7 @@
 审计日期：2026-07-29
 范围：iTop Easy Desktop、Stardock Fences、Nimi Places、Portals、PowerToys Workspaces，以及 TranslucentTB、RoundedTB、Windhawk、Start11、TaskbarX 等任务栏工具。
 
-> 2026-08-27 状态更新：任务栏美化已明确为 Core 三支柱之一。R1A/R1B 已交付独立只读 Worker、有界客户端、冲突/build 准入和个性化真实状态；R2A1 已建立 15 秒确认、失败回退和真实强杀后仍可读的恢复凭据；R2A2a 已建立唯一跨进程恢复租约；R2A2b 已让正式 App 启动 Worker 取得租约、读取遗留凭据并重新探测 Explorer；R2A2c 已建立原生恢复合同、目标复核、默认空目录和受证据开关保护的认证入口。Build 26200 实际仍为 `DeniedNoCertifiedBuild / Unavailable`，任务栏 HWND/class/PID 不变。仓库仍没有通过认证的透明度/着色写入、原生系统默认恢复执行器或 Windows build 实机矩阵，因此不得描述为任务栏美化已可用。当前顺序见[统一开发计划](PRODUCT_EXECUTION_PLAN.md)。
+> 2026-08-27 状态更新：任务栏美化已明确为 Core 三支柱之一。R1A/R1B 已交付独立只读 Worker、有界客户端、冲突/build 准入和个性化真实状态；R2A1 已建立 15 秒确认、失败回退和真实强杀后仍可读的恢复凭据；R2A2a/R2A2b 已建立唯一租约与正式启动恢复预检；R2A2c 已建立原生恢复合同、默认空目录和认证入口；R2B1-A 已建立 Windows Sandbox Host/Guest 准入和受限配置。Build 26200 主机实际因 Sandbox 启动器缺失、SLAT 未获证明而 `Blocked / mutationAllowed=false`。仓库仍没有通过认证的透明度/着色写入、原生系统默认恢复执行器或 Windows build 实机矩阵，因此不得描述为任务栏美化已可用。当前顺序见[统一开发计划](PRODUCT_EXECUTION_PLAN.md)。
 
 ## 1. 结论先行
 

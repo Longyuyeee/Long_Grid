@@ -293,6 +293,8 @@ Windows 提供的正式 Taskbar API 主要用于应用自己的按钮、进度�
 
 TASKBAR-R2A2c 已把原生系统默认恢复边界固定为 Core 合同和 Worker 私有目录。Core 只接受有效恢复日志、精确 Windows build、同一组任务栏 class、单一当前 Explorer 所有权、未修改系统的通过探测、认证准入和安全 AdapterId，并把日志 Explorer PID 与当前 PID 分开记录以识别 Explorer 重启。Worker 目录发布时必须为空；适配器只能按精确 build 注册，App 不持有实现或 HWND。认证命令必须由证据环境变量显式开放，默认调用退出 65。当前 Build 26200 保持 `DeniedNoCertifiedBuild / Unavailable`；合同存在不代表任何任务栏写 API 已接入。详见 [Stage 215](215-taskbar-r2a2c-native-adapter-boundary-audit.md)。
 
+TASKBAR-R2B1-A 进一步要求所有原生效果实验从可丢弃 Windows Sandbox Guest 发起。Host 门禁必须复读 Windows/架构/CPU/内存/虚拟化/SLAT和 Sandbox 启动器，并验证 `.wsb` 已断网、源码只读、只有证据目录可写、剪贴板及音视频/打印重定向关闭、LogonCommand 固定；Guest 再以 `WDAGUtilityAccount` 和两条映射证明隔离身份。Host 和 Guest 门禁都固定 `mutationAllowed=false`，只有后续独立人工认证动作能临时开放写入。当前主机为 `Blocked`，详见 [Stage 216](216-taskbar-r2b1a-disposable-environment-admission-audit.md)。
+
 ## 11. 小组件与跨产品插件平台
 
 Long Grid 不应直接引用 Long助手的 WPF 宿主程序集。两个产品应共享版本化的 Manifest、包验证、能力名称和基础合同，各自实现宿主适配器：
