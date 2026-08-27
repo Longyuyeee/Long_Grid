@@ -65,7 +65,9 @@ dotnet test tests/LongGrid.Core.Tests/LongGrid.Core.Tests.csproj --configuration
 
 PR 首轮 CI 又发现真实时序差异：父测试最初只等待 `RecoveryRequired`，因此 GitHub runner 在子进程完成 `Staged → Applied` 原子更新前就可能强杀，实际读到安全但不符合该场景目标的 `Staged`；本机较快时已是 `Applied`。修正为父进程明确复读到 `Phase=Applied` 后才强杀，没有把两种阶段混为一次“应用后崩溃”，也没有放宽期望。
 
-回归门禁预期格式无差异、Release 构建零告警/零错误、完整测试零失败；实际 `dotnet format --verify-no-changes` 退出码 0、全解决方案 `0 warning / 0 error`、完整核心测试 `1301/1301`，差异为无。
+第二轮 CI 的 1301 项测试全部通过，但覆盖率实际 lines `89.98%`，低于 `90.00%` 门槛约 9 行；branches `75.47%` 已通过。没有降低门槛，补充“验证成功后清理、无故障保持、无效凭据、超大凭据与空清理”边界测试；本地隔离结果目录重新得到 `1305/1305`、lines `90.28%`、branches `75.81%`。
+
+回归门禁预期格式无差异、Release 构建零告警/零错误、完整测试零失败；实际 `dotnet format --verify-no-changes` 退出码 0、全解决方案 `0 warning / 0 error`。补齐覆盖边界后完整核心测试 `1305/1305`，覆盖率 lines `90.28%`、branches `75.81%`，均高于 `90% / 75%` 门槛。
 
 ## 5. 安全边界与下一步
 

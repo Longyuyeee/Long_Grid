@@ -160,6 +160,44 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
     }
 
     [Fact]
+    public void VerifiedRollbackClearsRecoveryJournal()
+    {
+        TaskbarAppearanceTransactionSnapshot rollback =
+            TaskbarAppearanceTransactionPolicy.EvaluateRollback(
+                Staged(),
+                Now,
+                userRejected: true);
+
+        TaskbarAppearanceTransactionSnapshot result =
+            TaskbarAppearanceTransactionPolicy.CompleteRollback(
+                rollback,
+                restoreSucceeded: true,
+                verificationSucceeded: true);
+
+        Assert.Equal(TaskbarAppearanceTransactionStatus.RolledBack, result.Status);
+        Assert.Equal(
+            TaskbarAppearanceTransactionAction.ClearRecoveryJournal,
+            result.NextAction);
+    }
+
+    [Fact]
+    public void NoFailureSignalLeavesAwaitingTransactionUnchanged()
+    {
+        TaskbarAppearanceTransactionSnapshot awaiting =
+            TaskbarAppearanceTransactionPolicy.Applied(
+                Staged(),
+                applySucceeded: true,
+                verificationSucceeded: true);
+
+        TaskbarAppearanceTransactionSnapshot result =
+            TaskbarAppearanceTransactionPolicy.EvaluateRollback(
+                awaiting,
+                Now.AddSeconds(14));
+
+        Assert.Same(awaiting, result);
+    }
+
+    [Fact]
     public async Task RealDiskJournalRoundTripsAndClearsOnlyMatchingTransaction()
     {
         string directory = CreateTemporaryDirectory();
@@ -207,6 +245,56 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
             Assert.False(await store.StageAsync(second));
             TaskbarAppearanceRecoveryLoadResult loaded = await store.LoadAsync();
             Assert.Equal(first.TransactionId, loaded.Journal!.TransactionId);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task InvalidJournalCannotBeStagedOrCleared()
+    {
+        string directory = CreateTemporaryDirectory();
+        try
+        {
+            TaskbarAppearanceRecoveryJournalStore store = new(directory);
+            TaskbarAppearanceRecoveryJournal invalid = Journal() with
+            {
+                BaselinePreset = TaskbarAppearancePreset.Clear,
+            };
+
+            Assert.False(await store.StageAsync(invalid));
+            Assert.False(await store.ClearAsync(invalid.TransactionId));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(directory));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task OversizedJournalIsRejectedWithoutParsing()
+    {
+        string directory = CreateTemporaryDirectory();
+        try
+        {
+            string path = Path.Combine(
+                directory,
+                "taskbar-appearance-recovery.json");
+            await File.WriteAllTextAsync(
+                path,
+                new string(
+                    'x',
+                    TaskbarAppearanceRecoveryJournalPolicy.MaximumJournalBytes + 1));
+            TaskbarAppearanceRecoveryJournalStore store = new(directory);
+
+            TaskbarAppearanceRecoveryLoadResult result = await store.LoadAsync();
+
+            Assert.Equal(TaskbarAppearanceRecoveryLoadStatus.Invalid, result.Status);
+            Assert.Equal("InvalidSize", result.DiagnosticCode);
+            Assert.True(File.Exists(path));
         }
         finally
         {
