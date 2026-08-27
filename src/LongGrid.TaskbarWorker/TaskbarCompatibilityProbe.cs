@@ -8,7 +8,12 @@ namespace LongGrid.TaskbarWorker;
 [JsonSourceGenerationOptions(UseStringEnumConverter = true)]
 [JsonSerializable(typeof(TaskbarCompatibilityReport))]
 [JsonSerializable(typeof(TaskbarWorkerResponse))]
+[JsonSerializable(typeof(TaskbarRecoveryLeaseEvidenceResponse))]
 internal sealed partial class TaskbarJsonContext : JsonSerializerContext;
+
+internal sealed record TaskbarRecoveryLeaseEvidenceResponse(
+    TaskbarAppearanceRecoveryLeaseStatus Status,
+    string DiagnosticCode);
 
 internal static class TaskbarCompatibilityProbe
 {

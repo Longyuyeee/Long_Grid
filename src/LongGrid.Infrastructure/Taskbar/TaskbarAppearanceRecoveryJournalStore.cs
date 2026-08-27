@@ -23,11 +23,26 @@ public sealed class TaskbarAppearanceRecoveryJournalStore
     private readonly string _directoryPath;
     private readonly string _journalPath;
     private readonly string _temporaryPath;
+    private readonly TaskbarAppearanceRecoveryLease? _lease;
 
-    public TaskbarAppearanceRecoveryJournalStore(string directoryPath)
+    public TaskbarAppearanceRecoveryJournalStore(
+        string directoryPath,
+        TaskbarAppearanceRecoveryLease? lease = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directoryPath);
         _directoryPath = Path.GetFullPath(directoryPath);
+        if (lease is not null
+            && (!lease.IsHeld
+                || !string.Equals(
+                _directoryPath,
+                lease.DirectoryPath,
+                StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException(
+                "A live recovery lease for the same directory is required.");
+        }
+
+        _lease = lease;
         _journalPath = Path.Combine(_directoryPath, JournalFileName);
         _temporaryPath = _journalPath + ".new";
     }
@@ -37,7 +52,10 @@ public sealed class TaskbarAppearanceRecoveryJournalStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(journal);
-        if (!TaskbarAppearanceRecoveryJournalPolicy.IsValid(journal))
+        using TaskbarAppearanceRecoveryLeaseOperation? operation =
+            _lease?.TryBeginOperation();
+        if (operation is null
+            || !TaskbarAppearanceRecoveryJournalPolicy.IsValid(journal))
         {
             return false;
         }
@@ -109,11 +127,13 @@ public sealed class TaskbarAppearanceRecoveryJournalStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(transactionId);
-        bool validTransition =
-            expectedPhase == TaskbarAppearanceRecoveryPhase.Staged
-                && nextPhase == TaskbarAppearanceRecoveryPhase.Applied
-            || expectedPhase == TaskbarAppearanceRecoveryPhase.Applied
-                && nextPhase == TaskbarAppearanceRecoveryPhase.Confirmed;
+        using TaskbarAppearanceRecoveryLeaseOperation? operation =
+            _lease?.TryBeginOperation();
+        bool validTransition = operation is not null
+            && (expectedPhase == TaskbarAppearanceRecoveryPhase.Staged
+                    && nextPhase == TaskbarAppearanceRecoveryPhase.Applied
+                || expectedPhase == TaskbarAppearanceRecoveryPhase.Applied
+                    && nextPhase == TaskbarAppearanceRecoveryPhase.Confirmed);
         if (!validTransition || File.Exists(_temporaryPath))
         {
             return false;
@@ -186,6 +206,13 @@ public sealed class TaskbarAppearanceRecoveryJournalStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(transactionId);
+        using TaskbarAppearanceRecoveryLeaseOperation? operation =
+            _lease?.TryBeginOperation();
+        if (operation is null)
+        {
+            return false;
+        }
+
         TaskbarAppearanceRecoveryLoadResult current =
             await LoadAsync(cancellationToken).ConfigureAwait(false);
         if (current.Status != TaskbarAppearanceRecoveryLoadStatus.RecoveryRequired
