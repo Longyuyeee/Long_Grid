@@ -488,6 +488,8 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
                 new(directory, recoveryLease);
             Assert.True(await recoveryStore.ClearAsync(
                 afterKill.Journal.TransactionId));
+            recoveryLease.Dispose();
+            Assert.False(recoveryLease.IsHeld);
         }
         finally
         {
