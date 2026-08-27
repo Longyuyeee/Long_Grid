@@ -490,6 +490,10 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
                 afterKill.Journal.TransactionId));
             recoveryLease.Dispose();
             Assert.False(recoveryLease.IsHeld);
+            using TaskbarAppearanceRecoveryLease finalLease =
+                AcquireLease(directory);
+            finalLease.Dispose();
+            Assert.False(finalLease.IsHeld);
         }
         finally
         {
@@ -499,7 +503,7 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
                 child.WaitForExit();
             }
 
-            Directory.Delete(directory, recursive: true);
+            await DeleteTemporaryDirectoryWithRetryAsync(directory);
         }
     }
 
@@ -550,6 +554,25 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
         }
 
         return await store.LoadAsync();
+    }
+
+    private static async Task DeleteTemporaryDirectoryWithRetryAsync(
+        string directory)
+    {
+        for (int attempt = 1; attempt <= 40; attempt++)
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+                return;
+            }
+            catch (Exception exception) when (
+                attempt < 40
+                && exception is IOException or UnauthorizedAccessException)
+            {
+                await Task.Delay(50);
+            }
+        }
     }
 
     private static TaskbarAppearanceTransactionSnapshot Staged() =>
