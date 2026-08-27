@@ -2502,6 +2502,8 @@ public sealed partial class MainWindow : Window
                     $" 已显示前 {readContainer.FolderContentItemCount} 个项目；目录较大，可缩小范围后刷新。",
                 ProductWorkspaceFolderContentStatus.ReadyWithSkippedEntries =>
                     $" 已显示 {readContainer.FolderContentItemCount} 个安全项目；链接或重解析点未展示。",
+                ProductWorkspaceFolderContentStatus.AwaitingRefresh =>
+                    " 正在加载绑定文件夹内容。",
                 ProductWorkspaceFolderContentStatus.AccessDenied =>
                     " 当前没有权限读取内容。",
                 ProductWorkspaceFolderContentStatus.InvalidTarget =>
