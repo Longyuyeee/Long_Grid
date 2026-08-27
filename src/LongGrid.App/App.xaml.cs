@@ -236,6 +236,7 @@ public partial class App : Application
             () => productWorkspaceSaves.Retry(),
             RefreshProductDesktopCatalogAsync,
             RefreshProductWorkspaceFolderContentsAsync,
+            ResolveProductWorkspaceFolderBindingDisplayPath,
             CommitProductWorkspaceReferenceAction,
             CommitProductWorkspaceResolvedReferenceBatch,
             CommitProductWorkspaceReferenceBatchAdditionUndo,

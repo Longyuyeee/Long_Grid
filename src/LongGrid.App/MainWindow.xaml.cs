@@ -80,6 +80,8 @@ public sealed partial class MainWindow : Window
     private readonly Func<ProductWorkspaceSaveRetryResult> _retryProductWorkspaceSave;
     private readonly Func<Task> _refreshProductDesktopCatalog;
     private readonly Func<Task> _refreshProductWorkspaceFolderContents;
+    private readonly Func<long, int, string?>
+        _resolveProductWorkspaceFolderBindingDisplayPath;
     private readonly Func<
         ProductWorkspaceReferenceReviewToken,
         ProductWorkspaceReferenceAction,
@@ -215,6 +217,7 @@ public sealed partial class MainWindow : Window
         Func<ProductWorkspaceSaveRetryResult> retryProductWorkspaceSave,
         Func<Task> refreshProductDesktopCatalog,
         Func<Task> refreshProductWorkspaceFolderContents,
+        Func<long, int, string?> resolveProductWorkspaceFolderBindingDisplayPath,
         Func<
             ProductWorkspaceReferenceReviewToken,
             ProductWorkspaceReferenceAction,
@@ -311,6 +314,8 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(retryProductWorkspaceSave);
         ArgumentNullException.ThrowIfNull(refreshProductDesktopCatalog);
         ArgumentNullException.ThrowIfNull(refreshProductWorkspaceFolderContents);
+        ArgumentNullException.ThrowIfNull(
+            resolveProductWorkspaceFolderBindingDisplayPath);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceReferenceAction);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceResolvedReferenceBatch);
         ArgumentNullException.ThrowIfNull(
@@ -346,6 +351,8 @@ public sealed partial class MainWindow : Window
         _refreshProductDesktopCatalog = refreshProductDesktopCatalog;
         _refreshProductWorkspaceFolderContents =
             refreshProductWorkspaceFolderContents;
+        _resolveProductWorkspaceFolderBindingDisplayPath =
+            resolveProductWorkspaceFolderBindingDisplayPath;
         _commitProductWorkspaceReferenceAction =
             commitProductWorkspaceReferenceAction;
         _commitProductWorkspaceResolvedReferenceBatch =
@@ -2431,6 +2438,22 @@ public sealed partial class MainWindow : Window
             _ => ("尚未绑定文件夹。", "Unbound"),
         };
         ProductWorkspaceFolderBindingStatus.Text = text;
+        string? displayPath = selected is null
+            ? null
+            : _resolveProductWorkspaceFolderBindingDisplayPath(
+                _containerEditor.EditRevision,
+                selected.Ordinal);
+        ProductWorkspaceFolderBindingPath.Text = displayPath is null
+            ? string.Empty
+            : $"当前绑定路径：{displayPath}";
+        ProductWorkspaceFolderBindingPath.Visibility = displayPath is null
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        AutomationProperties.SetName(
+            ProductWorkspaceFolderBindingPath,
+            displayPath is null
+                ? "当前未显示绑定文件夹路径"
+                : $"当前绑定文件夹路径，{displayPath}");
         ProductWorkspaceReadContainerPresentation? readContainer = selected is null
             ? null
             : _workspaceRead.Containers.FirstOrDefault(container =>
