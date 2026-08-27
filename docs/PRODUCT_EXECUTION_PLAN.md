@@ -558,6 +558,8 @@ FOLDER-R1 加载状态可达性纠偏记录（2026-08-28，基线 `origin/main@1
 
 本次没有新增轮询、文件系统写入或持久化字段；加载快照是会话内、当前 generation 的瞬时权威状态。M1 物理旅程与外部环境阻断口径保持不变。
 
+PR #269 Windows runner run `33092966435` 首次尝试在 `Setup .NET` 后执行 `dotnet format` 时报告无法定位 dotnet CLI，未产生任何源码格式差异或测试结果；对同一 run 的失败任务重跑后完整通过：`1,374/1,374`，coverage lines `90.10% (46846/51992)`、branches `75.97% (15374/20238)`，Release `0 warning / 0 error`，198-ID UI/批量无障碍/clean-session 合同、启动与恢复、真实文件安全、原生宿主、受限缩略图 Worker、依赖漏洞和内部未签名 RC/SBOM 交付集均成功。首尝试按 runner 工具链初始化异常记录，不复用其失败结果，也未为环境异常修改产品代码。
+
 PF-007A2 DesktopHost OLE DropTarget 记录（2026-08-26，基线 `origin/main@53c8b5e`）：
 
 | 检查 | 预期效果 | 实际效果 | 差异与修正 |
