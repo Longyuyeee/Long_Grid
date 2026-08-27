@@ -25,7 +25,8 @@ public sealed record ProductWorkspaceContainerFolderContent(
     ProductWorkspaceFolderContentStatus Status,
     IReadOnlyList<ProductWorkspaceFolderContentItem> Items,
     int SkippedReparsePointCount = 0,
-    ProductContainerFolderBindingResolution? BindingResolution = null)
+    ProductContainerFolderBindingResolution? BindingResolution = null,
+    ProductContainerFolderBindingResolution? RecoveredFromBindingResolution = null)
 {
     public const int MaximumItems = 256;
 
@@ -36,6 +37,13 @@ public sealed record ProductWorkspaceContainerFolderContent(
         && SkippedReparsePointCount >= 0
         && Items is not null
         && (BindingResolution is null || Enum.IsDefined(BindingResolution.Value))
+        && (RecoveredFromBindingResolution is null
+            || Enum.IsDefined(RecoveredFromBindingResolution.Value)
+                && RecoveredFromBindingResolution !=
+                    ProductContainerFolderBindingResolution.Resolved
+                && BindingResolution ==
+                    ProductContainerFolderBindingResolution.Resolved
+                && HasUsableStatus)
         && Items.Count <= MaximumItems
         && Items.All(item => item is not null
             && !string.IsNullOrWhiteSpace(item.ItemId)
@@ -51,11 +59,13 @@ public sealed record ProductWorkspaceContainerFolderContent(
         && Items.Select(item => item.ItemId)
             .Distinct(StringComparer.Ordinal).Count() == Items.Count;
 
-    public bool HasUsableProjection => HasValidShape && Status is
+    private bool HasUsableStatus => Status is
         ProductWorkspaceFolderContentStatus.Ready
             or ProductWorkspaceFolderContentStatus.Empty
             or ProductWorkspaceFolderContentStatus.Truncated
             or ProductWorkspaceFolderContentStatus.ReadyWithSkippedEntries;
+
+    public bool HasUsableProjection => HasValidShape && HasUsableStatus;
 }
 
 public sealed record ProductWorkspaceFolderContentSet(
@@ -108,6 +118,41 @@ public sealed record ProductWorkspaceFolderContentSet(
 
     public ProductWorkspaceContainerFolderContent? Find(string containerId) =>
         Containers.TryGetValue(containerId, out var content) ? content : null;
+
+    public ProductWorkspaceFolderContentSet MarkRecoveriesFrom(
+        ProductWorkspaceFolderContentSet previous)
+    {
+        ArgumentNullException.ThrowIfNull(previous);
+        bool isNewerGeneration = Generation > previous.Generation;
+
+        var containers = new Dictionary<
+            string,
+            ProductWorkspaceContainerFolderContent>(StringComparer.Ordinal);
+        foreach ((string containerId,
+            ProductWorkspaceContainerFolderContent content) in Containers)
+        {
+            ProductContainerFolderBindingResolution? recoveredFrom =
+                isNewerGeneration
+                && content.HasUsableProjection
+                && content.BindingResolution ==
+                    ProductContainerFolderBindingResolution.Resolved
+                && previous.Find(containerId) is
+                {
+                    HasValidShape: true,
+                    BindingResolution: { } previousResolution,
+                }
+                && previousResolution !=
+                    ProductContainerFolderBindingResolution.Resolved
+                    ? previousResolution
+                    : null;
+            containers[containerId] = content with
+            {
+                RecoveredFromBindingResolution = recoveredFrom,
+            };
+        }
+
+        return new(Generation, containers);
+    }
 }
 
 public enum ProductWorkspaceReadItemSource
