@@ -52,7 +52,7 @@
 
 - 创建、拖动、缩放、标题栏操作、图标/缩略图、选择和安全打开已有正式工程链，但物理输入/Narrator/高对比证据债务仍使 PF-001～PF-005 无法产品完成；
 - 用户仍不能像 Fences/iTop 一样完成桌面/Explorer 直接拖入与完整低摩擦整理旅程；框选工程链已完成，但物理鼠标/高对比/Narrator 证据待补；
-- 单文件夹绑定盒子 A～D 工程链已完成，但物理 Picker、可见刷新/打开、键盘和 Narrator 仍待 M1；自动整理规则、高级 Portal、Tab、Roll-up、Peek、Quick-hide、托盘与全局快捷键尚未实现；
+- 单文件夹绑定盒子 A～D 工程链已完成，原始 P0 遗漏的当前路径和三种持久化基础排序已纠正，但物理 Picker、可见排序/刷新/打开、键盘和 Narrator 仍待 M1；自动整理规则、高级 Portal、Tab、Roll-up、Peek、Quick-hide、托盘与全局快捷键尚未实现；
 - 没有可命名布局快照、场景/页面、应用工作空间捕获与启动；
 - 外观已有正式 Design Token、Mica/Acrylic 和品牌 RC1，但桌面 Surface、主题持久化、竞品级标题/间距/图标尺寸/视图模式、动效和无障碍矩阵尚未收口；
 - 核心任务栏美化，以及安装更新、Widgets、壁纸和 Private Box 等能力尚未实现。
@@ -68,7 +68,7 @@
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | `EngineeringComplete / ProductEvidencePending` | Fences/Nimi 项目呈现 |
 | 6 | PF-006 | 项目选择、键盘导航与打开 | `EngineeringComplete / ProductEvidencePending`：A/B/C 工程范围含框选均已集成；物理输入/Narrator/高对比仍 Pending | Fences/Portal 日常访问 |
 | 7 | PF-007 | Explorer 拖入与方格间拖放 | `EngineeringComplete / ProductEvidencePending`：A1/A2/B 工程链完成；真实 Explorer 指针、盒子间物理拖动和撤销证据待 M1 | iTop/Fences 直接拖放 |
-| 8 | PF-008 | 方格内视图、排序、滚动与间距 | 方格级排序有限 | Nimi/Fences 视图控制 |
+| 8 | PF-008 | 方格内视图、排序、滚动与间距 | Core 绑定文件夹已有三种持久化基础排序；多视图、时间/类型/自定义排序与间距仍未实现 | Nimi/Fences 视图控制 |
 | 9 | PF-009 | 桌面搜索、筛选与快速定位 | 控制中心搜索 | iTop Search |
 | 10 | PF-010 | 统一撤销、重做与操作历史 | 最近动作撤销 | iTop Snapshot/安全恢复 |
 | 11 | PF-011 | 首次启动 Quick Start/Customize | 匿名练习存在 | iTop 首次启动 |
@@ -289,6 +289,8 @@
 ### PF-008：方格内视图、排序、滚动与间距
 
 **用户故事**：我能按内容类型选择更适合的显示方式，并保持稳定排序。
+
+**Core 边界纠偏（2026-08-27）**：PRD 已把单文件夹绑定的“排序”列入 P0，因此 FOLDER-R1 先提供“文件夹优先名称升序 / 名称升序 / 名称降序”并按盒子持久化；本节其余视图、尺寸、间距、时间/类型和自定义拖序仍是后续 PF-008 范围，不借此提前扩张。
 
 **开发范围**：
 
