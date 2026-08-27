@@ -4,7 +4,7 @@
 
 开发基线：`origin/main@44c74a3fc9f4ad021cfc82c3ce58c2e7ef1a6878`
 
-状态：`EngineeringComplete / LocalRealWindowsPass / GitHubEvidencePending / NativeEffectPending`
+状态：`EngineeringComplete / LocalRealWindowsPass / GitHubPrPass / IntegrationPending / NativeEffectPending`
 
 ## 1. 阶段目标与结论
 
@@ -35,6 +35,8 @@
 | 三项 Core 回归 | 新边界不得破坏盒子、文件夹绑定和既有恢复链 | Release 全量 1345/1345；UI 191-ID 合同与 RC restore 合同通过 | 无 |
 
 定向任务栏合同、真实恢复 Worker 和真实认证入口为 30/30。Release 全解决方案构建为 0 warning / 0 error。按 CI 参数执行全量测试为 1345/1345；覆盖率 lines **90.40% (46730/51690)**、branches **76.00% (15284/20110)**，继续通过 90%/75% 门槛。格式与 `git diff --check` 通过。
+
+PR #262 首轮远端 run `33048393504` 完整通过：1345/1345，coverage lines **90.08% (46564/51690)**、branches **75.88% (15260/20110)**；格式、构建、启动链、UI 合同、配置/产品恢复、资源稳定、文件安全、受限缩略图 Worker、依赖漏洞和内部未签名 RC 清单全部成功。远端硬件覆盖率低于本地但仍保留 0.08/0.88 个百分点余量，没有降低门槛或排除正式代码。
 
 ## 3. 开发目标与原始需求对齐
 
