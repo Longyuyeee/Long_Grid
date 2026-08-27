@@ -31,6 +31,8 @@
 
 本轮在当前 Windows 主机实际复跑换机入口：WinUI/UIA 预检发现 runtime `2.4.0.0` / XAML `3.2.3.0`，返回 `BlockedByKnownUpstream`；MSIX 生命周期 `-ValidateOnly` 返回 `Pass / startsProcess=false / modifiesPackageState=false / trustsUnsignedPackage=false`；M1 人工会话 `-ValidateOnly` 返回 `Pass / startsProcess=false / drivesUserInput=false / isolatesConfiguration=true`；UI `-ContractOnly` 返回 198 Automation IDs / `Pass`。这些结果证明入口继续失败关闭，不提升物理证据状态。
 
+本审计 PR #271 首轮 Windows run `33099839517` 完整通过：`1,381/1,381`，coverage lines `90.12% (46926/52072)`、branches `76.04% (15434/20298)`；格式、Release、198-ID UI/无障碍/clean-session 合同、启动与恢复、真实文件安全、原生宿主、受限缩略图 Worker、依赖漏洞和内部未签名 RC/SBOM 交付集均成功。PR 复核为 `CLEAN / MERGEABLE`，无外部 review/comment；远端与本地审计结论无差异。
+
 ## 3. 原始需求与实际代码对齐
 
 PRD 的核心任务仍是：桌面空白处创建/管理盒子、绑定一个真实文件夹、任务栏预设与可靠恢复；Explorer 拖入和盒子间改归属是核心交互。P0 文件夹绑定明确要求路径、正常、空、加载、失效、离线、权限拒绝和恢复状态。
