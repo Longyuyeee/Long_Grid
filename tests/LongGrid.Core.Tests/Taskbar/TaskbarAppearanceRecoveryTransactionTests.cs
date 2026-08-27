@@ -387,6 +387,31 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
                 TaskbarAppearanceRecoveryTransactionTests).Assembly.Location);
             startInfo.ArgumentList.Add(
                 "--Tests:LongGrid.Core.Tests.Taskbar.TaskbarAppearanceRecoveryTransactionTests.ChildStagesRecoveryJournalAndWaits");
+            Dictionary<string, string?> cleanEnvironment = new(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (string variable in new[]
+            {
+                "PATH",
+                "SystemRoot",
+                "TEMP",
+                "TMP",
+                "DOTNET_ROOT",
+                "USERPROFILE",
+            })
+            {
+                cleanEnvironment[variable] =
+                    Environment.GetEnvironmentVariable(variable);
+            }
+
+            startInfo.Environment.Clear();
+            foreach ((string variable, string? value) in cleanEnvironment)
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    startInfo.Environment[variable] = value;
+                }
+            }
+
             startInfo.Environment["LONGGRID_TASKBAR_RECOVERY_CHILD"] = "1";
             startInfo.Environment["LONGGRID_TASKBAR_RECOVERY_DIRECTORY"] = directory;
             child = Process.Start(startInfo)
