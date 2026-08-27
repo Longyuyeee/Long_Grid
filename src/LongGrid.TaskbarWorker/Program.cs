@@ -34,6 +34,25 @@ internal static class Program
                 .ConfigureAwait(false);
         }
 
+        if (TryParseStartupRecoveryInvocation(
+                args,
+                out StartupRecoveryInvocation? recoveryInvocation)
+            && recoveryInvocation is not null)
+        {
+            if (recoveryInvocation.DirectoryPath is not null
+                && !string.Equals(
+                    Environment.GetEnvironmentVariable(
+                        EvidenceEnvironmentVariable),
+                    "1",
+                    StringComparison.Ordinal))
+            {
+                return 65;
+            }
+
+            return await RunStartupRecoveryAsync(recoveryInvocation)
+                .ConfigureAwait(false);
+        }
+
         if (!TryParseInvocation(args, out WorkerInvocation? invocation)
             || invocation is null)
         {
@@ -119,6 +138,145 @@ internal static class Program
                 invocation.ParentProcessId,
                 cancellation.Token).ConfigureAwait(false);
         }
+    }
+
+    private static async Task<int> RunStartupRecoveryAsync(
+        StartupRecoveryInvocation invocation)
+    {
+        using CancellationTokenSource parentExited = new();
+        Task<int> parentMonitor = MonitorParentAsync(
+            invocation.ParentProcessId,
+            parentExited.Token);
+        if (parentMonitor.IsCompleted)
+        {
+            return await parentMonitor.ConfigureAwait(false);
+        }
+
+        try
+        {
+            string directoryPath = invocation.DirectoryPath
+                ?? TaskbarAppearanceRecoveryPath.ResolveDefaultDirectory();
+            TaskbarAppearanceRecoveryLeaseResult leaseResult =
+                TaskbarAppearanceRecoveryLease.TryAcquire(directoryPath);
+            if (!leaseResult.IsAcquired)
+            {
+                TaskbarStartupRecoveryStatus status = leaseResult.Status
+                    == TaskbarAppearanceRecoveryLeaseStatus.Contended
+                        ? TaskbarStartupRecoveryStatus.LeaseContended
+                        : TaskbarStartupRecoveryStatus.RecoveryJournalIoFailure;
+                WriteStartupRecoveryResponse(
+                    invocation.RequestId,
+                    status,
+                    leaseResult.DiagnosticCode,
+                    null,
+                    journalPreserved: true,
+                    report: null);
+                return 1;
+            }
+
+            using TaskbarAppearanceRecoveryLease lease = leaseResult.Lease!;
+            TaskbarAppearanceRecoveryJournalStore store = new(
+                directoryPath,
+                lease);
+            TaskbarAppearanceRecoveryLoadResult load =
+                await store.LoadAsync().ConfigureAwait(false);
+            if (load.Status == TaskbarAppearanceRecoveryLoadStatus.Missing)
+            {
+                WriteStartupRecoveryResponse(
+                    invocation.RequestId,
+                    TaskbarStartupRecoveryStatus.NoRecoveryRequired,
+                    "Missing",
+                    null,
+                    journalPreserved: false,
+                    report: null);
+                return 0;
+            }
+
+            if (load.Status != TaskbarAppearanceRecoveryLoadStatus.RecoveryRequired)
+            {
+                WriteStartupRecoveryResponse(
+                    invocation.RequestId,
+                    load.Status == TaskbarAppearanceRecoveryLoadStatus.Invalid
+                        ? TaskbarStartupRecoveryStatus.RecoveryJournalInvalid
+                        : TaskbarStartupRecoveryStatus.RecoveryJournalIoFailure,
+                    load.DiagnosticCode,
+                    null,
+                    journalPreserved: true,
+                    report: null);
+                return 1;
+            }
+
+            TaskbarAppearanceRecoveryJournal journal = load.Journal!;
+            TaskbarCompatibilityReport report = TaskbarCompatibilityProbe.Capture();
+            if (journal.WindowsBuild != report.Actual.WindowsBuild)
+            {
+                WriteStartupRecoveryResponse(
+                    invocation.RequestId,
+                    TaskbarStartupRecoveryStatus.RecoveryDeferredTargetChanged,
+                    "WindowsBuildChanged",
+                    journal.Phase,
+                    journalPreserved: true,
+                    report);
+                return 1;
+            }
+
+            if (report.RuntimeAdmission != TaskbarRuntimeAdmission.Allowed)
+            {
+                WriteStartupRecoveryResponse(
+                    invocation.RequestId,
+                    TaskbarStartupRecoveryStatus.RecoveryDeferredCompatibility,
+                    report.RuntimeAdmission.ToString(),
+                    journal.Phase,
+                    journalPreserved: true,
+                    report);
+                return 1;
+            }
+
+            WriteStartupRecoveryResponse(
+                invocation.RequestId,
+                TaskbarStartupRecoveryStatus.RecoveryDeferredAdapterUnavailable,
+                "NativeRestoreAdapterUnavailable",
+                journal.Phase,
+                journalPreserved: true,
+                report);
+            return 1;
+        }
+        finally
+        {
+            parentExited.Cancel();
+            try
+            {
+                await parentMonitor.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Normal completion stops the parent watcher.
+            }
+        }
+    }
+
+    private static void WriteStartupRecoveryResponse(
+        string requestId,
+        TaskbarStartupRecoveryStatus status,
+        string diagnosticCode,
+        TaskbarAppearanceRecoveryPhase? recoveryPhase,
+        bool journalPreserved,
+        TaskbarCompatibilityReport? report)
+    {
+        TaskbarStartupRecoveryWorkerResponse response = new(
+            TaskbarWorkerProtocol.CurrentVersion,
+            TaskbarWorkerProtocol.StartupRecoveryPurpose,
+            requestId,
+            status,
+            diagnosticCode,
+            recoveryPhase,
+            journalPreserved,
+            ModifiedSystemState: false,
+            report);
+        Console.WriteLine(JsonSerializer.Serialize(
+            response,
+            TaskbarJsonContext.Default.TaskbarStartupRecoveryWorkerResponse));
+        Console.Out.Flush();
     }
 
     private static void WriteRecoveryLeaseEvidence(
@@ -256,6 +414,44 @@ internal static class Program
         return true;
     }
 
+    private static bool TryParseStartupRecoveryInvocation(
+        string[] args,
+        out StartupRecoveryInvocation? invocation)
+    {
+        invocation = null;
+        if (args.Length is not (5 or 7)
+            || !string.Equals(
+                args[0],
+                "--startup-recovery",
+                StringComparison.Ordinal)
+            || !string.Equals(args[1], "--parent-pid", StringComparison.Ordinal)
+            || !int.TryParse(args[2], out int parentProcessId)
+            || parentProcessId <= 0
+            || !string.Equals(args[3], "--request-id", StringComparison.Ordinal)
+            || !Guid.TryParseExact(args[4], "N", out _))
+        {
+            return false;
+        }
+
+        string? directoryPath = null;
+        if (args.Length == 7)
+        {
+            if (!string.Equals(
+                    args[5],
+                    "--evidence-directory",
+                    StringComparison.Ordinal)
+                || string.IsNullOrWhiteSpace(args[6]))
+            {
+                return false;
+            }
+
+            directoryPath = args[6];
+        }
+
+        invocation = new(parentProcessId, args[4], directoryPath);
+        return true;
+    }
+
     private sealed record WorkerInvocation(
         int ParentProcessId,
         string RequestId,
@@ -265,4 +461,9 @@ internal static class Program
         int ParentProcessId,
         string DirectoryPath,
         bool HoldUntilParentExit);
+
+    private sealed record StartupRecoveryInvocation(
+        int ParentProcessId,
+        string RequestId,
+        string? DirectoryPath);
 }
