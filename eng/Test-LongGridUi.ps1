@@ -3768,7 +3768,7 @@ function Test-SourceContract {
         requiredAutomationIds = $requiredIds.Count
         accessKeys = $expectedAccessKeys.Count
         themeModes = 3
-        taskbarCompatibility = 'independent-bounded-readonly-fail-closed-no-presets'
+        taskbarCompatibility = 'independent-bounded-readonly-startup-recovery-preflight-fail-closed-no-presets'
         responsiveBreakpoints = 1
         compactWidth = 720
         dpiAwareInitialSize = 'pass'

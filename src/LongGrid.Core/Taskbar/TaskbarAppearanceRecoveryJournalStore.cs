@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using LongGrid.Core.Taskbar;
 
-namespace LongGrid.Infrastructure.Taskbar;
+namespace LongGrid.Core.Taskbar;
 
 public enum TaskbarAppearanceRecoveryLoadStatus
 {

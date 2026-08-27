@@ -6,6 +6,7 @@ using LongGrid.Core.DesktopItems;
 using LongGrid.Infrastructure.Configuration;
 using LongGrid.Infrastructure.DesktopHost;
 using LongGrid.Infrastructure.DesktopItems;
+using LongGrid.Infrastructure.Taskbar;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Windows.Storage;
@@ -384,6 +385,8 @@ public partial class App : Application
     {
         try
         {
+            await TaskbarAppearanceRecoveryClient.RecoverAtStartupAsync(
+                TimeSpan.FromSeconds(3));
             await Task.WhenAll(
                 LoadBoxesSettingsAsync(),
                 LoadConfigurationStartupStateAsync(),
