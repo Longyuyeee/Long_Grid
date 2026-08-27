@@ -417,6 +417,8 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 
 若实验需要 Explorer 注入、驱动或内部 XAML，按 R4 处理，不能通过普通 Feature Flag 进入产品。
 
+任务栏原生效果还必须先通过 R2B1-A 双层环境门禁：Host 只生成并验证断网、源码只读、证据目录单独可写且关闭重定向的 `.wsb`；Guest 只证明 Sandbox 身份和映射存在，两层均不得修改任务栏。只有可丢弃 Guest 的独立人工认证动作可以进入写入阶段。Host 缺少 Sandbox/SLAT、配置不安全、Guest 身份不符或证据目录缺失时必须有限返回 Expected/Actual/Difference，并保持 `mutationAllowed=false`，不得降级到宿主桌面执行。
+
 ## 15. Long助手跨仓库流程
 
 任何共享 Manifest、Widget、Bridge 或 IPC 变更按以下顺序：
