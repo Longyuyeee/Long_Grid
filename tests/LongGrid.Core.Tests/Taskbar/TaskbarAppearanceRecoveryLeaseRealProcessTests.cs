@@ -217,6 +217,32 @@ public sealed class TaskbarAppearanceRecoveryLeaseRealProcessTests
         }
     }
 
+    [Fact]
+    public void RealFileCannotBeUsedAsRecoveryDirectory()
+    {
+        string filePath = Path.Combine(
+            Path.GetTempPath(),
+            $"long-grid-taskbar-lease-file-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            File.WriteAllText(filePath, "not-a-directory");
+
+            TaskbarAppearanceRecoveryLeaseResult result =
+                TaskbarAppearanceRecoveryLease.TryAcquire(filePath);
+
+            Assert.Equal(
+                TaskbarAppearanceRecoveryLeaseStatus.IoFailure,
+                result.Status);
+            Assert.Equal("RecoveryLeaseIoFailure", result.DiagnosticCode);
+            Assert.Null(result.Lease);
+            Assert.Equal("not-a-directory", File.ReadAllText(filePath));
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
     private static Process StartEvidenceWorker(
         string directory,
         string mode,
