@@ -27,6 +27,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [TASKBAR-R2B1-A 可丢弃环境准入审计（Stage 216）](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md)
 - [TASKBAR-R2B1-A2 预设准入与正式界面审计（Stage 217）](docs/217-taskbar-r2b1a2-preset-admission-ui-audit.md)
 - [UI-R1F 产品语言与状态收敛审计（Stage 218）](docs/218-ui-r1f-product-language-status-convergence-audit.md)
+- [当前开发情况与核心需求对齐审计（Stage 219）](docs/219-current-development-core-alignment-audit.md)
 - [产品需求文档（PRD）](docs/02-product-requirements.md)
 - [交互设计与产品体验规范](docs/09-interaction-design-audit.md)
 - [开发流程与交付规范](docs/10-development-workflow.md)
