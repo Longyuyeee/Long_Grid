@@ -4,7 +4,7 @@
 
 开发基线：`origin/main@4a733cf96b242aac1f8875ffedf14bf23c2adc33`
 
-状态：`EngineeringComplete / RealHostBlockedAsExpected / GitHubEvidencePending / NativeEffectPending`
+状态：`EngineeringComplete / RealHostBlockedAsExpected / GitHubPrPass / IntegrationPending / NativeEffectPending`
 
 ## 1. 阶段目标与结论
 
@@ -38,6 +38,8 @@ R2B1 原计划开始首个 `Clear → SystemDefault` 原生效果实验。开始
 | 严格准入 | 有任一差异时明确阻断 | `outcome=Blocked`；`-RequireReady` 退出 2 | 无 |
 
 定向真实进程测试 1/1、Release 全解决方案 build 0 warning/error、格式和 `git diff --check` 已通过。按 CI 参数执行全量测试为 **1346/1346**；coverage lines **90.38% (46718/51690)**、branches **76.01% (15286/20110)**，继续通过 90%/75% 门槛。191-ID UI 合同与 RC restore 合同通过。
+
+PR #263 首轮远端 run `33050907194` 完整通过：1346/1346，coverage lines **90.09% (46566/51690)**、branches **75.88% (15260/20110)**；格式、构建、启动链、真实环境子进程、UI 合同、配置/产品恢复、资源稳定、文件安全、受限缩略图 Worker、依赖漏洞和内部未签名 RC 清单全部成功。runner 的 Actual 可以与本机硬件不同，但同样没有开放 mutation。
 
 ## 3. 需求对齐与偏移审计
 
