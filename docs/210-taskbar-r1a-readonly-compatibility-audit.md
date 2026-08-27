@@ -40,7 +40,7 @@
 | 静态分析 | 互操作返回值和集合类型无告警 | 首次修正后发现 4 个错误：未使用线程 ID 返回值、`StringBuilder` P/Invoke、两个可具体化返回类型 | 显式检查线程 ID、使用字符数组、返回数组；最终 0 warning / 0 error |
 | 策略测试 | 未认证、冲突、无主任务栏、非 Explorer 所有者、意外修改均失败关闭 | 5 项全部通过 | 无剩余差异 |
 | CI 锁定还原 | 新工程引用必须与测试项目 lock file 一致 | PR 首次 CI 在 `dotnet restore --locked-mode` 返回 `NU1004`，指出测试项目新增 Worker 引用未进入 lock file | 用 `--force-evaluate` 更新测试项目 lock file，再以 `--locked-mode` 真实复验通过；不放宽 CI |
-| CI 格式工作区 | GitHub Windows runner 能加载完整解决方案 | lock file 修正后的 CI 在 Format 报 `Unable to locate dotnet CLI`；项目图中测试程序集直接引用可执行 Worker | 将纯快照/准入策略移入 `LongGrid.Core`，改为 Worker → Core、Tests → Core 的单向依赖；等待 CI 复验，不把本机通过替代 runner 结果 |
+| CI 格式工作区 | GitHub Windows runner 能加载完整解决方案 | lock file 修正后的 CI 在 Format 报 `Unable to locate dotnet CLI`；项目图中测试程序集直接引用可执行 Worker | 将纯快照/准入策略移入 `LongGrid.Core`，改为 Worker → Core、Tests → Core 的单向依赖；CI run `33033409879` 的 locked restore、Format、Build 和全部后续门禁均通过 |
 | 依赖重排编译 | Core/Worker 重排后仍为零告警 | 静态分析要求仅内部使用的 JSON source context 可密封 | 改为 `sealed partial`，不禁用规则；随后重新构建 |
 
 ### 3.2 当前 Windows 真实只读运行
@@ -62,7 +62,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File eng/Test-LongGridTaskbar
 
 脚本最终输出 `Outcome=Pass / Difference=None`。这里的 Pass 只证明 R1A 的只读探测行为符合预期。
 
-全量回归：`dotnet format LongGrid.sln --verify-no-changes --no-restore` 退出码为 0；Release 全解决方案构建预期零警告/零错误，实际 `0/0`；完整核心测试预期零失败，实际 `1277/1277` 通过，其中本阶段新增策略测试 `5/5`。
+全量回归：`dotnet format LongGrid.sln --verify-no-changes --no-restore` 退出码为 0；Release 全解决方案构建预期零警告/零错误，实际 `0/0`；完整核心测试预期零失败，实际 `1277/1277` 通过，其中本阶段新增策略测试 `5/5`。GitHub PR CI run `33033409879` 用 Windows runner 顺序完成 locked restore、格式、构建、产品合同、完整测试/覆盖率、恢复、资源、文件安全、依赖漏洞和内部 unsigned RC 审计，最终 `build-test=success`。
 
 ## 4. M1 阻塞复核
 
