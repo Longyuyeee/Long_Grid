@@ -31,8 +31,12 @@
 | 畸形日志 | 失败关闭并保留现场，不能自动删除“修复” | `RecoveryJournalInvalid / MalformedJson`；原始 `{malformed` 字节完全不变 | 无 |
 | 当前 Windows/Explorer | 真实只读探测通过，但未认证版本不能进入写路径 | Windows `10.0.26200.0`；`Shell_TrayWnd` 与 `Shell_SecondaryTrayWnd` 均归属 Explorer；`ProbeOutcome=Pass`，`RuntimeAdmission=DeniedNoCertifiedBuild` | 无；继续拒绝 |
 | 正式 App 启动接线 | Recovery Worker 不得破坏桌面优先、单实例或退出清理 | Release App 首次 DesktopHost `1`、控制中心 `0`，冷启动 `1090 ms`；二次启动退出码 0 并激活唯一控制中心；3 秒响应、最终存活进程 0、临时配置写入 0 | `Difference=None` |
+| Worker/协议故障 | Hang、退出、畸形/超限响应、错版本、父进程退出、调用取消和启动失败均有限收敛 | 实际分别得到 `WorkerTimeout`、`WorkerExit71/72`、`MalformedResponse`、`ResponseTooLarge`、`InvalidRecoveryResponse`、调用方取消和 `WorkerStartFailed`；无悬挂 Worker | 无 |
+| 目标或路径变化 | build 变化与普通文件冒充恢复目录必须保留现场 | 实际为 `RecoveryDeferredTargetChanged / WindowsBuildChanged` 与 `RecoveryJournalIoFailure / RecoveryLeaseIoFailure`；日志/普通文件内容不变 | 无 |
 
-新增专项真实进程测试 4/4，通过后顺序执行全量核心测试为 **1319/1319**。Release 全解决方案构建为 **0 warning / 0 error**；按 CI 的 TRX、coverage 与 2 分钟 blame-hang 参数隔离重跑仍为 1319/1319，覆盖率 lines **90.16% (46412/51476)**、branches **75.85% (15196/20034)**，没有降低 90%/75% 门槛。最终远端覆盖率与完整门禁以本阶段 PR 的 GitHub Actions 为准。
+新增专项真实进程/协议测试 17/17，通过后顺序执行全量核心测试为 **1332/1332**。Release 全解决方案构建为 **0 warning / 0 error**；按 CI 的 TRX、coverage 与 2 分钟 blame-hang 参数隔离重跑仍为 1332/1332，覆盖率 lines **90.36% (46542/51510)**、branches **75.96% (15234/20054)**，没有降低 90%/75% 门槛。
+
+PR #261 首轮 runner 的 1319/1319 与构建均通过，但 lines 实际为 **89.87% (46260/51476)**，低于门槛；branches 75.72% 已通过。差异来自本地 Windows/Explorer 分支覆盖比 runner 多 152 行，证明最初 90.16% 余量不足。没有重跑碰运气或放宽门槛，补齐上述正式恢复客户端/Worker 的五类协议故障、build 变化、普通文件路径、父进程退出、正式默认路径、调用取消、Worker 启动失败和未知证据故障，最终本地余量提升到 90.36%。最终结论仍以修正提交的 GitHub runner 复验为准。
 
 ## 3. 需求对齐与偏移审计
 

@@ -39,7 +39,8 @@ internal static class Program
                 out StartupRecoveryInvocation? recoveryInvocation)
             && recoveryInvocation is not null)
         {
-            if (recoveryInvocation.DirectoryPath is not null
+            if ((recoveryInvocation.DirectoryPath is not null
+                    || recoveryInvocation.EvidenceFault is not null)
                 && !string.Equals(
                     Environment.GetEnvironmentVariable(
                         EvidenceEnvironmentVariable),
@@ -154,6 +155,13 @@ internal static class Program
 
         try
         {
+            if (invocation.EvidenceFault is not null)
+            {
+                return await RunStartupRecoveryEvidenceFaultAsync(
+                    invocation,
+                    parentMonitor).ConfigureAwait(false);
+            }
+
             string directoryPath = invocation.DirectoryPath
                 ?? TaskbarAppearanceRecoveryPath.ResolveDefaultDirectory();
             TaskbarAppearanceRecoveryLeaseResult leaseResult =
@@ -255,16 +263,50 @@ internal static class Program
         }
     }
 
+    private static async Task<int> RunStartupRecoveryEvidenceFaultAsync(
+        StartupRecoveryInvocation invocation,
+        Task<int> parentMonitor)
+    {
+        switch (invocation.EvidenceFault)
+        {
+            case "hang":
+                return await parentMonitor.ConfigureAwait(false);
+            case "exit":
+                return 71;
+            case "malformed":
+                Console.WriteLine("{malformed");
+                return 0;
+            case "wrong-version":
+                WriteStartupRecoveryResponse(
+                    invocation.RequestId,
+                    TaskbarStartupRecoveryStatus.NoRecoveryRequired,
+                    "Missing",
+                    null,
+                    journalPreserved: false,
+                    report: null,
+                    protocolVersion: TaskbarWorkerProtocol.CurrentVersion + 1);
+                return 0;
+            case "oversized":
+                Console.WriteLine(new string(
+                    'x',
+                    TaskbarWorkerProtocol.MaximumResponseCharacters + 1));
+                return 0;
+            default:
+                return 66;
+        }
+    }
+
     private static void WriteStartupRecoveryResponse(
         string requestId,
         TaskbarStartupRecoveryStatus status,
         string diagnosticCode,
         TaskbarAppearanceRecoveryPhase? recoveryPhase,
         bool journalPreserved,
-        TaskbarCompatibilityReport? report)
+        TaskbarCompatibilityReport? report,
+        int protocolVersion = TaskbarWorkerProtocol.CurrentVersion)
     {
         TaskbarStartupRecoveryWorkerResponse response = new(
-            TaskbarWorkerProtocol.CurrentVersion,
+            protocolVersion,
             TaskbarWorkerProtocol.StartupRecoveryPurpose,
             requestId,
             status,
@@ -419,7 +461,7 @@ internal static class Program
         out StartupRecoveryInvocation? invocation)
     {
         invocation = null;
-        if (args.Length is not (5 or 7)
+        if (args.Length is not (5 or 7 or 9)
             || !string.Equals(
                 args[0],
                 "--startup-recovery",
@@ -434,21 +476,38 @@ internal static class Program
         }
 
         string? directoryPath = null;
-        if (args.Length == 7)
+        string? evidenceFault = null;
+        for (int index = 5; index < args.Length; index += 2)
         {
-            if (!string.Equals(
-                    args[5],
+            if (string.Equals(
+                    args[index],
                     "--evidence-directory",
                     StringComparison.Ordinal)
-                || string.IsNullOrWhiteSpace(args[6]))
+                && directoryPath is null
+                && !string.IsNullOrWhiteSpace(args[index + 1]))
+            {
+                directoryPath = args[index + 1];
+            }
+            else if (string.Equals(
+                         args[index],
+                         "--evidence-fault",
+                         StringComparison.Ordinal)
+                     && evidenceFault is null
+                     && !string.IsNullOrWhiteSpace(args[index + 1]))
+            {
+                evidenceFault = args[index + 1];
+            }
+            else
             {
                 return false;
             }
-
-            directoryPath = args[6];
         }
 
-        invocation = new(parentProcessId, args[4], directoryPath);
+        invocation = new(
+            parentProcessId,
+            args[4],
+            directoryPath,
+            evidenceFault);
         return true;
     }
 
@@ -465,5 +524,6 @@ internal static class Program
     private sealed record StartupRecoveryInvocation(
         int ParentProcessId,
         string RequestId,
-        string? DirectoryPath);
+        string? DirectoryPath,
+        string? EvidenceFault);
 }

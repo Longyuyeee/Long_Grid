@@ -42,14 +42,18 @@ public static class TaskbarAppearanceRecoveryClient
         RecoverAtStartupAsync(
             timeout,
             directoryPath: null,
+            TaskbarWorkerEvidenceFault.None,
             Environment.ProcessId,
+            workerPath: null,
             cancellationToken);
 
     internal static async Task<TaskbarStartupRecoveryClientResult>
         RecoverAtStartupAsync(
             TimeSpan timeout,
             string? directoryPath,
+            TaskbarWorkerEvidenceFault evidenceFault,
             int parentProcessId,
+            string? workerPath = null,
             CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(
@@ -65,7 +69,9 @@ public static class TaskbarAppearanceRecoveryClient
         ProcessStartInfo startInfo = CreateStartInfo(
             requestId,
             parentProcessId,
-            directoryPath);
+            directoryPath,
+            evidenceFault,
+            workerPath);
         using Process worker = new() { StartInfo = startInfo };
         try
         {
@@ -136,9 +142,12 @@ public static class TaskbarAppearanceRecoveryClient
     private static ProcessStartInfo CreateStartInfo(
         string requestId,
         int parentProcessId,
-        string? directoryPath)
+        string? directoryPath,
+        TaskbarWorkerEvidenceFault evidenceFault,
+        string? workerPath)
     {
-        ProcessStartInfo startInfo = new(TaskbarCompatibilityClient.ResolveWorkerPath())
+        ProcessStartInfo startInfo = new(
+            workerPath ?? TaskbarCompatibilityClient.ResolveWorkerPath())
         {
             UseShellExecute = false,
             RedirectStandardOutput = true,
@@ -154,6 +163,21 @@ public static class TaskbarAppearanceRecoveryClient
         {
             startInfo.ArgumentList.Add("--evidence-directory");
             startInfo.ArgumentList.Add(directoryPath);
+            startInfo.Environment[EvidenceEnvironmentVariable] = "1";
+        }
+
+        if (evidenceFault != TaskbarWorkerEvidenceFault.None)
+        {
+            startInfo.ArgumentList.Add("--evidence-fault");
+            startInfo.ArgumentList.Add(evidenceFault switch
+            {
+                TaskbarWorkerEvidenceFault.Hang => "hang",
+                TaskbarWorkerEvidenceFault.Exit => "exit",
+                TaskbarWorkerEvidenceFault.Malformed => "malformed",
+                TaskbarWorkerEvidenceFault.WrongVersion => "wrong-version",
+                TaskbarWorkerEvidenceFault.Oversized => "oversized",
+                _ => throw new ArgumentOutOfRangeException(nameof(evidenceFault)),
+            });
             startInfo.Environment[EvidenceEnvironmentVariable] = "1";
         }
 
