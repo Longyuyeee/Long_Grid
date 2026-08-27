@@ -6,7 +6,7 @@
 
 更新日期：2026-08-27
 
-代码审计基线：`origin/main@f836875`；最新开发审计见 [Stage 210](210-taskbar-r1a-readonly-compatibility-audit.md)
+代码审计基线：`origin/main@b1c240f`；最新开发审计见 [Stage 211](211-taskbar-r1b-bounded-client-personalization-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -78,7 +78,7 @@ UI-R1A 开始前的代码审计显示，正式控制中心仍沿用早期“开�
 | 产品 UI | `origin/main@288838c` 已包含 UI-R1A～UI-R1E-B 工程范围 | 产品导航、真实概览、盒子管理、设置分层、显式启动入口和真实 XAML 渲染证据均已进入主线 | 工程范围完成；高对比、减少动画、Narrator 和物理键盘仍为 `ManualEvidencePending`，不能把 UI-R1 整体标为 Complete |
 | 桌面右键创建 | DesktopHost 已具备创建事务、预览、快捷键、拖画入口和产品内弹出菜单 | 右键“新建方格”当前仅在宿主绘制的“新建”按钮区域触发，不是 Explorer 桌面任意空白区域 | BOX-R1 仍未达到原始核心旅程，必须通过受支持的 Explorer 背景命令补齐入口、冲突处理和物理证据 |
 | 文件夹绑定 | 有安全引用、目录枚举、打开与 Portal/Tab 设计底座 | FOLDER-R1-A/B 已建立 schema v3、稳定身份和绑定事务；C 已将最多 256 个直属项目投影到盒子管理页和 DesktopHost；D 已让运行时快照发布权威有限绑定状态，并以根目录/父目录事件与低频健康探测处理权限拒绝、离线、归来和同路径替换 | A～D 工程链已通过真实文件系统；物理 Picker、可见刷新/打开、键盘和 Narrator 仍 `ProductEvidencePending`，不得写成完整用户旅程已完成 |
-| 任务栏美化 | 有技术审计和产品边界文档 | TASKBAR-R1A 已增加独立只读 Worker，真实 build/任务栏窗口/Explorer 所有权/冲突探测通过，未认证 build 失败关闭；个性化页仍为占位，尚未修改任务栏 | `R1A EngineeringComplete / RealEnvironmentPass / RuntimeAdmissionDenied`；R1B～R4 Pending |
+| 任务栏美化 | 有技术审计和产品边界文档 | TASKBAR-R1A/R1B 已建立独立只读 Worker、有界协议、父进程绑定、故障关闭和个性化真实状态；真实 build/Explorer 所有权探测通过，未认证 build 失败关闭，尚未修改任务栏 | `R1 EngineeringComplete / RealProcessPass / RuntimeAdmissionDenied`；R2～R4 Pending |
 | Explorer 与盒子拖放 | PF-007A1 已完成 `CF_HDROP` 有界解析、安全准入和原子配置请求 | PF-007A2 已完成正式 OLE Link 拖入工程链；PF-007B 已完成已选正式引用在盒子间的原生有限拖动、冻结权威准入、原子保存/补偿和一次撤销；真实 STA/HWND/隔离文件零变化通过 | A/B `EngineeringComplete / RealHwndPass / ProductEvidencePending`；物理 Explorer 与盒子间指针证据留在 M1 集中证据 |
 | 小组件/Long助手插件 | LPWP 1.0 等协议文档存在 | 只有 Windows App SDK Widgets 的传递依赖，没有 Widget Host 或插件小组件运行时 | 方向对齐但仍是 M4；不得抢占三根核心支柱 |
 | 启动与打包 | 根目录 `启动Long方格.cmd` 和 `eng` 启动、打包、MSIX、RC/SBOM 脚本存在 | 内部未签名链可用，正式签名和发布矩阵仍待 M5 | 工程入口基本对齐，发布能力未闭环 |
@@ -87,7 +87,7 @@ GitHub 集成结果：#238 已注明被 #239 覆盖并关闭；#239、#240、#24
 
 代码结构风险仍然偏高：`MainWindow.xaml.cs` 5,289 行、`App.xaml.cs` 4,053 行、`WindowsProductDesktopHostReadOnlySurface.cs` 3,391 行。后续在 BOX-R1/FOLDER-R1 的用户旅程内就近提取页面协调器、创建/绑定服务与原生输入适配器；不得另开长期“纯重构阶段”，也不得继续把新业务集中进上述三个文件。
 
-本次没有发现产品目标再次偏移；“开放分支被当成已交付”的集成偏移已经纠正，“底座成熟度被当成核心旅程完成度”的口径偏移继续由本文约束。M1 物理证据因已确认的上游 UIA 缺陷和当前会话既有提升权限进程保持 Pending；不得再增加 M1 邻接探针。受控切换到 TASKBAR-R1A/R1B 继续第三根 Core 支柱，安全运行时和专用环境可用后立即恢复 M1 物理证据；不插入自动整理、小组件或新协议功能。
+本次没有发现产品目标再次偏移；“开放分支被当成已交付”的集成偏移已经纠正，“底座成熟度被当成核心旅程完成度”的口径偏移继续由本文约束。M1 物理证据因已确认的上游 UIA 缺陷和当前会话既有提升权限进程保持 Pending；不得再增加 M1 邻接探针。TASKBAR-R1A/R1B 已受控完成，安全运行时和专用环境可用后立即恢复 M1 物理证据；在此之前只按 R2/R3/R4 安全顺序推进第三根 Core 支柱，不插入自动整理、小组件或新协议功能。
 
 ## 4. Long_Decompress 界面参考审计
 
@@ -201,7 +201,7 @@ GitHub 集成结果：#238 已注明被 #239 覆盖并关闭；#239、#240、#24
 | 盒子绑定文件夹 | FOLDER-R1 A～D 工程链与真实 NTFS 身份、内容、事件、权限/离线恢复已完成；物理 Picker、可见刷新/打开、键盘和 Narrator 未闭环 | M1 |
 | Explorer 拖入和方格间整理 | PF-007A2/B 已完成正式 OLE Link、盒子间改归属、原子提交和撤销；真实 Explorer/盒子间物理指针证据未完成 | M1 |
 | 正常、现代的软件 UI | UI-R1A～UI-R1D 已完成产品结构；UI-R1E-A 已取得真实浅/深色、宽/紧凑渲染并修正标题重叠，高对比/减少动画仍待补 | M1，持续纠偏 |
-| 任务栏美化 | 竞品/技术边界文档存在，运行时和设置 UI 未实现 | M2，核心支柱 |
+| 任务栏美化 | R1A/R1B 已完成独立只读 Worker、有界正式客户端、父进程绑定、故障关闭和个性化真实状态；当前 build 未认证，尚无样式预设或系统修改 | M2，R2/R3/R4 Pending |
 | 自动分类整理 | 未形成真实规则用户闭环 | M3 扩展 |
 | 快速隐藏、托盘、快捷键 | 未完成 | M3 扩展 |
 | 布局快照与多显示器恢复 | 底座较强，完整产品页和用户证据未闭环 | M3 扩展 |
@@ -265,7 +265,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**TASKBAR-R1B 独立 Worker 产品接线**。M1 工程链保持 `EngineeringComplete / ProductEvidencePending`；当前机器的 WinUI 跨进程 UIA 预检仍失败且存在不可管理的提升权限 LongGrid 进程，因此没有伪造物理证据。TASKBAR-R1A 已完成只读探测、真实环境复测和未认证 build 失败关闭；R1B 只做有界协议、超时/崩溃隔离和个性化页真实状态。
+当前执行项：**TASKBAR-R2A 最小可恢复应用事务**。M1 工程链保持 `EngineeringComplete / ProductEvidencePending`；当前机器的 WinUI 跨进程 UIA 预检仍失败，因此没有伪造物理证据。TASKBAR-R1A/R1B 已完成只读探测、有界正式客户端、超时/崩溃/坏响应隔离、父进程绑定和个性化页真实状态；R2A 必须先完成系统默认快照、一次应用、15 秒确认和自动回退状态机，未经认证的 build 仍不得进入原生写入。
 
 严格按下列顺序交付，不再插入相邻探针或新宽度功能：
 
@@ -278,7 +278,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 7. **FOLDER-R1（A～D EngineeringComplete / RealFilesystemPass / ProductEvidencePending）**：A 持久化/身份/健康合同 → B 显式选择、取消零写入、绑定/解绑/重连原子提交 → C 目录内容呈现、显式刷新、变更通知和安全打开 → D 权限、离线、同路径替换、失效恢复和有限状态；物理 Picker、可见刷新/打开、键盘和 Narrator 进入 M1 集中证据。
 8. **PF-007A2 / PF-007B（EngineeringComplete / RealHwndPass / ProductEvidencePending）**：A2 已完成正式 HWND OLE DropTarget 和安全 Link 引用提交；B 已完成盒子间改归属、无效目标、失败补偿和一次撤销。
 9. **M1 产品证据冲刺（ExternalEnvironmentBlocked）**：完整两分钟旅程，而不是分散控件证据；等待安全 WinUI 运行时、专用账户和可安装签名条件，不降低出口。
-10. **TASKBAR-R1～R4（当前执行 R1B）**：R1A 独立只读探测已通过真实 Windows build 26200，且保持 `DeniedNoCertifiedBuild`；R1B 接入有界 Worker 生命周期和真实个性化状态，之后再做 R2 应用、R3 回退和 R4 真实兼容矩阵。
+10. **TASKBAR-R1～R4（R1 完成，当前执行 R2A）**：R1 独立只读探测、有界正式客户端、父进程绑定和个性化真实状态已通过真实 Windows build 26200，且保持 `DeniedNoCertifiedBuild`；R2A 先做系统默认与清透的最小可恢复事务，R3 完成崩溃/Explorer 重启/禁用/卸载恢复，R4 取得真实兼容矩阵。
 
 UI-R1 允许重构产品壳层，但不得重写已经验证的 Core、配置事务和 DesktopHost 安全边界。
 
@@ -447,9 +447,9 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 ## 12. 当前完成度口径
 
 - 工程底座：较强，PF-001～PF-006 已具备大量正式链路；
-- GitHub 主分支交付：UI-R1A～UI-R1E、BOX-R1-A/B、FOLDER-R1-A～D、PF-007A2/B 与 M1-A/B 证据安全入口均已合入 `origin/main@f836875`；完整事实见 [Stage 209](209-current-development-alignment-audit.md)；TASKBAR-R1A 以本阶段 PR 为交付边界；
+- GitHub 主分支交付：UI-R1A～UI-R1E、BOX-R1-A/B、FOLDER-R1-A～D、PF-007A2/B、M1-A/B 证据安全入口与 TASKBAR-R1A 均已合入 `origin/main@b1c240f`；TASKBAR-R1B 以 [Stage 211](211-taskbar-r1b-bounded-client-personalization-audit.md) 和当前 PR 为交付边界；
 - M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，BOX-R1-C、FOLDER-R1、真实 Explorer 指针拖入和盒子间物理拖动证据 Pending；当前为 `ExternalEnvironmentBlocked`，不降低出口；
-- M2 任务栏美化核心：TASKBAR-R1A 独立只读 Worker 已通过真实环境测试，未修改任务栏且未认证 build 坚持拒绝；R1B～R4 未完成，因此产品运行时和预设仍不可用；
+- M2 任务栏美化核心：TASKBAR-R1A/R1B 独立只读 Worker、正式 App 有界接线和个性化真实状态已通过；未修改任务栏且未认证 build 坚持拒绝；R2～R4 未完成，因此样式预设仍不可用；
 - M3 桌面管理增强：未开始闭环；
 - M4 工作空间/小组件/插件：协议或文档阶段；
 - M5 正式交付：内部未签名链存在，正式发布未开始。
@@ -546,7 +546,7 @@ PF-007B DesktopHost 盒子间改归属记录（2026-08-26，基线 `origin/main@
 
 ## 13. 下一步开始条件
 
-下一次开发进入 M1 产品证据冲刺，不再增加 PF-007 相邻底座。使用可丢弃 Windows 测试账户，按“安装 BOX-R1 命令 → 桌面空白处创建盒子 → Picker 绑定真实文件夹并刷新/打开 → Explorer Link 拖入 → 选中项目拖到另一盒子并撤销 → 高对比/减少动画/键盘/Narrator → 卸载并核对恢复”的完整旅程记录预期、实际、差异和修正。任何环境阻断必须保持 Pending，不能再以 reducer、源码合同或证据入口冒充物理 Pass。M1 通过后才进入 TASKBAR-R1～R4。
+M1 产品证据冲刺的开始条件保持不变：取得安全 WinUI 运行时、可丢弃 Windows 测试账户和可安装签名条件后，按“安装 BOX-R1 命令 → 桌面空白处创建盒子 → Picker 绑定真实文件夹并刷新/打开 → Explorer Link 拖入 → 选中项目拖到另一盒子并撤销 → 高对比/减少动画/键盘/Narrator → 卸载并核对恢复”的完整旅程记录预期、实际、差异和修正。环境阻断必须保持 Pending，不能以 reducer、源码合同或证据入口冒充物理 Pass。等待期间任务栏只按 R2/R3/R4 的安全顺序推进，不扩张其他功能宽度。
 
 ### 13.1 M1-A 隔离人工产品会话（2026-08-26）
 
@@ -561,7 +561,7 @@ PF-007B DesktopHost 盒子间改归属记录（2026-08-26，基线 `origin/main@
 | 真实产品窗口 | 正式窗口可见并可由物理输入完成创建/绑定 | 正式 Release 正常产品窗口已显示“桌面概览/盒子管理/个性化/设置”；隔离窗口恢复时连续检测到活跃用户输入和最小化，Computer Use 按规则停止抢占 | `ProductEvidencePending`；没有把启动日志或截图冒充点击通过，待空闲桌面或可丢弃账户继续 |
 | DesktopHost 完整旅程 | 桌面右键、Explorer 拖入、盒子间拖动和撤销均用真实鼠标完成 | 当前已有一份无法由本会话结束的高权限 Long方格常驻进程；隔离控制中心会话为避免双宿主显式禁用 DesktopHost | `EnvironmentBlocked / ProductEvidencePending`；不绕过权限、不强杀、不修改安全策略 |
 
-专项真实探针预期进程存活、四阶段齐全、配置隔离、正常配置零变化和夹具零变化，实际全部通过，`Difference=None`。CI 只运行 `-ValidateOnly` 验证入口合同，不把无交互 runner 当作物理证据；下一次仍从 M1 物理输入继续，而不是转入 TASKBAR-R1。
+专项真实探针预期进程存活、四阶段齐全、配置隔离、正常配置零变化和夹具零变化，实际全部通过，`Difference=None`。CI 只运行 `-ValidateOnly` 验证入口合同，不把无交互 runner 当作物理证据；M1 在环境可用后恢复。环境阻塞期间已受控完成 TASKBAR-R1A/R1B，详见 [Stage 210](210-taskbar-r1a-readonly-compatibility-audit.md)与 [Stage 211](211-taskbar-r1b-bounded-client-personalization-audit.md)。
 
 ### 13.2 M1-B 控制中心物理旅程与外部自动化运行时门禁（2026-08-26）
 

@@ -104,8 +104,8 @@ public static class TaskbarCompatibilityPolicy
                     : TaskbarRuntimeAdmission.Allowed;
 
         return new TaskbarCompatibilityReport(
-            SchemaVersion: 1,
-            Purpose: "TaskbarR1ReadOnlyCompatibilityProbe",
+            SchemaVersion: TaskbarWorkerProtocol.CurrentVersion,
+            Purpose: TaskbarWorkerProtocol.ProbePurpose,
             Expected: new TaskbarCompatibilityExpected(
                 Windows: true,
                 PrimaryTaskbarCount: 1,

@@ -9,6 +9,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LongGrid.Core\LongGrid.Core.csproj" />
+    <ProjectReference
+        Include="..\LongGrid.TaskbarWorker\LongGrid.TaskbarWorker.csproj"
+        ReferenceOutputAssembly="false"
+        OutputItemType="Content"
+        CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="..\LongGrid.ThumbnailWorker\LongGrid.ThumbnailWorker.csproj" />
   </ItemGroup>
 
