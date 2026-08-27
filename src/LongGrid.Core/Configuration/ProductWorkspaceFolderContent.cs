@@ -32,6 +32,8 @@ public sealed record ProductWorkspaceContainerFolderContent(
     public bool HasValidShape =>
         !string.IsNullOrWhiteSpace(ContainerId)
         && Generation > 0
+        && Enum.IsDefined(Status)
+        && SkippedReparsePointCount >= 0
         && Items is not null
         && (BindingResolution is null || Enum.IsDefined(BindingResolution.Value))
         && Items.Count <= MaximumItems
@@ -64,6 +66,45 @@ public sealed record ProductWorkspaceFolderContentSet(
         0,
         new Dictionary<string, ProductWorkspaceContainerFolderContent>(
             StringComparer.Ordinal));
+
+    public static ProductWorkspaceFolderContentSet CreatePending(
+        ProductWorkspaceState state,
+        long generation)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(state.Containers);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(generation);
+
+        var containers = new Dictionary<
+            string,
+            ProductWorkspaceContainerFolderContent>(StringComparer.Ordinal);
+        foreach (ProductContainerState container in state.Containers)
+        {
+            if (container?.FolderBinding is not { } binding)
+            {
+                continue;
+            }
+
+            ProductWorkspaceFolderContentStatus status = binding.Resolution switch
+            {
+                ProductContainerFolderBindingResolution.Resolved =>
+                    ProductWorkspaceFolderContentStatus.AwaitingRefresh,
+                ProductContainerFolderBindingResolution.AccessDenied =>
+                    ProductWorkspaceFolderContentStatus.AccessDenied,
+                ProductContainerFolderBindingResolution.InvalidTarget =>
+                    ProductWorkspaceFolderContentStatus.InvalidTarget,
+                _ => ProductWorkspaceFolderContentStatus.BindingUnavailable,
+            };
+            containers[container.Id] = new(
+                container.Id,
+                generation,
+                status,
+                Array.Empty<ProductWorkspaceFolderContentItem>(),
+                BindingResolution: binding.Resolution);
+        }
+
+        return new(generation, containers);
+    }
 
     public ProductWorkspaceContainerFolderContent? Find(string containerId) =>
         Containers.TryGetValue(containerId, out var content) ? content : null;

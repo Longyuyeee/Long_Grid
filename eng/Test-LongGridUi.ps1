@@ -41,6 +41,8 @@ $resolvedReferenceReassignmentPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceResolvedReferenceReassignmentPresentation.cs'
 $workspaceReadModelCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReadModel.cs'
+$folderContentModelCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceFolderContent.cs'
 $folderContentReaderCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\Configuration\WindowsProductContainerFolderContentReader.cs'
 $folderContentWatcherCodePath = Join-Path $projectRoot `
@@ -301,6 +303,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $workspaceReadModelCode = Get-Content `
         -LiteralPath $workspaceReadModelCodePath `
+        -Raw `
+        -Encoding UTF8
+    $folderContentModelCode = Get-Content `
+        -LiteralPath $folderContentModelCodePath `
         -Raw `
         -Encoding UTF8
     $folderContentReaderCode = Get-Content `
@@ -1315,6 +1321,16 @@ function Test-SourceContract {
         $codeBehind -match '_commitProductWorkspaceContainerFolderSort' -and
         $codeBehind -match 'DesktopFilesChanged=False'
     ) 'Bound-folder sorting must be explicit, persisted, disabled by default, and non-mutating.'
+    Assert-Condition (
+        $folderContentModelCode -match `
+            'CreatePending[\s\S]{0,1800}AwaitingRefresh' -and
+        $appFolderContentsCode -match `
+            'CreatePending[\s\S]{0,500}PublishProductWorkspaceFolderLoadingState' -and
+        $appFolderContentsCode -match `
+            'generation\s*==\s*folderContentGeneration' -and
+        $codeBehind -match `
+            'ProductWorkspaceFolderContentStatus\.AwaitingRefresh[\s\S]{0,120}正在加载绑定文件夹内容'
+    ) 'Bound-folder loading must publish a finite current-generation state before enumeration completes.'
     foreach ($entry in @{
             ProductWorkspaceFolderBindButton =
                 'ProductWorkspaceFolderBindButton_Click'

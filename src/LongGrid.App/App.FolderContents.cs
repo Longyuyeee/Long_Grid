@@ -51,10 +51,11 @@ public partial class App
             return;
         }
 
-        if (!string.Equals(
+        bool fingerprintChanged = !string.Equals(
             folderContentFingerprint,
             fingerprint,
-            StringComparison.Ordinal))
+            StringComparison.Ordinal);
+        if (fingerprintChanged)
         {
             folderContents = ProductWorkspaceFolderContentSet.Empty;
         }
@@ -75,11 +76,36 @@ public partial class App
 
         long generation = checked(++folderContentGeneration);
         long workspaceRevision = workspaceCommits.CurrentEditRevision;
+        folderContents = ProductWorkspaceFolderContentSet.CreatePending(
+            state,
+            generation);
+        PublishProductWorkspaceFolderLoadingState(generation);
         folderContentRefreshTask = ReadAndPublishProductWorkspaceFolderContentsAsync(
             state,
             workspaceRevision,
             generation,
             cancellationToken);
+    }
+
+    private void PublishProductWorkspaceFolderLoadingState(long generation)
+    {
+        MainWindow? currentWindow = window;
+        if (currentWindow is null)
+        {
+            return;
+        }
+
+        _ = currentWindow.DispatcherQueue.TryEnqueue(() =>
+        {
+            if (generation == folderContentGeneration
+                && folderContents.Generation == generation
+                && folderContents.Containers.Values.Any(content =>
+                    content.Status ==
+                        ProductWorkspaceFolderContentStatus.AwaitingRefresh))
+            {
+                ApplyProductWorkspaceSessionViews();
+            }
+        });
     }
 
     private async Task ReadAndPublishProductWorkspaceFolderContentsAsync(
