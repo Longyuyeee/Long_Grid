@@ -2515,6 +2515,19 @@ public sealed partial class MainWindow : Window
                 _ => " 正在准备文件夹内容。",
             };
         }
+        if (readContainer?.FolderBindingRecoveredFrom is { } recoveredFrom)
+        {
+            ProductWorkspaceFolderBindingStatus.Text += recoveredFrom switch
+            {
+                ProductContainerFolderBindingResolution.AccessDenied =>
+                    " 文件夹访问权限已恢复。",
+                ProductContainerFolderBindingResolution.Missing =>
+                    " 文件夹已恢复在线。",
+                ProductContainerFolderBindingResolution.Replaced =>
+                    " 原绑定文件夹已恢复。",
+                _ => " 文件夹访问已恢复。",
+            };
+        }
         ProductWorkspaceFolderRefreshButton.IsEnabled = selected is not null
             && selected.FolderBindingResolution ==
                 ProductContainerFolderBindingResolution.Resolved;
@@ -2524,6 +2537,7 @@ public sealed partial class MainWindow : Window
                 $"{readContainer?.FolderContentStatus?.ToString() ?? "None"}:" +
                 $"Items={readContainer?.FolderContentItemCount ?? 0}:" +
                 $"Sort={selected?.FolderContentSortMode?.ToString() ?? "None"}:" +
+                $"RecoveredFrom={readContainer?.FolderBindingRecoveredFrom?.ToString() ?? "None"}:" +
                 "Changed=False:DesktopFilesChanged=False");
     }
 

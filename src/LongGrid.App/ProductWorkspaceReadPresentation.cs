@@ -21,7 +21,9 @@ internal sealed record ProductWorkspaceReadContainerPresentation(
     string MachineStatus,
     IReadOnlyList<ProductWorkspaceReadItemPresentation> Items,
     ProductWorkspaceFolderContentStatus? FolderContentStatus = null,
-    int FolderContentItemCount = 0)
+    int FolderContentItemCount = 0,
+    ProductContainerFolderBindingResolution?
+        FolderBindingRecoveredFrom = null)
 {
     public string NavigationAccessibilityName =>
         $"查看并管理方格 {Ordinal}，{DisplayName}";
@@ -118,7 +120,8 @@ internal sealed record ProductWorkspaceReadPresentation(
                         ? Array.Empty<ProductWorkspaceReadItemPresentation>()
                         : container.Items.Select(CreateItem).ToArray(),
                     container.FolderContentStatus,
-                    container.FolderContentItemCount);
+                    container.FolderContentItemCount,
+                    container.FolderBindingRecoveredFrom);
             })
             .ToArray();
 

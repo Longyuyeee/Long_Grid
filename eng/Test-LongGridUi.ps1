@@ -1331,6 +1331,16 @@ function Test-SourceContract {
         $codeBehind -match `
             'ProductWorkspaceFolderContentStatus\.AwaitingRefresh[\s\S]{0,120}正在加载绑定文件夹内容'
     ) 'Bound-folder loading must publish a finite current-generation state before enumeration completes.'
+    Assert-Condition (
+        $folderContentModelCode -match `
+            'MarkRecoveriesFrom[\s\S]{0,2200}RecoveredFromBindingResolution' -and
+        $appFolderContentsCode -match `
+            'lastPublishedFolderContents[\s\S]{0,5000}MarkRecoveriesFrom\(recoveryBaseline\)' -and
+        $codeBehind -match `
+            'FolderBindingRecoveredFrom[\s\S]{0,900}文件夹访问权限已恢复' -and
+        $codeBehind -match `
+            'RecoveredFrom=\{readContainer\?\.FolderBindingRecoveredFrom'
+    ) 'Bound-folder recovery must be a path-free, non-replayed transition from a prior finite failure.'
     foreach ($entry in @{
             ProductWorkspaceFolderBindButton =
                 'ProductWorkspaceFolderBindButton_Click'

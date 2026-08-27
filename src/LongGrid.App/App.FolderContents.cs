@@ -10,6 +10,8 @@ public partial class App
     private CancellationTokenSource? folderContentRefreshCancellation;
     private ProductWorkspaceFolderContentSet folderContents =
         ProductWorkspaceFolderContentSet.Empty;
+    private ProductWorkspaceFolderContentSet lastPublishedFolderContents =
+        ProductWorkspaceFolderContentSet.Empty;
     private Task folderContentRefreshTask = Task.CompletedTask;
     private string? folderContentFingerprint;
     private long folderContentGeneration;
@@ -58,6 +60,7 @@ public partial class App
         if (fingerprintChanged)
         {
             folderContents = ProductWorkspaceFolderContentSet.Empty;
+            lastPublishedFolderContents = ProductWorkspaceFolderContentSet.Empty;
         }
         folderContentFingerprint = fingerprint;
         folderContentWatcher.Configure(state);
@@ -70,12 +73,15 @@ public partial class App
             || state.Containers.All(container => container.FolderBinding is null))
         {
             folderContents = ProductWorkspaceFolderContentSet.Empty;
+            lastPublishedFolderContents = ProductWorkspaceFolderContentSet.Empty;
             folderContentRefreshTask = Task.CompletedTask;
             return;
         }
 
         long generation = checked(++folderContentGeneration);
         long workspaceRevision = workspaceCommits.CurrentEditRevision;
+        ProductWorkspaceFolderContentSet recoveryBaseline =
+            lastPublishedFolderContents;
         folderContents = ProductWorkspaceFolderContentSet.CreatePending(
             state,
             generation);
@@ -84,6 +90,7 @@ public partial class App
             state,
             workspaceRevision,
             generation,
+            recoveryBaseline,
             cancellationToken);
     }
 
@@ -112,6 +119,7 @@ public partial class App
         ProductWorkspaceState state,
         long workspaceRevision,
         long generation,
+        ProductWorkspaceFolderContentSet recoveryBaseline,
         CancellationToken cancellationToken)
     {
         ProductWorkspaceFolderContentSet result;
@@ -146,7 +154,8 @@ public partial class App
                     && workspaceRevision == workspaceCommits.CurrentEditRevision
                     && generation == folderContentGeneration)
                 {
-                    folderContents = result;
+                    folderContents = result.MarkRecoveriesFrom(recoveryBaseline);
+                    lastPublishedFolderContents = folderContents;
                     ApplyProductWorkspaceSessionViews();
                 }
             }
