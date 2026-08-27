@@ -19,6 +19,8 @@ $codeBehindPath = Join-Path $projectRoot 'src\LongGrid.App\MainWindow.xaml.cs'
 $taskbarCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\MainWindow.Taskbar.cs'
 $appCodePath = Join-Path $projectRoot 'src\LongGrid.App\App.xaml.cs'
+$appFolderContentsCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\App.FolderContents.cs'
 $pf002AppEvidenceCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductPf002AppEvidenceSession.cs'
 $winUiRuntimeSafetyCodePath = Join-Path $projectRoot `
@@ -43,6 +45,8 @@ $folderContentReaderCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\Configuration\WindowsProductContainerFolderContentReader.cs'
 $folderContentWatcherCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceFolderContentWatcher.cs'
+$selectedFolderBindingPathPolicyCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceSelectedFolderBindingPathPolicy.cs'
 $workspaceReviewShortcutPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReviewShortcutPolicy.cs'
 $workspaceContainerNavigationPolicyCodePath = Join-Path $projectRoot `
@@ -255,6 +259,10 @@ function Test-SourceContract {
         -Raw `
         -Encoding UTF8
     $appCode = Get-Content -LiteralPath $appCodePath -Raw -Encoding UTF8
+    $appFolderContentsCode = Get-Content `
+        -LiteralPath $appFolderContentsCodePath `
+        -Raw `
+        -Encoding UTF8
     $pf002AppEvidenceCode = Get-Content `
         -LiteralPath $pf002AppEvidenceCodePath `
         -Raw `
@@ -301,6 +309,10 @@ function Test-SourceContract {
         -Encoding UTF8
     $folderContentWatcherCode = Get-Content `
         -LiteralPath $folderContentWatcherCodePath `
+        -Raw `
+        -Encoding UTF8
+    $selectedFolderBindingPathPolicyCode = Get-Content `
+        -LiteralPath $selectedFolderBindingPathPolicyCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceReviewShortcutPolicyCode = Get-Content `
@@ -769,6 +781,7 @@ function Test-SourceContract {
         'ProductWorkspaceContainerLockButton',
         'ProductWorkspaceContainerCollapseButton',
         'ProductWorkspaceFolderBindingStatus',
+        'ProductWorkspaceFolderBindingPath',
         'ProductWorkspaceFolderBindButton',
         'ProductWorkspaceFolderUnbindButton',
         'ProductWorkspaceFolderRefreshButton',
@@ -1256,6 +1269,32 @@ function Test-SourceContract {
         $folderBindingStatusNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
             'FolderBindingUnavailable:Changed=False:DesktopFilesChanged=False'
     ) 'Folder binding must start finite, unavailable, and non-mutating.'
+    $folderBindingPathNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceFolderBindingPath'
+    Assert-Condition (
+        $folderBindingPathNode.GetAttribute('Visibility') -eq 'Collapsed' -and
+        $folderBindingPathNode.GetAttribute('IsTextSelectionEnabled') -eq 'True' -and
+        $folderBindingPathNode.GetAttribute('AutomationProperties.Name') -eq `
+            '当前绑定文件夹路径' -and
+        $appCode -match 'ResolveProductWorkspaceFolderBindingDisplayPath' -and
+        $appFolderContentsCode -match `
+            'ResolveProductWorkspaceFolderBindingDisplayPath' -and
+        $appFolderContentsCode -match `
+            'ProductWorkspaceSelectedFolderBindingPathPolicy\.Resolve' -and
+        $selectedFolderBindingPathPolicyCode -match `
+            'requestedEditRevision\s*!=\s*currentEditRevision' -and
+        $selectedFolderBindingPathPolicyCode -match 'binding\.PersistedTarget' -and
+        $codeBehind -match 'ProductWorkspaceFolderBindingPath\.Visibility' -and
+        $codeBehind -match '当前绑定路径'
+    ) 'The selected box must show its configured folder path only in the explicit management surface.'
+    Assert-Condition (
+        $containerEditPresentationCode -notmatch `
+            'PersistedTarget|CanonicalTarget|FolderBindingDisplayPath' -and
+        $workspaceReadModelCode -notmatch 'PersistedTarget' -and
+        $codeBehind -notmatch `
+            'SetItemStatus\([\s\S]{0,300}ProductWorkspaceFolderBindingPath'
+    ) 'The selected folder path must stay out of machine status and the general read model.'
     foreach ($entry in @{
             ProductWorkspaceFolderBindButton =
                 'ProductWorkspaceFolderBindButton_Click'

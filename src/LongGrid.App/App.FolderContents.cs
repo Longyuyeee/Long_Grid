@@ -23,6 +23,19 @@ public partial class App
     private void EnsureProductWorkspaceFolderContents() =>
         StartProductWorkspaceFolderContentRefresh(force: false);
 
+    private string? ResolveProductWorkspaceFolderBindingDisplayPath(
+        long editRevision,
+        int containerOrdinal)
+    {
+        ProductWorkspaceSelectedFolderBindingPathResult result =
+            ProductWorkspaceSelectedFolderBindingPathPolicy.Resolve(
+                productWorkspaceSession.State,
+                workspaceCommits.CurrentEditRevision,
+                editRevision,
+                containerOrdinal);
+        return result.IsAvailable ? result.DisplayPath : null;
+    }
+
     private void StartProductWorkspaceFolderContentRefresh(bool force)
     {
         ProductWorkspaceState? state = productWorkspaceSession.State;

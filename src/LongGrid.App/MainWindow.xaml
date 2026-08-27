@@ -730,6 +730,16 @@
                                             Foreground="{ThemeResource LongGridTextSecondaryBrush}"
                                             Text="选择盒子后可绑定一个真实文件夹；Long方格不会移动其中的文件。"
                                             TextWrapping="Wrap" />
+                                        <TextBlock
+                                            x:Name="ProductWorkspaceFolderBindingPath"
+                                            AutomationProperties.AutomationId="ProductWorkspaceFolderBindingPath"
+                                            AutomationProperties.Name="当前绑定文件夹路径"
+                                            FontFamily="Consolas"
+                                            FontSize="11"
+                                            Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                            IsTextSelectionEnabled="True"
+                                            TextWrapping="Wrap"
+                                            Visibility="Collapsed" />
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <Button
                                                 x:Name="ProductWorkspaceFolderBindButton"
