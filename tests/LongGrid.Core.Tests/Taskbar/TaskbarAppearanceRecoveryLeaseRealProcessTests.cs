@@ -76,10 +76,11 @@ public sealed class TaskbarAppearanceRecoveryLeaseRealProcessTests
             worker = null;
 
             TaskbarAppearanceRecoveryLeaseResult afterCrash =
-                TaskbarAppearanceRecoveryLease.TryAcquire(directory);
-            using TaskbarAppearanceRecoveryLease? recoveryLease =
-                afterCrash.Lease;
+                await WaitForLeaseAsync(directory, TimeSpan.FromSeconds(3));
             Assert.True(afterCrash.IsAcquired);
+            TaskbarAppearanceRecoveryLease recoveryLease = afterCrash.Lease!;
+            recoveryLease.Dispose();
+            Assert.False(recoveryLease.IsHeld);
         }
         finally
         {
@@ -94,7 +95,7 @@ public sealed class TaskbarAppearanceRecoveryLeaseRealProcessTests
                 worker.Dispose();
             }
 
-            Directory.Delete(directory, recursive: true);
+            await DeleteTemporaryDirectoryWithRetryAsync(directory);
         }
     }
 
@@ -349,6 +350,45 @@ public sealed class TaskbarAppearanceRecoveryLeaseRealProcessTests
         return Process.Start(startInfo)
             ?? throw new InvalidOperationException(
                 "Failed to start the formal taskbar worker.");
+    }
+
+    private static async Task<TaskbarAppearanceRecoveryLeaseResult>
+        WaitForLeaseAsync(string directory, TimeSpan timeout)
+    {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        TaskbarAppearanceRecoveryLeaseResult result;
+        do
+        {
+            result = TaskbarAppearanceRecoveryLease.TryAcquire(directory);
+            if (result.Status != TaskbarAppearanceRecoveryLeaseStatus.Contended)
+            {
+                return result;
+            }
+
+            await Task.Delay(50);
+        }
+        while (stopwatch.Elapsed < timeout);
+
+        return result;
+    }
+
+    private static async Task DeleteTemporaryDirectoryWithRetryAsync(
+        string directory)
+    {
+        for (int attempt = 1; attempt <= 40; attempt++)
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+                return;
+            }
+            catch (Exception exception) when (
+                attempt < 40
+                && exception is IOException or UnauthorizedAccessException)
+            {
+                await Task.Delay(50);
+            }
+        }
     }
 
     private static string CreateTemporaryDirectory()

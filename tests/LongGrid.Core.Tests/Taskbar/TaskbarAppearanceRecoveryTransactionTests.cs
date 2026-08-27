@@ -483,7 +483,7 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
                 TaskbarAppearanceRecoveryPhase.Applied,
                 afterKill.Journal.Phase);
             using TaskbarAppearanceRecoveryLease recoveryLease =
-                AcquireLease(directory);
+                await WaitForLeaseAsync(directory, TimeSpan.FromSeconds(3));
             TaskbarAppearanceRecoveryJournalStore recoveryStore =
                 new(directory, recoveryLease);
             Assert.True(await recoveryStore.ClearAsync(
@@ -573,6 +573,33 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
                 await Task.Delay(50);
             }
         }
+    }
+
+    private static async Task<TaskbarAppearanceRecoveryLease> WaitForLeaseAsync(
+        string directory,
+        TimeSpan timeout)
+    {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        TaskbarAppearanceRecoveryLeaseResult result;
+        do
+        {
+            result = TaskbarAppearanceRecoveryLease.TryAcquire(directory);
+            if (result.IsAcquired)
+            {
+                return result.Lease!;
+            }
+
+            if (result.Status != TaskbarAppearanceRecoveryLeaseStatus.Contended)
+            {
+                Assert.Fail(result.DiagnosticCode);
+            }
+
+            await Task.Delay(50);
+        }
+        while (stopwatch.Elapsed < timeout);
+
+        Assert.Fail(result.DiagnosticCode);
+        throw new InvalidOperationException("Unreachable assertion fallback.");
     }
 
     private static TaskbarAppearanceTransactionSnapshot Staged() =>
