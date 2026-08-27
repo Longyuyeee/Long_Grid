@@ -572,6 +572,8 @@ FOLDER-R1 恢复状态可见性纠偏记录（2026-08-28，基线 `origin/main@9
 
 本次只纠正原始 P0 的恢复状态可见性，不改变目录枚举、打开、排序、watcher 或持久化边界。BOX-R1-C/D 与 M1 仍因受保护签名、可丢弃账户和安全 WinUI 运行时缺失保持 `ExternalEnvironmentBlocked / ProductEvidencePending`。
 
+PR #270 Windows runner run `33096351434` 完整通过：`1,381/1,381`，coverage lines `90.12% (46926/52072)`、branches `76.04% (15434/20298)`；Release `0 warning / 0 error`，198-ID UI/批量无障碍/clean-session 合同、格式、启动与恢复、真实文件安全、原生宿主、受限缩略图 Worker、依赖漏洞和内部未签名 RC/SBOM 交付集均成功。远端与本地功能结论无差异，物理可见恢复与 Narrator 证据状态保持 Pending。
+
 PF-007A2 DesktopHost OLE DropTarget 记录（2026-08-26，基线 `origin/main@53c8b5e`）：
 
 | 检查 | 预期效果 | 实际效果 | 差异与修正 |
