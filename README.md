@@ -17,6 +17,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 当前工作只需要优先阅读以下文档：
 
 - [当前唯一开发计划：产品重对齐、UI 重构、里程碑与执行队列](docs/PRODUCT_EXECUTION_PLAN.md)
+- [当前开发审计与跨电脑接续快照（Stage 219）](docs/219-current-development-handoff-audit.md)
 - [当前开发情况与原始需求对齐审计（Stage 209）](docs/209-current-development-alignment-audit.md)
 - [TASKBAR-R1A 只读兼容性探测审计（Stage 210）](docs/210-taskbar-r1a-readonly-compatibility-audit.md)
 - [TASKBAR-R1B 有界客户端与个性化状态审计（Stage 211）](docs/211-taskbar-r1b-bounded-client-personalization-audit.md)
@@ -252,7 +253,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)准备 TASKBAR-R2B1-B：正式个性化页现已显示“系统默认 / 通透”预设和真实不可用原因，但只允许在通过 R2B1-A 准入的可丢弃 Windows Guest 内实现并验证第一份原生 `Clear → SystemDefault` 适配器。当前主机实际因 Sandbox 启动器缺失与 SLAT 未获证明而 `Blocked`，不得在宿主桌面试写。只有专用矩阵取得应用前/后/恢复像素、Explorer 重启、强杀和卸载恢复证据后，才允许把精确 build 与适配器加入目录；自动整理、Tab、小组件、工作空间和 Long助手运行时不得抢占三项 Core。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 219 跨电脑接续快照](docs/219-current-development-handoff-audit.md)，下一项仍是 BOX-R1-C/D 与 M1 完整物理旅程，但必须先取得受保护签名、可丢弃 Windows 账户/VM 和安全 WinUI 条件。FOLDER-R1 的路径、排序、加载与恢复状态已经合入，不得重复开发；TASKBAR-R2B1-B 同样保持环境阻断，不得改在宿主桌面试写。环境未满足时不扩张自动整理、Tab、小组件、工作空间或 Long助手运行时。
 
 ## 开发启动
 
