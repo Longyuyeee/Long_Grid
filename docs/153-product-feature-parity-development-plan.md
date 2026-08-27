@@ -52,7 +52,7 @@
 
 - 创建、拖动、缩放、标题栏操作、图标/缩略图、选择和安全打开已有正式工程链，但物理输入/Narrator/高对比证据债务仍使 PF-001～PF-005 无法产品完成；
 - 用户仍不能像 Fences/iTop 一样完成桌面/Explorer 直接拖入与完整低摩擦整理旅程；框选工程链已完成，但物理鼠标/高对比/Narrator 证据待补；
-- 单文件夹绑定盒子 A～D 工程链已完成，原始 P0 遗漏的当前路径和三种持久化基础排序已纠正，但物理 Picker、可见排序/刷新/打开、键盘和 Narrator 仍待 M1；自动整理规则、高级 Portal、Tab、Roll-up、Peek、Quick-hide、托盘与全局快捷键尚未实现；
+- 单文件夹绑定盒子 A～D 工程链已完成，原始 P0 遗漏的当前路径、三种持久化基础排序和此前不可达的加载状态已纠正，但物理 Picker、可见状态/排序/刷新/打开、键盘和 Narrator 仍待 M1；自动整理规则、高级 Portal、Tab、Roll-up、Peek、Quick-hide、托盘与全局快捷键尚未实现；
 - 没有可命名布局快照、场景/页面、应用工作空间捕获与启动；
 - 外观已有正式 Design Token、Mica/Acrylic 和品牌 RC1，但桌面 Surface、主题持久化、竞品级标题/间距/图标尺寸/视图模式、动效和无障碍矩阵尚未收口；
 - 核心任务栏美化，以及安装更新、Widgets、壁纸和 Private Box 等能力尚未实现。
@@ -79,7 +79,7 @@
 | 16 | PF-031 | Quick-hide 与 Chameleon 模式 | 未实现 | Fences distraction-free |
 | 17 | PF-032 | Peek 临时置顶访问 | 未实现 | Fences Peek |
 | 18 | PF-033 | 托盘菜单与全局快捷键 | 未实现 | Fences/iTop 快速入口 |
-| 19 | PF-040 | 单文件夹绑定盒子（Core）与高级 Portal | Core 单文件夹绑定 A～D `EngineeringComplete / ProductEvidencePending`；高级多目录 Portal 未实现 | Fences/iTop Portal |
+| 19 | PF-040 | 单文件夹绑定盒子（Core）与高级 Portal | Core 单文件夹绑定 A～D、路径/基础排序/加载状态纠偏为 `EngineeringComplete / ProductEvidencePending`；高级多目录 Portal 未实现 | Fences/iTop Portal |
 | 20 | PF-041 | Portal 导航、视图与刷新 | 未实现 | Fences 6 Portal |
 | 21 | PF-042 | Portal 文件操作与拖放边界 | 未实现 | Portal 日常工作流 |
 | 22 | PF-050 | 方格 Tab 合并、切换与拆分 | 未实现 | Fences 6/iTop Tab Mode |
