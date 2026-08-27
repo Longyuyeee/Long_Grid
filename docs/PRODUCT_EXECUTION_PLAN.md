@@ -6,7 +6,7 @@
 
 更新日期：2026-08-27
 
-代码审计基线：`origin/main@b1c240f`；最新开发审计见 [Stage 211](211-taskbar-r1b-bounded-client-personalization-audit.md)
+代码审计基线：`origin/main@67eb4f9`；最新开发审计见 [Stage 212](212-taskbar-r2a1-recovery-transaction-foundation-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -201,7 +201,7 @@ GitHub 集成结果：#238 已注明被 #239 覆盖并关闭；#239、#240、#24
 | 盒子绑定文件夹 | FOLDER-R1 A～D 工程链与真实 NTFS 身份、内容、事件、权限/离线恢复已完成；物理 Picker、可见刷新/打开、键盘和 Narrator 未闭环 | M1 |
 | Explorer 拖入和方格间整理 | PF-007A2/B 已完成正式 OLE Link、盒子间改归属、原子提交和撤销；真实 Explorer/盒子间物理指针证据未完成 | M1 |
 | 正常、现代的软件 UI | UI-R1A～UI-R1D 已完成产品结构；UI-R1E-A 已取得真实浅/深色、宽/紧凑渲染并修正标题重叠，高对比/减少动画仍待补 | M1，持续纠偏 |
-| 任务栏美化 | R1A/R1B 已完成独立只读 Worker、有界正式客户端、父进程绑定、故障关闭和个性化真实状态；当前 build 未认证，尚无样式预设或系统修改 | M2，R2/R3/R4 Pending |
+| 任务栏美化 | R1A/R1B 已完成独立只读检测与正式状态；R2A1 已完成 15 秒确认、失败回退和真实强杀恢复凭据；当前 build 未认证，尚无原生样式应用 | M2，R2A2/R3/R4 Pending |
 | 自动分类整理 | 未形成真实规则用户闭环 | M3 扩展 |
 | 快速隐藏、托盘、快捷键 | 未完成 | M3 扩展 |
 | 布局快照与多显示器恢复 | 底座较强，完整产品页和用户证据未闭环 | M3 扩展 |
@@ -265,7 +265,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**TASKBAR-R2A 最小可恢复应用事务**。M1 工程链保持 `EngineeringComplete / ProductEvidencePending`；当前机器的 WinUI 跨进程 UIA 预检仍失败，因此没有伪造物理证据。TASKBAR-R1A/R1B 已完成只读探测、有界正式客户端、超时/崩溃/坏响应隔离、父进程绑定和个性化页真实状态；R2A 必须先完成系统默认快照、一次应用、15 秒确认和自动回退状态机，未经认证的 build 仍不得进入原生写入。
+当前执行项：**TASKBAR-R2A2 受认证的最小原生适配器与恢复执行器**。M1 工程链保持 `EngineeringComplete / ProductEvidencePending`；当前机器的 WinUI 跨进程 UIA 预检仍失败，因此没有伪造物理证据。R1A/R1B 已完成只读探测与正式接线；R2A1 已完成系统默认基线、15 秒确认、失败回退、原子恢复凭据和真实子进程强杀持久性。R2A2 才允许在明确认证的 build/会话中应用“清透”，Build 26200 继续不得绕过准入。
 
 严格按下列顺序交付，不再插入相邻探针或新宽度功能：
 
@@ -278,7 +278,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 7. **FOLDER-R1（A～D EngineeringComplete / RealFilesystemPass / ProductEvidencePending）**：A 持久化/身份/健康合同 → B 显式选择、取消零写入、绑定/解绑/重连原子提交 → C 目录内容呈现、显式刷新、变更通知和安全打开 → D 权限、离线、同路径替换、失效恢复和有限状态；物理 Picker、可见刷新/打开、键盘和 Narrator 进入 M1 集中证据。
 8. **PF-007A2 / PF-007B（EngineeringComplete / RealHwndPass / ProductEvidencePending）**：A2 已完成正式 HWND OLE DropTarget 和安全 Link 引用提交；B 已完成盒子间改归属、无效目标、失败补偿和一次撤销。
 9. **M1 产品证据冲刺（ExternalEnvironmentBlocked）**：完整两分钟旅程，而不是分散控件证据；等待安全 WinUI 运行时、专用账户和可安装签名条件，不降低出口。
-10. **TASKBAR-R1～R4（R1 完成，当前执行 R2A）**：R1 独立只读探测、有界正式客户端、父进程绑定和个性化真实状态已通过真实 Windows build 26200，且保持 `DeniedNoCertifiedBuild`；R2A 先做系统默认与清透的最小可恢复事务，R3 完成崩溃/Explorer 重启/禁用/卸载恢复，R4 取得真实兼容矩阵。
+10. **TASKBAR-R1～R4（R1/R2A1 完成，当前执行 R2A2）**：R1 已通过真实 Windows build 26200 并保持 `DeniedNoCertifiedBuild`；R2A1 已证明恢复凭据在真实子进程强杀后不丢失。R2A2 接入受认证的系统默认/清透原生执行器，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得真实兼容矩阵。
 
 UI-R1 允许重构产品壳层，但不得重写已经验证的 Core、配置事务和 DesktopHost 安全边界。
 

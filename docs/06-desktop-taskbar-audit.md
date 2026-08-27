@@ -3,7 +3,7 @@
 审计日期：2026-07-29
 范围：iTop Easy Desktop、Stardock Fences、Nimi Places、Portals、PowerToys Workspaces，以及 TranslucentTB、RoundedTB、Windhawk、Start11、TaskbarX 等任务栏工具。
 
-> 2026-08-25 产品范围复审：项目负责人将任务栏美化明确为 Core 三支柱之一，不再按 P1 附属宽度处理。仓库仍无任务栏透明度/着色运行时、设置 UI、恢复守护或 Windows build 实机矩阵，因此完成度仍为“未实现”。Core 优先级改变不降低独立故障域、版本白名单、冲突检测和一键恢复要求；当前顺序见[统一开发计划](PRODUCT_EXECUTION_PLAN.md)。
+> 2026-08-27 状态更新：任务栏美化已明确为 Core 三支柱之一。R1A/R1B 已交付独立只读 Worker、有界客户端、冲突/build 准入和个性化真实状态；R2A1 已建立 15 秒确认、失败回退和真实强杀后仍可读的恢复凭据。仓库仍没有通过认证的透明度/着色写入、原生恢复执行器或 Windows build 实机矩阵，因此不得描述为任务栏美化已可用。当前顺序见[统一开发计划](PRODUCT_EXECUTION_PLAN.md)。
 
 ## 1. 结论先行
 
