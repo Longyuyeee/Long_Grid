@@ -4,7 +4,7 @@
 
 开发基线：`origin/main@36b583fdac098bddffb05b3848222576f709eae8`
 
-状态：`EngineeringComplete / ContractPass / RealOverviewPass / PersonalizationVisibleEvidencePending / IntegrationPending`
+状态：`EngineeringComplete / ContractPass / RealOverviewPass / GitHubPrPass / PersonalizationVisibleEvidencePending / IntegrationPending`
 
 ## 1. 目标与结论
 
@@ -46,6 +46,8 @@
 - 完整 Release 测试：`1353/1353`，失败 `0`、跳过 `0`；
 - 独立覆盖率目录 `TestResults-UIR1F`：lines `90.40% (23398/25884)`、branches `76.04% (7656/10069)`，通过 `90% / 75%` 门槛；
 - 真实概览截图观察：Pass；真实个性化/任务栏卡片截图：Pending，原因是一次导航后窗口消失，系统 Application Error/WER 留下 Microsoft.UI.Xaml `3.2.3.0`、异常 `0xc000027b`、P7 `8001010e` 的既有上游风险签名。
+
+PR #265 首轮 Windows runner run `33057123241` 完整通过：`1353/1353`，coverage lines `90.10% (46642/51768)`、branches `75.91% (15286/20138)`；格式、Release 构建、真实启动链、原生交互 Surface、UI 合同、单实例、恢复/资源预检、文件操作安全、受限缩略图 Worker、依赖漏洞和内部未签名 RC 交付集全部成功。远端结果与本地功能结论无差异，个性化可见证据仍按上述真实 WER 结果保持 Pending。
 
 因此，本阶段可以确认产品语言、结构合同、构建、测试与基础启动收敛，但不能确认个性化页在当前跨进程可见自动化路径下稳定。该差异不是任务栏写入失败：本轮没有发起任何任务栏写入，也没有改变系统状态。
 
