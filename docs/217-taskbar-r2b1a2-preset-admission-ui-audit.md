@@ -4,7 +4,7 @@
 
 开发基线：`origin/main@cb032b02e882a95f2c539cc7037bcdd50ee11ce8`
 
-状态：`EngineeringComplete / RealProbePass / ContractPass / GitHubPrPass / VisibleUiEvidencePending / IntegrationPending / NativeEffectPending`
+状态：`EngineeringComplete / RealProbePass / ContractPass / GitHubPrPass / Integrated / VisibleUiEvidencePending / NativeEffectPending`
 
 ## 1. 阶段目标与结论
 
@@ -36,6 +36,8 @@ R2B1-B 的原生 `Clear → SystemDefault` 实验仍因当前宿主没有 Window
 首轮错误地直接运行 `Test-LongGridUi.ps1`，实际在正式 App 启动前被已知 UIA 风险门阻断。修正不是关闭门禁，而是按脚本合同改用 `-ContractOnly`，并保留真实 Worker/Explorer 进程测试作为运行时证据。物理可见卡片仍需安全 WinUI 运行时后补证。
 
 PR #264 的干净 Windows runner run `33053629094` 完整通过：1353/1353，coverage lines 90.10% (46644/51768)、branches 75.91% (15286/20138)，195-ID UI 合同、格式、构建、启动链、恢复与资源预检、文件安全、受限缩略图 Worker、依赖漏洞和内部未签名 RC 交付集全部成功。远端与本机没有功能差异；覆盖率数值差异仍高于 90%/75% 门槛。
+
+PR #264 已 squash 合入 `main@36b583f`；main run `33054899086` 为 1353/1353，coverage lines 90.10% (46642/51768)、branches 75.91% (15286/20138)，全部下游门通过。本阶段因此由 IntegrationPending 提升为 Integrated；可见跨进程 UIA 和原生效果状态不变。
 
 ## 3. 需求对齐与偏移审计
 
