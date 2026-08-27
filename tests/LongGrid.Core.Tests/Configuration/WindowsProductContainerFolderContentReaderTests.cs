@@ -11,6 +11,35 @@ namespace LongGrid.Core.Tests.Configuration;
 
 public sealed class WindowsProductContainerFolderContentReaderTests
 {
+    [Theory]
+    [InlineData(ProductContainerFolderSortMode.FoldersFirstNameAscending,
+        "m-folder,a-file.txt,z-file.txt")]
+    [InlineData(ProductContainerFolderSortMode.NameAscending,
+        "a-file.txt,m-folder,z-file.txt")]
+    [InlineData(ProductContainerFolderSortMode.NameDescending,
+        "z-file.txt,m-folder,a-file.txt")]
+    public void RealDirectoryUsesPersistedBoundFolderSortWithoutChangingFiles(
+        ProductContainerFolderSortMode sortMode,
+        string expectedOrder)
+    {
+        using var sandbox = RealFolderContentSandbox.Create();
+        string bound = sandbox.CreateDirectory("bound-sort");
+        Directory.CreateDirectory(Path.Combine(bound, "m-folder"));
+        File.WriteAllText(Path.Combine(bound, "a-file.txt"), "a");
+        File.WriteAllText(Path.Combine(bound, "z-file.txt"), "z");
+        IReadOnlyDictionary<string, string> before = sandbox.CaptureFiles();
+
+        ProductWorkspaceContainerFolderContent actual =
+            WindowsProductContainerFolderContentReader.ReadWorkspace(
+                CreateWorkspace(bound, sortMode),
+                generation: 1).Find("container-1")!;
+
+        Assert.Equal(
+            expectedOrder.Split(','),
+            actual.Items.Select(item => item.DisplayName));
+        Assert.Equal(before, sandbox.CaptureFiles());
+    }
+
     [Fact]
     public void RealDirectoryProjectsOnlyDirectChildrenWithoutChangingFiles()
     {
@@ -295,11 +324,17 @@ public sealed class WindowsProductContainerFolderContentReaderTests
         Assert.Equal(expectedHash, HashFile(keep));
     }
 
-    private static ProductWorkspaceState CreateWorkspace(string bound)
+    private static ProductWorkspaceState CreateWorkspace(
+        string bound,
+        ProductContainerFolderSortMode sortMode =
+            ProductContainerFolderSortMode.FoldersFirstNameAscending)
     {
         ProductContainerFolderBindingState binding =
             WindowsProductContainerFolderBinding.CreateResolved(
-                WindowsProductContainerFolderBinding.Probe(bound));
+                WindowsProductContainerFolderBinding.Probe(bound)) with
+            {
+                SortMode = sortMode,
+            };
         return new()
         {
             ProfileId = "default",

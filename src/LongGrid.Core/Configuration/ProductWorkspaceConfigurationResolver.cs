@@ -127,6 +127,7 @@ public static class ProductWorkspaceConfigurationResolver
                 binding.VolumeSerialNumber,
                 16),
             FileId = binding.FileId,
+            SortMode = binding.SortMode,
             Resolution = ProductContainerFolderBindingResolution.Unavailable,
             ExtensionData = binding.ExtensionData,
         };

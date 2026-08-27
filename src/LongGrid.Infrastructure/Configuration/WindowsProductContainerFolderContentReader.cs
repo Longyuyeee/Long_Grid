@@ -45,6 +45,14 @@ public static class WindowsProductContainerFolderContentReader
     {
         ProductContainerFolderBindingState resolved =
             WindowsProductContainerFolderBinding.Resolve(binding);
+        if (!Enum.IsDefined(resolved.SortMode))
+        {
+            return Failure(
+                containerId,
+                generation,
+                ProductWorkspaceFolderContentStatus.EnumerationFailed,
+                ProductContainerFolderBindingResolution.Unavailable);
+        }
         if (resolved.Resolution !=
             ProductContainerFolderBindingResolution.Resolved
             || string.IsNullOrWhiteSpace(resolved.ResolvedTarget))
@@ -116,10 +124,26 @@ public static class WindowsProductContainerFolderContentReader
                 ProductContainerFolderBindingResolution.Unavailable);
         }
 
-        var ordered = entries
-            .OrderBy(entry => entry.Kind == ConfigurationItemKind.Folder ? 0 : 1)
-            .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(entry => entry.Name, StringComparer.Ordinal)
+        IEnumerable<(string Target, string Name, ConfigurationItemKind Kind)> sorted =
+            resolved.SortMode switch
+            {
+                ProductContainerFolderSortMode.FoldersFirstNameAscending => entries
+                    .OrderBy(entry =>
+                        entry.Kind == ConfigurationItemKind.Folder ? 0 : 1)
+                    .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(entry => entry.Name, StringComparer.Ordinal),
+                ProductContainerFolderSortMode.NameAscending => entries
+                    .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(entry => entry.Name, StringComparer.Ordinal),
+                ProductContainerFolderSortMode.NameDescending => entries
+                    .OrderByDescending(
+                        entry => entry.Name,
+                        StringComparer.OrdinalIgnoreCase)
+                    .ThenByDescending(entry => entry.Name, StringComparer.Ordinal),
+                _ => throw new InvalidOperationException(
+                    "Folder content sort mode was validated before enumeration."),
+            };
+        var ordered = sorted
             .Take(MaximumProjectedEntries)
             .Select((entry, index) => new ProductWorkspaceFolderContentItem(
                 $"folder:{generation}:{index + 1}",

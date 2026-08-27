@@ -740,6 +740,34 @@
                                             IsTextSelectionEnabled="True"
                                             TextWrapping="Wrap"
                                             Visibility="Collapsed" />
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <ComboBox
+                                                x:Name="ProductWorkspaceFolderSortSelector"
+                                                AutomationProperties.AutomationId="ProductWorkspaceFolderSortSelector"
+                                                AutomationProperties.Name="排列所选盒子的绑定文件夹内容"
+                                                Header="内容排序"
+                                                HorizontalAlignment="Stretch"
+                                                IsEnabled="False"
+                                                SelectedIndex="-1"
+                                                SelectionChanged="ProductWorkspaceFolderSortSelector_SelectionChanged">
+                                                <ComboBoxItem Content="文件夹优先，名称升序" />
+                                                <ComboBoxItem Content="名称升序" />
+                                                <ComboBoxItem Content="名称降序" />
+                                            </ComboBox>
+                                            <Button
+                                                x:Name="ProductWorkspaceFolderSortSaveButton"
+                                                Grid.Column="1"
+                                                AutomationProperties.AutomationId="ProductWorkspaceFolderSortSaveButton"
+                                                AutomationProperties.Name="保存所选盒子的绑定文件夹内容排序"
+                                                Click="ProductWorkspaceFolderSortSaveButton_Click"
+                                                Content="保存排序"
+                                                IsEnabled="False"
+                                                VerticalAlignment="Bottom" />
+                                        </Grid>
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <Button
                                                 x:Name="ProductWorkspaceFolderBindButton"

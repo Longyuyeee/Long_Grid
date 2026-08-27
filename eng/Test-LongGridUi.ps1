@@ -782,6 +782,8 @@ function Test-SourceContract {
         'ProductWorkspaceContainerCollapseButton',
         'ProductWorkspaceFolderBindingStatus',
         'ProductWorkspaceFolderBindingPath',
+        'ProductWorkspaceFolderSortSelector',
+        'ProductWorkspaceFolderSortSaveButton',
         'ProductWorkspaceFolderBindButton',
         'ProductWorkspaceFolderUnbindButton',
         'ProductWorkspaceFolderRefreshButton',
@@ -1295,6 +1297,24 @@ function Test-SourceContract {
         $codeBehind -notmatch `
             'SetItemStatus\([\s\S]{0,300}ProductWorkspaceFolderBindingPath'
     ) 'The selected folder path must stay out of machine status and the general read model.'
+    $folderSortSelectorNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceFolderSortSelector'
+    $folderSortSaveNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceFolderSortSaveButton'
+    Assert-Condition (
+        $folderSortSelectorNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $folderSortSelectorNode.GetAttribute('SelectedIndex') -eq '-1' -and
+        $folderSortSelectorNode.GetAttribute('SelectionChanged') -eq `
+            'ProductWorkspaceFolderSortSelector_SelectionChanged' -and
+        $folderSortSaveNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $folderSortSaveNode.GetAttribute('Click') -eq `
+            'ProductWorkspaceFolderSortSaveButton_Click' -and
+        $appCode -match 'CommitProductWorkspaceContainerFolderSort' -and
+        $codeBehind -match '_commitProductWorkspaceContainerFolderSort' -and
+        $codeBehind -match 'DesktopFilesChanged=False'
+    ) 'Bound-folder sorting must be explicit, persisted, disabled by default, and non-mutating.'
     foreach ($entry in @{
             ProductWorkspaceFolderBindButton =
                 'ProductWorkspaceFolderBindButton_Click'
@@ -3873,7 +3893,7 @@ function Test-SourceContract {
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
         productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-single-undo-native-selected-item-drag-authority-frozen'
-        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-title-visibility-title-double-click-placement-single-folder-picker-cancel-zero-write-bind-unbind-reconnect-stable-identity-remove-unified-edit-undo-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only-desktop-layout-session-candidate-publish-compensate-keyboard-title-focus-transaction-cross-display-mixed-dpi'
+        productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-title-visibility-title-double-click-placement-single-folder-picker-cancel-zero-write-bind-unbind-reconnect-stable-identity-basic-persisted-sort-remove-unified-edit-undo-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only-desktop-layout-session-candidate-publish-compensate-keyboard-title-focus-transaction-cross-display-mixed-dpi'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'
                     productDesktopActivation = 'finite-region-activation-explicit-pointer-keyboard-selectionitem-title-layout-select-then-authority-safe-file-folder-lnk-http-https-open-finite-path-free-feedback-default-double-click-persisted-single-click-opt-in-authoritative-retry-safe-explorer-locate-zero-file-mutation'

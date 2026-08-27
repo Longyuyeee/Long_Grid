@@ -247,6 +247,7 @@ public partial class App : Application
             CommitProductWorkspaceReferenceReassignmentUndo,
             CommitProductWorkspaceContainerAction,
             CommitProductWorkspaceContainerFolderBinding,
+            CommitProductWorkspaceContainerFolderSort,
             CommitProductWorkspaceContainerRemovalUndo,
             CommitProductWorkspaceContainerEditUndo,
             CommitProductWorkspaceLayoutRecovery,
@@ -2347,6 +2348,36 @@ public partial class App : Application
             createBoundsPixels: null,
             useDefaultName: false,
             folderBinding: folderBinding);
+
+    private ProductWorkspaceContainerCommitResult
+        CommitProductWorkspaceContainerFolderSort(
+            long expectedEditRevision,
+            int containerOrdinal,
+            ProductContainerFolderSortMode sortMode)
+    {
+        ProductWorkspaceState? state = productWorkspaceSession.State;
+        if (!Enum.IsDefined(sortMode)
+            || state is null
+            || containerOrdinal <= 0
+            || containerOrdinal > state.Containers.Count
+            || state.Containers[containerOrdinal - 1].FolderBinding is not
+            { } binding)
+        {
+            return new(
+                ProductWorkspaceContainerCommitStatus.InvalidRequest,
+                ProductWorkspaceEditError.InvalidState,
+                null,
+                workspaceCommits.CurrentEditRevision,
+                null,
+                null);
+        }
+
+        return CommitProductWorkspaceContainerFolderBinding(
+            expectedEditRevision,
+            containerOrdinal,
+            binding with { SortMode = sortMode },
+            unbind: false);
+    }
 
     private ProductWorkspaceContainerCommitResult
         CommitProductWorkspaceContainerActionCore(

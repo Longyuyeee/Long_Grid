@@ -146,6 +146,12 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerCommitResult>
         _commitProductWorkspaceContainerFolderBinding;
     private readonly Func<
+        long,
+        int,
+        ProductContainerFolderSortMode,
+        ProductWorkspaceContainerCommitResult>
+        _commitProductWorkspaceContainerFolderSort;
+    private readonly Func<
         ProductWorkspaceContainerRemovalUndoToken,
         bool,
         ProductWorkspaceContainerRemovalUndoCommitResult>
@@ -282,6 +288,12 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerCommitResult>
             commitProductWorkspaceContainerFolderBinding,
         Func<
+            long,
+            int,
+            ProductContainerFolderSortMode,
+            ProductWorkspaceContainerCommitResult>
+            commitProductWorkspaceContainerFolderSort,
+        Func<
             ProductWorkspaceContainerRemovalUndoToken,
             bool,
             ProductWorkspaceContainerRemovalUndoCommitResult>
@@ -333,6 +345,8 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceContainerFolderBinding);
         ArgumentNullException.ThrowIfNull(
+            commitProductWorkspaceContainerFolderSort);
+        ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceContainerRemovalUndo);
         ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceContainerEditUndo);
@@ -373,6 +387,8 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceContainerAction;
         _commitProductWorkspaceContainerFolderBinding =
             commitProductWorkspaceContainerFolderBinding;
+        _commitProductWorkspaceContainerFolderSort =
+            commitProductWorkspaceContainerFolderSort;
         _commitProductWorkspaceContainerRemovalUndo =
             commitProductWorkspaceContainerRemovalUndo;
         _commitProductWorkspaceContainerEditUndo =
@@ -2192,6 +2208,10 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerNameEditor.Text = selected.DisplayName;
             ApplyProductWorkspaceContainerAppearanceSelection(selected);
             ApplyProductWorkspaceContainerPlacementSelection(selected);
+            ProductWorkspaceFolderSortSelector.SelectedIndex =
+                selected.FolderContentSortMode is { } sortMode
+                    ? (int)sortMode
+                    : -1;
         }
         else
         {
@@ -2201,6 +2221,7 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerTitleDoubleClickSelector.SelectedIndex = -1;
             ProductWorkspaceContainerPositionSelector.SelectedIndex = -1;
             ProductWorkspaceContainerSizeSelector.SelectedIndex = -1;
+            ProductWorkspaceFolderSortSelector.SelectedIndex = -1;
         }
 
         UpdateProductWorkspaceContainerEditButtons();
@@ -2217,6 +2238,11 @@ public sealed partial class MainWindow : Window
         UpdateProductWorkspaceContainerEditButtons();
 
     private void ProductWorkspaceContainerPlacementSelector_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e) =>
+        UpdateProductWorkspaceContainerEditButtons();
+
+    private void ProductWorkspaceFolderSortSelector_SelectionChanged(
         object sender,
         SelectionChangedEventArgs e) =>
         UpdateProductWorkspaceContainerEditButtons();
@@ -2412,6 +2438,13 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceFolderBindButton.Content = selected?.HasFolderBinding == true
             ? "重新连接文件夹"
             : "选择文件夹";
+        bool canSortFolderContents = canEditFolderBinding
+            && selected?.HasFolderBinding == true;
+        ProductWorkspaceFolderSortSelector.IsEnabled = canSortFolderContents;
+        ProductWorkspaceFolderSortSaveButton.IsEnabled = canSortFolderContents
+            && ProductWorkspaceFolderSortSelector.SelectedIndex >= 0
+            && ProductWorkspaceFolderSortSelector.SelectedIndex !=
+                (int)selected!.FolderContentSortMode!.Value;
         ApplyProductWorkspaceFolderBindingStatus(selected);
         UpdateProductWorkspaceResolvedReferenceAddButton();
     }
@@ -2488,7 +2521,50 @@ public sealed partial class MainWindow : Window
             $"FolderBinding{machineState}:Content=" +
                 $"{readContainer?.FolderContentStatus?.ToString() ?? "None"}:" +
                 $"Items={readContainer?.FolderContentItemCount ?? 0}:" +
+                $"Sort={selected?.FolderContentSortMode?.ToString() ?? "None"}:" +
                 "Changed=False:DesktopFilesChanged=False");
+    }
+
+    private void ProductWorkspaceFolderSortSaveButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (ProductWorkspaceContainerEditSelector.SelectedItem is not
+                ProductWorkspaceContainerEditCandidatePresentation selected
+            || selected.IsLocked
+            || !selected.HasFolderBinding
+            || !_containerEditor.CanUpdateFolderBinding
+            || ProductWorkspaceFolderSortSelector.SelectedIndex is < 0 or > 2)
+        {
+            return;
+        }
+
+        ProductContainerFolderSortMode sortMode =
+            (ProductContainerFolderSortMode)
+                ProductWorkspaceFolderSortSelector.SelectedIndex;
+        ProductWorkspaceContainerCommitResult result =
+            _commitProductWorkspaceContainerFolderSort(
+                _containerEditor.EditRevision,
+                selected.Ordinal,
+                sortMode);
+        bool changed = result.IsAccepted;
+        ProductWorkspaceFolderBindingStatus.Text = result.Status switch
+        {
+            ProductWorkspaceContainerCommitStatus.Accepted =>
+                "内容排序已保存并刷新；真实文件和文件夹位置均未改变。",
+            ProductWorkspaceContainerCommitStatus.NoChange =>
+                "内容排序与当前设置一致，无需保存。",
+            ProductWorkspaceContainerCommitStatus.StaleEditRevision =>
+                "方格状态已变化，请按当前内容重新选择排序。",
+            ProductWorkspaceContainerCommitStatus.SaveRejected =>
+                "内容排序未能保存；已保留原设置，请重试。",
+            _ => "内容排序请求未通过校验；配置和真实文件均未改变。",
+        };
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceFolderBindingStatus,
+            $"FolderContentSortCommit{result.Status}:Sort={sortMode}:" +
+                $"Revision={result.EditRevision}:Changed={changed}:" +
+                "DesktopFilesChanged=False");
     }
 
     private async void ProductWorkspaceFolderRefreshButton_Click(
@@ -2570,7 +2646,12 @@ public sealed partial class MainWindow : Window
         }
 
         ProductContainerFolderBindingState binding =
-            WindowsProductContainerFolderBinding.CreateResolved(probe);
+            WindowsProductContainerFolderBinding.CreateResolved(probe) with
+            {
+                SortMode = selected.FolderContentSortMode
+                    ?? ProductContainerFolderSortMode
+                        .FoldersFirstNameAscending,
+            };
         ProductWorkspaceContainerCommitResult result =
             _commitProductWorkspaceContainerFolderBinding(
                 expectedRevision,

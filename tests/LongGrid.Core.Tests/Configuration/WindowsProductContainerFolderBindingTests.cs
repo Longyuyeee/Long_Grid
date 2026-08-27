@@ -44,7 +44,10 @@ public sealed class WindowsProductContainerFolderBindingTests
         string target = sandbox.CreateDirectory("bound");
         ProductContainerFolderBindingState binding =
             WindowsProductContainerFolderBinding.CreateResolved(
-                WindowsProductContainerFolderBinding.Probe(target));
+                WindowsProductContainerFolderBinding.Probe(target)) with
+            {
+                SortMode = ProductContainerFolderSortMode.NameDescending,
+            };
 
         Directory.Delete(target);
         Directory.CreateDirectory(target);
@@ -69,7 +72,10 @@ public sealed class WindowsProductContainerFolderBindingTests
         string beforeHash = HashFile(userFile);
         ProductContainerFolderBindingState binding =
             WindowsProductContainerFolderBinding.CreateResolved(
-                WindowsProductContainerFolderBinding.Probe(target));
+                WindowsProductContainerFolderBinding.Probe(target)) with
+            {
+                SortMode = ProductContainerFolderSortMode.NameDescending,
+            };
         ProductWorkspaceState state = CreateWorkspace();
 
         ProductWorkspaceEditResult bound = ProductWorkspaceReducer.SetFolderBinding(
@@ -97,11 +103,18 @@ public sealed class WindowsProductContainerFolderBindingTests
         Assert.True(bound.IsSuccess);
         Assert.True(bound.Changed);
         Assert.True(projection.IsSuccess);
-        Assert.Equal(3, roundTrip.SchemaVersion);
+        Assert.Equal(ProductConfigurationLimits.CurrentSchemaVersion,
+            roundTrip.SchemaVersion);
+        Assert.Equal(
+            ProductContainerFolderSortMode.NameDescending,
+            roundTrip.Containers[0].FolderBinding!.SortMode);
         Assert.Equal(Path.GetFullPath(target), roundTrip.Containers[0].FolderBinding!.Target);
         Assert.Equal(
             ProductContainerFolderBindingResolution.Resolved,
             loaded.State!.Containers[0].FolderBinding!.Resolution);
+        Assert.Equal(
+            ProductContainerFolderSortMode.NameDescending,
+            loaded.State.Containers[0].FolderBinding!.SortMode);
         Assert.True(unbound.IsSuccess);
         Assert.True(unbound.Changed);
         Assert.Null(unbound.State!.Containers[0].FolderBinding);

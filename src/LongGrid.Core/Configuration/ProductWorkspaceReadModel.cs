@@ -68,7 +68,8 @@ public sealed record ProductWorkspaceReadContainer(
     ProductWorkspaceContainerHealth Health,
     ProductContainerFolderBindingResolution? FolderBindingResolution = null,
     ProductWorkspaceFolderContentStatus? FolderContentStatus = null,
-    int FolderContentItemCount = 0);
+    int FolderContentItemCount = 0,
+    ProductContainerFolderSortMode? FolderContentSortMode = null);
 
 public sealed record ProductWorkspaceReadSnapshot(
     IReadOnlyList<ProductWorkspaceReadContainer> Containers,
@@ -211,7 +212,8 @@ public static class ProductWorkspaceReadModel
                 health,
                 effectiveBindingResolution,
                 folderContentStatus,
-                folderContentItemCount));
+                folderContentItemCount,
+                container.FolderBinding?.SortMode));
         }
 
         return new(

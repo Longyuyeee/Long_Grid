@@ -115,6 +115,26 @@ public static class ProductConfigurationJson
             };
         }
 
+        if (document.SchemaVersion == 3)
+        {
+            return document with
+            {
+                SchemaVersion = ProductConfigurationLimits.CurrentSchemaVersion,
+                Containers = document.Containers
+                    .Select(container => container with
+                    {
+                        FolderBinding = container.FolderBinding is null
+                            ? null
+                            : container.FolderBinding with
+                            {
+                                SortMode = ProductContainerFolderSortMode
+                                    .FoldersFirstNameAscending,
+                            },
+                    })
+                    .ToArray(),
+            };
+        }
+
         throw new ProductConfigurationContractException(
             ProductConfigurationError.UnsupportedSchema);
     }
