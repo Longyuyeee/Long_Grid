@@ -529,6 +529,8 @@ FOLDER-R1 当前绑定路径可见性纠偏记录（2026-08-27，基线 `origin/
 
 本次纠偏补齐了 PRD 已存在的路径可见性要求，没有扩张到多目录 Portal、面包屑或文件管理，也没有把结构合同冒充物理通过。M1 总状态继续保持 `ExternalEnvironmentBlocked / ProductEvidencePending`。
 
+PR #267 首轮 Windows runner run `33086863762` 完整通过：`1,362/1,362`，coverage lines `90.10% (46708/51842)`、branches `75.94% (15320/20174)`；格式、Release 构建、启动/人工会话合同、196-ID UI 合同、恢复与资源预检、文件安全、受限缩略图 Worker、依赖漏洞和内部未签名 RC 交付集均成功。远端与本地功能结论无差异，物理可见证据状态保持 Pending。
+
 PF-007A2 DesktopHost OLE DropTarget 记录（2026-08-26，基线 `origin/main@53c8b5e`）：
 
 | 检查 | 预期效果 | 实际效果 | 差异与修正 |
