@@ -119,9 +119,6 @@
           "LongGrid.ThumbnailWorker": "[1.0.0, )"
         }
       },
-      "longgrid.taskbarworker": {
-        "type": "Project"
-      },
       "longgrid.thumbnailworker": {
         "type": "Project"
       }

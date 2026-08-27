@@ -1,4 +1,5 @@
 using System.Text.Json;
+using LongGrid.Core.Taskbar;
 
 namespace LongGrid.TaskbarWorker;
 

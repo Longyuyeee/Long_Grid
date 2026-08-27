@@ -1,129 +1,13 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
+using LongGrid.Core.Taskbar;
 
 namespace LongGrid.TaskbarWorker;
 
-internal enum TaskbarProbeOutcome
-{
-    Pass,
-    Fail,
-}
-
-internal enum TaskbarRuntimeAdmission
-{
-    DeniedProbeFailure,
-    DeniedConflictDetected,
-    DeniedNoCertifiedBuild,
-    Allowed,
-}
-
-internal sealed record TaskbarWindowSnapshot(
-    long Handle,
-    string WindowClass,
-    int ProcessId,
-    string ProcessName);
-
-internal sealed record TaskbarCompatibilityActual(
-    string OperatingSystemVersion,
-    int WindowsBuild,
-    int SessionId,
-    IReadOnlyList<TaskbarWindowSnapshot> TaskbarWindows,
-    IReadOnlyList<string> ConflictingProcesses,
-    bool ModifiedSystemState,
-    double ProbeMilliseconds);
-
-internal sealed record TaskbarCompatibilityExpected(
-    bool Windows,
-    int PrimaryTaskbarCount,
-    string RequiredOwnerProcess,
-    IReadOnlyList<string> ConflictingProcesses,
-    bool ModifiedSystemState);
-
-internal sealed record TaskbarCompatibilityReport(
-    int SchemaVersion,
-    string Purpose,
-    TaskbarCompatibilityExpected Expected,
-    TaskbarCompatibilityActual Actual,
-    IReadOnlyList<string> Difference,
-    TaskbarProbeOutcome ProbeOutcome,
-    TaskbarRuntimeAdmission RuntimeAdmission);
-
 [JsonSourceGenerationOptions(UseStringEnumConverter = true)]
 [JsonSerializable(typeof(TaskbarCompatibilityReport))]
-internal partial class TaskbarJsonContext : JsonSerializerContext;
-
-internal static class TaskbarCompatibilityEvaluator
-{
-    // R1A intentionally has no certified build. A build may only be added after the
-    // R4 physical matrix proves apply, rollback, Explorer restart, and uninstall.
-    private static readonly HashSet<int> CertifiedBuilds = [];
-
-    internal static TaskbarCompatibilityReport Evaluate(
-        TaskbarCompatibilityActual actual,
-        bool isWindows)
-    {
-        List<string> difference = [];
-        TaskbarWindowSnapshot[] primary = actual.TaskbarWindows
-            .Where(window => string.Equals(
-                window.WindowClass,
-                "Shell_TrayWnd",
-                StringComparison.Ordinal))
-            .ToArray();
-
-        if (!isWindows)
-        {
-            difference.Add("NotWindows");
-        }
-
-        if (primary.Length != 1)
-        {
-            difference.Add("PrimaryTaskbarCountMismatch");
-        }
-
-        if (actual.TaskbarWindows.Count == 0)
-        {
-            difference.Add("NoTaskbarWindowFound");
-        }
-        else if (actual.TaskbarWindows.Any(window => !string.Equals(
-                     window.ProcessName,
-                     "explorer",
-                     StringComparison.OrdinalIgnoreCase)))
-        {
-            difference.Add("TaskbarOwnerIsNotExplorer");
-        }
-
-        if (actual.ModifiedSystemState)
-        {
-            difference.Add("ProbeModifiedSystemState");
-        }
-
-        TaskbarProbeOutcome outcome = difference.Count == 0
-            ? TaskbarProbeOutcome.Pass
-            : TaskbarProbeOutcome.Fail;
-        TaskbarRuntimeAdmission admission = outcome == TaskbarProbeOutcome.Fail
-            ? TaskbarRuntimeAdmission.DeniedProbeFailure
-            : actual.ConflictingProcesses.Count != 0
-                ? TaskbarRuntimeAdmission.DeniedConflictDetected
-                : !CertifiedBuilds.Contains(actual.WindowsBuild)
-                    ? TaskbarRuntimeAdmission.DeniedNoCertifiedBuild
-                    : TaskbarRuntimeAdmission.Allowed;
-
-        return new TaskbarCompatibilityReport(
-            SchemaVersion: 1,
-            Purpose: "TaskbarR1ReadOnlyCompatibilityProbe",
-            Expected: new TaskbarCompatibilityExpected(
-                Windows: true,
-                PrimaryTaskbarCount: 1,
-                RequiredOwnerProcess: "explorer",
-                ConflictingProcesses: Array.Empty<string>(),
-                ModifiedSystemState: false),
-            Actual: actual,
-            Difference: difference,
-            ProbeOutcome: outcome,
-            RuntimeAdmission: admission);
-    }
-}
+internal sealed partial class TaskbarJsonContext : JsonSerializerContext;
 
 internal static class TaskbarCompatibilityProbe
 {
@@ -154,7 +38,7 @@ internal static class TaskbarCompatibilityProbe
             ConflictingProcesses: conflicts,
             ModifiedSystemState: false,
             ProbeMilliseconds: stopwatch.Elapsed.TotalMilliseconds);
-        return TaskbarCompatibilityEvaluator.Evaluate(
+        return TaskbarCompatibilityPolicy.Evaluate(
             actual,
             OperatingSystem.IsWindows());
     }

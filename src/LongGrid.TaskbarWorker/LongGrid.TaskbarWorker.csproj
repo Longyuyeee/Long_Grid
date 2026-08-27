@@ -10,4 +10,8 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\LongGrid.Core\LongGrid.Core.csproj" />
+  </ItemGroup>
+
 </Project>

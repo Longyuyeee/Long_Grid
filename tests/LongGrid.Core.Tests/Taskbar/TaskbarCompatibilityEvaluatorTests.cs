@@ -1,13 +1,13 @@
-using LongGrid.TaskbarWorker;
+using LongGrid.Core.Taskbar;
 
 namespace LongGrid.Core.Tests.Taskbar;
 
-public sealed class TaskbarCompatibilityEvaluatorTests
+public sealed class TaskbarCompatibilityPolicyTests
 {
     [Fact]
     public void EvaluateDeniesUncertifiedBuildAfterSuccessfulProbe()
     {
-        TaskbarCompatibilityReport report = TaskbarCompatibilityEvaluator.Evaluate(
+        TaskbarCompatibilityReport report = TaskbarCompatibilityPolicy.Evaluate(
             CreateActual(),
             isWindows: true);
 
@@ -26,7 +26,7 @@ public sealed class TaskbarCompatibilityEvaluatorTests
             ConflictingProcesses = new[] { "TranslucentTB" },
         };
 
-        TaskbarCompatibilityReport report = TaskbarCompatibilityEvaluator.Evaluate(
+        TaskbarCompatibilityReport report = TaskbarCompatibilityPolicy.Evaluate(
             actual,
             isWindows: true);
 
@@ -44,7 +44,7 @@ public sealed class TaskbarCompatibilityEvaluatorTests
             TaskbarWindows = Array.Empty<TaskbarWindowSnapshot>(),
         };
 
-        TaskbarCompatibilityReport report = TaskbarCompatibilityEvaluator.Evaluate(
+        TaskbarCompatibilityReport report = TaskbarCompatibilityPolicy.Evaluate(
             actual,
             isWindows: true);
 
@@ -67,7 +67,7 @@ public sealed class TaskbarCompatibilityEvaluatorTests
             },
         };
 
-        TaskbarCompatibilityReport report = TaskbarCompatibilityEvaluator.Evaluate(
+        TaskbarCompatibilityReport report = TaskbarCompatibilityPolicy.Evaluate(
             actual,
             isWindows: true);
 
@@ -78,7 +78,7 @@ public sealed class TaskbarCompatibilityEvaluatorTests
     [Fact]
     public void EvaluateFailsWhenProbeReportsMutation()
     {
-        TaskbarCompatibilityReport report = TaskbarCompatibilityEvaluator.Evaluate(
+        TaskbarCompatibilityReport report = TaskbarCompatibilityPolicy.Evaluate(
             CreateActual() with { ModifiedSystemState = true },
             isWindows: true);
 
