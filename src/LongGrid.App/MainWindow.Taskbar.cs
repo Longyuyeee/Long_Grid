@@ -96,12 +96,41 @@ public sealed partial class MainWindow
                 break;
         }
 
+        ApplyTaskbarPresetAvailability(report);
+
         TaskbarCompatibilityDetail.Text =
             $"{buildDetail}；{windowDetail}；只读耗时 {report.Actual.ProbeMilliseconds:F0} ms；系统修改：无。";
         AutomationProperties.SetItemStatus(
             TaskbarCompatibilityInfoBar,
             $"TaskbarCompatibility={report.RuntimeAdmission};Mutation=Disabled;Build={report.Actual.WindowsBuild}");
         RaiseLiveRegionChanged(TaskbarCompatibilityInfoBar);
+    }
+
+    private void ApplyTaskbarPresetAvailability(TaskbarCompatibilityReport report)
+    {
+        TaskbarPresetAvailability availability =
+            TaskbarPresetAvailabilityPolicy.Evaluate(
+                report,
+                TaskbarNativeAdapterAvailability.Unavailable,
+                recoveryPending: false);
+        TaskbarClearPresetButton.IsEnabled = availability.ClearEnabled;
+        TaskbarSystemDefaultButton.IsEnabled =
+            availability.RestoreSystemDefaultEnabled;
+        TaskbarPresetAvailabilityText.Text = availability.Status switch
+        {
+            TaskbarPresetAvailabilityStatus.ConflictDetected =>
+                "检测到其他任务栏工具，两个预设均保持关闭。",
+            TaskbarPresetAvailabilityStatus.BuildNotCertified =>
+                "当前 Windows Build 尚未完成实机认证，预设不可应用。",
+            TaskbarPresetAvailabilityStatus.AdapterUnavailable =>
+                "当前版本没有经过认证的原生适配器，预设不可应用。",
+            TaskbarPresetAvailabilityStatus.Ready =>
+                "环境与适配器均已通过准入，可以应用通透预设。",
+            _ => "任务栏只读检查未通过，预设不可应用。",
+        };
+        AutomationProperties.SetItemStatus(
+            TaskbarPresetGrid,
+            $"PresetAvailability={availability.Status};ClearEnabled={availability.ClearEnabled};RestoreEnabled={availability.RestoreSystemDefaultEnabled};Mutation=Disabled");
     }
 
     private void ApplyTaskbarCompatibilityFailure(
@@ -114,6 +143,13 @@ public sealed partial class MainWindow
         TaskbarCompatibilityInfoBar.Message = message;
         TaskbarCompatibilityDetail.Text =
             $"诊断代码：{diagnosticCode}；系统修改：无。";
+        TaskbarClearPresetButton.IsEnabled = false;
+        TaskbarSystemDefaultButton.IsEnabled = false;
+        TaskbarPresetAvailabilityText.Text =
+            "无法确认任务栏环境，两个预设均保持关闭。";
+        AutomationProperties.SetItemStatus(
+            TaskbarPresetGrid,
+            $"PresetAvailability=ProbeUnavailable;ClearEnabled=False;RestoreEnabled=False;Diagnostic={diagnosticCode};Mutation=Disabled");
         AutomationProperties.SetItemStatus(
             TaskbarCompatibilityInfoBar,
             $"TaskbarCompatibility=Unavailable;Mutation=Disabled;Diagnostic={diagnosticCode}");

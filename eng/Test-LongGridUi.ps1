@@ -838,7 +838,11 @@ function Test-SourceContract {
         'ThemeStatusText',
         'TaskbarCompatibilityInfoBar',
         'TaskbarCompatibilityDetail',
-        'TaskbarCompatibilityRefreshButton'
+        'TaskbarCompatibilityRefreshButton',
+        'TaskbarPresetGrid',
+        'TaskbarSystemDefaultButton',
+        'TaskbarClearPresetButton',
+        'TaskbarPresetAvailabilityText'
     )
 
     foreach ($automationId in $requiredIds) {
@@ -1602,6 +1606,22 @@ function Test-SourceContract {
         $taskbarRefreshNode.GetAttribute(
             'AutomationProperties.Name').Length -gt 0
     ) 'Taskbar compatibility refresh must be named and bound to the audited read-only handler.'
+    foreach ($presetButtonId in @(
+        'TaskbarSystemDefaultButton',
+        'TaskbarClearPresetButton'
+    )) {
+        $presetButton = Get-XamlNodeByAutomationId $document $presetButtonId
+        Assert-Condition (
+            $presetButton.GetAttribute('IsEnabled') -eq 'False' -and
+            [string]::IsNullOrWhiteSpace($presetButton.GetAttribute('Click'))
+        ) "Taskbar preset '$presetButtonId' must default disabled and expose no mutation handler."
+    }
+    Assert-Condition (
+        $taskbarCode.Contains('TaskbarPresetAvailabilityPolicy.Evaluate') -and
+        $taskbarCode.Contains(
+            'TaskbarNativeAdapterAvailability.Unavailable') -and
+        $taskbarCode.Contains('Mutation=Disabled')
+    ) 'Taskbar preset UI must consume the finite admission policy and keep the native adapter unavailable.'
     Assert-Condition (
         $taskbarCode.Contains('TaskbarCompatibilityClient.ProbeAsync') -and
         $taskbarCode.Contains('TimeSpan.FromSeconds(3)') -and
@@ -3768,7 +3788,7 @@ function Test-SourceContract {
         requiredAutomationIds = $requiredIds.Count
         accessKeys = $expectedAccessKeys.Count
         themeModes = 3
-        taskbarCompatibility = 'independent-bounded-readonly-startup-recovery-native-adapter-default-unavailable-no-presets'
+        taskbarCompatibility = 'independent-bounded-readonly-startup-recovery-native-adapter-default-unavailable-finite-preset-admission'
         responsiveBreakpoints = 1
         compactWidth = 720
         dpiAwareInitialSize = 'pass'

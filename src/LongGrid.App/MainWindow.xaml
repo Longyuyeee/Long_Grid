@@ -1884,6 +1884,63 @@
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
                                         Text="Long方格会只读检查 Windows 版本、系统任务栏和已知冲突工具。检测不会修改任务栏。"
                                         TextWrapping="Wrap" />
+                                    <Grid
+                                        x:Name="TaskbarPresetGrid"
+                                        AutomationProperties.AutomationId="TaskbarPresetGrid"
+                                        AutomationProperties.Name="任务栏外观预设"
+                                        ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border
+                                            Padding="16"
+                                            Background="{ThemeResource LongGridSurfaceMutedBrush}"
+                                            BorderBrush="{ThemeResource LongGridBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource LongGridCornerRadiusMedium}">
+                                            <StackPanel Spacing="10">
+                                                <TextBlock FontSize="18" FontWeight="SemiBold" Text="系统默认" />
+                                                <TextBlock
+                                                    Style="{StaticResource LongGridSubtitleTextStyle}"
+                                                    Text="恢复 Windows 原生任务栏外观。仅在存在可验证恢复事务时开放。" />
+                                                <Button
+                                                    x:Name="TaskbarSystemDefaultButton"
+                                                    AutomationProperties.AutomationId="TaskbarSystemDefaultButton"
+                                                    AutomationProperties.Name="恢复系统默认任务栏"
+                                                    Content="恢复系统默认"
+                                                    HorizontalAlignment="Left"
+                                                    IsEnabled="False" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border
+                                            Grid.Column="1"
+                                            Padding="16"
+                                            Background="{ThemeResource LongGridSurfaceMutedBrush}"
+                                            BorderBrush="{ThemeResource LongGridBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource LongGridCornerRadiusMedium}">
+                                            <StackPanel Spacing="10">
+                                                <TextBlock FontSize="18" FontWeight="SemiBold" Text="通透" />
+                                                <TextBlock
+                                                    Style="{StaticResource LongGridSubtitleTextStyle}"
+                                                    Text="提供清晰、轻盈的任务栏材质；只有认证 Build 才能应用。" />
+                                                <Button
+                                                    x:Name="TaskbarClearPresetButton"
+                                                    AutomationProperties.AutomationId="TaskbarClearPresetButton"
+                                                    AutomationProperties.Name="应用通透任务栏预设"
+                                                    Content="应用通透"
+                                                    HorizontalAlignment="Left"
+                                                    IsEnabled="False" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                    <TextBlock
+                                        x:Name="TaskbarPresetAvailabilityText"
+                                        AutomationProperties.AutomationId="TaskbarPresetAvailabilityText"
+                                        AutomationProperties.LiveSetting="Polite"
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="正在确认两个预设是否可用。" />
                                     <InfoBar
                                         x:Name="TaskbarCompatibilityInfoBar"
                                         AutomationProperties.AutomationId="TaskbarCompatibilityInfoBar"

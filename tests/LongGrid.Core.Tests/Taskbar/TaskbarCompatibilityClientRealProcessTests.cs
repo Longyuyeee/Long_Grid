@@ -33,6 +33,17 @@ public sealed class TaskbarCompatibilityClientRealProcessTests
         Assert.False(result.Report.Actual.ModifiedSystemState);
         Assert.NotEqual(TaskbarRuntimeAdmission.Allowed, result.Report.RuntimeAdmission);
         Assert.Equal("None", result.DiagnosticCode);
+
+        TaskbarPresetAvailability availability =
+            TaskbarPresetAvailabilityPolicy.Evaluate(
+                result.Report,
+                TaskbarNativeAdapterAvailability.Unavailable,
+                recoveryPending: false);
+        Assert.Equal(
+            TaskbarPresetAvailabilityStatus.BuildNotCertified,
+            availability.Status);
+        Assert.False(availability.ClearEnabled);
+        Assert.False(availability.RestoreSystemDefaultEnabled);
     }
 
     [Theory]
