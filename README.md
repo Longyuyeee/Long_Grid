@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，真实可见交互证据仍 Pending；TASKBAR-R1A/R1B、R2A1、R2A2a 已完成只读检测、恢复事务和唯一租约，R2A2b 又把遗留凭据读取与 Explorer 复探接入正式启动 Worker；Build 26200 实际拒绝并保持日志与任务栏窗口不变，尚无原生任务栏样式应用或恢复。M1 的 WinUI 跨进程 UIA 风险继续失败关闭。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)。三项 Core 仍未形成完整产品旅程，所有产物仍不可公开分发。
+> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，真实可见交互证据仍 Pending；TASKBAR-R1A/R1B、R2A1、R2A2a/R2A2b 已完成只读检测、恢复事务、唯一租约和正式启动恢复预检，R2A2c 又建立了默认不可用的原生恢复合同、空适配器目录与受证据开关保护的认证入口。Build 26200 实际保持 `DeniedNoCertifiedBuild / Unavailable`，任务栏窗口不变，尚无原生任务栏样式应用或恢复。M1 的 WinUI 跨进程 UIA 风险继续失败关闭。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)。三项 Core 仍未形成完整产品旅程，所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -23,6 +23,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [TASKBAR-R2A1 可恢复应用事务基础审计（Stage 212）](docs/212-taskbar-r2a1-recovery-transaction-foundation-audit.md)
 - [TASKBAR-R2A2a 唯一恢复租约审计（Stage 213）](docs/213-taskbar-r2a2a-exclusive-recovery-lease-audit.md)
 - [TASKBAR-R2A2b 启动恢复预检审计（Stage 214）](docs/214-taskbar-r2a2b-startup-recovery-preflight-audit.md)
+- [TASKBAR-R2A2c 原生适配器边界与认证入口审计（Stage 215）](docs/215-taskbar-r2a2c-native-adapter-boundary-audit.md)
 - [产品需求文档（PRD）](docs/02-product-requirements.md)
 - [交互设计与产品体验规范](docs/09-interaction-design-audit.md)
 - [开发流程与交付规范](docs/10-development-workflow.md)
@@ -248,7 +249,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)执行 TASKBAR-R2A2c：建立默认不可用的原生适配器边界和可丢弃 Windows build 认证入口。R2A2b 的正式启动恢复预检已经完成；Build 26200 保持失败关闭，只有专用矩阵取得像素、Explorer 重启、强杀和卸载恢复证据后才可开放真实 Clear；M1 物理证据在安全运行时和专用环境具备后恢复；自动整理、Tab、小组件、工作空间和 Long助手运行时不得抢占三项 Core。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)准备 TASKBAR-R2B1：只在可丢弃 Windows 环境实现并验证第一份原生 `Clear → SystemDefault` 适配器。R2A2c 的默认不可用边界和认证入口已经完成；Build 26200 继续失败关闭，只有专用矩阵取得应用前/后/恢复像素、Explorer 重启、强杀和卸载恢复证据后，才允许把精确 build 与适配器加入目录。M1 物理证据在安全运行时和专用环境具备后恢复；自动整理、Tab、小组件、工作空间和 Long助手运行时不得抢占三项 Core。
 
 ## 开发启动
 
