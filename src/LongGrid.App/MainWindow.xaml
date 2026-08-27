@@ -467,7 +467,7 @@
                                 x:Name="ProductDesktopCatalogCard"
                                 AutomationProperties.AccessibilityView="Content"
                                 AutomationProperties.AutomationId="ProductDesktopCatalogCard"
-                                AutomationProperties.Name="只读桌面目录状态"
+                                AutomationProperties.Name="桌面内容状态"
                                 Visibility="Collapsed"
                                 Style="{StaticResource LongGridCardStyle}">
                                 <Grid ColumnSpacing="14">
@@ -493,7 +493,7 @@
                                             AutomationProperties.ItemStatus="DesktopCatalogUnavailable:Generation=0:Items=0:Authoritative=False"
                                             AutomationProperties.LiveSetting="Polite"
                                             Style="{StaticResource LongGridSubtitleTextStyle}"
-                                            Text="只读适配器尚未发布权威快照；不会执行文件写入。"
+                                            Text="正在连接桌面内容；Long方格不会自动移动或删除文件。"
                                             TextWrapping="Wrap" />
                                         <TextBlock
                                             x:Name="ProductDesktopCatalogGeneration"
@@ -516,7 +516,7 @@
                                 x:Name="ProductWorkspaceSessionCard"
                                 AutomationProperties.AccessibilityView="Content"
                                 AutomationProperties.AutomationId="ProductWorkspaceSessionCard"
-                                AutomationProperties.Name="正式产品工作区会话状态"
+                                AutomationProperties.Name="方格工作区状态"
                                 Visibility="Collapsed"
                                 Style="{StaticResource LongGridCardStyle}">
                                 <Grid ColumnSpacing="14">
@@ -1305,7 +1305,7 @@
                                         AutomationProperties.LiveSetting="Polite"
                                         FontSize="11"
                                         Foreground="{ThemeResource LongGridTextSecondaryBrush}"
-                                        Text="只读视图未连接；桌面文件未改变。"
+                                        Text="正在加载方格内容；桌面文件保持原位。"
                                         TextWrapping="Wrap" />
                                 </Grid>
                             </Border>
@@ -1328,7 +1328,7 @@
                                         x:Name="ProductWorkspaceReferenceReviewDetail"
                                         AutomationProperties.AutomationId="ProductWorkspaceReferenceReviewDetail"
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
-                                        Text="等待正式产品会话与权威桌面目录；配置未改变。"
+                                        Text="正在加载方格内容；你的设置保持不变。"
                                         TextWrapping="Wrap" />
                                     <ComboBox
                                         x:Name="ProductWorkspaceReferenceReviewSelector"
@@ -1874,7 +1874,7 @@
                                         AutomationProperties.AutomationId="ThemeStatusText"
                                         AutomationProperties.LiveSetting="Polite"
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
-                                        Text="当前：跟随系统（仅内存）" />
+                                        Text="当前：跟随系统（本次使用）" />
                                 </StackPanel>
                             </Border>
                             <Border Style="{StaticResource LongGridCardStyle}">
@@ -1882,7 +1882,7 @@
                                     <TextBlock FontSize="20" FontWeight="SemiBold" Text="任务栏" />
                                     <TextBlock
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
-                                        Text="Long方格会只读检查 Windows 版本、系统任务栏和已知冲突工具。检测不会修改任务栏。"
+                                        Text="Long方格会检查当前 Windows 版本和其他任务栏工具，确认可以安全应用外观。检测期间现有任务栏不会改变。"
                                         TextWrapping="Wrap" />
                                     <Grid
                                         x:Name="TaskbarPresetGrid"
@@ -1903,7 +1903,7 @@
                                                 <TextBlock FontSize="18" FontWeight="SemiBold" Text="系统默认" />
                                                 <TextBlock
                                                     Style="{StaticResource LongGridSubtitleTextStyle}"
-                                                    Text="恢复 Windows 原生任务栏外观。仅在存在可验证恢复事务时开放。" />
+                                                    Text="回到 Windows 原本的任务栏外观；需要恢复时可在这里一键完成。" />
                                                 <Button
                                                     x:Name="TaskbarSystemDefaultButton"
                                                     AutomationProperties.AutomationId="TaskbarSystemDefaultButton"
@@ -1924,7 +1924,7 @@
                                                 <TextBlock FontSize="18" FontWeight="SemiBold" Text="通透" />
                                                 <TextBlock
                                                     Style="{StaticResource LongGridSubtitleTextStyle}"
-                                                    Text="提供清晰、轻盈的任务栏材质；只有认证 Build 才能应用。" />
+                                                    Text="提供清晰、轻盈的任务栏材质；仅在当前 Windows 版本通过兼容验证后可用。" />
                                                 <Button
                                                     x:Name="TaskbarClearPresetButton"
                                                     AutomationProperties.AutomationId="TaskbarClearPresetButton"
@@ -1949,17 +1949,17 @@
                                         IsOpen="True"
                                         Severity="Informational"
                                         Title="正在检测任务栏兼容性"
-                                        Message="在完成真实系统认证前，任务栏样式预设保持关闭。" />
+                                        Message="完成当前 Windows 版本的兼容与恢复验证前，任务栏预设保持关闭。" />
                                     <TextBlock
                                         x:Name="TaskbarCompatibilityDetail"
                                         AutomationProperties.AutomationId="TaskbarCompatibilityDetail"
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
-                                        Text="等待独立检测进程返回只读结果。"
+                                        Text="正在读取当前 Windows 和任务栏状态。"
                                         TextWrapping="Wrap" />
                                     <Button
                                         x:Name="TaskbarCompatibilityRefreshButton"
                                         AutomationProperties.AutomationId="TaskbarCompatibilityRefreshButton"
-                                        AutomationProperties.Name="重新只读检测任务栏兼容性"
+                                        AutomationProperties.Name="重新检测任务栏兼容性"
                                         Click="TaskbarCompatibilityRefreshButton_Click"
                                         Content="重新检测"
                                         HorizontalAlignment="Left" />

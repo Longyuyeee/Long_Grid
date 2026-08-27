@@ -22,8 +22,8 @@ public sealed partial class MainWindow
         TaskbarCompatibilityInfoBar.Severity = InfoBarSeverity.Informational;
         TaskbarCompatibilityInfoBar.Title = "正在检测任务栏兼容性";
         TaskbarCompatibilityInfoBar.Message =
-            "正在安全地执行只读检查；不会修改系统任务栏。";
-        TaskbarCompatibilityDetail.Text = "等待独立检测进程返回只读结果。";
+            "正在检查当前 Windows 版本和其他任务栏工具；现有外观不会改变。";
+        TaskbarCompatibilityDetail.Text = "正在读取当前 Windows 和任务栏状态。";
         AutomationProperties.SetItemStatus(
             TaskbarCompatibilityInfoBar,
             "TaskbarCompatibility=Probing;Mutation=Disabled");
@@ -80,7 +80,7 @@ public sealed partial class MainWindow
                 TaskbarCompatibilityInfoBar.Severity = InfoBarSeverity.Warning;
                 TaskbarCompatibilityInfoBar.Title = "当前 Windows 版本尚未认证";
                 TaskbarCompatibilityInfoBar.Message =
-                    "只读检测已通过，但还缺少该版本的应用、回滚、Explorer 重启和卸载实机证据，因此任务栏样式保持关闭。";
+                    "当前 Windows 版本还未通过完整的应用与恢复验证，任务栏外观保持不变。";
                 break;
             case TaskbarRuntimeAdmission.DeniedProbeFailure:
                 TaskbarCompatibilityInfoBar.Severity = InfoBarSeverity.Error;
@@ -92,7 +92,7 @@ public sealed partial class MainWindow
                 TaskbarCompatibilityInfoBar.Severity = InfoBarSeverity.Success;
                 TaskbarCompatibilityInfoBar.Title = "任务栏环境通过兼容性检查";
                 TaskbarCompatibilityInfoBar.Message =
-                    "当前阶段仍只展示检测结果；样式预设会在可恢复写入阶段单独交付。";
+                    "兼容性检查已通过；只有可安全恢复的预设才会在这里开放。";
                 break;
         }
 
@@ -121,9 +121,9 @@ public sealed partial class MainWindow
             TaskbarPresetAvailabilityStatus.ConflictDetected =>
                 "检测到其他任务栏工具，两个预设均保持关闭。",
             TaskbarPresetAvailabilityStatus.BuildNotCertified =>
-                "当前 Windows Build 尚未完成实机认证，预设不可应用。",
+                "当前 Windows 版本尚未完成兼容验证，预设暂不可用。",
             TaskbarPresetAvailabilityStatus.AdapterUnavailable =>
-                "当前版本没有经过认证的原生适配器，预设不可应用。",
+                "当前 Windows 版本暂时没有可用的任务栏方案。",
             TaskbarPresetAvailabilityStatus.Ready =>
                 "环境与适配器均已通过准入，可以应用通透预设。",
             _ => "任务栏只读检查未通过，预设不可应用。",
@@ -142,7 +142,7 @@ public sealed partial class MainWindow
         TaskbarCompatibilityInfoBar.Title = title;
         TaskbarCompatibilityInfoBar.Message = message;
         TaskbarCompatibilityDetail.Text =
-            $"诊断代码：{diagnosticCode}；系统修改：无。";
+            "没有取得可信检测结果；现有任务栏外观保持不变。";
         TaskbarClearPresetButton.IsEnabled = false;
         TaskbarSystemDefaultButton.IsEnabled = false;
         TaskbarPresetAvailabilityText.Text =

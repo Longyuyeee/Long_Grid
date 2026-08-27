@@ -1606,6 +1606,29 @@ function Test-SourceContract {
         $taskbarRefreshNode.GetAttribute(
             'AutomationProperties.Name').Length -gt 0
     ) 'Taskbar compatibility refresh must be named and bound to the audited read-only handler.'
+    $taskbarDetailNode = Get-XamlNodeByAutomationId `
+        $document `
+        'TaskbarCompatibilityDetail'
+    $taskbarPresetStatusNode = Get-XamlNodeByAutomationId `
+        $document `
+        'TaskbarPresetAvailabilityText'
+    Assert-Condition (
+        $taskbarDetailNode.GetAttribute('Text') -eq `
+            '正在读取当前 Windows 和任务栏状态。' -and
+        $taskbarPresetStatusNode.GetAttribute('Text') -eq `
+            '正在确认两个预设是否可用。'
+    ) 'Taskbar product status must use concise user language while compatibility is loading.'
+    foreach ($forbiddenProductPhrase in @(
+        '认证 Build',
+        '恢复事务',
+        '独立检测进程',
+        '只读适配器尚未发布权威快照',
+        '只读视图未连接'
+    )) {
+        Assert-Condition (-not $document.OuterXml.Contains(
+            $forbiddenProductPhrase)) `
+            "Formal product XAML still exposes engineering phrase '$forbiddenProductPhrase'."
+    }
     foreach ($presetButtonId in @(
         'TaskbarSystemDefaultButton',
         'TaskbarClearPresetButton'
