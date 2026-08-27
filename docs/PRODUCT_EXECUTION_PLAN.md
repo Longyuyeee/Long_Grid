@@ -544,6 +544,8 @@ FOLDER-R1 基础内容排序需求纠偏记录（2026-08-27，基线 `origin/mai
 
 本次只纠正原始 P0 已存在的基础排序缺口。PF-008 的图标/列表视图、图标尺寸、间距、修改时间和自定义拖动排序仍按 M3 扩展处理；M1 总状态继续保持 `ExternalEnvironmentBlocked / ProductEvidencePending`。
 
+PR #268 Windows runner run `33090008325` 完整通过：`1,366/1,366`，coverage lines `90.09% (46790/51938)`、branches `75.93% (15342/20206)`；198-ID UI/批量无障碍/clean-session 合同、格式、Release 构建、启动与恢复、真实文件安全、原生宿主、受限缩略图 Worker、依赖漏洞和内部未签名 RC 交付集均成功。PR 为 `CLEAN / MERGEABLE` 且无审查评论；远端与本地功能结论无差异。
+
 PF-007A2 DesktopHost OLE DropTarget 记录（2026-08-26，基线 `origin/main@53c8b5e`）：
 
 | 检查 | 预期效果 | 实际效果 | 差异与修正 |
