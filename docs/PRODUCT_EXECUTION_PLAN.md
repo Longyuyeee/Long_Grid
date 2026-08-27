@@ -6,7 +6,7 @@
 
 更新日期：2026-08-27
 
-代码审计基线：`origin/main@4a733cf`；最新开发审计见 [Stage 216](216-taskbar-r2b1a-disposable-environment-admission-audit.md)
+代码审计基线：`origin/main@cb032b0`；最新开发审计见 [Stage 217](217-taskbar-r2b1a2-preset-admission-ui-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -78,7 +78,7 @@ UI-R1A 开始前的代码审计显示，正式控制中心仍沿用早期“开�
 | 产品 UI | `origin/main@288838c` 已包含 UI-R1A～UI-R1E-B 工程范围 | 产品导航、真实概览、盒子管理、设置分层、显式启动入口和真实 XAML 渲染证据均已进入主线 | 工程范围完成；高对比、减少动画、Narrator 和物理键盘仍为 `ManualEvidencePending`，不能把 UI-R1 整体标为 Complete |
 | 桌面右键创建 | DesktopHost 已具备创建事务、预览、快捷键、拖画入口和产品内弹出菜单 | 右键“新建方格”当前仅在宿主绘制的“新建”按钮区域触发，不是 Explorer 桌面任意空白区域 | BOX-R1 仍未达到原始核心旅程，必须通过受支持的 Explorer 背景命令补齐入口、冲突处理和物理证据 |
 | 文件夹绑定 | 有安全引用、目录枚举、打开与 Portal/Tab 设计底座 | FOLDER-R1-A/B 已建立 schema v3、稳定身份和绑定事务；C 已将最多 256 个直属项目投影到盒子管理页和 DesktopHost；D 已让运行时快照发布权威有限绑定状态，并以根目录/父目录事件与低频健康探测处理权限拒绝、离线、归来和同路径替换 | A～D 工程链已通过真实文件系统；物理 Picker、可见刷新/打开、键盘和 Narrator 仍 `ProductEvidencePending`，不得写成完整用户旅程已完成 |
-| 任务栏美化 | 有技术审计和产品边界文档 | TASKBAR-R1A/R1B、R2A1、R2A2a/R2A2b/R2A2c 已完成只读、恢复和原生边界；R2B1-A 已建立可丢弃环境 Host/Guest 准入及受限 `.wsb`；真实 Build 26200 主机因 Sandbox 启动器缺失、SLAT 未获证明而 `Blocked / mutationAllowed=false` | R2B1-A `EngineeringComplete / RealHostBlockedAsExpected`；原生效果、R2B1-B/R3/R4 Pending |
+| 任务栏美化 | 有技术审计和产品边界文档 | TASKBAR-R1A～R2B1-A 已完成只读、恢复、原生边界和可丢弃环境准入；R2B1-A2 已把“系统默认 / 通透”卡片与有限准入接入正式个性化页；Build 26200 真实为 `DeniedNoCertifiedBuild`，Host 仍 `Blocked / mutationAllowed=false` | 预设界面与失败关闭 `EngineeringComplete / VisibleUiEvidencePending`；原生效果、R2B1-B/R3/R4 Pending |
 | Explorer 与盒子拖放 | PF-007A1 已完成 `CF_HDROP` 有界解析、安全准入和原子配置请求 | PF-007A2 已完成正式 OLE Link 拖入工程链；PF-007B 已完成已选正式引用在盒子间的原生有限拖动、冻结权威准入、原子保存/补偿和一次撤销；真实 STA/HWND/隔离文件零变化通过 | A/B `EngineeringComplete / RealHwndPass / ProductEvidencePending`；物理 Explorer 与盒子间指针证据留在 M1 集中证据 |
 | 小组件/Long助手插件 | LPWP 1.0 等协议文档存在 | 只有 Windows App SDK Widgets 的传递依赖，没有 Widget Host 或插件小组件运行时 | 方向对齐但仍是 M4；不得抢占三根核心支柱 |
 | 启动与打包 | 根目录 `启动Long方格.cmd` 和 `eng` 启动、打包、MSIX、RC/SBOM 脚本存在 | 内部未签名链可用，正式签名和发布矩阵仍待 M5 | 工程入口基本对齐，发布能力未闭环 |
@@ -201,7 +201,7 @@ GitHub 集成结果：#238 已注明被 #239 覆盖并关闭；#239、#240、#24
 | 盒子绑定文件夹 | FOLDER-R1 A～D 工程链与真实 NTFS 身份、内容、事件、权限/离线恢复已完成；物理 Picker、可见刷新/打开、键盘和 Narrator 未闭环 | M1 |
 | Explorer 拖入和方格间整理 | PF-007A2/B 已完成正式 OLE Link、盒子间改归属、原子提交和撤销；真实 Explorer/盒子间物理指针证据未完成 | M1 |
 | 正常、现代的软件 UI | UI-R1A～UI-R1D 已完成产品结构；UI-R1E-A 已取得真实浅/深色、宽/紧凑渲染并修正标题重叠，高对比/减少动画仍待补 | M1，持续纠偏 |
-| 任务栏美化 | R1A/R1B、R2A1、R2A2a/R2A2b/R2A2c 已完成；R2B1-A 已完成可丢弃环境准入，当前 Host 真实阻断；当前 build 未认证，尚无原生样式应用/恢复 | M2，R2B1-B/R3/R4 Pending |
+| 任务栏美化 | R1A～R2B1-A 已完成安全工程链；R2B1-A2 已加入正式预设卡片和有限准入；当前 Host 真实阻断、Build 未认证，尚无原生样式应用/恢复 | M2，R2B1-B/R3/R4 Pending |
 | 自动分类整理 | 未形成真实规则用户闭环 | M3 扩展 |
 | 快速隐藏、托盘、快捷键 | 未完成 | M3 扩展 |
 | 布局快照与多显示器恢复 | 底座较强，完整产品页和用户证据未闭环 | M3 扩展 |
@@ -265,7 +265,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**TASKBAR-R2B1-B 可丢弃 Windows Guest 中的首个原生 `Clear → SystemDefault` 适配器实验（EnvironmentBlocked）**。R2B1-A 已完成 Host/Guest 双层门禁与受限 `.wsb` 生成；当前 Windows 10.0.26200 主机实际具备 X64、16 逻辑处理器、约 39.4 GiB 内存和虚拟化固件，但 `SecondLevelAddressTranslationNotAttested`、`WindowsSandboxLauncherMissing`，因此精确返回 `Blocked / mutationAllowed=false`。启用 Windows Sandbox 需要提升权限并可能重启，未获授权前不修改宿主系统；R2B1-B 不得降级到日常桌面试写。
+当前执行项：**TASKBAR-R2B1-B 可丢弃 Windows Guest 中的首个原生 `Clear → SystemDefault` 适配器实验（EnvironmentBlocked）**。阻断期间已完成 R2B1-A2 正式预设卡片与有限准入，不再用纯说明占据任务栏页面，但这不改变原生进度。当前 Windows 10.0.26200 主机实际具备 X64、16 逻辑处理器、约 39.4 GiB 内存和虚拟化固件，但 `SecondLevelAddressTranslationNotAttested`、`WindowsSandboxLauncherMissing`，因此精确返回 `Blocked / mutationAllowed=false`。启用 Windows Sandbox 需要提升权限并可能重启，未获授权前不修改宿主系统；R2B1-B 不得降级到日常桌面试写。
 
 严格按下列顺序交付，不再插入相邻探针或新宽度功能：
 
@@ -278,7 +278,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 7. **FOLDER-R1（A～D EngineeringComplete / RealFilesystemPass / ProductEvidencePending）**：A 持久化/身份/健康合同 → B 显式选择、取消零写入、绑定/解绑/重连原子提交 → C 目录内容呈现、显式刷新、变更通知和安全打开 → D 权限、离线、同路径替换、失效恢复和有限状态；物理 Picker、可见刷新/打开、键盘和 Narrator 进入 M1 集中证据。
 8. **PF-007A2 / PF-007B（EngineeringComplete / RealHwndPass / ProductEvidencePending）**：A2 已完成正式 HWND OLE DropTarget 和安全 Link 引用提交；B 已完成盒子间改归属、无效目标、失败补偿和一次撤销。
 9. **M1 产品证据冲刺（ExternalEnvironmentBlocked）**：完整两分钟旅程，而不是分散控件证据；等待安全 WinUI 运行时、专用账户和可安装签名条件，不降低出口。
-10. **TASKBAR-R1～R4（R1/R2A1/R2A2a/R2A2b/R2A2c/R2B1-A 完成，R2B1-B 环境阻断）**：既有只读、恢复凭据、唯一所有权、启动预检和默认空原生边界保持通过；R2B1-A 已证明不满足专用环境时真实阻断且不修改系统。R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵。
+10. **TASKBAR-R1～R4（R1～R2B1-A2 工程范围完成，R2B1-B 环境阻断）**：既有只读、恢复凭据、唯一所有权、启动预检、默认空原生边界和正式预设准入保持通过；R2B1-A 已证明不满足专用环境时真实阻断且不修改系统，A2 只提供产品卡片和失败关闭。R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵。
 
 UI-R1 允许重构产品壳层，但不得重写已经验证的 Core、配置事务和 DesktopHost 安全边界。
 
@@ -447,9 +447,9 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 ## 12. 当前完成度口径
 
 - 工程底座：较强，PF-001～PF-006 已具备大量正式链路；
-- GitHub 主分支交付：UI-R1A～UI-R1E、BOX-R1-A/B、FOLDER-R1-A～D、PF-007A2/B、M1-A/B 证据安全入口与 TASKBAR-R1A～R2A2b 均已合入 `origin/main@44c74a3`；R2A2c 以 [Stage 215](215-taskbar-r2a2c-native-adapter-boundary-audit.md) 和当前 PR 为交付边界；
+- GitHub 主分支交付：UI-R1A～UI-R1E、BOX-R1-A/B、FOLDER-R1-A～D、PF-007A2/B、M1-A/B 证据安全入口与 TASKBAR-R1A～R2B1-A 已合入 `origin/main@cb032b0`；R2B1-A2 以 [Stage 217](217-taskbar-r2b1a2-preset-admission-ui-audit.md) 和当前 PR 为交付边界；
 - M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，BOX-R1-C、FOLDER-R1、真实 Explorer 指针拖入和盒子间物理拖动证据 Pending；当前为 `ExternalEnvironmentBlocked`，不降低出口；
-- M2 任务栏美化核心：TASKBAR-R1A/R1B、R2A1、R2A2a/R2A2b、R2A2c 与 R2B1-A 工程链已通过；默认原生目录为空，当前 Host 因专用环境缺失真实阻断；R2B1-B/R3/R4 未完成，因此样式预设仍不可用；
+- M2 任务栏美化核心：TASKBAR-R1A～R2B1-A 工程链和 R2B1-A2 正式预设准入已通过；默认原生目录为空，当前 Host 因专用环境缺失真实阻断；卡片可见但不可应用，R2B1-B/R3/R4 未完成；
 - M3 桌面管理增强：未开始闭环；
 - M4 工作空间/小组件/插件：协议或文档阶段；
 - M5 正式交付：内部未签名链存在，正式发布未开始。
