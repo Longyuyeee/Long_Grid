@@ -77,7 +77,7 @@ UI-R1A 开始前的代码审计显示，正式控制中心仍沿用早期“开�
 |---|---|---|---|
 | 产品 UI | `origin/main@288838c` 已包含 UI-R1A～UI-R1E-B 工程范围 | 产品导航、真实概览、盒子管理、设置分层、显式启动入口和真实 XAML 渲染证据均已进入主线 | 工程范围完成；高对比、减少动画、Narrator 和物理键盘仍为 `ManualEvidencePending`，不能把 UI-R1 整体标为 Complete |
 | 桌面右键创建 | DesktopHost 已具备创建事务、预览、快捷键、拖画入口和产品内弹出菜单；BOX-R1-B 已交付原生 `IExplorerCommand` DLL 与 MSIX `Directory\Background` 注册 | 未签名包尚未在可丢弃账户安装，因此当前用户环境仍没有经过实证的桌面任意空白处菜单 | BOX-R1-A/B 工程完成；BOX-R1-C/D 仍需真实安装、点击、Explorer 重启和卸载恢复证据 |
-| 文件夹绑定 | 有安全引用、目录枚举、打开与 Portal/Tab 设计底座 | FOLDER-R1-A/B 已建立稳定身份和绑定事务；C/D 已完成有界内容与有限状态；路径和三种持久化基础排序已纠偏；继续复读发现 `AwaitingRefresh` 从未被生产代码创建，首次绑定/刷新实际发布 `Content=None`，本轮接通真实同代加载快照 | 工程链与真实文件系统已通过；路径只在明确管理上下文显示，排序只持久化有限枚举，加载快照不携带项目或路径；物理 Picker、可见状态/刷新/打开/排序、键盘和 Narrator 仍 `ProductEvidencePending` |
+| 文件夹绑定 | 有安全引用、目录枚举、打开与 Portal/Tab 设计底座 | FOLDER-R1-A/B 已建立稳定身份和绑定事务；C/D 已完成有界内容与有限状态；路径、三种持久化基础排序和真实加载状态已纠偏；本轮继续发现离线/拒绝后的工程恢复只回到普通 Ready/Empty，原始 P0 要求的“恢复状态”不可见 | 工程链与真实文件系统已通过；本轮补一次性、path-free 的恢复来源，不覆盖真实内容状态、不持久化；物理 Picker、可见状态/刷新/打开/排序、键盘和 Narrator 仍 `ProductEvidencePending` |
 | 任务栏美化 | 有技术审计和产品边界文档 | TASKBAR-R1A～R2B1-A 已完成只读、恢复、原生边界和可丢弃环境准入；R2B1-A2 已把“系统默认 / 通透”卡片与有限准入接入正式个性化页；Build 26200 真实为 `DeniedNoCertifiedBuild`，Host 仍 `Blocked / mutationAllowed=false` | 预设界面与失败关闭 `EngineeringComplete / VisibleUiEvidencePending`；原生效果、R2B1-B/R3/R4 Pending |
 | Explorer 与盒子拖放 | PF-007A1 已完成 `CF_HDROP` 有界解析、安全准入和原子配置请求 | PF-007A2 已完成正式 OLE Link 拖入工程链；PF-007B 已完成已选正式引用在盒子间的原生有限拖动、冻结权威准入、原子保存/补偿和一次撤销；真实 STA/HWND/隔离文件零变化通过 | A/B `EngineeringComplete / RealHwndPass / ProductEvidencePending`；物理 Explorer 与盒子间指针证据留在 M1 集中证据 |
 | 小组件/Long助手插件 | LPWP 1.0 等协议文档存在 | 只有 Windows App SDK Widgets 的传递依赖，没有 Widget Host 或插件小组件运行时 | 方向对齐但仍是 M4；不得抢占三根核心支柱 |
@@ -198,7 +198,7 @@ GitHub 集成结果：#238 已注明被 #239 覆盖并关闭；#239、#240、#24
 | 原始需求 | 当前事实 | 目标里程碑 |
 |---|---|---|
 | 桌面右键创建盒子与基本管理 | PF-001～PF-006 与 BOX-R1-A/B 工程链已存在；原生背景命令 DLL/清单已通过真实构建和包审计，但未在可丢弃账户完成真实菜单/卸载矩阵 | M1，BOX-R1-C/D Pending |
-| 盒子绑定文件夹 | FOLDER-R1 A～D 工程链与真实 NTFS 身份、内容、事件、权限/离线恢复已完成；纠偏切片补齐可见路径、三种持久化基础排序和此前不可达的真实加载状态；物理 Picker、可见状态/刷新/打开/排序、键盘和 Narrator 未闭环 | M1 |
+| 盒子绑定文件夹 | FOLDER-R1 A～D 工程链与真实 NTFS 身份、内容、事件、权限/离线恢复已完成；纠偏切片补齐可见路径、三种持久化基础排序、真实加载状态及一次性恢复反馈；物理 Picker、可见状态/刷新/打开/排序、键盘和 Narrator 未闭环 | M1 |
 | Explorer 拖入和方格间整理 | PF-007A2/B 已完成正式 OLE Link、盒子间改归属、原子提交和撤销；真实 Explorer/盒子间物理指针证据未完成 | M1 |
 | 正常、现代的软件 UI | UI-R1A～UI-R1D 已完成产品结构；UI-R1E-A 已取得真实浅/深色、宽/紧凑渲染并修正标题重叠，高对比/减少动画仍待补 | M1，持续纠偏 |
 | 任务栏美化 | R1A～R2B1-A 已完成安全工程链；R2B1-A2 已加入正式预设卡片和有限准入；当前 Host 真实阻断、Build 未认证，尚无原生样式应用/恢复 | M2，R2B1-B/R3/R4 Pending |
@@ -265,7 +265,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**FOLDER-R1 原始 P0 有限状态偏移纠正，然后回到 BOX-R1-C/D 与 M1 完整物理旅程（ExternalEnvironmentBlocked）**。路径与基础排序已分别由 PR #267/#268 合入；继续复读发现 PRD 第 4.1 节要求“加载状态”，但 `AwaitingRefresh` 仅存在于枚举和 UI 默认分支，从未被生产刷新生命周期创建，首次绑定/刷新期间实际为 `Content=None`。本轮只发布当前 generation 的 path-free pending 快照，并让权限/失效绑定立即进入有限失败状态；不新增轮询、文件写入或外围功能。完成后下一用户结果仍是在可丢弃账户真实安装预览包，从桌面空白处创建盒子、绑定文件夹、观察加载并排序/刷新/打开、Explorer 拖入、盒子间改归属并撤销，最后验证 Explorer 重启和卸载恢复。当前会话没有符合门禁的可丢弃账户/VM，且跨进程 WinUI UIA 组合存在已审计风险，因此不得用源码合同或当前日常账户替代物理 Pass。TASKBAR-R2B1-B 同样保持 `EnvironmentBlocked`。
+当前执行项：**FOLDER-R1 原始 P0 恢复状态偏移纠正，然后回到 BOX-R1-C/D 与 M1 完整物理旅程（ExternalEnvironmentBlocked）**。路径、基础排序与加载状态已由 PR #267/#268/#269 合入；继续复读 PRD 第 4.1 节的“恢复状态”后确认，现有真实权限/离线恢复只把内容重新发布为普通 Ready/Empty/Truncated，用户无法知道刚从哪种有限失败恢复。本轮只在更高 generation 的“上一已发布结果非 Resolved → 当前可用 Resolved”上附加一次性、path-free 恢复来源；保留真实内容状态，下一次普通刷新清除，重绑定/工作区变化不继承，不新增轮询、文件写入、schema 或外围功能。完成后下一用户结果仍是在可丢弃账户真实安装预览包，从桌面空白处创建盒子、绑定文件夹、观察加载/失效/恢复并排序/刷新/打开、Explorer 拖入、盒子间改归属并撤销，最后验证 Explorer 重启和卸载恢复。当前会话没有符合门禁的可丢弃账户/VM，且跨进程 WinUI UIA 组合存在已审计风险，因此不得用源码合同或当前日常账户替代物理 Pass。TASKBAR-R2B1-B 同样保持 `EnvironmentBlocked`。
 
 严格按下列顺序交付，不再插入相邻探针或新宽度功能：
 
@@ -275,7 +275,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 4. **UI-R1D 设置迁移（EngineeringComplete / ProductEvidencePending）**：配置导入导出归入“常规”，隐私承诺使用用户语言，一次性匿名证据归入默认折叠的“高级诊断”；开发门槛和 Design Token 样例已从发布表面删除。真实磁盘往返与损坏输入保护通过，可见交互证据随 UI-R1E 完成。
 5. **UI-R1E 视觉与响应式验收（EngineeringComplete / ManualEvidencePending）**：UI-R1E-A 已完成浅/深色、1120/720 effective px、200% 缩放、焦点和真实 XAML PNG；UI-R1E-B 已确保根目录/显式启动直接显示唯一控制中心，同时保留 `--background` 桌面优先模式。I19/BSA 自动预检均通过且明确不修改系统设置；高对比、关闭系统动画、Narrator、物理键盘及其他 DPI 继续作为 M1 出口人工门禁。
 6. **BOX-R1（B 已完成，C Pending）**：A 有限激活合同（EngineeringComplete / RealProcessPass）→ B 原生 `IExplorerCommand` 与真实 unsigned MSIX（EngineeringComplete / NativeDllPass / RealUnsignedPackagePass）→ C 可丢弃账户真实安装/菜单/卸载证据（PendingApproval）→ D Explorer 重启、显示器、DPI 与失败恢复；全部复用统一创建预览和事务。
-7. **FOLDER-R1（A～D EngineeringComplete / RealFilesystemPass / ProductEvidencePending；加载状态纠偏进行中）**：A 持久化/身份/健康合同 → B 显式选择、取消零写入、绑定/解绑/重连原子提交 → C 目录内容呈现、显式刷新、变更通知和安全打开 → D 权限、离线、同路径替换、失效恢复和有限状态；路径与三种 schema v4 基础排序已合入。本轮把不可达的 `AwaitingRefresh` 接入首次绑定、显式刷新与 watcher 刷新的真实 generation 生命周期；物理 Picker、可见加载/刷新/打开/排序、键盘和 Narrator 进入 M1 集中证据。
+7. **FOLDER-R1（A～D EngineeringComplete / RealFilesystemPass / ProductEvidencePending；恢复状态纠偏进行中）**：A 持久化/身份/健康合同 → B 显式选择、取消零写入、绑定/解绑/重连原子提交 → C 目录内容呈现、显式刷新、变更通知和安全打开 → D 权限、离线、同路径替换、失效恢复和有限状态；路径、三种 schema v4 基础排序与加载状态已合入。本轮让既有真实权限/离线恢复产生一次性有限恢复反馈，同时保留 Ready/Empty/Truncated 等权威内容状态；物理 Picker、可见加载/失效/恢复/刷新/打开/排序、键盘和 Narrator 进入 M1 集中证据。
 8. **PF-007A2 / PF-007B（EngineeringComplete / RealHwndPass / ProductEvidencePending）**：A2 已完成正式 HWND OLE DropTarget 和安全 Link 引用提交；B 已完成盒子间改归属、无效目标、失败补偿和一次撤销。
 9. **M1 产品证据冲刺（ExternalEnvironmentBlocked）**：完整两分钟旅程，而不是分散控件证据；等待安全 WinUI 运行时、专用账户和可安装签名条件，不降低出口。
 10. **TASKBAR-R1～R4（R1～R2B1-A2 工程范围完成，R2B1-B 环境阻断）**：既有只读、恢复凭据、唯一所有权、启动预检、默认空原生边界和正式预设准入保持通过；R2B1-A 已证明不满足专用环境时真实阻断且不修改系统，A2 只提供产品卡片和失败关闭。R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵。
@@ -447,7 +447,7 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 ## 12. 当前完成度口径
 
 - 工程底座：较强，PF-001～PF-006 已具备大量正式链路；
-- GitHub 主分支交付：UI-R1A～UI-R1F、BOX-R1-A/B、FOLDER-R1-A～D、路径与基础排序纠偏、PF-007A2/B、M1-A/B 证据安全入口与 TASKBAR-R1A～R2B1-A2 已合入 `origin/main@14e1cae`；加载状态纠偏在当前分支等待完整审计与 PR；
+- GitHub 主分支交付：UI-R1A～UI-R1F、BOX-R1-A/B、FOLDER-R1-A～D、路径/基础排序/加载状态纠偏、PF-007A2/B、M1-A/B 证据安全入口与 TASKBAR-R1A～R2B1-A2 已合入 `origin/main@9657a20`；恢复状态纠偏在当前分支等待完整审计与 PR；
 - M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，BOX-R1-C、FOLDER-R1、真实 Explorer 指针拖入和盒子间物理拖动证据 Pending；当前为 `ExternalEnvironmentBlocked`，不降低出口；
 - M2 任务栏美化核心：TASKBAR-R1A～R2B1-A 工程链和 R2B1-A2 正式预设准入已通过；默认原生目录为空，当前 Host 因专用环境缺失真实阻断；卡片可见但不可应用，R2B1-B/R3/R4 未完成；
 - M3 桌面管理增强：未开始闭环；
@@ -558,7 +558,19 @@ FOLDER-R1 加载状态可达性纠偏记录（2026-08-28，基线 `origin/main@1
 
 本次没有新增轮询、文件系统写入或持久化字段；加载快照是会话内、当前 generation 的瞬时权威状态。M1 物理旅程与外部环境阻断口径保持不变。
 
-PR #269 Windows runner run `33092966435` 首次尝试在 `Setup .NET` 后执行 `dotnet format` 时报告无法定位 dotnet CLI，未产生任何源码格式差异或测试结果；对同一 run 的失败任务重跑后完整通过：`1,374/1,374`，coverage lines `90.10% (46846/51992)`、branches `75.97% (15374/20238)`，Release `0 warning / 0 error`，198-ID UI/批量无障碍/clean-session 合同、启动与恢复、真实文件安全、原生宿主、受限缩略图 Worker、依赖漏洞和内部未签名 RC/SBOM 交付集均成功。首尝试按 runner 工具链初始化异常记录，不复用其失败结果，也未为环境异常修改产品代码。
+PR #269 Windows runner run `33092966435` 首次尝试在 `Setup .NET` 后执行 `dotnet format` 时报告无法定位 dotnet CLI，未产生任何源码格式差异或测试结果；对同一 run 的失败任务重跑后完整通过：`1,374/1,374`，coverage lines `90.10% (46846/51992)`、branches `75.97% (15374/20238)`，Release `0 warning / 0 error`，198-ID UI/批量无障碍/clean-session 合同、启动与恢复、真实文件安全、原生宿主、受限缩略图 Worker、依赖漏洞和内部未签名 RC/SBOM 交付集均成功。首尝试按 runner 工具链初始化异常记录，不复用其失败结果，也未为环境异常修改产品代码。最终头提交 run `33094010759` 再次全绿，PR squash 合入 `main@9657a20`；合并后主线 run `33094708394` 完整通过。
+
+FOLDER-R1 恢复状态可见性纠偏记录（2026-08-28，基线 `origin/main@9657a20`）：
+
+| 检查 | 预期效果 | 实际效果 | 差异与修正 |
+|---|---|---|---|
+| 原始需求与可达性 | PRD 要求正常、空、加载、失效、离线、权限拒绝和恢复状态均可见 | watcher 与真实文件系统测试已证明 `AccessDenied/Missing → Resolved`，但完成结果只回到普通 Ready/Empty/Truncated，生产模型、正式文案和 UIA 状态均没有恢复信号 | 确认为 P0 状态缺口；不新增“Recovered 内容状态”，而是在保留权威内容状态的同时附加有限恢复来源 |
+| 转移权威性 | 只允许更高 generation 从上一份已发布非 Resolved 结果恢复；同代、健康到健康、重绑定或工作区变化不得误报 | App 保留 path-free `lastPublishedFolderContents`；刷新完成后用 `MarkRecoveriesFrom` 比较，指纹变化和无绑定状态清空基线；同代调用会主动清除旧恢复元数据 | 对齐；取消/旧 revision/旧 generation 继续沿用原三重发布校验，未发布失败不会伪造恢复 |
+| 状态与反馈 | 恢复不能覆盖 Empty/Truncated/Skipped 等真实结果，也不能把健康盒子标成待审查 | `RecoveredFromBindingResolution` 只允许当前 BindingResolution=Resolved 且内容状态可用；read model 保持原 status/items/health，控制中心区分“权限已恢复 / 已恢复在线 / 原绑定已恢复 / 访问已恢复”，UIA ItemStatus 输出有限 `RecoveredFrom` | 对齐；路径、稳定身份和项目清单不进入恢复元数据 |
+| 生命周期与范围 | 恢复提示一次发布、下一次普通刷新清除；不持久化、不加定时器或新 schema | reader 每次生成无恢复元数据的新结果，只有紧邻失败基线的完成发布会附加；后续健康刷新以 Resolved 基线自然清除 | 对齐；复用既有 2 秒健康探测，不新增轮询、配置或文件写入 |
+| 回归与安全 | 非法恢复形状失败关闭；格式、Release、专项、全量、覆盖率与 UI 合同不得退化 | 形状拒绝 Resolved 来源和未恢复的当前 binding；专项 `26/26`；全量 `1,381/1,381`；coverage lines `90.42% (47086/52072)`、branches `76.15% (15456/20298)`；Release `0 warning / 0 error`，198-ID UI ContractOnly 通过 | 当前本地工程差异为 `None`；物理可见恢复时序和 Narrator 仍 Pending |
+
+本次只纠正原始 P0 的恢复状态可见性，不改变目录枚举、打开、排序、watcher 或持久化边界。BOX-R1-C/D 与 M1 仍因受保护签名、可丢弃账户和安全 WinUI 运行时缺失保持 `ExternalEnvironmentBlocked / ProductEvidencePending`。
 
 PF-007A2 DesktopHost OLE DropTarget 记录（2026-08-26，基线 `origin/main@53c8b5e`）：
 
