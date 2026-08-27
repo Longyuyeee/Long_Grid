@@ -1838,7 +1838,7 @@
                             <controls:ProductPageHeader
                                 AutomationProperties.AutomationId="PersonalizationPageHeader"
                                 Title="个性化"
-                                Subtitle="调整 Long方格的主题与视觉体验。任务栏预设将在核心适配器完成后出现在这里。" />
+                                Subtitle="调整 Long方格主题，并查看当前 Windows 的任务栏兼容状态。" />
                             <Border Style="{StaticResource LongGridCardStyle}">
                                 <StackPanel Spacing="14">
                                     <TextBlock FontSize="20" FontWeight="SemiBold" Text="界面主题" />
@@ -1875,6 +1875,37 @@
                                         AutomationProperties.LiveSetting="Polite"
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
                                         Text="当前：跟随系统（仅内存）" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource LongGridCardStyle}">
+                                <StackPanel Spacing="14">
+                                    <TextBlock FontSize="20" FontWeight="SemiBold" Text="任务栏" />
+                                    <TextBlock
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="Long方格会只读检查 Windows 版本、系统任务栏和已知冲突工具。检测不会修改任务栏。"
+                                        TextWrapping="Wrap" />
+                                    <InfoBar
+                                        x:Name="TaskbarCompatibilityInfoBar"
+                                        AutomationProperties.AutomationId="TaskbarCompatibilityInfoBar"
+                                        AutomationProperties.LiveSetting="Polite"
+                                        IsClosable="False"
+                                        IsOpen="True"
+                                        Severity="Informational"
+                                        Title="正在检测任务栏兼容性"
+                                        Message="在完成真实系统认证前，任务栏样式预设保持关闭。" />
+                                    <TextBlock
+                                        x:Name="TaskbarCompatibilityDetail"
+                                        AutomationProperties.AutomationId="TaskbarCompatibilityDetail"
+                                        Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="等待独立检测进程返回只读结果。"
+                                        TextWrapping="Wrap" />
+                                    <Button
+                                        x:Name="TaskbarCompatibilityRefreshButton"
+                                        AutomationProperties.AutomationId="TaskbarCompatibilityRefreshButton"
+                                        AutomationProperties.Name="重新只读检测任务栏兼容性"
+                                        Click="TaskbarCompatibilityRefreshButton_Click"
+                                        Content="重新检测"
+                                        HorizontalAlignment="Left" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>

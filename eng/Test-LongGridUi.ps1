@@ -16,6 +16,8 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $xamlPath = Join-Path $projectRoot 'src\LongGrid.App\MainWindow.xaml'
 $codeBehindPath = Join-Path $projectRoot 'src\LongGrid.App\MainWindow.xaml.cs'
+$taskbarCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\MainWindow.Taskbar.cs'
 $appCodePath = Join-Path $projectRoot 'src\LongGrid.App\App.xaml.cs'
 $pf002AppEvidenceCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductPf002AppEvidenceSession.cs'
@@ -248,6 +250,10 @@ function Get-XamlNodeByAutomationId {
 function Test-SourceContract {
     [xml]$document = Get-Content -LiteralPath $xamlPath -Raw -Encoding UTF8
     $codeBehind = Get-Content -LiteralPath $codeBehindPath -Raw -Encoding UTF8
+    $taskbarCode = Get-Content `
+        -LiteralPath $taskbarCodePath `
+        -Raw `
+        -Encoding UTF8
     $appCode = Get-Content -LiteralPath $appCodePath -Raw -Encoding UTF8
     $pf002AppEvidenceCode = Get-Content `
         -LiteralPath $pf002AppEvidenceCodePath `
@@ -829,7 +835,10 @@ function Test-SourceContract {
         'ThemeSystem',
         'ThemeLight',
         'ThemeDark',
-        'ThemeStatusText'
+        'ThemeStatusText',
+        'TaskbarCompatibilityInfoBar',
+        'TaskbarCompatibilityDetail',
+        'TaskbarCompatibilityRefreshButton'
     )
 
     foreach ($automationId in $requiredIds) {
@@ -1575,6 +1584,31 @@ function Test-SourceContract {
         'The theme handler must expose a light mode.'
     Assert-Condition ($codeBehind -match 'ElementTheme\.Dark') `
         'The theme handler must expose a dark mode.'
+    $taskbarInfoNode = Get-XamlNodeByAutomationId `
+        $document `
+        'TaskbarCompatibilityInfoBar'
+    Assert-Condition (
+        $taskbarInfoNode.GetAttribute('IsClosable') -eq 'False' -and
+        $taskbarInfoNode.GetAttribute('IsOpen') -eq 'True' -and
+        $taskbarInfoNode.GetAttribute(
+            'AutomationProperties.LiveSetting') -eq 'Polite'
+    ) 'Taskbar compatibility must remain a visible, non-dismissible live status.'
+    $taskbarRefreshNode = Get-XamlNodeByAutomationId `
+        $document `
+        'TaskbarCompatibilityRefreshButton'
+    Assert-Condition (
+        $taskbarRefreshNode.GetAttribute('Click') -eq `
+            'TaskbarCompatibilityRefreshButton_Click' -and
+        $taskbarRefreshNode.GetAttribute(
+            'AutomationProperties.Name').Length -gt 0
+    ) 'Taskbar compatibility refresh must be named and bound to the audited read-only handler.'
+    Assert-Condition (
+        $taskbarCode.Contains('TaskbarCompatibilityClient.ProbeAsync') -and
+        $taskbarCode.Contains('TimeSpan.FromSeconds(3)') -and
+        $taskbarCode.Contains('Mutation=Disabled') -and
+        -not $taskbarCode.Contains('SetWindowLong') -and
+        -not $taskbarCode.Contains('SetWindowCompositionAttribute')
+    ) 'Personalization must use the bounded worker client and expose a no-mutation status.'
     Assert-Condition ($codeBehind -match 'CompactBreakpoint\s*=\s*840') `
         'The audited compact/wide breakpoint must remain 840 effective pixels.'
     Assert-Condition ($codeBehind -match 'RootLayout\.SizeChanged') `
@@ -3734,6 +3768,7 @@ function Test-SourceContract {
         requiredAutomationIds = $requiredIds.Count
         accessKeys = $expectedAccessKeys.Count
         themeModes = 3
+        taskbarCompatibility = 'independent-bounded-readonly-fail-closed-no-presets'
         responsiveBreakpoints = 1
         compactWidth = 720
         dpiAwareInitialSize = 'pass'

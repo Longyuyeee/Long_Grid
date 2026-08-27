@@ -4148,6 +4148,7 @@ public sealed partial class MainWindow : Window
             maximumHeight);
 
         AppWindow.Resize(new SizeInt32(targetWidth, targetHeight));
+        _ = RefreshTaskbarCompatibilityAsync();
     }
 
     private void RootLayout_SizeChanged(object sender, SizeChangedEventArgs e)
