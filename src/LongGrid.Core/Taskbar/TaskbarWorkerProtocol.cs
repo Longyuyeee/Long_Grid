@@ -7,6 +7,8 @@ public static class TaskbarWorkerProtocol
     public const string ProbePurpose = "TaskbarR1ReadOnlyCompatibilityProbe";
     public const string StartupRecoveryPurpose =
         "TaskbarR2StartupRecoveryPreflight";
+    public const string NativeAdapterCertificationPurpose =
+        "TaskbarR2NativeAdapterCertificationPreflight";
 }
 
 public sealed record TaskbarWorkerResponse(
@@ -35,6 +37,15 @@ public sealed record TaskbarStartupRecoveryWorkerResponse(
     bool JournalPreserved,
     bool ModifiedSystemState,
     TaskbarCompatibilityReport? Report);
+
+public sealed record TaskbarNativeAdapterCertificationResponse(
+    int ProtocolVersion,
+    string Purpose,
+    string RequestId,
+    TaskbarNativeAdapterAvailability AdapterAvailability,
+    string AdapterId,
+    bool ModifiedSystemState,
+    TaskbarCompatibilityReport Report);
 
 public static class TaskbarAppearanceRecoveryPath
 {

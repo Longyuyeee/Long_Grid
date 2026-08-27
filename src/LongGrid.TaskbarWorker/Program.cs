@@ -34,6 +34,25 @@ internal static class Program
                 .ConfigureAwait(false);
         }
 
+        if (TryParseNativeAdapterCertificationInvocation(
+                args,
+                out NativeAdapterCertificationInvocation?
+                    certificationInvocation)
+            && certificationInvocation is not null)
+        {
+            if (!string.Equals(
+                    Environment.GetEnvironmentVariable(
+                        EvidenceEnvironmentVariable),
+                    "1",
+                    StringComparison.Ordinal))
+            {
+                return 65;
+            }
+
+            return await RunNativeAdapterCertificationAsync(
+                certificationInvocation).ConfigureAwait(false);
+        }
+
         if (TryParseStartupRecoveryInvocation(
                 args,
                 out StartupRecoveryInvocation? recoveryInvocation)
@@ -216,24 +235,35 @@ internal static class Program
 
             TaskbarAppearanceRecoveryJournal journal = load.Journal!;
             TaskbarCompatibilityReport report = TaskbarCompatibilityProbe.Capture();
-            if (journal.WindowsBuild != report.Actual.WindowsBuild)
+            ITaskbarAppearanceNativeAdapter? adapter =
+                TaskbarNativeAdapterCatalog.Resolve(report.Actual.WindowsBuild);
+            TaskbarNativeRestoreAdmission admission =
+                TaskbarNativeRestoreAdmissionPolicy.Evaluate(
+                    journal,
+                    report,
+                    adapter);
+            if (admission.Status
+                == TaskbarNativeRestoreAdmissionStatus.TargetChanged)
             {
                 WriteStartupRecoveryResponse(
                     invocation.RequestId,
                     TaskbarStartupRecoveryStatus.RecoveryDeferredTargetChanged,
-                    "WindowsBuildChanged",
+                    admission.DiagnosticCode,
                     journal.Phase,
                     journalPreserved: true,
                     report);
                 return 1;
             }
 
-            if (report.RuntimeAdmission != TaskbarRuntimeAdmission.Allowed)
+            if (admission.Status
+                    == TaskbarNativeRestoreAdmissionStatus.CompatibilityDenied
+                || admission.Status
+                    == TaskbarNativeRestoreAdmissionStatus.RecoveryJournalInvalid)
             {
                 WriteStartupRecoveryResponse(
                     invocation.RequestId,
                     TaskbarStartupRecoveryStatus.RecoveryDeferredCompatibility,
-                    report.RuntimeAdmission.ToString(),
+                    admission.DiagnosticCode,
                     journal.Phase,
                     journalPreserved: true,
                     report);
@@ -243,11 +273,58 @@ internal static class Program
             WriteStartupRecoveryResponse(
                 invocation.RequestId,
                 TaskbarStartupRecoveryStatus.RecoveryDeferredAdapterUnavailable,
-                "NativeRestoreAdapterUnavailable",
+                admission.DiagnosticCode,
                 journal.Phase,
                 journalPreserved: true,
                 report);
             return 1;
+        }
+        finally
+        {
+            parentExited.Cancel();
+            try
+            {
+                await parentMonitor.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Normal completion stops the parent watcher.
+            }
+        }
+    }
+
+    private static async Task<int> RunNativeAdapterCertificationAsync(
+        NativeAdapterCertificationInvocation invocation)
+    {
+        using CancellationTokenSource parentExited = new();
+        Task<int> parentMonitor = MonitorParentAsync(
+            invocation.ParentProcessId,
+            parentExited.Token);
+        if (parentMonitor.IsCompleted)
+        {
+            return await parentMonitor.ConfigureAwait(false);
+        }
+
+        try
+        {
+            TaskbarCompatibilityReport report = TaskbarCompatibilityProbe.Capture();
+            ITaskbarAppearanceNativeAdapter? adapter =
+                TaskbarNativeAdapterCatalog.Resolve(report.Actual.WindowsBuild);
+            TaskbarNativeAdapterCertificationResponse response = new(
+                TaskbarWorkerProtocol.CurrentVersion,
+                TaskbarWorkerProtocol.NativeAdapterCertificationPurpose,
+                invocation.RequestId,
+                adapter?.Availability
+                    ?? TaskbarNativeAdapterAvailability.Unavailable,
+                adapter?.AdapterId ?? "None",
+                ModifiedSystemState: false,
+                report);
+            Console.WriteLine(JsonSerializer.Serialize(
+                response,
+                TaskbarJsonContext.Default
+                    .TaskbarNativeAdapterCertificationResponse));
+            Console.Out.Flush();
+            return 0;
         }
         finally
         {
@@ -456,6 +533,29 @@ internal static class Program
         return true;
     }
 
+    private static bool TryParseNativeAdapterCertificationInvocation(
+        string[] args,
+        out NativeAdapterCertificationInvocation? invocation)
+    {
+        invocation = null;
+        if (args.Length != 5
+            || !string.Equals(
+                args[0],
+                "--native-adapter-certification",
+                StringComparison.Ordinal)
+            || !string.Equals(args[1], "--parent-pid", StringComparison.Ordinal)
+            || !int.TryParse(args[2], out int parentProcessId)
+            || parentProcessId <= 0
+            || !string.Equals(args[3], "--request-id", StringComparison.Ordinal)
+            || !Guid.TryParseExact(args[4], "N", out _))
+        {
+            return false;
+        }
+
+        invocation = new(parentProcessId, args[4]);
+        return true;
+    }
+
     private static bool TryParseStartupRecoveryInvocation(
         string[] args,
         out StartupRecoveryInvocation? invocation)
@@ -520,6 +620,10 @@ internal static class Program
         int ParentProcessId,
         string DirectoryPath,
         bool HoldUntilParentExit);
+
+    private sealed record NativeAdapterCertificationInvocation(
+        int ParentProcessId,
+        string RequestId);
 
     private sealed record StartupRecoveryInvocation(
         int ParentProcessId,
