@@ -39,6 +39,7 @@
 | x64 Release 编译 | 0 warning / 0 error | `LibraryImport` 对版本结构和 `StringBuilder` 生成封送失败，共 6 个错误 | 改用目标框架稳定支持的 `DllImport`，字符缓冲改为有界 `char[256]`；最终 0 warning / 0 error |
 | 静态分析 | 互操作返回值和集合类型无告警 | 首次修正后发现 4 个错误：未使用线程 ID 返回值、`StringBuilder` P/Invoke、两个可具体化返回类型 | 显式检查线程 ID、使用字符数组、返回数组；最终 0 warning / 0 error |
 | 策略测试 | 未认证、冲突、无主任务栏、非 Explorer 所有者、意外修改均失败关闭 | 5 项全部通过 | 无剩余差异 |
+| CI 锁定还原 | 新工程引用必须与测试项目 lock file 一致 | PR 首次 CI 在 `dotnet restore --locked-mode` 返回 `NU1004`，指出测试项目新增 Worker 引用未进入 lock file | 用 `--force-evaluate` 更新测试项目 lock file，再以 `--locked-mode` 真实复验通过；不放宽 CI |
 
 ### 3.2 当前 Windows 真实只读运行
 
