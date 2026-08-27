@@ -2,7 +2,7 @@ namespace LongGrid.Core.Configuration;
 
 public static class ProductConfigurationLimits
 {
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
     public const int MaximumSerializedBytes = 4 * 1024 * 1024;
     public const int MaximumContainers = 100;
     public const int MaximumItems = 500;
@@ -303,11 +303,13 @@ public static class ProductConfigurationValidator
             && binding.VolumeSerialNumber.All(Uri.IsHexDigit)
             && binding.FileId.Length == 32
             && binding.FileId.All(Uri.IsHexDigit)
+            && Enum.IsDefined(binding.SortMode)
             && IsValidExtensionData(
                 binding.ExtensionData,
                 "target",
                 "volumeSerialNumber",
-                "fileId");
+                "fileId",
+                "sortMode");
     }
 
     private static bool IsBoundedCoordinate(double value) =>

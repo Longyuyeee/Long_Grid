@@ -148,6 +148,7 @@ public static class ProductWorkspaceConfigurationProjector
                 "X16",
                 System.Globalization.CultureInfo.InvariantCulture),
             FileId = binding.FileId,
+            SortMode = binding.SortMode,
             ExtensionData = binding.ExtensionData,
         };
     }
@@ -156,6 +157,7 @@ public static class ProductWorkspaceConfigurationProjector
         ProductContainerFolderBindingState? binding) =>
         binding is null
         || (Enum.IsDefined(binding.Resolution)
+            && Enum.IsDefined(binding.SortMode)
             && binding.FileId.Length == 32
             && binding.FileId.All(Uri.IsHexDigit)
             && (binding.Resolution == ProductContainerFolderBindingResolution.Resolved

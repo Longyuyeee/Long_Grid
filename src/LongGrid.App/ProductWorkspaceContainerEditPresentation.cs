@@ -17,7 +17,8 @@ internal sealed record ProductWorkspaceContainerEditCandidatePresentation(
     double HeightDip,
     ProductContainerTitleVisibilityPolicy TitleVisibility,
     ProductContainerTitleDoubleClickAction TitleDoubleClickAction,
-    ProductContainerFolderBindingResolution? FolderBindingResolution)
+    ProductContainerFolderBindingResolution? FolderBindingResolution,
+    ProductContainerFolderSortMode? FolderContentSortMode)
 {
     public string AccessibilityName => $"方格 {Ordinal}，{DisplayName}";
 
@@ -199,7 +200,8 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
                 container.HeightDip,
                 container.TitleVisibility,
                 container.TitleDoubleClickAction,
-                container.FolderBindingResolution))
+                container.FolderBindingResolution,
+                container.FolderContentSortMode))
             .ToArray();
         return new(
             editRevision,

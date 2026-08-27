@@ -105,7 +105,7 @@ public sealed class ProductConfigurationContractTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(4)]
+    [InlineData(5)]
     public void UnsupportedSchemaIsRejectedWithoutDocumentContent(int schemaVersion)
     {
         ProductConfigurationDocument source = CreateValidDocument() with
@@ -236,11 +236,55 @@ public sealed class ProductConfigurationContractTests
     }
 
     [Fact]
+    public void VersionThreeFolderBindingMigratesToStableDefaultSort()
+    {
+        byte[] source = Encoding.UTF8.GetBytes(
+            """
+            {
+              "schemaVersion": 3,
+              "profileId": "default",
+              "containers": [{
+                "id": "container-1",
+                "name": "Work",
+                "isLocked": false,
+                "appearance": {
+                  "color": "#2563EB",
+                  "opacity": 0.88,
+                  "collapsed": false
+                },
+                "placement": {
+                  "displayKey": "display-a",
+                  "xDip": 0,
+                  "yDip": 0,
+                  "widthDip": 360,
+                  "heightDip": 240
+                },
+                "items": [],
+                "folderBinding": {
+                  "target": "C:\\Work",
+                  "volumeSerialNumber": "0000000000000001",
+                  "fileId": "00000000000000000000000000000001"
+                }
+              }]
+            }
+            """);
+
+        ProductConfigurationDocument migrated =
+            ProductConfigurationJson.Deserialize(source);
+
+        Assert.Equal(ProductConfigurationLimits.CurrentSchemaVersion,
+            migrated.SchemaVersion);
+        Assert.Equal(
+            ProductContainerFolderSortMode.FoldersFirstNameAscending,
+            migrated.Containers[0].FolderBinding!.SortMode);
+    }
+
+    [Fact]
     public void FutureSchemaIsRejectedDuringDeserialize()
     {
         byte[] source = Encoding.UTF8.GetBytes(
             """
-            { "schemaVersion": 4, "profileId": "default", "containers": [] }
+            { "schemaVersion": 5, "profileId": "default", "containers": [] }
             """);
 
         ProductConfigurationContractException exception = Assert.Throws<

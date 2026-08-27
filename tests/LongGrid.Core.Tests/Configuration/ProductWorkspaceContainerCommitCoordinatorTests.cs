@@ -511,11 +511,29 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
                     1,
                     string.Empty,
                     FolderBinding: binding));
+            ProductWorkspaceContainerCommitResult sorted =
+                coordinator.CommitContainer(
+                    rebound.State!,
+                    new(
+                        ProductWorkspaceContainerCommitAction.BindFolder,
+                        rebound.EditRevision,
+                        1,
+                        string.Empty,
+                        FolderBinding: binding with
+                        {
+                            SortMode = ProductContainerFolderSortMode
+                                .NameDescending,
+                        }));
+            ProductWorkspaceContainerEditUndoCommitResult sortUndo =
+                coordinator.CommitContainerEditUndo(
+                    sorted.State!,
+                    sorted.EditUndoToken!,
+                    confirmed: true);
             ProductWorkspaceContainerCommitResult unbound = coordinator.CommitContainer(
-                rebound.State!,
+                sortUndo.State!,
                 new(
                     ProductWorkspaceContainerCommitAction.UnbindFolder,
-                    rebound.EditRevision,
+                    sortUndo.EditRevision,
                     1,
                     string.Empty,
                     Confirmed: true));
@@ -523,6 +541,14 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
             Assert.True(undo.IsAccepted);
             Assert.Null(undo.State!.Containers[0].FolderBinding);
             Assert.True(rebound.IsAccepted);
+            Assert.True(sorted.IsAccepted);
+            Assert.Equal(
+                ProductContainerFolderSortMode.NameDescending,
+                sorted.State!.Containers[0].FolderBinding!.SortMode);
+            Assert.True(sortUndo.IsAccepted);
+            Assert.Equal(
+                ProductContainerFolderSortMode.FoldersFirstNameAscending,
+                sortUndo.State!.Containers[0].FolderBinding!.SortMode);
             Assert.True(unbound.IsAccepted);
             Assert.Null(unbound.State!.Containers[0].FolderBinding);
             Assert.Equal(

@@ -104,6 +104,10 @@ public sealed record ContainerFolderBindingConfiguration
     [JsonPropertyName("fileId")]
     public required string FileId { get; init; }
 
+    [JsonPropertyName("sortMode")]
+    public ProductContainerFolderSortMode SortMode { get; init; } =
+        ProductContainerFolderSortMode.FoldersFirstNameAscending;
+
     [JsonExtensionData]
     public IDictionary<string, JsonElement>? ExtensionData { get; init; }
 }

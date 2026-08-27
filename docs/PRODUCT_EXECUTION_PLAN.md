@@ -77,7 +77,7 @@ UI-R1A 开始前的代码审计显示，正式控制中心仍沿用早期“开�
 |---|---|---|---|
 | 产品 UI | `origin/main@288838c` 已包含 UI-R1A～UI-R1E-B 工程范围 | 产品导航、真实概览、盒子管理、设置分层、显式启动入口和真实 XAML 渲染证据均已进入主线 | 工程范围完成；高对比、减少动画、Narrator 和物理键盘仍为 `ManualEvidencePending`，不能把 UI-R1 整体标为 Complete |
 | 桌面右键创建 | DesktopHost 已具备创建事务、预览、快捷键、拖画入口和产品内弹出菜单；BOX-R1-B 已交付原生 `IExplorerCommand` DLL 与 MSIX `Directory\Background` 注册 | 未签名包尚未在可丢弃账户安装，因此当前用户环境仍没有经过实证的桌面任意空白处菜单 | BOX-R1-A/B 工程完成；BOX-R1-C/D 仍需真实安装、点击、Explorer 重启和卸载恢复证据 |
-| 文件夹绑定 | 有安全引用、目录枚举、打开与 Portal/Tab 设计底座 | FOLDER-R1-A/B 已建立 schema v3、稳定身份和绑定事务；C 已将最多 256 个直属项目投影到盒子管理页和 DesktopHost；D 已让运行时快照发布权威有限绑定状态；当前路径纠偏又让用户在明确选中的盒子管理区看到可复制的绑定路径 | 工程链与真实文件系统已通过；路径只按当前 edit revision/所选序号即时解析，不进入通用读模型、DesktopHost 或机器状态；物理 Picker、可见刷新/打开、键盘和 Narrator 仍 `ProductEvidencePending` |
+| 文件夹绑定 | 有安全引用、目录枚举、打开与 Portal/Tab 设计底座 | FOLDER-R1-A/B 已建立稳定身份和绑定事务；C/D 已完成有界内容与权威有限状态；路径纠偏补齐当前路径；本轮又发现原始 P0 要求用户可排序，但代码只有读取器内部固定顺序，现以 schema v4 和三种基础模式补齐 | 工程链与真实文件系统已通过；路径仍只在明确管理上下文显示，排序只持久化有限枚举、不持久化目录内容；物理 Picker、可见刷新/打开/排序、键盘和 Narrator 仍 `ProductEvidencePending` |
 | 任务栏美化 | 有技术审计和产品边界文档 | TASKBAR-R1A～R2B1-A 已完成只读、恢复、原生边界和可丢弃环境准入；R2B1-A2 已把“系统默认 / 通透”卡片与有限准入接入正式个性化页；Build 26200 真实为 `DeniedNoCertifiedBuild`，Host 仍 `Blocked / mutationAllowed=false` | 预设界面与失败关闭 `EngineeringComplete / VisibleUiEvidencePending`；原生效果、R2B1-B/R3/R4 Pending |
 | Explorer 与盒子拖放 | PF-007A1 已完成 `CF_HDROP` 有界解析、安全准入和原子配置请求 | PF-007A2 已完成正式 OLE Link 拖入工程链；PF-007B 已完成已选正式引用在盒子间的原生有限拖动、冻结权威准入、原子保存/补偿和一次撤销；真实 STA/HWND/隔离文件零变化通过 | A/B `EngineeringComplete / RealHwndPass / ProductEvidencePending`；物理 Explorer 与盒子间指针证据留在 M1 集中证据 |
 | 小组件/Long助手插件 | LPWP 1.0 等协议文档存在 | 只有 Windows App SDK Widgets 的传递依赖，没有 Widget Host 或插件小组件运行时 | 方向对齐但仍是 M4；不得抢占三根核心支柱 |
@@ -198,7 +198,7 @@ GitHub 集成结果：#238 已注明被 #239 覆盖并关闭；#239、#240、#24
 | 原始需求 | 当前事实 | 目标里程碑 |
 |---|---|---|
 | 桌面右键创建盒子与基本管理 | PF-001～PF-006 与 BOX-R1-A/B 工程链已存在；原生背景命令 DLL/清单已通过真实构建和包审计，但未在可丢弃账户完成真实菜单/卸载矩阵 | M1，BOX-R1-C/D Pending |
-| 盒子绑定文件夹 | FOLDER-R1 A～D 工程链与真实 NTFS 身份、内容、事件、权限/离线恢复已完成；物理 Picker、可见刷新/打开、键盘和 Narrator 未闭环 | M1 |
+| 盒子绑定文件夹 | FOLDER-R1 A～D 工程链与真实 NTFS 身份、内容、事件、权限/离线恢复已完成；当前纠偏切片补齐原始 P0 已要求但曾被遗漏的可见路径与三种持久化基础排序；物理 Picker、可见刷新/打开/排序、键盘和 Narrator 未闭环 | M1 |
 | Explorer 拖入和方格间整理 | PF-007A2/B 已完成正式 OLE Link、盒子间改归属、原子提交和撤销；真实 Explorer/盒子间物理指针证据未完成 | M1 |
 | 正常、现代的软件 UI | UI-R1A～UI-R1D 已完成产品结构；UI-R1E-A 已取得真实浅/深色、宽/紧凑渲染并修正标题重叠，高对比/减少动画仍待补 | M1，持续纠偏 |
 | 任务栏美化 | R1A～R2B1-A 已完成安全工程链；R2B1-A2 已加入正式预设卡片和有限准入；当前 Host 真实阻断、Build 未认证，尚无原生样式应用/恢复 | M2，R2B1-B/R3/R4 Pending |
@@ -265,7 +265,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**BOX-R1-C/D 与 M1 完整物理旅程（ExternalEnvironmentBlocked）**。BOX-R1-A/B、FOLDER-R1-A～D 和 PF-007A/B 已完成工程链，下一用户结果必须是在可丢弃账户真实安装未签名预览包，从桌面空白处创建盒子、绑定文件夹、刷新/打开、Explorer 拖入、盒子间改归属并撤销，最后验证 Explorer 重启和卸载恢复。当前会话没有符合门禁的可丢弃账户/VM，且跨进程 WinUI UIA 组合存在已审计风险，因此不得用源码合同或当前日常账户替代物理 Pass。TASKBAR-R2B1-B 同样保持 `EnvironmentBlocked`，等待通过 R2B1-A 的可丢弃 Windows Guest；两条阻断均不得以新增外围功能绕开。
+当前执行项：**FOLDER-R1 原始 P0 偏移纠正，然后回到 BOX-R1-C/D 与 M1 完整物理旅程（ExternalEnvironmentBlocked）**。代码复读发现 PRD 第 4.1 节明确要求绑定目录支持排序，但既有 FOLDER-R1 只有读取器内部固定“文件夹优先、名称升序”，用户没有入口且配置不能保持选择；这不是 PF-008 新宽度，而是“FOLDER-R1 已工程完成”口径遗漏的 P0 结果。纠偏只补三种基础排序、schema v3→v4 默认迁移、原子保存/撤销和真实目录零写入；不引入视图模式、修改时间、自定义拖序或高级 Portal。完成后下一用户结果仍是在可丢弃账户真实安装预览包，从桌面空白处创建盒子、绑定文件夹、排序/刷新/打开、Explorer 拖入、盒子间改归属并撤销，最后验证 Explorer 重启和卸载恢复。当前会话没有符合门禁的可丢弃账户/VM，且跨进程 WinUI UIA 组合存在已审计风险，因此不得用源码合同或当前日常账户替代物理 Pass。TASKBAR-R2B1-B 同样保持 `EnvironmentBlocked`。
 
 严格按下列顺序交付，不再插入相邻探针或新宽度功能：
 
@@ -275,7 +275,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 4. **UI-R1D 设置迁移（EngineeringComplete / ProductEvidencePending）**：配置导入导出归入“常规”，隐私承诺使用用户语言，一次性匿名证据归入默认折叠的“高级诊断”；开发门槛和 Design Token 样例已从发布表面删除。真实磁盘往返与损坏输入保护通过，可见交互证据随 UI-R1E 完成。
 5. **UI-R1E 视觉与响应式验收（EngineeringComplete / ManualEvidencePending）**：UI-R1E-A 已完成浅/深色、1120/720 effective px、200% 缩放、焦点和真实 XAML PNG；UI-R1E-B 已确保根目录/显式启动直接显示唯一控制中心，同时保留 `--background` 桌面优先模式。I19/BSA 自动预检均通过且明确不修改系统设置；高对比、关闭系统动画、Narrator、物理键盘及其他 DPI 继续作为 M1 出口人工门禁。
 6. **BOX-R1（B 已完成，C Pending）**：A 有限激活合同（EngineeringComplete / RealProcessPass）→ B 原生 `IExplorerCommand` 与真实 unsigned MSIX（EngineeringComplete / NativeDllPass / RealUnsignedPackagePass）→ C 可丢弃账户真实安装/菜单/卸载证据（PendingApproval）→ D Explorer 重启、显示器、DPI 与失败恢复；全部复用统一创建预览和事务。
-7. **FOLDER-R1（A～D EngineeringComplete / RealFilesystemPass / ProductEvidencePending）**：A 持久化/身份/健康合同 → B 显式选择、取消零写入、绑定/解绑/重连原子提交 → C 目录内容呈现、显式刷新、变更通知和安全打开 → D 权限、离线、同路径替换、失效恢复和有限状态；当前已纠正 PRD“显示当前绑定路径”与正式管理页只显示状态之间的差异，路径仅在明确选中的盒子管理区可见和可复制；物理 Picker、可见刷新/打开、键盘和 Narrator 进入 M1 集中证据。
+7. **FOLDER-R1（A～D EngineeringComplete / RealFilesystemPass / ProductEvidencePending；基础排序纠偏进行中）**：A 持久化/身份/健康合同 → B 显式选择、取消零写入、绑定/解绑/重连原子提交 → C 目录内容呈现、显式刷新、变更通知和安全打开 → D 权限、离线、同路径替换、失效恢复和有限状态；路径纠偏已让明确选中的盒子显示可复制路径；本轮基础排序纠偏提供“文件夹优先名称升序 / 名称升序 / 名称降序”，通过 schema v4 按盒子持久化并复用绑定事务与一次撤销。物理 Picker、可见刷新/打开/排序、键盘和 Narrator进入 M1 集中证据。
 8. **PF-007A2 / PF-007B（EngineeringComplete / RealHwndPass / ProductEvidencePending）**：A2 已完成正式 HWND OLE DropTarget 和安全 Link 引用提交；B 已完成盒子间改归属、无效目标、失败补偿和一次撤销。
 9. **M1 产品证据冲刺（ExternalEnvironmentBlocked）**：完整两分钟旅程，而不是分散控件证据；等待安全 WinUI 运行时、专用账户和可安装签名条件，不降低出口。
 10. **TASKBAR-R1～R4（R1～R2B1-A2 工程范围完成，R2B1-B 环境阻断）**：既有只读、恢复凭据、唯一所有权、启动预检、默认空原生边界和正式预设准入保持通过；R2B1-A 已证明不满足专用环境时真实阻断且不修改系统，A2 只提供产品卡片和失败关闭。R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵。
@@ -447,7 +447,7 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 ## 12. 当前完成度口径
 
 - 工程底座：较强，PF-001～PF-006 已具备大量正式链路；
-- GitHub 主分支交付：UI-R1A～UI-R1E、BOX-R1-A/B、FOLDER-R1-A～D、PF-007A2/B、M1-A/B 证据安全入口与 TASKBAR-R1A～R2B1-A2 已合入 `origin/main@36b583f`；UI-R1F 以 [Stage 218](218-ui-r1f-product-language-status-convergence-audit.md) 和当前 PR 为交付边界；
+- GitHub 主分支交付：UI-R1A～UI-R1F、BOX-R1-A/B、FOLDER-R1-A～D、路径可见性纠偏、PF-007A2/B、M1-A/B 证据安全入口与 TASKBAR-R1A～R2B1-A2 已合入 `origin/main@ffdff3a`；基础排序纠偏在当前分支等待完整审计与 PR；
 - M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，BOX-R1-C、FOLDER-R1、真实 Explorer 指针拖入和盒子间物理拖动证据 Pending；当前为 `ExternalEnvironmentBlocked`，不降低出口；
 - M2 任务栏美化核心：TASKBAR-R1A～R2B1-A 工程链和 R2B1-A2 正式预设准入已通过；默认原生目录为空，当前 Host 因专用环境缺失真实阻断；卡片可见但不可应用，R2B1-B/R3/R4 未完成；
 - M3 桌面管理增强：未开始闭环；
@@ -530,6 +530,21 @@ FOLDER-R1 当前绑定路径可见性纠偏记录（2026-08-27，基线 `origin/
 本次纠偏补齐了 PRD 已存在的路径可见性要求，没有扩张到多目录 Portal、面包屑或文件管理，也没有把结构合同冒充物理通过。M1 总状态继续保持 `ExternalEnvironmentBlocked / ProductEvidencePending`。
 
 PR #267 首轮 Windows runner run `33086863762` 完整通过：`1,362/1,362`，coverage lines `90.10% (46708/51842)`、branches `75.94% (15320/20174)`；格式、Release 构建、启动/人工会话合同、196-ID UI 合同、恢复与资源预检、文件安全、受限缩略图 Worker、依赖漏洞和内部未签名 RC 交付集均成功。远端与本地功能结论无差异，物理可见证据状态保持 Pending。
+
+FOLDER-R1 基础内容排序需求纠偏记录（2026-08-27，基线 `origin/main@ffdff3a`）：
+
+| 检查 | 预期效果 | 实际效果 | 差异与修正 |
+|---|---|---|---|
+| 原始需求对齐 | PRD 第 4.1 节要求绑定目录内容支持排序；FOLDER-R1 完成口径至少要有用户可选择且重启稳定的基础顺序 | 代码只有 `WindowsProductContainerFolderContentReader` 内部固定“文件夹优先、名称升序”，控制中心无内容排序入口，schema v3 无排序字段 | 确认为 P0 遗漏而非物理证据债；补“文件夹优先名称升序 / 名称升序 / 名称降序”，不扩张到 PF-008 的视图、间距、时间或自定义拖序 |
+| 持久化与迁移 | 旧配置保持原有视觉顺序，新选择按盒子保存，未来未知 schema 继续失败关闭 | workspace binding 与配置 binding 新增有限枚举，schema 升至 v4；v3 强制迁移为旧默认，v1/v2 原有安全迁移保持，v5 继续拒绝 | 对齐；排序偏好随绑定身份投影和恢复，目录项目、路径清单与文件属性不进入配置 |
+| 原子提交与撤销 | 排序不能绕过锁定、陈旧 revision、只读和保存失败边界；可复用最近一次编辑撤销 | 保存入口以当前 edit revision/所选序号取得当前绑定，只提交 binding 的 `SortMode`；现有 `BindFolder` reducer/CAS/保存补偿/`FolderBinding` undo 全部复用；重新连接文件夹保留当前排序 | 对齐；无新旁路事务，未改变真实文件或绑定 NTFS 身份 |
+| 内容投影与文件安全 | 三种模式产生稳定 UIA/视觉顺序；枚举仍有界、直属、跳过重解析点且零写入 | 真实临时目录中的文件夹与文件分别验证三种顺序；仍最多检查 1,024 项、投影 256 项，排序后生成同代有限 Item ID；前后文件哈希和路径不变 | `Difference=None`；非法枚举在读取前失败关闭为 `EnumerationFailed` |
+| 用户入口与无障碍 | 只有已绑定、未锁定且可编辑的所选盒子可保存；选择与保存入口有明确 UIA 名称和有限反馈 | “内容排序”选择器与“保存排序”按钮接入基本设置；未绑定/锁定/只读默认禁用，状态播报含模式、revision、Changed 和 `DesktopFilesChanged=False` | 198-ID UI ContractOnly 已通过；物理键盘、Narrator 和可见刷新仍进入 M1 |
+| 回归门禁 | 格式、Release、专项、全量、覆盖率和 UI 合同不得退化 | Release `0 warning / 0 error`；相关配置/真实目录/提交专项 `80/80`；全量 `1,366/1,366`；coverage lines `90.40% (23477/25969)`、branches `76.05% (7683/10103)`；格式与 198-ID UI ContractOnly、M1 ValidateOnly、文件安全和依赖漏洞门禁通过 | `Difference=None`；未把源码合同写成物理产品证据 |
+
+本次只纠正原始 P0 已存在的基础排序缺口。PF-008 的图标/列表视图、图标尺寸、间距、修改时间和自定义拖动排序仍按 M3 扩展处理；M1 总状态继续保持 `ExternalEnvironmentBlocked / ProductEvidencePending`。
+
+PR #268 Windows runner run `33090008325` 完整通过：`1,366/1,366`，coverage lines `90.09% (46790/51938)`、branches `75.93% (15342/20206)`；198-ID UI/批量无障碍/clean-session 合同、格式、Release 构建、启动与恢复、真实文件安全、原生宿主、受限缩略图 Worker、依赖漏洞和内部未签名 RC 交付集均成功。PR 为 `CLEAN / MERGEABLE` 且无审查评论；远端与本地功能结论无差异。
 
 PF-007A2 DesktopHost OLE DropTarget 记录（2026-08-26，基线 `origin/main@53c8b5e`）：
 

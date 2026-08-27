@@ -43,6 +43,13 @@ public enum ProductContainerFolderBindingResolution
     Unavailable,
 }
 
+public enum ProductContainerFolderSortMode
+{
+    FoldersFirstNameAscending,
+    NameAscending,
+    NameDescending,
+}
+
 public sealed record ProductContainerFolderBindingState
 {
     public required string PersistedTarget { get; init; }
@@ -50,6 +57,9 @@ public sealed record ProductContainerFolderBindingState
     public required ulong VolumeSerialNumber { get; init; }
 
     public required string FileId { get; init; }
+
+    public ProductContainerFolderSortMode SortMode { get; init; } =
+        ProductContainerFolderSortMode.FoldersFirstNameAscending;
 
     public ProductContainerFolderBindingResolution Resolution { get; init; }
 
