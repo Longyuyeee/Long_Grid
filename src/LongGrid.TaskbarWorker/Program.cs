@@ -16,6 +16,24 @@ internal static class Program
             return WriteLegacyProbe();
         }
 
+        if (TryParseRecoveryLeaseEvidence(
+                args,
+                out RecoveryLeaseEvidenceInvocation? leaseInvocation)
+            && leaseInvocation is not null)
+        {
+            if (!string.Equals(
+                    Environment.GetEnvironmentVariable(
+                        EvidenceEnvironmentVariable),
+                    "1",
+                    StringComparison.Ordinal))
+            {
+                return 65;
+            }
+
+            return await RunRecoveryLeaseEvidenceAsync(leaseInvocation)
+                .ConfigureAwait(false);
+        }
+
         if (!TryParseInvocation(args, out WorkerInvocation? invocation)
             || invocation is null)
         {
@@ -74,6 +92,45 @@ internal static class Program
             report,
             TaskbarJsonContext.Default.TaskbarCompatibilityReport));
         return report.ProbeOutcome == TaskbarProbeOutcome.Pass ? 0 : 1;
+    }
+
+    private static async Task<int> RunRecoveryLeaseEvidenceAsync(
+        RecoveryLeaseEvidenceInvocation invocation)
+    {
+        TaskbarAppearanceRecoveryLeaseResult result =
+            TaskbarAppearanceRecoveryLease.TryAcquire(invocation.DirectoryPath);
+        WriteRecoveryLeaseEvidence(result);
+        if (!result.IsAcquired)
+        {
+            return result.Status == TaskbarAppearanceRecoveryLeaseStatus.Contended
+                ? 73
+                : 74;
+        }
+
+        using (result.Lease)
+        {
+            if (!invocation.HoldUntilParentExit)
+            {
+                return 0;
+            }
+
+            using CancellationTokenSource cancellation = new();
+            return await MonitorParentAsync(
+                invocation.ParentProcessId,
+                cancellation.Token).ConfigureAwait(false);
+        }
+    }
+
+    private static void WriteRecoveryLeaseEvidence(
+        TaskbarAppearanceRecoveryLeaseResult result)
+    {
+        TaskbarRecoveryLeaseEvidenceResponse response = new(
+            result.Status,
+            result.DiagnosticCode);
+        Console.WriteLine(JsonSerializer.Serialize(
+            response,
+            TaskbarJsonContext.Default.TaskbarRecoveryLeaseEvidenceResponse));
+        Console.Out.Flush();
     }
 
     private static async Task<int> RunEvidenceFaultAsync(
@@ -171,8 +228,41 @@ internal static class Program
         return true;
     }
 
+    private static bool TryParseRecoveryLeaseEvidence(
+        string[] args,
+        out RecoveryLeaseEvidenceInvocation? invocation)
+    {
+        invocation = null;
+        if (args.Length != 7
+            || !string.Equals(
+                args[0],
+                "--recovery-lease-evidence",
+                StringComparison.Ordinal)
+            || !string.Equals(args[1], "--parent-pid", StringComparison.Ordinal)
+            || !int.TryParse(args[2], out int parentProcessId)
+            || parentProcessId <= 0
+            || !string.Equals(args[3], "--directory", StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(args[4])
+            || !string.Equals(args[5], "--mode", StringComparison.Ordinal)
+            || args[6] is not ("try" or "hold"))
+        {
+            return false;
+        }
+
+        invocation = new(
+            parentProcessId,
+            args[4],
+            string.Equals(args[6], "hold", StringComparison.Ordinal));
+        return true;
+    }
+
     private sealed record WorkerInvocation(
         int ParentProcessId,
         string RequestId,
         string? EvidenceFault);
+
+    private sealed record RecoveryLeaseEvidenceInvocation(
+        int ParentProcessId,
+        string DirectoryPath,
+        bool HoldUntilParentExit);
 }

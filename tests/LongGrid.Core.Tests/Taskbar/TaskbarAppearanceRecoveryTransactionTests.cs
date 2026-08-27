@@ -238,7 +238,8 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
         try
         {
             TaskbarAppearanceRecoveryJournal journal = Journal();
-            TaskbarAppearanceRecoveryJournalStore store = new(directory);
+            using TaskbarAppearanceRecoveryLease lease = AcquireLease(directory);
+            TaskbarAppearanceRecoveryJournalStore store = new(directory, lease);
 
             bool staged = await store.StageAsync(journal);
             TaskbarAppearanceRecoveryLoadResult loaded = await store.LoadAsync();
@@ -254,7 +255,11 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
             Assert.False(wrongClear);
             Assert.True(cleared);
             Assert.Equal(TaskbarAppearanceRecoveryLoadStatus.Missing, after.Status);
-            Assert.Empty(Directory.EnumerateFileSystemEntries(directory));
+            Assert.Equal(
+                [TaskbarAppearanceRecoveryLease.LeaseFileName],
+                Directory.EnumerateFiles(directory)
+                    .Select(path => Path.GetFileName(path)!)
+                    .ToArray());
         }
         finally
         {
@@ -273,7 +278,8 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
             {
                 TransactionId = Guid.NewGuid().ToString("N"),
             };
-            TaskbarAppearanceRecoveryJournalStore store = new(directory);
+            using TaskbarAppearanceRecoveryLease lease = AcquireLease(directory);
+            TaskbarAppearanceRecoveryJournalStore store = new(directory, lease);
 
             Assert.True(await store.StageAsync(first));
             Assert.False(await store.StageAsync(second));
@@ -292,7 +298,8 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
         string directory = CreateTemporaryDirectory();
         try
         {
-            TaskbarAppearanceRecoveryJournalStore store = new(directory);
+            using TaskbarAppearanceRecoveryLease lease = AcquireLease(directory);
+            TaskbarAppearanceRecoveryJournalStore store = new(directory, lease);
             TaskbarAppearanceRecoveryJournal invalid = Journal() with
             {
                 BaselinePreset = TaskbarAppearancePreset.Clear,
@@ -300,7 +307,11 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
 
             Assert.False(await store.StageAsync(invalid));
             Assert.False(await store.ClearAsync(invalid.TransactionId));
-            Assert.Empty(Directory.EnumerateFileSystemEntries(directory));
+            Assert.Equal(
+                [TaskbarAppearanceRecoveryLease.LeaseFileName],
+                Directory.EnumerateFiles(directory)
+                    .Select(path => Path.GetFileName(path)!)
+                    .ToArray());
         }
         finally
         {
@@ -343,7 +354,8 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
         try
         {
             TaskbarAppearanceRecoveryJournal journal = Journal();
-            TaskbarAppearanceRecoveryJournalStore store = new(directory);
+            using TaskbarAppearanceRecoveryLease lease = AcquireLease(directory);
+            TaskbarAppearanceRecoveryJournalStore store = new(directory, lease);
             Assert.True(await store.StageAsync(journal));
 
             Assert.False(await store.UpdatePhaseAsync(
@@ -470,7 +482,18 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
             Assert.Equal(
                 TaskbarAppearanceRecoveryPhase.Applied,
                 afterKill.Journal.Phase);
-            Assert.True(await store.ClearAsync(afterKill.Journal.TransactionId));
+            using TaskbarAppearanceRecoveryLease recoveryLease =
+                await WaitForLeaseAsync(directory, TimeSpan.FromSeconds(3));
+            TaskbarAppearanceRecoveryJournalStore recoveryStore =
+                new(directory, recoveryLease);
+            Assert.True(await recoveryStore.ClearAsync(
+                afterKill.Journal.TransactionId));
+            recoveryLease.Dispose();
+            Assert.False(recoveryLease.IsHeld);
+            using TaskbarAppearanceRecoveryLease finalLease =
+                AcquireLease(directory);
+            finalLease.Dispose();
+            Assert.False(finalLease.IsHeld);
         }
         finally
         {
@@ -480,7 +503,7 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
                 child.WaitForExit();
             }
 
-            Directory.Delete(directory, recursive: true);
+            await DeleteTemporaryDirectoryWithRetryAsync(directory);
         }
     }
 
@@ -499,7 +522,8 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
         string directory = Environment.GetEnvironmentVariable(
             "LONGGRID_TASKBAR_RECOVERY_DIRECTORY")
             ?? throw new InvalidOperationException("Missing child directory.");
-        TaskbarAppearanceRecoveryJournalStore store = new(directory);
+        using TaskbarAppearanceRecoveryLease lease = AcquireLease(directory);
+        TaskbarAppearanceRecoveryJournalStore store = new(directory, lease);
         TaskbarAppearanceRecoveryJournal journal = Journal();
         Assert.True(await store.StageAsync(journal));
         Assert.True(await store.UpdatePhaseAsync(
@@ -532,11 +556,65 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
         return await store.LoadAsync();
     }
 
+    private static async Task DeleteTemporaryDirectoryWithRetryAsync(
+        string directory)
+    {
+        for (int attempt = 1; attempt <= 40; attempt++)
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+                return;
+            }
+            catch (Exception exception) when (
+                attempt < 40
+                && exception is IOException or UnauthorizedAccessException)
+            {
+                await Task.Delay(50);
+            }
+        }
+    }
+
+    private static async Task<TaskbarAppearanceRecoveryLease> WaitForLeaseAsync(
+        string directory,
+        TimeSpan timeout)
+    {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        TaskbarAppearanceRecoveryLeaseResult result;
+        do
+        {
+            result = TaskbarAppearanceRecoveryLease.TryAcquire(directory);
+            if (result.IsAcquired)
+            {
+                return result.Lease!;
+            }
+
+            if (result.Status != TaskbarAppearanceRecoveryLeaseStatus.Contended)
+            {
+                Assert.Fail(result.DiagnosticCode);
+            }
+
+            await Task.Delay(50);
+        }
+        while (stopwatch.Elapsed < timeout);
+
+        Assert.Fail(result.DiagnosticCode);
+        throw new InvalidOperationException("Unreachable assertion fallback.");
+    }
+
     private static TaskbarAppearanceTransactionSnapshot Staged() =>
         TaskbarAppearanceTransactionPolicy.Begin(
             AllowedCompatibility(),
             TaskbarAppearancePreset.Clear,
             Now);
+
+    private static TaskbarAppearanceRecoveryLease AcquireLease(string directory)
+    {
+        TaskbarAppearanceRecoveryLeaseResult result =
+            TaskbarAppearanceRecoveryLease.TryAcquire(directory);
+        Assert.True(result.IsAcquired, result.DiagnosticCode);
+        return result.Lease!;
+    }
 
     private static TaskbarAppearanceRecoveryJournal Journal() => new(
         TaskbarAppearanceRecoveryJournalPolicy.CurrentSchemaVersion,
