@@ -4,7 +4,7 @@
 
 审计输入基线：`origin/main@ec756995c7851d2e1bde300f346e05953dae39e5`
 
-状态：`CorrectionComplete / LocalAuditPassed / RemoteAuditPending / ProductEvidenceBlocked`
+状态：`CorrectionComplete / LocalAndPrAuditPassed / MainAuditPending / ProductEvidenceBlocked`
 
 ## 1. 接续依据与范围
 
@@ -44,7 +44,9 @@ Stage 232 已让启动、打包、漏洞、许可证、SBOM 和打包子进程�
 - 完整测试：1,390/1,390，0 skipped；
 - 覆盖率：lines `90.43% (23,545/26,036)`，branches `76.15% (7,729/10,149)`。
 
-远端 PR/main CI、CodeQL 和最终主线提交在本文首次提交时仍为 Pending；不得提前写成远端 Pass。
+PR #294 首轮 head 远端验证已通过：CI run `33185069480` 用时 7m49s，测试 1,390/1,390、0 skipped，coverage lines `90.12% (46,926/52,072)`、branches `76.04% (15,434/20,298)`；漏洞门禁选择 `C:\Program Files\dotnet\dotnet.exe` 且 0 known vulnerable packages；许可证门禁为 20 projects / 30 packages，继续 `PendingOwnerReviewAndNotice / distributionApproved=false`；内部 RC 的 805/805 SBOM 校验成功，继续 `signed=false / installable=false / distributionApproved=false`。CodeQL run `33185069553` 的 C++ 与 C# 分别在 3m46s、7m35s 通过；PR merge ref `943114c1ec6863b924e5edb4451f390f70c277d4` 上 C++ 为 58 rules / 0 results，C# 为 52 rules / 0 results。
+
+上述远端结果对应文档写回前的首轮 head；最终文档提交与合并后 main CI/CodeQL 仍须独立复核，不得用首轮结果替代最终主线审计。
 
 ## 5. 需求、阶段与接续审计
 
