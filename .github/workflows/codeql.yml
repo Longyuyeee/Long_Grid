@@ -1,0 +1,70 @@
+name: CodeQL
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [csharp, c-cpp]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate CodeQL workflow contract
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Test-LongGridCodeQlWorkflow.ps1
+
+      - name: Setup .NET
+        if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Packages.props
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: manual
+
+      - name: Restore locked .NET dependencies
+        if: matrix.language == 'csharp'
+        run: dotnet restore LongGrid.sln --locked-mode
+
+      - name: Build managed solution for CodeQL
+        if: matrix.language == 'csharp'
+        run: dotnet build LongGrid.sln --configuration Release --no-restore
+
+      - name: Build native ExplorerCommand for CodeQL
+        if: matrix.language == 'c-cpp'
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Build-LongGridExplorerCommand.ps1
+          -Configuration Release
+          -Architecture x64
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
+

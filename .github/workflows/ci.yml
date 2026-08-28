@@ -31,6 +31,12 @@ jobs:
       - name: Restore pinned repository tools
         run: dotnet tool restore
 
+      - name: Validate CodeQL workflow contract
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Test-LongGridCodeQlWorkflow.ps1
+
       - name: Restore
         run: dotnet restore LongGrid.sln --locked-mode
 
