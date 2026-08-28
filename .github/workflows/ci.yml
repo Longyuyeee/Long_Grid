@@ -286,6 +286,10 @@ jobs:
         shell: powershell
         run: powershell -NoProfile -ExecutionPolicy Bypass -File ./eng/Verify-VulnerablePackages.ps1
 
+      - name: Dependency license metadata gate
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File ./eng/Test-LongGridDependencyLicenseGate.ps1
+
       - name: Build and audit internal unsigned RC delivery set
         shell: powershell
         run: >-
