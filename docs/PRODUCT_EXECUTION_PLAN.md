@@ -645,7 +645,7 @@ M1 产品证据冲刺的开始条件保持不变：取得安全 WinUI 运行时�
 |---|---|---|---|
 | Git 与工程基线 | 当前短分支基于最新 `origin/main`，本地和远端一致，工作区无遗漏 | 接续分支基于 `42a1a97`，流程合同提交 `3e0869f` 已推送且本地/远端一致 | `Difference=None`；未改写旧审计分支或直接推送 `main` |
 | 独占产品会话 | 进入 DesktopHost 旅程前不存在任何既有 Long方格进程 | 真实系统仍有 `LongGrid.App.exe` PID `45524`；当前权限无法读取其路径和命令行，父 PID 为 `12368` | `EnvironmentBlocked`；不强杀、不绕过权限、不在非独占会话继续 DesktopHost 证据 |
-| 可安装受保护产物 | BOX-R1-C/D 使用受保护签名 MSIX，并在可丢弃账户/VM 安装 | 系统没有已安装 LongGrid 包；仓库只有 `LongGrid-0.1.0.0-win-x64-unsigned.msix`，Authenticode 为 `NotSigned`、Signer 为空 | `PendingSignedPackageAndDisposableWindowsProfile`；不信任或安装 unsigned MSIX，不把构建产物存在写成安装证据 |
+| 可安装受保护产物 | BOX-R1-C/D 使用受保护签名 MSIX，并在可丢弃账户/VM 安装 | 系统没有已安装 LongGrid 包；仓库只有 `LongGrid-0.1.0.0-win-x64-unsigned.msix`，Authenticode 为 `NotSigned`、Signer 为空；GitHub API 真实返回 `environments.total_count=0`，远端只有普通 CI workflow，没有合同要求的 `long-grid-release` 受保护环境 | `PendingApprovedPublisherCertificateProtectedEnvironmentAndDisposableWindowsProfile`；不信任或安装 unsigned MSIX，不把构建产物存在写成安装证据，也不在 PR/main CI 增加签名权限 |
 | 外部自动化运行时 | 运行时可发现且不存在已知危险 WinUI/XAML 组合，才允许 Computer Use/UIA 进入正式窗口 | `Start-LongGridM1ManualEvidenceSession.ps1 -ExternalAutomation` 真实返回 runtime `2.4.0.0`、XAML `3.2.3.0`、`KnownUnsafeCrossProcessUiaRuntimePairPresent`、`BlockedByKnownUpstream`；`startsProcess=false`、`createsEvidenceSession=false` | 失败关闭与预期一致；不启动窗口、不发送点击，不以合同通过替代物理旅程 |
 | 可丢弃环境 | 有已确认的专用 Windows 账户/VM，可安全安装、重启 Explorer 和卸载恢复 | 当前可见应用清单没有已确认的 Windows Sandbox 或已授权专用测试桌面；既有日常通信与浏览器应用正在运行 | `EnvironmentBlocked`；不把日常桌面或未经确认的远程桌面当成可丢弃环境 |
 
