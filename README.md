@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，真实可见交互证据仍 Pending；TASKBAR-R1A～R2B1-A2 已建立只读、恢复、原生边界、可丢弃环境准入和两张有限预设卡片。`main@673e7b6` 已通过 1,382/1,382、CodeQL 双语言 0 results，但本机 M1 仍被 WinUI/UIA 已知危险组合阻断，任务栏仍因 Sandbox 启动器/硬件/隔离配置证据缺失而保持 `mutationAllowed=false`；许可证、Publisher、托管签名和安装生命周期环境也未提供。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)与 [Stage 227](docs/227-next-development-boundary-reaudit.md)。三项 Core 仍未形成完整产品旅程，所有产物仍不可公开分发。
+> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，真实可见交互证据仍 Pending；TASKBAR-R1A～R2B1-A2 已建立只读、恢复、原生边界、可丢弃环境准入和两张有限预设卡片。Stage 228 以 `origin/main@9205581` 复审后，工程基线仍为 1,382/1,382、CodeQL 双语言 0 results，但 M1/M2 顶层产品旅程仍为 `0/2 Complete`：本机 M1 被 WinUI/UIA 已知危险组合阻断，任务栏因 Sandbox 启动器/硬件/隔离配置证据缺失保持 `mutationAllowed=false`；许可证、Publisher、托管签名和安装生命周期环境也未提供。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md) 与 [Stage 228](docs/228-current-development-status-and-continuation-audit.md)。所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -17,7 +17,8 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 当前工作只需要优先阅读以下文档：
 
 - [当前唯一开发计划：产品重对齐、UI 重构、里程碑与执行队列](docs/PRODUCT_EXECUTION_PLAN.md)
-- [当前下一开发边界复审（Stage 227）](docs/227-next-development-boundary-reaudit.md)
+- [当前开发状态与接续点审计（Stage 228）](docs/228-current-development-status-and-continuation-audit.md)
+- [上一轮开发边界复审（Stage 227，已由 Stage 228 接续）](docs/227-next-development-boundary-reaudit.md)
 - [上一轮整体开发与功能对齐审计（Stage 226，已由 Stage 227 接续）](docs/226-current-development-and-requirement-alignment-audit.md)
 - [历史跨电脑接续快照（Stage 219，已由 Stage 227 取代）](docs/219-current-development-handoff-audit.md)
 - [当前开发情况与原始需求对齐审计（Stage 209）](docs/209-current-development-alignment-audit.md)
