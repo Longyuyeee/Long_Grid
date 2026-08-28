@@ -60,6 +60,8 @@ PR #296 合并提交为 `main@228540ab6dfcd04b97482f0098090d11d1b97a46`。该提
 
 本地修正后该精确原生菜单/UIA 场景连续 `10/10` 通过；格式无差异，Release 测试项目构建 `0 warning / 0 error`，完整套件两次均为 `1,392/1,392`，coverage lines `90.43% (47,090/52,072)`、branches `76.16% (15,458/20,298)`。这些本地结果只证明握手修正，不覆盖 run `33193173935` 的首次失败；远端仍须在新提交上完整复测。
 
+握手修正 PR #298 的 CI run `33193971710` 用时 9m33s，完整测试 `1,392/1,392`、0 skipped，coverage lines `90.12% (46,926/52,072)`、branches `76.04% (15,434/20,298)`；漏洞、20 projects / 30 packages 许可证、`805/805` SBOM 与 `signed=false / installable=false / distributionApproved=false` 再次通过。CodeQL run `33193971701` 的 C++ 3m36s、C# 6m22s 均成功。PR 合并为 `main@c83e02478f33c51b6917c340a7828f9a41f12a88` 后，其独立 CI run `33194751907` 用时 7m35s，完整测试 `1,392/1,392`，coverage lines `90.11% (46,920/52,072)`、branches `76.03% (15,432/20,298)`，其余许可证/SBOM/unsigned RC 门禁继续通过；main CodeQL run `33194751946` 对 C++ 58 rules 与 C# 52 rules 均返回 0 results。首次失败已由新提交的 PR/main 双重证据关闭，没有以重跑旧 SHA 覆盖。
+
 ## 6. 阶段结论与唯一接续点
 
 开发目标审计：PowerShell 5.1 清理回归、M1 假 Ready 和 BOX-R1 超时掩盖三个真实工程缺陷已关闭；产品托管代码没有因本轮被改动。需求对齐审计：修正加强了“真实证据优先、失败关闭、只清理自有资源、不把进程存在冒充产品就绪”的原始要求，没有扩大权限或伪造产品完成状态。
