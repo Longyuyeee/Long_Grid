@@ -4,7 +4,7 @@
 
 审计输入基线：`origin/main@ec756995c7851d2e1bde300f346e05953dae39e5`
 
-状态：`CorrectionComplete / LocalAndPrAuditPassed / MainAuditPending / ProductEvidenceBlocked`
+状态：`CorrectionComplete / LocalPrAndMainAuditPassed / ProductEvidenceBlocked`
 
 ## 1. 接续依据与范围
 
@@ -47,6 +47,8 @@ Stage 232 已让启动、打包、漏洞、许可证、SBOM 和打包子进程�
 PR #294 首轮 head 远端验证已通过：CI run `33185069480` 用时 7m49s，测试 1,390/1,390、0 skipped，coverage lines `90.12% (46,926/52,072)`、branches `76.04% (15,434/20,298)`；漏洞门禁选择 `C:\Program Files\dotnet\dotnet.exe` 且 0 known vulnerable packages；许可证门禁为 20 projects / 30 packages，继续 `PendingOwnerReviewAndNotice / distributionApproved=false`；内部 RC 的 805/805 SBOM 校验成功，继续 `signed=false / installable=false / distributionApproved=false`。CodeQL run `33185069553` 的 C++ 与 C# 分别在 3m46s、7m35s 通过；PR merge ref `943114c1ec6863b924e5edb4451f390f70c277d4` 上 C++ 为 58 rules / 0 results，C# 为 52 rules / 0 results。
 
 上述远端结果对应文档写回前的首轮 head；最终文档提交与合并后 main CI/CodeQL 仍须独立复核，不得用首轮结果替代最终主线审计。
+
+PR #294 合并提交为 `main@13dcf8ad8cd264102d9cff1e4bb923421f0b25bc`。该主线自己的 CI run `33186603285` 用时 8m22s，1,390/1,390、0 skipped，coverage lines `90.11% (46,924/52,072)`、branches `76.04% (15,434/20,298)`；漏洞、20 projects / 30 packages 许可证、805/805 SBOM 和内部 unsigned RC 均再次通过，签名/安装/分发仍为 false。main CodeQL run `33186603282` 的 C++ 与 C# 分别在 3m41s、7m40s 通过；同一 main commit 上 C++ 58 rules / 0 results、C# 52 rules / 0 results。实现提交已完成独立 PR 与 main 远端审计。
 
 ## 5. 需求、阶段与接续审计
 
