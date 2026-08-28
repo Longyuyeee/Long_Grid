@@ -38,13 +38,23 @@ public sealed class DotNetHostResolutionRealProcessTests
     }
 
     [Theory]
-    [InlineData("Pack-LongGrid.ps1", "portable-unpacked-zip")]
+    [InlineData(
+        "Pack-LongGrid.ps1",
+        "packageType",
+        "portable-unpacked-zip")]
     [InlineData(
         "Build-LongGridReleaseCandidate.ps1",
+        "candidateType",
         "internal-unsigned-developer-preview")]
+    [InlineData("New-LongGridSbom.ps1", "manifestFormat", "SPDX:2.2")]
+    [InlineData(
+        "Test-LongGridDependencyLicenses.ps1",
+        "scope",
+        "all-solution-projects-restored-assets")]
     public async Task PackagingValidateOnlyUsesCompatibleSdkDespitePoisonedPath(
         string scriptName,
-        string expectedType)
+        string expectedProperty,
+        string expectedValue)
     {
         string? compatibleHost = GetCompatibleHost();
         if (compatibleHost is null)
@@ -66,12 +76,34 @@ public sealed class DotNetHostResolutionRealProcessTests
             compatibleHost,
             root.GetProperty("dotnetHost").GetString(),
             ignoreCase: true);
-        string? actualType = root.TryGetProperty(
-            "packageType",
-            out JsonElement packageType)
-                ? packageType.GetString()
-                : root.GetProperty("candidateType").GetString();
-        Assert.Equal(expectedType, actualType);
+        Assert.Equal(
+            expectedValue,
+            root.GetProperty(expectedProperty).GetString());
+    }
+
+    [Fact]
+    public async Task VulnerabilityGateUsesCompatibleSdkDespitePoisonedPath()
+    {
+        string? compatibleHost = GetCompatibleHost();
+        if (compatibleHost is null)
+        {
+            return;
+        }
+
+        ProcessResult result = await RunWithPoisonedPathAsync(
+            compatibleHost,
+            "Verify-VulnerablePackages.ps1");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.Error);
+        Assert.Contains(
+            "Package vulnerability gate passed: no known vulnerable packages.",
+            result.Output,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            $"dotnet={compatibleHost}",
+            result.Output,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? GetCompatibleHost()
@@ -117,7 +149,10 @@ public sealed class DotNetHostResolutionRealProcessTests
                 CreateNoWindow = true,
                 WorkingDirectory = repositoryRoot,
             };
-            startInfo.Environment["PATH"] = temporaryDirectory;
+            startInfo.Environment["PATH"] = string.Join(
+                Path.PathSeparator,
+                temporaryDirectory,
+                Environment.GetEnvironmentVariable("PATH"));
             startInfo.Environment["ProgramW6432"] = Path.GetDirectoryName(
                 Path.GetDirectoryName(compatibleHost))!;
             startInfo.ArgumentList.Add("-NoProfile");

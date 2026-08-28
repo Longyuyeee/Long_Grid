@@ -25,6 +25,7 @@ $toolManifestPath = Join-Path $projectRoot '.config\dotnet-tools.json'
 $buildComponentsRoot = Join-Path $projectRoot 'src'
 $expectedToolVersion = '4.1.5'
 $namespaceBase = 'https://github.com/Longyuyeee/Long_Grid'
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
 
 function Invoke-CheckedCommand {
     param(
@@ -84,6 +85,12 @@ if ($env:OS -ne 'Windows_NT') {
     throw 'Long Grid SBOM generation for MSIX only supports Windows.'
 }
 
+if (-not (Test-Path -LiteralPath $dotnetResolverPath -PathType Leaf)) {
+    throw "The shared .NET host resolver was not found: $dotnetResolverPath"
+}
+. $dotnetResolverPath
+$dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
+
 foreach ($requiredPath in @($toolManifestPath, $buildComponentsRoot)) {
     if (-not (Test-Path -LiteralPath $requiredPath)) {
         throw "Required SBOM input is missing: $requiredPath"
@@ -102,6 +109,7 @@ if ($ValidateOnly) {
     [ordered]@{
         outcome = 'Pass'
         mode = 'ValidateOnly'
+        dotnetHost = $dotnetHostPath
         manifestFormat = 'SPDX:2.2'
         packageName = 'Long Grid'
         packageVersion = $PackageVersion
@@ -175,7 +183,7 @@ try {
 
     if (-not $NoToolRestore) {
         Invoke-CheckedCommand 'Repository-local SBOM tool restore' {
-            & dotnet tool restore
+            & $dotnetHostPath tool restore
         }
     }
 
@@ -194,7 +202,7 @@ try {
     }
 
     Invoke-CheckedCommand 'SPDX 2.2 SBOM generation' {
-        & dotnet tool run sbom-tool generate `
+        & $dotnetHostPath tool run sbom-tool generate `
             -b $dropRoot `
             -bc $buildComponentsRoot `
             -pn 'Long Grid' `
@@ -209,7 +217,7 @@ try {
         throw 'The SBOM tool did not generate the expected SPDX 2.2 manifest.'
     }
     Invoke-CheckedCommand 'SPDX 2.2 SBOM validation' {
-        & dotnet tool run sbom-tool validate `
+        & $dotnetHostPath tool run sbom-tool validate `
             -b $dropRoot `
             -o $validationPath `
             -mi 'SPDX:2.2'

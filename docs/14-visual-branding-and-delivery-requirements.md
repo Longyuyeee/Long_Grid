@@ -14,7 +14,7 @@
 - 产品 DesktopHost 由 Infrastructure 中的生命周期与原生 Surface 承载，而不是独立 `LongGrid.DesktopHost` 工程；它已接入正式配置、项目图标/缩略图、选择、打开和 UIA，但视觉仍偏工程化；
 - 早期 GDI 交互探针已经演进为产品 Surface 底座，但不能据此宣称最终视觉、动效、触控和无障碍矩阵完成；
 - 已有经像素校正的 RC1 SVG/PNG 品牌资产，并能在 MSIX 暂存区生成 44/150/50 px 精确图标；最终商标、ICO/商店素材和 Windows 外壳实机矩阵仍未完成；
-- 已有 `eng/Start-LongGrid.ps1` 开发启动入口和 `eng/Build-LongGridReleaseCandidate.ps1` 内部 RC 编排，可生成 portable ZIP、unsigned MSIX、SBOM、哈希和源码提交清单；受保护签名和正式安装入口仍不存在。
+- 已有 `eng/Start-LongGrid.ps1` 开发启动入口和 `eng/Build-LongGridReleaseCandidate.ps1` 内部 RC 编排，可生成 portable ZIP、unsigned MSIX、SBOM、哈希和源码提交清单；启动、默认打包质量链、公开 SBOM/许可证叶子入口及其同步子进程统一按 `global.json` 解析兼容 SDK；受保护签名和正式安装入口仍不存在。
 
 因此当前工程预览 App、DesktopHost Surface、任何探针窗口、命令行入口或 `dotnet run` 命令都不得宣传为 Long方格正式 MVP、Beta 或安装体验。
 
