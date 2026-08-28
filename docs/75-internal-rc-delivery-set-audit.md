@@ -38,9 +38,10 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 5. 调用 `Pack-LongGrid.ps1` 生成便携 ZIP；默认执行其 restore/format/Release build/test/coverage/vulnerability 门禁；
 6. 调用 `Pack-LongGridMsix.ps1` 复用同提交 ZIP 并生成/验证 unsigned MSIX；
 7. 调用 `New-LongGridSbom.ps1` 复用同提交 MSIX 并生成/官方验证 SPDX 2.2；
-8. 重新计算 ZIP、MSIX、SBOM SHA-256，并逐字复核各自 sidecar；
-9. 复读包内 manifest、MSIX 外部 manifest 和 SBOM evidence，要求版本、源码提交、MSIX subject hash 与否定性状态全部一致；
-10. 最后才输出聚合 evidence 和其 SHA-256 sidecar。
+8. 对全解决方案 restored assets 真实执行依赖许可证元数据门禁，要求包身份、license/NOTICE 指纹与受审基线一致，并保持 `PendingOwnerReviewAndNotice`；
+9. 重新计算 ZIP、MSIX、SBOM 和依赖许可证报告 SHA-256，并逐字复核各自证据；
+10. 复读包内 manifest、MSIX 外部 manifest、SBOM evidence 和依赖许可证报告，要求版本、源码提交、MSIX subject hash、报告 hash 与否定性状态全部一致；
+11. 最后才输出聚合 evidence 和其 SHA-256 sidecar。
 
 `-ValidateOnly` 只复核编排合同，不构建、不启动、不安装。`-SkipQualityGates` 只允许调用者已经完成等价或更强门禁时使用；聚合 evidence 会如实记录 `prevalidated-by-caller`，不会声称本次调用重新执行了质量门禁。
 
@@ -64,8 +65,10 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 | `artifacts.msix.byteReproducible` | 如实记录 MakeAppx 容器是否字节相同 |
 | `artifacts.sbom.sha256` | 当前 SPDX 文件实际哈希 |
 | `artifacts.sbom.inventoriedFileCount` | 官方验证的 MSIX 布局文件数 |
+| `artifacts.dependencyLicenses` | 全解决方案锁定依赖的确定性元数据报告、SHA-256、20/30 计数和 Pending clearance |
 | `gates.lifecycleEvidence` | 必须仍等待签名包和可抛弃 Windows profile |
 | `gates.signingState` | 必须仍等待正式 Publisher/证书/环境 |
+| `gates.licenseClearance` | 固定等待负责人兼容性与 NOTICE 审核，不能由元数据门禁升级 |
 | `signed/installable/distributionApproved` | 全部强制 `false` |
 
 SBOM 带生成时间和 namespace 标识，MakeAppx 容器也可能带 ZIP 元数据差异，因此聚合 evidence 不声称整个集合逐字节可重复；它分别记录便携 ZIP 字节确定性、MSIX 解包布局确定性和 SBOM 的官方内容验证。
@@ -92,7 +95,7 @@ PR/main CI 使用 GitHub 托管 Windows runner 的全新 checkout，先执行完
 
 真实构建整套集合。这里的 skip 只复用同一 job 已完成的 format/build/test/coverage/probes/vulnerability；工具恢复由前置步骤完成，`win-x64` + Windows App SDK self-contained 发布恢复仍由 RC 入口负责。普通 solution restore 不保证下载 RID runtime pack，CI 不得传 `-NoRestore` 或依赖 runner 缓存。聚合入口仍重新验证全部包、哈希、提交与安全边界。
 
-CI 只上传 TRX/Cobertura。ZIP、MSIX、SBOM 和聚合 evidence 不作为 Actions artifact 或 GitHub Release 上传，避免把内部 unsigned 产物误当成可分发构建。
+CI 只上传 TRX/Cobertura。ZIP、MSIX、SBOM、依赖许可证报告和聚合 evidence 不作为 Actions artifact 或 GitHub Release 上传，避免把内部 unsigned 产物或元数据清单误当成可分发构建。
 
 ## 6. 需求对齐
 

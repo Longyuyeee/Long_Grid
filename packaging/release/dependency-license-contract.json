@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "scope": "all-solution-projects-restored-assets",
+  "expectedProjectCount": 20,
+  "expectedPackageCount": 30,
+  "expectedPackageIdentitySha256": "b48ff8cc2460025f06dd785195bb78733bef9b9ca3dc9da6a07fe555b9098b15",
+  "expectedLicenseMetadataSha256": "461505c46aa2e51f54e828b3b585eef64db7dd39408b786baf9ad5d2a9ceedef",
+  "acceptedLicenseKinds": [
+    "expression",
+    "file",
+    "url"
+  ],
+  "clearanceStatus": "PendingOwnerReviewAndNotice",
+  "distributionApproved": false
+}

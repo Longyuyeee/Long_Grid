@@ -25,6 +25,7 @@ $msixManifestPath = Join-Path $artifactRoot "$packageBaseName.manifest.json"
 $sbomPath = Join-Path $artifactRoot "$packageBaseName.spdx.json"
 $sbomHashPath = "$sbomPath.sha256"
 $sbomEvidencePath = Join-Path $artifactRoot "$packageBaseName.sbom-evidence.json"
+$licenseReportPath = Join-Path $artifactRoot "LongGrid-$PackageVersion-dependency-licenses.json"
 $candidateManifestPath = Join-Path $artifactRoot "LongGrid-$PackageVersion-win-x64-internal-rc-evidence.json"
 $candidateHashPath = "$candidateManifestPath.sha256"
 
@@ -132,7 +133,8 @@ $msixScript = Join-Path $PSScriptRoot 'Pack-LongGridMsix.ps1'
 $sbomScript = Join-Path $PSScriptRoot 'New-LongGridSbom.ps1'
 $lifecycleScript = Join-Path $PSScriptRoot 'Test-LongGridMsixLifecycle.ps1'
 $signingScript = Join-Path $PSScriptRoot 'Test-LongGridReleaseSigning.ps1'
-foreach ($requiredScript in @($portableScript, $msixScript, $sbomScript, $lifecycleScript, $signingScript)) {
+$licenseScript = Join-Path $PSScriptRoot 'Test-LongGridDependencyLicenses.ps1'
+foreach ($requiredScript in @($portableScript, $msixScript, $sbomScript, $lifecycleScript, $signingScript, $licenseScript)) {
     if (-not (Test-Path -LiteralPath $requiredScript -PathType Leaf)) {
         throw "Required release-candidate input is missing: $requiredScript"
     }
@@ -140,6 +142,7 @@ foreach ($requiredScript in @($portableScript, $msixScript, $sbomScript, $lifecy
 
 $lifecycleContract = Invoke-JsonContract -Description 'MSIX lifecycle contract' -Path $lifecycleScript
 $signingContract = Invoke-JsonContract -Description 'protected signing contract' -Path $signingScript
+$licenseContract = Invoke-JsonContract -Description 'dependency license metadata contract' -Path $licenseScript
 if ($lifecycleContract.outcome -ne 'Pass' -or
     $lifecycleContract.liveEvidence -ne 'PendingSignedPackageAndDisposableWindowsProfile' -or
     $lifecycleContract.startsProcess -or
@@ -154,6 +157,14 @@ if ($signingContract.outcome -ne 'Pass' -or
     $signingContract.installOrDistributionApproved) {
     throw 'The protected signing boundary is not safely blocked.'
 }
+if ($licenseContract.outcome -ne 'Pass' -or
+    -not $licenseContract.metadataDriftFails -or
+    $licenseContract.copiesLicenseFiles -or
+    $licenseContract.decidesCompatibility -or
+    $licenseContract.clearanceStatus -ne 'PendingOwnerReviewAndNotice' -or
+    $licenseContract.distributionApproved) {
+    throw 'The dependency license boundary is not safely pending owner review and NOTICE clearance.'
+}
 
 if ($ValidateOnly) {
     [ordered]@{
@@ -162,9 +173,10 @@ if ($ValidateOnly) {
         candidateType = 'internal-unsigned-developer-preview'
         portableVersion = $PortableVersion
         packageVersion = $PackageVersion
-        aggregates = @('portable-zip', 'unsigned-msix', 'spdx-2.2', 'sha256', 'source-commit')
+        aggregates = @('portable-zip', 'unsigned-msix', 'spdx-2.2', 'dependency-license-metadata', 'sha256', 'source-commit')
         lifecycleEvidence = $lifecycleContract.liveEvidence
         signingState = $signingContract.signingState
+        licenseClearance = $licenseContract.clearanceStatus
         startsProcess = $false
         modifiesPackageState = $false
         signed = $false
@@ -186,7 +198,7 @@ try {
     }
 
     [System.IO.Directory]::CreateDirectory($artifactRoot) | Out-Null
-    foreach ($staleSuccessMarker in @($candidateManifestPath, $candidateHashPath)) {
+    foreach ($staleSuccessMarker in @($candidateManifestPath, $candidateHashPath, $licenseReportPath)) {
         if (Test-Path -LiteralPath $staleSuccessMarker -PathType Leaf) {
             [System.IO.File]::Delete($staleSuccessMarker)
         }
@@ -216,6 +228,32 @@ try {
         $sbomArguments.NoToolRestore = $true
     }
     Invoke-PackagingScript -Description 'SPDX SBOM generation and validation' -Path $sbomScript -Arguments $sbomArguments
+
+    # Downstream publish/package operations can perform RID-specific restores. Inventory the final
+    # restored solution state rather than an earlier project.assets.json snapshot.
+    $licenseText = & $licenseScript -OutputPath $licenseReportPath | Out-String
+    if (-not $?) {
+        throw 'Dependency license metadata inventory failed.'
+    }
+    try {
+        $licenseEvidence = $licenseText | ConvertFrom-Json
+    }
+    catch {
+        throw 'Dependency license metadata inventory did not return a single JSON contract.'
+    }
+    if ($licenseEvidence.outcome -ne 'Pass' -or
+        $licenseEvidence.projectCount -ne $licenseContract.expectedProjectCount -or
+        $licenseEvidence.packageCount -ne $licenseContract.expectedPackageCount -or
+        -not $licenseEvidence.metadataComplete -or
+        $licenseEvidence.clearanceStatus -ne 'PendingOwnerReviewAndNotice' -or
+        $licenseEvidence.distributionApproved -or
+        -not (Test-Path -LiteralPath $licenseReportPath -PathType Leaf)) {
+        throw 'Dependency license metadata evidence is incomplete or unsafe.'
+    }
+    $licenseReportHash = (Get-FileHash -LiteralPath $licenseReportPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($licenseEvidence.reportSha256 -ne $licenseReportHash) {
+        throw 'Dependency license report hash does not match its inventory result.'
+    }
 
     $portableHash = Assert-HashSidecar -ArtifactPath $portablePath -SidecarPath $portableHashPath
     $msixHash = Assert-HashSidecar -ArtifactPath $msixPath -SidecarPath $msixHashPath
@@ -296,6 +334,14 @@ try {
                 inventoriedFileCount = $sbomEvidence.sbom.inventoriedFileCount
                 validated = $true
             }
+            dependencyLicenses = [ordered]@{
+                file = [System.IO.Path]::GetFileName($licenseReportPath)
+                sha256 = $licenseReportHash
+                projectCount = $licenseEvidence.projectCount
+                packageCount = $licenseEvidence.packageCount
+                metadataComplete = $true
+                clearanceStatus = $licenseEvidence.clearanceStatus
+            }
         }
         gates = [ordered]@{
             lifecycleEvidence = $lifecycleContract.liveEvidence
@@ -303,6 +349,8 @@ try {
             sameSourceCommit = $true
             artifactHashesVerified = $true
             sbomSubjectHashVerified = $true
+            dependencyLicenseMetadataVerified = $true
+            licenseClearance = $licenseEvidence.clearanceStatus
         }
         signed = $false
         installable = $false
@@ -326,6 +374,9 @@ try {
         msixSha256 = $msixHash
         sbom = $sbomPath
         sbomSha256 = $sbomHash
+        dependencyLicenseReport = $licenseReportPath
+        dependencyLicenseReportSha256 = $licenseReportHash
+        licenseClearance = $licenseEvidence.clearanceStatus
         candidateEvidence = $candidateManifestPath
         candidateEvidenceSha256 = $candidateHash
         qualityGateMode = $qualityGateMode

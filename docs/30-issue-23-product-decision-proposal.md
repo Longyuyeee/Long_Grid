@@ -88,3 +88,5 @@ D23-11 必须由负责人明确选择并记录以下一种路径，而不是由�
 3. 专有或 source-available：由专业人员提供实际条款、分发授权、隐私/支持边界和第三方 NOTICE 方案。
 
 无论选择哪条路径，正式分发前都必须把负责人批准、根许可证/条款、第三方 notice、SBOM license 字段或配套 license report、品牌/素材权利和 signed lifecycle evidence 一并复核。当前状态继续为 `Deferred / DistributionBlocked`，不得因 30/30 包元数据可读或 SBOM validation Pass 自动升级。
+
+2026-08-28 Stage 220 后续工程更新：30 包盘点已固化为覆盖全解决方案 20 个项目的确定性 CI/RC 门禁，锁定包身份、license expression/file/URL、文件型许可证哈希和 NOTICE/third-party 文件哈希；实际报告仍明确 `PendingOwnerReviewAndNotice / distributionApproved=false`。该门禁降低后续依赖漂移风险，但不改变本节三条负责人决策路径，也不替代版权归属、兼容性或最终 NOTICE 审核。
