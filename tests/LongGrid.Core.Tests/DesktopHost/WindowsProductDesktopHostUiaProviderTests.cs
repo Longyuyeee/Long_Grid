@@ -977,32 +977,39 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
         Assert.Equal(new System.Windows.Rect(452, 236, 32, 32),
             more.Current.BoundingRectangle);
         ((InvokePattern)more.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
-        Task<(string Name, bool Enabled)[]> observeMenu = Task.Run(() =>
-        {
-            AutomationElement? nativeMenu = null;
-            bool visible = SpinWait.SpinUntil(() =>
+        using ManualResetEventSlim observerReady = new(false);
+        Task<(string Name, bool Enabled)[]> observeMenu = Task.Factory.StartNew(
+            () =>
             {
-                nativeMenu = AutomationElement.RootElement.FindFirst(
-                    TreeScope.Children,
-                    new AndCondition(
+                AutomationElement? nativeMenu = null;
+                observerReady.Set();
+                bool visible = SpinWait.SpinUntil(() =>
+                {
+                    nativeMenu = AutomationElement.RootElement.FindFirst(
+                        TreeScope.Children,
+                        new AndCondition(
+                            new PropertyCondition(
+                                AutomationElement.ClassNameProperty,
+                                "#32768"),
+                            new PropertyCondition(
+                                AutomationElement.ProcessIdProperty,
+                                Environment.ProcessId)));
+                    return nativeMenu is not null;
+                }, TimeSpan.FromSeconds(5));
+                Assert.True(visible);
+                return nativeMenu!.FindAll(
+                        TreeScope.Descendants,
                         new PropertyCondition(
-                            AutomationElement.ClassNameProperty,
-                            "#32768"),
-                        new PropertyCondition(
-                            AutomationElement.ProcessIdProperty,
-                            Environment.ProcessId)));
-                return nativeMenu is not null;
-            }, TimeSpan.FromSeconds(5));
-            Assert.True(visible);
-            return nativeMenu!.FindAll(
-                    TreeScope.Descendants,
-                    new PropertyCondition(
-                        AutomationElement.ControlTypeProperty,
-                        ControlType.MenuItem))
-                .Cast<AutomationElement>()
-                .Select(item => (item.Current.Name, item.Current.IsEnabled))
-                .ToArray();
-        });
+                            AutomationElement.ControlTypeProperty,
+                            ControlType.MenuItem))
+                    .Cast<AutomationElement>()
+                    .Select(item => (item.Current.Name, item.Current.IsEnabled))
+                    .ToArray();
+            },
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+        Assert.True(observerReady.Wait(TimeSpan.FromSeconds(5)));
         source.ShowPendingContainerMenuForEvidence();
         (string Name, bool Enabled)[] menuItems = await observeMenu;
         Assert.Equal(
