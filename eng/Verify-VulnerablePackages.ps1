@@ -4,8 +4,16 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
 
-$json = & dotnet list $Solution package --vulnerable --include-transitive --format json
+if (-not (Test-Path -LiteralPath $dotnetResolverPath -PathType Leaf)) {
+    throw "The shared .NET host resolver was not found: $dotnetResolverPath"
+}
+. $dotnetResolverPath
+$dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
+
+$json = & $dotnetHostPath list $Solution package --vulnerable --include-transitive --format json
 if ($LASTEXITCODE -ne 0) {
     throw "dotnet package vulnerability scan failed with exit code $LASTEXITCODE."
 }
@@ -44,4 +52,4 @@ if ($findings.Count -gt 0) {
     throw "Found $($findings.Count) vulnerable package reference(s)."
 }
 
-Write-Output "Package vulnerability gate passed: no known vulnerable packages."
+Write-Output "Package vulnerability gate passed: no known vulnerable packages. dotnet=$dotnetHostPath"

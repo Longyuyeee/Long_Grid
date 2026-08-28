@@ -10,6 +10,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
+
+if (-not (Test-Path -LiteralPath $dotnetResolverPath -PathType Leaf)) {
+    throw "The shared .NET host resolver was not found: $dotnetResolverPath"
+}
+. $dotnetResolverPath
+$dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
 
 function Resolve-ProjectPath {
     param(
@@ -99,6 +106,7 @@ if ($ValidateOnly) {
     [ordered]@{
         outcome = 'Pass'
         mode = 'ValidateOnly'
+        dotnetHost = $dotnetHostPath
         scope = $contract.scope
         expectedProjectCount = $contract.expectedProjectCount
         expectedPackageCount = $contract.expectedPackageCount
@@ -114,7 +122,7 @@ if ($ValidateOnly) {
 Push-Location $projectRoot
 try {
     if ($null -eq $ProjectAssetsPaths -or $ProjectAssetsPaths.Count -eq 0) {
-        $projectPaths = @(& dotnet sln $Solution list | Where-Object { $_ -match '\.csproj$' })
+        $projectPaths = @(& $dotnetHostPath sln $Solution list | Where-Object { $_ -match '\.csproj$' })
         if ($LASTEXITCODE -ne 0 -or $projectPaths.Count -eq 0) {
             throw 'Unable to enumerate solution projects.'
         }
