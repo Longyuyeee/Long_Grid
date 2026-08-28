@@ -650,3 +650,5 @@ M1 产品证据冲刺的开始条件保持不变：取得安全 WinUI 运行时�
 | 可丢弃环境 | 有已确认的专用 Windows 账户/VM，可安全安装、重启 Explorer 和卸载恢复 | 当前可见应用清单没有已确认的 Windows Sandbox 或已授权专用测试桌面；既有日常通信与浏览器应用正在运行 | `EnvironmentBlocked`；不把日常桌面或未经确认的远程桌面当成可丢弃环境 |
 
 开发目标审计：本轮目标是“进入 M1 并判断是否满足真实安装和物理输入准入”，该目标已完成；“完成 M1 用户旅程”未完成。需求对齐审计：结果继续符合 PRD 的不注入 Explorer、不擅自修改系统和用户文件、真实证据优先原则，也符合本文第 9、10 节的失败关闭与差异保留要求。首次实际结果已保留，没有发现需要修改产品代码的回归；当前唯一接续点仍是取得受保护签名包、独占可丢弃 Windows 会话和安全 WinUI/UIA 运行时后，从 BOX-R1-C/D 的真实安装与桌面背景菜单开始。环境事实未变化前不得重复邻接开发或把本轮准入复核标为产品完成。
+
+用户进一步明确优先使用本机后，本轮继续执行了不跨越上述门禁的真实 Release 工程会话。Expected 为新进程存活、依次到达 `InstanceKeyResolved / AppInstanceCurrent / ConfigurationIsolationAccepted / AppConstructed`、配置位于精确 GUID 临时根、正常配置与 Unicode 真实文件夹 SHA-256 均不变化；Actual 为独立 PID `50140` 存活并完整到达四阶段，正常配置指纹前后均为 `D8B30E47...E1DC`，夹具指纹前后均为 `A697FC8C...6001`，Difference=`None`。脚本只终止自身 PID，既有 PID `45524` 保持存在；证据复读后通过精确 SessionId 清理，临时目录确认不存在。该结果证明本机仍可用于真实进程、真实配置和真实文件系统工程测试，但没有发送物理输入、没有启用第二个 DesktopHost、没有安装包，也没有调用跨进程 UIA；因此 M1 状态继续为 `ExternalEnvironmentBlocked / ProductEvidencePending`，不得把本机工程 Pass 冒充 BOX-R1-C/D 或完整物理旅程完成。
