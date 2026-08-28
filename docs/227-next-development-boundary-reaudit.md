@@ -4,7 +4,7 @@
 
 审计基线：`origin/main@673e7b6ce692dd0f1928554c7455024d41a1eb50`
 
-状态：`FullLocalPass / PullRequestPending / NoProductMutationAuthorized / ExternalInputsPending`
+状态：`Complete / MergedToMain / MainVerificationPass / NoProductMutationAuthorized / ExternalInputsPending`
 
 ## 1. 开发目标
 
@@ -50,3 +50,9 @@
 2. 在无既有 Long方格进程、安全 WinUI/UIA runtime、签名包和可丢弃 Windows 账户/VM 上执行 M1；逐步保留物理操作的 Expected / Actual / Difference / Correction。
 3. Stage 216 Guest 准入全部 ReadyToLaunch 后执行 TASKBAR-R2B1-B；宿主继续只读。
 4. #19/#20/#24 的物理输入、显示/会话和真实卷矩阵进入同一受控环境。在上述外部状态没有变化时，只处理真实回归、质量门禁和安全缺陷，不插入自动整理、Tab、Widget、工作空间或新协议。
+
+## 6. PR #287 与 main 最终集成证据
+
+PR #287 已 squash merge 为 `main@29519568cfa9c4eeda19d557157cf8511389e938`，最终 PR head 与 merge commit 的 Git tree 均为 `e476bb9bbf4cb3eeb7aed7c67c60db0c8f4498bf`。PR CI run `33156144869` success：`1,382/1,382`、0 跳过，lines `90.12% (46926/52072)`、branches `76.04% (15434/20298)`，artifact 997,330 bytes；PR CodeQL run `33156144867` 的 C# 52 rules / 0 results、C++ 58 rules / 0 results。
+
+合并后 main CI run `33156693058` success：`1,382/1,382`、0 跳过，lines `90.11% (46924/52072)`、branches `76.04% (15434/20298)`，artifact 997,556 bytes。main CodeQL run `33156693089` success；C# 52 rules / 0 results、C++ 58 rules / 0 results，open alerts 0。Stage 227 的边界复审与文档对齐因此关闭；该结论不改变本节之前记录的外部阻断，也不提升任何产品旅程状态。
