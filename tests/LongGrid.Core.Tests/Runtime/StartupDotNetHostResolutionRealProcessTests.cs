@@ -39,6 +39,53 @@ public sealed class DotNetHostResolutionRealProcessTests
     }
 
     [Fact]
+    public void EngineeringScriptsDoNotRequirePowerShell7ProcessTreeKill()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string engineeringDirectory = Path.Combine(repositoryRoot, "eng");
+        Regex processTreeKill = new(
+            @"\.Kill\(\$true\)",
+            RegexOptions.IgnoreCase);
+
+        string[] violations = Directory
+            .EnumerateFiles(engineeringDirectory, "*.ps1")
+            .Where(path => processTreeKill.IsMatch(File.ReadAllText(path)))
+            .Select(path => Path.GetRelativePath(repositoryRoot, path))
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void ProductEvidenceLaunchersRequireManagedReadinessOrDetectHostFailure()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string m1Launcher = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "eng",
+            "Start-LongGridM1ManualEvidenceSession.ps1"));
+        string boxLauncher = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "eng",
+            "Test-LongGridBoxR1Activation.ps1"));
+
+        Assert.Contains("'AppConstructed'", m1Launcher, StringComparison.Ordinal);
+        Assert.Contains(
+            "managed launch did not become ready",
+            m1Launcher,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "OwnedProcess.MainWindowTitle",
+            boxLauncher,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "LongGrid.App host startup failed",
+            boxLauncher,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task StartupValidateOnlyIgnoresEarlierPathHostWithoutCompatibleSdk()
     {
         string? compatibleHost = GetCompatibleHost();
