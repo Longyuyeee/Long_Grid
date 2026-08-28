@@ -43,6 +43,11 @@ public sealed class TaskbarDisposableEnvironmentRealProcessTests
 
             JsonElement actual = root.GetProperty("actual");
             Assert.True(actual.GetProperty("windows").GetBoolean());
+            Assert.True(actual.TryGetProperty(
+                "hardwareEvidenceCollected",
+                out JsonElement hardwareEvidenceCollected));
+            Assert.True(hardwareEvidenceCollected.ValueKind
+                is JsonValueKind.True or JsonValueKind.False);
             Assert.False(
                 actual.GetProperty("modifiedSystemState").GetBoolean());
             Assert.False(actual.GetProperty("mutationAllowed").GetBoolean());

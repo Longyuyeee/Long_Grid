@@ -6,6 +6,9 @@ namespace LongGrid.Core.Tests.Taskbar;
 
 public sealed class TaskbarAppearanceRecoveryTransactionTests
 {
+    private const string AppliedReadyEvidenceFileName =
+        "applied-ready.evidence";
+
     private static readonly DateTimeOffset Now =
         new(2026, 8, 27, 4, 0, 0, TimeSpan.Zero);
 
@@ -464,8 +467,11 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
                 ?? throw new InvalidOperationException("Child test process did not start.");
             TaskbarAppearanceRecoveryJournalStore store = new(directory);
 
+            await WaitForFileAsync(
+                Path.Combine(directory, AppliedReadyEvidenceFileName),
+                TimeSpan.FromSeconds(10));
             TaskbarAppearanceRecoveryLoadResult beforeKill =
-                await WaitForAppliedRecoveryAsync(store, TimeSpan.FromSeconds(10));
+                await store.LoadAsync();
             child.Kill(entireProcessTree: true);
             await child.WaitForExitAsync();
             TaskbarAppearanceRecoveryLoadResult afterKill = await store.LoadAsync();
@@ -530,30 +536,27 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
             journal.TransactionId,
             TaskbarAppearanceRecoveryPhase.Staged,
             TaskbarAppearanceRecoveryPhase.Applied));
+        await File.WriteAllTextAsync(
+            Path.Combine(directory, AppliedReadyEvidenceFileName),
+            "AppliedReady");
         await Task.Delay(Timeout.InfiniteTimeSpan);
     }
 
-    private static async Task<TaskbarAppearanceRecoveryLoadResult>
-        WaitForAppliedRecoveryAsync(
-            TaskbarAppearanceRecoveryJournalStore store,
-            TimeSpan timeout)
+    private static async Task WaitForFileAsync(string path, TimeSpan timeout)
     {
-        Stopwatch stopwatch = Stopwatch.StartNew();
-        while (stopwatch.Elapsed < timeout)
+        using CancellationTokenSource timeoutSource = new(timeout);
+        try
         {
-            TaskbarAppearanceRecoveryLoadResult result = await store.LoadAsync();
-            if (result.Status
-                    == TaskbarAppearanceRecoveryLoadStatus.RecoveryRequired
-                && result.Journal?.Phase
-                    == TaskbarAppearanceRecoveryPhase.Applied)
+            while (!File.Exists(path))
             {
-                return result;
+                await Task.Delay(25, timeoutSource.Token);
             }
-
-            await Task.Delay(50);
         }
-
-        return await store.LoadAsync();
+        catch (OperationCanceledException)
+        {
+            throw new TimeoutException(
+                $"Child readiness evidence was not created: {path}");
+        }
     }
 
     private static async Task DeleteTemporaryDirectoryWithRetryAsync(
