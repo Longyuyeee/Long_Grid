@@ -420,7 +420,7 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 
 ## 10. 真实测试与差异修正规则
 
-每个用户可见 PR 必须在描述和本文状态中记录：
+每个开发切片，包括用户可见功能、缺陷修复、Windows 适配、测试门禁和文档状态修正，都必须在 PR 描述、测试证据或本文状态中记录：
 
 | 字段 | 必填内容 |
 |---|---|
@@ -432,6 +432,8 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 | 文件安全 | 操作前后文件数量、路径、哈希是否变化 |
 
 禁止：仅凭 XAML 存在、AutomationId、静态合同、Mock、内存原型或截图成功声明产品完成。自动化负责防回归，真实键鼠/触控/Narrator/显示环境负责证明产品效果。
+
+每个切片结束前还必须完成开发目标审计和需求对齐审计：逐项复核本轮目标是否达到、PRD/本文/交互与架构是否仍一致、首次真实差异是否保留、修正后是否复测、状态和下一唯一接续点是否更新。完成所需门禁后提交并推送当前短分支，核对远端提交与本地一致；禁止直接推送 `main`，也禁止用推送、PR 或 CI 成功替代真实用户旅程完成结论。
 
 ## 11. 开发节奏与文档瘦身
 
@@ -634,3 +636,32 @@ M1 产品证据冲刺的开始条件保持不变：取得安全 WinUI 运行时�
 | 完整工程门禁 | 不降低既有质量阈值 | 串行执行 restore、format、Release build、启动链、完整测试和独立覆盖率 | Release `0 warning / 0 error`；启动链 Pass；`1,272/1,272`、0 跳过；lines `90.38%`、branches `75.96%`；无差异 |
 
 本轮没有转向任务栏、小组件或外围功能，而是补上 M1 真实证据链在运行时风险前的安全缺口。普通真人手动会话保持原入口，不把“外部自动化阻断”泛化成产品不能启动；也不采用关闭 UIA/无障碍、强杀高权限进程或修改系统安全策略等规避方式。M1 尚未完成，下一开发目标仍是同一完整物理旅程，而不是将工程底座或启动前阻断写成用户功能完成。
+
+### 13.3 M1-C 换机后真实接续准入复核（2026-08-28）
+
+换机后从最新主线接续并实际进入 M1 完整物理旅程前置门禁。本轮没有先假定环境可用，也没有启动产品、发送输入、安装未签名包、终止既有进程或修改系统安全设置。
+
+| 检查 | Expected | Actual | Difference / Correction |
+|---|---|---|---|
+| Git 与工程基线 | 当前短分支基于最新 `origin/main`，本地和远端一致，工作区无遗漏 | 接续分支基于 `42a1a97`，流程合同提交 `3e0869f` 已推送且本地/远端一致 | `Difference=None`；未改写旧审计分支或直接推送 `main` |
+| 独占产品会话 | 进入 DesktopHost 旅程前不存在任何既有 Long方格进程 | 真实系统仍有 `LongGrid.App.exe` PID `45524`；当前权限无法读取其路径和命令行，父 PID 为 `12368` | `EnvironmentBlocked`；不强杀、不绕过权限、不在非独占会话继续 DesktopHost 证据 |
+| 可安装受保护产物 | BOX-R1-C/D 使用受保护签名 MSIX，并在可丢弃账户/VM 安装 | 系统没有已安装 LongGrid 包；仓库只有 `LongGrid-0.1.0.0-win-x64-unsigned.msix`，Authenticode 为 `NotSigned`、Signer 为空；GitHub API 真实返回 `environments.total_count=0`，远端只有普通 CI workflow，没有合同要求的 `long-grid-release` 受保护环境 | `PendingApprovedPublisherCertificateProtectedEnvironmentAndDisposableWindowsProfile`；不信任或安装 unsigned MSIX，不把构建产物存在写成安装证据，也不在 PR/main CI 增加签名权限 |
+| 外部自动化运行时 | 运行时可发现且不存在已知危险 WinUI/XAML 组合，才允许 Computer Use/UIA 进入正式窗口 | `Start-LongGridM1ManualEvidenceSession.ps1 -ExternalAutomation` 真实返回 runtime `2.4.0.0`、XAML `3.2.3.0`、`KnownUnsafeCrossProcessUiaRuntimePairPresent`、`BlockedByKnownUpstream`；`startsProcess=false`、`createsEvidenceSession=false` | 失败关闭与预期一致；不启动窗口、不发送点击，不以合同通过替代物理旅程 |
+| 可丢弃环境 | 有已确认的专用 Windows 账户/VM，可安全安装、重启 Explorer 和卸载恢复 | 当前可见应用清单没有已确认的 Windows Sandbox 或已授权专用测试桌面；既有日常通信与浏览器应用正在运行 | `EnvironmentBlocked`；不把日常桌面或未经确认的远程桌面当成可丢弃环境 |
+
+开发目标审计：本轮目标是“进入 M1 并判断是否满足真实安装和物理输入准入”，该目标已完成；“完成 M1 用户旅程”未完成。需求对齐审计：结果继续符合 PRD 的不注入 Explorer、不擅自修改系统和用户文件、真实证据优先原则，也符合本文第 9、10 节的失败关闭与差异保留要求。首次实际结果已保留，没有发现需要修改产品代码的回归；当前唯一接续点仍是取得受保护签名包、独占可丢弃 Windows 会话和安全 WinUI/UIA 运行时后，从 BOX-R1-C/D 的真实安装与桌面背景菜单开始。环境事实未变化前不得重复邻接开发或把本轮准入复核标为产品完成。
+
+用户进一步明确优先使用本机后，本轮继续执行了不跨越上述门禁的真实 Release 工程会话。Expected 为新进程存活、依次到达 `InstanceKeyResolved / AppInstanceCurrent / ConfigurationIsolationAccepted / AppConstructed`、配置位于精确 GUID 临时根、正常配置与 Unicode 真实文件夹 SHA-256 均不变化；Actual 为独立 PID `50140` 存活并完整到达四阶段，正常配置指纹前后均为 `D8B30E47...E1DC`，夹具指纹前后均为 `A697FC8C...6001`，Difference=`None`。脚本只终止自身 PID，既有 PID `45524` 保持存在；证据复读后通过精确 SessionId 清理，临时目录确认不存在。该结果证明本机仍可用于真实进程、真实配置和真实文件系统工程测试，但没有发送物理输入、没有启用第二个 DesktopHost、没有安装包，也没有调用跨进程 UIA；因此 M1 状态继续为 `ExternalEnvironmentBlocked / ProductEvidencePending`，不得把本机工程 Pass 冒充 BOX-R1-C/D 或完整物理旅程完成。
+
+继续在本机执行 BOX-R1 激活真实场景时，首次结果暴露了证据门禁本身的失败开放缺陷，必须保留修正前后的差异：
+
+| 检查 | Expected | Actual | Difference / Correction |
+|---|---|---|---|
+| 既有产品进程预检 | 只要系统能枚举到任一 `LongGrid.App`，就在创建临时会话和启动新进程前拒绝真实场景 | 修正前系统真实存在 PID `45524`，但脚本又要求 `HandleCount > 0` 且线程可读取；当前权限下该进程的附加信息不可读取，因而被错误过滤，`Initial` 场景实际启动并报告 Pass | 首次实际为失败开放，不以该次场景 Pass 覆盖。改为对 `Get-Process -Name LongGrid.App` 返回的全部同名进程计数，不再把附加权限信息当作存活条件 |
+| 最终活动进程结论 | 最终仍存在任一同名进程时不得为 Pass | 修正前同一 PID `45524` 始终存在，但报告错误写出 `RemainingLiveProcessCount=0`，且 `$passed` 没有绑定最终进程数 | 将最终同名进程数纳入 `$passed`，报告复用同一个已计算值；合同测试固定预检与后检失败关闭结构 |
+| 修正后真实负向复测 | 识别既有 PID、非零退出、给出明确原因；不启动新进程、不创建新证据会话、不改变正常配置或桌面元数据 | 真实 PID 前后均只有 `45524`；脚本退出码 `1`，原因是 `Close existing LongGrid.App processes before BOX-R1 evidence.`；新增进程 `0`、新增会话 `0`、正常配置变化 `false`、桌面元数据变化 `false` | `Difference=None`；本机负向门禁闭环，不终止既有进程，也不把无法执行的正向三场景改写为 Pass |
+| 完整回归 | Release 构建与 1,381 项完整套件通过，真实短时进程测试不被并发资源竞争干扰 | Release 构建 `0 warning / 0 error` 后立即运行完整套件，15 个 MSBuild 复用节点和约 770 MB 编译服务仍存活；首次实际 `1,364/1,381`，17 项真实 Worker/Shell/缩略图测试因超时或信号未到达失败 | 保留首次失败，不放宽超时或断言；正常执行 `dotnet build-server shutdown` 后，7 个受影响测试类隔离复测共 95 项全部通过，再顺序重跑完整套件 `1,381/1,381`、0 跳过。修正的是测试编排，产品代码无需变更 |
+
+本切片开发目标审计：目标是修复并实证 BOX-R1 独占会话门禁对权限受限同名进程的漏检，已完成；目标不包含完成 BOX-R1-C/D 或 M1 物理旅程。需求对齐审计：修正符合本文失败关闭、真实进程证据、外来进程不终止、首次差异不覆盖以及正常配置/桌面零变化要求；相关工作流合同已同步。当前唯一接续点不变：取得受保护签名包、无既有 Long方格进程的独占可丢弃 Windows 会话和安全 WinUI/UIA 运行时后，串行执行 BOX-R1 `Initial / Redirect / DuplicateRedirect` 及完整物理旅程。
+
+PR #272 首轮 Windows runner run `33134924780` 完整通过：Release 构建 `0 warning / 0 error`，完整测试 `1,381/1,381`、0 跳过，coverage lines `90.11% (46924/52072)`、branches `76.04% (15434/20298)`；BOX/启动/UI/人工会话合同、真实文件安全、正式缩略图 Worker 隔离、依赖漏洞和内部 unsigned RC/SBOM 交付集均成功。RC 审计仍明确 `signed=false`、`installable=false`、`distributionApproved=false`，因此远端工程结果与本地修正结论一致，但不改变受保护签名与 M1 物理旅程的阻断状态。

@@ -71,6 +71,7 @@ flowchart LR
 - 只有 R3/R4 Windows 平台风险、架构/ADR、协议版本、安全边界或发布门禁允许新建专项审计文档。
 - 每个 PR 必须交付一个用户可演示结果；“新增脚本、合同、适配器或文档”只有在它关闭当前用户旅程阻断时才计入产品进度。
 - 任一时刻只允许一个当前执行项；当前项未满足验收或明确阻断前，不扩展任务栏、小组件、插件或相邻探针。
+- 每个开发切片结束时必须审计开发目标、PRD/统一计划需求对齐、真实测试差异、未关闭风险和下一唯一接续点；涉及状态、范围、验收、架构或测试事实变化时，必须在同一切片同步相应权威文档。
 
 ## 4. 工作项类型
 
@@ -264,7 +265,9 @@ test(shell): cover coalesced change notifications
 - 不提交生成目录、个人配置、秘密、签名证书或生产令牌；
 - 格式化与行为修改尽量分开；
 - 不用无意义的 `update`、`changes`、`fix stuff`；
-- 修复回归时在提交或 PR 中关联测试。
+- 修复回归时在提交或 PR 中关联测试；
+- 开发切片通过结束审计和所需门禁后，提交并推送当前短分支，随后核对远端分支包含预期提交且工作区无遗漏；仍禁止直接推送 `main`；
+- 推送成功只表示该切片已交付审查，不得替代 PR 审查、主干 CI、合并后验证或用户旅程完成结论。
 
 ## 11. PR 拆分与审查
 
@@ -346,6 +349,14 @@ test(shell): cover coalesced change notifications
 
 不能把必须实机验证的 Windows 行为伪装成纯 Mock 测试。
 
+每个开发切片无论是否直接改变可见 UI，都必须先定义并记录 `Expected / Actual / Difference / Correction`：
+
+1. `Expected` 来自 PRD、统一执行计划、交互规范、架构或明确缺陷复现条件，不得在看到结果后反向改写；
+2. `Actual` 必须来自与风险相匹配的真实代码路径、真实进程、真实窗口、真实文件系统、真实 Worker、真实安装包或真实硬件环境；纯 Mock、静态合同和内存模型只能作为补充回归证据；
+3. `Difference` 必须保留首次真实结果，包括失败、阻断、崩溃、时序差异和环境不具备；不得用隔离复测通过覆盖首次差异；
+4. `Correction` 必须说明修正代码、测试编排、文档还是环境，并在修正后重跑受影响真实场景和必要回归；不得降低断言、扩大超时、跳过门禁或把 `Pending/Inconclusive/Blocked` 改写为 `Pass`；
+5. 当前环境无法安全执行真实测试时，本切片只能记录精确阻断和未修改事实，功能状态保持 Pending，不继续扩张邻接功能。
+
 ### 12.4 受控 Windows 动态矩阵
 
 显示器、DPI、设备、电源、会话、Explorer 和辅助技术场景遵循：
@@ -368,7 +379,7 @@ test(shell): cover coalesced change notifications
 - `eng/Start-LongGrid.ps1` 负责依赖检查、必要构建和启动，不默认提权或修改真实桌面文件；
 - 用户从根目录或 `eng/Start-LongGrid.ps1` 显式启动时必须直接出现唯一控制中心；只有自启动/托盘等明确后台调用方才可传入 `--background` 保持桌面优先隐藏。两条路径及“后台运行后再次显式启动”的单实例唤起必须由真实进程和顶层窗口证据共同验证；
 - Explorer 桌面/文件夹背景菜单在 Windows 11 必须使用带包身份的 `IExplorerCommand` 与清单 `Directory\Background` 注册；禁止通过扩大透明 DesktopHost 命中、全局 Hook、输入模拟或应用启动时静默写注册表实现。Shell DLL 的菜单构建回调不得读取工作区、枚举文件、访问网络或等待 App；真实完成必须包含可丢弃账户上的安装、菜单调用、Explorer 重启和卸载零残留证据；
-- 修改 BOX-R1 激活边界时必须先执行 `eng/Test-LongGridBoxR1Activation.ps1 -ContractOnly`，再在可交互 Windows 会话串行执行 `Initial`、`Redirect`、`DuplicateRedirect` 三个真实 Release 场景；结果必须记录预览/视觉树/激活次数、发送进程退出码、取消前后盒子数、隔离配置、正常配置、桌面元数据和最终活动进程数；
+- 修改 BOX-R1 激活边界时必须先执行 `eng/Test-LongGridBoxR1Activation.ps1 -ContractOnly`，再在可交互 Windows 会话串行执行 `Initial`、`Redirect`、`DuplicateRedirect` 三个真实 Release 场景；结果必须记录预览/视觉树/激活次数、发送进程退出码、取消前后盒子数、隔离配置、正常配置、桌面元数据和最终活动进程数。独占会话门禁必须把每个可枚举的 `LongGrid.App` 同名进程视为活动进程，即使当前权限无法读取其句柄、线程、路径或命令行；发现任一既有进程时必须在创建临时会话和启动新进程前失败关闭，最终仍有任一同名进程时场景不得为 Pass；
 - `eng/Pack-LongGrid.ps1` 负责 restore、format、Release build、test、覆盖率、安全探针、包结构和哈希；
 - `eng/Pack-LongGridMsix.ps1` 只生成并验证固定开发身份的 unsigned MSIX；`eng/New-LongGridSbom.ps1` 使用仓库固定工具对其解包布局生成并官方复核 SPDX 2.2；
 - `eng/Build-LongGridReleaseCandidate.ps1` 是内部 RC 交付集合的唯一推荐入口；只有 ZIP/MSIX/SBOM 同提交、哈希、版本和否定性状态全部一致才生成聚合成功标记；
@@ -468,10 +479,15 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 - [ ] 配置和数据迁移可回滚；
 - [ ] 日志不包含不必要敏感信息；
 - [ ] 文档同步矩阵已执行；
+- [ ] 已记录本切片的 `Expected / Actual / Difference / Correction`，首次真实差异已保留且修正后完成复测；
+- [ ] 已完成开发目标审计，并明确目标为完成、部分完成或阻断；
+- [ ] 已对照 PRD、统一执行计划和交互/架构规范完成需求对齐审计；
+- [ ] 已更新受影响的权威文档、完成度状态、风险和下一唯一接续点；
 - [ ] Feature Flag、兼容降级和错误提示完整；
 - [ ] 无新增发布阻断问题；
 - [ ] PR 审查意见已解决；
-- [ ] Nightly/Beta 所需后续任务已登记。
+- [ ] Nightly/Beta 所需后续任务已登记；
+- [ ] 当前短分支已提交并推送，远端提交已核对，工作区无遗漏；禁止直接推送 `main`。
 
 “代码已合并”不等于“功能完成”。
 

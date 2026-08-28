@@ -80,16 +80,12 @@ function Wait-ForPath {
     throw "Timed out waiting for $Path"
 }
 
-function Get-LiveLongGridProcess {
-    @(
-        Get-Process -Name 'LongGrid.App' -ErrorAction SilentlyContinue |
-            Where-Object {
-                $_.HandleCount -gt 0 -and @($_.Threads).Count -gt 0
-            }
-    )
+function Get-LongGridProcesses {
+    @(Get-Process -Name 'LongGrid.App' -ErrorAction SilentlyContinue)
 }
 
 if ($ContractOnly) {
+    $scriptCode = Get-Content -LiteralPath $PSCommandPath -Raw
     $coreCode = Get-Content -LiteralPath (Join-Path $projectRoot `
         'src\LongGrid.Core\DesktopHost\ProductExplorerCreateActivation.cs') -Raw
     $appCode = Get-Content -LiteralPath (Join-Path $projectRoot `
@@ -104,6 +100,12 @@ if ($ContractOnly) {
         'BOX-R1 App dispatch is missing.'
     Assert-Condition ($programCode.Contains('RedirectActivationToAsync')) `
         'BOX-R1 single-instance redirection is missing.'
+    Assert-Condition `
+        ($scriptCode.Contains('Get-LongGridProcesses') -and
+            $scriptCode.Contains("@(Get-Process -Name 'LongGrid.App' -ErrorAction SilentlyContinue)") -and
+            $scriptCode.Contains('existingProductProcesses.Count -eq 0') -and
+            $scriptCode.Contains('remainingLiveProcessCount -eq 0')) `
+        'BOX-R1 evidence must fail closed on every existing named process.'
     [ordered]@{
         SchemaVersion = 1
         Purpose = 'BoxR1ActivationContract'
@@ -138,8 +140,8 @@ try {
     }
     Assert-Condition (Test-Path -LiteralPath $appPath -PathType Leaf) `
         'LongGrid.App.exe was not found.'
-    $liveProductProcesses = @(Get-LiveLongGridProcess)
-    Assert-Condition ($liveProductProcesses.Count -eq 0) `
+    $existingProductProcesses = @(Get-LongGridProcesses)
+    Assert-Condition ($existingProductProcesses.Count -eq 0) `
         'Close existing LongGrid.App processes before BOX-R1 evidence.'
 
     New-Item -ItemType Directory -Path $sessionDirectory -Force |
@@ -207,6 +209,7 @@ try {
     $desktopAfter = Get-DirectoryMetadataFingerprint $desktopDirectory
     $userConfigurationChanged = $userConfigurationBefore -ne $userConfigurationAfter
     $desktopChanged = $desktopBefore -ne $desktopAfter
+    $remainingLiveProcessCount = @(Get-LongGridProcesses).Count
     $launchPathPassed = $Scenario -eq 'Initial' `
         -or ($secondaryExitCode -eq 0 `
             -and ($Scenario -ne 'DuplicateRedirect' `
@@ -214,7 +217,8 @@ try {
     $passed = $launchPathPassed `
         -and $appResult.Outcome -eq 'Pass' `
         -and -not $userConfigurationChanged `
-        -and -not $desktopChanged
+        -and -not $desktopChanged `
+        -and $remainingLiveProcessCount -eq 0
 
     [ordered]@{
         SchemaVersion = 1
@@ -244,7 +248,7 @@ try {
                 $appResult.Actual.ConfigurationFingerprintChanged
             UserConfigurationChanged = $userConfigurationChanged
             DesktopMetadataChanged = $desktopChanged
-            RemainingLiveProcessCount = @(Get-LiveLongGridProcess).Count
+            RemainingLiveProcessCount = $remainingLiveProcessCount
         }
         Difference = if ($passed) { 'None' } else { 'ActivationOrCancellationMismatch' }
         Outcome = if ($passed) { 'Pass' } else { 'Fail' }
