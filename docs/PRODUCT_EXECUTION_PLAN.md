@@ -6,7 +6,7 @@
 
 更新日期：2026-08-28
 
-代码审计基线：`origin/main@061a590`；最新整体对齐与接续审计见 [Stage 226](226-current-development-and-requirement-alignment-audit.md)
+代码审计基线：`origin/main@673e7b6`；最新下一开发边界、真实环境 Actual 与接续条件见 [Stage 227](227-next-development-boundary-reaudit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 

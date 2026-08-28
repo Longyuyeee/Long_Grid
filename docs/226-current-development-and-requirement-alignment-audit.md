@@ -4,7 +4,7 @@
 
 审计基线：`origin/main@061a590daad0a8910fc3c71f5e0ca7e60c957202`
 
-状态：`SecondCorrectionFullLocalPass / LatestPullRequestVerificationPending / CoreJourneysPending / ExternalInputsPending`
+状态：`Complete / MergedToMain / MainVerificationPass / CoreJourneysPending / ExternalInputsPending`
 
 ## 1. 审计目标与完成口径
 
@@ -75,3 +75,9 @@ PR #286 首轮 CI run `33151795685` 在 Test 步骤得到 `1,380/1,382`，保留
 2. 具备签名包、无既有 Long方格进程的可丢弃 Windows 账户/VM 和安全 WinUI/UIA 运行时后，执行 M1 完整产品旅程，并逐步记录 Expected / Actual / Difference / Correction。
 3. 具备 Stage 216 的真实 Guest 准入后，才执行 TASKBAR-R2B1-B；当前宿主继续禁止任务栏 mutation。
 4. #19/#20/#24 的物理输入、显示/会话和真实卷证据并入上述受控环境；在 M1/M2 关闭前，不用自动整理、Tab、Widget、工作空间或新协议替代核心进度。
+
+## 7. PR #286 与 main 最终关闭证据
+
+PR #286 已 squash merge 为 `main@673e7b6ce692dd0f1928554c7455024d41a1eb50`；最终 PR head 与 merge commit 的 Git tree 均为 `d354d05f068b60ae2414db5ee8fd7186999ee70a`，没有内容丢失。最新 PR CI run `33154331661` 为 `1,382/1,382`、0 跳过，lines `90.12% (46926/52072)`、branches `76.04% (15434/20298)`，artifact 997,920 bytes；PR CodeQL run `33154331823` 的 C# 52 rules / 0 results、C++ 58 rules / 0 results。
+
+合并后 main CI run `33154895617` success：`1,382/1,382`、0 跳过，lines `90.11% (46920/52072)`、branches `76.03% (15432/20298)`，artifact 997,492 bytes。main CodeQL run `33154895603` success；Code Scanning API 对 `673e7b6` 返回 C# 52 rules / 0 results、C++ 58 rules / 0 results，open alerts 0。Stage 226 的文档对齐与三项真实竞态修正因此关闭；M1/M2、签名、安装、分发和外部旅程状态不随工程门禁提升。后续权威接续见 [Stage 227](227-next-development-boundary-reaudit.md)。
