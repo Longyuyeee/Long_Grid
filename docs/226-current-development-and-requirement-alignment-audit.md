@@ -4,7 +4,7 @@
 
 审计基线：`origin/main@061a590daad0a8910fc3c71f5e0ca7e60c957202`
 
-状态：`CorrectionFullLocalPass / PullRequestCorrectionPending / CoreJourneysPending / ExternalInputsPending`
+状态：`CorrectionFullLocalPass / PullRequestCorrectionPass / LatestDocumentationVerificationPending / CoreJourneysPending / ExternalInputsPending`
 
 ## 1. 审计目标与完成口径
 
@@ -41,6 +41,8 @@ Core 类型、探针、源码合同或 CI 通过不等于用户功能完成。�
 | 质量与发布否定性合同 | 供应链、安全和不可分发状态不漂移 | Action pins、Dependabot、CodeQL workflow、漏洞、20 projects / 30 packages 许可证元数据、signing 与 RC ValidateOnly 均 Pass；`liveSigningImplemented=false / signed=false / installable=false / distributionApproved=false` | None |
 | 最新 main CI | `061a590` 全量门禁通过 | run `33149776515` success；`1,382/1,382`、0 跳过，lines `90.11% (46924/52072)`、branches `76.04% (15434/20298)`；artifact 997,390 bytes、未过期 | None |
 | 最新 main CodeQL | C# 与 C++ 均成功上传并无当前发现 | run `33149776526` success；CodeQL `2.26.4`，C# 52 rules / 0 results，C++ 58 rules / 0 results；open alerts 0 | None；不表示永久无风险 |
+| PR #286 修正提交 CI | 首轮真实差异修正后，托管 runner 应通过同一完整门禁 | commit `98a19df` 的 run `33152964331` success；`1,382/1,382`、0 跳过，lines `90.12% (46926/52072)`、branches `76.04% (15434/20298)`；artifact 997,819 bytes | 与首轮 `1,380/1,382` 的差异已由有限硬件证据和强杀 readiness 因果修正关闭；本次文档证据提交仍须重新验证 |
+| PR #286 修正提交 CodeQL | C# 与 C++ 均成功上传且当前结果为 0 | run `33152964272` success；merge ref commit `2e74be4`，C# 52 rules / 0 results，C++ 58 rules / 0 results | None；不表示永久无风险，本次文档证据提交仍须重新验证 |
 | WinUI/UIA 环境 | 可发现 runtime，且已知危险组合不存在 | runtime `2.4.0.0`、XAML `3.2.3.0`，`KnownUnsafeCrossProcessUiaRuntimePairPresent / BlockedByKnownUpstream` | M1 外部 UIA/物理自动化继续失败关闭，不绕过 |
 | M1/MSIX 入口 | ValidateOnly 不启动、不驱动输入、不改包状态 | M1 `startsProcess=false / drivesUserInput=false / isolatesConfiguration=true`；MSIX `modifiesPackageState=false / trustsUnsignedPackage=false / liveEvidence=PendingSignedPackageAndDisposableWindowsProfile` | 合同 Pass，不等于安装或旅程 Pass |
 | 本机独占会话 | 无既有 Long方格进程 | 实际存在 1 个 `LongGrid.App`，PID `45524` | 当前账户不得启动第二 DesktopHost，也不得终止非本阶段进程 |
@@ -56,7 +58,7 @@ PR #286 首轮 CI run `33151795685` 在 Test 步骤得到 `1,380/1,382`，保留
 | `RealHostPreflightProducesFiniteFailClosedEvidence` | 外层 10 秒内得到有限 JSON | 进程 PID 4516 到 10 秒仍无 stdout/stderr，抛出带 PID 的 `RealProcessTimeoutException` | `Get-CimInstance -OperationTimeoutSec 2` 不覆盖 PowerShell/CIM 初始化。硬件查询改到测试自有 PowerShell 子进程并设 6 秒硬期限；当更早的 Sandbox launcher 准入已经失败时不启动下游查询，明确 `hardwareEvidenceCollected=false`。本机真实脚本 5 轮均在 671～867ms 返回 Blocked |
 | `RealKilledChildLeavesDurableRecoveryJournal` | 子进程完成 `Staged → Applied` 调用后强杀，磁盘仍为 Applied | 父进程曾读到 Applied 后立即强杀，最终复读为 Staged | “父进程看见新文件”不能证明子进程 `UpdatePhaseAsync` 已返回。子进程现在只在更新调用返回后写固定 readiness 文件，父进程见证后才强杀；状态断言仍要求 Applied |
 
-两项失败与真实超时清理负向测试组成三项定向矩阵，修正后连续 5 轮 `15/15` 通过；Release 定向 build 保持 `0 warning / 0 error`。随后最终完整本机套件 `1,382/1,382`、0 跳过，coverage lines `90.43%`、branches `76.16%`，全部质量/发布否定性合同继续通过；最新 PR/main 门禁仍须在修正提交后重新执行。
+两项失败与真实超时清理负向测试组成三项定向矩阵，修正后连续 5 轮 `15/15` 通过；Release 定向 build 保持 `0 warning / 0 error`。随后最终完整本机套件 `1,382/1,382`、0 跳过，coverage lines `90.43%`、branches `76.16%`，全部质量/发布否定性合同继续通过。修正提交的 PR CI run `33152964331` 已在独立托管 Windows runner 上得到 `1,382/1,382`、0 跳过并通过完整门禁，CodeQL run `33152964272` 的 C# / C++ 分析均成功且 0 results；首轮差异因此已由本机重复验证与托管验证共同关闭。本次仅回填证据的文档提交仍需完成最新 PR 门禁，不能以前一提交的结果代替。
 
 提交前首次 Markdown 本地链接包装命令因 `Test-Path` 条件少一个右括号而在执行检查前触发 PowerShell `ParserError`，没有修改文件也没有产生链接结论。修正包装器后复跑 7 份变更文档，`missingLocalLinks=0`，`git diff --check` 通过；该编排差异不被隐藏为首次通过。
 
