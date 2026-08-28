@@ -688,3 +688,7 @@ PR #272 首轮 Windows runner run `33134924780` 完整通过：Release 构建 `0
 ### 13.6 签名阻断状态与真实环境对齐（2026-08-28）
 
 `long-grid-release` 已由 GitHub API 证明存在、仅允许受保护分支、要求审批且保持零 secret/variable/deployment 后，签名合同仍使用 `BlockedPendingApprovedPublisherCertificateAndEnvironment`，把已经关闭的“环境不存在”继续列为当前阻断，形成事实漂移。Expected 为状态只命名仍缺失的外部输入，同时继续强制精确环境名和全部否定性权限；修正为 `BlockedPendingApprovedPublisherCertificateAndManagedSigningProvider`，并让 `Test-LongGridReleaseSigning.ps1` 强制断言及输出 `protectedEnvironmentName=long-grid-release`，RC 聚合器同步只接受新状态。该语义纠正不表示证书或托管提供方已存在，也不修改 schema、Publisher、权限、安装或分发状态。
+
+真实验证 Actual：GitHub API 返回环境 `long-grid-release` 且 `protected_branches=true`；签名 ValidateOnly 与 RC ValidateOnly 均返回新状态和 Pass，`liveSigningImplemented=false`；Release 构建 `0 warning / 0 error`，完整测试 `1,381/1,381`、0 跳过。随后从干净提交 `d6b2d52` 真实执行聚合 RC：portable ZIP、原生 ExplorerCommand DLL/200 次 COM、unsigned MSIX 和 SPDX 2.2 SBOM 全部通过，SBOM 官方验证 `805/805` 文件且无额外/缺失/无效哈希；最终 evidence 写入新签名状态，同时保持 `lifecycleEvidence=PendingSignedPackageAndDisposableWindowsProfile`、`signed=false`、`installable=false`、`distributionApproved=false`，Difference=`None`。
+
+开发目标审计：关闭“环境已经存在但状态仍宣称等待环境”的合同事实漂移，并证明所有真实消费者接受新状态，已完成；Publisher、证书、托管签名提供方、许可证和 signed lifecycle 仍未完成。需求对齐审计：变更只提高状态准确性和精确环境名断言，没有放宽 PR/main 权限、秘密边界、安装或分发门禁，也没有把 unsigned RC 写成可安装。下一唯一接续点仍由 #274 与 #23 持有，外部输入到位前不进入 live signing 实现。
