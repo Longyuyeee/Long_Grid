@@ -665,3 +665,16 @@ M1 产品证据冲刺的开始条件保持不变：取得安全 WinUI 运行时�
 本切片开发目标审计：目标是修复并实证 BOX-R1 独占会话门禁对权限受限同名进程的漏检，已完成；目标不包含完成 BOX-R1-C/D 或 M1 物理旅程。需求对齐审计：修正符合本文失败关闭、真实进程证据、外来进程不终止、首次差异不覆盖以及正常配置/桌面零变化要求；相关工作流合同已同步。当前唯一接续点不变：取得受保护签名包、无既有 Long方格进程的独占可丢弃 Windows 会话和安全 WinUI/UIA 运行时后，串行执行 BOX-R1 `Initial / Redirect / DuplicateRedirect` 及完整物理旅程。
 
 PR #272 首轮 Windows runner run `33134924780` 完整通过：Release 构建 `0 warning / 0 error`，完整测试 `1,381/1,381`、0 跳过，coverage lines `90.11% (46924/52072)`、branches `76.04% (15434/20298)`；BOX/启动/UI/人工会话合同、真实文件安全、正式缩略图 Worker 隔离、依赖漏洞和内部 unsigned RC/SBOM 交付集均成功。RC 审计仍明确 `signed=false`、`installable=false`、`distributionApproved=false`，因此远端工程结果与本地修正结论一致，但不改变受保护签名与 M1 物理旅程的阻断状态。
+
+### 13.4 受保护发布环境最小准入（2026-08-28）
+
+在 PR #272 合入 `main@4b4404f` 后继续关闭 M1 的第一个外部阻断。仓库原始真实状态为 GitHub Environments `total_count=0`，与 `packaging/release/signing-contract.json` 要求的 `long-grid-release`、人工审批和受保护分支边界存在差异。本轮只创建空的受保护环境，不添加证书、secret、variable、OIDC 权限、签名 workflow 或部署。
+
+| 检查 | Expected | Actual | Difference / Correction |
+|---|---|---|---|
+| 环境身份与分支边界 | 环境精确命名 `long-grid-release`，只允许受保护分支进入，不允许自定义未保护分支 | GitHub API 真实复读 `total_count=1`、名称一致、`protected_branches=true`、`custom_branch_policies=false` | 原始差异“环境不存在”已关闭；没有修改 `main` 保护规则，仍要求严格 `build-test` |
+| 人工审批 | 环境至少有一名必需审批人 | `required_reviewers=1`，审批人为 `Longyuyeee`；`prevent_self_review=false` | 满足当前合同的 reviewer approval 最小边界；尚未形成独立安全审批分离，正式发布前如合规策略要求必须增加独立 reviewer 并启用防自审 |
+| 秘密与发布权限 | 最小准入不能提前放入私钥、证书、变量或开放普通 CI 签名 | 仓库 Actions secrets `0`、variables `0`；环境 secrets `0`、variables `0`；环境 deployments `0` | `Difference=None`；没有添加 `id-token: write`、SignTool、安装或分发路径 |
+| 签名与生命周期否定性合同 | 环境存在不能把签名、安装和分发状态自动升级为可用 | `Test-LongGridReleaseSigning.ps1 -ValidateOnly` 仍为 `BlockedPendingApprovedPublisherCertificateAndEnvironment`，PR/main signing access、live signing、install/distribution 均为 false；MSIX lifecycle 的 `liveEvidence` 仍为 `PendingSignedPackageAndDisposableWindowsProfile`，不改包状态、不信任 unsigned 包 | 首次组合包装器错误把 lifecycle 顶层 `outcome=Pass` 当成物理状态，实际 Pending 位于 `liveEvidence`；修正为同时断言合同 Pass 与 live evidence Pending 后复测 `Difference=None` |
+
+开发目标审计：本切片目标是建立且真实复读最小受保护发布环境，同时证明它不会提前开放签名或安装，已完成；目标不包含批准 Publisher、取得代码签名证书、接入 OIDC/托管密钥、签名 MSIX 或执行安装矩阵。需求对齐审计：结果符合发布合同的环境名、人工审批、受保护分支、私钥不进仓库和普通 CI 无签名权限要求，也保留了首次包装器字段差异。下一唯一接续点收窄为由负责人批准 Publisher/许可证并提供合规代码签名证书及 OIDC/托管密钥提供方；完成这些外部输入前不创建 live signing workflow，BOX-R1-C/D 与 M1 继续 `ExternalEnvironmentBlocked / ProductEvidencePending`。
