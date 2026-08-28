@@ -148,7 +148,7 @@ if ($lifecycleContract.outcome -ne 'Pass' -or
     throw 'The MSIX lifecycle boundary is not safely pending.'
 }
 if ($signingContract.outcome -ne 'Pass' -or
-    $signingContract.signingState -ne 'BlockedPendingApprovedPublisherCertificateAndEnvironment' -or
+    $signingContract.signingState -ne 'BlockedPendingApprovedPublisherCertificateAndManagedSigningProvider' -or
     $signingContract.prAndMainSigningAccess -or
     $signingContract.liveSigningImplemented -or
     $signingContract.installOrDistributionApproved) {
