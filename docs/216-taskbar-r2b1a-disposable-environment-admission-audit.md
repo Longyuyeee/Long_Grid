@@ -68,3 +68,7 @@ PR #263 首轮远端 run `33050907194` 完整通过：1346/1346，coverage lines
 ## 5. Stage 225 真实预检期限增量（2026-08-28）
 
 后续 hosted runner 曾出现预检在 10 秒总期限后仍未产出有限结果。Expected 为两次 CIM 查询均有独立上限、进程总期限仍为 10 秒、任何超时都终止测试自有进程树并排空 stdout/stderr；旧 Actual 是 CIM 无独立期限，测试只取消 stdout 读取且不清理子进程。Stage 225 为两次 `Get-CimInstance` 分别增加 2 秒 operation timeout，并以真实 60 秒 PowerShell 子进程证明 500ms 超时后 PID 已不存在。当前宿主真实预检和连续压力测试通过；详情见 [Stage 225 审计](225-real-process-handshake-and-timeout-audit.md)。这只提高准入审计的有限性，不改变本机 `Blocked` 结论，也不开放任务栏 mutation。
+
+## 6. Stage 226 CIM 初始化边界纠正（2026-08-28）
+
+PR #286 首轮 hosted runner 证明 `OperationTimeoutSec` 仍不覆盖 PowerShell/CIM 初始化：外层 10 秒到期时 PID 4516 的 stdout/stderr 均为空。修正后先复读 Sandbox launcher；启动器缺失已足以阻断时，不再启动无助于改变结论的硬件查询，并明确报告 `hardwareEvidenceCollected=false / HardwareEvidenceUnavailable`。只有 launcher 存在时，CIM 才在测试自有 PowerShell 子进程内执行，两次查询仍各限 2 秒，子进程总等待限 6 秒。当前宿主真实脚本 5 轮均在 671～867ms 有限返回 `Blocked / WindowsSandboxLauncherMissing`，没有任务栏或系统状态修改。完整差异见 [Stage 226 审计](226-current-development-and-requirement-alignment-audit.md)。

@@ -4,7 +4,7 @@
 
 开发基线：`origin/main@2f5e5ff9df42a7f4cda7a9cf1cf88c9360d89c31`
 
-状态：`LocalFullPass / PullRequestFirstRunPass / LatestCommitVerificationPending / MainVerificationPending`
+状态：`Complete / PullRequestPass / MainPass / CodeQlPass`
 
 ## 1. 开发目标
 
@@ -31,14 +31,19 @@ Stage 223 的 main CI 首轮在繁忙执行环境中同时暴露任务栏恢复 
 - signing 与 RC ValidateOnly 通过，但 `liveSigningImplemented=false`、`signed=false`、`installable=false`、`distributionApproved=false`。
 - PR #285 首个真实 CI run `33148773888` 用时 `7m22s`，完整套件 `1,382/1,382`、0 跳过，coverage lines `90.12% (46926/52072)`、branches `76.04% (15434/20298)`；测试和 coverage artifact 存在、未过期、大小 997,070 bytes。真实 hosted runner 上本阶段三项既有进程用例和新增超时清理用例均未再出现差异。
 - 同一 PR merge ref `ecabf4fe...` 的 CodeQL run `33148773819` 通过：C# `6m37s`、52 rules / 0 results；C++ `3m14s`、58 rules / 0 results；CodeQL 版本 `2.26.4`。这只证明该提交和当前查询集，不表示永久无风险。
-- 上述首轮结果在本段文档回填前完成；最新文档提交及 main CI/CodeQL 仍须重新验证，不提前写成 Pass。
+- 最新文档提交 `70495b1` 的第二轮 PR CI `33149263339` 通过：`1,382/1,382`、0 跳过，lines `90.12% (46926/52072)`、branches `76.04% (15434/20298)`；第二轮 C#/C++ CodeQL run `33149263252` 通过。
+- PR #285 已 squash 合入 `main@061a590`。合并后 main CI `33149776515` 通过：`1,382/1,382`、0 跳过，lines `90.11% (46924/52072)`、branches `76.04% (15434/20298)`；artifact 997,390 bytes 且未过期。main CodeQL `33149776526` 通过，Code Scanning API 复读 C# 52 rules / 0 results、C++ 58 rules / 0 results，open alerts 0。
 
 ## 4. 安全与范围审计
 
 所有进程终止只作用于测试代码直接创建并持有 PID/handle 的 PowerShell 进程，未枚举或终止用户已有进程。新增 readiness 文件只在显式测试故障 `hang` 且调用方提供隔离证据目录时写入；产品启动恢复不使用该故障参数。脚本仍只读系统信息、生成隔离配置与 JSON 证据，不执行任务栏 mutation，不启用 Windows Sandbox，不提权、不重启，也不增加网络、secret、签名、安装或分发权限。
 
-开发目标审计：旧的“重跑后通过”差异已转化为确定性握手、有限外部调用、真实超时清理和可定位诊断；在 PR/main 远端证据完成前阶段状态仍为 Pending。需求对齐审计：修正直接服务任务栏恢复可靠性和真实测试要求，不扩大产品能力，也不把本机工程验证冒充 `TASKBAR-R2B1-B` 原生效果完成。
+开发目标审计：旧的“重跑后通过”差异已转化为确定性握手、有限外部调用、真实超时清理和可定位诊断，并经 PR/main 远端证据关闭。需求对齐审计：修正直接服务任务栏恢复可靠性和真实测试要求，不扩大产品能力，也不把本机工程验证冒充 `TASKBAR-R2B1-B` 原生效果完成。
 
 ## 5. 接续条件
 
-本阶段需经最新 PR 完整 CI、双语言 CodeQL、合并后 main CI 和 Code Scanning API 复核后关闭。关闭后，任务栏原生效果仍只能在 Stage 216 定义的可丢弃 Windows 环境准入全部满足后继续；若外部环境仍未提供，项目接续点保持 #19/#20/#24 的真实人工证据、#23 的许可证决定和 #274 的 Publisher/托管签名输入，不在日常宿主上执行任务栏写入。
+本阶段已经最新 PR 完整 CI、双语言 CodeQL、合并后 main CI 和 Code Scanning API 复核关闭。任务栏原生效果仍只能在 Stage 216 定义的可丢弃 Windows 环境准入全部满足后继续；若外部环境仍未提供，项目接续点保持 #19/#20/#24 的真实人工证据、#23 的许可证决定和 #274 的 Publisher/托管签名输入，不在日常宿主上执行任务栏写入。
+
+## 6. Stage 226 后续 runner 差异
+
+Stage 225 的进程树清理和有限诊断有效地把 PR #286 首轮预检失败报告为 PID/期限/输出长度，而不是挂起；但该次 Actual 同时证明 `OperationTimeoutSec` 未覆盖 CIM 初始化本身。Stage 226 进一步把 CIM 放入 6 秒硬期限的测试自有子进程，并在 Sandbox launcher 已缺失时跳过不会改变阻断结论的下游查询。强杀恢复日志的另一失败则改用子进程调用返回后的 readiness，而不是磁盘瞬时可见性推断。后续证据提交复验又证明 `File.Exists` 可在 readiness 写句柄关闭前成立，因此 worker 现在先完整写入同目录 `.new`，关闭句柄后再原子发布最终 marker；最终文件可见才代表可读取。详情与所有首次失败均保留在 [Stage 226 审计](226-current-development-and-requirement-alignment-audit.md)。

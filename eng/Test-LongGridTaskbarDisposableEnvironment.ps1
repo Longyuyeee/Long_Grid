@@ -24,6 +24,81 @@ function ConvertTo-XmlText {
     return [System.Security.SecurityElement]::Escape($Value)
 }
 
+function Get-BoundedHardwareEvidence {
+    $queryScript = @'
+$ErrorActionPreference = 'Stop'
+$computerSystem = Get-CimInstance `
+    -ClassName Win32_ComputerSystem `
+    -OperationTimeoutSec 2
+$processors = @(Get-CimInstance `
+    -ClassName Win32_Processor `
+    -OperationTimeoutSec 2)
+[ordered]@{
+    physicalMemoryBytes = [long]$computerSystem.TotalPhysicalMemory
+    virtualizationFirmwareEnabled =
+        $processors.Count -gt 0 -and
+        @($processors | Where-Object {
+            -not $_.VirtualizationFirmwareEnabled
+        }).Count -eq 0
+    secondLevelAddressTranslation =
+        $processors.Count -gt 0 -and
+        @($processors | Where-Object {
+            -not $_.SecondLevelAddressTranslationExtensions
+        }).Count -eq 0
+} | ConvertTo-Json -Compress
+'@
+    $encodedCommand = [Convert]::ToBase64String(
+        [Text.Encoding]::Unicode.GetBytes($queryScript))
+    $currentPowerShell = (Get-Process -Id $PID).Path
+    $startInfo = [Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $currentPowerShell
+    $startInfo.Arguments = "-NoProfile -EncodedCommand $encodedCommand"
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    try {
+        if (-not $process.Start()) {
+            return $null
+        }
+
+        $output = $process.StandardOutput.ReadToEndAsync()
+        $errorOutput = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit(6000)) {
+            $process.Kill()
+            $process.WaitForExit(2000) | Out-Null
+            return $null
+        }
+
+        $errorText = $errorOutput.GetAwaiter().GetResult()
+        $outputText = $output.GetAwaiter().GetResult()
+        if ($process.ExitCode -ne 0 -or
+            -not [string]::IsNullOrWhiteSpace($errorText) -or
+            [string]::IsNullOrWhiteSpace($outputText)) {
+            return $null
+        }
+
+        return $outputText | ConvertFrom-Json
+    }
+    catch {
+        try {
+            if (-not $process.HasExited) {
+                $process.Kill()
+                $process.WaitForExit(2000) | Out-Null
+            }
+        }
+        catch {
+            # Hardware evidence remains unavailable and fails closed below.
+        }
+        return $null
+    }
+    finally {
+        $process.Dispose()
+    }
+}
+
 function New-CertificationConfiguration {
     param(
         [string]$Destination,
@@ -140,36 +215,28 @@ $isWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
     [System.Runtime.InteropServices.OSPlatform]::Windows)
 $architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 $logicalProcessors = [System.Environment]::ProcessorCount
-$physicalMemoryBytes = 0L
-$virtualizationFirmwareEnabled = $false
-$slatAvailable = $false
-try {
-    $computerSystem = Get-CimInstance `
-        -ClassName Win32_ComputerSystem `
-        -OperationTimeoutSec 2
-    $physicalMemoryBytes = [long]$computerSystem.TotalPhysicalMemory
-    $processors = @(Get-CimInstance `
-        -ClassName Win32_Processor `
-        -OperationTimeoutSec 2)
-    $virtualizationFirmwareEnabled =
-        $processors.Count -gt 0 -and
-        @($processors | Where-Object {
-            -not $_.VirtualizationFirmwareEnabled
-        }).Count -eq 0
-    $slatAvailable =
-        $processors.Count -gt 0 -and
-        @($processors | Where-Object {
-            -not $_.SecondLevelAddressTranslationExtensions
-        }).Count -eq 0
-}
-catch {
-    # Missing CIM evidence fails closed below without exposing exception details.
-}
-
 $windowsDirectory = [System.Environment]::GetFolderPath(
     [System.Environment+SpecialFolder]::Windows)
 $launcherPath = Join-Path $windowsDirectory 'System32\WindowsSandbox.exe'
 $launcherPresent = Test-Path -LiteralPath $launcherPath -PathType Leaf
+$physicalMemoryBytes = 0L
+$virtualizationFirmwareEnabled = $false
+$slatAvailable = $false
+$hardwareEvidence = if ($launcherPresent) {
+    Get-BoundedHardwareEvidence
+}
+else {
+    $null
+}
+$hardwareEvidenceCollected = $null -ne $hardwareEvidence
+if ($hardwareEvidenceCollected) {
+    $physicalMemoryBytes = [long]$hardwareEvidence.physicalMemoryBytes
+    $virtualizationFirmwareEnabled =
+        [bool]$hardwareEvidence.virtualizationFirmwareEnabled
+    $slatAvailable =
+        [bool]$hardwareEvidence.secondLevelAddressTranslation
+}
+
 $configurationEvidence = Get-ConfigurationEvidence $ConfigurationPath
 
 $difference = @()
@@ -180,14 +247,19 @@ if ($architecture -notin @('X64', 'Arm64')) {
 if ($logicalProcessors -lt 2) {
     $difference += 'InsufficientLogicalProcessors'
 }
-if ($physicalMemoryBytes -lt 4GB) {
-    $difference += 'InsufficientPhysicalMemory'
+if (-not $hardwareEvidenceCollected) {
+    $difference += 'HardwareEvidenceUnavailable'
 }
-if (-not $virtualizationFirmwareEnabled) {
-    $difference += 'VirtualizationFirmwareNotAttested'
-}
-if (-not $slatAvailable) {
-    $difference += 'SecondLevelAddressTranslationNotAttested'
+else {
+    if ($physicalMemoryBytes -lt 4GB) {
+        $difference += 'InsufficientPhysicalMemory'
+    }
+    if (-not $virtualizationFirmwareEnabled) {
+        $difference += 'VirtualizationFirmwareNotAttested'
+    }
+    if (-not $slatAvailable) {
+        $difference += 'SecondLevelAddressTranslationNotAttested'
+    }
 }
 if (-not $launcherPresent) {
     $difference += 'WindowsSandboxLauncherMissing'
@@ -228,6 +300,7 @@ $result = [ordered]@{
         operatingSystemVersion = [System.Environment]::OSVersion.Version.ToString()
         architecture = $architecture
         logicalProcessors = $logicalProcessors
+        hardwareEvidenceCollected = $hardwareEvidenceCollected
         physicalMemoryBytes = $physicalMemoryBytes
         virtualizationFirmwareEnabled = $virtualizationFirmwareEnabled
         secondLevelAddressTranslation = $slatAvailable

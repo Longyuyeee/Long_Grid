@@ -1,12 +1,12 @@
 # Long方格产品重对齐与统一开发计划
 
-版本：2.1
+版本：2.2
 
 状态：Required / 当前唯一执行计划
 
 更新日期：2026-08-28
 
-代码审计基线：`origin/main@f6cda67`；最新接续审计见 [Stage 219](219-current-development-handoff-audit.md)
+代码审计基线：`origin/main@061a590`；最新整体对齐与接续审计见 [Stage 226](226-current-development-and-requirement-alignment-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -449,7 +449,7 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 ## 12. 当前完成度口径
 
 - 工程底座：较强，PF-001～PF-006 已具备大量正式链路；
-- GitHub 主分支交付：UI-R1A～UI-R1F、BOX-R1-A/B、FOLDER-R1-A～D、路径/基础排序/加载/恢复状态纠偏、PF-007A2/B、M1-A/B 证据安全入口与 TASKBAR-R1A～R2B1-A2 已合入 `origin/main@f6cda67`；
+- GitHub 主分支交付：UI-R1A～UI-R1F、BOX-R1-A/B、FOLDER-R1-A～D、路径/基础排序/加载/恢复状态纠偏、PF-007A2/B、M1-A/B 证据安全入口与 TASKBAR-R1A～R2B1-A2 已合入 `origin/main@061a590`；Stage 220～225 又补齐许可证元数据、双语言 CodeQL、Action 固定/更新和真实进程确定性门禁；
 - M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，BOX-R1-C、FOLDER-R1、真实 Explorer 指针拖入和盒子间物理拖动证据 Pending；当前为 `ExternalEnvironmentBlocked`，不降低出口；
 - M2 任务栏美化核心：TASKBAR-R1A～R2B1-A 工程链和 R2B1-A2 正式预设准入已通过；默认原生目录为空，当前 Host 因专用环境缺失真实阻断；卡片可见但不可应用，R2B1-B/R3/R4 未完成；
 - M3 桌面管理增强：未开始闭环；

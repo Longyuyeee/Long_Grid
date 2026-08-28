@@ -382,12 +382,22 @@ internal static class Program
         }
 
         Directory.CreateDirectory(directoryPath);
-        File.WriteAllText(
-            Path.Combine(
-                directoryPath,
-                TaskbarWorkerProtocol.ParentMonitorReadyEvidenceFileName),
-            "ParentMonitorReady",
-            new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        string evidencePath = Path.Combine(
+            directoryPath,
+            TaskbarWorkerProtocol.ParentMonitorReadyEvidenceFileName);
+        string pendingPath = evidencePath + ".new";
+        try
+        {
+            File.WriteAllText(
+                pendingPath,
+                "ParentMonitorReady",
+                new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.Move(pendingPath, evidencePath, overwrite: true);
+        }
+        finally
+        {
+            File.Delete(pendingPath);
+        }
     }
 
     private static void WriteStartupRecoveryResponse(
