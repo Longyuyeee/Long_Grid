@@ -224,6 +224,9 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     throw 'git was not found. A committed source revision is required for traceable packaging.'
 }
 
+$originalProcessPath = $env:PATH
+$dotnetHostDirectory = Split-Path -Parent $dotnetHostPath
+$env:PATH = "$dotnetHostDirectory$([IO.Path]::PathSeparator)$originalProcessPath"
 Push-Location $projectRoot
 $stagingRoot = $null
 try {
@@ -359,4 +362,5 @@ finally {
         Remove-Item -LiteralPath $stagingRoot -Recurse -Force
     }
     Pop-Location
+    $env:PATH = $originalProcessPath
 }
