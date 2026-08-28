@@ -4,7 +4,7 @@
 
 审计输入基线：`origin/main@9b1c5546899621da367ea34d645fda6d46c70729`
 
-状态：`CorrectionComplete / LocalAuditPassed / RemoteAuditPending / ProductEvidenceBlocked`
+状态：`CorrectionComplete / LocalPrAndMainAuditPassed / ProductEvidenceBlocked`
 
 ## 1. 接续依据与原始需求对齐
 
@@ -50,7 +50,11 @@ Stage 233 后唯一允许继续的工程工作，是处理新出现的真实回�
 - 完整测试：`1,392/1,392`，0 skipped；
 - coverage：lines `90.43% (47,088/52,072)`，branches `76.16% (15,458/20,298)`。
 
-远端 PR/main CI 与双语言 CodeQL 尚待本轮提交推送后复核；在完成前不得把本地结果替代为远端通过。
+PR #296 head `8268bb85e084ccc33be916f60b6ab95c5235c988` 的 CI run `33190946429` 用时 8m36s，测试 `1,392/1,392`、0 skipped，coverage lines `90.11% (46,920/52,072)`、branches `76.03% (15,432/20,298)`；漏洞为 0，许可证门禁为 20 projects / 30 packages 且保持 `PendingOwnerReviewAndNotice / distributionApproved=false`，SBOM `805/805` 验证成功，内部 RC 继续 `signed=false / installable=false / distributionApproved=false`。同一 PR merge ref `2d0663c9819d1c5a1b22d3318cba14f30032d111` 的 CodeQL run `33190946594` 中，C++ 3m22s、58 rules / 0 results，C# 6m40s、52 rules / 0 results。
+
+PR #296 合并提交为 `main@228540ab6dfcd04b97482f0098090d11d1b97a46`。该提交自己的 CI run `33191697714` 用时 9m07s，测试 `1,392/1,392`、0 skipped，coverage lines `90.11% (46,924/52,072)`、branches `76.04% (15,434/20,298)`；漏洞、许可证 20/30、SBOM `805/805` 和 unsigned RC 否定性合同再次通过。main CodeQL run `33191697875` 的 C++ 与 C# 均成功；Code Scanning API 对该精确 main commit 返回 C++ 58 rules / 0 results、C# 52 rules / 0 results。实现提交已完成独立 PR 与 main 远端审计。
+
+本收口段是上述已完成运行的事实写回；其文档提交仍须通过独立 PR 与合并后 main 检查，不能反向替代实现提交的审计。
 
 ## 6. 阶段结论与唯一接续点
 
