@@ -28,6 +28,7 @@ $sbomEvidencePath = Join-Path $artifactRoot "$packageBaseName.sbom-evidence.json
 $licenseReportPath = Join-Path $artifactRoot "LongGrid-$PackageVersion-dependency-licenses.json"
 $candidateManifestPath = Join-Path $artifactRoot "LongGrid-$PackageVersion-win-x64-internal-rc-evidence.json"
 $candidateHashPath = "$candidateManifestPath.sha256"
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
 
 function Invoke-JsonContract {
     param(
@@ -128,6 +129,12 @@ if ($env:OS -ne 'Windows_NT') {
     throw 'Long Grid release-candidate delivery only supports Windows.'
 }
 
+if (-not (Test-Path -LiteralPath $dotnetResolverPath -PathType Leaf)) {
+    throw "The shared .NET host resolver was not found: $dotnetResolverPath"
+}
+. $dotnetResolverPath
+$dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
+
 $portableScript = Join-Path $PSScriptRoot 'Pack-LongGrid.ps1'
 $msixScript = Join-Path $PSScriptRoot 'Pack-LongGridMsix.ps1'
 $sbomScript = Join-Path $PSScriptRoot 'New-LongGridSbom.ps1'
@@ -173,6 +180,7 @@ if ($ValidateOnly) {
         candidateType = 'internal-unsigned-developer-preview'
         portableVersion = $PortableVersion
         packageVersion = $PackageVersion
+        dotnetHost = $dotnetHostPath
         aggregates = @('portable-zip', 'unsigned-msix', 'spdx-2.2', 'dependency-license-metadata', 'sha256', 'source-commit')
         lifecycleEvidence = $lifecycleContract.liveEvidence
         signingState = $signingContract.signingState
@@ -186,6 +194,9 @@ if ($ValidateOnly) {
     exit 0
 }
 
+$originalProcessPath = $env:PATH
+$dotnetHostDirectory = Split-Path -Parent $dotnetHostPath
+$env:PATH = "$dotnetHostDirectory$([IO.Path]::PathSeparator)$originalProcessPath"
 Push-Location $projectRoot
 try {
     $gitStatus = & git status --porcelain
@@ -368,6 +379,7 @@ try {
         outcome = 'Pass'
         candidateType = 'internal-unsigned-developer-preview'
         sourceCommit = $commit
+        dotnetHost = $dotnetHostPath
         portable = $portablePath
         portableSha256 = $portableHash
         msix = $msixPath
@@ -389,4 +401,5 @@ try {
 }
 finally {
     Pop-Location
+    $env:PATH = $originalProcessPath
 }

@@ -22,6 +22,7 @@ $zipPath = Join-Path $artifactRoot "$packageBaseName.zip"
 $zipHashPath = "$zipPath.sha256"
 $publishRestoreLockPath = Join-Path $artifactRoot '.publish-restore.packages.lock.json'
 $fixedArchiveTime = [System.DateTimeOffset]::new(2000, 1, 1, 0, 0, 0, [System.TimeSpan]::Zero)
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
 
 function Invoke-CheckedCommand {
     param(
@@ -176,9 +177,10 @@ if ($env:OS -ne 'Windows_NT') {
     throw 'Long Grid packaging only supports Windows.'
 }
 
-if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
-    throw 'dotnet was not found. Install the .NET SDK selected by global.json.'
+if (-not (Test-Path -LiteralPath $dotnetResolverPath -PathType Leaf)) {
+    throw "The shared .NET host resolver was not found: $dotnetResolverPath"
 }
+. $dotnetResolverPath
 
 foreach ($requiredPath in @(
     $solutionPath,
@@ -202,12 +204,15 @@ foreach ($requiredContract in @(
     }
 }
 
+$dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
+
 if ($ValidateOnly) {
     [ordered]@{
         outcome = 'Pass'
         mode = 'ValidateOnly'
         packageType = 'portable-unpacked-zip'
         runtimeIdentifier = $runtimeIdentifier
+        dotnetHost = $dotnetHostPath
         signed = $false
         installer = $false
         distributionApproved = $false
@@ -237,12 +242,12 @@ try {
 
     if (-not $SkipQualityGates) {
         if (-not $NoRestore) {
-            Invoke-CheckedCommand 'Locked restore' { & dotnet restore $solutionPath --locked-mode }
+            Invoke-CheckedCommand 'Locked restore' { & $dotnetHostPath restore $solutionPath --locked-mode }
         }
-        Invoke-CheckedCommand 'Format verification' { & dotnet format $solutionPath --verify-no-changes --no-restore }
-        Invoke-CheckedCommand 'Release build' { & dotnet build $solutionPath --configuration Release --no-restore }
+        Invoke-CheckedCommand 'Format verification' { & $dotnetHostPath format $solutionPath --verify-no-changes --no-restore }
+        Invoke-CheckedCommand 'Release build' { & $dotnetHostPath build $solutionPath --configuration Release --no-restore }
         Invoke-CheckedCommand 'Release tests' {
-            & dotnet test $solutionPath --configuration Release --no-build --logger 'trx;LogFileName=pack-tests.trx' --collect 'XPlat Code Coverage' --results-directory TestResults
+            & $dotnetHostPath test $solutionPath --configuration Release --no-build --logger 'trx;LogFileName=pack-tests.trx' --collect 'XPlat Code Coverage' --results-directory TestResults
         }
         & (Join-Path $PSScriptRoot 'Verify-Coverage.ps1') -MinimumLineRate 0.90 -MinimumBranchRate 0.75
         & (Join-Path $PSScriptRoot 'Verify-VulnerablePackages.ps1')
@@ -250,7 +255,7 @@ try {
 
     if (-not $NoRestore) {
         Invoke-CheckedCommand 'Self-contained publish restore' {
-            & dotnet restore $projectPath `
+            & $dotnetHostPath restore $projectPath `
                 --runtime $runtimeIdentifier `
                 --force-evaluate `
                 -p:RestorePackagesWithLockFile=false `
@@ -276,7 +281,7 @@ try {
         ("-p:Version=$Version"),
         '--no-restore'
     )
-    Invoke-CheckedCommand 'Self-contained publish' { & dotnet @publishArguments }
+    Invoke-CheckedCommand 'Self-contained publish' { & $dotnetHostPath @publishArguments }
 
     Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\Install-Preflight.ps1') -Destination $publishRoot
     Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\PORTABLE-README.txt') -Destination $publishRoot
@@ -334,6 +339,7 @@ try {
         version = $Version
         sourceCommit = $commit
         runtimeIdentifier = $runtimeIdentifier
+        dotnetHost = $dotnetHostPath
         packageType = 'portable-unpacked-zip'
         archive = $zipPath
         sha256 = $zipHash
