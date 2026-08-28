@@ -73,10 +73,29 @@ function Get-DirectoryMetadataFingerprint {
 }
 
 function Wait-ForPath {
-    param([string]$Path, [int]$TimeoutSeconds)
+    param(
+        [string]$Path,
+        [int]$TimeoutSeconds,
+        [Diagnostics.Process]$OwnedProcess)
+
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     while ([DateTime]::UtcNow -lt $deadline) {
         if (Test-Path -LiteralPath $Path -PathType Leaf) { return }
+        if ($null -ne $OwnedProcess) {
+            if ($OwnedProcess.HasExited) {
+                throw $(
+                    'LongGrid.App exited before producing evidence. ' +
+                    "ExitCode=$($OwnedProcess.ExitCode); Path=$Path")
+            }
+            $OwnedProcess.Refresh()
+            $windowTitle = $OwnedProcess.MainWindowTitle
+            if (-not [string]::IsNullOrWhiteSpace($windowTitle) -and
+                $windowTitle.EndsWith(
+                    'This application could not be started',
+                    [StringComparison]::OrdinalIgnoreCase)) {
+                throw "LongGrid.App host startup failed: $windowTitle"
+            }
+        }
         Start-Sleep -Milliseconds 100
     }
     throw "Timed out waiting for $Path"
@@ -108,6 +127,10 @@ if ($ContractOnly) {
             $scriptCode.Contains('existingProductProcesses.Count -eq 0') -and
             $scriptCode.Contains('remainingLiveProcessCount -eq 0')) `
         'BOX-R1 evidence must fail closed on every existing named process.'
+    Assert-Condition `
+        ($scriptCode.Contains('OwnedProcess.MainWindowTitle') -and
+            $scriptCode.Contains('LongGrid.App host startup failed')) `
+        'BOX-R1 evidence must detect a host startup failure while waiting.'
     [ordered]@{
         SchemaVersion = 1
         Purpose = 'BoxR1ActivationContract'
@@ -178,7 +201,7 @@ try {
             -FilePath $appPath `
             -ArgumentList '--background' `
             -PassThru
-        Wait-ForPath $readyPath 15
+        Wait-ForPath $readyPath 15 $primaryProcess
         $secondaryProcess = Start-Process `
             -FilePath $appPath `
             -ArgumentList $activationArgument `
@@ -202,7 +225,7 @@ try {
         }
     }
 
-    Wait-ForPath $resultPath 20
+    Wait-ForPath $resultPath 20 $primaryProcess
     Assert-Condition ($primaryProcess.WaitForExit(10000)) `
         'The BOX-R1 evidence primary process did not close.'
     $appResult = Get-Content -LiteralPath $resultPath -Raw |
@@ -266,7 +289,7 @@ finally {
         [EnvironmentVariableTarget]::Process)
     foreach ($process in @($duplicateProcess, $secondaryProcess, $primaryProcess)) {
         if ($null -ne $process -and -not $process.HasExited) {
-            $process.Kill($true)
+            $process.Kill()
             $process.WaitForExit()
         }
         if ($null -ne $process) { $process.Dispose() }

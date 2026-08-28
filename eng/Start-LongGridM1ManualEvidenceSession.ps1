@@ -60,6 +60,27 @@ function Resolve-EvidenceDirectory {
     return $directory
 }
 
+function Remove-EvidenceDirectory {
+    param([string]$SessionId)
+
+    $directory = Resolve-EvidenceDirectory $SessionId
+    if (Test-Path -LiteralPath $directory -PathType Container) {
+        $directoryItem = Get-Item -LiteralPath $directory -Force
+        Assert-Condition `
+            (($directoryItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) `
+            'Refused to clean a reparse-point M1 manual evidence directory.'
+        $markerPath = Join-Path $directory '.longgrid-m1-session'
+        Assert-Condition `
+            ((Test-Path -LiteralPath $markerPath -PathType Leaf) -and
+                (Get-Content -LiteralPath $markerPath -Raw).Trim() -eq
+                    $SessionId) `
+            'Refused to clean an M1 directory without its exact marker.'
+        Remove-Item -LiteralPath $directory -Recurse -Force
+    }
+    Assert-Condition (-not (Test-Path -LiteralPath $directory)) `
+        'The exact M1 manual evidence directory still exists after cleanup.'
+}
+
 if ($ValidateOnly) {
     $programCode = Get-Content (Join-Path $projectRoot 'src\LongGrid.App\Program.cs') -Raw
     $appCode = Get-Content (Join-Path $projectRoot 'src\LongGrid.App\App.xaml.cs') -Raw
@@ -81,6 +102,12 @@ if ($ValidateOnly) {
             $MyInvocation.MyCommand.ScriptBlock.ToString().Contains(
                 "if (`$ExternalAutomation)")) `
         'External automation must be guarded by the WinUI runtime preflight.'
+    $scriptCode = Get-Content -LiteralPath $PSCommandPath -Raw
+    Assert-Condition `
+        ($scriptCode.Contains("'AppConstructed'") -and
+            $scriptCode.Contains('MainWindowTitle') -and
+            $scriptCode.Contains('managed launch did not become ready')) `
+        'M1 manual evidence must require managed launch readiness.'
     [ordered]@{
         schemaVersion = 1
         purpose = 'M1ManualProductJourneyEvidence'
@@ -112,22 +139,7 @@ if ($ExternalAutomation) {
 }
 
 if (-not [string]::IsNullOrWhiteSpace($CleanupSessionId)) {
-    $cleanupDirectory = Resolve-EvidenceDirectory $CleanupSessionId
-    if (Test-Path -LiteralPath $cleanupDirectory -PathType Container) {
-        $cleanupItem = Get-Item -LiteralPath $cleanupDirectory -Force
-        Assert-Condition `
-            (($cleanupItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) `
-            'Refused to clean a reparse-point M1 manual evidence directory.'
-        $markerPath = Join-Path $cleanupDirectory '.longgrid-m1-session'
-        Assert-Condition `
-            ((Test-Path -LiteralPath $markerPath -PathType Leaf) -and
-                (Get-Content -LiteralPath $markerPath -Raw).Trim() -eq
-                    $CleanupSessionId) `
-            'Refused to clean an M1 directory without its exact marker.'
-        Remove-Item -LiteralPath $cleanupDirectory -Recurse -Force
-    }
-    Assert-Condition (-not (Test-Path -LiteralPath $cleanupDirectory)) `
-        'The exact M1 manual evidence directory still exists after cleanup.'
+    Remove-EvidenceDirectory $CleanupSessionId
     [ordered]@{
         schemaVersion = 1
         purpose = 'M1ManualProductJourneyCleanup'
@@ -249,6 +261,46 @@ finally {
         'Process')
 }
 
+$launchLogPath = Join-Path $evidenceDirectory 'launch.log'
+$launchDeadline = [DateTimeOffset]::UtcNow.AddSeconds(10)
+$managedLaunchReady = $false
+$hostWindowTitle = $null
+do {
+    if ($process.HasExited) { break }
+    $process.Refresh()
+    $hostWindowTitle = $process.MainWindowTitle
+    if (-not [string]::IsNullOrWhiteSpace($hostWindowTitle) -and
+        $hostWindowTitle.EndsWith(
+            'This application could not be started',
+            [StringComparison]::OrdinalIgnoreCase)) {
+        break
+    }
+    if (Test-Path -LiteralPath $launchLogPath -PathType Leaf) {
+        $observedStages = @(
+            Get-Content -LiteralPath $launchLogPath |
+                ForEach-Object { ($_ -split '\|')[-1] }
+        )
+        $managedLaunchReady = 'AppConstructed' -in $observedStages
+    }
+    if (-not $managedLaunchReady) { Start-Sleep -Milliseconds 100 }
+} while (-not $managedLaunchReady -and
+    [DateTimeOffset]::UtcNow -lt $launchDeadline)
+
+if (-not $managedLaunchReady) {
+    $processExited = $process.HasExited
+    $exitCode = if ($processExited) { $process.ExitCode } else { $null }
+    if (-not $processExited) {
+        $process.Kill()
+        $process.WaitForExit()
+    }
+    $process.Dispose()
+    Remove-EvidenceDirectory $sessionId
+    throw $(
+        'LongGrid.App managed launch did not become ready. ' +
+        "ProcessExited=$processExited; ExitCode=$exitCode; " +
+        "WindowTitle=$hostWindowTitle")
+}
+
 [ordered]@{
     schemaVersion = 1
     purpose = 'M1ManualProductJourneyLaunch'
@@ -264,5 +316,7 @@ finally {
     externalAutomation = [bool]$ExternalAutomation
     runtimePreflight = if ($ExternalAutomation) { $runtimePreflight } else { $null }
     desktopHostDisabledForIsolation = -not $EnableDesktopHost
+    managedLaunchReady = $managedLaunchReady
+    hostWindowTitle = $hostWindowTitle
     outcome = 'ReadyForPhysicalInput'
 } | ConvertTo-Json
