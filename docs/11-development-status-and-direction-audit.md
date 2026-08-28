@@ -532,3 +532,9 @@ B6c6 将 Stage 118 的真实公开 Windows 事件源接到 probe 自有人工来
 E1/M1 已进入实现验证：正式 surface adapter 不再硬编码拒绝 Explicit，而是用代际匹配 lease 驱动产品自有 HWND 的命中测试和根 UIA Selection/Focusable 状态。Passive、Explicit、Hidden 均要求终态复读；多显示器部分失败逆序隐藏全部表面，旧 Explicit capture 不能绕过 lease 恢复权限。
 
 App composition root、Intent preparation 和 input forwarding 仍没有调用正式 surface transaction，因而本阶段没有正式输入源或 Intent 消费；文件能力仍为零。双 opt-in、紧急禁用、生命周期先隐藏后释放保持不变。PR #180 与合并后 main 完整 CI 均通过，E1 工程结论为 Pass；#19/#20/#23/#24 与 X1～X5 继续 Pending。下一切片为独立 E2/M2。详见[Stage 130 审计](130-formal-explicit-surface-adapter-audit.md)。
+
+## 33. 2026-08-28 Stage 225 真实进程确定性增量审计
+
+近期完整套件在繁忙 runner 上真实暴露两项时序差异：恢复 worker 期望在 4 秒内观察父进程退出，实际一次 `TimedOut`；可丢弃环境预检期望 10 秒内返回有限 JSON，实际一次在读取输出时取消。Stage 225 没有靠重跑、增加生产超时或 mock 掩盖：受控 PowerShell 父进程先显式 ready，恢复 worker 的 evidence-only hang 路径在父监控建立后写 readiness，测试再释放父进程；CIM 调用增加各自 2 秒上限，进程执行器并发排空 stdout/stderr，超时终止测试自有进程树并报告 purpose/PID/输出长度。
+
+真实负向测试启动 60 秒 PowerShell 子进程并在 500ms 后确认其 PID 已不存在；四项真实进程矩阵连续 5 轮共 `20/20` 通过。关闭 build server 后完整套件 `1,382/1,382`、0 跳过，coverage lines `90.43%`、branches `76.16%`；漏洞、许可证、签名和 RC 否定性合同继续通过。生产 4 秒期限、准入 10 秒总期限、任务栏默认禁用、Sandbox 阻断和 mutation 权限均未放宽。完整远端结论仍等待 Stage 225 PR/main CI 与 CodeQL；详见 [Stage 225 审计](225-real-process-handshake-and-timeout-audit.md)。外部接续点继续是 #19/#20/#24、#23、#274 以及满足 Stage 216 条件的可丢弃任务栏环境。

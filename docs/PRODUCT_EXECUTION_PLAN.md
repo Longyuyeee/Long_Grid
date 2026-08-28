@@ -746,3 +746,9 @@ Stage 223 合入后，真实 Dependabot 动态 run `33145315430` 成功并创建
 checkout `3d3c42e...` 与 upload-artifact `043fb46d...` 的官方 tag 均直接指向 Dependabot SHA，GitHub commit verification 为 valid。两者仍为 Node 24；升级前 v6 已使用同一运行时，官方最低 Runner `2.327.1`，最近真实 hosted runner 为 `2.336.0`。checkout 的不安全 fork PR 默认阻断不会放宽本仓库的普通 `pull_request` 边界；upload-artifact 的 ESM/直接上传新能力未启用，仍使用默认归档多路径结果。workflow、清单和 pin 合同负向夹具同步更新后，最终结论必须由本机完整回归、PR/main 实际 v7 加载、always-upload artifact 和 CodeQL API 共同给出；签名与分发状态保持 false。
 
 本机实际双宿主 pin 合同、Dependabot/CodeQL 合同和 YAML/JSON 解析均通过；locked restore、格式、Release `0 warning / 0 error`，关闭 build server 后完整套件一次 `1,381/1,381`、0 跳过，lines `90.41%`、branches `76.17%`，漏洞为 0，许可证、签名和分发继续失败关闭。首次测试包装命令因包含旧结果目录递归清理而在进程创建前被本地策略拒绝，未删除或测试；改用独立 `TestResults-Stage224` 后一次通过，保留为编排差异。PR/main hosted runner 与真实 artifact 仍是最终批准条件。
+
+### 13.13 真实进程握手与超时清理（2026-08-28）
+
+Stage 223 的 main CI 首轮同时出现任务栏恢复 worker 4 秒超时和可丢弃环境预检 10 秒输出取消，后续重跑虽通过，但首次差异不能被覆盖。Stage 225 按 [独立审计](225-real-process-handshake-and-timeout-audit.md) 把固定 500ms sleep 改为受控 PowerShell readiness/释放协议；恢复 worker 只在显式 evidence hang 路径写父监控已建立 marker，生产正常启动不写证据。两次 CIM 查询各限 2 秒，测试进程执行器并发排空 stdout/stderr，总超时后终止并等待测试自有进程树，诊断保留 purpose、PID 与输出长度。
+
+本机 Release build 为 `0 warning / 0 error`；当前宿主真实预检、兼容性/恢复父进程退出和真实 60 秒挂起子进程 500ms 清理四项单轮通过，连续 5 轮共 `20/20` 通过。关闭 build server 后完整套件 `1,382/1,382`、0 跳过，coverage lines `90.43%`、branches `76.16%`；漏洞、许可证、签名和 RC 否定性门禁继续通过。生产客户端 4 秒期限和预检 10 秒总期限均未放宽。开发目标审计：确定性握手、有限查询和真实无残留负向证明已在本机完成，远端 PR/main 仍 Pending。需求对齐审计：不开放任务栏写入、Sandbox、提权、签名、安装或分发；#19/#20/#24/#23/#274 与 `TASKBAR-R2B1-B` 外部准入状态不变。

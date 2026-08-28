@@ -92,19 +92,15 @@ public sealed class TaskbarCompatibilityClientRealProcessTests
     [Fact]
     public async Task RealWorkerExitsWhenBoundParentExits()
     {
-        using Process parent = Process.Start(new ProcessStartInfo(
-            "powershell.exe",
-            "-NoProfile -Command Start-Sleep -Milliseconds 500")
-        {
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        }) ?? throw new InvalidOperationException("Failed to start parent process.");
-
-        TaskbarCompatibilityClientResult result =
-            await TaskbarCompatibilityClient.ProbeAsync(
+        await using TaskbarReadyParentProcess parent =
+            await TaskbarReadyParentProcess.StartAsync();
+        Task<TaskbarCompatibilityClientResult> recovery =
+            TaskbarCompatibilityClient.ProbeAsync(
                 TimeSpan.FromSeconds(4),
                 TaskbarWorkerEvidenceFault.Hang,
                 parent.Id);
+        await parent.ReleaseAsync();
+        TaskbarCompatibilityClientResult result = await recovery;
 
         Assert.Equal(TaskbarCompatibilityClientStatus.WorkerExited, result.Status);
         Assert.Null(result.Report);

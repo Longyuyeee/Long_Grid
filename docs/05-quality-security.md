@@ -117,6 +117,8 @@ Windows 文件的内容写入权与原子替换权也不是同一权限边界：
 - 缩略图格式矩阵必须使用自有样本和精确 HRESULT 分类；handler 已注册、模块存在或 Media Foundation decoder 可枚举仍不等于 Shell 可提取，`WTS_E_FAILEDEXTRACTION` 只允许对固定受控 HEIC/AVIF 样本触发安全降级；
 - 依赖漏洞门禁通过，并上传 TRX 与 Cobertura 证据。
 
+真实子进程测试不得用固定 sleep 冒充 readiness。父子进程因果关系必须通过显式 marker/pipe/file 握手建立；外部系统查询需要独立有限期限，stdout 与 stderr 从进程启动起并发排空。总期限到达后只终止测试自己创建的进程树，等待退出并记录有限的 purpose、PID 和输出长度诊断；必须用一个真实挂起子进程负向用例证明无残留，不能只靠重跑把超时差异改写为通过。
+
 便携 Developer Preview 的 self-contained publish、确定性 ZIP、逐文件/外部 SHA-256，以及未签名 MSIX 的身份、最小能力、BlockMap、结构和确定性验证已经进入 CI；CI 不上传或发布产物。普通 CI 与 CodeQL 的全部远程 Action 调用使用受审完整提交 SHA，清单合同拒绝可移动标签、未知 Action、未经批准的 SHA 和消费者漂移；Dependabot 每周只发现 GitHub Actions 更新并创建有界 PR，不自动合并。首次真实发现后的 checkout/upload-artifact v7.0.1 只有在官方 tag、签名提交、Node 24/Runner 边界和消费者范围人工审查后才同步清单，不能把 bot PR 本身当成批准。C# 与正式原生 C++ 已分别接入 CodeQL manual-build 分析，首轮真实查询集结果均为 0，但这只描述被扫描提交和当前规则，不替代人工安全评审。SPDX 2.2 SBOM 已由固定工具生成并官方验证，但当前 package 的 declared/concluded license 均为 `NOASSERTION`。全解决方案锁定 NuGet 依赖的 license expression/file/URL、文件内容与 NOTICE 指纹也已进入确定性漂移门禁和 RC 哈希证据，但该门禁只证明元数据完整且未漂移，不决定兼容性、不生成最终 NOTICE，状态固定为 `PendingOwnerReviewAndNotice`。负责人许可证/NOTICE 清算、受保护签名和真实 MSIX 安装/升级/卸载/回滚仍未完成；不能因 Action 固定/更新发现、CodeQL、SBOM validation、license metadata gate 或当前 PR CI 通过而视为已经取得分发资格。
 
 每日/发布前：
