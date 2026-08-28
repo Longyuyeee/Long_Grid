@@ -718,3 +718,13 @@ Stage 221 接续质量总账唯一可独立推进的 CodeQL Pending。初始 Act
 PR #279 首个真实 CodeQL run `33141220963`：C# `7m41s`、C++ `3m12s` 均成功；API 复读 CodeQL `2.26.4`，同一 PR merge ref 上 C# analysis `1685598495` 为 52 rules / 0 results，C++ analysis `1685587941` 为 58 rules / 0 results，全仓 open alerts 为 0。C++ manual build 的 overlay 注释明确回退为正常 full database，分析/上传未跳过。原有完整 CI run `33141221044` 用时 `7m30s` 全绿，包含新增合同、构建、测试、覆盖率、探针、漏洞、license gate 与 unsigned RC。Difference 从“无源码扫描事实”收敛为“当前提交/查询集双语言 0 results”；这不代表所有安全风险永久为零。
 
 开发目标审计：双语言 CodeQL/SARIF 工程门禁已建立且首轮无发现，完成。需求对齐审计：不放宽签名或分发权限，不替代依赖/许可证/SBOM/人工评审，也不关闭 #19/#20/#24/#23/#274。最终文档提交仍须由最新 PR CodeQL 与完整 CI 复核后才合并。
+
+### 13.10 GitHub Actions 不可变执行提交门禁（2026-08-28）
+
+Stage 222 在双语言 CodeQL 之后复读 CI 供应链。Expected 为仓库提交能够唯一决定远程 Action 的执行代码；Initial Actual 为 2 个 workflow 的 5 个远程 target、7 个调用全部使用 `checkout@v6 / setup-dotnet@v5 / upload-artifact@v6 / codeql-action@v4` 可移动标签，完整 SHA 调用为 0。GitHub 官方 API 解析并在 annotated tag 场景继续解引用后，固定 checkout `d23441a...`、setup-dotnet `26b0ec1...`、upload-artifact `b7c566a...`、CodeQL `cdf488f...`，详情见 [Stage 222 审计](222-github-actions-immutable-pin-gate-audit.md)。
+
+`.github/actions-pins.json` 绑定 target、完整 commit、major 系列和精确 consumer；`eng/Test-LongGridWorkflowActionPins.ps1` 扫描全部 workflow，并由 CI/CodeQL 在 pinned checkout 后执行。Windows PowerShell 与 pwsh 正向实际均为 `workflowCount=2 / approvedActionTargets=5 / pinnedRemoteUsages=7`；恢复 `checkout@v6`、替换为全零 40 位 SHA、注入未知 Action 和重复 checkout consumer 的四个内存负向变体依次得到 `mutable-ref / unapproved-pin / unapproved-action / consumer-drift`。Difference 从“major 系列受审但执行 commit 可漂移”收敛为“所有当前远程调用不可变且消费者范围失败关闭”。首次官方 ref 查询包装命令因 `foreach` 直接接管道而解析失败，括号化收集后复跑成功，未在失败命令中修改文件。
+
+本地真实回归中 locked restore、格式、Release build 与原生 DLL/Probe 均为 0 warning / 0 error，五个固定 action.yml/sub-action 入口由官方 API 真实读取。完整测试首次为 `1,380/1,381`，强杀子进程后的 taskbar recovery journal 期望 `Applied`、实际一次为 `Staged`；没有放宽 10 秒或断言。关闭 build server 后该真实测试独立三次均通过，再顺序执行完整覆盖率套件为 `1,381/1,381`、0 跳过，lines `90.41%`、branches `76.17%`。首次差异保留为全套件负载下尚未稳定复现的时序现象；若远端重现则必须修复测试握手，不以重复重跑掩盖。
+
+开发目标审计：普通 CI 与 CodeQL 的远程执行身份固定和漂移检测已建立，完成。需求对齐审计：不增加 secret、OIDC、environment、签名、安装或分发权限，不修改产品运行时，也不把 SHA 固定冒充上游代码审计永久完成。#19/#20/#24/#23/#274 继续保持外部证据/负责人输入 Pending；最终文档提交必须再由最新 PR 完整 CI、双语言 CodeQL 和 Code Scanning API 复核后才合并。
