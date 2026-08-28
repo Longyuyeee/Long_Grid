@@ -23,11 +23,15 @@
 
 Expected：20 个项目和 30 个唯一锁定包均能从真实缓存复读许可证元数据；连续报告哈希相同；任何基线漂移阻断；RC 复读报告哈希且继续不可分发。
 
-Actual：真实分类为 expression 15、file 13、URL 2，6 个包携带 NOTICE/third-party 文件；两次报告 SHA-256 均为 `b2ab09763fb2c38fc04292bd18347092fdac12b426225040cdb9c45e30399cfe`。初次以全零占位指纹执行时按预期报告 package identity 与 license metadata 两项真实差异；写入审计后的实际基线后通过。负向测试返回 `packageCount expected=31 actual=30` 且不写报告。Release build 为 0 warning / 0 error，1,381/1,381 测试通过、0 跳过。
+Actual：真实分类为 expression 15、file 13、URL 2，6 个包携带 NOTICE/third-party 文件；Windows PowerShell 与 pwsh 各自连续两次扫描并交叉复核，报告 SHA-256 均为 `7d7d7aab174784568171ff9ebcf3b012f20573e9da8ceaff42882925330cacfb`。初次以全零占位指纹执行时按预期报告 package identity 与 license metadata 两项真实差异；写入审计后的实际基线后通过。负向测试返回 `packageCount expected=31 actual=30` 且不写报告。Release build 为 0 warning / 0 error，1,381/1,381 测试通过、0 跳过。
 
 从干净提交 `48be0bc` 执行完整 RC：portable ZIP、原生 ExplorerCommand 200 次 COM、unsigned MSIX、SPDX 2.2 和许可证报告全部通过；SBOM 官方验证 805/805 文件，聚合 evidence 复读许可证报告 SHA-256，并继续输出 `PendingOwnerReviewAndNotice / signed=false / installable=false / distributionApproved=false`。最终 PR CI 和合并结果以 PR 记录为准。
 
 Difference：没有产品行为差异；发现并关闭的是“依赖许可证事实只存在于人工盘点、后续漂移不能自动阻断”的供应链差异。Correction：新增确定性合同、真实/负向测试、CI 门禁和 RC 哈希绑定；没有把元数据完整误写成许可证兼容或 NOTICE 清算完成。
+
+首次 PR CI run `33140110000` 的构建、1,381 项测试、覆盖率、全部产品/安全探针和漏洞门禁均通过，但新增门禁在负向子进程阶段失败：Windows PowerShell 在父脚本 `ErrorActionPreference=Stop` 下把预期的子进程 stderr 先提升为错误，包装器尚未来得及复核非零退出与差异文本。Expected 是捕获这个有意失败并验证 `expected=31 actual=30`；Actual 是父脚本提前退出，RC 因 fail-closed 正确跳过。修正只在负向子进程调用期间临时使用 `Continue` 捕获 stderr/exit code，`finally` 恢复原策略。
+
+用 CI 同款 `powershell.exe` 复测负向捕获通过时，又发现同一逻辑报告在 Windows PowerShell 与 pwsh 下的 SHA-256 不同；元数据指纹一致，差异来自两代 `ConvertTo-Json` 的缩进格式。Expected 是跨受支持宿主字节确定，Actual 是内容等价但字节不同；修正为固定排序数据的 `ConvertTo-Json -Compress`、UTF-8 无 BOM 和单个 LF 结尾，并要求两个宿主交叉复测同一报告哈希。新的 PR run 必须完整通过，不能把首轮失败改写为通过。
 
 ## 4. 目标与需求审计
 

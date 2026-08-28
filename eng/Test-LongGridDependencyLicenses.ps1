@@ -316,7 +316,7 @@ try {
     $artifactRoot = Join-Path $projectRoot 'artifacts'
     Assert-ChildPath -Parent $artifactRoot -Child $resolvedOutputPath
     [System.IO.Directory]::CreateDirectory((Split-Path -Parent $resolvedOutputPath)) | Out-Null
-    $json = ($report | ConvertTo-Json -Depth 8) -replace "`r`n", "`n"
+    $json = $report | ConvertTo-Json -Depth 8 -Compress
     [System.IO.File]::WriteAllText($resolvedOutputPath, $json + "`n", [System.Text.UTF8Encoding]::new($false))
     $reportSha256 = (Get-FileHash -LiteralPath $resolvedOutputPath -Algorithm SHA256).Hash.ToLowerInvariant()
 

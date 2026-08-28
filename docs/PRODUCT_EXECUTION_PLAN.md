@@ -701,8 +701,10 @@ PR #272 首轮 Windows runner run `33134924780` 完整通过：Release 构建 `0
 
 ### 13.8 依赖许可证元数据 fail-closed 门禁（2026-08-28）
 
-Stage 220 把 13.7 的一次性盘点固化为 [确定性工程门禁](220-dependency-license-metadata-gate-audit.md)。Expected 为覆盖解决方案全部 20 个项目、30 个唯一锁定 NuGet 包，连续报告相同，任一包或 license/NOTICE 元数据漂移阻断，并把报告哈希绑定到内部 RC；Actual 为 expression 15、file 13、URL 2，6 个包带 NOTICE/third-party 文件，两次报告 SHA-256 均为 `b2ab09763fb2c38fc04292bd18347092fdac12b426225040cdb9c45e30399cfe`。初次全零占位基线按预期报告 identity/metadata 两项真实差异；写入受审实际指纹后通过。负向测试把包数改为 31，实际得到 `expected=31 actual=30`、非零退出且无成功报告。
+Stage 220 把 13.7 的一次性盘点固化为 [确定性工程门禁](220-dependency-license-metadata-gate-audit.md)。Expected 为覆盖解决方案全部 20 个项目、30 个唯一锁定 NuGet 包，连续报告相同，任一包或 license/NOTICE 元数据漂移阻断，并把报告哈希绑定到内部 RC；Actual 为 expression 15、file 13、URL 2，6 个包带 NOTICE/third-party 文件，Windows PowerShell 与 pwsh 各自连续执行并交叉得到同一报告 SHA-256 `7d7d7aab174784568171ff9ebcf3b012f20573e9da8ceaff42882925330cacfb`。初次全零占位基线按预期报告 identity/metadata 两项真实差异；写入受审实际指纹后通过。负向测试把包数改为 31，实际得到 `expected=31 actual=30`、非零退出且无成功报告。
 
 真实验证：格式无差异，Release build `0 warning / 0 error`，完整测试 `1,381/1,381`、0 跳过；RC ValidateOnly 新增 `dependency-license-metadata` 聚合项并保持不可分发。从干净提交 `48be0bc` 完整执行 portable ZIP、原生 ExplorerCommand 200 次 COM、unsigned MSIX、SPDX SBOM 和 license report；SBOM 官方验证 `805/805`，聚合 evidence 复读报告 SHA-256，同时保持 `licenseClearance=PendingOwnerReviewAndNotice`、`signed=false`、`installable=false`、`distributionApproved=false`。Difference 是后续依赖许可证事实此前无法自动防漂移，Correction 是基线合同、真实/负向确定性测试、CI 与 RC 哈希绑定；没有把元数据门禁冒充法律清算。
 
 开发目标审计：依赖 license/NOTICE 元数据漂移的工程缺口已关闭；负责人许可证/商业模式、版权主体、兼容性与最终 NOTICE 仍未完成。需求对齐审计：门禁更保守地覆盖产品、测试、工具和探针依赖，不修改运行时、包缓存、Publisher 或签名权限，也没有新增根 `LICENSE` 或批准分发。下一接续点仍由 #23 和 #274 持有；#19/#20/#24 外部真实矩阵继续 Pending。
+
+PR #278 首轮 Windows run `33140110000` 在新增门禁前的 Release build、1,381 项测试、覆盖率、全部合同/探针和漏洞检查均通过；许可证门禁的真实正向扫描已完成，但负向子进程按预期向 stderr 写出漂移时，Windows PowerShell 因父脚本 `ErrorActionPreference=Stop` 在包装器读取 exit code 前提前失败，后续 RC 被正确跳过。Expected 为捕获预期非零退出并断言 `expected=31 actual=30`，Actual 为宿主先提升 stderr；Correction 为仅在负向子进程捕获窗口临时使用 `Continue` 并在 `finally` 恢复。随后本机 `powershell.exe` 与 pwsh 都通过功能断言，但报告哈希不同，进一步定位为两代 `ConvertTo-Json` 缩进差异；Correction 扩展为压缩规范 JSON、UTF-8 无 BOM、单 LF 结尾，并要求两个宿主交叉哈希一致及新的干净 runner 完整复测。首轮失败保留，不记为门禁 Pass。

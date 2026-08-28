@@ -51,10 +51,20 @@ try {
         $negativeJson + "`n",
         [System.Text.UTF8Encoding]::new($false))
 
-    $negativeOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $gateScript `
-        -ContractPath $negativeContractPath `
-        -OutputPath $negativeReportPath 2>&1 | Out-String
-    if ($LASTEXITCODE -eq 0) {
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        # Windows PowerShell promotes a child powershell.exe stderr record under Stop before the
+        # wrapper can inspect its intentional non-zero exit. Capture it under Continue, then restore.
+        $ErrorActionPreference = 'Continue'
+        $negativeOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $gateScript `
+            -ContractPath $negativeContractPath `
+            -OutputPath $negativeReportPath 2>&1 | Out-String
+        $negativeExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    if ($negativeExitCode -eq 0) {
         throw 'The dependency license gate accepted an intentionally drifted package count.'
     }
     if ($negativeOutput -notmatch 'packageCount expected=31 actual=30') {
