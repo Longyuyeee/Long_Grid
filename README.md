@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，真实可见交互证据仍 Pending；TASKBAR-R1A～R2B1-A2 已建立只读、恢复、原生边界、可丢弃环境准入和两张有限预设卡片。Stage 229 修复了任务栏准入脚本的 PowerShell Core 回归；Stage 230 进一步修复根启动链在 PATH 优先指向无兼容 SDK 的 x86 `dotnet.exe` 时错误失败的问题，并以污染 PATH 的真实子进程回归锁定。工程基线为 1,384/1,384，但 M1/M2 顶层产品旅程仍为 `0/2 Complete`。本机 M1 仍被 WinUI/UIA 已知危险组合阻断，任务栏因 Sandbox 启动器/硬件/隔离配置证据缺失保持 `mutationAllowed=false`；许可证、Publisher、托管签名和安装生命周期环境也未提供。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md) 与 [Stage 230](docs/230-one-click-startup-dotnet-host-resolution-correction-audit.md)。所有产物仍不可公开分发。
+> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，真实可见交互证据仍 Pending；TASKBAR-R1A～R2B1-A2 已建立只读、恢复、原生边界、可丢弃环境准入和两张有限预设卡片。Stage 230 修复根启动链的兼容 SDK 解析；Stage 231 将同一解析统一到 portable 与推荐 RC 打包链，并以污染 PATH 的真实子进程和 802 文件 portable ZIP 实证。工程基线为 1,386/1,386，但 M1/M2 顶层产品旅程仍为 `0/2 Complete`。本机 M1 仍被 WinUI/UIA 已知危险组合阻断，任务栏因 Sandbox 启动器/硬件/隔离配置证据缺失保持 `mutationAllowed=false`；许可证、Publisher、托管签名和安装生命周期环境也未提供。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md) 与 [Stage 231](docs/231-packaging-dotnet-host-resolution-correction-audit.md)。所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -17,7 +17,8 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 当前工作只需要优先阅读以下文档：
 
 - [当前唯一开发计划：产品重对齐、UI 重构、里程碑与执行队列](docs/PRODUCT_EXECUTION_PLAN.md)
-- [当前一键启动 .NET SDK 解析纠偏审计（Stage 230）](docs/230-one-click-startup-dotnet-host-resolution-correction-audit.md)
+- [当前一键打包 .NET SDK 解析纠偏审计（Stage 231）](docs/231-packaging-dotnet-host-resolution-correction-audit.md)
+- [上一轮一键启动 .NET SDK 解析纠偏审计（Stage 230，已由 Stage 231 接续）](docs/230-one-click-startup-dotnet-host-resolution-correction-audit.md)
 - [上一轮任务栏环境准入 PowerShell Core 纠偏审计（Stage 229，已由 Stage 230 接续）](docs/229-taskbar-disposable-environment-powershell-core-correction-audit.md)
 - [上一轮开发状态与接续点审计（Stage 228，已由 Stage 229 接续）](docs/228-current-development-status-and-continuation-audit.md)
 - [上一轮开发边界复审（Stage 227，已由 Stage 228 接续）](docs/227-next-development-boundary-reaudit.md)
