@@ -636,3 +636,17 @@ M1 产品证据冲刺的开始条件保持不变：取得安全 WinUI 运行时�
 | 完整工程门禁 | 不降低既有质量阈值 | 串行执行 restore、format、Release build、启动链、完整测试和独立覆盖率 | Release `0 warning / 0 error`；启动链 Pass；`1,272/1,272`、0 跳过；lines `90.38%`、branches `75.96%`；无差异 |
 
 本轮没有转向任务栏、小组件或外围功能，而是补上 M1 真实证据链在运行时风险前的安全缺口。普通真人手动会话保持原入口，不把“外部自动化阻断”泛化成产品不能启动；也不采用关闭 UIA/无障碍、强杀高权限进程或修改系统安全策略等规避方式。M1 尚未完成，下一开发目标仍是同一完整物理旅程，而不是将工程底座或启动前阻断写成用户功能完成。
+
+### 13.3 M1-C 换机后真实接续准入复核（2026-08-28）
+
+换机后从最新主线接续并实际进入 M1 完整物理旅程前置门禁。本轮没有先假定环境可用，也没有启动产品、发送输入、安装未签名包、终止既有进程或修改系统安全设置。
+
+| 检查 | Expected | Actual | Difference / Correction |
+|---|---|---|---|
+| Git 与工程基线 | 当前短分支基于最新 `origin/main`，本地和远端一致，工作区无遗漏 | 接续分支基于 `42a1a97`，流程合同提交 `3e0869f` 已推送且本地/远端一致 | `Difference=None`；未改写旧审计分支或直接推送 `main` |
+| 独占产品会话 | 进入 DesktopHost 旅程前不存在任何既有 Long方格进程 | 真实系统仍有 `LongGrid.App.exe` PID `45524`；当前权限无法读取其路径和命令行，父 PID 为 `12368` | `EnvironmentBlocked`；不强杀、不绕过权限、不在非独占会话继续 DesktopHost 证据 |
+| 可安装受保护产物 | BOX-R1-C/D 使用受保护签名 MSIX，并在可丢弃账户/VM 安装 | 系统没有已安装 LongGrid 包；仓库只有 `LongGrid-0.1.0.0-win-x64-unsigned.msix`，Authenticode 为 `NotSigned`、Signer 为空 | `PendingSignedPackageAndDisposableWindowsProfile`；不信任或安装 unsigned MSIX，不把构建产物存在写成安装证据 |
+| 外部自动化运行时 | 运行时可发现且不存在已知危险 WinUI/XAML 组合，才允许 Computer Use/UIA 进入正式窗口 | `Start-LongGridM1ManualEvidenceSession.ps1 -ExternalAutomation` 真实返回 runtime `2.4.0.0`、XAML `3.2.3.0`、`KnownUnsafeCrossProcessUiaRuntimePairPresent`、`BlockedByKnownUpstream`；`startsProcess=false`、`createsEvidenceSession=false` | 失败关闭与预期一致；不启动窗口、不发送点击，不以合同通过替代物理旅程 |
+| 可丢弃环境 | 有已确认的专用 Windows 账户/VM，可安全安装、重启 Explorer 和卸载恢复 | 当前可见应用清单没有已确认的 Windows Sandbox 或已授权专用测试桌面；既有日常通信与浏览器应用正在运行 | `EnvironmentBlocked`；不把日常桌面或未经确认的远程桌面当成可丢弃环境 |
+
+开发目标审计：本轮目标是“进入 M1 并判断是否满足真实安装和物理输入准入”，该目标已完成；“完成 M1 用户旅程”未完成。需求对齐审计：结果继续符合 PRD 的不注入 Explorer、不擅自修改系统和用户文件、真实证据优先原则，也符合本文第 9、10 节的失败关闭与差异保留要求。首次实际结果已保留，没有发现需要修改产品代码的回归；当前唯一接续点仍是取得受保护签名包、独占可丢弃 Windows 会话和安全 WinUI/UIA 运行时后，从 BOX-R1-C/D 的真实安装与桌面背景菜单开始。环境事实未变化前不得重复邻接开发或把本轮准入复核标为产品完成。
