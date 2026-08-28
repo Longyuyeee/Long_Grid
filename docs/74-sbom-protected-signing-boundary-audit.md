@@ -53,15 +53,18 @@ SBOM 描述的是最终 MSIX 内容，不写回 MSIX，避免让包哈希失效�
 
 > 2026-08-28 Stage 221 更新：CodeQL 已作为独立双语言 matrix workflow 接入，C# 和原生 C++ 都使用 manual build，权限仅为 `contents: read / security-events: write`；首轮 CodeQL 2.26.4 查询结果分别为 52 rules / 0 results 与 58 rules / 0 results。它不读取发布 environment 或 secrets，也不改变下面的签名隔离与分发阻断。
 
+> 2026-08-28 Stage 222 更新：CI/CodeQL 的 7 个远程 Action 调用全部固定到官方 major ref 当日解析出的完整执行 commit；`.github/actions-pins.json` 与双负向合同拒绝标签、未知/漂移 SHA 和消费者变化。该门禁没有新增权限，也不自动信任未来上游更新。
+
 PR/main CI 当前顺序为：
 
-1. 恢复固定的仓库工具和锁定的产品依赖；
-2. 执行既有 format/build/test/coverage/Windows 探针；
-3. 验证 MSIX 生命周期仍 Pending；
-4. 验证签名权限边界仍 Blocked；
-5. 真实构建并验证 unsigned MSIX；
-6. 真实生成并验证 SPDX 2.2 SBOM；
-7. 只上传 TRX/Cobertura，不上传未批准的安装产物。
+1. 用完整 SHA 加载 checkout，并立即验证所有 workflow 的 Action pin 清单与消费者范围；
+2. 恢复固定的仓库工具和锁定的产品依赖；
+3. 执行既有 format/build/test/coverage/Windows 探针；
+4. 验证 MSIX 生命周期仍 Pending；
+5. 验证签名权限边界仍 Blocked；
+6. 真实构建并验证 unsigned MSIX；
+7. 真实生成并验证 SPDX 2.2 SBOM；
+8. 只用固定 SHA 的 upload-artifact 上传 TRX/Cobertura，不上传未批准的安装产物。
 
 SBOM Tool 是构建工具依赖，不进入 Long方格运行时 payload；其版本变化必须单独审计生成格式、组件检测差异、许可证和 CI 结果。
 

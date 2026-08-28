@@ -28,13 +28,13 @@ function Get-ContractDifferences {
         'finite job timeout' = '(?m)^    timeout-minutes: 30$'
         'non-short-circuit matrix' = '(?m)^      fail-fast: false$'
         'exact language matrix' = '(?m)^        language: \[csharp, c-cpp\]$'
-        'CodeQL v4 init' = '(?m)^        uses: github/codeql-action/init@v4$'
+        'CodeQL v4 init pinned commit' = '(?m)^        uses: github/codeql-action/init@[0-9a-f]{40} # v4$'
         'matrix language binding' = '(?m)^          languages: \$\{\{ matrix\.language \}\}$'
         'manual compiled build mode' = '(?m)^          build-mode: manual$'
         'locked managed restore' = '(?m)^        run: dotnet restore LongGrid\.sln --locked-mode$'
         'managed Release build' = '(?m)^        run: dotnet build LongGrid\.sln --configuration Release --no-restore$'
         'native audited build entry' = '(?m)^          -File \./eng/Build-LongGridExplorerCommand\.ps1$'
-        'CodeQL v4 analyze' = '(?m)^        uses: github/codeql-action/analyze@v4$'
+        'CodeQL v4 analyze pinned commit' = '(?m)^        uses: github/codeql-action/analyze@[0-9a-f]{40} # v4$'
         'language result category' = '(?m)^          category: /language:\$\{\{ matrix\.language \}\}$'
     }
     foreach ($entry in $requiredPatterns.GetEnumerator()) {
@@ -63,10 +63,10 @@ function Get-ContractDifferences {
         $permissionLines -notcontains 'security-events: write') {
         $differences += 'permissions:not-exactly-contents-read-and-security-events-write'
     }
-    if ([regex]::Matches($Text, '(?m)^        uses: github/codeql-action/init@v4$').Count -ne 1) {
+    if ([regex]::Matches($Text, '(?m)^        uses: github/codeql-action/init@[0-9a-f]{40} # v4$').Count -ne 1) {
         $differences += 'init-action-count:not-one'
     }
-    if ([regex]::Matches($Text, '(?m)^        uses: github/codeql-action/analyze@v4$').Count -ne 1) {
+    if ([regex]::Matches($Text, '(?m)^        uses: github/codeql-action/analyze@[0-9a-f]{40} # v4$').Count -ne 1) {
         $differences += 'analyze-action-count:not-one'
     }
     return $differences

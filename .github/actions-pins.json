@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "actions": [
+    {
+      "target": "actions/checkout",
+      "version": "v6",
+      "commit": "d23441a48e516b6c34aea4fa41551a30e30af803",
+      "workflows": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/codeql.yml"
+      ]
+    },
+    {
+      "target": "actions/setup-dotnet",
+      "version": "v5",
+      "commit": "26b0ec14cb23fa6904739307f278c14f94c95bf1",
+      "workflows": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/codeql.yml"
+      ]
+    },
+    {
+      "target": "actions/upload-artifact",
+      "version": "v6",
+      "commit": "b7c566a772e6b6bfb58ed0dc250532a479d7789f",
+      "workflows": [
+        ".github/workflows/ci.yml"
+      ]
+    },
+    {
+      "target": "github/codeql-action/init",
+      "version": "v4",
+      "commit": "cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "workflows": [
+        ".github/workflows/codeql.yml"
+      ]
+    },
+    {
+      "target": "github/codeql-action/analyze",
+      "version": "v4",
+      "commit": "cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "workflows": [
+        ".github/workflows/codeql.yml"
+      ]
+    }
+  ]
+}

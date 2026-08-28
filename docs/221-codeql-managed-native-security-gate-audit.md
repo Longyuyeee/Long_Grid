@@ -17,11 +17,11 @@ GitHub 官方 `codeql-action` 当前 major 为 `v4`，本轮实际分析工具�
 
 - C#：locked solution restore 后执行全解决方案 Release build；
 - C++：复用 `eng/Build-LongGridExplorerCommand.ps1`，真实构建正式 DLL 与 Probe；
-- 两者均在 `init@v4` 和 `analyze@v4` 之间使用 manual build，并按 `/language:<language>` 分离结果；
+- 两者均在固定到同一受审 v4 完整 commit 的 `init` 和 `analyze` 之间使用 manual build，并按 `/language:<language>` 分离结果；
 - job timeout 为 30 分钟，matrix `fail-fast=false`，一种语言失败不会隐藏另一种语言事实；
 - workflow 权限精确为 `contents: read` 与 `security-events: write`。
 
-`eng/Test-LongGridCodeQlWorkflow.ps1` 同时由主 CI 和 CodeQL job 执行，强制检查触发器、双语言 matrix、manual build、v4 action、locked/Release/原生构建入口、精确权限，并拒绝 `id-token: write`、secret、environment、SignTool/证书和 AppX 状态修改。负向变体删去 `c-cpp` 后必须得到 `missing:exact language matrix`。
+`eng/Test-LongGridCodeQlWorkflow.ps1` 同时由主 CI 和 CodeQL job 执行，强制检查触发器、双语言 matrix、manual build、完整 commit 固定且属于 v4 系列的 action、locked/Release/原生构建入口、精确权限，并拒绝 `id-token: write`、secret、environment、SignTool/证书和 AppX 状态修改。精确 Action commit 与消费者范围由 Stage 222 清单合同复核；语言负向变体删去 `c-cpp` 后必须得到 `missing:exact language matrix`。
 
 ## 3. Expected / Actual / Difference / Correction
 
@@ -45,4 +45,3 @@ Actual：PR #279 run `33141220963` 中 C# `7m41s`、C++ `3m12s` 均成功。API 
 开发目标审计：C# 与正式原生 C++ 的源码分析从 `no analysis found` 变为可复读的双语言 CodeQL/SARIF 门禁，完成；当前查询集结果为 0，未发现需要修改的产品代码。
 
 需求对齐审计：扫描是独立最小权限工作流，不接触用户文件、包状态、签名环境或发布秘密；它补充而不替代 90%/75% 覆盖率、依赖漏洞、许可证/NOTICE、SBOM、真实人工矩阵和 signed lifecycle。#19/#20/#24、#23 和 #274 状态不变，产品仍不可安装、不可分发。
-
