@@ -68,3 +68,23 @@ D23-04、D23-05 和 D23-07 批准后：
 | D23-11 | Defer | 当前开发跳过；正式分发/外部贡献前重新处理 | 2026-08-04 | ProjectOwner |
 
 本轮同步 PRD、路线图、ADR-0001、Issue #21–#24 和安装/支持矩阵边界。范围批准本身不能关闭 Issue #23；P1–P5 真实结果仍是独立出口条件。
+
+## 6. D23-11 许可证决策事实包（2026-08-28）
+
+本节只减少负责人决策所需的信息差，不构成法律意见，也不替负责人选择许可证或商业模式。GitHub 官方说明：公开仓库若无许可证，默认版权规则适用；SPDX 2.2.2 官方规范说明 `NOASSERTION` 可能表示没有尝试判断、无法客观判断或有意不提供信息，不能把它解释成“已完成许可证清算”。参考：[GitHub Licensing a repository](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository)、[SPDX 2.2.2 Package Information](https://spdx.github.io/spdx-spec/v2.2.2/package-information/)。
+
+真实盘点结果：
+
+- GitHub License API 返回 404；根目录没有 `LICENSE`、`COPYING` 或 `NOTICE`，与 D23-11 Deferred 一致；
+- 仓库有 782 个 tracked files、0 个 Git submodule；GitHub Contributors API 只返回 `Longyuyeee`，Git 历史存在同一项目负责人的两个 author identity 表示，但这不能替代版权归属确认；
+- App/Test 的锁定 `project.assets.json` 共解析 30 个唯一 NuGet 包，逐一读取全局包缓存中的实际 `.nuspec`，缺失 license metadata 为 0：8 个 MIT expression、7 个 Apache-2.0 expression、1 个 xUnit license URL、1 个 Windows SDK license URL、12 个包内 `LICENSE.txt/license.txt` 和 1 个 `sdk_license.txt`；文件型 Microsoft 条款必须按实际再分发内容和正式渠道由负责人/专业人员复核，不能只按包名归类；
+- 固定 SBOM Tool `microsoft.sbom.dotnettool 4.1.5` 的包元数据为 MIT；当前生成的 SPDX 2.2 SBOM 虽已验证 805/805 文件和 17 个 package，但 17 个 package 的 `licenseDeclared` 与 `licenseConcluded` 全部为 `NOASSERTION`，因此当前 SBOM 是组件/哈希清单，不是已完成的许可证扫描；
+- tracked 源码/探针/资产中未发现 vendored LICENSE/NOTICE 或第三方版权头；品牌资产文档声明为原创概念且商标检索仍 Pending。两者都只是仓库扫描结果，不等于法律清算结论。
+
+D23-11 必须由负责人明确选择并记录以下一种路径，而不是由工程脚本推断：
+
+1. 继续 Deferred：保持无公开分发、无外部贡献入口，当前 unsigned artifact 只作内部 CI 审计；
+2. 开源发布：批准具体 SPDX license expression、版权主体/年份、外部贡献规则，以及第三方 NOTICE/再分发材料；
+3. 专有或 source-available：由专业人员提供实际条款、分发授权、隐私/支持边界和第三方 NOTICE 方案。
+
+无论选择哪条路径，正式分发前都必须把负责人批准、根许可证/条款、第三方 notice、SBOM license 字段或配套 license report、品牌/素材权利和 signed lifecycle evidence 一并复核。当前状态继续为 `Deferred / DistributionBlocked`，不得因 30/30 包元数据可读或 SBOM validation Pass 自动升级。

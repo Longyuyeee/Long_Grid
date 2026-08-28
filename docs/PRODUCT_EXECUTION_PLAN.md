@@ -692,3 +692,9 @@ PR #272 首轮 Windows runner run `33134924780` 完整通过：Release 构建 `0
 真实验证 Actual：GitHub API 返回环境 `long-grid-release` 且 `protected_branches=true`；签名 ValidateOnly 与 RC ValidateOnly 均返回新状态和 Pass，`liveSigningImplemented=false`；Release 构建 `0 warning / 0 error`，完整测试 `1,381/1,381`、0 跳过。随后从干净提交 `d6b2d52` 真实执行聚合 RC：portable ZIP、原生 ExplorerCommand DLL/200 次 COM、unsigned MSIX 和 SPDX 2.2 SBOM 全部通过，SBOM 官方验证 `805/805` 文件且无额外/缺失/无效哈希；最终 evidence 写入新签名状态，同时保持 `lifecycleEvidence=PendingSignedPackageAndDisposableWindowsProfile`、`signed=false`、`installable=false`、`distributionApproved=false`，Difference=`None`。
 
 开发目标审计：关闭“环境已经存在但状态仍宣称等待环境”的合同事实漂移，并证明所有真实消费者接受新状态，已完成；Publisher、证书、托管签名提供方、许可证和 signed lifecycle 仍未完成。需求对齐审计：变更只提高状态准确性和精确环境名断言，没有放宽 PR/main 权限、秘密边界、安装或分发门禁，也没有把 unsigned RC 写成可安装。下一唯一接续点仍由 #274 与 #23 持有，外部输入到位前不进入 live signing 实现。
+
+### 13.7 D23-11 许可证决策证据准备（2026-08-28）
+
+负责人此前明确延期 D23-11，本轮没有擅自新增 `LICENSE`，而是对真实仓库、Git 历史、锁定 NuGet 依赖、包内许可证文件和现有 SBOM 做只读盘点。Expected 为形成可由负责人复读的事实包，并保持分发阻断；Actual 为 GitHub License API 404、根许可证文件 0、tracked files 782、submodule 0、GitHub contributor 1，30 个唯一锁定 NuGet 包均有 license metadata，但实际 SPDX 2.2 SBOM 的 17 个 package 全部 `licenseDeclared=NOASSERTION / licenseConcluded=NOASSERTION`。这证明 SBOM 组件/哈希验证通过不能替代 license scan/NOTICE 清算。
+
+首次读取四份文件型许可证的 PowerShell 包装器因 `foreach` 后直接接管道而解析失败；修正为括号化收集结果后复测，四份实际文件均成功读取并取得 SHA-256，未修改包缓存。文档完成后的第一次复验又错误引用了仓库根下不存在的 `LongGrid.App/LongGrid.Tests`，在读取产品断言前 fail-fast；改为由真实项目布局定位 `src/LongGrid.App` 与 `tests/LongGrid.Core.Tests` 后，根许可证 `0/0`、锁定包 `30/30`、缺失 license metadata `0/0`、SBOM package `17/17` 和双字段 `NOASSERTION` `17/17` 全部符合预期，签名 ValidateOnly 同时保持 `liveSigningImplemented=false / installOrDistributionApproved=false`。差异与完整 30 包分类、官方 GitHub/SPDX 口径、三条负责人选择路径已同步到 [Issue #23 决策文档](30-issue-23-product-decision-proposal.md)。开发目标审计：D23-11 的工程事实缺口已关闭，负责人法律/商业决策未完成；需求对齐审计：没有从依赖许可证反推本仓库许可证，没有把 `NOASSERTION` 写成许可结论，也没有开放分发或外部贡献。下一唯一接续点仍是负责人在 #23 选择并批准许可证/商业路径，同时在 #274 提供 Publisher 与托管签名方案。
