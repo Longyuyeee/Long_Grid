@@ -663,3 +663,5 @@ M1 产品证据冲刺的开始条件保持不变：取得安全 WinUI 运行时�
 | 完整回归 | Release 构建与 1,381 项完整套件通过，真实短时进程测试不被并发资源竞争干扰 | Release 构建 `0 warning / 0 error` 后立即运行完整套件，15 个 MSBuild 复用节点和约 770 MB 编译服务仍存活；首次实际 `1,364/1,381`，17 项真实 Worker/Shell/缩略图测试因超时或信号未到达失败 | 保留首次失败，不放宽超时或断言；正常执行 `dotnet build-server shutdown` 后，7 个受影响测试类隔离复测共 95 项全部通过，再顺序重跑完整套件 `1,381/1,381`、0 跳过。修正的是测试编排，产品代码无需变更 |
 
 本切片开发目标审计：目标是修复并实证 BOX-R1 独占会话门禁对权限受限同名进程的漏检，已完成；目标不包含完成 BOX-R1-C/D 或 M1 物理旅程。需求对齐审计：修正符合本文失败关闭、真实进程证据、外来进程不终止、首次差异不覆盖以及正常配置/桌面零变化要求；相关工作流合同已同步。当前唯一接续点不变：取得受保护签名包、无既有 Long方格进程的独占可丢弃 Windows 会话和安全 WinUI/UIA 运行时后，串行执行 BOX-R1 `Initial / Redirect / DuplicateRedirect` 及完整物理旅程。
+
+PR #272 首轮 Windows runner run `33134924780` 完整通过：Release 构建 `0 warning / 0 error`，完整测试 `1,381/1,381`、0 跳过，coverage lines `90.11% (46924/52072)`、branches `76.04% (15434/20298)`；BOX/启动/UI/人工会话合同、真实文件安全、正式缩略图 Worker 隔离、依赖漏洞和内部 unsigned RC/SBOM 交付集均成功。RC 审计仍明确 `signed=false`、`installable=false`、`distributionApproved=false`，因此远端工程结果与本地修正结论一致，但不改变受保护签名与 M1 物理旅程的阻断状态。
