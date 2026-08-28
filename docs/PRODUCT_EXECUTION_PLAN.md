@@ -6,7 +6,7 @@
 
 更新日期：2026-08-28
 
-代码审计输入基线：`origin/main@fb0b05d`；最新质量纠偏、整体完成度、真实环境 Actual 与唯一接续条件见 [Stage 229](229-taskbar-disposable-environment-powershell-core-correction-audit.md)
+代码审计输入基线：`origin/main@7f1d659`；最新一键启动纠偏、整体完成度、真实环境 Actual 与唯一接续条件见 [Stage 230](230-one-click-startup-dotnet-host-resolution-correction-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -265,7 +265,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**等待 BOX-R1-C/D 与 M1 完整物理旅程的外部准入（ExternalEnvironmentBlocked）**。FOLDER-R1 的路径、基础排序、加载状态和一次性恢复反馈已由 PR #267～#270 全部合入。下一用户结果是在具备受保护签名、可丢弃账户/VM 和安全 WinUI 条件的环境中真实安装包，从桌面空白处创建盒子、绑定文件夹、观察加载/失效/恢复并排序/刷新/打开、Explorer 拖入、盒子间改归属并撤销，最后验证 Explorer 重启和卸载恢复。当前环境不符合这些门禁，因此不得用源码合同、未签名包、当前日常账户或降低系统安全策略替代物理 Pass，也不得继续增加 M1 邻接探针或外围功能。TASKBAR-R2B1-B 同样保持 `EnvironmentBlocked`；Stage 229 只修复其准入脚本在 PowerShell Core 下的执行回归，没有放宽 Guest 门禁。最新精确接续条件、开放 Issue 和禁止项见 [Stage 229](229-taskbar-disposable-environment-powershell-core-correction-audit.md)。
+当前执行项：**等待 BOX-R1-C/D 与 M1 完整物理旅程的外部准入（ExternalEnvironmentBlocked）**。FOLDER-R1 的路径、基础排序、加载状态和一次性恢复反馈已由 PR #267～#270 全部合入。下一用户结果是在具备受保护签名、可丢弃账户/VM 和安全 WinUI 条件的环境中真实安装包，从桌面空白处创建盒子、绑定文件夹、观察加载/失效/恢复并排序/刷新/打开、Explorer 拖入、盒子间改归属并撤销，最后验证 Explorer 重启和卸载恢复。当前环境不符合这些门禁，因此不得用源码合同、未签名包、当前日常账户或降低系统安全策略替代物理 Pass，也不得继续增加 M1 邻接探针或外围功能。TASKBAR-R2B1-B 同样保持 `EnvironmentBlocked`；Stage 229 修复其 PowerShell Core 准入回归，Stage 230 修复 M1 根启动链的兼容 SDK 解析回归，均没有放宽产品证据或 Guest 门禁。最新精确接续条件、开放 Issue 和禁止项见 [Stage 230](230-one-click-startup-dotnet-host-resolution-correction-audit.md)。
 
 严格按下列顺序交付，不再插入相邻探针或新宽度功能：
 
