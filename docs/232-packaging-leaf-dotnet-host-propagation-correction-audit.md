@@ -43,6 +43,8 @@ Stage 231 统一了启动、portable 主命令和推荐 RC 的 SDK host 解析�
 - 同一提交直接执行独立 SBOM：unsigned MSIX SHA-256 `85117303aff3ba8227525506f73b2b25aff65f68538271945ec47c87246873ed`，SPDX SHA-256 `2f39b9e7399fe6b3e566efcd192a7c2027b0f3691a575092db8dd47f00dbe6c8`，805/805 文件验证成功；
 - 所有产物继续为 `signed=false / installable=false / distributionApproved=false`。
 
+PR #293 首轮远端 head 完整通过：CI run `33181486230` 用时 11m53s，1,389/1,389、0 skipped，coverage lines `90.12% (46926/52072)`、branches `76.04% (15434/20298)`；聚合 RC 选择 `C:\Program Files\dotnet\dotnet.exe`，805 文件 SBOM 和固定依赖许可证报告通过，仍为 `PendingOwnerReviewAndNotice / signed=false / installable=false / distributionApproved=false`。CodeQL run `33181486211` 的 C# / C++ 分别在 7m13s / 3m22s 成功。本地首次差异没有在远端重现，也没有通过重跑或降低门限取得该结果。
+
 ## 5. 需求、阶段与接续审计
 
 开发目标审计：默认 portable 的完整质量链、独立漏洞/许可证/SBOM 入口和其子进程已统一到同一兼容 SDK，Stage 231 未覆盖的实际缺口关闭。
