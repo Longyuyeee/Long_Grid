@@ -728,3 +728,13 @@ Stage 222 在双语言 CodeQL 之后复读 CI 供应链。Expected 为仓库提�
 本地真实回归中 locked restore、格式、Release build 与原生 DLL/Probe 均为 0 warning / 0 error，五个固定 action.yml/sub-action 入口由官方 API 真实读取。完整测试首次为 `1,380/1,381`，强杀子进程后的 taskbar recovery journal 期望 `Applied`、实际一次为 `Staged`；没有放宽 10 秒或断言。关闭 build server 后该真实测试独立三次均通过，再顺序执行完整覆盖率套件为 `1,381/1,381`、0 跳过，lines `90.41%`、branches `76.17%`。首次差异保留为全套件负载下尚未稳定复现的时序现象；若远端重现则必须修复测试握手，不以重复重跑掩盖。
 
 开发目标审计：普通 CI 与 CodeQL 的远程执行身份固定和漂移检测已建立，完成。需求对齐审计：不增加 secret、OIDC、environment、签名、安装或分发权限，不修改产品运行时，也不把 SHA 固定冒充上游代码审计永久完成。#19/#20/#24/#23/#274 继续保持外部证据/负责人输入 Pending；最终文档提交必须再由最新 PR 完整 CI、双语言 CodeQL 和 Code Scanning API 复核后才合并。
+
+### 13.11 Dependabot GitHub Actions 受控更新发现（2026-08-28）
+
+Stage 223 关闭固定 SHA 后的维护发现缺口。Expected 为自动发现 Action 更新但不得自动批准；Initial Actual 为本地/远端 `.github/dependabot.yml` 均不存在、远端 Contents API HTTP 404，更新发现入口为 0。新增 [有界策略](223-dependabot-github-actions-update-policy-audit.md)：唯一 ecosystem `github-actions`，根目录、目标 `main`、每周一香港时间 04:00、最多 2 个 PR、`ci` 前缀，无 registry、secret 或 auto-merge。
+
+Windows PowerShell 与 pwsh 正向实际一致；daily、NuGet、private registry、develop target 四个内存负向变体分别得到精确 missing/forbidden 差异。PyYAML 6.0.3 真实解析 schema version 2 和唯一更新项。Stage 222 的 pin 合同仍为 2 workflows / 5 targets / 7 usages。Dependabot 不同步自定义 pin 清单，因此更新 PR 的新 SHA必须先得到 `unapproved-pin`，维护者审查官方 commit 并同步清单后才能运行完整绿色门禁；禁止删除清单、改回 major 标签或自动合并来绕过。
+
+本机真实回归：locked restore、格式、Release build 为 0 warning / 0 error；关闭 build server 后完整套件一次通过 `1,381/1,381`、0 跳过，lines `90.41%`、branches `76.17%`。漏洞门禁 0、许可证门禁 20 projects / 30 packages 且仍不可分发，签名合同继续 `liveSigningImplemented=false / installOrDistributionApproved=false`。首次 GitHub 调度结果仍必须在配置合入 main 后独立复读。
+
+开发目标审计：Action 更新从“纯人工偶然发现”收敛为“每周发现、人工批准、完整回归”，完成；首次 GitHub 调度/更新 PR 在合入 main 前仍未发生，不能提前记为实际更新 Pass。需求对齐审计：范围不扩张到 NuGet，不增加产品、用户文件、签名或分发权限；#19/#20/#24/#23/#274 继续 Pending。最终提交必须经 PR/main 的真实 CI 与 CodeQL 复核。

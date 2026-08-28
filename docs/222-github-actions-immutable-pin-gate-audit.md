@@ -9,6 +9,8 @@ Stage 221 建立双语言 CodeQL 后，真实复读 `.github/workflows` 发现 7
 
 本切片只固定普通 CI/CodeQL 供应链，不增加 workflow 权限，不读取 secret，不接入 OIDC、签名、安装或分发。目标也不包含自动追随上游标签；升级必须单独解析官方 ref、审查提交、更新清单并通过完整 CI。
 
+> 2026-08-28 Stage 223 更新：`.github/dependabot.yml` 已为 `github-actions` 建立每周更新发现。它只创建 PR；由于 Dependabot 不更新自定义 pin 清单，新 SHA 会先被 `unapproved-pin` 阻断，必须人工审查并同步清单后才能通过。
+
 ## 2. 官方 ref 解析与实现
 
 通过 GitHub 官方仓库 API 在 2026-08-28 解析当前 major ref：
