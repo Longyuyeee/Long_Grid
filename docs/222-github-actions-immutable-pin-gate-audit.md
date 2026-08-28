@@ -11,6 +11,8 @@ Stage 221 建立双语言 CodeQL 后，真实复读 `.github/workflows` 发现 7
 
 > 2026-08-28 Stage 223 更新：`.github/dependabot.yml` 已为 `github-actions` 建立每周更新发现。它只创建 PR；由于 Dependabot 不更新自定义 pin 清单，新 SHA 会先被 `unapproved-pin` 阻断，必须人工审查并同步清单后才能通过。
 
+> 2026-08-28 Stage 224 更新：首次真实更新发现创建 #282/#283 后，checkout 与 upload-artifact 的 `v7.0.1` 官方 tag、签名提交、`action.yml` 和变更范围已人工复核；workflow 与清单同步升级，不能仅凭 Dependabot PR 自动批准。
+
 ## 2. 官方 ref 解析与实现
 
 通过 GitHub 官方仓库 API 在 2026-08-28 解析当前 major ref：

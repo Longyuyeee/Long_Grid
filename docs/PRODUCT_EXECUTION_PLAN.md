@@ -738,3 +738,11 @@ Windows PowerShell 与 pwsh 正向实际一致；daily、NuGet、private registr
 本机真实回归：locked restore、格式、Release build 为 0 warning / 0 error；关闭 build server 后完整套件一次通过 `1,381/1,381`、0 跳过，lines `90.41%`、branches `76.17%`。漏洞门禁 0、许可证门禁 20 projects / 30 packages 且仍不可分发，签名合同继续 `liveSigningImplemented=false / installOrDistributionApproved=false`。首次 GitHub 调度结果仍必须在配置合入 main 后独立复读。
 
 开发目标审计：Action 更新从“纯人工偶然发现”收敛为“每周发现、人工批准、完整回归”，完成；首次 GitHub 调度/更新 PR 在合入 main 前仍未发生，不能提前记为实际更新 Pass。需求对齐审计：范围不扩张到 NuGet，不增加产品、用户文件、签名或分发权限；#19/#20/#24/#23/#274 继续 Pending。最终提交必须经 PR/main 的真实 CI 与 CodeQL 复核。
+
+### 13.12 首次 GitHub Actions v7 人工批准升级（2026-08-28）
+
+Stage 223 合入后，真实 Dependabot 动态 run `33145315430` 成功并创建恰好两个 PR：#282 upload-artifact v7.0.1、#283 checkout v7.0.1；两者未同步自定义清单，因此 CI 和双语言 CodeQL 均以精确 `unapproved-pin` 失败，证明发现不等于批准。Stage 224 不直接合并 bot 分支，而是按 [独立审计](224-reviewed-github-actions-v7-upgrade-audit.md) 解析官方 v7.0.1 tag、验证签名提交、读取执行入口并核对消费者。
+
+checkout `3d3c42e...` 与 upload-artifact `043fb46d...` 的官方 tag 均直接指向 Dependabot SHA，GitHub commit verification 为 valid。两者仍为 Node 24；升级前 v6 已使用同一运行时，官方最低 Runner `2.327.1`，最近真实 hosted runner 为 `2.336.0`。checkout 的不安全 fork PR 默认阻断不会放宽本仓库的普通 `pull_request` 边界；upload-artifact 的 ESM/直接上传新能力未启用，仍使用默认归档多路径结果。workflow、清单和 pin 合同负向夹具同步更新后，最终结论必须由本机完整回归、PR/main 实际 v7 加载、always-upload artifact 和 CodeQL API 共同给出；签名与分发状态保持 false。
+
+本机实际双宿主 pin 合同、Dependabot/CodeQL 合同和 YAML/JSON 解析均通过；locked restore、格式、Release `0 warning / 0 error`，关闭 build server 后完整套件一次 `1,381/1,381`、0 跳过，lines `90.41%`、branches `76.17%`，漏洞为 0，许可证、签名和分发继续失败关闭。首次测试包装命令因包含旧结果目录递归清理而在进程创建前被本地策略拒绝，未删除或测试；改用独立 `TestResults-Stage224` 后一次通过，保留为编排差异。PR/main hosted runner 与真实 artifact 仍是最终批准条件。

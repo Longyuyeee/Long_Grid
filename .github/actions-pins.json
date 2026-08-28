@@ -3,8 +3,8 @@
   "actions": [
     {
       "target": "actions/checkout",
-      "version": "v6",
-      "commit": "d23441a48e516b6c34aea4fa41551a30e30af803",
+      "version": "v7",
+      "commit": "3d3c42e5aac5ba805825da76410c181273ba90b1",
       "workflows": [
         ".github/workflows/ci.yml",
         ".github/workflows/codeql.yml"
@@ -21,8 +21,8 @@
     },
     {
       "target": "actions/upload-artifact",
-      "version": "v6",
-      "commit": "b7c566a772e6b6bfb58ed0dc250532a479d7789f",
+      "version": "v7",
+      "commit": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
       "workflows": [
         ".github/workflows/ci.yml"
       ]

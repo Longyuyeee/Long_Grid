@@ -57,6 +57,8 @@ SBOM 描述的是最终 MSIX 内容，不写回 MSIX，避免让包哈希失效�
 
 > 2026-08-28 Stage 223 更新：Dependabot 仅为 `github-actions` 每周创建最多 2 个更新 PR，目标为 `main`，无 registry/secret/auto-merge。新 SHA 在人工同步 pin 清单前按预期失败，不能自行取得发布或签名权限。
 
+> 2026-08-28 Stage 224 更新：checkout/upload-artifact v7.0.1 经官方签名提交与运行时边界审查后才同步 pin 清单；CI/CodeQL 权限、发布环境、secret、OIDC、签名和分发状态均不变。
+
 PR/main CI 当前顺序为：
 
 1. 用完整 SHA 加载 checkout，并立即验证所有 workflow 的 Action pin 清单与消费者范围；

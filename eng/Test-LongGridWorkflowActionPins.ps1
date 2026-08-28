@@ -152,10 +152,10 @@ $mutableDocuments = @($documents | ForEach-Object {
         [pscustomobject]@{ Path = $_.Path; Text = $_.Text }
     })
 $mutableDocuments[0].Text = $mutableDocuments[0].Text.Replace(
-    '@d23441a48e516b6c34aea4fa41551a30e30af803',
-    '@v6')
+    '@3d3c42e5aac5ba805825da76410c181273ba90b1',
+    '@v7')
 $mutableDifferences = @(Get-PinDifferences -Documents $mutableDocuments -Manifest $manifest)
-if (@($mutableDifferences | Where-Object { $_ -like 'mutable-ref:*actions/checkout@v6' }).Count -ne 1) {
+if (@($mutableDifferences | Where-Object { $_ -like 'mutable-ref:*actions/checkout@v7' }).Count -ne 1) {
     throw 'Action pin contract accepted an intentionally mutable checkout major tag.'
 }
 
@@ -163,7 +163,7 @@ $driftDocuments = @($documents | ForEach-Object {
         [pscustomobject]@{ Path = $_.Path; Text = $_.Text }
     })
 $driftDocuments[0].Text = $driftDocuments[0].Text.Replace(
-    '@d23441a48e516b6c34aea4fa41551a30e30af803',
+    '@3d3c42e5aac5ba805825da76410c181273ba90b1',
     '@0000000000000000000000000000000000000000')
 $driftDifferences = @(Get-PinDifferences -Documents $driftDocuments -Manifest $manifest)
 if (@($driftDifferences | Where-Object { $_ -like 'unapproved-pin:*actions/checkout@0000000000000000000000000000000000000000' }).Count -ne 1) {
@@ -182,7 +182,7 @@ if (@($unknownDifferences | Where-Object { $_ -like 'unapproved-action:*example/
 $consumerDocuments = @($documents | ForEach-Object {
         [pscustomobject]@{ Path = $_.Path; Text = $_.Text }
     })
-$consumerDocuments[0].Text += "`n      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803`n"
+$consumerDocuments[0].Text += "`n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1`n"
 $consumerDifferences = @(Get-PinDifferences -Documents $consumerDocuments -Manifest $manifest)
 if (@($consumerDifferences | Where-Object { $_ -like 'consumer-drift:actions/checkout:*' }).Count -ne 1) {
     throw 'Action pin contract accepted an intentionally duplicated checkout consumer.'

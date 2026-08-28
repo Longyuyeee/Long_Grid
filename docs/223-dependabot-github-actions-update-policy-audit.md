@@ -46,3 +46,7 @@ PyYAML 6.0.3 对真实文件解析成功，得到 schema version 2 和唯一更�
 开发目标审计：从“固定 SHA 但无自动更新发现”收敛为“每周发现、PR 呈现、清单人工批准、完整回归后合并”，完成。首次真实 Dependabot update job/PR 只能在配置合入 main 后由 GitHub 调度；在它实际发生前不能声称上游更新已验证。
 
 需求对齐审计：不修改产品运行时、NuGet 范围、用户文件、Publisher、许可证、environment、secret、OIDC、签名、安装或分发权限。Dependabot PR 不具有绕过 CI/pin 合同的批准权，#19/#20/#24、#23 和 #274 状态不变。
+
+## 5. 合并后真实调度结果
+
+合入 `main@965dccbe` 后，GitHub 动态 Dependabot run `33145315430` 用时 3 分 17 秒并成功创建恰好 2 个 PR，符合并发上限：#282 将 upload-artifact 从 v6 提升到 v7.0.1，#283 将 checkout 从 v6.1.0 提升到 v7.0.1。两个 PR 的 CI 与 C#/C++ CodeQL 均在 pin 合同处以精确 `unapproved-pin` 失败，没有进入自动批准或合并。Expected 的“发现但不批准”与 Actual 一致；Stage 224 另行承担官方提交审计、清单同步和完整回归。
