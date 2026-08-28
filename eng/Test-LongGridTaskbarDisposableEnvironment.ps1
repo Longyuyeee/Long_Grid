@@ -144,9 +144,13 @@ $physicalMemoryBytes = 0L
 $virtualizationFirmwareEnabled = $false
 $slatAvailable = $false
 try {
-    $computerSystem = Get-CimInstance Win32_ComputerSystem
+    $computerSystem = Get-CimInstance `
+        -ClassName Win32_ComputerSystem `
+        -OperationTimeoutSec 2
     $physicalMemoryBytes = [long]$computerSystem.TotalPhysicalMemory
-    $processors = @(Get-CimInstance Win32_Processor)
+    $processors = @(Get-CimInstance `
+        -ClassName Win32_Processor `
+        -OperationTimeoutSec 2)
     $virtualizationFirmwareEnabled =
         $processors.Count -gt 0 -and
         @($processors | Where-Object {

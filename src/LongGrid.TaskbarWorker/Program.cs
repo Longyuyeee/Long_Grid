@@ -347,6 +347,7 @@ internal static class Program
         switch (invocation.EvidenceFault)
         {
             case "hang":
+                WriteParentMonitorReadyEvidence(invocation.DirectoryPath);
                 return await parentMonitor.ConfigureAwait(false);
             case "exit":
                 return 71;
@@ -371,6 +372,22 @@ internal static class Program
             default:
                 return 66;
         }
+    }
+
+    private static void WriteParentMonitorReadyEvidence(string? directoryPath)
+    {
+        if (directoryPath is null)
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(directoryPath);
+        File.WriteAllText(
+            Path.Combine(
+                directoryPath,
+                TaskbarWorkerProtocol.ParentMonitorReadyEvidenceFileName),
+            "ParentMonitorReady",
+            new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
     }
 
     private static void WriteStartupRecoveryResponse(

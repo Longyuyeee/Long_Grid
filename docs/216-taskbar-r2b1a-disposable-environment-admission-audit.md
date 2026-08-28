@@ -64,3 +64,7 @@ PR #263 首轮远端 run `33050907194` 完整通过：1346/1346，coverage lines
 6. Guest 关闭后确认宿主任务栏状态完全未变。
 
 官方启用命令需要提升 PowerShell：`Enable-WindowsOptionalFeature -FeatureName Containers-DisposableClientVM -All -Online`，并可能要求重启。本阶段不自行提权、不启用功能、不安排重启。阻断解除前不得编写一个只能靠 mock 宣称有效的原生适配器，也不得在宿主桌面执行 `SetWindowCompositionAttribute`。
+
+## 5. Stage 225 真实预检期限增量（2026-08-28）
+
+后续 hosted runner 曾出现预检在 10 秒总期限后仍未产出有限结果。Expected 为两次 CIM 查询均有独立上限、进程总期限仍为 10 秒、任何超时都终止测试自有进程树并排空 stdout/stderr；旧 Actual 是 CIM 无独立期限，测试只取消 stdout 读取且不清理子进程。Stage 225 为两次 `Get-CimInstance` 分别增加 2 秒 operation timeout，并以真实 60 秒 PowerShell 子进程证明 500ms 超时后 PID 已不存在。当前宿主真实预检和连续压力测试通过；详情见 [Stage 225 审计](225-real-process-handshake-and-timeout-audit.md)。这只提高准入审计的有限性，不改变本机 `Blocked` 结论，也不开放任务栏 mutation。

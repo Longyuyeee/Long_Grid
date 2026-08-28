@@ -5,6 +5,10 @@ namespace LongGrid.Core.Tests.Taskbar;
 
 public sealed class TaskbarDisposableEnvironmentRealProcessTests
 {
+    private static readonly TimeSpan PreflightTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan ProcessCleanupTimeout =
+        TimeSpan.FromSeconds(5);
+
     [Fact]
     public async Task RealHostPreflightProducesFiniteFailClosedEvidence()
     {
@@ -27,6 +31,7 @@ public sealed class TaskbarDisposableEnvironmentRealProcessTests
                 requireReady: false);
 
             Assert.Equal(0, result.ExitCode);
+            Assert.Empty(result.Error);
             using JsonDocument document = JsonDocument.Parse(result.Output);
             JsonElement root = document.RootElement;
             Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
@@ -67,6 +72,7 @@ public sealed class TaskbarDisposableEnvironmentRealProcessTests
                 prepareConfiguration: false,
                 requireReady: true);
             Assert.Equal(ready ? 0 : 2, required.ExitCode);
+            Assert.Empty(required.Error);
             using JsonDocument requiredDocument = JsonDocument.Parse(
                 required.Output);
             Assert.Equal(
@@ -81,6 +87,25 @@ public sealed class TaskbarDisposableEnvironmentRealProcessTests
         }
     }
 
+    [Fact]
+    public async Task RealProcessTimeoutTerminatesHangingChild()
+    {
+        ProcessStartInfo startInfo = CreatePowerShellStartInfo();
+        startInfo.ArgumentList.Add("-Command");
+        startInfo.ArgumentList.Add("Start-Sleep -Seconds 60");
+
+        RealProcessTimeoutException exception =
+            await Assert.ThrowsAsync<RealProcessTimeoutException>(() =>
+                RunProcessAsync(
+                    startInfo,
+                    TimeSpan.FromMilliseconds(500),
+                    "controlled hanging child"));
+
+        Assert.Equal("controlled hanging child", exception.Purpose);
+        Assert.True(exception.ProcessId > 0);
+        Assert.False(IsProcessRunning(exception.ProcessId));
+    }
+
     private static async Task<ProcessResult> RunPreflightAsync(
         string configurationPath,
         string evidenceDirectory,
@@ -91,15 +116,7 @@ public sealed class TaskbarDisposableEnvironmentRealProcessTests
             FindRepositoryRoot(),
             "eng",
             "Test-LongGridTaskbarDisposableEnvironment.ps1");
-        ProcessStartInfo startInfo = new("powershell.exe")
-        {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            CreateNoWindow = true,
-        };
-        startInfo.ArgumentList.Add("-NoProfile");
-        startInfo.ArgumentList.Add("-ExecutionPolicy");
-        startInfo.ArgumentList.Add("Bypass");
+        ProcessStartInfo startInfo = CreatePowerShellStartInfo();
         startInfo.ArgumentList.Add("-File");
         startInfo.ArgumentList.Add(scriptPath);
         startInfo.ArgumentList.Add("-ConfigurationPath");
@@ -116,13 +133,103 @@ public sealed class TaskbarDisposableEnvironmentRealProcessTests
             startInfo.ArgumentList.Add("-RequireReady");
         }
 
+        return await RunProcessAsync(
+            startInfo,
+            PreflightTimeout,
+            "disposable environment preflight");
+    }
+
+    private static ProcessStartInfo CreatePowerShellStartInfo()
+    {
+        ProcessStartInfo startInfo = new("powershell.exe")
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+        startInfo.ArgumentList.Add("-NoProfile");
+        startInfo.ArgumentList.Add("-ExecutionPolicy");
+        startInfo.ArgumentList.Add("Bypass");
+        return startInfo;
+    }
+
+    private static async Task<ProcessResult> RunProcessAsync(
+        ProcessStartInfo startInfo,
+        TimeSpan timeout,
+        string purpose)
+    {
         using Process process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException(
-                "Failed to start disposable environment preflight.");
-        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
-        string output = await process.StandardOutput.ReadToEndAsync(timeout.Token);
-        await process.WaitForExitAsync(timeout.Token);
-        return new(process.ExitCode, output.Trim());
+            ?? throw new InvalidOperationException($"Failed to start {purpose}.");
+        int processId = process.Id;
+        Task<string> output = process.StandardOutput.ReadToEndAsync();
+        Task<string> error = process.StandardError.ReadToEndAsync();
+        using CancellationTokenSource timeoutSource = new(timeout);
+        try
+        {
+            await process.WaitForExitAsync(timeoutSource.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            Terminate(process);
+            using CancellationTokenSource cleanupTimeoutSource =
+                new(ProcessCleanupTimeout);
+            try
+            {
+                await process.WaitForExitAsync(cleanupTimeoutSource.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                throw new TimeoutException(
+                    $"{purpose} process {processId} did not terminate within "
+                    + $"{ProcessCleanupTimeout.TotalMilliseconds:F0} ms.");
+            }
+
+            string timedOutOutput = await output;
+            string timedOutError = await error;
+            throw new RealProcessTimeoutException(
+                purpose,
+                processId,
+                timeout,
+                timedOutOutput.Length,
+                timedOutError.Length);
+        }
+
+        return new(
+            process.ExitCode,
+            (await output).Trim(),
+            (await error).Trim());
+    }
+
+    private static void Terminate(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit(2000);
+            }
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException
+                or System.ComponentModel.Win32Exception)
+        {
+            // The test-owned process may already have exited.
+        }
+    }
+
+    private static bool IsProcessRunning(int processId)
+    {
+        try
+        {
+            using Process process = Process.GetProcessById(processId);
+            return !process.HasExited;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 
     private static string FindRepositoryRoot()
@@ -142,5 +249,30 @@ public sealed class TaskbarDisposableEnvironmentRealProcessTests
             "LongGrid repository root was not found.");
     }
 
-    private sealed record ProcessResult(int ExitCode, string Output);
+    private sealed record ProcessResult(
+        int ExitCode,
+        string Output,
+        string Error);
+
+    private sealed class RealProcessTimeoutException : TimeoutException
+    {
+        public RealProcessTimeoutException(
+            string purpose,
+            int processId,
+            TimeSpan timeout,
+            int outputLength,
+            int errorLength)
+            : base(
+                $"{purpose} process {processId} exceeded "
+                + $"{timeout.TotalMilliseconds:F0} ms; "
+                + $"stdoutLength={outputLength}; stderrLength={errorLength}.")
+        {
+            Purpose = purpose;
+            ProcessId = processId;
+        }
+
+        public string Purpose { get; }
+
+        public int ProcessId { get; }
+    }
 }

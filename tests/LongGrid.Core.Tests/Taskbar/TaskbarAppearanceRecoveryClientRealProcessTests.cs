@@ -344,28 +344,37 @@ public sealed class TaskbarAppearanceRecoveryClientRealProcessTests
     [Fact]
     public async Task RealRecoveryWorkerExitsWhenBoundParentExits()
     {
-        using System.Diagnostics.Process parent =
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
-                "powershell.exe",
-                "-NoProfile -Command Start-Sleep -Milliseconds 500")
-            {
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            }) ?? throw new InvalidOperationException(
-                "Failed to start evidence parent process.");
-
-        TaskbarStartupRecoveryClientResult result =
-            await TaskbarAppearanceRecoveryClient.RecoverAtStartupAsync(
+        string directory = CreateTemporaryDirectory();
+        await using TaskbarReadyParentProcess parent =
+            await TaskbarReadyParentProcess.StartAsync();
+        try
+        {
+            Task<TaskbarStartupRecoveryClientResult> recovery =
+                TaskbarAppearanceRecoveryClient.RecoverAtStartupAsync(
                 TimeSpan.FromSeconds(4),
-                directoryPath: null,
+                directory,
                 TaskbarWorkerEvidenceFault.Hang,
                 parent.Id);
+            string readinessPath = Path.Combine(
+                directory,
+                TaskbarWorkerProtocol.ParentMonitorReadyEvidenceFileName);
+            await WaitForFileAsync(readinessPath, TimeSpan.FromSeconds(4));
+            Assert.Equal(
+                "ParentMonitorReady",
+                await File.ReadAllTextAsync(readinessPath));
+            await parent.ReleaseAsync();
+            TaskbarStartupRecoveryClientResult result = await recovery;
 
-        Assert.Equal(
-            TaskbarStartupRecoveryClientStatus.WorkerExited,
-            result.Status);
-        Assert.Null(result.Response);
-        Assert.Equal("WorkerExit72", result.DiagnosticCode);
+            Assert.Equal(
+                TaskbarStartupRecoveryClientStatus.WorkerExited,
+                result.Status);
+            Assert.Null(result.Response);
+            Assert.Equal("WorkerExit72", result.DiagnosticCode);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     [Fact]
@@ -415,6 +424,25 @@ public sealed class TaskbarAppearanceRecoveryClientRealProcessTests
                 directoryPath: null,
                 (TaskbarWorkerEvidenceFault)int.MaxValue,
                 Environment.ProcessId));
+    }
+
+    private static async Task WaitForFileAsync(string path, TimeSpan timeout)
+    {
+        using CancellationTokenSource timeoutSource = new(timeout);
+        try
+        {
+            while (!File.Exists(path))
+            {
+                await Task.Delay(
+                    TimeSpan.FromMilliseconds(25),
+                    timeoutSource.Token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw new TimeoutException(
+                $"Worker readiness evidence was not created: {path}");
+        }
     }
 
     private static TaskbarAppearanceRecoveryJournal CreateJournal(
