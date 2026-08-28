@@ -42,6 +42,10 @@ Stage 230 恢复根启动链后，本轮先复读实际打包代码，并按 [�
 - 从已提交代码 `50a2fc8fa018e9ed0382bca2fe2516b41e919619` 实际生成 portable ZIP：802 个 payload files，`deterministicArchive=true`，SHA-256 `9a5dace0d27bef296ed1a0712860b2c1b94e0df18099ee29ad7be09bd5fc4576`；
 - 该测试产物仍为 `signed=false / installer=false / distributionApproved=false`，不构成安装或发布证据；本地安全策略拒绝删除两个未跟踪测试产物，它们不会进入 Git 提交或推送，可由同一命令重新生成。
 
+PR #292 首轮完整 CI run `33177490123` 在 1,386 项测试中得到 1 项既有 `ProductWorkspaceScalePreflight` 的 `RegressionBudgetExceeded`，其余 1,385 项通过；C# / C++ CodeQL 同一 head 分别在 6m30s / 4m26s 通过。该性能门禁未输出具体超限指标，本轮没有放宽 1000/3000/1000/16.7 ms 阈值，也没有以首次失败为 Pass。本机独立连续 5 轮均通过：core P95 `8.234–9.943 ms`、save `10.025–15.504 ms`、recovery `1.830–2.272 ms`、layout preview `0.022–0.032 ms`。
+
+仅重跑失败 job 后，CI attempt 2 用时 9m11s 完整通过：1,386/1,386、0 skipped，coverage lines `90.12% (46926/52072)`、branches `76.04% (15434/20298)`；内部 RC 实际选择 `C:\Program Files\dotnet\dotnet.exe`，portable、原生 ExplorerCommand、unsigned MSIX、SBOM 与 license report 聚合成功，SPDX 文件 `805/805` 校验通过，同时保持 `licenseClearance=PendingOwnerReviewAndNotice`、`signed=false`、`installable=false`、`distributionApproved=false`。首次性能差异保留为共享 runner 上未稳定复现的时序事实；若再次出现，必须先补齐具体超限指标诊断再判断产品回归，不得靠重复重跑掩盖。
+
 ## 5. 需求与阶段状态审计
 
 开发目标审计：启动与一键打包现在共享同一兼容 SDK 判定，实际 portable 打包已恢复，目标完成。
