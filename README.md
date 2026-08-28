@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，真实可见交互证据仍 Pending；TASKBAR-R1A～R2B1-A2 已建立只读、恢复、原生边界、可丢弃环境准入和两张有限预设卡片。Stage 231 统一启动、portable 主命令与推荐 RC 的兼容 SDK 解析；Stage 232 进一步修复默认质量链的叶子门禁和测试子进程仍回落到坏 PATH 的缺口，并以完整 Pack 与独立 SBOM 实证。工程基线为 1,389/1,389，但 M1/M2 顶层产品旅程仍为 `0/2 Complete`。本机 M1 仍被 WinUI/UIA 已知危险组合阻断，任务栏因 Sandbox 启动器/硬件/隔离配置证据缺失保持 `mutationAllowed=false`；许可证、Publisher、托管签名和安装生命周期环境也未提供。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md) 与 [Stage 232](docs/232-packaging-leaf-dotnet-host-propagation-correction-audit.md)。所有产物仍不可公开分发。
+> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，真实可见交互证据仍 Pending；TASKBAR-R1A～R2B1-A2 已建立只读、恢复、原生边界、可丢弃环境准入和两张有限预设卡片。Stage 232 完成默认打包质量链的 SDK 传播；Stage 233 又把 Issue、M1/UI、BOX/PF-002、桌面启动和任务栏等全部 PowerShell 工程证据入口收敛到同一兼容 SDK 解析，并保留 `NoBuild`/合同/清理模式无需 SDK 的边界。工程基线为 1,390/1,390，但 M1/M2 顶层产品旅程仍为 `0/2 Complete`。本机 M1 仍被 WinUI/UIA 已知危险组合阻断，任务栏因 Sandbox 启动器/硬件/隔离配置证据缺失保持 `mutationAllowed=false`；许可证、Publisher、托管签名和安装生命周期环境也未提供。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md) 与 [Stage 233](docs/233-evidence-entry-dotnet-host-resolution-audit.md)。所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -17,7 +17,8 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 当前工作只需要优先阅读以下文档：
 
 - [当前唯一开发计划：产品重对齐、UI 重构、里程碑与执行队列](docs/PRODUCT_EXECUTION_PLAN.md)
-- [当前打包叶子门禁与子进程 SDK 传播纠偏审计（Stage 232）](docs/232-packaging-leaf-dotnet-host-propagation-correction-audit.md)
+- [当前工程证据入口 SDK 解析收敛审计（Stage 233）](docs/233-evidence-entry-dotnet-host-resolution-audit.md)
+- [上一轮打包叶子门禁与子进程 SDK 传播纠偏审计（Stage 232，已由 Stage 233 接续）](docs/232-packaging-leaf-dotnet-host-propagation-correction-audit.md)
 - [上一轮一键打包 .NET SDK 解析纠偏审计（Stage 231，已由 Stage 232 纠正并接续）](docs/231-packaging-dotnet-host-resolution-correction-audit.md)
 - [上一轮一键启动 .NET SDK 解析纠偏审计（Stage 230，已由 Stage 231 接续）](docs/230-one-click-startup-dotnet-host-resolution-correction-audit.md)
 - [上一轮任务栏环境准入 PowerShell Core 纠偏审计（Stage 229，已由 Stage 230 接续）](docs/229-taskbar-disposable-environment-powershell-core-correction-audit.md)
