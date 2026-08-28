@@ -379,7 +379,7 @@ test(shell): cover coalesced change notifications
 - `eng/Start-LongGrid.ps1` 负责依赖检查、必要构建和启动，不默认提权或修改真实桌面文件；
 - 用户从根目录或 `eng/Start-LongGrid.ps1` 显式启动时必须直接出现唯一控制中心；只有自启动/托盘等明确后台调用方才可传入 `--background` 保持桌面优先隐藏。两条路径及“后台运行后再次显式启动”的单实例唤起必须由真实进程和顶层窗口证据共同验证；
 - Explorer 桌面/文件夹背景菜单在 Windows 11 必须使用带包身份的 `IExplorerCommand` 与清单 `Directory\Background` 注册；禁止通过扩大透明 DesktopHost 命中、全局 Hook、输入模拟或应用启动时静默写注册表实现。Shell DLL 的菜单构建回调不得读取工作区、枚举文件、访问网络或等待 App；真实完成必须包含可丢弃账户上的安装、菜单调用、Explorer 重启和卸载零残留证据；
-- 修改 BOX-R1 激活边界时必须先执行 `eng/Test-LongGridBoxR1Activation.ps1 -ContractOnly`，再在可交互 Windows 会话串行执行 `Initial`、`Redirect`、`DuplicateRedirect` 三个真实 Release 场景；结果必须记录预览/视觉树/激活次数、发送进程退出码、取消前后盒子数、隔离配置、正常配置、桌面元数据和最终活动进程数；
+- 修改 BOX-R1 激活边界时必须先执行 `eng/Test-LongGridBoxR1Activation.ps1 -ContractOnly`，再在可交互 Windows 会话串行执行 `Initial`、`Redirect`、`DuplicateRedirect` 三个真实 Release 场景；结果必须记录预览/视觉树/激活次数、发送进程退出码、取消前后盒子数、隔离配置、正常配置、桌面元数据和最终活动进程数。独占会话门禁必须把每个可枚举的 `LongGrid.App` 同名进程视为活动进程，即使当前权限无法读取其句柄、线程、路径或命令行；发现任一既有进程时必须在创建临时会话和启动新进程前失败关闭，最终仍有任一同名进程时场景不得为 Pass；
 - `eng/Pack-LongGrid.ps1` 负责 restore、format、Release build、test、覆盖率、安全探针、包结构和哈希；
 - `eng/Pack-LongGridMsix.ps1` 只生成并验证固定开发身份的 unsigned MSIX；`eng/New-LongGridSbom.ps1` 使用仓库固定工具对其解包布局生成并官方复核 SPDX 2.2；
 - `eng/Build-LongGridReleaseCandidate.ps1` 是内部 RC 交付集合的唯一推荐入口；只有 ZIP/MSIX/SBOM 同提交、哈希、版本和否定性状态全部一致才生成聚合成功标记；
