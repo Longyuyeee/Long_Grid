@@ -22,6 +22,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
+. $dotnetResolverPath
 $probeProject = Join-Path $projectRoot `
     'probes\LongGrid.Spikes.DesktopHostWindowModels\LongGrid.Spikes.DesktopHostWindowModels.csproj'
 $runbook = Join-Path $projectRoot `
@@ -116,6 +118,8 @@ if ($ValidateOnly) {
     exit 0
 }
 
+$dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
+
 Write-Warning (
     "Execute only $Scenario from the runbook. This launcher enables the isolated " +
     'normalization-to-preparation path; it does not capture global input, send input, ' +
@@ -155,7 +159,7 @@ try {
     }
     $arguments += @('--', '--native-input-forwarding-session')
 
-    & dotnet @arguments
+    & $dotnetHostPath @arguments
     if ($LASTEXITCODE -ne 0) {
         throw "Long方格 input-forwarding session exited with code $LASTEXITCODE."
     }

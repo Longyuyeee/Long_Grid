@@ -32,6 +32,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
+. $dotnetResolverPath
 $projectPath = Join-Path $projectRoot `
     'probes\LongGrid.Spikes.DisplayTopology\LongGrid.Spikes.DisplayTopology.csproj'
 $phaseExitRunbook = Join-Path $projectRoot 'docs\12-phase-0-exit-runbook.md'
@@ -40,10 +42,6 @@ $facilitatorRunbook = Join-Path $projectRoot `
 
 if ($env:OS -ne 'Windows_NT') {
     throw 'Issue #20 display-matrix sessions can only run on Windows.'
-}
-
-if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
-    throw 'dotnet was not found. Install the .NET SDK selected by global.json.'
 }
 
 foreach ($requiredPath in @($projectPath, $phaseExitRunbook, $facilitatorRunbook)) {
@@ -153,6 +151,8 @@ if ($ValidateOnly) {
     exit 0
 }
 
+$dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
+
 Write-Warning (
     'The observer never changes display, power, or session state. Perform only the selected controlled action, ' +
     'restore the original state, and complete visual/input review before assigning a final result.'
@@ -180,7 +180,7 @@ $dotnetArguments += @(
     '--json'
 )
 
-& dotnet @dotnetArguments
+& $dotnetHostPath @dotnetArguments
 $probeExitCode = $LASTEXITCODE
 if ($probeExitCode -eq 0) {
     Write-Output 'Observer evidence completed; the final result remains PendingManualEvidence until recovery and manual review are recorded.'

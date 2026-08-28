@@ -1,11 +1,42 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace LongGrid.Core.Tests.Runtime;
 
 public sealed class DotNetHostResolutionRealProcessTests
 {
     private static readonly TimeSpan ProcessTimeout = TimeSpan.FromSeconds(20);
+
+    [Fact]
+    public void EngineeringScriptsDoNotInvokePathSelectedDotNetDirectly()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string engineeringDirectory = Path.Combine(repositoryRoot, "eng");
+        Regex directDotNetInvocation = new(
+            @"^\s*(?:&\s+)?dotnet(?:\.exe)?(?:\s|$)",
+            RegexOptions.Multiline | RegexOptions.IgnoreCase);
+        Regex pathOnlyLookup = new(
+            @"Get-Command\s+dotnet(?:\.exe)?(?:\s|$)",
+            RegexOptions.IgnoreCase);
+
+        string[] violations = Directory
+            .EnumerateFiles(engineeringDirectory, "*.ps1")
+            .Where(path => !path.EndsWith(
+                "LongGrid.DotNetHost.ps1",
+                StringComparison.OrdinalIgnoreCase))
+            .Where(path =>
+            {
+                string source = File.ReadAllText(path);
+                return directDotNetInvocation.IsMatch(source)
+                    || pathOnlyLookup.IsMatch(source);
+            })
+            .Select(path => Path.GetRelativePath(repositoryRoot, path))
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Empty(violations);
+    }
 
     [Fact]
     public async Task StartupValidateOnlyIgnoresEarlierPathHostWithoutCompatibleSdk()

@@ -13,6 +13,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
+. $dotnetResolverPath
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
 $targetFramework = 'net8.0-windows10.0.19041.0'
 $runtimeIdentifier = 'win-x64'
@@ -131,7 +133,8 @@ try {
         [StringComparison]::OrdinalIgnoreCase)) `
         'BOX-R1 evidence session escaped the dedicated temporary root.'
     if (-not $NoBuild) {
-        dotnet build $projectPath `
+        $dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
+        & $dotnetHostPath build $projectPath `
             --configuration $Configuration `
             --runtime $runtimeIdentifier `
             --no-restore `

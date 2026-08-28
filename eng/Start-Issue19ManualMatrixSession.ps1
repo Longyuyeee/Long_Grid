@@ -26,6 +26,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
+. $dotnetResolverPath
 $projectPath = Join-Path $projectRoot `
     'probes\LongGrid.Spikes.DesktopHostWindowModels\LongGrid.Spikes.DesktopHostWindowModels.csproj'
 $phaseExitRunbook = Join-Path $projectRoot 'docs\12-phase-0-exit-runbook.md'
@@ -34,10 +36,6 @@ $facilitatorRunbook = Join-Path $projectRoot `
 
 if ($env:OS -ne 'Windows_NT') {
     throw 'Issue #19 manual matrix sessions can only run on Windows.'
-}
-
-if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
-    throw 'dotnet was not found. Install the .NET SDK selected by global.json.'
 }
 
 foreach ($requiredPath in @($projectPath, $phaseExitRunbook, $facilitatorRunbook)) {
@@ -117,6 +115,8 @@ if ($ValidateOnly) {
     exit 0
 }
 
+$dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
+
 Write-Warning (
     'Run only the selected scenario from the facilitator runbook. The launcher does not perform system actions, ' +
     'capture evidence, or decide Pass/Fail. Restore all changed system state before closing the session.'
@@ -137,7 +137,7 @@ if ($NoBuild) {
 }
 $dotnetArguments += @('--', '--interactive-slice')
 
-& dotnet @dotnetArguments
+& $dotnetHostPath @dotnetArguments
 if ($LASTEXITCODE -ne 0) {
     throw "Issue #19 manual matrix session failed with exit code $LASTEXITCODE."
 }
