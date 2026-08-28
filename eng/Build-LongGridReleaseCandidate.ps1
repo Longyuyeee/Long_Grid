@@ -204,30 +204,6 @@ try {
         }
     }
 
-    $licenseText = & $licenseScript -OutputPath $licenseReportPath | Out-String
-    if (-not $?) {
-        throw 'Dependency license metadata inventory failed.'
-    }
-    try {
-        $licenseEvidence = $licenseText | ConvertFrom-Json
-    }
-    catch {
-        throw 'Dependency license metadata inventory did not return a single JSON contract.'
-    }
-    if ($licenseEvidence.outcome -ne 'Pass' -or
-        $licenseEvidence.projectCount -ne $licenseContract.expectedProjectCount -or
-        $licenseEvidence.packageCount -ne $licenseContract.expectedPackageCount -or
-        -not $licenseEvidence.metadataComplete -or
-        $licenseEvidence.clearanceStatus -ne 'PendingOwnerReviewAndNotice' -or
-        $licenseEvidence.distributionApproved -or
-        -not (Test-Path -LiteralPath $licenseReportPath -PathType Leaf)) {
-        throw 'Dependency license metadata evidence is incomplete or unsafe.'
-    }
-    $licenseReportHash = (Get-FileHash -LiteralPath $licenseReportPath -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($licenseEvidence.reportSha256 -ne $licenseReportHash) {
-        throw 'Dependency license report hash does not match its inventory result.'
-    }
-
     $portableArguments = @{ Version = $PortableVersion }
     if ($SkipQualityGates) {
         $portableArguments.SkipQualityGates = $true
@@ -252,6 +228,32 @@ try {
         $sbomArguments.NoToolRestore = $true
     }
     Invoke-PackagingScript -Description 'SPDX SBOM generation and validation' -Path $sbomScript -Arguments $sbomArguments
+
+    # Downstream publish/package operations can perform RID-specific restores. Inventory the final
+    # restored solution state rather than an earlier project.assets.json snapshot.
+    $licenseText = & $licenseScript -OutputPath $licenseReportPath | Out-String
+    if (-not $?) {
+        throw 'Dependency license metadata inventory failed.'
+    }
+    try {
+        $licenseEvidence = $licenseText | ConvertFrom-Json
+    }
+    catch {
+        throw 'Dependency license metadata inventory did not return a single JSON contract.'
+    }
+    if ($licenseEvidence.outcome -ne 'Pass' -or
+        $licenseEvidence.projectCount -ne $licenseContract.expectedProjectCount -or
+        $licenseEvidence.packageCount -ne $licenseContract.expectedPackageCount -or
+        -not $licenseEvidence.metadataComplete -or
+        $licenseEvidence.clearanceStatus -ne 'PendingOwnerReviewAndNotice' -or
+        $licenseEvidence.distributionApproved -or
+        -not (Test-Path -LiteralPath $licenseReportPath -PathType Leaf)) {
+        throw 'Dependency license metadata evidence is incomplete or unsafe.'
+    }
+    $licenseReportHash = (Get-FileHash -LiteralPath $licenseReportPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($licenseEvidence.reportSha256 -ne $licenseReportHash) {
+        throw 'Dependency license report hash does not match its inventory result.'
+    }
 
     $portableHash = Assert-HashSidecar -ArtifactPath $portablePath -SidecarPath $portableHashPath
     $msixHash = Assert-HashSidecar -ArtifactPath $msixPath -SidecarPath $msixHashPath
