@@ -46,4 +46,4 @@ Stage 223 的 main CI 首轮在繁忙执行环境中同时暴露任务栏恢复 
 
 ## 6. Stage 226 后续 runner 差异
 
-Stage 225 的进程树清理和有限诊断有效地把 PR #286 首轮预检失败报告为 PID/期限/输出长度，而不是挂起；但该次 Actual 同时证明 `OperationTimeoutSec` 未覆盖 CIM 初始化本身。Stage 226 进一步把 CIM 放入 6 秒硬期限的测试自有子进程，并在 Sandbox launcher 已缺失时跳过不会改变阻断结论的下游查询。强杀恢复日志的另一失败则改用子进程调用返回后的 readiness，而不是磁盘瞬时可见性推断。详情与首次失败均保留在 [Stage 226 审计](226-current-development-and-requirement-alignment-audit.md)。
+Stage 225 的进程树清理和有限诊断有效地把 PR #286 首轮预检失败报告为 PID/期限/输出长度，而不是挂起；但该次 Actual 同时证明 `OperationTimeoutSec` 未覆盖 CIM 初始化本身。Stage 226 进一步把 CIM 放入 6 秒硬期限的测试自有子进程，并在 Sandbox launcher 已缺失时跳过不会改变阻断结论的下游查询。强杀恢复日志的另一失败则改用子进程调用返回后的 readiness，而不是磁盘瞬时可见性推断。后续证据提交复验又证明 `File.Exists` 可在 readiness 写句柄关闭前成立，因此 worker 现在先完整写入同目录 `.new`，关闭句柄后再原子发布最终 marker；最终文件可见才代表可读取。详情与所有首次失败均保留在 [Stage 226 审计](226-current-development-and-requirement-alignment-audit.md)。

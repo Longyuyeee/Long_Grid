@@ -4,7 +4,7 @@
 
 审计基线：`origin/main@061a590daad0a8910fc3c71f5e0ca7e60c957202`
 
-状态：`CorrectionFullLocalPass / PullRequestCorrectionPass / LatestDocumentationVerificationPending / CoreJourneysPending / ExternalInputsPending`
+状态：`SecondCorrectionFullLocalPass / LatestPullRequestVerificationPending / CoreJourneysPending / ExternalInputsPending`
 
 ## 1. 审计目标与完成口径
 
@@ -57,8 +57,9 @@ PR #286 首轮 CI run `33151795685` 在 Test 步骤得到 `1,380/1,382`，保留
 |---|---|---|---|
 | `RealHostPreflightProducesFiniteFailClosedEvidence` | 外层 10 秒内得到有限 JSON | 进程 PID 4516 到 10 秒仍无 stdout/stderr，抛出带 PID 的 `RealProcessTimeoutException` | `Get-CimInstance -OperationTimeoutSec 2` 不覆盖 PowerShell/CIM 初始化。硬件查询改到测试自有 PowerShell 子进程并设 6 秒硬期限；当更早的 Sandbox launcher 准入已经失败时不启动下游查询，明确 `hardwareEvidenceCollected=false`。本机真实脚本 5 轮均在 671～867ms 返回 Blocked |
 | `RealKilledChildLeavesDurableRecoveryJournal` | 子进程完成 `Staged → Applied` 调用后强杀，磁盘仍为 Applied | 父进程曾读到 Applied 后立即强杀，最终复读为 Staged | “父进程看见新文件”不能证明子进程 `UpdatePhaseAsync` 已返回。子进程现在只在更新调用返回后写固定 readiness 文件，父进程见证后才强杀；状态断言仍要求 Applied |
+| `RealRecoveryWorkerExitsWhenBoundParentExits`（证据提交复验） | 最终 readiness 文件可见时已完成写入，可立即读取并释放父进程 | run `33153538049` 得到 `1,381/1,382`；`File.Exists` 看见目标文件后，`ReadAllTextAsync` 因 worker 尚持有写句柄抛出 sharing violation | 文件名可见不等于写句柄已关闭。worker 改为先写同目录 `.new`，句柄关闭后再原子重命名为最终 evidence；不延长超时、不重试掩盖读取失败，最终文件可见性现在直接证明写入完成 |
 
-两项失败与真实超时清理负向测试组成三项定向矩阵，修正后连续 5 轮 `15/15` 通过；Release 定向 build 保持 `0 warning / 0 error`。随后最终完整本机套件 `1,382/1,382`、0 跳过，coverage lines `90.43%`、branches `76.16%`，全部质量/发布否定性合同继续通过。修正提交的 PR CI run `33152964331` 已在独立托管 Windows runner 上得到 `1,382/1,382`、0 跳过并通过完整门禁，CodeQL run `33152964272` 的 C# / C++ 分析均成功且 0 results；首轮差异因此已由本机重复验证与托管验证共同关闭。本次仅回填证据的文档提交仍需完成最新 PR 门禁，不能以前一提交的结果代替。
+前两项失败与真实超时清理负向测试组成三项定向矩阵，第一轮修正后连续 5 轮 `15/15` 通过；Release 定向 build 保持 `0 warning / 0 error`。随后完整本机套件 `1,382/1,382`、0 跳过，coverage lines `90.43%`、branches `76.16%`，全部质量/发布否定性合同继续通过。第一轮修正提交的 PR CI run `33152964331` 已在独立托管 Windows runner 上得到 `1,382/1,382`、0 跳过并通过完整门禁，CodeQL run `33152964272` 的 C# / C++ 分析均成功且 0 results。其后的证据文档提交触发 run `33153538049`，又暴露第三项 readiness 文件可见性竞态。第二轮因果修正后，真实 worker/父进程测试连续 `10/10` 通过；Release build `0 warning / 0 error`，完整本机套件 `1,382/1,382`、0 跳过，单份 coverage report 为 lines `90.43% (23544/26036)`、branches `76.16% (7729/10149)`；格式、Action pins、Dependabot、CodeQL workflow、漏洞、许可证元数据、signing/MSIX/RC ValidateOnly 与文档链接均通过。最新 PR 门禁仍必须重跑，不能以前一提交结果代替。
 
 提交前首次 Markdown 本地链接包装命令因 `Test-Path` 条件少一个右括号而在执行检查前触发 PowerShell `ParserError`，没有修改文件也没有产生链接结论。修正包装器后复跑 7 份变更文档，`missingLocalLinks=0`，`git diff --check` 通过；该编排差异不被隐藏为首次通过。
 
