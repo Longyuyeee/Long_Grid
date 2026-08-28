@@ -708,3 +708,13 @@ Stage 220 把 13.7 的一次性盘点固化为 [确定性工程门禁](220-depen
 开发目标审计：依赖 license/NOTICE 元数据漂移的工程缺口已关闭；负责人许可证/商业模式、版权主体、兼容性与最终 NOTICE 仍未完成。需求对齐审计：门禁更保守地覆盖产品、测试、工具和探针依赖，不修改运行时、包缓存、Publisher 或签名权限，也没有新增根 `LICENSE` 或批准分发。下一接续点仍由 #23 和 #274 持有；#19/#20/#24 外部真实矩阵继续 Pending。
 
 PR #278 首轮 Windows run `33140110000` 在新增门禁前的 Release build、1,381 项测试、覆盖率、全部合同/探针和漏洞检查均通过；许可证门禁的真实正向扫描已完成，但负向子进程按预期向 stderr 写出漂移时，Windows PowerShell 因父脚本 `ErrorActionPreference=Stop` 在包装器读取 exit code 前提前失败，后续 RC 被正确跳过。Expected 为捕获预期非零退出并断言 `expected=31 actual=30`，Actual 为宿主先提升 stderr；Correction 为仅在负向子进程捕获窗口临时使用 `Continue` 并在 `finally` 恢复。随后本机 `powershell.exe` 与 pwsh 都通过功能断言，但报告哈希不同，进一步定位为两代 `ConvertTo-Json` 缩进差异；Correction 扩展为压缩规范 JSON、UTF-8 无 BOM、单 LF 结尾，并要求两个宿主交叉哈希一致及新的干净 runner 完整复测。首轮失败保留，不记为门禁 Pass。
+
+### 13.9 C# / C++ CodeQL 真实安全扫描（2026-08-28）
+
+Stage 221 接续质量总账唯一可独立推进的 CodeQL Pending。初始 Actual 为 Code Scanning API `no analysis found / HTTP 404`；Expected 为 C# 与正式原生 C++ 分别真实编译、分析和上传，同时权限仅限源码读取与 SARIF 上传。实现采用 [双语言 manual-build matrix](221-codeql-managed-native-security-gate-audit.md)：C# locked restore + Release solution build，C++ 复用正式 ExplorerCommand/Probe MSBuild；合同强制 v4、30 分钟、`fail-fast=false`、精确 `contents: read / security-events: write`，并拒绝 secret、OIDC、environment、证书、SignTool 与 AppX 状态修改。
+
+首次合同脚本因 `foreach` 直接枚举未括号化 `[ordered]@{}` 在断言前解析失败；修正括号后 Windows PowerShell 真实 workflow Pass，人为删除 C++ 的负向变体得到 `missing:exact language matrix`。本地 locked restore、格式、C# Release 和原生 DLL/Probe build 均通过且 0 warning / 0 error，完整测试 `1,381/1,381`、0 跳过。
+
+PR #279 首个真实 CodeQL run `33141220963`：C# `7m41s`、C++ `3m12s` 均成功；API 复读 CodeQL `2.26.4`，同一 PR merge ref 上 C# analysis `1685598495` 为 52 rules / 0 results，C++ analysis `1685587941` 为 58 rules / 0 results，全仓 open alerts 为 0。C++ manual build 的 overlay 注释明确回退为正常 full database，分析/上传未跳过。原有完整 CI run `33141221044` 用时 `7m30s` 全绿，包含新增合同、构建、测试、覆盖率、探针、漏洞、license gate 与 unsigned RC。Difference 从“无源码扫描事实”收敛为“当前提交/查询集双语言 0 results”；这不代表所有安全风险永久为零。
+
+开发目标审计：双语言 CodeQL/SARIF 工程门禁已建立且首轮无发现，完成。需求对齐审计：不放宽签名或分发权限，不替代依赖/许可证/SBOM/人工评审，也不关闭 #19/#20/#24/#23/#274。最终文档提交仍须由最新 PR CodeQL 与完整 CI 复核后才合并。

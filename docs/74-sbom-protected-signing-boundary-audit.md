@@ -51,6 +51,8 @@ SBOM 描述的是最终 MSIX 内容，不写回 MSIX，避免让包哈希失效�
 
 ## 4. CI 与供应链对齐
 
+> 2026-08-28 Stage 221 更新：CodeQL 已作为独立双语言 matrix workflow 接入，C# 和原生 C++ 都使用 manual build，权限仅为 `contents: read / security-events: write`；首轮 CodeQL 2.26.4 查询结果分别为 52 rules / 0 results 与 58 rules / 0 results。它不读取发布 environment 或 secrets，也不改变下面的签名隔离与分发阻断。
+
 PR/main CI 当前顺序为：
 
 1. 恢复固定的仓库工具和锁定的产品依赖；
