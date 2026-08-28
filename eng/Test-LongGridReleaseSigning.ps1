@@ -21,7 +21,7 @@ foreach ($requiredPath in @($contractPath, $manifestTemplatePath, $workflowPath,
 }
 
 $contract = Get-Content -LiteralPath $contractPath -Raw -Encoding UTF8 | ConvertFrom-Json
-$expectedStatus = 'BlockedPendingApprovedPublisherCertificateAndEnvironment'
+$expectedStatus = 'BlockedPendingApprovedPublisherCertificateAndManagedSigningProvider'
 if ($contract.schemaVersion -ne 1 -or $contract.status -ne $expectedStatus) {
     throw 'The release signing contract is not explicitly blocked on the approved release inputs.'
 }
@@ -36,6 +36,7 @@ $releaseBoundary = $contract.releaseBoundary
 if ($releaseBoundary.pullRequestAccess -or
     $releaseBoundary.mainBuildAccess -or
     -not $releaseBoundary.protectedEnvironmentRequired -or
+    $releaseBoundary.environmentName -ne 'long-grid-release' -or
     -not $releaseBoundary.reviewerApprovalRequired -or
     -not $releaseBoundary.oidcOrManagedKeyProviderRequired -or
     $releaseBoundary.privateKeyFileAllowed -or
@@ -99,6 +100,7 @@ foreach ($secretPattern in @('*.pfx', '*.p12', '*.cer', '*.key')) {
     developmentIdentity = 'Longyuyeee.LongGrid.DeveloperPreview'
     developmentPublisher = 'CN=LongGrid Development'
     protectedEnvironmentRequired = $true
+    protectedEnvironmentName = $releaseBoundary.environmentName
     prAndMainSigningAccess = $false
     privateKeyFileAllowed = $false
     selfSignedCertificateAllowed = $false
