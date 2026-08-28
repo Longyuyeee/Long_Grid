@@ -93,6 +93,45 @@ public sealed class TaskbarDisposableEnvironmentRealProcessTests
     }
 
     [Fact]
+    public async Task RealHostPreflightRunsUnderPowerShellCoreWhenAvailable()
+    {
+        string? powerShellCorePath = FindExecutableOnPath("pwsh.exe");
+        if (powerShellCorePath is null)
+        {
+            return;
+        }
+
+        string temporaryDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid-TaskbarPwsh-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temporaryDirectory);
+        try
+        {
+            ProcessResult result = await RunPreflightAsync(
+                Path.Combine(temporaryDirectory, "LongGrid-Taskbar-R2B1.wsb"),
+                Path.Combine(temporaryDirectory, "evidence"),
+                prepareConfiguration: true,
+                requireReady: false,
+                powerShellExecutable: powerShellCorePath);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.Empty(result.Error);
+            using JsonDocument document = JsonDocument.Parse(result.Output);
+            Assert.Equal(
+                "TaskbarR2B1DisposableEnvironmentAdmission",
+                document.RootElement.GetProperty("purpose").GetString());
+            Assert.False(document.RootElement
+                .GetProperty("actual")
+                .GetProperty("modifiedSystemState")
+                .GetBoolean());
+        }
+        finally
+        {
+            Directory.Delete(temporaryDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task RealProcessTimeoutTerminatesHangingChild()
     {
         ProcessStartInfo startInfo = CreatePowerShellStartInfo();
@@ -115,13 +154,15 @@ public sealed class TaskbarDisposableEnvironmentRealProcessTests
         string configurationPath,
         string evidenceDirectory,
         bool prepareConfiguration,
-        bool requireReady)
+        bool requireReady,
+        string powerShellExecutable = "powershell.exe")
     {
         string scriptPath = Path.Combine(
             FindRepositoryRoot(),
             "eng",
             "Test-LongGridTaskbarDisposableEnvironment.ps1");
-        ProcessStartInfo startInfo = CreatePowerShellStartInfo();
+        ProcessStartInfo startInfo = CreatePowerShellStartInfo(
+            powerShellExecutable);
         startInfo.ArgumentList.Add("-File");
         startInfo.ArgumentList.Add(scriptPath);
         startInfo.ArgumentList.Add("-ConfigurationPath");
@@ -144,9 +185,10 @@ public sealed class TaskbarDisposableEnvironmentRealProcessTests
             "disposable environment preflight");
     }
 
-    private static ProcessStartInfo CreatePowerShellStartInfo()
+    private static ProcessStartInfo CreatePowerShellStartInfo(
+        string executable = "powershell.exe")
     {
-        ProcessStartInfo startInfo = new("powershell.exe")
+        ProcessStartInfo startInfo = new(executable)
         {
             UseShellExecute = false,
             RedirectStandardOutput = true,
@@ -157,6 +199,19 @@ public sealed class TaskbarDisposableEnvironmentRealProcessTests
         startInfo.ArgumentList.Add("-ExecutionPolicy");
         startInfo.ArgumentList.Add("Bypass");
         return startInfo;
+    }
+
+    private static string? FindExecutableOnPath(string executable)
+    {
+        string? path = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        return path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+            .Select(entry => Path.Combine(entry.Trim('"'), executable))
+            .FirstOrDefault(File.Exists);
     }
 
     private static async Task<ProcessResult> RunProcessAsync(

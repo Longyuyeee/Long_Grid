@@ -211,7 +211,7 @@ if ($PrepareConfiguration) {
         -EvidencePath $EvidenceDirectory
 }
 
-$isWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+$runningOnWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
     [System.Runtime.InteropServices.OSPlatform]::Windows)
 $architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 $logicalProcessors = [System.Environment]::ProcessorCount
@@ -240,7 +240,7 @@ if ($hardwareEvidenceCollected) {
 $configurationEvidence = Get-ConfigurationEvidence $ConfigurationPath
 
 $difference = @()
-if (-not $isWindows) { $difference += 'NotWindows' }
+if (-not $runningOnWindows) { $difference += 'NotWindows' }
 if ($architecture -notin @('X64', 'Arm64')) {
     $difference += 'UnsupportedArchitecture'
 }
@@ -296,7 +296,7 @@ $result = [ordered]@{
         modifiedSystemState = $false
     }
     actual = [ordered]@{
-        windows = $isWindows
+        windows = $runningOnWindows
         operatingSystemVersion = [System.Environment]::OSVersion.Version.ToString()
         architecture = $architecture
         logicalProcessors = $logicalProcessors
