@@ -55,6 +55,8 @@ SBOM 描述的是最终 MSIX 内容，不写回 MSIX，避免让包哈希失效�
 
 > 2026-08-28 Stage 222 更新：CI/CodeQL 的 7 个远程 Action 调用全部固定到官方 major ref 当日解析出的完整执行 commit；`.github/actions-pins.json` 与双负向合同拒绝标签、未知/漂移 SHA 和消费者变化。该门禁没有新增权限，也不自动信任未来上游更新。
 
+> 2026-08-28 Stage 223 更新：Dependabot 仅为 `github-actions` 每周创建最多 2 个更新 PR，目标为 `main`，无 registry/secret/auto-merge。新 SHA 在人工同步 pin 清单前按预期失败，不能自行取得发布或签名权限。
+
 PR/main CI 当前顺序为：
 
 1. 用完整 SHA 加载 checkout，并立即验证所有 workflow 的 Action pin 清单与消费者范围；
