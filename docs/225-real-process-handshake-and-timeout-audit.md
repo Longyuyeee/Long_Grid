@@ -4,7 +4,7 @@
 
 开发基线：`origin/main@2f5e5ff9df42a7f4cda7a9cf1cf88c9360d89c31`
 
-状态：`LocalFullPass / PullRequestPending / MainVerificationPending`
+状态：`LocalFullPass / PullRequestFirstRunPass / LatestCommitVerificationPending / MainVerificationPending`
 
 ## 1. 开发目标
 
@@ -29,7 +29,9 @@ Stage 223 的 main CI 首轮在繁忙执行环境中同时暴露任务栏恢复 
 - coverage lines `90.43% (47090/52072)`、branches `76.16% (15458/20298)`，通过 90%/75% 门槛。
 - Action 固定、Dependabot 与 CodeQL workflow 合同通过；依赖漏洞为 0，许可证元数据门禁覆盖 20 projects / 30 packages，状态仍为 `PendingOwnerReviewAndNotice`。
 - signing 与 RC ValidateOnly 通过，但 `liveSigningImplemented=false`、`signed=false`、`installable=false`、`distributionApproved=false`。
-- PR/main CI 与 CodeQL 结果仍须按真实结果补录，不提前写成 Pass。
+- PR #285 首个真实 CI run `33148773888` 用时 `7m22s`，完整套件 `1,382/1,382`、0 跳过，coverage lines `90.12% (46926/52072)`、branches `76.04% (15434/20298)`；测试和 coverage artifact 存在、未过期、大小 997,070 bytes。真实 hosted runner 上本阶段三项既有进程用例和新增超时清理用例均未再出现差异。
+- 同一 PR merge ref `ecabf4fe...` 的 CodeQL run `33148773819` 通过：C# `6m37s`、52 rules / 0 results；C++ `3m14s`、58 rules / 0 results；CodeQL 版本 `2.26.4`。这只证明该提交和当前查询集，不表示永久无风险。
+- 上述首轮结果在本段文档回填前完成；最新文档提交及 main CI/CodeQL 仍须重新验证，不提前写成 Pass。
 
 ## 4. 安全与范围审计
 
