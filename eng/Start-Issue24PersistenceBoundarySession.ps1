@@ -23,6 +23,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
+. $dotnetResolverPath
 $phaseExitRunbook = Join-Path $projectRoot 'docs\12-phase-0-exit-runbook.md'
 $sessionRunbook = Join-Path $projectRoot `
     'docs\manual-testing\issue-24-persistence-boundary-runbook.md'
@@ -202,6 +204,8 @@ if ($ValidateOnly) {
     exit 0
 }
 
+$dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
+
 Write-Warning (
     "Preflight passed for $Scenario / $Phase. The formal ProductConfigurationStore host writes only its fixed session " +
     'directory on the marked disposable volume. It does not fill the volume, change volume/ACL state, capture evidence ' +
@@ -225,7 +229,7 @@ $arguments += @(
     '--directory', $sessionDirectory
 )
 
-& dotnet @arguments
+& $dotnetHostPath @arguments
 if ($LASTEXITCODE -ne 0) {
     throw "Issue #24 formal product-store phase failed with exit code $LASTEXITCODE."
 }

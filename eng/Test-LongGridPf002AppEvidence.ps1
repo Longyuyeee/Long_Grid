@@ -10,6 +10,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
+. $dotnetResolverPath
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
 $targetFramework = 'net8.0-windows10.0.19041.0'
 $runtimeIdentifier = 'win-x64'
@@ -135,7 +137,8 @@ Assert-Condition ($liveProcesses.Count -eq 0) `
     "PF-002 App evidence requires a clean session; found PID(s): $($liveProcesses.Id -join ', ')."
 
 if (-not $NoBuild) {
-    & dotnet build $projectPath `
+    $dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
+    & $dotnetHostPath build $projectPath `
         --configuration $Configuration `
         --runtime $runtimeIdentifier
     if ($LASTEXITCODE -ne 0) {

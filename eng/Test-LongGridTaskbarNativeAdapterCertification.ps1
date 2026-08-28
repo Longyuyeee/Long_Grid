@@ -8,6 +8,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
+. $dotnetResolverPath
 $projectPath = Join-Path $projectRoot `
     'src\LongGrid.TaskbarWorker\LongGrid.TaskbarWorker.csproj'
 $workerPath = Join-Path $projectRoot `
@@ -41,7 +43,8 @@ function Get-WindowIdentity {
 }
 
 if (-not $NoBuild) {
-    & dotnet build $projectPath --configuration $Configuration --runtime win-x64
+    $dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
+    & $dotnetHostPath build $projectPath --configuration $Configuration --runtime win-x64
     Assert-Condition ($LASTEXITCODE -eq 0) `
         'LongGrid.TaskbarWorker build failed.'
 }

@@ -63,10 +63,6 @@ if ($env:OS -ne 'Windows_NT') {
     throw 'Long Grid batch accessibility sessions can only run on Windows.'
 }
 
-if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
-    throw 'dotnet was not found. Install the .NET SDK selected by global.json.'
-}
-
 foreach ($requiredPath in @(
     $projectPath,
     $xamlPath,

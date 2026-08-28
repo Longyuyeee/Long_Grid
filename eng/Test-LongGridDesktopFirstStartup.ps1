@@ -14,6 +14,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
+. $dotnetResolverPath
 $projectPath = Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj'
 $runtimeIdentifier = 'win-x64'
 $outputDirectory = Join-Path $projectRoot (
@@ -127,7 +129,8 @@ Assert-Condition ($evidenceDirectory.StartsWith($expectedPrefix, [StringComparis
 Push-Location $projectRoot
 try {
     if (-not $NoBuild) {
-        & dotnet build $projectPath `
+        $dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
+        & $dotnetHostPath build $projectPath `
             --configuration $Configuration `
             --runtime $runtimeIdentifier `
             --no-restore

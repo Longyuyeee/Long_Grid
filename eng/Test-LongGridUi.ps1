@@ -14,6 +14,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
+. $dotnetResolverPath
 $xamlPath = Join-Path $projectRoot 'src\LongGrid.App\MainWindow.xaml'
 $codeBehindPath = Join-Path $projectRoot 'src\LongGrid.App\MainWindow.xaml.cs'
 $taskbarCodePath = Join-Path $projectRoot `
@@ -4101,12 +4103,13 @@ function Test-LiveUi {
     }
 
     if (-not $NoBuild) {
-        & dotnet restore $projectPath --locked-mode --runtime $runtimeIdentifier
+        $dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
+        & $dotnetHostPath restore $projectPath --locked-mode --runtime $runtimeIdentifier
         if ($LASTEXITCODE -ne 0) {
             throw "LongGrid.App restore failed with exit code $LASTEXITCODE."
         }
 
-        & dotnet build $projectPath `
+        & $dotnetHostPath build $projectPath `
             --configuration $Configuration `
             --runtime $runtimeIdentifier `
             --no-restore

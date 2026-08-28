@@ -13,6 +13,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
+. $dotnetResolverPath
 $targetFramework = 'net8.0-windows10.0.19041.0'
 $runtimeIdentifier = 'win-x64'
 $outputDirectory = Join-Path $projectRoot `
@@ -137,7 +139,8 @@ if (-not [string]::IsNullOrWhiteSpace($CleanupSessionId)) {
 }
 
 if (-not $NoBuild) {
-    & dotnet build (Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj') `
+    $dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
+    & $dotnetHostPath build (Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj') `
         --configuration $Configuration `
         --runtime $runtimeIdentifier
     Assert-Condition ($LASTEXITCODE -eq 0) 'LongGrid.App build failed.'

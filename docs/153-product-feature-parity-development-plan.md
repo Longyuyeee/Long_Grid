@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：PF 功能详细 backlog 与历史验收账本；当前状态、执行顺序和里程碑以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
 - 当前开发项：**M1 集中产品证据冲刺**；顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 当前接续输入基线：`origin/main@7168a88`；最新完整打包链纠偏、整体状态、环境 Actual、唯一接续入口与禁止重复开发项见 [Stage 232](232-packaging-leaf-dotnet-host-propagation-correction-audit.md)
+- 当前接续输入基线：`origin/main@ec75699`；最新工程证据入口 SDK 收敛、整体状态、环境 Actual、唯一接续入口与禁止重复开发项见 [Stage 233](233-evidence-entry-dotnet-host-resolution-audit.md)
 - 最新功能工程审计：PF-007A2 已完成正式 OLE Link 拖入；PF-007B 已完成已选正式引用在盒子间的原生有限拖动、冻结权威准入、原子保存/补偿和一次撤销。真实 STA/HWND/隔离文件路径与 SHA-256 零变化通过，物理鼠标与屏幕证据仍 Pending。PF-007 为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题

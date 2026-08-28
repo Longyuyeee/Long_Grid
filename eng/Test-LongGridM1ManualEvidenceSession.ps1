@@ -9,6 +9,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$dotnetResolverPath = Join-Path $PSScriptRoot 'LongGrid.DotNetHost.ps1'
+. $dotnetResolverPath
 $startScript = Join-Path $PSScriptRoot `
     'Start-LongGridM1ManualEvidenceSession.ps1'
 $normalConfigurationDirectory = Join-Path $env:LOCALAPPDATA 'LongGrid'
@@ -79,7 +81,8 @@ if ($ValidateOnly) {
 }
 
 if (-not $NoBuild) {
-    & dotnet build (Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj') `
+    $dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
+    & $dotnetHostPath build (Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj') `
         --configuration $Configuration `
         --runtime win-x64 `
         --no-restore
