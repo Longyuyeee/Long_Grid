@@ -6,7 +6,7 @@
 
 更新日期：2026-08-28
 
-代码审计输入基线：`origin/main@ec75699`；最新工程证据入口 SDK 收敛、整体完成度、真实环境 Actual 与唯一接续条件见 [Stage 233](233-evidence-entry-dotnet-host-resolution-audit.md)
+代码审计输入基线：`origin/main@9b1c554`；最新产品证据托管启动门禁、整体完成度、真实环境 Actual 与唯一接续条件见 [Stage 234](234-product-evidence-managed-launch-readiness-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -265,7 +265,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**等待 BOX-R1-C/D 与 M1 完整物理旅程的外部准入（ExternalEnvironmentBlocked）**。FOLDER-R1 的路径、基础排序、加载状态和一次性恢复反馈已由 PR #267～#270 全部合入。下一用户结果是在具备受保护签名、可丢弃账户/VM 和安全 WinUI 条件的环境中真实安装包，从桌面空白处创建盒子、绑定文件夹、观察加载/失效/恢复并排序/刷新/打开、Explorer 拖入、盒子间改归属并撤销，最后验证 Explorer 重启和卸载恢复。当前环境不符合这些门禁，因此不得用源码合同、未签名包、当前日常账户或降低系统安全策略替代物理 Pass，也不得继续增加 M1 邻接探针或外围功能。TASKBAR-R2B1-B 同样保持 `EnvironmentBlocked`；Stage 232 关闭默认打包质量链的 SDK 传播缺口，Stage 233 进一步让全部 PowerShell 工程证据入口按需解析同一兼容 SDK，并保留 `NoBuild`、合同和清理模式无需 SDK 的语义；两轮都没有放宽产品证据、签名、分发或 Guest 门禁。最新精确接续条件、开放 Issue 和禁止项见 [Stage 233](233-evidence-entry-dotnet-host-resolution-audit.md)。
+当前执行项：**等待 BOX-R1-C/D 与 M1 完整物理旅程的外部准入（ExternalEnvironmentBlocked）**。FOLDER-R1 的路径、基础排序、加载状态和一次性恢复反馈已由 PR #267～#270 全部合入。下一用户结果是在具备受保护签名、完整兼容 Windows App Runtime、安全 WinUI/UIA、无既有 Long方格进程的可丢弃账户/VM 中真实安装包，从桌面空白处创建盒子、绑定文件夹、观察加载/失效/恢复并排序/刷新/打开、Explorer 拖入、盒子间改归属并撤销，最后验证 Explorer 重启和卸载恢复。当前环境不符合这些门禁，因此不得用源码合同、宿主错误窗口、未签名包、当前日常账户或降低系统安全策略替代物理 Pass，也不得继续增加 M1 邻接探针或外围功能。TASKBAR-R2B1-B 同样保持 `EnvironmentBlocked`；Stage 233 已统一工程入口 SDK 解析，Stage 234 又关闭 PowerShell 5.1 清理和“PID 存活即 Ready”的证据偏移。最新精确接续条件、开放 Issue 和禁止项见 [Stage 234](234-product-evidence-managed-launch-readiness-audit.md)。
 
 严格按下列顺序交付，不再插入相邻探针或新宽度功能：
 
@@ -752,3 +752,9 @@ checkout `3d3c42e...` 与 upload-artifact `043fb46d...` 的官方 tag 均直接�
 Stage 223 的 main CI 首轮同时出现任务栏恢复 worker 4 秒超时和可丢弃环境预检 10 秒输出取消，后续重跑虽通过，但首次差异不能被覆盖。Stage 225 按 [独立审计](225-real-process-handshake-and-timeout-audit.md) 把固定 500ms sleep 改为受控 PowerShell readiness/释放协议；恢复 worker 只在显式 evidence hang 路径写父监控已建立 marker，生产正常启动不写证据。两次 CIM 查询各限 2 秒，测试进程执行器并发排空 stdout/stderr，总超时后终止并等待测试自有进程树，诊断保留 purpose、PID 与输出长度。
 
 本机 Release build 为 `0 warning / 0 error`；当前宿主真实预检、兼容性/恢复父进程退出和真实 60 秒挂起子进程 500ms 清理四项单轮通过，连续 5 轮共 `20/20` 通过。关闭 build server 后完整套件 `1,382/1,382`、0 跳过，coverage lines `90.43%`、branches `76.16%`；漏洞、许可证、签名和 RC 否定性门禁继续通过。生产客户端 4 秒期限和预检 10 秒总期限均未放宽。开发目标审计：确定性握手、有限查询和真实无残留负向证明已在本机完成，远端 PR/main 仍 Pending。需求对齐审计：不开放任务栏写入、Sandbox、提权、签名、安装或分发；#19/#20/#24/#23/#274 与 `TASKBAR-R2B1-B` 外部准入状态不变。
+
+### 13.14 产品证据托管启动就绪与 PowerShell 5.1 清理（2026-08-29）
+
+Stage 234 按当前唯一接续点尝试 BOX-R1 `Initial` 时，先真实发现 Windows PowerShell 5.1 不支持 `.Kill($true)`，修正为当前无子进程树场景足够且双宿主兼容的 `.Kill()`。随后实际窗口标题表明所谓“产品窗口”是 `This application could not be started` 宿主错误框；Win32 文本明确当前电脑缺少 Windows App Runtime 2.x、MSIX package version >= 2.3.1.0 的完整组件。可枚举 Framework 包不能替代 Main/DDLM 等完整安装。
+
+M1 现必须观察自己的 `AppConstructed` 阶段后才返回 `ReadyForPhysicalInput`；BOX-R1 等待证据文件时同步检查自有进程退出和宿主错误窗口。当前真实负向矩阵均在约 1.2 秒内失败，零新增会话、零剩余进程。全量 `1,392/1,392`、0 跳过，coverage lines `90.43%`、branches `76.16%`。本轮不安装运行时、不调用 UIA、不发送输入，也不升级 BOX/M1 产品状态；详见 [Stage 234](234-product-evidence-managed-launch-readiness-audit.md)。
