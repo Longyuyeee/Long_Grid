@@ -678,3 +678,9 @@ PR #272 首轮 Windows runner run `33134924780` 完整通过：Release 构建 `0
 | 签名与生命周期否定性合同 | 环境存在不能把签名、安装和分发状态自动升级为可用 | `Test-LongGridReleaseSigning.ps1 -ValidateOnly` 仍为 `BlockedPendingApprovedPublisherCertificateAndEnvironment`，PR/main signing access、live signing、install/distribution 均为 false；MSIX lifecycle 的 `liveEvidence` 仍为 `PendingSignedPackageAndDisposableWindowsProfile`，不改包状态、不信任 unsigned 包 | 首次组合包装器错误把 lifecycle 顶层 `outcome=Pass` 当成物理状态，实际 Pending 位于 `liveEvidence`；修正为同时断言合同 Pass 与 live evidence Pending 后复测 `Difference=None` |
 
 开发目标审计：本切片目标是建立且真实复读最小受保护发布环境，同时证明它不会提前开放签名或安装，已完成；目标不包含批准 Publisher、取得代码签名证书、接入 OIDC/托管密钥、签名 MSIX 或执行安装矩阵。需求对齐审计：结果符合发布合同的环境名、人工审批、受保护分支、私钥不进仓库和普通 CI 无签名权限要求，也保留了首次包装器字段差异。下一唯一接续点收窄为由负责人批准 Publisher/许可证并提供合规代码签名证书及 OIDC/托管密钥提供方；完成这些外部输入前不创建 live signing workflow，BOX-R1-C/D 与 M1 继续 `ExternalEnvironmentBlocked / ProductEvidencePending`。
+
+### 13.5 发布外部输入责任入口（2026-08-28）
+
+真实复核开放 Issue 后，#23 已明确持有 D23-11 许可证决策且负责人曾决定延期，但此前没有 Issue 专门持有正式 Publisher、合规代码签名证书、OIDC/托管密钥、审批分离和 signed lifecycle matrix。该差异已通过 [Issue #274](https://github.com/Longyuyeee/Long_Grid/issues/274) 关闭为可执行外部责任入口：Issue 状态为 OPEN、归属 `Phase 0 Exit`，交叉依赖 #23，明确不得上传证书、PFX/P12、私钥、client secret 或 token，并把签名前后哈希/签名/时间戳验证及可丢弃 Windows 安装、Explorer 命令、修复、重装、升级、卸载和失败回滚列为验收。#23 已同步回链，继续明确无 `LICENSE`、无分发或外部贡献授权。
+
+真实安全复测 Expected 为“增加责任入口不改变任何发布权限”；Actual 为 `long-grid-release` secrets `0`、variables `0`、deployments `0`，`Test-LongGridReleaseSigning.ps1 -ValidateOnly` 仍返回 `BlockedPendingApprovedPublisherCertificateAndEnvironment`、`liveSigningImplemented=false`，Difference=`None`。开发目标审计：发布外部输入已有唯一负责人入口且许可证依赖没有被覆盖，已完成；负责人批准和外部输入本身仍未完成。需求对齐审计：Issue 只建立责任、禁止项和验收，不替负责人选择许可证/Publisher，不生成或接触秘密，也不创建签名 workflow。下一唯一接续点是负责人在 #274 提供 Publisher/托管签名方案并在 #23 处理 D23-11；在此之前工程状态保持阻断，不扩张相邻发布机械链。
