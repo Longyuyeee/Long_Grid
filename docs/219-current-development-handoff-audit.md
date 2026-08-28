@@ -8,7 +8,7 @@
 
 状态：`Audited / HandoffReady / ExternalEnvironmentBlocked`
 
-> 历史状态提示：本快照已由 [Stage 226 当前整体开发与功能对齐审计](226-current-development-and-requirement-alignment-audit.md)取代。此处的 `f6cda67`、CI 和接续事实仅保留为当时证据；当前权威基线为 `origin/main@061a590`。
+> 历史状态提示：本快照已由 [Stage 227 下一开发边界复审](227-next-development-boundary-reaudit.md)取代。此处的 `f6cda67`、CI 和接续事实仅保留为当时证据；当前权威基线为 `origin/main@673e7b6`。
 
 ## 1. 审计目的与边界
 
