@@ -31,7 +31,7 @@ if ($rcStep.Contains('-NoRestore')) {
 }
 
 foreach ($requiredFragment in @(
-    "& dotnet restore `$projectPath",
+    "& `$dotnetHostPath restore `$projectPath",
     '--runtime $runtimeIdentifier',
     '-p:WindowsAppSDKSelfContained=true',
     "'--no-restore'"
@@ -42,7 +42,7 @@ foreach ($requiredFragment in @(
 }
 
 $restorePosition = $packScript.IndexOf(
-    "& dotnet restore `$projectPath",
+    "& `$dotnetHostPath restore `$projectPath",
     [System.StringComparison]::Ordinal)
 $publishPosition = $packScript.IndexOf(
     "'publish', `$projectPath",

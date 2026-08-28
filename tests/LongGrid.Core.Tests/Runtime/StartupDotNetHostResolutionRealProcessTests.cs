@@ -1,33 +1,101 @@
 using System.Diagnostics;
+using System.Text.Json;
 
 namespace LongGrid.Core.Tests.Runtime;
 
-public sealed class StartupDotNetHostResolutionRealProcessTests
+public sealed class DotNetHostResolutionRealProcessTests
 {
     private static readonly TimeSpan ProcessTimeout = TimeSpan.FromSeconds(20);
 
     [Fact]
-    public async Task ValidateOnlyIgnoresEarlierPathHostWithoutCompatibleSdk()
+    public async Task StartupValidateOnlyIgnoresEarlierPathHostWithoutCompatibleSdk()
+    {
+        string? compatibleHost = GetCompatibleHost();
+        if (compatibleHost is null)
+        {
+            return;
+        }
+
+        ProcessResult result = await RunWithPoisonedPathAsync(
+            compatibleHost,
+            "Start-LongGrid.ps1",
+            "-Configuration",
+            "Release",
+            "-NoRestore",
+            "-NoBuild",
+            "-ValidateOnly");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.Error);
+        Assert.Contains(
+            "Long Grid startup chain validation passed: Release / x64",
+            result.Output,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            $"dotnet={compatibleHost}",
+            result.Output,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("Pack-LongGrid.ps1", "portable-unpacked-zip")]
+    [InlineData(
+        "Build-LongGridReleaseCandidate.ps1",
+        "internal-unsigned-developer-preview")]
+    public async Task PackagingValidateOnlyUsesCompatibleSdkDespitePoisonedPath(
+        string scriptName,
+        string expectedType)
+    {
+        string? compatibleHost = GetCompatibleHost();
+        if (compatibleHost is null)
+        {
+            return;
+        }
+
+        ProcessResult result = await RunWithPoisonedPathAsync(
+            compatibleHost,
+            scriptName,
+            "-ValidateOnly");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.Error);
+        using JsonDocument document = JsonDocument.Parse(result.Output);
+        JsonElement root = document.RootElement;
+        Assert.Equal("Pass", root.GetProperty("outcome").GetString());
+        Assert.Equal(
+            compatibleHost,
+            root.GetProperty("dotnetHost").GetString(),
+            ignoreCase: true);
+        string? actualType = root.TryGetProperty(
+            "packageType",
+            out JsonElement packageType)
+                ? packageType.GetString()
+                : root.GetProperty("candidateType").GetString();
+        Assert.Equal(expectedType, actualType);
+    }
+
+    private static string? GetCompatibleHost()
     {
         if (!OperatingSystem.IsWindows())
         {
-            return;
+            return null;
         }
 
-        string programFiles = Environment.GetFolderPath(
-            Environment.SpecialFolder.ProgramFiles);
-        string compatibleHost = Path.Combine(
-            programFiles,
+        string candidate = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
             "dotnet",
             "dotnet.exe");
-        if (!File.Exists(compatibleHost))
-        {
-            return;
-        }
+        return File.Exists(candidate) ? candidate : null;
+    }
 
+    private static async Task<ProcessResult> RunWithPoisonedPathAsync(
+        string compatibleHost,
+        string scriptName,
+        params string[] arguments)
+    {
         string temporaryDirectory = Path.Combine(
             Path.GetTempPath(),
-            "LongGrid-StartupDotNet-" + Guid.NewGuid().ToString("N"));
+            "LongGrid-DotNetHost-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporaryDirectory);
         try
         {
@@ -35,6 +103,7 @@ public sealed class StartupDotNetHostResolutionRealProcessTests
                 Path.Combine(temporaryDirectory, "dotnet.cmd"),
                 "@echo off\r\nexit /b 37\r\n");
 
+            string repositoryRoot = FindRepositoryRoot();
             ProcessStartInfo startInfo = new(
                 Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.System),
@@ -46,27 +115,27 @@ public sealed class StartupDotNetHostResolutionRealProcessTests
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true,
-                WorkingDirectory = FindRepositoryRoot(),
+                WorkingDirectory = repositoryRoot,
             };
             startInfo.Environment["PATH"] = temporaryDirectory;
-            startInfo.Environment["ProgramW6432"] = programFiles;
+            startInfo.Environment["ProgramW6432"] = Path.GetDirectoryName(
+                Path.GetDirectoryName(compatibleHost))!;
             startInfo.ArgumentList.Add("-NoProfile");
             startInfo.ArgumentList.Add("-ExecutionPolicy");
             startInfo.ArgumentList.Add("Bypass");
             startInfo.ArgumentList.Add("-File");
             startInfo.ArgumentList.Add(Path.Combine(
-                FindRepositoryRoot(),
+                repositoryRoot,
                 "eng",
-                "Start-LongGrid.ps1"));
-            startInfo.ArgumentList.Add("-Configuration");
-            startInfo.ArgumentList.Add("Release");
-            startInfo.ArgumentList.Add("-NoRestore");
-            startInfo.ArgumentList.Add("-NoBuild");
-            startInfo.ArgumentList.Add("-ValidateOnly");
+                scriptName));
+            foreach (string argument in arguments)
+            {
+                startInfo.ArgumentList.Add(argument);
+            }
 
             using Process process = Process.Start(startInfo)
                 ?? throw new InvalidOperationException(
-                    "Failed to start the startup-chain validation process.");
+                    $"Failed to start {scriptName} validation.");
             Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
             Task<string> errorTask = process.StandardError.ReadToEndAsync();
             using CancellationTokenSource timeoutSource = new(ProcessTimeout);
@@ -77,23 +146,16 @@ public sealed class StartupDotNetHostResolutionRealProcessTests
             catch (OperationCanceledException)
             {
                 process.Kill(entireProcessTree: true);
+                process.WaitForExit(5000);
                 throw new TimeoutException(
-                    "Startup-chain validation did not finish within "
+                    $"{scriptName} validation did not finish within "
                     + $"{ProcessTimeout.TotalSeconds:F0} seconds.");
             }
 
-            string output = await outputTask;
-            string error = await errorTask;
-            Assert.Equal(0, process.ExitCode);
-            Assert.Empty(error.Trim());
-            Assert.Contains(
-                "Long Grid startup chain validation passed: Release / x64",
-                output,
-                StringComparison.Ordinal);
-            Assert.Contains(
-                $"dotnet={compatibleHost}",
-                output,
-                StringComparison.OrdinalIgnoreCase);
+            return new(
+                process.ExitCode,
+                (await outputTask).Trim(),
+                (await errorTask).Trim());
         }
         finally
         {
@@ -117,4 +179,9 @@ public sealed class StartupDotNetHostResolutionRealProcessTests
         throw new DirectoryNotFoundException(
             "LongGrid repository root was not found.");
     }
+
+    private sealed record ProcessResult(
+        int ExitCode,
+        string Output,
+        string Error);
 }
