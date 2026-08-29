@@ -4,9 +4,9 @@
 
 状态：Required / 当前唯一执行计划
 
-更新日期：2026-08-29
+更新日期：2026-08-30
 
-代码审计输入基线：`origin/main@a03bc37`；最新最高兼容 Windows App Runtime Framework 元数据预检、整体完成度、真实环境 Actual 与唯一接续条件见 [Stage 237](237-selected-framework-metadata-preflight-audit.md)
+代码审计输入基线：`origin/main@df12e15`；最新 Windows App Runtime Framework 元数据读取失败归一化、整体完成度、真实环境 Actual 与唯一接续条件见 [Stage 238](238-runtime-metadata-read-failure-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -776,3 +776,9 @@ Stage 236 改为从已提交锁文件跨目标框架解析唯一 Runtime 最低�
 Stage 236 的版本来源纠正成立，但其实现先排除 XAML 元数据不可读的 Framework，再选择最高版本；这与 Bootstrap 先选择最高兼容候选的实际对象不一致。若最高候选损坏或元数据不可读而旧候选可读，预检可能错误评估旧候选并假通过。Stage 237 改为先按项目最低版本、包名和 x64 架构选择最高 Framework，再校验该候选的 XAML 文件版本；无法读取时返回 schema 4 的 `SelectedRuntimeFrameworkMetadataNotDiscoverable / Inconclusive`，不再降级候选。Live UI 的 `Inconclusive` 信息同步覆盖项目目标、候选包与候选元数据三类失败。
 
 新增“较低安全候选可读、较高候选元数据不可读”回归场景，断言必须报告较高版本且失败关闭；合同扩为七场景。当前机器实际结果不变：Framework `2.4.0.0` / XAML `3.2.3.0` 可读，但 Main.2 `>=2.3.1.0` 与精确 DDLM `2.3.1.0-x6` 缺失，因此为 `BlockedByIncompleteRuntime`。Live UI 非零退出，M1 返回 `startsProcess=false / createsEvidenceSession=false`，进程与证据目录 0→0。专项 10/10、格式、Release 0 warning/error、完整 1393/1393、覆盖率 lines 90.41%、branches 76.17% 通过。该修正只提高失败关闭准确性，不升级 M1/M2、PF、BOX-R1-C/D 或发布状态；唯一接续点仍由 #23/#274、完整兼容 Runtime、签名包和独占可丢弃 Windows 会话共同约束，详见 [Stage 237](237-selected-framework-metadata-preflight-audit.md)。
+
+### 13.18 Stage 238：Runtime 元数据读取失败归一化
+
+Stage 237 已规定选中最高 Framework 的 XAML 元数据不可读时必须结构化 `Inconclusive`，但真实枚举仍直接执行 `Get-Item(...).VersionInfo.FileVersionRaw` 和 `[version]` 强转。文件访问异常或非法版本会在进入结果函数前终止脚本；较低、最终不会被选中的 Framework 发生同类异常也会中断整个预检。Stage 238 增加受控元数据读取器，把访问异常、空值和格式异常统一归一化为不可读，再交由既有最高候选逻辑输出 `SelectedRuntimeFrameworkMetadataNotDiscoverable / Inconclusive`，不记录安装路径或异常文本。
+
+合同以真实 scriptblock 注入读取异常和非法版本，断言二者均返回空元数据而不终止；结合既有“较低安全候选可读、较高候选不可读”场景证明仍选择最高版本并失败关闭，合同扩为八场景。当前机器实际结果仍为 Framework `2.4.0.0` / XAML `3.2.3.0` 可读，缺 Main.2 `>=2.3.1.0` 与 DDLM `2.3.1.0-x6`，因此 `BlockedByIncompleteRuntime`。Live UI 退出 1，M1 `startsProcess=false / createsEvidenceSession=false`，进程与证据目录 0→0。专项 10/10、格式、Release 0 warning/error、完整 1393/1393、覆盖率 lines 90.41%、branches 76.17% 通过。该修正兑现既有失败关闭承诺，不升级产品、物理证据或发布状态；唯一接续点仍由 #23/#274、完整兼容 Runtime、签名包和独占可丢弃 Windows 会话共同约束，详见 [Stage 238](238-runtime-metadata-read-failure-audit.md)。

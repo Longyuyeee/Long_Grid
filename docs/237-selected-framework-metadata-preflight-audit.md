@@ -6,6 +6,8 @@
 
 状态：`CorrectionComplete / PrAndMainAuditPassed / ProductEvidenceBlocked`
 
+> 后续补全：本文结果函数对“选中候选元数据不可读”的闭锁语义保持有效；真实文件访问或版本解析异常在进入结果函数前终止的问题，已由 [Stage 238](238-runtime-metadata-read-failure-audit.md) 归一化为同一结构化 `Inconclusive`。本文其余最高候选选择结论继续有效。
+
 ## 1. 接续复读与路线约束
 
 本轮先同步并复读 Stage 236、`eng/Test-LongGridWinUiUiaRuntime.ps1`、Live UI 消费者、真实进程测试与项目锁文件。#23/#274 没有新的负责人输入，开放 PR 为 0；完整兼容 Runtime、受保护签名包和独占可丢弃 Windows 会话仍未到位。因此本轮继续遵守既定路线：不扩张邻接探针，只关闭会影响真实失败关闭判断的新发现回归、质量或安全缺陷。

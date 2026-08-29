@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，真实可见交互证据仍 Pending；TASKBAR-R1A～R2B1-A2 已建立只读、恢复、原生边界、可丢弃环境准入和两张有限预设卡片。Stage 237 已纠正 Runtime 预检的候选选择顺序：先按项目最低版本、名称和架构选出 Bootstrap 将采用的最高兼容 Framework，再校验该候选的 XAML 元数据；最高候选元数据不可读时必须 `Inconclusive`，不得退回旧版本产生假通过。工程基线为 1,393/1,393，但 M1/M2 顶层产品旅程仍为 `0/2 Complete`。当前电脑可选 Framework 为 2.4.0、Singleton 为 8002.4.0.0，仍缺少 Main.2 `>=2.3.1.0` 与项目锁定 DDLM `2.3.1.0-x6`，现有 XAML 组合也仍属于已知风险；任务栏、许可证、Publisher、托管签名和安装生命周期外部门禁仍未满足。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md) 与 [Stage 237](docs/237-selected-framework-metadata-preflight-audit.md)。所有产物仍不可公开分发。
+> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，真实可见交互证据仍 Pending；TASKBAR-R1A～R2B1-A2 已建立只读、恢复、原生边界、可丢弃环境准入和两张有限预设卡片。Stage 238 已补全 Runtime 预检的真实元数据读取路径：选中 Framework 的 XAML 文件访问失败、空版本或非法版本现在统一归一化为不可读，并进入 Stage 237 定义的结构化 `SelectedRuntimeFrameworkMetadataNotDiscoverable / Inconclusive`，不再让脚本在输出审计结果前异常退出。工程基线为 1,393/1,393，但 M1/M2 顶层产品旅程仍为 `0/2 Complete`。当前电脑可选 Framework 为 2.4.0、Singleton 为 8002.4.0.0，仍缺少 Main.2 `>=2.3.1.0` 与项目锁定 DDLM `2.3.1.0-x6`，现有 XAML 组合也仍属于已知风险；任务栏、许可证、Publisher、托管签名和安装生命周期外部门禁仍未满足。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md) 与 [Stage 238](docs/238-runtime-metadata-read-failure-audit.md)。所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -17,7 +17,8 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 当前工作只需要优先阅读以下文档：
 
 - [当前唯一开发计划：产品重对齐、UI 重构、里程碑与执行队列](docs/PRODUCT_EXECUTION_PLAN.md)
-- [当前最高兼容 Framework 元数据预检纠偏审计（Stage 237）](docs/237-selected-framework-metadata-preflight-audit.md)
+- [当前 Runtime 元数据读取失败归一化审计（Stage 238）](docs/238-runtime-metadata-read-failure-audit.md)
+- [上一轮最高兼容 Framework 元数据预检纠偏审计（Stage 237，真实读取异常已由 Stage 238 补全）](docs/237-selected-framework-metadata-preflight-audit.md)
 - [上一轮项目锁定 Runtime 目标预检纠偏审计（Stage 236，候选选择顺序已由 Stage 237 纠正）](docs/236-project-locked-runtime-target-preflight-audit.md)
 - [上一轮 Windows App Runtime 完整包集合预检纠偏审计（Stage 235，版本来源已由 Stage 236 纠正）](docs/235-windows-app-runtime-package-set-preflight-audit.md)
 - [上一轮工程证据入口 SDK 解析收敛审计（Stage 233，已由 Stage 234 接续）](docs/233-evidence-entry-dotnet-host-resolution-audit.md)
