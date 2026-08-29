@@ -43,6 +43,37 @@ function ConvertTo-FourPartVersion {
         [Math]::Max(0, $Version.Revision))
 }
 
+function ConvertFrom-XamlFileVersionRead {
+    param([scriptblock]$ReadVersion)
+
+    try {
+        $rawVersion = & $ReadVersion
+        if ($null -eq $rawVersion -or
+            [string]::IsNullOrWhiteSpace($rawVersion.ToString())) {
+            return $null
+        }
+        return [version]$rawVersion
+    }
+    catch {
+        return $null
+    }
+}
+
+function Get-XamlFileVersion {
+    param([string]$InstallLocation)
+
+    ConvertFrom-XamlFileVersionRead {
+        if ([string]::IsNullOrWhiteSpace($InstallLocation)) {
+            return $null
+        }
+        $xamlPath = Join-Path $InstallLocation 'Microsoft.UI.Xaml.dll'
+        if (-not (Test-Path -LiteralPath $xamlPath -PathType Leaf)) {
+            return $null
+        }
+        (Get-Item -LiteralPath $xamlPath).VersionInfo.FileVersionRaw
+    }
+}
+
 function Get-ProjectRuntimeMinimumVersion {
     Assert-Condition `
         (Test-Path -LiteralPath $appPackageLockPath -PathType Leaf) `
@@ -317,11 +348,20 @@ function Get-RuntimePreflightResult {
 if ($ContractOnly) {
     $projectRuntimeMinimumVersion = Get-ProjectRuntimeMinimumVersion
     $contractRuntimeMinimumVersion = [version]'2.3.1.0'
+    $readableXamlVersion = ConvertFrom-XamlFileVersionRead {
+        '3.2.2.0'
+    }
+    $failedXamlVersionRead = ConvertFrom-XamlFileVersionRead {
+        throw 'Injected XAML metadata read failure.'
+    }
+    $invalidXamlVersionRead = ConvertFrom-XamlFileVersionRead {
+        'not-a-version'
+    }
     $safeFramework = New-NormalizedPackage `
         'Microsoft.WindowsAppRuntime.2' `
         ([version]'2.3.1.0') `
         'X64' `
-        ([version]'3.2.2.0')
+        $readableXamlVersion
     $safeComplete = @(
         $safeFramework
         (New-NormalizedPackage `
@@ -380,7 +420,8 @@ if ($ContractOnly) {
         (New-NormalizedPackage `
             'Microsoft.WindowsAppRuntime.2' `
             ([version]'2.3.2.0') `
-            'X64')
+            'X64' `
+            $failedXamlVersionRead)
     )
 
     $missingTarget = Get-RuntimePreflightResult @() $null
@@ -399,6 +440,12 @@ if ($ContractOnly) {
     Assert-Condition `
         ($missingTarget.difference -eq 'ProjectRuntimeTargetNotDiscoverable') `
         'Missing project runtime metadata must remain inconclusive.'
+    Assert-Condition `
+        ($readableXamlVersion -eq [version]'3.2.2.0' -and
+            $null -eq $failedXamlVersionRead -and
+            $null -eq $invalidXamlVersionRead) `
+        ('XAML metadata access and format failures must normalize to an ' +
+            'unreadable result without terminating the preflight.')
     Assert-Condition `
         ($missingFramework.outcome -eq 'Inconclusive') `
         'Missing framework inventory must remain inconclusive.'
@@ -432,11 +479,11 @@ if ($ContractOnly) {
             'fall back to an older readable Framework.')
 
     [ordered]@{
-        schemaVersion = 3
+        schemaVersion = 4
         purpose = 'LongGridWinUiRuntimePackageSetContract'
         projectRuntimeMinimumVersion =
             $projectRuntimeMinimumVersion.ToString()
-        scenarios = 7
+        scenarios = 8
         outcome = 'Pass'
     } | ConvertTo-Json
     exit 0
@@ -470,13 +517,8 @@ $installedPackages = @(
 $normalizedPackages = @(
     foreach ($package in $installedPackages) {
         $xamlFileVersion = $null
-        if ($package.Name -eq $frameworkPackageName -and
-            -not [string]::IsNullOrWhiteSpace($package.InstallLocation)) {
-            $xamlPath = Join-Path $package.InstallLocation 'Microsoft.UI.Xaml.dll'
-            if (Test-Path -LiteralPath $xamlPath -PathType Leaf) {
-                $xamlFileVersion = [version](
-                    (Get-Item -LiteralPath $xamlPath).VersionInfo.FileVersionRaw)
-            }
+        if ($package.Name -eq $frameworkPackageName) {
+            $xamlFileVersion = Get-XamlFileVersion $package.InstallLocation
         }
         New-NormalizedPackage `
             $package.Name `
