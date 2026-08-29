@@ -105,7 +105,7 @@ public sealed class DotNetHostResolutionRealProcessTests
         using JsonDocument document = JsonDocument.Parse(result.Output);
         JsonElement root = document.RootElement;
         Assert.Equal("Pass", root.GetProperty("outcome").GetString());
-        Assert.Equal(6, root.GetProperty("scenarios").GetInt32());
+        Assert.Equal(7, root.GetProperty("scenarios").GetInt32());
         using JsonDocument packageLock = JsonDocument.Parse(File.ReadAllText(
             Path.Combine(
                 repositoryRoot,
@@ -147,6 +147,17 @@ public sealed class DotNetHostResolutionRealProcessTests
             StringComparison.Ordinal);
         Assert.Contains(
             "missingRequiredPackages",
+            liveUiScript,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "SelectedRuntimeFrameworkMetadataNotDiscoverable",
+            File.ReadAllText(Path.Combine(
+                repositoryRoot,
+                "eng",
+                "Test-LongGridWinUiUiaRuntime.ps1")),
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "could not be conclusively evaluated",
             liveUiScript,
             StringComparison.Ordinal);
     }

@@ -88,11 +88,12 @@ function Get-RuntimePreflightResult {
 
     if ($null -eq $MinimumRuntimeVersion) {
         return [ordered]@{
-            schemaVersion = 3
+            schemaVersion = 4
             purpose = 'LongGridWinUiCrossProcessUiaRuntimePreflight'
             expected = [ordered]@{
                 projectRuntimeTargetDiscoverable = $true
                 discoverableRuntime = $true
+                selectedFrameworkMetadataDiscoverable = $true
                 runtimePackageSetComplete = $true
                 knownUnsafePairAbsent = $true
             }
@@ -100,6 +101,7 @@ function Get-RuntimePreflightResult {
                 projectRuntimeTargetDiscoverable = $false
                 projectRuntimeMinimumVersion = $null
                 discoverableRuntime = $null
+                selectedFrameworkMetadataDiscoverable = $null
                 runtimePackageSetComplete = $false
                 missingRequiredPackages = @('ProjectRuntimeTarget')
                 knownUnsafePairAbsent = $null
@@ -118,19 +120,19 @@ function Get-RuntimePreflightResult {
             Where-Object {
                 $_.Name -eq $frameworkPackageName -and
                 $_.Architecture -eq $requiredArchitecture -and
-                [version]$_.Version -ge $minimumRuntimeVersion -and
-                $null -ne $_.XamlFileVersion
+                [version]$_.Version -ge $minimumRuntimeVersion
             } |
             Sort-Object -Property Version -Descending
     )
 
     if ($frameworkPackages.Count -eq 0) {
         return [ordered]@{
-            schemaVersion = 3
+            schemaVersion = 4
             purpose = 'LongGridWinUiCrossProcessUiaRuntimePreflight'
             expected = [ordered]@{
                 projectRuntimeTargetDiscoverable = $true
                 discoverableRuntime = $true
+                selectedFrameworkMetadataDiscoverable = $true
                 runtimePackageSetComplete = $true
                 knownUnsafePairAbsent = $true
             }
@@ -139,6 +141,7 @@ function Get-RuntimePreflightResult {
                 projectRuntimeMinimumVersion =
                     $minimumRuntimeVersion.ToString()
                 discoverableRuntime = $false
+                selectedFrameworkMetadataDiscoverable = $null
                 runtimePackageVersion = $null
                 xamlFileVersion = $null
                 runtimePackageSetComplete = $false
@@ -160,6 +163,37 @@ function Get-RuntimePreflightResult {
 
     $selectedRuntime = $frameworkPackages[0]
     $runtimePackageVersion = [version]$selectedRuntime.Version
+    if ($null -eq $selectedRuntime.XamlFileVersion) {
+        return [ordered]@{
+            schemaVersion = 4
+            purpose = 'LongGridWinUiCrossProcessUiaRuntimePreflight'
+            expected = [ordered]@{
+                projectRuntimeTargetDiscoverable = $true
+                discoverableRuntime = $true
+                selectedFrameworkMetadataDiscoverable = $true
+                runtimePackageSetComplete = $true
+                knownUnsafePairAbsent = $true
+            }
+            actual = [ordered]@{
+                projectRuntimeTargetDiscoverable = $true
+                projectRuntimeMinimumVersion =
+                    $minimumRuntimeVersion.ToString()
+                discoverableRuntime = $true
+                selectedFrameworkMetadataDiscoverable = $false
+                runtimePackageVersion = $runtimePackageVersion.ToString()
+                xamlFileVersion = $null
+                runtimePackageSetComplete = $null
+                frameworkPackagePresent = $true
+                mainPackagePresent = $null
+                singletonPackagePresent = $null
+                ddlmPackagePresent = $null
+                missingRequiredPackages = @()
+                knownUnsafePairAbsent = $null
+            }
+            difference = 'SelectedRuntimeFrameworkMetadataNotDiscoverable'
+            outcome = 'Inconclusive'
+        }
+    }
     $xamlFileVersion = [version]$selectedRuntime.XamlFileVersion
     $mainPackageName =
         "MicrosoftCorporationII.WinAppRuntime.Main.$($minimumRuntimeVersion.Major)"
@@ -240,11 +274,12 @@ function Get-RuntimePreflightResult {
     }
 
     [ordered]@{
-        schemaVersion = 3
+        schemaVersion = 4
         purpose = 'LongGridWinUiCrossProcessUiaRuntimePreflight'
         expected = [ordered]@{
             projectRuntimeTargetDiscoverable = $true
             discoverableRuntime = $true
+            selectedFrameworkMetadataDiscoverable = $true
             runtimePackageSetComplete = $true
             knownUnsafePairAbsent = $true
         }
@@ -253,6 +288,7 @@ function Get-RuntimePreflightResult {
             projectRuntimeMinimumVersion =
                 $minimumRuntimeVersion.ToString()
             discoverableRuntime = $true
+            selectedFrameworkMetadataDiscoverable = $true
             runtimePackageVersion = $runtimePackageVersion.ToString()
             xamlFileVersion = $xamlFileVersion.ToString()
             runtimePackageSetComplete = $runtimePackageSetComplete
@@ -339,6 +375,13 @@ if ($ContractOnly) {
             ([version]'2.3.1.0') `
             'X64')
     )
+    $unreadableHighestFramework = @(
+        $safeComplete
+        (New-NormalizedPackage `
+            'Microsoft.WindowsAppRuntime.2' `
+            ([version]'2.3.2.0') `
+            'X64')
+    )
 
     $missingTarget = Get-RuntimePreflightResult @() $null
     $missingFramework = Get-RuntimePreflightResult `
@@ -351,6 +394,8 @@ if ($ContractOnly) {
         $safeComplete $contractRuntimeMinimumVersion
     $higherCompatible = Get-RuntimePreflightResult `
         $higherCompatibleComplete $contractRuntimeMinimumVersion
+    $unreadableHighest = Get-RuntimePreflightResult `
+        $unreadableHighestFramework $contractRuntimeMinimumVersion
     Assert-Condition `
         ($missingTarget.difference -eq 'ProjectRuntimeTargetNotDiscoverable') `
         'Missing project runtime metadata must remain inconclusive.'
@@ -376,13 +421,22 @@ if ($ContractOnly) {
                 'Microsoft.WinAppRuntime.DDLM.2.3.1.0-x6') `
         ('A newer compatible package set must retain the project-locked ' +
             'DDLM identity.')
+    Assert-Condition `
+        ($unreadableHighest.outcome -eq 'Inconclusive' -and
+            $unreadableHighest.difference -eq
+                'SelectedRuntimeFrameworkMetadataNotDiscoverable' -and
+            $unreadableHighest.actual.runtimePackageVersion -eq '2.3.2.0' -and
+            -not $unreadableHighest.actual.selectedFrameworkMetadataDiscoverable) `
+        ('The highest compatible Framework must be selected before its XAML ' +
+            'metadata is evaluated; an unreadable selected candidate must not ' +
+            'fall back to an older readable Framework.')
 
     [ordered]@{
-        schemaVersion = 2
+        schemaVersion = 3
         purpose = 'LongGridWinUiRuntimePackageSetContract'
         projectRuntimeMinimumVersion =
             $projectRuntimeMinimumVersion.ToString()
-        scenarios = 6
+        scenarios = 7
         outcome = 'Pass'
     } | ConvertTo-Json
     exit 0
