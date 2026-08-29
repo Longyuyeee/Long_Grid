@@ -1,12 +1,12 @@
 # Long方格产品重对齐与统一开发计划
 
-版本：2.2
+版本：2.3
 
 状态：Required / 当前唯一执行计划
 
-更新日期：2026-08-28
+更新日期：2026-08-29
 
-代码审计输入基线：`origin/main@9b1c554`；最新产品证据托管启动门禁、整体完成度、真实环境 Actual 与唯一接续条件见 [Stage 234](234-product-evidence-managed-launch-readiness-audit.md)
+代码审计输入基线：`origin/main@fd519c8`；最新 Windows App Runtime 完整包集合预检、整体完成度、真实环境 Actual 与唯一接续条件见 [Stage 235](235-windows-app-runtime-package-set-preflight-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -758,3 +758,9 @@ Stage 223 的 main CI 首轮同时出现任务栏恢复 worker 4 秒超时和可
 Stage 234 按当前唯一接续点尝试 BOX-R1 `Initial` 时，先真实发现 Windows PowerShell 5.1 不支持 `.Kill($true)`，修正为当前无子进程树场景足够且双宿主兼容的 `.Kill()`。随后实际窗口标题表明所谓“产品窗口”是 `This application could not be started` 宿主错误框；Win32 文本明确当前电脑缺少 Windows App Runtime 2.x、MSIX package version >= 2.3.1.0 的完整组件。可枚举 Framework 包不能替代 Main/DDLM 等完整安装。
 
 M1 现必须观察自己的 `AppConstructed` 阶段后才返回 `ReadyForPhysicalInput`；BOX-R1 等待证据文件时同步检查自有进程退出和宿主错误窗口。当前真实负向矩阵均在约 1.2 秒内失败，零新增会话、零剩余进程。全量 `1,392/1,392`、0 跳过，coverage lines `90.43%`、branches `76.16%`。本轮不安装运行时、不调用 UIA、不发送输入，也不升级 BOX/M1 产品状态；详见 [Stage 234](234-product-evidence-managed-launch-readiness-audit.md)。
+
+### 13.15 Windows App Runtime 完整包集合预检（2026-08-29）
+
+Stage 234 已证明当前电脑虽可枚举 2.3.1/2.4.0 Framework，Release App 仍在用户 `Program.Main` 前报告 Runtime 组件缺失。复读实际预检发现它只验证 Framework 和 XAML DLL，没有核对 Windows App SDK 2.x 的 Main、Singleton 与精确版本/架构 DDLM。Stage 235 按官方包命名和 2.x 版本规则补齐完整集合检查；缺任一组件返回 `BlockedByIncompleteRuntime`，Live UI 与 M1 都在创建会话、启动进程和调用 UIA 前失败关闭。
+
+当前机器精确结果为 Framework `2.4.0.0` 与 Singleton `8002.4.0.0` 存在，`MicrosoftCorporationII.WinAppRuntime.Main.2` 和 `Microsoft.WinAppRuntime.DDLM.2.4.0.0-x6` 缺失；XAML `3.2.3.0` 的已知风险同时仍存在。M1 真实负向复测为 `startsProcess=false / createsEvidenceSession=false`。本地四场景合同、10 项专项、格式、Release `0 warning / 0 error` 与全量 `1,393/1,393` 通过，coverage lines `90.40%`、branches `76.16%`。M1/M2 状态不变，详见 [Stage 235](235-windows-app-runtime-package-set-preflight-audit.md)。
