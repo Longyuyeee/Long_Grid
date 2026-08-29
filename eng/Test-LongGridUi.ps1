@@ -4101,6 +4101,19 @@ function Test-LiveUi {
             'explicitly pass -AcknowledgeKnownUiaCrashRisk in a disposable ' +
             'diagnostic session.')
     }
+    if ($runtimePreflight.outcome -eq 'BlockedByIncompleteRuntime') {
+        throw (
+            'Live cross-process UIA was blocked before application launch: ' +
+            'the Windows App Runtime package set is incomplete. Missing: ' +
+            ($runtimePreflight.actual.missingRequiredPackages -join ', ') +
+            '. Install the complete matching Framework, Main, Singleton, and ' +
+            'DDLM package set in a disposable diagnostic environment.')
+    }
+    if ($runtimePreflight.outcome -eq 'Inconclusive') {
+        throw (
+            'Live cross-process UIA was blocked before application launch: ' +
+            'a compatible Windows App Runtime framework could not be discovered.')
+    }
 
     if (-not $NoBuild) {
         $dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
