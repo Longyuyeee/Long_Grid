@@ -6,7 +6,7 @@
 
 更新日期：2026-08-29
 
-代码审计输入基线：`origin/main@fd519c8`；最新 Windows App Runtime 完整包集合预检、整体完成度、真实环境 Actual 与唯一接续条件见 [Stage 235](235-windows-app-runtime-package-set-preflight-audit.md)
+代码审计输入基线：`origin/main@82eef33`；最新项目锁定 Windows App Runtime 目标预检、整体完成度、真实环境 Actual 与唯一接续条件见 [Stage 236](236-project-locked-runtime-target-preflight-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -764,3 +764,9 @@ M1 现必须观察自己的 `AppConstructed` 阶段后才返回 `ReadyForPhysica
 Stage 234 已证明当前电脑虽可枚举 2.3.1/2.4.0 Framework，Release App 仍在用户 `Program.Main` 前报告 Runtime 组件缺失。复读实际预检发现它只验证 Framework 和 XAML DLL，没有核对 Windows App SDK 2.x 的 Main、Singleton 与精确版本/架构 DDLM。Stage 235 按官方包命名和 2.x 版本规则补齐完整集合检查；缺任一组件返回 `BlockedByIncompleteRuntime`，Live UI 与 M1 都在创建会话、启动进程和调用 UIA 前失败关闭。
 
 当前机器精确结果为 Framework `2.4.0.0` 与 Singleton `8002.4.0.0` 存在，`MicrosoftCorporationII.WinAppRuntime.Main.2` 和 `Microsoft.WinAppRuntime.DDLM.2.4.0.0-x6` 缺失；XAML `3.2.3.0` 的已知风险同时仍存在。M1 真实负向复测为 `startsProcess=false / createsEvidenceSession=false`。本地四场景合同、10 项专项、格式、Release `0 warning / 0 error` 与全量 `1,393/1,393` 通过，coverage lines `90.40%`、branches `76.16%`。M1/M2 状态不变，详见 [Stage 235](235-windows-app-runtime-package-set-preflight-audit.md)。
+
+### 13.16 项目锁定 Runtime 目标预检纠偏（2026-08-29）
+
+Stage 235 虽已补齐 Framework、Main、Singleton、DDLM 集合检查，但把机器上最高 Framework `2.4.0.0` 同时当成产品目标版本，并由此反推 DDLM `2.4.0.0-x6`。实际 `LongGrid.App/packages.lock.json` 锁定 `Microsoft.WindowsAppSDK.Runtime 2.3.1`；还原包的 `WindowsAppSDK-VersionInfo.json` 和 AutoInitializer 以 `2.3.1.0` 作为 Bootstrap 最低版本并指定精确 x64 DDLM 家族 `Microsoft.WinAppRuntime.DDLM.2.3.1.0-x6`。2.x Bootstrap 可在满足最低版本的候选中选择最佳 Framework，因此“已装最高版本”与“项目锁定 DDLM 身份”不能混为一谈。
+
+Stage 236 改为从已提交锁文件跨目标框架解析唯一 Runtime 最低版本；Framework/Main/Singleton 按同一大版本和最低版本选择最佳候选，Singleton 先还原 `8000+major` 编码，DDLM 则严格使用项目锁定版本/架构身份。锁文件缺失、歧义或不可解析统一返回 `ProjectRuntimeTargetNotDiscoverable / Inconclusive`；包枚举也不再写死 `.2`，而是跟随目标大版本。当前机器仍为 Framework `2.4.0.0`、XAML `3.2.3.0`、Singleton `8002.4.0.0`，精确缺失项纠正为 Main.2 `>=2.3.1.0` 与 DDLM `2.3.1.0-x6`。M1/Live UI 均在启动前阻断，进程和证据目录保持 0→0。六场景、专项 10/10、格式、Release `0 warning / 0 error`、全量 `1,393/1,393` 与 coverage lines `90.43%`、branches `76.16%` 通过。M1/M2、30 项 PF、BOX-R1-C/D 和正式分发状态均未升级，详见 [Stage 236](236-project-locked-runtime-target-preflight-audit.md)。

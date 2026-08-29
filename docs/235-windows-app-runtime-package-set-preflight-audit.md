@@ -6,6 +6,8 @@
 
 状态：`CorrectionComplete / LocalPrAndMainAuditPassed / ProductEvidenceBlocked`
 
+> 后续勘误（Stage 236）：本文首次实现正确补齐了 Runtime 包集合检查，但从机器最高 Framework `2.4.0.0` 反推精确 DDLM `2.4.0.0-x6` 的版本来源不正确。产品实际由 `LongGrid.App/packages.lock.json` 锁定 Runtime 最低版本 `2.3.1.0`，并由对应 SDK 元数据指定精确 DDLM `2.3.1.0-x6`；Framework/Main/Singleton 可选择满足最低版本的最佳兼容候选。当前权威结论见 [Stage 236](236-project-locked-runtime-target-preflight-audit.md)，本文其余内容作为当时审计记录保留。
+
 ## 1. 接续依据与原始需求对齐
 
 Stage 234 真实启动已经证明：当前账户可以枚举 `Microsoft.WindowsAppRuntime.2` Framework 2.3.1/2.4.0，但仓库 Release 应用仍在进入用户 `Program.Main` 前显示“Required components of the Windows App Runtime are missing”。当前唯一执行计划只允许在 M1 外部条件未满足时关闭新发现的真实回归、质量或安全缺陷，不能增加邻接探针或把宿主错误框写成产品证据。

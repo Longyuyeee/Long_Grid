@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新代码、环境与需求对齐见 [Stage 235](235-windows-app-runtime-package-set-preflight-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 235 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新代码、环境与需求对齐见 [Stage 236](236-project-locked-runtime-target-preflight-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 236 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 ## Phase 0：立项与技术验证
 
@@ -412,3 +412,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-27 UI-R1F 产品语言与状态收敛：桌面内容、方格工作区和任务栏准入状态已移除“权威快照、认证 Build、恢复事务、独立检测进程”等面向用户的内部工程词，同时保留 UIA 诊断与全部失败关闭；统一执行计划纠正 BOX-R1-B 已完成工程实现但 C/D 物理证据仍 Pending 的矛盾。真实概览窗口呈现产品化首页，进程级启动为 `Difference=None`；一次进入个性化导航后窗口消失，Application Error/WER 对应 Microsoft.UI.Xaml 3.2.3.0、`0xc000027b`、P7 `8001010e` 的既有上游风险签名，因此任务栏卡片可见证据保持 Pending。首轮 UI 合同空变量和覆盖率命令错误均按 Expected/Actual 留痕并修正；最终 Release 1353/1353、coverage 90.40%/76.04%、195-ID 合同、build 0 warning/error。需求结论为 `AlignedWithCore / NoScopeExpansion`，下一核心项仍是 BOX-R1-C/D 与 M1 物理旅程，详见 [Stage 218](218-ui-r1f-product-language-status-convergence-audit.md)。
 
 2026-08-29 Windows App Runtime 完整包集合预检纠偏：Stage 234 真实宿主错误证明 Framework 可枚举不等于 Runtime 完整，Stage 235 因而按 Windows App SDK 2.x 官方命名同时核对 Framework、Main、Singleton 和精确版本/架构 DDLM。当前机器 Framework 2.4.0.0 与 Singleton 8002.4.0.0 存在，Main.2 与 DDLM.2.4.0.0-x6 缺失；M1/Live UI 现于进程和会话创建前返回 `BlockedByIncompleteRuntime`。四场景合同、专项 10/10、Release 0 warning/error、完整 1393/1393 和覆盖率 90.40%/76.16% 通过。产品代码与 M1/M2 状态不变，详见 [Stage 235](235-windows-app-runtime-package-set-preflight-audit.md)。
+
+2026-08-29 项目锁定 Runtime 目标纠偏：复读 `LongGrid.App/packages.lock.json`、还原的 `WindowsAppSDK-VersionInfo.json` 与 Bootstrap AutoInitializer 后确认，产品以锁定 Runtime `2.3.1.0` 作为最低版本并查找精确 x64 DDLM `2.3.1.0-x6`；Stage 235 从最高已装 Framework `2.4.0.0` 反推 DDLM `2.4.0.0-x6` 属版本来源偏移。Stage 236 改为锁文件驱动目标、允许 Framework/Main/Singleton 选择满足最低版本的最佳候选、DDLM 保持项目锁定身份，并让目标缺失/歧义显式 `Inconclusive`。当前机器仍安全阻断，但精确缺失项纠正为 Main.2 `>=2.3.1.0` 与 DDLM `2.3.1.0-x6`；六场景、专项 10/10、Release 0 warning/error、完整 1393/1393、覆盖率 90.43%/76.16% 通过。产品完成度和唯一接续点不变，详见 [Stage 236](236-project-locked-runtime-target-preflight-audit.md)。
