@@ -167,6 +167,36 @@ public sealed class DotNetHostResolutionRealProcessTests
             "could not be conclusively evaluated",
             liveUiScript,
             StringComparison.Ordinal);
+        Assert.Contains(
+            "$runtimePreflightRuntimeReady -and $runtimePreflightAuthorized",
+            liveUiScript,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "& powershell",
+            liveUiScript,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task LiveUiRuntimePreflightIgnoresPathSelectedPowerShell()
+    {
+        string? compatibleHost = GetCompatibleHost();
+        if (compatibleHost is null)
+        {
+            return;
+        }
+
+        ProcessResult result = await RunWithPoisonedPowerShellPathAsync(
+            compatibleHost,
+            "Test-LongGridUi.ps1",
+            "-NoBuild");
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.False(result.PoisonedPowerShellInvoked);
+        Assert.Contains(
+            "Live cross-process UIA was blocked before application launch",
+            result.Output + result.Error,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -287,6 +317,31 @@ public sealed class DotNetHostResolutionRealProcessTests
         string scriptName,
         params string[] arguments)
     {
+        return await RunWithPoisonedPathAsync(
+            compatibleHost,
+            scriptName,
+            poisonPowerShell: false,
+            arguments);
+    }
+
+    private static async Task<ProcessResult> RunWithPoisonedPowerShellPathAsync(
+        string compatibleHost,
+        string scriptName,
+        params string[] arguments)
+    {
+        return await RunWithPoisonedPathAsync(
+            compatibleHost,
+            scriptName,
+            poisonPowerShell: true,
+            arguments);
+    }
+
+    private static async Task<ProcessResult> RunWithPoisonedPathAsync(
+        string compatibleHost,
+        string scriptName,
+        bool poisonPowerShell,
+        string[] arguments)
+    {
         string temporaryDirectory = Path.Combine(
             Path.GetTempPath(),
             "LongGrid-DotNetHost-" + Guid.NewGuid().ToString("N"));
@@ -296,6 +351,22 @@ public sealed class DotNetHostResolutionRealProcessTests
             await File.WriteAllTextAsync(
                 Path.Combine(temporaryDirectory, "dotnet.cmd"),
                 "@echo off\r\nexit /b 37\r\n");
+            string poisonedPowerShellMarker = Path.Combine(
+                temporaryDirectory,
+                "powershell-invoked.txt");
+            if (poisonPowerShell)
+            {
+                const string forgedPass =
+                    "{\"schemaVersion\":5,"
+                    + "\"purpose\":\"LongGridWinUiCrossProcessUiaRuntimePreflight\","
+                    + "\"outcome\":\"Pass\"}";
+                await File.WriteAllTextAsync(
+                    Path.Combine(temporaryDirectory, "powershell.cmd"),
+                    "@echo off\r\n"
+                    + "echo invoked>\"%LONGGRID_POISON_POWERSHELL_MARKER%\"\r\n"
+                    + $"echo {forgedPass}\r\n"
+                    + "exit /b 0\r\n");
+            }
 
             string repositoryRoot = FindRepositoryRoot();
             ProcessStartInfo startInfo = new(
@@ -317,6 +388,8 @@ public sealed class DotNetHostResolutionRealProcessTests
                 Environment.GetEnvironmentVariable("PATH"));
             startInfo.Environment["ProgramW6432"] = Path.GetDirectoryName(
                 Path.GetDirectoryName(compatibleHost))!;
+            startInfo.Environment["LONGGRID_POISON_POWERSHELL_MARKER"] =
+                poisonedPowerShellMarker;
             startInfo.ArgumentList.Add("-NoProfile");
             startInfo.ArgumentList.Add("-ExecutionPolicy");
             startInfo.ArgumentList.Add("Bypass");
@@ -352,7 +425,8 @@ public sealed class DotNetHostResolutionRealProcessTests
             return new(
                 process.ExitCode,
                 (await outputTask).Trim(),
-                (await errorTask).Trim());
+                (await errorTask).Trim(),
+                File.Exists(poisonedPowerShellMarker));
         }
         finally
         {
@@ -380,5 +454,6 @@ public sealed class DotNetHostResolutionRealProcessTests
     private sealed record ProcessResult(
         int ExitCode,
         string Output,
-        string Error);
+        string Error,
+        bool PoisonedPowerShellInvoked = false);
 }
