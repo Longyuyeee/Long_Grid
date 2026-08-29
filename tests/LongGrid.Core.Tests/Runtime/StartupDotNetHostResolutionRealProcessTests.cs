@@ -105,7 +105,37 @@ public sealed class DotNetHostResolutionRealProcessTests
         using JsonDocument document = JsonDocument.Parse(result.Output);
         JsonElement root = document.RootElement;
         Assert.Equal("Pass", root.GetProperty("outcome").GetString());
-        Assert.Equal(4, root.GetProperty("scenarios").GetInt32());
+        Assert.Equal(6, root.GetProperty("scenarios").GetInt32());
+        using JsonDocument packageLock = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(
+                repositoryRoot,
+                "src",
+                "LongGrid.App",
+                "packages.lock.json")));
+        string[] lockedRuntimeVersions = packageLock
+            .RootElement
+            .GetProperty("dependencies")
+            .EnumerateObject()
+            .Select(targetFramework => targetFramework.Value)
+            .Where(targetFramework => targetFramework.TryGetProperty(
+                "Microsoft.WindowsAppSDK.Runtime",
+                out _))
+            .Select(targetFramework => targetFramework
+                .GetProperty("Microsoft.WindowsAppSDK.Runtime")
+                .GetProperty("resolved")
+                .GetString()!)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        string lockedRuntimeVersion = Assert.Single(lockedRuntimeVersions);
+        Version lockedRuntime = Version.Parse(lockedRuntimeVersion);
+        string expectedRuntime = new Version(
+            lockedRuntime.Major,
+            lockedRuntime.Minor,
+            Math.Max(0, lockedRuntime.Build),
+            Math.Max(0, lockedRuntime.Revision)).ToString();
+        Assert.Equal(
+            expectedRuntime,
+            root.GetProperty("projectRuntimeMinimumVersion").GetString());
 
         string liveUiScript = File.ReadAllText(Path.Combine(
             repositoryRoot,

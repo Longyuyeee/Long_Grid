@@ -8,6 +8,9 @@ $knownUnsafeRuntimePackageVersion = [version]'2.4.0.0'
 $knownUnsafeXamlFileVersion = [version]'3.2.3.0'
 $requiredArchitecture = 'X64'
 $requiredDdlmArchitectureSuffix = 'x6'
+$projectRoot = Split-Path $PSScriptRoot -Parent
+$appPackageLockPath = Join-Path $projectRoot `
+    'src\LongGrid.App\packages.lock.json'
 
 function Assert-Condition {
     param([bool]$Condition, [string]$Message)
@@ -30,14 +33,92 @@ function New-NormalizedPackage {
     }
 }
 
+function ConvertTo-FourPartVersion {
+    param([version]$Version)
+
+    [version]('{0}.{1}.{2}.{3}' -f
+        $Version.Major,
+        $Version.Minor,
+        [Math]::Max(0, $Version.Build),
+        [Math]::Max(0, $Version.Revision))
+}
+
+function Get-ProjectRuntimeMinimumVersion {
+    Assert-Condition `
+        (Test-Path -LiteralPath $appPackageLockPath -PathType Leaf) `
+        "LongGrid.App package lock was not found: $appPackageLockPath"
+
+    $lock = Get-Content -LiteralPath $appPackageLockPath -Raw |
+        ConvertFrom-Json
+    $resolvedVersions = @(
+        @(
+            foreach ($framework in $lock.dependencies.PSObject.Properties) {
+                $runtime = $framework.Value.'Microsoft.WindowsAppSDK.Runtime'
+                if ($null -ne $runtime -and
+                    -not [string]::IsNullOrWhiteSpace($runtime.resolved)) {
+                    [string]$runtime.resolved
+                }
+            }
+        ) | Select-Object -Unique
+    )
+
+    Assert-Condition `
+        ($resolvedVersions.Count -eq 1) `
+        ('LongGrid.App package lock must resolve exactly one ' +
+            'Microsoft.WindowsAppSDK.Runtime version.')
+    ConvertTo-FourPartVersion ([version]$resolvedVersions[0])
+}
+
+function ConvertFrom-SingletonPackageVersion {
+    param([version]$Version)
+
+    if ($Version.Major -lt 8000) { return $null }
+    [version]('{0}.{1}.{2}.{3}' -f
+        ($Version.Major - 8000),
+        $Version.Minor,
+        $Version.Build,
+        $Version.Revision)
+}
+
 function Get-RuntimePreflightResult {
-    param([object[]]$Packages)
+    param(
+        [object[]]$Packages,
+        [version]$MinimumRuntimeVersion
+    )
+
+    if ($null -eq $MinimumRuntimeVersion) {
+        return [ordered]@{
+            schemaVersion = 3
+            purpose = 'LongGridWinUiCrossProcessUiaRuntimePreflight'
+            expected = [ordered]@{
+                projectRuntimeTargetDiscoverable = $true
+                discoverableRuntime = $true
+                runtimePackageSetComplete = $true
+                knownUnsafePairAbsent = $true
+            }
+            actual = [ordered]@{
+                projectRuntimeTargetDiscoverable = $false
+                projectRuntimeMinimumVersion = $null
+                discoverableRuntime = $null
+                runtimePackageSetComplete = $false
+                missingRequiredPackages = @('ProjectRuntimeTarget')
+                knownUnsafePairAbsent = $null
+            }
+            difference = 'ProjectRuntimeTargetNotDiscoverable'
+            outcome = 'Inconclusive'
+        }
+    }
+
+    $minimumRuntimeVersion = ConvertTo-FourPartVersion $MinimumRuntimeVersion
+    $frameworkPackageName =
+        "Microsoft.WindowsAppRuntime.$($minimumRuntimeVersion.Major)"
 
     $frameworkPackages = @(
         $Packages |
             Where-Object {
-                $_.Name -eq 'Microsoft.WindowsAppRuntime.2' -and
+                $_.Name -eq $frameworkPackageName -and
                 $_.Architecture -eq $requiredArchitecture -and
+                [version]$_.Version -ge $minimumRuntimeVersion -and
                 $null -ne $_.XamlFileVersion
             } |
             Sort-Object -Property Version -Descending
@@ -45,14 +126,18 @@ function Get-RuntimePreflightResult {
 
     if ($frameworkPackages.Count -eq 0) {
         return [ordered]@{
-            schemaVersion = 2
+            schemaVersion = 3
             purpose = 'LongGridWinUiCrossProcessUiaRuntimePreflight'
             expected = [ordered]@{
+                projectRuntimeTargetDiscoverable = $true
                 discoverableRuntime = $true
                 runtimePackageSetComplete = $true
                 knownUnsafePairAbsent = $true
             }
             actual = [ordered]@{
+                projectRuntimeTargetDiscoverable = $true
+                projectRuntimeMinimumVersion =
+                    $minimumRuntimeVersion.ToString()
                 discoverableRuntime = $false
                 runtimePackageVersion = $null
                 xamlFileVersion = $null
@@ -61,7 +146,11 @@ function Get-RuntimePreflightResult {
                 mainPackagePresent = $false
                 singletonPackagePresent = $false
                 ddlmPackagePresent = $false
-                missingRequiredPackages = @('Framework')
+                expectedFrameworkPackage =
+                    "$frameworkPackageName@$($minimumRuntimeVersion.ToString())-or-later"
+                missingRequiredPackages = @(
+                    "$frameworkPackageName@$($minimumRuntimeVersion.ToString())-or-later"
+                )
                 knownUnsafePairAbsent = $null
             }
             difference = 'RuntimeFrameworkNotDiscoverable'
@@ -73,45 +162,57 @@ function Get-RuntimePreflightResult {
     $runtimePackageVersion = [version]$selectedRuntime.Version
     $xamlFileVersion = [version]$selectedRuntime.XamlFileVersion
     $mainPackageName =
-        "MicrosoftCorporationII.WinAppRuntime.Main.$($runtimePackageVersion.Major)"
+        "MicrosoftCorporationII.WinAppRuntime.Main.$($minimumRuntimeVersion.Major)"
     $singletonPackageName =
         'MicrosoftCorporationII.WinAppRuntime.Singleton'
     $ddlmPackageName =
-        "Microsoft.WinAppRuntime.DDLM.$($runtimePackageVersion.ToString())-$requiredDdlmArchitectureSuffix"
-    $singletonPackageVersion = [version](
-        '{0}.{1}.{2}.{3}' -f
-            (8000 + $runtimePackageVersion.Major),
-            $runtimePackageVersion.Minor,
-            $runtimePackageVersion.Build,
-            $runtimePackageVersion.Revision)
+        "Microsoft.WinAppRuntime.DDLM.$($minimumRuntimeVersion.ToString())-$requiredDdlmArchitectureSuffix"
 
-    $mainPackagePresent = @(
+    $mainPackages = @(
         $Packages | Where-Object {
             $_.Name -eq $mainPackageName -and
             $_.Architecture -eq $requiredArchitecture -and
-            [version]$_.Version -eq $runtimePackageVersion
-        }
-    ).Count -gt 0
-    $singletonPackagePresent = @(
-        $Packages | Where-Object {
-            $_.Name -eq $singletonPackageName -and
-            $_.Architecture -eq $requiredArchitecture -and
-            [version]$_.Version -eq $singletonPackageVersion
-        }
-    ).Count -gt 0
+            [version]$_.Version -ge $minimumRuntimeVersion
+        } | Sort-Object -Property Version -Descending
+    )
+    $singletonPackages = @(
+        @(
+            foreach ($package in $Packages) {
+                if ($package.Name -ne $singletonPackageName -or
+                    $package.Architecture -ne $requiredArchitecture) {
+                    continue
+                }
+                $runtimeVersion = ConvertFrom-SingletonPackageVersion `
+                    ([version]$package.Version)
+                if ($null -ne $runtimeVersion -and
+                    $runtimeVersion.Major -eq $minimumRuntimeVersion.Major -and
+                    $runtimeVersion -ge $minimumRuntimeVersion) {
+                    [pscustomobject]@{
+                        Package = $package
+                        RuntimeVersion = $runtimeVersion
+                    }
+                }
+            }
+        ) | Sort-Object -Property RuntimeVersion -Descending
+    )
+    $mainPackagePresent = $mainPackages.Count -gt 0
+    $singletonPackagePresent = $singletonPackages.Count -gt 0
     $ddlmPackagePresent = @(
         $Packages | Where-Object {
             $_.Name -eq $ddlmPackageName -and
             $_.Architecture -eq $requiredArchitecture -and
-            [version]$_.Version -eq $runtimePackageVersion
+            [version]$_.Version -eq $minimumRuntimeVersion
         }
     ).Count -gt 0
 
     $missingRequiredPackages = @()
-    if (-not $mainPackagePresent) { $missingRequiredPackages += $mainPackageName }
+    if (-not $mainPackagePresent) {
+        $missingRequiredPackages +=
+            "$mainPackageName@$($minimumRuntimeVersion.ToString())-or-later"
+    }
     if (-not $singletonPackagePresent) {
         $missingRequiredPackages +=
-            "$singletonPackageName@$($singletonPackageVersion.ToString())"
+            "$singletonPackageName@runtime-$($minimumRuntimeVersion.ToString())-or-later"
     }
     if (-not $ddlmPackagePresent) { $missingRequiredPackages += $ddlmPackageName }
     $runtimePackageSetComplete = $missingRequiredPackages.Count -eq 0
@@ -139,14 +240,18 @@ function Get-RuntimePreflightResult {
     }
 
     [ordered]@{
-        schemaVersion = 2
+        schemaVersion = 3
         purpose = 'LongGridWinUiCrossProcessUiaRuntimePreflight'
         expected = [ordered]@{
+            projectRuntimeTargetDiscoverable = $true
             discoverableRuntime = $true
             runtimePackageSetComplete = $true
             knownUnsafePairAbsent = $true
         }
         actual = [ordered]@{
+            projectRuntimeTargetDiscoverable = $true
+            projectRuntimeMinimumVersion =
+                $minimumRuntimeVersion.ToString()
             discoverableRuntime = $true
             runtimePackageVersion = $runtimePackageVersion.ToString()
             xamlFileVersion = $xamlFileVersion.ToString()
@@ -157,8 +262,14 @@ function Get-RuntimePreflightResult {
             ddlmPackagePresent = $ddlmPackagePresent
             expectedMainPackage = $mainPackageName
             expectedSingletonPackage =
-                "$singletonPackageName@$($singletonPackageVersion.ToString())"
+                "$singletonPackageName@runtime-$($minimumRuntimeVersion.ToString())-or-later"
             expectedDdlmPackage = $ddlmPackageName
+            selectedMainPackageVersion = if ($mainPackagePresent) {
+                ([version]$mainPackages[0].Version).ToString()
+            } else { $null }
+            selectedSingletonPackageVersion = if ($singletonPackagePresent) {
+                ([version]$singletonPackages[0].Package.Version).ToString()
+            } else { $null }
             missingRequiredPackages = $missingRequiredPackages
             knownUnsafePairAbsent = -not $knownUnsafePair
         }
@@ -168,6 +279,8 @@ function Get-RuntimePreflightResult {
 }
 
 if ($ContractOnly) {
+    $projectRuntimeMinimumVersion = Get-ProjectRuntimeMinimumVersion
+    $contractRuntimeMinimumVersion = [version]'2.3.1.0'
     $safeFramework = New-NormalizedPackage `
         'Microsoft.WindowsAppRuntime.2' `
         ([version]'2.3.1.0') `
@@ -203,15 +316,44 @@ if ($ContractOnly) {
             ([version]'8002.4.0.0') `
             'X64')
         (New-NormalizedPackage `
-            'Microsoft.WinAppRuntime.DDLM.2.4.0.0-x6' `
-            ([version]'2.4.0.0') `
+            'Microsoft.WinAppRuntime.DDLM.2.3.1.0-x6' `
+            ([version]'2.3.1.0') `
+            'X64')
+    )
+    $higherCompatibleComplete = @(
+        (New-NormalizedPackage `
+            'Microsoft.WindowsAppRuntime.2' `
+            ([version]'2.3.2.0') `
+            'X64' `
+            ([version]'3.2.2.0'))
+        (New-NormalizedPackage `
+            'MicrosoftCorporationII.WinAppRuntime.Main.2' `
+            ([version]'2.3.2.0') `
+            'X64')
+        (New-NormalizedPackage `
+            'MicrosoftCorporationII.WinAppRuntime.Singleton' `
+            ([version]'8002.3.2.0') `
+            'X64')
+        (New-NormalizedPackage `
+            'Microsoft.WinAppRuntime.DDLM.2.3.1.0-x6' `
+            ([version]'2.3.1.0') `
             'X64')
     )
 
-    $missingFramework = Get-RuntimePreflightResult @()
-    $incomplete = Get-RuntimePreflightResult @($safeFramework)
-    $unsafe = Get-RuntimePreflightResult $unsafeComplete
-    $safe = Get-RuntimePreflightResult $safeComplete
+    $missingTarget = Get-RuntimePreflightResult @() $null
+    $missingFramework = Get-RuntimePreflightResult `
+        @() $contractRuntimeMinimumVersion
+    $incomplete = Get-RuntimePreflightResult `
+        @($safeFramework) $contractRuntimeMinimumVersion
+    $unsafe = Get-RuntimePreflightResult `
+        $unsafeComplete $contractRuntimeMinimumVersion
+    $safe = Get-RuntimePreflightResult `
+        $safeComplete $contractRuntimeMinimumVersion
+    $higherCompatible = Get-RuntimePreflightResult `
+        $higherCompatibleComplete $contractRuntimeMinimumVersion
+    Assert-Condition `
+        ($missingTarget.difference -eq 'ProjectRuntimeTargetNotDiscoverable') `
+        'Missing project runtime metadata must remain inconclusive.'
     Assert-Condition `
         ($missingFramework.outcome -eq 'Inconclusive') `
         'Missing framework inventory must remain inconclusive.'
@@ -221,15 +363,26 @@ if ($ContractOnly) {
         'Incomplete runtime inventory must fail closed with all missing packages.'
     Assert-Condition `
         ($unsafe.outcome -eq 'BlockedByKnownUpstream') `
-        'A complete known-unsafe runtime pair must remain blocked.'
+        ('A complete known-unsafe runtime pair must remain blocked. ' +
+            "Actual=$($unsafe.outcome); " +
+            "Missing=$($unsafe.actual.missingRequiredPackages -join ',').")
     Assert-Condition `
         ($safe.outcome -eq 'Pass') `
         'A complete safe runtime package set must pass.'
+    Assert-Condition `
+        ($higherCompatible.outcome -eq 'Pass' -and
+            $higherCompatible.actual.runtimePackageVersion -eq '2.3.2.0' -and
+            $higherCompatible.actual.expectedDdlmPackage -eq
+                'Microsoft.WinAppRuntime.DDLM.2.3.1.0-x6') `
+        ('A newer compatible package set must retain the project-locked ' +
+            'DDLM identity.')
 
     [ordered]@{
-        schemaVersion = 1
+        schemaVersion = 2
         purpose = 'LongGridWinUiRuntimePackageSetContract'
-        scenarios = 4
+        projectRuntimeMinimumVersion =
+            $projectRuntimeMinimumVersion.ToString()
+        scenarios = 6
         outcome = 'Pass'
     } | ConvertTo-Json
     exit 0
@@ -239,10 +392,22 @@ if ($env:OS -ne 'Windows_NT') {
     throw 'The WinUI UIA runtime preflight can only run on Windows.'
 }
 
+$projectRuntimeMinimumVersion = try {
+    Get-ProjectRuntimeMinimumVersion
+}
+catch {
+    $null
+}
+if ($null -eq $projectRuntimeMinimumVersion) {
+    Get-RuntimePreflightResult @() $null | ConvertTo-Json -Depth 6
+    exit 0
+}
+$frameworkPackageName =
+    "Microsoft.WindowsAppRuntime.$($projectRuntimeMinimumVersion.Major)"
 $installedPackages = @(
     Get-AppxPackage -ErrorAction Stop |
         Where-Object {
-            $_.Name -eq 'Microsoft.WindowsAppRuntime.2' -or
+            $_.Name -eq $frameworkPackageName -or
             $_.Name -like 'MicrosoftCorporationII.WinAppRuntime.Main.*' -or
             $_.Name -eq 'MicrosoftCorporationII.WinAppRuntime.Singleton' -or
             $_.Name -like 'Microsoft.WinAppRuntime.DDLM.*'
@@ -251,7 +416,7 @@ $installedPackages = @(
 $normalizedPackages = @(
     foreach ($package in $installedPackages) {
         $xamlFileVersion = $null
-        if ($package.Name -eq 'Microsoft.WindowsAppRuntime.2' -and
+        if ($package.Name -eq $frameworkPackageName -and
             -not [string]::IsNullOrWhiteSpace($package.InstallLocation)) {
             $xamlPath = Join-Path $package.InstallLocation 'Microsoft.UI.Xaml.dll'
             if (Test-Path -LiteralPath $xamlPath -PathType Leaf) {
@@ -267,4 +432,6 @@ $normalizedPackages = @(
     }
 )
 
-Get-RuntimePreflightResult $normalizedPackages | ConvertTo-Json -Depth 6
+Get-RuntimePreflightResult `
+    $normalizedPackages `
+    $projectRuntimeMinimumVersion | ConvertTo-Json -Depth 6

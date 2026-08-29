@@ -4106,8 +4106,8 @@ function Test-LiveUi {
             'Live cross-process UIA was blocked before application launch: ' +
             'the Windows App Runtime package set is incomplete. Missing: ' +
             ($runtimePreflight.actual.missingRequiredPackages -join ', ') +
-            '. Install the complete matching Framework, Main, Singleton, and ' +
-            'DDLM package set in a disposable diagnostic environment.')
+            '. Install the complete compatible Framework, Main, Singleton, and ' +
+            'project-locked DDLM package set in a disposable diagnostic environment.')
     }
     if ($runtimePreflight.outcome -eq 'Inconclusive') {
         throw (
