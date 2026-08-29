@@ -6,7 +6,7 @@
 
 更新日期：2026-08-30
 
-代码审计输入基线：`origin/main@58c7ade`；最新 Windows App Runtime 包清单枚举失败关闭、整体完成度、真实环境 Actual 与唯一接续条件见 [Stage 239](239-runtime-package-inventory-failure-audit.md)
+代码审计输入基线：`origin/main@4ef00d4`；最新 Live UI Runtime 预检宿主与准入完整性、整体完成度、真实环境 Actual 与唯一接续条件见 [Stage 240](240-live-ui-runtime-preflight-host-integrity-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -788,3 +788,9 @@ Stage 237 已规定选中最高 Framework 的 XAML 元数据不可读时必须�
 Stage 238 已把单个 Framework 的 XAML 元数据读取异常归一化，但真实入口仍在受控边界外直接执行 `Get-AppxPackage -ErrorAction Stop`。包数据库、权限或相关服务异常会在 schema JSON 产生前终止脚本；Live UI/M1 虽不会放行，却失去稳定 Difference、Outcome 与零启动证据。Stage 239 增加受控包清单读取器并为 schema 5 增加 `runtimePackageInventoryDiscoverable`：读取异常返回 `RuntimePackageInventoryNotDiscoverable / Inconclusive`，不记录异常文本；成功读取空列表仍保持 `RuntimeFrameworkNotDiscoverable`，避免把“不可读取”误写成“确认未安装”。
 
 合同真实注入枚举异常，同时断言成功读取的四包集合被完整保留，合同扩为九场景。当前机器 `runtimePackageInventoryDiscoverable=true`，真实结果仍因缺 Main.2 `>=2.3.1.0` 与精确 DDLM `2.3.1.0-x6` 为 `BlockedByIncompleteRuntime`。Live UI 退出 1，M1 `startsProcess=false / createsEvidenceSession=false`，进程与证据目录 0→0。专项 10/10、格式、Release 0 warning/error、完整 1393/1393、覆盖率 lines 90.41%、branches 76.17% 通过。该修正只补全已有失败关闭证据，不升级产品、物理旅程或发布状态；唯一接续点仍由 #23/#274、完整兼容 Runtime、签名包和独占可丢弃 Windows 会话共同约束，详见 [Stage 239](239-runtime-package-inventory-failure-audit.md)。
+
+### 13.20 Stage 240：Live UI Runtime 预检宿主与准入完整性
+
+Stage 239 的 Runtime 预检本体已能稳定返回 schema 5，但 Live UI 通过裸 `powershell` 命令启动它。调用者控制的 PATH 可让同名命令返回伪造 `Pass`，而消费者只处理三个已知阻断 Outcome，未知或缺失 Outcome 也会落入产品/UIA 启动路径。这是既有失败关闭路线上的真实 fail-open，不是新增产品范围。
+
+Stage 240 让 Live UI 在当前受信 PowerShell 进程中直接调用精确的 `Test-LongGridWinUiUiaRuntime.ps1` 路径；消费者先固定 schema 5、purpose 和有限 Outcome，再要求项目目标、包清单、Framework、选中 Framework 元数据和完整包集合均明确为真。普通 `Pass` 还必须匹配 `difference=None / knownUnsafePairAbsent=true`；只有显式确认参数存在时，完整且精确匹配已知风险的 `BlockedByKnownUpstream` 才可继续。真实进程测试在 PATH 前置伪造 `powershell.cmd` 并写调用标记，确认标记未产生且 Live UI 仍按真实缺失 Runtime 在应用启动前阻断。专项 11/11、九场景合同、格式、Release 0 warning/error、完整 1394/1394、覆盖率 lines 90.43%、branches 76.16% 通过；漏洞 0，许可证、签名、安装和分发继续阻断。当前机器仍缺 Main.2 `>=2.3.1.0` 与 DDLM `2.3.1.0-x6`，M1 仍 `startsProcess=false / createsEvidenceSession=false`，进程 0→0。产品完成度和唯一接续点不变，详见 [Stage 240](240-live-ui-runtime-preflight-host-integrity-audit.md)。

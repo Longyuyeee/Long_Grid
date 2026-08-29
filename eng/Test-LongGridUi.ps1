@@ -4079,13 +4079,20 @@ function Test-LiveUi {
 
     $runtimePreflightPath = Join-Path $PSScriptRoot `
         'Test-LongGridWinUiUiaRuntime.ps1'
-    $runtimePreflightJson = & powershell `
-        -NoProfile `
-        -ExecutionPolicy Bypass `
-        -File $runtimePreflightPath
-    Assert-Condition ($LASTEXITCODE -eq 0) `
-        'The WinUI cross-process UIA runtime preflight failed to execute.'
+    $runtimePreflightJson = & $runtimePreflightPath
     $runtimePreflight = $runtimePreflightJson | ConvertFrom-Json
+    $supportedRuntimePreflightOutcomes = @(
+        'Pass'
+        'BlockedByKnownUpstream'
+        'BlockedByIncompleteRuntime'
+        'Inconclusive'
+    )
+    Assert-Condition (
+        $runtimePreflight.schemaVersion -eq 5 -and
+        $runtimePreflight.purpose -eq
+            'LongGridWinUiCrossProcessUiaRuntimePreflight' -and
+        $runtimePreflight.outcome -in $supportedRuntimePreflightOutcomes) `
+        'The WinUI cross-process UIA runtime preflight returned an invalid contract.'
     if (
         $runtimePreflight.outcome -eq 'BlockedByKnownUpstream' -and
         -not $AcknowledgeKnownUiaCrashRisk)
@@ -4116,6 +4123,24 @@ function Test-LiveUi {
             'Framework metadata could not be conclusively evaluated. Difference: ' +
             $runtimePreflight.difference + '.')
     }
+    $runtimePreflightRuntimeReady =
+        $runtimePreflight.actual.projectRuntimeTargetDiscoverable -eq $true -and
+        $runtimePreflight.actual.runtimePackageInventoryDiscoverable -eq $true -and
+        $runtimePreflight.actual.discoverableRuntime -eq $true -and
+        $runtimePreflight.actual.selectedFrameworkMetadataDiscoverable -eq $true -and
+        $runtimePreflight.actual.runtimePackageSetComplete -eq $true
+    $runtimePreflightAuthorized =
+        ($runtimePreflight.outcome -eq 'Pass' -and
+            $runtimePreflight.difference -eq 'None' -and
+            $runtimePreflight.actual.knownUnsafePairAbsent -eq $true) -or
+        ($runtimePreflight.outcome -eq 'BlockedByKnownUpstream' -and
+            $runtimePreflight.difference -eq
+                'KnownUnsafeCrossProcessUiaRuntimePairPresent' -and
+            $runtimePreflight.actual.knownUnsafePairAbsent -eq $false -and
+            $AcknowledgeKnownUiaCrashRisk)
+    Assert-Condition (
+        $runtimePreflightRuntimeReady -and $runtimePreflightAuthorized) `
+        'The WinUI cross-process UIA runtime preflight did not authorize live UIA.'
 
     if (-not $NoBuild) {
         $dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot

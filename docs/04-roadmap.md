@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新代码、环境与需求对齐见 [Stage 239](239-runtime-package-inventory-failure-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 239 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新代码、环境与需求对齐见 [Stage 240](240-live-ui-runtime-preflight-host-integrity-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 240 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 ## Phase 0：立项与技术验证
 
@@ -420,3 +420,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-30 Runtime 元数据读取异常归一化：Stage 237 的结果函数能表达选中候选元数据不可读，但真实枚举仍在 `Get-Item(...).VersionInfo` 或 `[version]` 强转异常时提前退出，无法形成结构化审计结果。Stage 238 把文件访问、空值和非法版本解析收进受控读取器，任何异常都归一化为 `null`，再由最高候选逻辑返回明确 `Inconclusive`；较低候选读取异常也不再中断对最高候选的判断。合同扩为八场景，专项 10/10、Release 0 warning/error、完整 1393/1393、覆盖率 90.41%/76.17% 通过；当前真实阻断和 0→0 副作用不变。产品完成度与唯一接续点不变，详见 [Stage 238](238-runtime-metadata-read-failure-audit.md)。
 
 2026-08-30 Runtime 包清单枚举失败关闭：Stage 238 处理了单个 Framework 元数据读取异常，但 `Get-AppxPackage -ErrorAction Stop` 自身仍在结构化边界外；包数据库、权限或服务异常会让预检在输出 JSON 前终止。Stage 239 增加受控清单读取器，读取失败返回 `RuntimePackageInventoryNotDiscoverable / Inconclusive`，读取成功但空列表仍返回 `RuntimeFrameworkNotDiscoverable`，不混淆宿主事实。合同扩为九场景，专项 10/10、Release 0 warning/error、完整 1393/1393、覆盖率 90.41%/76.17% 通过；当前真实阻断、进程和证据目录 0→0 不变。产品完成度与唯一接续点不变，详见 [Stage 239](239-runtime-package-inventory-failure-audit.md)。
+
+2026-08-30 Live UI Runtime 预检宿主与准入完整性：Stage 239 的预检本体已经结构化失败关闭，但 Live UI 消费者仍通过 PATH 解析裸 `powershell`，同名脚本/可执行文件可伪造 `Pass`；消费者也没有显式拒绝未知 Outcome。Stage 240 改为在当前受信 PowerShell 进程直接执行精确仓库预检脚本，固定 schema/purpose/Outcome 集合，并要求 Runtime 五项就绪事实及 `difference/knownUnsafePairAbsent` 与准入结果一致。真实 PATH 投毒回归证明伪造宿主未被调用；专项 11/11、完整 1394/1394、覆盖率 90.43%/76.16%、Release 0 warning/error。当前 Runtime 缺项、0→0 进程副作用、产品完成度和唯一接续点均不变，详见 [Stage 240](240-live-ui-runtime-preflight-host-integrity-audit.md)。
