@@ -4,7 +4,7 @@
 
 基线：`origin/main@4ef00d4a2a31c35465a138b4156bd6a9887c6661`
 
-状态：`CorrectionComplete / RemoteAuditPending / ProductEvidenceBlocked`
+状态：`CorrectionComplete / PrAndMainAuditPassed / ProductEvidenceBlocked`
 
 ## 1. 接续复读与路线约束
 
@@ -57,6 +57,10 @@ M1/M2 继续为 `0/2 Complete`，30 项 PF 继续为 `0 Complete`；BOX-R1-C/D�
 
 唯一接续点不变：等待 #23/#274 提供许可证、Publisher、托管签名和签名包；在安装完整兼容 Runtime、具备安全 WinUI/UIA、没有既有 Long方格进程的独占可丢弃 Windows 会话中，执行 BOX-R1 三场景与 M1 完整物理旅程。外部事实未变化时，只处理新的真实回归、质量或安全缺陷。
 
-## 7. 远端审计（待回填）
+## 7. 远端审计
 
-实现提交 `d3b5084` 已完成本地审计。PR CI、CodeQL、合并提交与最终 main 复核必须在远端实际完成后据实回填；在此之前状态保持 `RemoteAuditPending`，不得把本地通过写成远端完成。
+实现提交 `d3b5084` 与文档提交 `b21de46` 经 [PR #310](https://github.com/Longyuyeee/Long_Grid/pull/310) 合并为 `main@b41d92af2a7559ef0a9d37e2726c9b3bafae0c78`。PR CI run `33266636450` 全部通过：完整测试 `1,394/1,394`、0 skipped，coverage lines `90.11% (46,920/52,072)`、branches `76.03% (15,432/20,298)`；漏洞 0，依赖包 30，许可证继续为 `PendingOwnerReviewAndNotice`，SBOM 805 个文件，内部 RC 保持 `signed=false / installable=false / distributionApproved=false`。PR CodeQL run `33266636431` 的 C++、C# 分析均成功，Code Scanning API 对该分支返回开放告警 0。
+
+精确合并提交自己的 main CI run `33266990470` 全部通过：完整测试 `1,394/1,394`、0 skipped，coverage lines `90.11% (46,924/52,072)`、branches `76.04% (15,434/20,298)`；漏洞 0、许可证待审、SBOM 805 个文件与 unsigned RC 否定性门禁均保持。main CodeQL run `33266990478` 的 C++、C# 分析均成功，main 开放告警 0。
+
+PR 与精确 main 没有产生新的代码、质量、安全或供应链差异。#23/#274 均继续开放且更新时间未变化，远端工程门禁不能替代尚未取得的物理产品证据。本次回填不改变 M1/M2、PF 或唯一接续点；本文自己的文档提交只需独立通过 PR/main 检查，不再追加第三层文档收口。
