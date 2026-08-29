@@ -74,6 +74,24 @@ function Get-XamlFileVersion {
     }
 }
 
+function Get-RuntimePackageInventory {
+    param([scriptblock]$ReadPackages)
+
+    try {
+        $packages = @(& $ReadPackages)
+        return [pscustomobject]@{
+            Discoverable = $true
+            Packages = $packages
+        }
+    }
+    catch {
+        return [pscustomobject]@{
+            Discoverable = $false
+            Packages = @()
+        }
+    }
+}
+
 function Get-ProjectRuntimeMinimumVersion {
     Assert-Condition `
         (Test-Path -LiteralPath $appPackageLockPath -PathType Leaf) `
@@ -114,15 +132,17 @@ function ConvertFrom-SingletonPackageVersion {
 function Get-RuntimePreflightResult {
     param(
         [object[]]$Packages,
-        [version]$MinimumRuntimeVersion
+        [version]$MinimumRuntimeVersion,
+        [bool]$PackageInventoryDiscoverable = $true
     )
 
     if ($null -eq $MinimumRuntimeVersion) {
         return [ordered]@{
-            schemaVersion = 4
+            schemaVersion = 5
             purpose = 'LongGridWinUiCrossProcessUiaRuntimePreflight'
             expected = [ordered]@{
                 projectRuntimeTargetDiscoverable = $true
+                runtimePackageInventoryDiscoverable = $true
                 discoverableRuntime = $true
                 selectedFrameworkMetadataDiscoverable = $true
                 runtimePackageSetComplete = $true
@@ -131,6 +151,7 @@ function Get-RuntimePreflightResult {
             actual = [ordered]@{
                 projectRuntimeTargetDiscoverable = $false
                 projectRuntimeMinimumVersion = $null
+                runtimePackageInventoryDiscoverable = $null
                 discoverableRuntime = $null
                 selectedFrameworkMetadataDiscoverable = $null
                 runtimePackageSetComplete = $false
@@ -146,6 +167,40 @@ function Get-RuntimePreflightResult {
     $frameworkPackageName =
         "Microsoft.WindowsAppRuntime.$($minimumRuntimeVersion.Major)"
 
+    if (-not $PackageInventoryDiscoverable) {
+        return [ordered]@{
+            schemaVersion = 5
+            purpose = 'LongGridWinUiCrossProcessUiaRuntimePreflight'
+            expected = [ordered]@{
+                projectRuntimeTargetDiscoverable = $true
+                runtimePackageInventoryDiscoverable = $true
+                discoverableRuntime = $true
+                selectedFrameworkMetadataDiscoverable = $true
+                runtimePackageSetComplete = $true
+                knownUnsafePairAbsent = $true
+            }
+            actual = [ordered]@{
+                projectRuntimeTargetDiscoverable = $true
+                projectRuntimeMinimumVersion =
+                    $minimumRuntimeVersion.ToString()
+                runtimePackageInventoryDiscoverable = $false
+                discoverableRuntime = $null
+                selectedFrameworkMetadataDiscoverable = $null
+                runtimePackageVersion = $null
+                xamlFileVersion = $null
+                runtimePackageSetComplete = $null
+                frameworkPackagePresent = $null
+                mainPackagePresent = $null
+                singletonPackagePresent = $null
+                ddlmPackagePresent = $null
+                missingRequiredPackages = @('RuntimePackageInventory')
+                knownUnsafePairAbsent = $null
+            }
+            difference = 'RuntimePackageInventoryNotDiscoverable'
+            outcome = 'Inconclusive'
+        }
+    }
+
     $frameworkPackages = @(
         $Packages |
             Where-Object {
@@ -158,10 +213,11 @@ function Get-RuntimePreflightResult {
 
     if ($frameworkPackages.Count -eq 0) {
         return [ordered]@{
-            schemaVersion = 4
+            schemaVersion = 5
             purpose = 'LongGridWinUiCrossProcessUiaRuntimePreflight'
             expected = [ordered]@{
                 projectRuntimeTargetDiscoverable = $true
+                runtimePackageInventoryDiscoverable = $true
                 discoverableRuntime = $true
                 selectedFrameworkMetadataDiscoverable = $true
                 runtimePackageSetComplete = $true
@@ -171,6 +227,7 @@ function Get-RuntimePreflightResult {
                 projectRuntimeTargetDiscoverable = $true
                 projectRuntimeMinimumVersion =
                     $minimumRuntimeVersion.ToString()
+                runtimePackageInventoryDiscoverable = $true
                 discoverableRuntime = $false
                 selectedFrameworkMetadataDiscoverable = $null
                 runtimePackageVersion = $null
@@ -196,10 +253,11 @@ function Get-RuntimePreflightResult {
     $runtimePackageVersion = [version]$selectedRuntime.Version
     if ($null -eq $selectedRuntime.XamlFileVersion) {
         return [ordered]@{
-            schemaVersion = 4
+            schemaVersion = 5
             purpose = 'LongGridWinUiCrossProcessUiaRuntimePreflight'
             expected = [ordered]@{
                 projectRuntimeTargetDiscoverable = $true
+                runtimePackageInventoryDiscoverable = $true
                 discoverableRuntime = $true
                 selectedFrameworkMetadataDiscoverable = $true
                 runtimePackageSetComplete = $true
@@ -209,6 +267,7 @@ function Get-RuntimePreflightResult {
                 projectRuntimeTargetDiscoverable = $true
                 projectRuntimeMinimumVersion =
                     $minimumRuntimeVersion.ToString()
+                runtimePackageInventoryDiscoverable = $true
                 discoverableRuntime = $true
                 selectedFrameworkMetadataDiscoverable = $false
                 runtimePackageVersion = $runtimePackageVersion.ToString()
@@ -305,10 +364,11 @@ function Get-RuntimePreflightResult {
     }
 
     [ordered]@{
-        schemaVersion = 4
+        schemaVersion = 5
         purpose = 'LongGridWinUiCrossProcessUiaRuntimePreflight'
         expected = [ordered]@{
             projectRuntimeTargetDiscoverable = $true
+            runtimePackageInventoryDiscoverable = $true
             discoverableRuntime = $true
             selectedFrameworkMetadataDiscoverable = $true
             runtimePackageSetComplete = $true
@@ -318,6 +378,7 @@ function Get-RuntimePreflightResult {
             projectRuntimeTargetDiscoverable = $true
             projectRuntimeMinimumVersion =
                 $minimumRuntimeVersion.ToString()
+            runtimePackageInventoryDiscoverable = $true
             discoverableRuntime = $true
             selectedFrameworkMetadataDiscoverable = $true
             runtimePackageVersion = $runtimePackageVersion.ToString()
@@ -423,6 +484,12 @@ if ($ContractOnly) {
             'X64' `
             $failedXamlVersionRead)
     )
+    $readableInventory = Get-RuntimePackageInventory {
+        $safeComplete
+    }
+    $failedInventory = Get-RuntimePackageInventory {
+        throw 'Injected runtime package inventory failure.'
+    }
 
     $missingTarget = Get-RuntimePreflightResult @() $null
     $missingFramework = Get-RuntimePreflightResult `
@@ -437,6 +504,10 @@ if ($ContractOnly) {
         $higherCompatibleComplete $contractRuntimeMinimumVersion
     $unreadableHighest = Get-RuntimePreflightResult `
         $unreadableHighestFramework $contractRuntimeMinimumVersion
+    $inventoryFailure = Get-RuntimePreflightResult `
+        $failedInventory.Packages `
+        $contractRuntimeMinimumVersion `
+        $failedInventory.Discoverable
     Assert-Condition `
         ($missingTarget.difference -eq 'ProjectRuntimeTargetNotDiscoverable') `
         'Missing project runtime metadata must remain inconclusive.'
@@ -446,6 +517,16 @@ if ($ContractOnly) {
             $null -eq $invalidXamlVersionRead) `
         ('XAML metadata access and format failures must normalize to an ' +
             'unreadable result without terminating the preflight.')
+    Assert-Condition `
+        ($readableInventory.Discoverable -and
+            @($readableInventory.Packages).Count -eq 4 -and
+            -not $failedInventory.Discoverable -and
+            @($failedInventory.Packages).Count -eq 0 -and
+            $inventoryFailure.difference -eq
+                'RuntimePackageInventoryNotDiscoverable' -and
+            $inventoryFailure.outcome -eq 'Inconclusive') `
+        ('Runtime package inventory failures must remain distinct from an ' +
+            'empty but discoverable package inventory.')
     Assert-Condition `
         ($missingFramework.outcome -eq 'Inconclusive') `
         'Missing framework inventory must remain inconclusive.'
@@ -479,11 +560,11 @@ if ($ContractOnly) {
             'fall back to an older readable Framework.')
 
     [ordered]@{
-        schemaVersion = 4
+        schemaVersion = 5
         purpose = 'LongGridWinUiRuntimePackageSetContract'
         projectRuntimeMinimumVersion =
             $projectRuntimeMinimumVersion.ToString()
-        scenarios = 8
+        scenarios = 9
         outcome = 'Pass'
     } | ConvertTo-Json
     exit 0
@@ -505,7 +586,7 @@ if ($null -eq $projectRuntimeMinimumVersion) {
 }
 $frameworkPackageName =
     "Microsoft.WindowsAppRuntime.$($projectRuntimeMinimumVersion.Major)"
-$installedPackages = @(
+$packageInventory = Get-RuntimePackageInventory {
     Get-AppxPackage -ErrorAction Stop |
         Where-Object {
             $_.Name -eq $frameworkPackageName -or
@@ -513,7 +594,15 @@ $installedPackages = @(
             $_.Name -eq 'MicrosoftCorporationII.WinAppRuntime.Singleton' -or
             $_.Name -like 'Microsoft.WinAppRuntime.DDLM.*'
         }
-)
+}
+if (-not $packageInventory.Discoverable) {
+    Get-RuntimePreflightResult `
+        @() `
+        $projectRuntimeMinimumVersion `
+        $false | ConvertTo-Json -Depth 6
+    exit 0
+}
+$installedPackages = @($packageInventory.Packages)
 $normalizedPackages = @(
     foreach ($package in $installedPackages) {
         $xamlFileVersion = $null
