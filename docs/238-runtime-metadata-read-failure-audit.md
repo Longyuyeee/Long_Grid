@@ -4,7 +4,7 @@
 
 基线：`origin/main@df12e15062d2627ed90c1b7868f584944dbae7db`
 
-状态：`CorrectionComplete / LocalAuditPassed / ProductEvidenceBlocked`
+状态：`CorrectionComplete / PrAndMainAuditPassed / ProductEvidenceBlocked`
 
 ## 1. 接续复读与路线约束
 
@@ -56,4 +56,8 @@ M1/M2 继续为 `0/2 Complete`，30 项 PF 继续为 `0 Complete`；BOX-R1-C/D�
 
 ## 7. 远端审计
 
-待实现与文档提交推送后回填 PR、CI、CodeQL、合并提交与最终 `main` 结果。远端门禁不能替代尚未取得的物理产品证据。
+实现提交 `2c26bfe` 与文档提交 `cd5d6fd` 经 [PR #306](https://github.com/Longyuyeee/Long_Grid/pull/306) 合并为 `main@f3d61845eeda1a3a48f7582e340d18021a44ca0c`。PR CI run `33262991910` 全部通过：完整测试 `1,393/1,393`、0 skipped，coverage lines `90.11% (46,924/52,072)`、branches `76.04% (15,434/20,298)`；漏洞 0，许可证继续为 `PendingOwnerReviewAndNotice`，SBOM `805/805`，内部 RC 保持 `signed=false / installable=false / distributionApproved=false`。PR CodeQL run `33262991941` 的 C++、C# 分析均成功，Code Scanning API 对分支返回开放告警 0。
+
+精确合并提交自己的 main CI run `33263366754` 全部通过：完整测试 `1,393/1,393`、0 skipped，coverage lines `90.12% (46,926/52,072)`、branches `76.04% (15,434/20,298)`；漏洞 0、许可证待审、SBOM `805/805` 与 unsigned RC 否定性门禁均保持。main CodeQL run `33263366793` 的 C++、C# 分析均成功，main 开放告警 0。
+
+PR 与精确 main 没有产生新的代码、质量、安全或供应链差异。远端门禁不能替代尚未取得的物理产品证据；本次回填不改变 M1/M2、PF 或唯一接续点。本文自己的文档提交只需独立通过 PR/main 检查，不再追加第三层文档收口。
