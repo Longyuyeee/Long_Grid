@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新代码、环境与需求对齐见 [Stage 236](236-project-locked-runtime-target-preflight-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 236 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新代码、环境与需求对齐见 [Stage 237](237-selected-framework-metadata-preflight-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 237 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 ## Phase 0：立项与技术验证
 
@@ -414,3 +414,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-29 Windows App Runtime 完整包集合预检纠偏：Stage 234 真实宿主错误证明 Framework 可枚举不等于 Runtime 完整，Stage 235 因而按 Windows App SDK 2.x 官方命名同时核对 Framework、Main、Singleton 和精确版本/架构 DDLM。当前机器 Framework 2.4.0.0 与 Singleton 8002.4.0.0 存在，Main.2 与 DDLM.2.4.0.0-x6 缺失；M1/Live UI 现于进程和会话创建前返回 `BlockedByIncompleteRuntime`。四场景合同、专项 10/10、Release 0 warning/error、完整 1393/1393 和覆盖率 90.40%/76.16% 通过。产品代码与 M1/M2 状态不变，详见 [Stage 235](235-windows-app-runtime-package-set-preflight-audit.md)。
 
 2026-08-29 项目锁定 Runtime 目标纠偏：复读 `LongGrid.App/packages.lock.json`、还原的 `WindowsAppSDK-VersionInfo.json` 与 Bootstrap AutoInitializer 后确认，产品以锁定 Runtime `2.3.1.0` 作为最低版本并查找精确 x64 DDLM `2.3.1.0-x6`；Stage 235 从最高已装 Framework `2.4.0.0` 反推 DDLM `2.4.0.0-x6` 属版本来源偏移。Stage 236 改为锁文件驱动目标、允许 Framework/Main/Singleton 选择满足最低版本的最佳候选、DDLM 保持项目锁定身份，并让目标缺失/歧义显式 `Inconclusive`。当前机器仍安全阻断，但精确缺失项纠正为 Main.2 `>=2.3.1.0` 与 DDLM `2.3.1.0-x6`；六场景、专项 10/10、Release 0 warning/error、完整 1393/1393、覆盖率 90.43%/76.16% 通过。产品完成度和唯一接续点不变，详见 [Stage 236](236-project-locked-runtime-target-preflight-audit.md)。
+
+2026-08-29 最高 Framework 元数据闭锁纠偏：Stage 236 在排序前过滤 XAML 元数据不可读候选，可能退回较旧 Framework，而 Bootstrap 会选择最高兼容候选，存在评估对象错位和假通过风险。Stage 237 改为先选择最高兼容 x64 Framework，再校验其 `Microsoft.UI.Xaml.dll` 版本；选中候选元数据不可读时明确返回 `SelectedRuntimeFrameworkMetadataNotDiscoverable / Inconclusive`，Live UI 在启动前失败关闭。合同扩为七场景，专项 10/10、Release 0 warning/error、完整 1393/1393、覆盖率 90.41%/76.17% 通过；进程与证据目录均为 0→0。产品完成度和唯一接续点不变，详见 [Stage 237](237-selected-framework-metadata-preflight-audit.md)。

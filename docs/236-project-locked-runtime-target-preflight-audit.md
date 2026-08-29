@@ -6,6 +6,8 @@
 
 状态：`CorrectionComplete / LocalPrAndMainAuditPassed / ProductEvidenceBlocked`
 
+> 后续纠偏：本文“在排序前要求 XAML 元数据可读”的候选规则已由 [Stage 237](237-selected-framework-metadata-preflight-audit.md) 修正。Bootstrap 评估对象必须先按名称、架构与最低版本选出最高兼容 Framework；该候选元数据不可读时应 `Inconclusive`，不得回退到较旧候选。本文其余项目锁定 Runtime 与精确 DDLM 结论继续有效。
+
 ## 1. 接续约束与实际代码复读
 
 Stage 235 规定：#23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话未到位时，只允许关闭新发现的真实回归、质量或安全缺陷，不得增加邻接探针或把宿主错误冒充产品证据。本轮开始前重新拉取 `main`、复核 #23/#274 与开放 PR；两项 Issue 无新负责人输入，开放 PR 为 0，因此 BOX-R1-C/D 与 M1 物理旅程仍不可执行。
