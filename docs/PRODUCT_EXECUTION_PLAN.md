@@ -6,7 +6,7 @@
 
 更新日期：2026-08-30
 
-代码审计输入基线：`origin/main@df12e15`；最新 Windows App Runtime Framework 元数据读取失败归一化、整体完成度、真实环境 Actual 与唯一接续条件见 [Stage 238](238-runtime-metadata-read-failure-audit.md)
+代码审计输入基线：`origin/main@58c7ade`；最新 Windows App Runtime 包清单枚举失败关闭、整体完成度、真实环境 Actual 与唯一接续条件见 [Stage 239](239-runtime-package-inventory-failure-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -782,3 +782,9 @@ Stage 236 的版本来源纠正成立，但其实现先排除 XAML 元数据不�
 Stage 237 已规定选中最高 Framework 的 XAML 元数据不可读时必须结构化 `Inconclusive`，但真实枚举仍直接执行 `Get-Item(...).VersionInfo.FileVersionRaw` 和 `[version]` 强转。文件访问异常或非法版本会在进入结果函数前终止脚本；较低、最终不会被选中的 Framework 发生同类异常也会中断整个预检。Stage 238 增加受控元数据读取器，把访问异常、空值和格式异常统一归一化为不可读，再交由既有最高候选逻辑输出 `SelectedRuntimeFrameworkMetadataNotDiscoverable / Inconclusive`，不记录安装路径或异常文本。
 
 合同以真实 scriptblock 注入读取异常和非法版本，断言二者均返回空元数据而不终止；结合既有“较低安全候选可读、较高候选不可读”场景证明仍选择最高版本并失败关闭，合同扩为八场景。当前机器实际结果仍为 Framework `2.4.0.0` / XAML `3.2.3.0` 可读，缺 Main.2 `>=2.3.1.0` 与 DDLM `2.3.1.0-x6`，因此 `BlockedByIncompleteRuntime`。Live UI 退出 1，M1 `startsProcess=false / createsEvidenceSession=false`，进程与证据目录 0→0。专项 10/10、格式、Release 0 warning/error、完整 1393/1393、覆盖率 lines 90.41%、branches 76.17% 通过。该修正兑现既有失败关闭承诺，不升级产品、物理证据或发布状态；唯一接续点仍由 #23/#274、完整兼容 Runtime、签名包和独占可丢弃 Windows 会话共同约束，详见 [Stage 238](238-runtime-metadata-read-failure-audit.md)。
+
+### 13.19 Stage 239：Runtime 包清单枚举失败关闭
+
+Stage 238 已把单个 Framework 的 XAML 元数据读取异常归一化，但真实入口仍在受控边界外直接执行 `Get-AppxPackage -ErrorAction Stop`。包数据库、权限或相关服务异常会在 schema JSON 产生前终止脚本；Live UI/M1 虽不会放行，却失去稳定 Difference、Outcome 与零启动证据。Stage 239 增加受控包清单读取器并为 schema 5 增加 `runtimePackageInventoryDiscoverable`：读取异常返回 `RuntimePackageInventoryNotDiscoverable / Inconclusive`，不记录异常文本；成功读取空列表仍保持 `RuntimeFrameworkNotDiscoverable`，避免把“不可读取”误写成“确认未安装”。
+
+合同真实注入枚举异常，同时断言成功读取的四包集合被完整保留，合同扩为九场景。当前机器 `runtimePackageInventoryDiscoverable=true`，真实结果仍因缺 Main.2 `>=2.3.1.0` 与精确 DDLM `2.3.1.0-x6` 为 `BlockedByIncompleteRuntime`。Live UI 退出 1，M1 `startsProcess=false / createsEvidenceSession=false`，进程与证据目录 0→0。专项 10/10、格式、Release 0 warning/error、完整 1393/1393、覆盖率 lines 90.41%、branches 76.17% 通过。该修正只补全已有失败关闭证据，不升级产品、物理旅程或发布状态；唯一接续点仍由 #23/#274、完整兼容 Runtime、签名包和独占可丢弃 Windows 会话共同约束，详见 [Stage 239](239-runtime-package-inventory-failure-audit.md)。
