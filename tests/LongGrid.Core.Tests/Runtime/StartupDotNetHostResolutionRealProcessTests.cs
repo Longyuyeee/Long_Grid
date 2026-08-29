@@ -86,6 +86,42 @@ public sealed class DotNetHostResolutionRealProcessTests
     }
 
     [Fact]
+    public async Task WinUiRuntimePreflightRequiresCompleteMatchingPackageSet()
+    {
+        string? compatibleHost = GetCompatibleHost();
+        if (compatibleHost is null)
+        {
+            return;
+        }
+
+        string repositoryRoot = FindRepositoryRoot();
+        ProcessResult result = await RunWithPoisonedPathAsync(
+            compatibleHost,
+            "Test-LongGridWinUiUiaRuntime.ps1",
+            "-ContractOnly");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.Error);
+        using JsonDocument document = JsonDocument.Parse(result.Output);
+        JsonElement root = document.RootElement;
+        Assert.Equal("Pass", root.GetProperty("outcome").GetString());
+        Assert.Equal(4, root.GetProperty("scenarios").GetInt32());
+
+        string liveUiScript = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "eng",
+            "Test-LongGridUi.ps1"));
+        Assert.Contains(
+            "BlockedByIncompleteRuntime",
+            liveUiScript,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "missingRequiredPackages",
+            liveUiScript,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task StartupValidateOnlyIgnoresEarlierPathHostWithoutCompatibleSdk()
     {
         string? compatibleHost = GetCompatibleHost();
