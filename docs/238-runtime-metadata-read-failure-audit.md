@@ -6,6 +6,8 @@
 
 状态：`CorrectionComplete / PrAndMainAuditPassed / ProductEvidenceBlocked`
 
+> 后续补全：本文单个 Framework 元数据访问/解析异常的归一化结论继续有效；其上游 `Get-AppxPackage` 清单枚举异常已由 [Stage 239](239-runtime-package-inventory-failure-audit.md) 纳入 schema 5 的 `RuntimePackageInventoryNotDiscoverable / Inconclusive`，不再在 JSON 生成前退出。
+
 ## 1. 接续复读与路线约束
 
 本轮先同步 `main`，复核 Stage 237、Runtime 预检、Live UI/M1 消费者、真实进程测试、#23/#274 和开放 PR。两项外部 Issue 没有更新，开放 PR 为 0；完整兼容 Runtime、受保护签名包和独占可丢弃 Windows 会话仍未到位。因此继续只关闭会影响真实失败关闭判断的新发现回归、质量或安全缺陷。

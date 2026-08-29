@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新代码、环境与需求对齐见 [Stage 238](238-runtime-metadata-read-failure-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 238 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新代码、环境与需求对齐见 [Stage 239](239-runtime-package-inventory-failure-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 239 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 ## Phase 0：立项与技术验证
 
@@ -418,3 +418,5 @@ Stage 129 已因当前无法安排真实参与者批准双轨顺序：工程轨�
 2026-08-29 最高 Framework 元数据闭锁纠偏：Stage 236 在排序前过滤 XAML 元数据不可读候选，可能退回较旧 Framework，而 Bootstrap 会选择最高兼容候选，存在评估对象错位和假通过风险。Stage 237 改为先选择最高兼容 x64 Framework，再校验其 `Microsoft.UI.Xaml.dll` 版本；选中候选元数据不可读时明确返回 `SelectedRuntimeFrameworkMetadataNotDiscoverable / Inconclusive`，Live UI 在启动前失败关闭。合同扩为七场景，专项 10/10、Release 0 warning/error、完整 1393/1393、覆盖率 90.41%/76.17% 通过；进程与证据目录均为 0→0。产品完成度和唯一接续点不变，详见 [Stage 237](237-selected-framework-metadata-preflight-audit.md)。
 
 2026-08-30 Runtime 元数据读取异常归一化：Stage 237 的结果函数能表达选中候选元数据不可读，但真实枚举仍在 `Get-Item(...).VersionInfo` 或 `[version]` 强转异常时提前退出，无法形成结构化审计结果。Stage 238 把文件访问、空值和非法版本解析收进受控读取器，任何异常都归一化为 `null`，再由最高候选逻辑返回明确 `Inconclusive`；较低候选读取异常也不再中断对最高候选的判断。合同扩为八场景，专项 10/10、Release 0 warning/error、完整 1393/1393、覆盖率 90.41%/76.17% 通过；当前真实阻断和 0→0 副作用不变。产品完成度与唯一接续点不变，详见 [Stage 238](238-runtime-metadata-read-failure-audit.md)。
+
+2026-08-30 Runtime 包清单枚举失败关闭：Stage 238 处理了单个 Framework 元数据读取异常，但 `Get-AppxPackage -ErrorAction Stop` 自身仍在结构化边界外；包数据库、权限或服务异常会让预检在输出 JSON 前终止。Stage 239 增加受控清单读取器，读取失败返回 `RuntimePackageInventoryNotDiscoverable / Inconclusive`，读取成功但空列表仍返回 `RuntimeFrameworkNotDiscoverable`，不混淆宿主事实。合同扩为九场景，专项 10/10、Release 0 warning/error、完整 1393/1393、覆盖率 90.41%/76.17% 通过；当前真实阻断、进程和证据目录 0→0 不变。产品完成度与唯一接续点不变，详见 [Stage 239](239-runtime-package-inventory-failure-audit.md)。
