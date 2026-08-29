@@ -4112,7 +4112,9 @@ function Test-LiveUi {
     if ($runtimePreflight.outcome -eq 'Inconclusive') {
         throw (
             'Live cross-process UIA was blocked before application launch: ' +
-            'a compatible Windows App Runtime framework could not be discovered.')
+            'the Windows App Runtime target, selected package, or selected ' +
+            'Framework metadata could not be conclusively evaluated. Difference: ' +
+            $runtimePreflight.difference + '.')
     }
 
     if (-not $NoBuild) {
