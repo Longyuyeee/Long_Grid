@@ -4,7 +4,7 @@
 
 输入基线：`origin/main@99ee050e1b9760a5ef57435e8dd98db617fbd57a`
 
-状态：`HandoffPrepared / RemoteAuditPending / ProductEvidenceBlocked`
+状态：`HandoffPrepared / PrAndMainAuditPassed / ProductEvidenceBlocked`
 
 ## 1. 审计范围与结论
 
@@ -72,4 +72,8 @@
 
 当前唯一执行项仍是等待 BOX-R1-C/D 与 M1 完整物理旅程的外部准入。#23、#274 均为 OPEN，更新时间分别保持 `2026-08-28T03:51:37Z` 与 `2026-08-28T02:43:13Z`；审计时开放 PR 为 0。外部事实未变化前，只处理新发现且可由实际代码证明的回归、质量或安全缺陷，不继续增加 M1 邻接探针或提前扩张 M3/M4。
 
-本文实现分支的 PR CI、CodeQL、合并提交和最终 main 结果将在远端实际完成后回填；在此之前状态保持 `RemoteAuditPending`。
+审计提交 `ff60631` 经 [PR #312](https://github.com/Longyuyeee/Long_Grid/pull/312) 合并为 `main@41131bdb225748be0316a5101d76af1986a3a6e9`。PR CI run `33319480293` 全部通过：完整测试 `1,394/1,394`、0 skipped，coverage lines `90.12% (46,926/52,072)`、branches `76.04% (15,434/20,298)`；漏洞 0、依赖包 30、SBOM 805 个文件，内部 RC 保持 `signed=false / installable=false / distributionApproved=false`。PR CodeQL run `33319480285` 的 C++、C# 分析均成功，分支开放告警 0。
+
+精确合并提交自己的 main CI run `33319866129` 全部通过：完整测试 `1,394/1,394`、0 skipped，coverage lines `90.11% (46,920/52,072)`、branches `76.03% (15,432/20,298)`；漏洞、许可证、SBOM 和 unsigned RC 否定性门禁均保持。main CodeQL run `33319866114` 的 C++、C# 分析均成功，main 开放告警 0。PR 与精确 main 没有产生新的代码、质量、安全或供应链差异。
+
+本文自己的远端证据回填只需再通过独立 PR/main 检查，不追加第三层文档收口。换机时以 GitHub `main` 最新提交为唯一代码来源，并以本节运行编号复读 Stage 241 的工程基线；机器环境事实仍必须重新测量。
