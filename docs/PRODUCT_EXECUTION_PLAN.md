@@ -6,7 +6,7 @@
 
 更新日期：2026-08-30
 
-代码审计输入基线：`origin/main@4ef00d4`；最新 Live UI Runtime 预检宿主与准入完整性、整体完成度、真实环境 Actual 与唯一接续条件见 [Stage 240](240-live-ui-runtime-preflight-host-integrity-audit.md)
+代码审计输入基线：`origin/main@99ee050`；最新整体完成度、换机接续、证据传递边界、真实环境 Actual 与唯一接续条件见 [Stage 241](241-current-development-handoff-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -794,3 +794,9 @@ Stage 238 已把单个 Framework 的 XAML 元数据读取异常归一化，但�
 Stage 239 的 Runtime 预检本体已能稳定返回 schema 5，但 Live UI 通过裸 `powershell` 命令启动它。调用者控制的 PATH 可让同名命令返回伪造 `Pass`，而消费者只处理三个已知阻断 Outcome，未知或缺失 Outcome 也会落入产品/UIA 启动路径。这是既有失败关闭路线上的真实 fail-open，不是新增产品范围。
 
 Stage 240 让 Live UI 在当前受信 PowerShell 进程中直接调用精确的 `Test-LongGridWinUiUiaRuntime.ps1` 路径；消费者先固定 schema 5、purpose 和有限 Outcome，再要求项目目标、包清单、Framework、选中 Framework 元数据和完整包集合均明确为真。普通 `Pass` 还必须匹配 `difference=None / knownUnsafePairAbsent=true`；只有显式确认参数存在时，完整且精确匹配已知风险的 `BlockedByKnownUpstream` 才可继续。真实进程测试在 PATH 前置伪造 `powershell.cmd` 并写调用标记，确认标记未产生且 Live UI 仍按真实缺失 Runtime 在应用启动前阻断。专项 11/11、九场景合同、格式、Release 0 warning/error、完整 1394/1394、覆盖率 lines 90.43%、branches 76.16% 通过；漏洞 0，许可证、签名、安装和分发继续阻断。当前机器仍缺 Main.2 `>=2.3.1.0` 与 DDLM `2.3.1.0-x6`，M1 仍 `startsProcess=false / createsEvidenceSession=false`，进程 0→0。产品完成度和唯一接续点不变，详见 [Stage 240](240-live-ui-runtime-preflight-host-integrity-audit.md)。
+
+### 13.21 Stage 241：当前开发状态、换机接续与证据传递
+
+Stage 241 从最终 `main@99ee050` 重新复读统一计划、30 项 PF 总表、Stage 240、远端 CI/CodeQL、#23/#274，以及当前机器 Runtime、BOX/M1 合同和副作用。严格产品状态仍是 M1/M2 `0/2 Complete`、30 项 PF `0 Complete`；工程口径下 PF-001～PF-007、BOX-R1-A/B、FOLDER-R1-A～D、UI-R1 与 TASKBAR-R1A～R2B1-A2 已形成正式链。M1 桌面核心因此处于“工程基本完成、物理证据外部阻断”，M2 仍欠原生效果/恢复矩阵，M3～M5 仍是后续大范围开发，不得把当前阶段描述为全产品即将收尾。
+
+当前机器预检仍为 Framework `2.4.0.0`、XAML `3.2.3.0`、Singleton `8002.4.0.0` 可发现，缺 Main.2 `>=2.3.1.0` 和 DDLM `2.3.1.0-x6`；M1 外部自动化返回 `startsProcess=false / createsEvidenceSession=false`，进程保持 0→0。BOX 合同与 M1 ValidateOnly 均 Pass，但 `%TEMP%` 下一个历史 BOX GUID 空目录不是产品证据，也不应迁移。换机只依赖 Git 中的代码/文档/合同和 GitHub 运行/Issue；Runtime、签名证书、秘密、临时目录、截图、进程与设备状态必须在新电脑重新取得。完整复读顺序、可传递证据清单和停止规则见 [Stage 241](241-current-development-handoff-audit.md)。
