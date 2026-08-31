@@ -14,7 +14,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 
 2026-08-31 Stage 244 M1 准入模式纠偏：外部条件复读仍为缺 Main.2/DDLM、已知不安全 XAML 组合、签名与许可证 Pending；BOX-R1-C/D 不得启动。真实调用发现 `-ValidateOnly -ExternalAutomation` 会在静态合同分支提前返回 Pass 并跳过 Runtime，现明确拒绝该组合；合法 ValidateOnly 仍 Pass，合法 ExternalAutomation 仍 `BlockedByIncompleteRuntime` 且零启动/零会话。真实专项 `1/1`、本机完整 `1,396/1,396`、coverage `90.46%/76.16%`；PR #318 与合并后 `main@e63969d` 均完整通过，main 为 `1,396/1,396`、coverage `90.14%/76.04%`、双语言 CodeQL open alerts=0。Stage 244 已关闭，产品完成度与唯一接续点不变。
 
-2026-08-31 Stage 245 M1 cleanup 模式隔离：真实 marker 会话证明 `-ExternalAutomation -CleanupSessionId` 会先返回 Runtime 阻断并留下目录；现于 Runtime/证据操作前拒绝 Cleanup 与 ValidateOnly/ExternalAutomation 组合，并要求分开调用。修正后非法组合 exit 1、目录保持、LongGrid 进程 `1→1`；合法 cleanup 删除同一目录。专项 `1/1`、完整 `1,397/1,397`、coverage `90.46%/76.16%` 本机通过；PR/main 复验 Pending。产品完成度、外部门禁和唯一接续点不变。
+2026-08-31 Stage 245 M1 cleanup 模式隔离：真实 marker 会话证明 `-ExternalAutomation -CleanupSessionId` 会先返回 Runtime 阻断并留下目录；现于 Runtime/证据操作前拒绝 Cleanup 与 ValidateOnly/ExternalAutomation 组合，并要求分开调用。修正后非法组合 exit 1、目录保持、LongGrid 进程 `1→1`；合法 cleanup 删除同一目录。专项 `1/1`、本机完整 `1,397/1,397`、coverage `90.46%/76.16%`；PR #320 为 `1,397/1,397`、coverage `90.13%/76.03%`、双语言 CodeQL open alerts=0。等待合并后 main 复验；产品完成度、外部门禁和唯一接续点不变。
 
 ## Phase 0：立项与技术验证
 

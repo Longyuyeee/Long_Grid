@@ -4,7 +4,7 @@
 
 输入基线：`origin/main@2f93ec8e5a70d5dd8bfc1a6d5ffa4e3026e9c9ff`
 
-状态：`CorrectionComplete / LocalVerificationPass / PullRequestAndMainVerificationPending / ProductStatusUnchanged`
+状态：`CorrectionComplete / LocalAndPullRequestVerificationPass / MainVerificationPending / ProductStatusUnchanged`
 
 ## 1. 接续条件复读
 
@@ -38,8 +38,12 @@
 
 完整测试第一次也为 `1,397/1,397`，但覆盖率脚本聚合工作区 `TestResults` 中 43 份历史 coverage，得到失真的 `88.21%/74.77%` 并正确失败。确认该目录位于工作区、tracked files=0 后仅清理该生成目录，关闭 build server 并重新生成唯一 coverage，得到上表真实结果。该差异属于测试编排污染，不修改覆盖率阈值或产品代码。
 
-## 4. 开发目标与需求对齐审计
+## 4. PR #320 真实远端验证
 
-开发目标审计：本阶段关闭“cleanup 请求可被 ValidateOnly/ExternalAutomation 分支遮蔽”的现有入口差异；非法组合失败关闭、合法 cleanup、两个合法非清理路径、真实子进程回归和完整本地门禁均已通过。PR 与合并后精确 main 证据仍 Pending。
+精确提交 `411a050` 的 CI run `33358329483` 与 CodeQL run `33358329466` 均成功：Format 使用绝对 SDK host，attempts=1、`transientRetryObserved=false`；完整测试 `1,397/1,397`、0 skipped、24 秒；coverage lines `90.13% (46926/52064)`、branches `76.03% (15430/20294)`；漏洞 0；许可证继续 `PendingOwnerReviewAndNotice / distributionApproved=false`；artifact `9745979066`、1,002,858 bytes；C# / C++ CodeQL 成功且分支 open alerts=0。Difference=`None`。
+
+## 5. 开发目标与需求对齐审计
+
+开发目标审计：本阶段关闭“cleanup 请求可被 ValidateOnly/ExternalAutomation 分支遮蔽”的现有入口差异；非法组合失败关闭、合法 cleanup、两个合法非清理路径、真实子进程回归、本地完整门禁和精确 PR 提交的远端门禁均已通过。最终文档 head 与合并后精确 main 证据仍 Pending。
 
 需求对齐审计：修正只隔离现有操作模式，不安装 unsigned 包、不修改 Runtime/Publisher/签名权限、不终止既有 LongGrid 进程，也不增加新的 M1 邻接探针。M1/M2 继续 `0/2 Complete`、30 项 PF 继续 `0 Complete`；下一唯一产品接续点仍是外部条件满足后的 BOX-R1-C/D 与 M1 完整物理旅程。
