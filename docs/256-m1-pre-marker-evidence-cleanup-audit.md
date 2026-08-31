@@ -4,7 +4,7 @@
 
 输入基线：`origin/main@fb5af3c864edc1b5e411c73e5df41da4ded16c21`
 
-状态：`ImplementationComplete / LocalAuditPass / PullRequestPending / ExternalEnvironmentBlocked`
+状态：`ImplementationComplete / PullRequestHeadPass / MergePending / ExternalEnvironmentBlocked`
 
 ## 1. 接续条件与开发目标
 
@@ -34,7 +34,7 @@
 | UI / 执行源 | 产品合同与接续入口不退化 | UI ContractOnly `198` IDs；Stage 256 freshness 与 Action pins Pass | None |
 | 漏洞与许可证 | 漏洞 0；未批准前禁止分发 | 漏洞 0；20 项目/30 包；`PendingOwnerReviewAndNotice / distributionApproved=false` | None |
 
-覆盖率使用独立 ignored `artifacts/stage256-test-results`，未聚合历史 `TestResults`。当前没有安装 Runtime、启用 Sandbox、修改任务栏、启动 LongGrid、发送物理输入、签名、安装或分发产物。PR 与合并后 main 的精确结果将在远端门禁完成后补入。
+覆盖率使用独立 ignored `artifacts/stage256-test-results`，未聚合历史 `TestResults`。当前没有安装 Runtime、启用 Sandbox、修改任务栏、启动 LongGrid、发送物理输入、签名、安装或分发产物。
 
 ## 4. 开发目标与需求对齐审计
 
@@ -43,3 +43,9 @@
 需求对齐审计：修正落实 README“零惊吓”和 PRD 证据所有权边界，未改变产品配置、用户文件、桌面、任务栏、Runtime、签名、安装或分发状态。M1/M2 继续 `0/2 Complete`，30 项 PF 继续 `0 Complete`，内部 RC 继续不可分发。
 
 下一唯一接续点仍由 `#23/#274`、完整兼容 Runtime、受保护签名包和独占可丢弃 Windows 会话共同约束；TASKBAR-R2B1-B 仍要求 Stage 216 Host/Guest 达到 `ReadyToLaunch / GuestReady`。两者未成立时，只处理新复现的真实回归、质量或安全缺陷。
+
+## 5. 远端交付
+
+实现提交 `0ceaf48e9d6130a146ca3176548cdd2b133f30fe` 已推送到短分支并创建 PR #338；PR 无评论、无 review，状态 `MERGEABLE / CLEAN`。CI run `33414842475` 通过（`7m57s`）：完整测试 `1,402/1,402`、0 skipped、29 秒，coverage lines `90.14% (46,932/52,064)`、branches `76.04% (15,432/20,294)`，UI 合同 `198` IDs，漏洞 0，20 项目/30 包，许可证继续 `PendingOwnerReviewAndNotice / distributionApproved=false`。测试与覆盖率 artifact `9766849837`，1,003,515 bytes，digest `sha256:5f95e52dba233f25a933f589a63f111a03c858ae7412c1198c95d400ae55b48b`。
+
+同一 head 的 CodeQL run `33414842430` 通过：C/C++ `2m57s`，C# `6m59s`。本文记录首轮结果后形成纯审计收口提交；最终 PR head 与合并后的精确 main 仍须重新验证，未完成前不把本阶段写成远端闭环。
