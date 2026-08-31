@@ -12,7 +12,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 
 2026-08-31 Stage 243 复验补充：setup-dotnet v6 合并后的 main format 宿主发现竞态已改为绝对 SDK host 与一次精确错误重试；PR 文档提交又真实暴露原生 UIA 证据菜单未退出并被 2 分钟 watchdog 终止。内部证据入口现以独立计时器向真实窗口投递 `WM_CANCELMODE`，正式产品菜单不变；CI 在完整真实进程测试前关闭 MSBuild/Roslyn server，产品缩略图 1.5 秒预算不放宽。本机精确 UIA 场景修正前/后各 `10/10`；PR #316 与合并后 `main@e0231d1` 均完整通过，main 为 `1,395/1,395`、coverage `90.14%/76.03%`、双语言 CodeQL open alerts=0。Stage 243 已关闭。
 
-2026-08-31 Stage 244 M1 准入模式纠偏：外部条件复读仍为缺 Main.2/DDLM、已知不安全 XAML 组合、签名与许可证 Pending；BOX-R1-C/D 不得启动。真实调用发现 `-ValidateOnly -ExternalAutomation` 会在静态合同分支提前返回 Pass 并跳过 Runtime，现明确拒绝该组合；合法 ValidateOnly 仍 Pass，合法 ExternalAutomation 仍 `BlockedByIncompleteRuntime` 且零启动/零会话。真实专项 `1/1`、完整 `1,396/1,396`、coverage `90.46%/76.16%`，等待 PR/main 复验。
+2026-08-31 Stage 244 M1 准入模式纠偏：外部条件复读仍为缺 Main.2/DDLM、已知不安全 XAML 组合、签名与许可证 Pending；BOX-R1-C/D 不得启动。真实调用发现 `-ValidateOnly -ExternalAutomation` 会在静态合同分支提前返回 Pass 并跳过 Runtime，现明确拒绝该组合；合法 ValidateOnly 仍 Pass，合法 ExternalAutomation 仍 `BlockedByIncompleteRuntime` 且零启动/零会话。真实专项 `1/1`、本机完整 `1,396/1,396`、coverage `90.46%/76.16%`；PR #318 与合并后 `main@e63969d` 均完整通过，main 为 `1,396/1,396`、coverage `90.14%/76.04%`、双语言 CodeQL open alerts=0。Stage 244 已关闭，产品完成度与唯一接续点不变。
 
 ## Phase 0：立项与技术验证
 
