@@ -4,7 +4,7 @@
 
 输入基线：`origin/main@b0fb5c7142bc7f63b571210c38f538c5cb2fe287`
 
-状态：`SecondDifferenceCorrected / LocalVerificationPass / PullRequestReverificationPending / ProductStatusUnchanged`
+状态：`CorrectionComplete / LocalAndPullRequestVerificationPass / MainVerificationPending / ProductStatusUnchanged`
 
 ## 1. 接续原因与开发目标
 
@@ -72,8 +72,22 @@ Stage 242 的 PR #315 两轮 CI/CodeQL 全部通过并 squash merge 后，精确
 
 随后完整本机覆盖运行首次得到 `1,393/1,395`：两个真实缩略图 worker 场景分别在 1.5/2 秒预算附近返回 `TimedOut/FailedFallback`。既有 [统一计划](PRODUCT_EXECUTION_PLAN.md) 已记录 Release 编译服务残留会对真实 Worker/Shell 测试造成并发资源竞争；本次保留失败 TRX/Cobertura，不修改产品 1.5 秒预算。CI 在 Test 前新增 `dotnet build-server shutdown`，自动合同强制该步骤位于 `dotnet test` 之前。本机按相同顺序关闭 MSBuild 与 Roslyn server 后，完整套件为 `1,395/1,395`、0 skipped、37 秒；精确通过附件 coverage 为 lines `90.46% (23548/26032)`、branches `76.16% (7728/10147)`。把通过与中止附件混合聚合会得到无意义的 `88.07%/74.68%`，因此失败附件保留但不冒充同一运行的覆盖率。
 
-## 7. 开发目标与需求对齐审计
+## 7. 精确修正提交的 PR 真实验证
 
-开发目标审计：main format 宿主竞态、PR 原生菜单模态挂起、压力后缩略图资源竞争三项 Actual 均已保留。修正分别限定为 format 一次精确重试、证据菜单的真实窗口有限取消、真实进程测试前释放编译服务；没有降低格式、UIA、测试、覆盖率或产品缩略图预算。新精确提交的 PR 与合并后 main 验证仍 Pending。
+提交 `60742fe` 的远端结果全部符合预期：
+
+| 门禁 | Expected | Actual | Difference |
+|---|---|---|---|
+| Format | 绝对 host；正常路径一次通过 | CI run `33351851709`：`C:\Program Files\dotnet\dotnet.exe`，attempts=1，`transientRetryObserved=false` | None |
+| build server 编排 | 真实进程测试前关闭 MSBuild 与 Roslyn server | 两个 server 均报告 `shut down successfully`，随后才执行 Test | None |
+| UIA / 完整测试 | 原生菜单有限退出；1,395 项全部通过 | `1,395/1,395`、0 skipped、25 秒；未触发 2 分钟 watchdog | None |
+| coverage | lines >=90%、branches >=75% | lines `90.14% (46932/52064)`；branches `76.04% (15432/20294)` | None |
+| 依赖与许可证 | 漏洞 0；未批准前禁止分发 | 漏洞 0；`PendingOwnerReviewAndNotice`，`distributionApproved=false` | None |
+| 测试制品 | TRX/coverage 可下载 | artifact `9743996742`，1,002,858 bytes | None |
+| CodeQL | C# / C++ 均通过；open alerts=0 | run `33351851705`：C# 7m14s、C++ 3m25s；open alerts=0 | None |
+
+## 8. 开发目标与需求对齐审计
+
+开发目标审计：main format 宿主竞态、PR 原生菜单模态挂起、压力后缩略图资源竞争三项 Actual 均已保留。修正分别限定为 format 一次精确重试、证据菜单的真实窗口有限取消、真实进程测试前释放编译服务；没有降低格式、UIA、测试、覆盖率或产品缩略图预算。本机与精确修正提交的 PR 门禁全部通过，证据文档提交与合并后 main 验证仍 Pending。
 
 需求对齐审计：本阶段是 CI 确定性修正，不修改 Long方格产品运行时、用户文件、Windows Runtime、任务栏、签名或分发。M1/M2 继续 `0/2 Complete`、30 项 PF 继续 `0 Complete`；下一产品接续点仍是 Stage 241 的 BOX-R1-C/D 与 M1 完整物理旅程，外部条件没有因本修正改变。
