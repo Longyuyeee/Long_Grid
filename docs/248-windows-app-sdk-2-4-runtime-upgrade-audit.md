@@ -41,7 +41,9 @@ Stage 247 已关闭 M1 启动异常清理缺口，但当前电脑的正向物理
 
 许可证入口第一次被误传了不存在的 `-ContractOnly` 参数，PowerShell 在脚本主体执行前拒绝调用；没有产品启动或状态修改。复读真实参数后以合法入口重跑，真实清单和正/负门禁均通过，上表记录最终有效结果。
 
-PR head 与合并后精确 main 的远端 CI/CodeQL 结果在推送后补录；在这些结果完成前不得把本阶段标记为远端合并完成。
+PR #326 首个精确 head `8fa7ea4432b0bc2d8d9badea13edb9f6c82fb9a8` 的 CI run `33371019724` 与 CodeQL run `33371019597` 均成功：完整测试 `1,398/1,398`、0 skipped、34 秒；coverage lines `90.14% (46930/52064)`、branches `76.04% (15432/20294)`；漏洞 0；许可证继续 `PendingOwnerReviewAndNotice / distributionApproved=false`；artifact `9750264571`、1,003,016 bytes；C# / C++ CodeQL 均通过。PR 无评论、无 review 阻断且 mergeable，Difference=`None`。
+
+本段补录后的最终 PR head 与合并后精确 main 仍必须再次通过远端 CI/CodeQL；在这些结果完成前不得把本阶段标记为远端合并完成。
 
 ## 4. 开发目标与需求对齐审计
 
