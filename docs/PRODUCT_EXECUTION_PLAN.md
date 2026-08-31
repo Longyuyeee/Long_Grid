@@ -1,12 +1,12 @@
 # Long方格产品重对齐与统一开发计划
 
-版本：2.5
+版本：2.6
 
 状态：Required / 当前唯一执行计划
 
 更新日期：2026-08-31
 
-代码审计输入基线：`origin/main@2a6f257`；最新执行源与接续条件审计见 [Stage 250](250-readme-continuation-source-freshness-contract-audit.md)，前一轮完整接续条件见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)，Windows App SDK 2.4.0 真实启动对照见 [Stage 248](248-windows-app-sdk-2-4-runtime-upgrade-audit.md)，整体完成度、换机接续和证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)
+代码审计输入基线：`origin/main@462380c`；最新执行源与换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)，前一轮新鲜度合同见 [Stage 250](250-readme-continuation-source-freshness-contract-audit.md)，完整接续条件见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)，Windows App SDK 2.4.0 真实启动对照见 [Stage 248](248-windows-app-sdk-2-4-runtime-upgrade-audit.md)，既有证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -838,3 +838,9 @@ Stage 241 从最终 `main@99ee050` 重新复读统一计划、30 项 PF 总表�
 从 `main@2a6f257` 实际按 README 进入下一步，发现顶部已是 Stage 249，但文档导航仍把 Stage 247/246 标为当前，“建议的下一步”仍引用 Stage 226，且遗漏完整 Runtime、Stage 216 Guest 和 #23/#274 当前准入条件。新增只读 Windows PowerShell 5.1 合同，以本计划页头为唯一 Stage/基线来源，联查 README 顶部、导航、建议段、Stage 153 backlog 与路线图；修正前真实失败，修正后通过，内存 Stage 226 回退变体给出精确负向差异。合同由 CI 已执行的 Action 固定门禁调用，不增加 workflow 权限。
 
 完整套件首轮还真实发现任务栏认证测试在并行真实进程负载下把测试 harness 的 3 秒启动预算耗尽，而独立测试 959 ms 与正式认证脚本均通过、任务栏窗口身份不变。仅将该测试类的有界进程预算调整为 10 秒，产品 App 的 3 秒预算与失败关闭不变。本轮关闭执行入口漂移和真实测试可靠性质量缺陷，不修改产品行为、系统状态或外部门禁。M1/M2、30 项 PF、签名、安装与分发状态不变；唯一接续点继续由 #23/#274、完整兼容 Runtime、受保护签名包、独占可丢弃 Windows 会话或 Stage 216 Guest 准入持有，详见 [Stage 250](250-readme-continuation-source-freshness-contract-audit.md)。
+
+### 13.29 Stage 251：当前开发状态与换电脑接续
+
+从 `main@462380c` 暂停继续编码并准备换机。严格完成度仍为 M1/M2 `0/2 Complete`、30 项 PF `0 Complete`；BOX/FOLDER 与 PF-001～PF-007 工程链已形成，TASKBAR 仍停在 R2B1-A2。#19/#20/#23/#24/#274 保持 OPEN，Runtime、受保护签名包、许可证/Publisher 输入和独占可丢弃 Windows 会话仍未准入。
+
+换机只传递 GitHub `main`、文档、测试、匿名报告与远端运行记录；不传递 Runtime/Appx、证书/秘密、PID/句柄、截图、临时目录、WER 或 unsigned 包。新电脑必须按 clone/ff-only、文档新鲜度合同、Runtime/M1/TASKBAR 只读预检、完整工程基线的顺序重新取得 Actual，再按 BOX/M1、TASKBAR Guest 或真实缺陷三条路径择一接续。详见 [Stage 251](251-current-development-computer-handoff.md)。
