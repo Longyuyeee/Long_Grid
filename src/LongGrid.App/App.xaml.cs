@@ -411,7 +411,7 @@ public partial class App : Application
             ProductDesktopFirstStartupDecision decision =
                 ProductDesktopFirstStartupPolicy.Evaluate(
                     new(
-                        EvidenceSession: false,
+                        EvidenceSession: m1ManualEvidenceSession is not null,
                         RedirectedActivationPending: activationPending,
                         ExplicitUserLaunch: !backgroundStartup,
                         BoxesEnabled: boxesSettingsController.Current.BoxesEnabled,
@@ -1775,6 +1775,11 @@ public partial class App : Application
         object sender,
         WindowActivatedEventArgs args)
     {
+        if (args.WindowActivationState != WindowActivationState.Deactivated)
+        {
+            m1ManualEvidenceSession?.RecordStage("ProductWindowActivated");
+        }
+
         if (args.WindowActivationState == WindowActivationState.Deactivated)
         {
             if (!productDesktopHostLifecycle.OwnsForegroundActivationSource)
