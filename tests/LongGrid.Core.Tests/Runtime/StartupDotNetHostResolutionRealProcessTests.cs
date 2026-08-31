@@ -367,6 +367,40 @@ public sealed class DotNetHostResolutionRealProcessTests
     }
 
     [Fact]
+    public async Task M1CleanupRejectsMissingEvidenceInsteadOfClaimingRemoval()
+    {
+        string? compatibleHost = GetCompatibleHost();
+        if (compatibleHost is null)
+        {
+            return;
+        }
+
+        string sessionId = Guid.NewGuid().ToString("N");
+        string evidenceRoot = Path.Combine(
+            Path.GetTempPath(),
+            "LongGridM1ManualEvidence");
+        string evidenceDirectory = Path.Combine(evidenceRoot, sessionId);
+        Assert.False(Directory.Exists(evidenceDirectory));
+        string[] evidenceBefore = GetDirectoryNames(evidenceRoot);
+        int[] processesBefore = GetLongGridProcessIds();
+
+        ProcessResult cleanup = await RunWithPoisonedPathAsync(
+            compatibleHost,
+            "Start-LongGridM1ManualEvidenceSession.ps1",
+            "-CleanupSessionId",
+            sessionId);
+
+        Assert.NotEqual(0, cleanup.ExitCode);
+        Assert.Contains(
+            "Refused to clean a missing M1 manual evidence directory.",
+            cleanup.Error,
+            StringComparison.Ordinal);
+        Assert.False(Directory.Exists(evidenceDirectory));
+        Assert.Equal(evidenceBefore, GetDirectoryNames(evidenceRoot));
+        Assert.Equal(processesBefore, GetLongGridProcessIds());
+    }
+
+    [Fact]
     public async Task M1LaunchFailureRemovesItsEvidenceAndLeavesProcessesUnchanged()
     {
         if (!OperatingSystem.IsWindows())

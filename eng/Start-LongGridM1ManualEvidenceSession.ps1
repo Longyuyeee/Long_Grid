@@ -64,19 +64,20 @@ function Remove-EvidenceDirectory {
     param([string]$SessionId)
 
     $directory = Resolve-EvidenceDirectory $SessionId
-    if (Test-Path -LiteralPath $directory -PathType Container) {
-        $directoryItem = Get-Item -LiteralPath $directory -Force
-        Assert-Condition `
-            (($directoryItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) `
-            'Refused to clean a reparse-point M1 manual evidence directory.'
-        $markerPath = Join-Path $directory '.longgrid-m1-session'
-        Assert-Condition `
-            ((Test-Path -LiteralPath $markerPath -PathType Leaf) -and
-                (Get-Content -LiteralPath $markerPath -Raw).Trim() -eq
-                    $SessionId) `
-            'Refused to clean an M1 directory without its exact marker.'
-        Remove-Item -LiteralPath $directory -Recurse -Force
-    }
+    Assert-Condition `
+        (Test-Path -LiteralPath $directory -PathType Container) `
+        'Refused to clean a missing M1 manual evidence directory.'
+    $directoryItem = Get-Item -LiteralPath $directory -Force
+    Assert-Condition `
+        (($directoryItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) `
+        'Refused to clean a reparse-point M1 manual evidence directory.'
+    $markerPath = Join-Path $directory '.longgrid-m1-session'
+    Assert-Condition `
+        ((Test-Path -LiteralPath $markerPath -PathType Leaf) -and
+            (Get-Content -LiteralPath $markerPath -Raw).Trim() -eq
+                $SessionId) `
+        'Refused to clean an M1 directory without its exact marker.'
+    Remove-Item -LiteralPath $directory -Recurse -Force
     Assert-Condition (-not (Test-Path -LiteralPath $directory)) `
         'The exact M1 manual evidence directory still exists after cleanup.'
 }
