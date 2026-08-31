@@ -4,7 +4,7 @@
 
 输入基线：`origin/main@b0fb5c7142bc7f63b571210c38f538c5cb2fe287`
 
-状态：`CorrectionComplete / LocalVerificationPass / PullRequestPending / ProductStatusUnchanged`
+状态：`CorrectionComplete / LocalAndPullRequestVerificationPass / MainVerificationPending / ProductStatusUnchanged`
 
 ## 1. 接续原因与开发目标
 
@@ -46,8 +46,24 @@ Stage 242 的 PR #315 两轮 CI/CodeQL 全部通过并 squash merge 后，精确
 
 本机真实 format 一次通过只能证明正常路径；首次 main run 已提供精确瞬态 Actual。最终出口是本阶段 PR 和合并后 main 的 GitHub Hosted Runner：无瞬态时一次通过；若瞬态复现，日志必须显示唯一一次 warning、第二次通过；若第二次或其他错误失败，门禁必须保持红色。
 
-## 5. 开发目标与需求对齐审计
+## 5. PR #316 首轮真实远端验证
 
-开发目标审计：首次 main 失败、PR/main 时序差异和上游开放问题均已保留；修正复用现有绝对 SDK host，只增加一次精确有界重试和真实进程合同，本机全部预期成立。PR/main 远端验证仍 Pending。
+精确提交 `13dbc92` 的 GitHub Hosted Runner 结果：
+
+| 门禁 | Expected | Actual | Difference |
+|---|---|---|---|
+| Format | 绝对 host；正常路径一次通过；瞬态最多重试一次 | CI run `33350286859`：`C:\Program Files\dotnet\dotnet.exe`，attempts=1，`transientRetryObserved=false` | None；该次未出现上游瞬态 |
+| 完整测试 | 1,395 项全部通过、0 skipped | `1,395/1,395`、0 skipped、29 秒 | None |
+| coverage | lines >=90%、branches >=75% | lines `90.11% (46924/52072)`；branches `76.04% (15434/20298)` | None |
+| 依赖风险 | 0 known vulnerable packages | 0，Pass | None |
+| 许可证元数据 | 20 项目、30 包；未获 owner 批准前不允许分发 | Pass；`PendingOwnerReviewAndNotice`，`distributionApproved=false` | None；发布阻塞未被绕过 |
+| 测试证据制品 | 上传 TRX 与 coverage | artifact `9743477715`，1,002,020 bytes | None |
+| CodeQL | C# / C++ 均成功，分支 open alerts=0 | run `33350286860`：C# 7m02s、C++ 3m27s，均 Pass；open alerts=0 | None |
+
+第一轮 PR 证明原 main 失败点已不再阻断格式门禁，且格式正常路径没有无意义重试。文档证据写回后的精确提交仍须再次通过 CI/CodeQL；合并后还须以精确 main 运行完成最终闭环。
+
+## 6. 开发目标与需求对齐审计
+
+开发目标审计：首次 main 失败、PR/main 时序差异和上游开放问题均已保留；修正复用现有绝对 SDK host，只增加一次精确有界重试和真实进程合同。本机和 PR #316 首轮真实远端门禁全部符合预期，文档提交与合并后 main 验证仍 Pending。
 
 需求对齐审计：本阶段是 CI 确定性修正，不修改 Long方格产品运行时、用户文件、Windows Runtime、任务栏、签名或分发。M1/M2 继续 `0/2 Complete`、30 项 PF 继续 `0 Complete`；下一产品接续点仍是 Stage 241 的 BOX-R1-C/D 与 M1 完整物理旅程，外部条件没有因本修正改变。
