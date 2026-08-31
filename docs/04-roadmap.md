@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新 Runtime 升级真实对照见 [Stage 248](248-windows-app-sdk-2-4-runtime-upgrade-audit.md)，代码、环境、完成度与换机证据边界仍见 [Stage 241](241-current-development-handoff-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 241 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新执行源与接续条件见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)，代码、环境、完成度与换机证据边界仍见 [Stage 241](241-current-development-handoff-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 241 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 2026-08-31 Stage 243 复验补充：setup-dotnet v6 合并后的 main format 宿主发现竞态已改为绝对 SDK host 与一次精确错误重试；PR 文档提交又真实暴露原生 UIA 证据菜单未退出并被 2 分钟 watchdog 终止。内部证据入口现以独立计时器向真实窗口投递 `WM_CANCELMODE`，正式产品菜单不变；CI 在完整真实进程测试前关闭 MSBuild/Roslyn server，产品缩略图 1.5 秒预算不放宽。本机精确 UIA 场景修正前/后各 `10/10`；PR #316 与合并后 `main@e0231d1` 均完整通过，main 为 `1,395/1,395`、coverage `90.14%/76.03%`、双语言 CodeQL open alerts=0。Stage 243 已关闭。
 
@@ -21,6 +21,8 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-08-31 Stage 247 M1 启动异常统一清理：真实 Windows PowerShell 5.1 无效 PE 启动证明 Start-Process 抛异常时会留下一个已写 marker 的 M1 配置/夹具目录；现将证据创建后的启动、刷新和 Ready 等待纳入统一异常边界，只回收本次进程句柄并按既有 marker/path/reparse-point 合同清理。相同真实输入从新增目录 1 收敛为 0；相关 `4/4`、完整 `1,398/1,398`、coverage `90.46%/76.16%`、漏洞 0、198-ID UI 合同通过。PR #324 与合并后 `main@2b70a3f` 均完整通过，main 为 `1,398/1,398`、coverage `90.14%/76.04%`、双语言 CodeQL open alerts=0。文档收口 PR #325 首轮又暴露测试自有配置 `.lock` 的 Windows runner 目录清理短窗口，现显式异步释放控制器并仅对 GUID 沙箱执行最多 `40×50ms` 有界重试，持续占用仍失败。物理旅程和外部门禁不变，详见 [Stage 247](247-m1-launch-exception-cleanup-audit.md)。
 
 2026-08-31 Stage 248 Windows App SDK 2.4 升级真实对照：官方当前 Stable `2.4.0` 可恢复并以 Release `0 warning / 0 error` 编译；精确临时提交生成 805 文件双 self-contained ZIP，SHA-256 `4b65df77...71172`。但本机真实 M1 启动仍以 `Microsoft.UI.Xaml.dll 3.2.3.0 / 0xc000027b / 0x3a9c5d` 退出，新增证据会话 0。新旧 XAML 二进制哈希不同但行为指纹相同，故不能宣称上游已修复；无收益依赖升级已完整撤回，系统 Runtime 风险门禁不变。M1/M2、30 项 PF、物理旅程和分发状态均不升级，详见 [Stage 248](248-windows-app-sdk-2-4-runtime-upgrade-audit.md)。
+
+2026-08-31 Stage 249 权威执行源新鲜度：真实 M1 准入仍为 `BlockedByIncompleteRuntime / startsProcess=false / createsEvidenceSession=false`；任务栏 Host 仍因 Sandbox launcher、硬件证据和隔离配置缺失返回 `Blocked / mutationAllowed=false / modifiedSystemState=false`，既有产品 PID 和证据集合不变。统一计划、Stage 153 backlog 和路线图入口已从过期的 Stage 234/235/247 基线更新到 `main@a35e1d4` 与 Stage 248/249；不修改产品代码、完成度或外部门禁，详见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)。
 
 ## Phase 0：立项与技术验证
 

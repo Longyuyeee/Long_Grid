@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B、FOLDER-R1-A～D 与 PF-001～PF-007 工程链已完成，真实可见交互证据仍 Pending；TASKBAR-R1A～R2B1-A2 已建立只读、恢复、原生边界、可丢弃环境准入和两张有限预设卡片。Stage 248 已用精确 self-contained 产物验证官方 Stable Windows App SDK 2.4.0，但真实窗口仍以 `Microsoft.UI.Xaml.dll 3.2.3.0 / 0xc000027b / 0x3a9c5d` 退出；无收益升级已撤回，现有风险门禁不放宽。严格口径仍是 M1/M2 `0/2 Complete`、30 项 PF `0 Complete`。下一步只在出现明确覆盖该指纹的新 Stable，或具备完整兼容 Runtime、受保护签名包和独占可丢弃 Windows 会话后，继续 BOX-R1-C/D 与 M1 物理旅程。工程测试基线为 1,398 项；当前电脑仍缺 Main.2 `>=2.3.1.0` 与项目锁定 DDLM `2.3.1.0-x6`，许可证、Publisher、托管签名和安装生命周期外部门禁仍未满足。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)、[Stage 248](docs/248-windows-app-sdk-2-4-runtime-upgrade-audit.md) 与 [Stage 241](docs/241-current-development-handoff-audit.md)。所有产物仍不可公开分发。
+> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B、FOLDER-R1-A～D 与 PF-001～PF-007 工程链已完成，真实可见交互证据仍 Pending；TASKBAR-R1A～R2B1-A2 已建立只读、恢复、原生边界、可丢弃环境准入和两张有限预设卡片。Stage 249 真实复核 M1 仍为零启动的 `BlockedByIncompleteRuntime`，任务栏 Host 仍为 `Blocked / mutationAllowed=false`；权威计划入口已更新到 Stage 248/249，不绕过门禁转做外围功能。严格口径仍是 M1/M2 `0/2 Complete`、30 项 PF `0 Complete`。下一步只在具备完整兼容 Runtime、受保护签名包和独占可丢弃 Windows 会话后继续 BOX-R1-C/D 与 M1 物理旅程，或在 Stage 216 Guest 真正准入后继续 TASKBAR-R2B1-B。工程测试基线为 1,398 项；当前电脑仍缺 Main.2 `>=2.3.1.0` 与项目锁定 DDLM `2.3.1.0-x6`，许可证、Publisher、托管签名和安装生命周期外部门禁仍未满足。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)、[Stage 249](docs/249-execution-source-of-truth-freshness-audit.md) 与 [Stage 241](docs/241-current-development-handoff-audit.md)。所有产物仍不可公开分发。
 
 ## 产品原则
 
