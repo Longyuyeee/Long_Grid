@@ -72,6 +72,29 @@ function Get-FreshnessDifferences {
     $readmeLinkPattern = '\[[^\]]*' + [regex]::Escape($stageLabel) + '[^\]]*\]\(docs/' +
         [regex]::Escape($source.document) + '\)'
     $backlogLead = if ($BacklogText.Length -gt 3000) { $BacklogText.Substring(0, 3000) } else { $BacklogText }
+
+    $planQueueText = Get-LevelTwoSections -Text $PlanText | Where-Object {
+            $_.Contains('BOX-R1-C/D') -and
+            $_.Contains('TASKBAR-R2B1-B') -and
+            $_.Contains('ExternalEnvironmentBlocked')
+        } | Select-Object -First 1
+    if ($null -eq $planQueueText) {
+        $differences += 'execution-plan-current-queue:section-missing'
+    }
+    elseif (-not $planQueueText.Contains($relativeLink)) {
+        $linkedStages = @([regex]::Matches(
+                $planQueueText,
+                '\[Stage (?<stage>[0-9]+)\]') |
+            ForEach-Object { [int]$_.Groups['stage'].Value })
+        $actualStage = if ($linkedStages.Count -gt 0) {
+            ($linkedStages | Measure-Object -Maximum).Maximum
+        }
+        else {
+            'missing'
+        }
+        $differences += "execution-plan-current-queue:audit-expected=$($source.stage)-actual=$actualStage"
+    }
+
     $backlogMatch = [regex]::Match($backlogLead, 'origin/main@(?<baseline>[0-9a-f]{7,40})')
     if (-not $backlogMatch.Success) {
         $differences += 'feature-backlog:continuation-baseline-missing'
@@ -165,6 +188,27 @@ if ($negativeDifferences -notcontains $expectedNegativeDifference) {
     throw 'Execution source freshness contract accepted an intentionally stale README continuation audit.'
 }
 
+$planQueue = Get-LevelTwoSections -Text $plan | Where-Object {
+        $_.Contains('BOX-R1-C/D') -and
+        $_.Contains('TASKBAR-R2B1-B') -and
+        $_.Contains('ExternalEnvironmentBlocked')
+    } | Select-Object -First 1
+$stalePlanStage = [Math]::Max(0, $source.stage - 1)
+$stalePlanQueue = $planQueue.Replace(
+    "[Stage $($source.stage)]($($source.document))",
+    "[Stage $stalePlanStage](stale-current-audit.md)")
+$negativePlan = $plan.Replace($planQueue, $stalePlanQueue)
+$negativePlanDifferences = @(Get-FreshnessDifferences `
+        -ReadmeText $readme `
+        -PlanText $negativePlan `
+        -BacklogText $backlog `
+        -RoadmapText $roadmap)
+$expectedPlanDifference =
+    "execution-plan-current-queue:audit-expected=$($source.stage)-actual=$stalePlanStage"
+if ($negativePlanDifferences -notcontains $expectedPlanDifference) {
+    throw 'Execution source freshness contract accepted an intentionally stale execution-plan current queue.'
+}
+
 [ordered]@{
     outcome = 'Pass'
     baseline = $source.baseline
@@ -176,5 +220,6 @@ if ($negativeDifferences -notcontains $expectedNegativeDifference) {
         $FeatureBacklogPath,
         $RoadmapPath)
     negativeDifference = $expectedNegativeDifference
+    negativePlanDifference = $expectedPlanDifference
     modifiesSystemState = $false
 } | ConvertTo-Json -Depth 3
