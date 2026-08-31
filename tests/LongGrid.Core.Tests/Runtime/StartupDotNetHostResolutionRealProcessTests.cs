@@ -479,6 +479,98 @@ public sealed class DotNetHostResolutionRealProcessTests
     }
 
     [Fact]
+    public async Task M1EvidencePreparationFailureRemovesItsPartialSession()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string repositoryRoot = FindRepositoryRoot();
+        string temporaryRoot = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid-M1-PreparationFailure-" + Guid.NewGuid().ToString("N"));
+        string temporaryEngineering = Path.Combine(temporaryRoot, "eng");
+        string temporaryAppDirectory = Path.Combine(
+            temporaryRoot,
+            "src",
+            "LongGrid.App",
+            "bin",
+            "Release",
+            "net8.0-windows10.0.19041.0",
+            "win-x64");
+        string evidenceRoot = Path.Combine(
+            Path.GetTempPath(),
+            "LongGridM1ManualEvidence");
+        string[] evidenceBefore = GetDirectoryNames(evidenceRoot);
+        int[] processesBefore = GetLongGridProcessIds();
+        Directory.CreateDirectory(temporaryEngineering);
+        Directory.CreateDirectory(temporaryAppDirectory);
+        string launcherSource = await File.ReadAllTextAsync(Path.Combine(
+            repositoryRoot,
+            "eng",
+            "Start-LongGridM1ManualEvidenceSession.ps1"));
+        string injectionPoint = "    $markerWritten = $true";
+        Assert.Contains(injectionPoint, launcherSource, StringComparison.Ordinal);
+        launcherSource = launcherSource.Replace(
+            injectionPoint,
+            injectionPoint
+                + "\n"
+                + "    throw 'Injected M1 evidence preparation failure.'",
+            StringComparison.Ordinal);
+        await File.WriteAllTextAsync(
+            Path.Combine(
+                temporaryEngineering,
+                "Start-LongGridM1ManualEvidenceSession.ps1"),
+            launcherSource);
+        File.Copy(
+            Path.Combine(repositoryRoot, "eng", "LongGrid.DotNetHost.ps1"),
+            Path.Combine(temporaryEngineering, "LongGrid.DotNetHost.ps1"));
+        await File.WriteAllTextAsync(
+            Path.Combine(temporaryAppDirectory, "LongGrid.App.exe"),
+            "not-started-by-preparation-failure");
+
+        string[] newEvidenceSessions = [];
+        try
+        {
+            ProcessResult result = await RunPowerShellFileAsync(
+                Path.Combine(
+                    temporaryEngineering,
+                    "Start-LongGridM1ManualEvidenceSession.ps1"),
+                temporaryRoot,
+                "-NoBuild");
+
+            string[] evidenceAfter = GetDirectoryNames(evidenceRoot);
+            newEvidenceSessions = evidenceAfter
+                .Except(evidenceBefore, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Empty(result.Output);
+            Assert.Contains(
+                "Injected M1 evidence preparation failure.",
+                result.Error,
+                StringComparison.Ordinal);
+            Assert.Empty(newEvidenceSessions);
+            Assert.Equal(processesBefore, GetLongGridProcessIds());
+        }
+        finally
+        {
+            foreach (string sessionId in newEvidenceSessions)
+            {
+                Assert.True(Guid.TryParseExact(sessionId, "N", out _));
+                string directory = Path.Combine(evidenceRoot, sessionId);
+                string marker = Path.Combine(directory, ".longgrid-m1-session");
+                Assert.Equal(
+                    sessionId,
+                    (await File.ReadAllTextAsync(marker)).Trim());
+                Directory.Delete(directory, recursive: true);
+            }
+
+            Directory.Delete(temporaryRoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task StartupValidateOnlyIgnoresEarlierPathHostWithoutCompatibleSdk()
     {
         string? compatibleHost = GetCompatibleHost();
