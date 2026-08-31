@@ -401,6 +401,55 @@ public sealed class DotNetHostResolutionRealProcessTests
     }
 
     [Fact]
+    public async Task M1CleanupRejectsMarkerWithSurroundingWhitespace()
+    {
+        string? compatibleHost = GetCompatibleHost();
+        if (compatibleHost is null)
+        {
+            return;
+        }
+
+        string sessionId = Guid.NewGuid().ToString("N");
+        string evidenceDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "LongGridM1ManualEvidence",
+            sessionId);
+        string markerPath = Path.Combine(
+            evidenceDirectory,
+            ".longgrid-m1-session");
+        string sentinelPath = Path.Combine(evidenceDirectory, "sentinel.txt");
+        Directory.CreateDirectory(evidenceDirectory);
+        await File.WriteAllTextAsync(markerPath, $" {sessionId} ");
+        await File.WriteAllTextAsync(sentinelPath, "must remain");
+        int[] processesBefore = GetLongGridProcessIds();
+
+        try
+        {
+            ProcessResult cleanup = await RunWithPoisonedPathAsync(
+                compatibleHost,
+                "Start-LongGridM1ManualEvidenceSession.ps1",
+                "-CleanupSessionId",
+                sessionId);
+
+            Assert.NotEqual(0, cleanup.ExitCode);
+            Assert.Contains(
+                "Refused to clean an M1 directory without its exact marker.",
+                cleanup.Error,
+                StringComparison.Ordinal);
+            Assert.True(Directory.Exists(evidenceDirectory));
+            Assert.True(File.Exists(sentinelPath));
+            Assert.Equal(processesBefore, GetLongGridProcessIds());
+        }
+        finally
+        {
+            if (Directory.Exists(evidenceDirectory))
+            {
+                Directory.Delete(evidenceDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task M1CleanupRejectsReparsePointEvidenceRoot()
     {
         if (!OperatingSystem.IsWindows())
