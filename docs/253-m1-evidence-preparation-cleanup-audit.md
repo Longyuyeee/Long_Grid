@@ -4,7 +4,7 @@
 
 输入基线：`origin/main@645261f548e5c8471e505348b4024eef2a2757dd`
 
-状态：`Complete / PullRequestChecksPass / MergePending / ExternalEnvironmentBlocked`
+状态：`Complete / PullRequestAndMainVerificationPass / ExternalEnvironmentBlocked`
 
 ## 1. 接续条件与开发目标
 
@@ -47,6 +47,10 @@ Stage 247 已把产品启动、刷新与 Ready 等待统一纳入异常清理，
 
 ## 5. 远端交付
 
-精确提交 `0bc79b7b156524ea5c39507ee0c1c1686057f8aa` 已推送到短分支并创建 PR #332；PR 无评论、无 review，状态 `MERGEABLE`。CI run `33397308160` 通过：完整测试 `1,400/1,400`、0 skipped、32 秒，coverage lines `90.14% (46,932/52,064)`、branches `76.04% (15,432/20,294)`，198-ID、漏洞 0、20 项目/30 包、许可证继续 `PendingOwnerReviewAndNotice / distributionApproved=false`。artifact `9760096291`，1,003,430 bytes，digest `sha256:3ac698c60f3cd5d1c81823df7479264c606b7263641b7b8f408cedb8e20f92f4`。
+精确提交 `0bc79b7b156524ea5c39507ee0c1c1686057f8aa` 已推送到短分支并创建 PR #332；PR 无评论、无 review，状态 `MERGEABLE`。首轮 CI run `33397308160` 通过：完整测试 `1,400/1,400`、0 skipped、32 秒，coverage lines `90.14% (46,932/52,064)`、branches `76.04% (15,432/20,294)`，198-ID、漏洞 0、20 项目/30 包、许可证继续 `PendingOwnerReviewAndNotice / distributionApproved=false`。artifact `9760096291`，1,003,430 bytes，digest `sha256:3ac698c60f3cd5d1c81823df7479264c606b7263641b7b8f408cedb8e20f92f4`。首轮 CodeQL run `33397308208` 的 C# 与 C++ 分析均通过。
 
-CodeQL run `33397308208` 的 C# 与 C++ 分析均通过。本文记录上述精确结果后再推送文档收口提交；最终 PR head 与合并后 main 仍须各自重新验证，未完成前不把 main 写成已交付。
+记录首轮结果的最终 PR head `cf3c13ff712f0b0dbef2a6e3a87467c8de6272e5` 也已重新验证：CI run `33398153681` 与 CodeQL run `33398153641` 全部通过。PR #332 随后 squash 合并为 `main@0087e3479c01163ebbb82e5a1894d7ff060b8f8f`。
+
+合并后的精确 main 再次通过 CI run `33398947213`：完整测试 `1,400/1,400`、0 skipped、29 秒，coverage lines `90.14% (46,932/52,064)`、branches `76.04% (15,432/20,294)`；198-ID 合同、漏洞 0、20 项目/30 包许可证门禁均通过，许可证状态仍为 `PendingOwnerReviewAndNotice / distributionApproved=false`。测试与覆盖率 artifact `9760730299`，1,002,990 bytes，digest `sha256:38e2725cd3e7818b60308a79226066920f0f27f09fff8bfa21b2a77d6d386728`。内部 RC 仍明确不可分发；portable digest `sha256:9c94dda79913da03777181d876eae2b1fce799bb2ce77e3f21a0e4989fe5c43b`，unsigned MSIX digest `sha256:72c87c9a5579128c5e86cc7e06721f16ad0871f95a71877d204048efcde11f66`，SBOM digest `sha256:2a66bbfb3743daf07dff6391952d131cf298036d12482435180ded27f6247c29`。
+
+同一 main 的 CodeQL run `33398947202` 通过：C++ `3m47s`，C# `6m29s`。至此实现、测试、审计、PR、合并与 main 验证闭环完成；外部 Runtime、签名、Sandbox/Host 条件仍未改变，也未被本阶段错误标记为已完成。
