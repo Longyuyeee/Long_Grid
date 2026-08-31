@@ -367,6 +367,84 @@ public sealed class DotNetHostResolutionRealProcessTests
     }
 
     [Fact]
+    public async Task M1LaunchFailureRemovesItsEvidenceAndLeavesProcessesUnchanged()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string repositoryRoot = FindRepositoryRoot();
+        string temporaryRoot = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid-M1-LaunchFailure-" + Guid.NewGuid().ToString("N"));
+        string temporaryEngineering = Path.Combine(temporaryRoot, "eng");
+        string temporaryAppDirectory = Path.Combine(
+            temporaryRoot,
+            "src",
+            "LongGrid.App",
+            "bin",
+            "Release",
+            "net8.0-windows10.0.19041.0",
+            "win-x64");
+        string evidenceRoot = Path.Combine(
+            Path.GetTempPath(),
+            "LongGridM1ManualEvidence");
+        string[] evidenceBefore = GetDirectoryNames(evidenceRoot);
+        int[] processesBefore = GetLongGridProcessIds();
+        Directory.CreateDirectory(temporaryEngineering);
+        Directory.CreateDirectory(temporaryAppDirectory);
+        File.Copy(
+            Path.Combine(
+                repositoryRoot,
+                "eng",
+                "Start-LongGridM1ManualEvidenceSession.ps1"),
+            Path.Combine(
+                temporaryEngineering,
+                "Start-LongGridM1ManualEvidenceSession.ps1"));
+        File.Copy(
+            Path.Combine(repositoryRoot, "eng", "LongGrid.DotNetHost.ps1"),
+            Path.Combine(temporaryEngineering, "LongGrid.DotNetHost.ps1"));
+        await File.WriteAllTextAsync(
+            Path.Combine(temporaryAppDirectory, "LongGrid.App.exe"),
+            "not-a-valid-Windows-executable");
+
+        string[] newEvidenceSessions = [];
+        try
+        {
+            ProcessResult result = await RunPowerShellFileAsync(
+                Path.Combine(
+                    temporaryEngineering,
+                    "Start-LongGridM1ManualEvidenceSession.ps1"),
+                temporaryRoot,
+                "-NoBuild");
+
+            string[] evidenceAfter = GetDirectoryNames(evidenceRoot);
+            newEvidenceSessions = evidenceAfter
+                .Except(evidenceBefore, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Empty(result.Output);
+            Assert.NotEmpty(result.Error);
+            Assert.Empty(newEvidenceSessions);
+            Assert.Equal(processesBefore, GetLongGridProcessIds());
+        }
+        finally
+        {
+            foreach (string sessionId in newEvidenceSessions)
+            {
+                Assert.True(Guid.TryParseExact(sessionId, "N", out _));
+                string directory = Path.Combine(evidenceRoot, sessionId);
+                string marker = Path.Combine(directory, ".longgrid-m1-session");
+                Assert.Equal(sessionId, (await File.ReadAllTextAsync(marker)).Trim());
+                Directory.Delete(directory, recursive: true);
+            }
+
+            Directory.Delete(temporaryRoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task StartupValidateOnlyIgnoresEarlierPathHostWithoutCompatibleSdk()
     {
         string? compatibleHost = GetCompatibleHost();
@@ -542,6 +620,69 @@ public sealed class DotNetHostResolutionRealProcessTests
             poisonPowerShell: false,
             arguments);
     }
+
+    private static async Task<ProcessResult> RunPowerShellFileAsync(
+        string scriptPath,
+        string workingDirectory,
+        params string[] arguments)
+    {
+        ProcessStartInfo startInfo = new(
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "WindowsPowerShell",
+                "v1.0",
+                "powershell.exe"))
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+            WorkingDirectory = workingDirectory,
+        };
+        startInfo.ArgumentList.Add("-NoProfile");
+        startInfo.ArgumentList.Add("-ExecutionPolicy");
+        startInfo.ArgumentList.Add("Bypass");
+        startInfo.ArgumentList.Add("-File");
+        startInfo.ArgumentList.Add(scriptPath);
+        foreach (string argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        using Process process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException(
+                $"Failed to start {Path.GetFileName(scriptPath)}.");
+        Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+        Task<string> errorTask = process.StandardError.ReadToEndAsync();
+        using CancellationTokenSource timeoutSource = new(ProcessTimeout);
+        await process.WaitForExitAsync(timeoutSource.Token);
+        return new(
+            process.ExitCode,
+            (await outputTask).Trim(),
+            (await errorTask).Trim(),
+            PoisonedPowerShellInvoked: false);
+    }
+
+    private static string[] GetDirectoryNames(string root) =>
+        Directory.Exists(root)
+            ? Directory.GetDirectories(root)
+                .Select(Path.GetFileName)
+                .OfType<string>()
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+            : [];
+
+    private static int[] GetLongGridProcessIds() =>
+        Process.GetProcessesByName("LongGrid.App")
+            .Select(process =>
+            {
+                using (process)
+                {
+                    return process.Id;
+                }
+            })
+            .Order()
+            .ToArray();
 
     private static async Task<ProcessResult> RunWithPoisonedPowerShellPathAsync(
         string compatibleHost,
