@@ -206,56 +206,58 @@ $navigation = @(
     (ConvertFrom-CodePoints @(0x8BBE, 0x7F6E))
 )
 
-New-Item -ItemType Directory -Path $configurationDirectory -Force | Out-Null
-New-Item -ItemType Directory `
-    -Path (Join-Path $fixtureDirectory $unicodeSubdirectory) `
-    -Force |
-    Out-Null
-Set-Content `
-    -LiteralPath (Join-Path $evidenceDirectory '.longgrid-m1-session') `
-    -Value $sessionId `
-    -NoNewline
-Set-Content `
-    -LiteralPath (Join-Path $fixtureDirectory $unicodeKeepFile) `
-    -Value 'Long Grid M1 folder-binding fixture; content must not change.' `
-    -NoNewline
-Set-Content `
-    -LiteralPath (Join-Path $fixtureDirectory $unicodeSecondFile) `
-    -Value 'Explorer Link and open fixture; content must not change.' `
-    -NoNewline
-
-$expected = [ordered]@{
-    schemaVersion = 1
-    purpose = 'M1ManualProductJourneyEvidence'
-    sessionId = $sessionId
-    expected = [ordered]@{
-        productWindowVisible = $true
-        normalProductNavigation = $navigation
-        createBox = 'Visible physical input creates one persisted box in the control center.'
-        bindFolder = 'FolderPicker binds the fixture without modifying its files.'
-        refreshAndOpen = 'The box shows direct children and opens by the system handler.'
-        desktopHost = if ($EnableDesktopHost) {
-            'Enabled for a dedicated-account physical session.'
-        }
-        else {
-            'Pending a dedicated account without an existing elevated LongGrid owner.'
-        }
-        explorerDrop = 'Requires physical input in a DesktopHost-enabled session.'
-        reassignmentUndo = 'Requires physical input in a DesktopHost-enabled session.'
-        fileDifference = 'None'
-    }
-    actual = [ordered]@{
-        status = 'PendingPhysicalInput'
-    }
-    difference = 'PendingPhysicalInput'
-} | ConvertTo-Json -Depth 6
-Set-Content `
-    -LiteralPath (Join-Path $evidenceDirectory 'journey.json') `
-    -Value $expected `
-    -Encoding utf8
-
 $process = $null
+$markerWritten = $false
 try {
+    New-Item -ItemType Directory -Path $configurationDirectory -Force | Out-Null
+    New-Item -ItemType Directory `
+        -Path (Join-Path $fixtureDirectory $unicodeSubdirectory) `
+        -Force |
+        Out-Null
+    Set-Content `
+        -LiteralPath (Join-Path $evidenceDirectory '.longgrid-m1-session') `
+        -Value $sessionId `
+        -NoNewline
+    $markerWritten = $true
+    Set-Content `
+        -LiteralPath (Join-Path $fixtureDirectory $unicodeKeepFile) `
+        -Value 'Long Grid M1 folder-binding fixture; content must not change.' `
+        -NoNewline
+    Set-Content `
+        -LiteralPath (Join-Path $fixtureDirectory $unicodeSecondFile) `
+        -Value 'Explorer Link and open fixture; content must not change.' `
+        -NoNewline
+
+    $expected = [ordered]@{
+        schemaVersion = 1
+        purpose = 'M1ManualProductJourneyEvidence'
+        sessionId = $sessionId
+        expected = [ordered]@{
+            productWindowVisible = $true
+            normalProductNavigation = $navigation
+            createBox = 'Visible physical input creates one persisted box in the control center.'
+            bindFolder = 'FolderPicker binds the fixture without modifying its files.'
+            refreshAndOpen = 'The box shows direct children and opens by the system handler.'
+            desktopHost = if ($EnableDesktopHost) {
+                'Enabled for a dedicated-account physical session.'
+            }
+            else {
+                'Pending a dedicated account without an existing elevated LongGrid owner.'
+            }
+            explorerDrop = 'Requires physical input in a DesktopHost-enabled session.'
+            reassignmentUndo = 'Requires physical input in a DesktopHost-enabled session.'
+            fileDifference = 'None'
+        }
+        actual = [ordered]@{
+            status = 'PendingPhysicalInput'
+        }
+        difference = 'PendingPhysicalInput'
+    } | ConvertTo-Json -Depth 6
+    Set-Content `
+        -LiteralPath (Join-Path $evidenceDirectory 'journey.json') `
+        -Value $expected `
+        -Encoding utf8
+
     try {
         [Environment]::SetEnvironmentVariable($environmentName, $sessionId, 'Process')
         [Environment]::SetEnvironmentVariable(
@@ -329,7 +331,9 @@ catch {
         }
         $process.Dispose()
     }
-    Remove-EvidenceDirectory $sessionId
+    if ($markerWritten) {
+        Remove-EvidenceDirectory $sessionId
+    }
     throw
 }
 

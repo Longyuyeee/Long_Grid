@@ -1,12 +1,12 @@
 # Long方格产品重对齐与统一开发计划
 
-版本：2.7
+版本：2.8
 
 状态：Required / 当前唯一执行计划
 
 更新日期：2026-08-31
 
-代码审计输入基线：`origin/main@1dcea5c`；最新质量修正与接续边界见 [Stage 252](252-m1-missing-cleanup-and-taskbar-test-host-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)，新鲜度合同见 [Stage 250](250-readme-continuation-source-freshness-contract-audit.md)，完整接续条件见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)，既有证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)
+代码审计输入基线：`origin/main@645261f`；最新质量修正与接续边界见 [Stage 253](253-m1-evidence-preparation-cleanup-audit.md)，前一轮 cleanup/测试宿主修正见 [Stage 252](252-m1-missing-cleanup-and-taskbar-test-host-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)，完整接续条件见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)，既有证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -850,3 +850,9 @@ Stage 241 从最终 `main@99ee050` 重新复读统一计划、30 项 PF 总表�
 从 `main@1dcea5c` 按 Stage 251 在当前电脑重跑准入，M1 继续零启动 `BlockedByIncompleteRuntime`，TASKBAR Host 继续阻断。代码复读与真实调用发现，不存在的合法 GUID session 会让 M1 cleanup 跳过目录/marker/reparse-point 校验却返回 `Pass / removed=true`；现要求精确目录实际存在，不存在时非零失败且不得改变 LongGrid PID 或证据集合。合法 marker 会话仍可正常删除，新增真实 Windows PowerShell 子进程回归后专项 `2/2` 通过。
 
 完整套件首轮又真实得到 `1,398/1,399`：任务栏恢复事务测试以裸 `dotnet` 启动 x64 子测试，但当前 PATH 首项为 x86 host，独立连续 `0/10` 且没有 readiness。相同子命令固定 Program Files x64 host 后约 2 秒产生 journal/lock/readiness；测试修正后连续 `10/10`，10 秒测试预算与产品预算均未放宽。最终完整 `1,399/1,399`、coverage lines `90.43%`、branches `76.17%`、198-ID、漏洞 0，许可证与分发继续失败关闭。M1/M2、30 项 PF 和唯一外部接续点不变，详见 [Stage 252](252-m1-missing-cleanup-and-taskbar-test-host-audit.md)。
+
+### 13.31 Stage 253：M1 marker 后证据准备异常统一清理
+
+从 `main@645261f` 重跑外部准入，M1 继续零启动 `BlockedByIncompleteRuntime`，TASKBAR Host 继续阻断。实际代码复读发现 Stage 247 的统一异常边界只覆盖 Start-Process、刷新和 Ready 等待；配置/夹具/`journey.json` 准备仍在边界之外。测试自有脚本副本在精确 marker 建立后注入准备写入失败，修正前真实新增一个 GUID/marker 会话目录，证明失败会留下半成品证据。
+
+现将 marker 后的证据准备、产品启动和 Ready 等待纳入同一异常边界，并以 `$markerWritten` 限定只有已建立精确 marker 的自有目录才进入既有 GUID/path/reparse-point 清理合同；marker 建立前的异常不调用递归 cleanup，避免掩盖原始失败。相同注入修正后目录集合与 LongGrid PID 集合均零差异；M1 相邻真实专项 `5/5`、完整 `1,400/1,400`、coverage lines `90.43%`、branches `76.17%`、198-ID、漏洞 0。M1/M2、30 项 PF、Runtime、签名和外部接续点不变，详见 [Stage 253](253-m1-evidence-preparation-cleanup-audit.md)。

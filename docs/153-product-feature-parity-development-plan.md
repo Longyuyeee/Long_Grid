@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：PF 功能详细 backlog 与历史验收账本；当前状态、执行顺序和里程碑以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
 - 当前开发项：**M1 集中产品证据冲刺**；顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 当前接续输入基线：`origin/main@1dcea5c`；最新质量修正与执行边界见 [Stage 252](252-m1-missing-cleanup-and-taskbar-test-host-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)，新鲜度合同见 [Stage 250](250-readme-continuation-source-freshness-contract-audit.md)，真实接续条件见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)，既有证据边界见 [Stage 241](241-current-development-handoff-audit.md)
+- 当前接续输入基线：`origin/main@645261f`；最新质量修正与执行边界见 [Stage 253](253-m1-evidence-preparation-cleanup-audit.md)，前一轮 cleanup/测试宿主修正见 [Stage 252](252-m1-missing-cleanup-and-taskbar-test-host-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)，真实接续条件见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)，既有证据边界见 [Stage 241](241-current-development-handoff-audit.md)
 - 最新功能工程审计：PF-007A2 已完成正式 OLE Link 拖入；PF-007B 已完成已选正式引用在盒子间的原生有限拖动、冻结权威准入、原子保存/补偿和一次撤销。真实 STA/HWND/隔离文件路径与 SHA-256 零变化通过，物理鼠标与屏幕证据仍 Pending。PF-007 为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题

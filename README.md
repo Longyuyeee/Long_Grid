@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：Stage 252 已关闭 M1 不存在会话被误报为已清理的证据准确性缺陷，并修正任务栏恢复真实进程测试误选 PATH 中 x86 dotnet host 的确定性失败；M1/M2 仍是 `0/2 Complete`、30 项 PF 仍是 `0 Complete`。当前电脑实测 M1 继续以零启动、零会话的 `BlockedByIncompleteRuntime` 失败关闭，任务栏 Host 仍未准入。完整修正、测试和边界见 [Stage 252](docs/252-m1-missing-cleanup-and-taskbar-test-host-audit.md)，换电脑恢复边界仍见 [Stage 251](docs/251-current-development-computer-handoff.md)；统一执行源见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)。所有产物仍不可公开分发。
+> 当前状态：Stage 253 已关闭 M1 精确 marker 建立后、产品启动前的证据准备异常残留；Stage 252 的不存在 cleanup 失败关闭和任务栏 x64 测试宿主修正继续有效。M1/M2 仍是 `0/2 Complete`、30 项 PF 仍是 `0 Complete`；当前电脑实测 M1 继续以零启动、零会话的 `BlockedByIncompleteRuntime` 失败关闭，任务栏 Host 仍未准入。完整修正、测试和边界见 [Stage 253](docs/253-m1-evidence-preparation-cleanup-audit.md)，换电脑恢复边界仍见 [Stage 251](docs/251-current-development-computer-handoff.md)；统一执行源见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)。所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -16,6 +16,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 当前工作只需要优先阅读以下文档：
 
+- [M1 marker 后证据准备异常统一清理审计（Stage 253）](docs/253-m1-evidence-preparation-cleanup-audit.md)
 - [M1 不存在会话清理与任务栏测试宿主纠偏审计（Stage 252）](docs/252-m1-missing-cleanup-and-taskbar-test-host-audit.md)
 - [当前开发状态与换电脑接续手册（Stage 251）](docs/251-current-development-computer-handoff.md)
 - [上一轮 README 接续源新鲜度合同审计（Stage 250）](docs/250-readme-continuation-source-freshness-contract-audit.md)
@@ -279,7 +280,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 252](docs/252-m1-missing-cleanup-and-taskbar-test-host-audit.md)，BOX-R1-C/D 与 M1 只有在 `#23/#274` 负责人输入、完整兼容 Runtime、受保护签名包和独占可丢弃 Windows 会话同时具备时继续；TASKBAR-R2B1-B 只有 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) 达到 `ReadyToLaunch / GuestReady` 后在 Guest 内继续。两条均未准入时，只处理真实回归、质量或安全缺陷；换电脑的不可迁移边界继续遵循 Stage 251。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 253](docs/253-m1-evidence-preparation-cleanup-audit.md)，BOX-R1-C/D 与 M1 只有在 `#23/#274` 负责人输入、完整兼容 Runtime、受保护签名包和独占可丢弃 Windows 会话同时具备时继续；TASKBAR-R2B1-B 只有 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) 达到 `ReadyToLaunch / GuestReady` 后在 Guest 内继续。两条均未准入时，只处理真实回归、质量或安全缺陷；换电脑的不可迁移边界继续遵循 Stage 251。
 
 ## 开发启动
 
