@@ -4,7 +4,7 @@
 
 输入基线：`origin/main@f653f2f830e242e11f59a2ac9ec19a1339366c4b`
 
-状态：`ImplementationComplete / PullRequestHeadPass / MergePending / ExternalEnvironmentBlocked`
+状态：`Complete / PullRequestAndMainVerificationPass / ExternalEnvironmentBlocked`
 
 ## 1. 接续条件与开发目标
 
@@ -50,4 +50,6 @@
 
 精确实现提交 `10b2cdc55ec31575c52988a0e4234a335b3d9cc7` 已推送到短分支并创建 PR #336；PR 无评论、无 review，状态 `MERGEABLE / CLEAN`。首轮 CI run `33408898960` 通过：完整测试 `1,401/1,401`、0 skipped、21 秒，coverage lines `90.14% (46,930/52,064)`、branches `76.04% (15,432/20,294)`，198-ID、漏洞 0、20 项目/30 包，许可证继续 `PendingOwnerReviewAndNotice / distributionApproved=false`。测试与覆盖率 artifact `9764572264`，1,003,636 bytes，digest `sha256:478c022eec5f144be5a2849c692cdc1883a8f2a854f0afe4655030c9e3c934bb`。
 
-同一 head 的 CodeQL run `33408898933` 通过：C/C++ `3m11s`，C# `6m58s`。本文记录首轮结果后将形成纯审计收口提交；最终 PR head 与合并后的精确 main 仍须各自重新验证，未完成前不把本阶段写成远端闭环。
+同一 head 的 CodeQL run `33408898933` 通过：C/C++ `3m11s`，C# `6m58s`。纯审计收口提交形成最终 PR head `84c6c1049e3d143895d7b6d39c4d9a2f05f637e5` 后，CI run `33409744381` 再次通过（`10m52s`），CodeQL run `33409744492` 再次通过（C/C++ `3m50s`、C# `6m38s`）；PR 仍无评论、无 review，状态 `MERGEABLE / CLEAN`。
+
+PR #336 已 squash 合并为 main `15bdd7ec9407a2e9375700166b7acf49b26000b3`。该 main 的 CI run `33410940608` 通过：完整测试 `1,401/1,401`、0 failed、0 skipped、28 秒，coverage lines `90.14% (46,930/52,064)`、branches `76.04% (15,432/20,294)`，UI 合同 `198` IDs，漏洞 0，20 项目/30 包，许可证继续 `PendingOwnerReviewAndNotice / distributionApproved=false`。测试与覆盖率 artifact `9765369023`，1,003,167 bytes，digest `sha256:c2ad82c9eeafedd99960c0fff36dbe58032be8635a0bb3ee4bfc639921e588ad`。同一 main 的 CodeQL run `33410940596` 通过：C/C++ `3m28s`，C# `7m30s`。至此实现、PR head 与合并 main 均闭环；外部环境准入不变，未把阻断误写成产品验收完成。
