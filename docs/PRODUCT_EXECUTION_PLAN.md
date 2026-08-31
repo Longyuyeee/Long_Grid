@@ -6,7 +6,7 @@
 
 更新日期：2026-08-31
 
-代码审计输入基线：`origin/main@e63969d`；最新 M1 准入模式纠偏见 [Stage 244](244-m1-evidence-mode-separation-audit.md)，整体完成度、换机接续、证据传递边界、真实环境 Actual 与唯一产品接续条件仍见 [Stage 241](241-current-development-handoff-audit.md)
+代码审计输入基线：`origin/main@2f93ec8`；最新 M1 cleanup 模式隔离见 [Stage 245](245-m1-cleanup-mode-isolation-audit.md)，M1 准入模式纠偏见 [Stage 244](244-m1-evidence-mode-separation-audit.md)，整体完成度、换机接续、证据传递边界、真实环境 Actual 与唯一产品接续条件仍见 [Stage 241](241-current-development-handoff-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -806,3 +806,7 @@ Stage 241 从最终 `main@99ee050` 重新复读统一计划、30 项 PF 总表�
 从 `main@7078705` 按 Stage 241 重跑真实接续条件：#23/#274 未更新，受保护环境没有 Publisher/托管签名输入，签名与许可证仍禁止安装分发；本机仍缺 Main.2 `>=2.3.1.0` 和 DDLM `2.3.1.0-x6`，且已知不安全 XAML 组合仍存在。正向 BOX-R1-C/D 因此继续停止。
 
 真实审计调用发现 `Start-LongGridM1ManualEvidenceSession.ps1 -ValidateOnly -ExternalAutomation` 返回静态合同 Pass，却没有运行 ExternalAutomation 的 Runtime 预检。两种模式现被明确设为互斥；真实 PowerShell 子进程回归要求组合调用非零退出、精确错误、LongGrid.App PID 与 M1 证据目录集合不变。合法 ValidateOnly 继续 Pass；合法 ExternalAutomation 继续 `BlockedByIncompleteRuntime / startsProcess=false / createsEvidenceSession=false`。完整本机测试 `1,396/1,396`，coverage lines `90.46%`、branches `76.16%`，漏洞 0，许可证仍 `PendingOwnerReviewAndNotice / distributionApproved=false`。PR #318 与精确合并提交 `main@e63969d` 的 CI/CodeQL 均成功；main 完整测试 `1,396/1,396`、coverage `90.14%/76.04%`、双语言 CodeQL open alerts=0。本轮只关闭准入误判，不改变 M1/M2、PF 或唯一产品接续点，详见 [Stage 244](244-m1-evidence-mode-separation-audit.md)。
+
+### 13.23 Stage 245：M1 cleanup 模式隔离与证据生命周期防遮蔽
+
+从 `main@2f93ec8` 复读外部条件，#23/#274、受保护签名、许可证与本机 Runtime 均未变化，BOX-R1-C/D 继续停止。真实创建精确 marker 会话后发现 `-ExternalAutomation -CleanupSessionId` 先被 Runtime 预检阻断并留下目录；修正为在 Runtime 和证据操作前拒绝 Cleanup 与 ValidateOnly/ExternalAutomation 的组合，调用方必须分开执行。真实非法组合 exit 1、目录保持、LongGrid 进程不变；合法 cleanup 删除同一目录。新增真实 Windows PowerShell 子进程回归，完整本机测试 `1,397/1,397`，coverage `90.46%/76.16%`，漏洞 0，许可证继续禁止分发。首次 coverage 因 43 份历史结果被聚合而正确失败，精确清理未跟踪 TestResults、关闭 build server 并生成唯一结果后通过；未降低阈值。产品状态和下一唯一接续点不变，详见 [Stage 245](245-m1-cleanup-mode-isolation-audit.md)。
