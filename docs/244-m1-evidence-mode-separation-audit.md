@@ -4,7 +4,7 @@
 
 输入基线：`origin/main@70787059f694ed7519d25fb04b081aa8fcbef99b`
 
-状态：`CorrectionComplete / LocalAndPullRequestVerificationPass / MainVerificationPending / ProductStatusUnchanged`
+状态：`Complete / LocalPullRequestAndMainVerificationPass / ProductStatusUnchanged`
 
 ## 1. 接续判断
 
@@ -50,6 +50,8 @@
 
 ## 5. 开发目标与需求对齐审计
 
-开发目标审计：本阶段没有假定外部条件变化，而是按唯一接续点重跑真实 Runtime、签名、Issue 和 M1 入口。新发现的模式误判差异已由最小互斥检查和真实子进程回归关闭，两个合法模式、本机完整套件和精确实现提交的远端门禁均未回归。最终文档 head 与合并后 main 证据仍 Pending。
+PR #318 已 squash 合并为 `main@e63969ddc31c5fbf403a2656708b8f600ade0985`。该精确合并提交的 CI run `33355982667` 与 CodeQL run `33355982679` 均成功：Format 使用 `C:\Program Files\dotnet\dotnet.exe`，attempts=1、`transientRetryObserved=false`；关闭 MSBuild/Roslyn server 后完整测试 `1,396/1,396`、0 skipped、25 秒；coverage lines `90.14% (46930/52064)`、branches `76.04% (15432/20294)`；漏洞 0；许可证继续 `PendingOwnerReviewAndNotice / distributionApproved=false`；测试与覆盖率 artifact `9745259699`、1,002,849 bytes；C# / C++ CodeQL 均成功且 main open alerts=0。
+
+开发目标审计：本阶段没有假定外部条件变化，而是按唯一接续点重跑真实 Runtime、签名、Issue 和 M1 入口。新发现的模式误判差异已由最小互斥检查和真实子进程回归关闭，两个合法模式、本机完整套件、精确实现提交、最终 PR head 和合并后精确 main 门禁均未回归。Stage 244 工程修正与证据闭环完成。
 
 需求对齐审计：修正加强“真实准入不能由静态合同 Pass 替代”的既有要求，不安装 unsigned 包、不启动新产品进程、不创建证据会话、不终止现有进程，也不降低 Runtime、签名、许可证或物理旅程门槛。M1/M2 继续 `0/2 Complete`、30 项 PF 继续 `0 Complete`；下一唯一产品接续点仍是外部条件满足后的 BOX-R1-C/D 与 M1 完整物理旅程。
