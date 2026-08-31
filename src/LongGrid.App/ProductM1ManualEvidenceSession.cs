@@ -61,7 +61,7 @@ internal sealed class ProductM1ManualEvidenceSession
         string markerPath = Path.Combine(sessionDirectory, MarkerFileName);
         if (!File.Exists(markerPath)
             || !string.Equals(
-                File.ReadAllText(markerPath).Trim(),
+                File.ReadAllText(markerPath),
                 sessionId.ToString("N"),
                 StringComparison.Ordinal))
         {
