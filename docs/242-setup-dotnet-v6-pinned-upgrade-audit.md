@@ -6,7 +6,7 @@
 
 Dependabot 输入：PR #314 / `4379d4c8e218e45e606ab79947907daecec5141f`
 
-状态：`CorrectionComplete / LocalVerificationPass / RemoteVerificationPending / ProductStatusUnchanged`
+状态：`CorrectionComplete / LocalAndPrVerificationPass / MainVerificationPending / ProductStatusUnchanged`
 
 ## 1. 开发目标与范围
 
@@ -55,3 +55,9 @@ Dependabot 输入：PR #314 / `4379d4c8e218e45e606ab79947907daecec5141f`
 需求对齐审计：变更只维护既有 CI/CodeQL SDK 安装 Action，不修改 Long方格产品代码，不增加权限，不接触签名、Publisher、用户文件或系统状态，也不把供应链门禁通过写成产品功能完成。
 
 产品状态继续为 M1/M2 `0/2 Complete`、30 项 PF `0 Complete`。下一产品接续点仍是 Stage 241 定义的 BOX-R1-C/D 与 M1 完整物理旅程；当前机器仍缺 Main.2 `>=2.3.1.0` 与 DDLM `2.3.1.0-x6`，并存在既有 LongGrid 进程，不能进入正向证据。远端通过后，PR #314 应由本阶段完整变更取代，避免合入缺少批准清单的半更新。
+
+## 6. PR #315 真实 Hosted Runner 结果
+
+首次提交 `5f9b4fe` 的 [PR #315](https://github.com/Longyuyeee/Long_Grid/pull/315) 已在 GitHub Hosted Windows Runner 真实执行 setup-dotnet v6.0.0。CI run `33348703652` success：`1,394/1,394`、0 skipped，coverage lines `90.12% (46926/52072)`、branches `76.04% (15434/20298)`，漏洞 0，20 projects / 30 packages 许可证元数据通过；内部 RC 仍为 `PendingOwnerReviewAndNotice / distributionApproved=false`，artifact ID `9742949529`、1,000,981 bytes。
+
+CodeQL run `33348703648` 的 C++ 与 C# 均 success，SARIF 成功上传，分支开放告警 0。Initial Actual 的两条 `unapproved-pin` 已消失，v6 Node 24 Action 完成实际 SDK setup 和全部下游消费者，修正后 `Difference=None`。本次证据回填提交仍须通过同一 PR 的 CI/CodeQL；合并后还须核对精确 main 运行，完成前状态保持 `MainVerificationPending`。
