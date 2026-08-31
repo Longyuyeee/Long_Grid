@@ -203,6 +203,9 @@ jobs:
           powershell -NoProfile -ExecutionPolicy Bypass
           -File ./eng/Test-LongGridCiReleaseRestore.ps1
 
+      - name: Shutdown build servers before real-process tests
+        run: dotnet build-server shutdown
+
       - name: Test
         run: >-
           dotnet test LongGrid.sln

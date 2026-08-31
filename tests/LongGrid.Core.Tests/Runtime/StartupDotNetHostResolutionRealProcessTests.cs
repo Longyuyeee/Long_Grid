@@ -271,6 +271,14 @@ public sealed class DotNetHostResolutionRealProcessTests
             "run: dotnet format",
             workflow,
             StringComparison.OrdinalIgnoreCase);
+        int shutdown = workflow.IndexOf(
+            "run: dotnet build-server shutdown",
+            StringComparison.Ordinal);
+        int realProcessTests = workflow.IndexOf(
+            "dotnet test LongGrid.sln",
+            StringComparison.Ordinal);
+        Assert.True(shutdown >= 0);
+        Assert.True(realProcessTests > shutdown);
     }
 
     [Theory]
