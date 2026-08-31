@@ -4,7 +4,7 @@
 
 输入基线：`origin/main@b0fb5c7142bc7f63b571210c38f538c5cb2fe287`
 
-状态：`CorrectionComplete / LocalAndPullRequestVerificationPass / MainVerificationPending / ProductStatusUnchanged`
+状态：`Complete / LocalPullRequestAndMainVerificationPass / ProductStatusUnchanged`
 
 ## 1. 接续原因与开发目标
 
@@ -88,6 +88,12 @@ Stage 242 的 PR #315 两轮 CI/CodeQL 全部通过并 squash merge 后，精确
 
 ## 8. 开发目标与需求对齐审计
 
-开发目标审计：main format 宿主竞态、PR 原生菜单模态挂起、压力后缩略图资源竞争三项 Actual 均已保留。修正分别限定为 format 一次精确重试、证据菜单的真实窗口有限取消、真实进程测试前释放编译服务；没有降低格式、UIA、测试、覆盖率或产品缩略图预算。本机与精确修正提交的 PR 门禁全部通过，证据文档提交与合并后 main 验证仍 Pending。
+开发目标审计：main format 宿主竞态、PR 原生菜单模态挂起、压力后缩略图资源竞争三项 Actual 均已保留。修正分别限定为 format 一次精确重试、证据菜单的真实窗口有限取消、真实进程测试前释放编译服务；没有降低格式、UIA、测试、覆盖率或产品缩略图预算。本机、精确 PR head 和合并后 main 门禁均已通过。
 
 需求对齐审计：本阶段是 CI 确定性修正，不修改 Long方格产品运行时、用户文件、Windows Runtime、任务栏、签名或分发。M1/M2 继续 `0/2 Complete`、30 项 PF 继续 `0 Complete`；下一产品接续点仍是 Stage 241 的 BOX-R1-C/D 与 M1 完整物理旅程，外部条件没有因本修正改变。
+
+## 9. 合并与精确 main 关闭证据
+
+PR #316 squash merge 为 `main@e0231d1f6ed8edb493f509b9e28dad37f4a1e0dd`。精确 main CI run `33352728264` 与 CodeQL run `33352728265` 均成功：Format 继续使用 `C:\Program Files\dotnet\dotnet.exe`，attempts=1、`transientRetryObserved=false`；MSBuild 与 Roslyn server 在 Test 前均成功关闭；完整测试 `1,395/1,395`、0 skipped、30 秒；coverage lines `90.14% (46928/52064)`、branches `76.03% (15430/20294)`；漏洞 0；许可证仍为 `PendingOwnerReviewAndNotice / distributionApproved=false`；测试制品 artifact `9744269026`、1,001,883 bytes。main 的 C# / C++ CodeQL 均通过，open alerts=0。
+
+Stage 243 至此关闭。后续不得继续围绕该工程差异循环；下一产品开发仍按 Stage 241 的外部准入条件接续 BOX-R1-C/D 与 M1 物理旅程。
