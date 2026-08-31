@@ -190,8 +190,6 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
 {
     private const int ActivationButtonSizeDip = 32;
     private static long nextUserActionSequence;
-    private static readonly NativeMethods.TimerProcedure MenuEvidenceTimer =
-        static (_, _, _, _) => _ = NativeMethods.EndMenu();
     private readonly string className;
     private readonly nint module;
     private readonly WindowProcedure windowProcedure;
@@ -583,14 +581,6 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             case NativeMethods.WmOpenContainerMenu:
                 ShowPendingContainerMenu(window);
                 return nint.Zero;
-            case NativeMethods.WmTimer
-                when wordParameter.ToInt64() ==
-                    NativeMethods.MenuEvidenceTimerId:
-                _ = NativeMethods.KillTimer(
-                    window,
-                    NativeMethods.MenuEvidenceTimerId);
-                _ = NativeMethods.EndMenu();
-                return nint.Zero;
             case NativeMethods.WmKeyDown:
             case NativeMethods.WmSysKeyDown:
                 if (keyboardProxy)
@@ -960,24 +950,25 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
 
     internal void ShowPendingContainerMenuForEvidence()
     {
-        nuint timer = NativeMethods.SetTimer(
-            Handle,
-            NativeMethods.MenuEvidenceTimerId,
-            1200,
-            MenuEvidenceTimer);
-        if (timer == 0)
+        nint window = Handle;
+        int cancellationPost = 0;
+        using var timer = new System.Threading.Timer(
+            _ => Interlocked.Exchange(
+                ref cancellationPost,
+                NativeMethods.PostMessage(
+                    window,
+                    NativeMethods.WmCancelMode,
+                    nint.Zero,
+                    nint.Zero)
+                    ? 1
+                    : -1),
+            null,
+            TimeSpan.FromMilliseconds(1200),
+            Timeout.InfiniteTimeSpan);
+        ShowPendingContainerMenu(window);
+        if (Volatile.Read(ref cancellationPost) != 1)
         {
             throw new Win32Exception(Marshal.GetLastWin32Error());
-        }
-        try
-        {
-            ShowPendingContainerMenu(Handle);
-        }
-        finally
-        {
-            _ = NativeMethods.KillTimer(
-                Handle,
-                NativeMethods.MenuEvidenceTimerId);
         }
     }
 
@@ -1501,7 +1492,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         internal const uint MenuAppearanceCommand = 41002;
         internal const uint MenuSortCommand = 41003;
         internal const uint MenuDeleteCommand = 41004;
-        internal const nint MenuEvidenceTimerId = 49004;
+        internal const uint WmCancelMode = 0x001F;
         internal static readonly nint ArrowCursor = new(32512);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
@@ -1705,25 +1696,6 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool EndMenu();
 
-        [UnmanagedFunctionPointer(CallingConvention.Winapi)]
-        internal delegate void TimerProcedure(
-            nint window,
-            uint message,
-            nuint identifier,
-            uint elapsedMilliseconds);
-
-        [DllImport("user32.dll")]
-        internal static extern nuint SetTimer(
-            nint window,
-            nint identifier,
-            uint intervalMilliseconds,
-            TimerProcedure? timerProcedure);
-
-        [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool KillTimer(
-            nint window,
-            nint identifier);
 
 #if WINDOWS
         [DllImport("uiautomationcore.dll")]

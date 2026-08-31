@@ -1010,7 +1010,14 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default);
         Assert.True(observerReady.Wait(TimeSpan.FromSeconds(5)));
+        System.Diagnostics.Stopwatch menuLifetime =
+            System.Diagnostics.Stopwatch.StartNew();
         source.ShowPendingContainerMenuForEvidence();
+        menuLifetime.Stop();
+        Assert.InRange(
+            menuLifetime.Elapsed,
+            TimeSpan.FromMilliseconds(900),
+            TimeSpan.FromSeconds(10));
         (string Name, bool Enabled)[] menuItems = await observeMenu;
         Assert.Equal(
             [

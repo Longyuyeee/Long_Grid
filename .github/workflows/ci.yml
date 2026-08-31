@@ -53,7 +53,10 @@ jobs:
         run: dotnet restore LongGrid.sln --locked-mode
 
       - name: Format
-        run: dotnet format LongGrid.sln --verify-no-changes --no-restore
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File ./eng/Test-LongGridFormat.ps1
 
       - name: Build
         run: dotnet build LongGrid.sln --configuration Release --no-restore
@@ -199,6 +202,9 @@ jobs:
         run: >-
           powershell -NoProfile -ExecutionPolicy Bypass
           -File ./eng/Test-LongGridCiReleaseRestore.ps1
+
+      - name: Shutdown build servers before real-process tests
+        run: dotnet build-server shutdown
 
       - name: Test
         run: >-

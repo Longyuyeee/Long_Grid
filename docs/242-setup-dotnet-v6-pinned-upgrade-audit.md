@@ -6,7 +6,7 @@
 
 Dependabot 输入：PR #314 / `4379d4c8e218e45e606ab79947907daecec5141f`
 
-状态：`CorrectionComplete / LocalAndPrVerificationPass / MainVerificationPending / ProductStatusUnchanged`
+状态：`CorrectionIntegrated / PrVerificationPass / MainCiDifferenceFound / ContinuedByStage243 / ProductStatusUnchanged`
 
 ## 1. 开发目标与范围
 
@@ -61,3 +61,5 @@ Dependabot 输入：PR #314 / `4379d4c8e218e45e606ab79947907daecec5141f`
 首次提交 `5f9b4fe` 的 [PR #315](https://github.com/Longyuyeee/Long_Grid/pull/315) 已在 GitHub Hosted Windows Runner 真实执行 setup-dotnet v6.0.0。CI run `33348703652` success：`1,394/1,394`、0 skipped，coverage lines `90.12% (46926/52072)`、branches `76.04% (15434/20298)`，漏洞 0，20 projects / 30 packages 许可证元数据通过；内部 RC 仍为 `PendingOwnerReviewAndNotice / distributionApproved=false`，artifact ID `9742949529`、1,000,981 bytes。
 
 CodeQL run `33348703648` 的 C++ 与 C# 均 success，SARIF 成功上传，分支开放告警 0。Initial Actual 的两条 `unapproved-pin` 已消失，v6 Node 24 Action 完成实际 SDK setup 和全部下游消费者，修正后 `Difference=None`。本次证据回填提交仍须通过同一 PR 的 CI/CodeQL；合并后还须核对精确 main 运行，完成前状态保持 `MainVerificationPending`。
+
+PR #315 已 squash merge 为 `main@b0fb5c7`。精确 main 的 setup-dotnet v6、工具还原和 locked restore 均通过，CodeQL run `33349579586` 的 C++/C# 均 success；但 CI run `33349579578` 首次在 format 内部宿主探测返回 `Unable to locate dotnet CLI`，没有执行后续 build/test。该 main Actual 不由 PR 绿灯覆盖，Stage 242 的 Action pin 升级已集成，但整体 main 门禁由 [Stage 243](243-dotnet-format-host-discovery-retry-audit.md)继续纠偏。
