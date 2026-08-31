@@ -1,12 +1,12 @@
 # Long方格产品重对齐与统一开发计划
 
-版本：2.9
+版本：3.0
 
 状态：Required / 当前唯一执行计划
 
 更新日期：2026-08-31
 
-代码审计输入基线：`origin/main@dd672af`；最新执行队列新鲜度修正与接续边界见 [Stage 254](254-execution-plan-current-queue-freshness-audit.md)，前一轮 M1 生命周期修正见 [Stage 253](253-m1-evidence-preparation-cleanup-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)，既有证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)
+代码审计输入基线：`origin/main@f653f2f`；最新 M1 证据根清理安全修正与接续边界见 [Stage 255](255-m1-evidence-root-reparse-point-audit.md)，前一轮执行源修正见 [Stage 254](254-execution-plan-current-queue-freshness-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)，既有证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -265,7 +265,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**等待 BOX-R1-C/D 与 M1 完整物理旅程的外部准入（ExternalEnvironmentBlocked）**。FOLDER-R1 的路径、基础排序、加载状态和一次性恢复反馈已由 PR #267～#270 全部合入。下一用户结果是在具备受保护签名、完整兼容 Windows App Runtime、安全 WinUI/UIA、无既有 Long方格进程的可丢弃账户/VM 中真实安装包，从桌面空白处创建盒子、绑定文件夹、观察加载/失效/恢复并排序/刷新/打开、Explorer 拖入、盒子间改归属并撤销，最后验证 Explorer 重启和卸载恢复。当前环境不符合这些门禁，因此不得用源码合同、宿主错误窗口、未签名包、当前日常账户或降低系统安全策略替代物理 Pass，也不得继续增加 M1 邻接探针或外围功能。TASKBAR-R2B1-B 同样保持 `EnvironmentBlocked`；Stage 248 已证明官方 Stable 2.4.0 self-contained 仍复现相同 XAML 启动指纹，Stage 249 又真实确认 M1 零启动和任务栏 Host `Blocked / mutationAllowed=false`。最新精确接续条件、开放 Issue 和禁止项见 [Stage 254](254-execution-plan-current-queue-freshness-audit.md)。
+当前执行项：**等待 BOX-R1-C/D 与 M1 完整物理旅程的外部准入（ExternalEnvironmentBlocked）**。FOLDER-R1 的路径、基础排序、加载状态和一次性恢复反馈已由 PR #267～#270 全部合入。下一用户结果是在具备受保护签名、完整兼容 Windows App Runtime、安全 WinUI/UIA、无既有 Long方格进程的可丢弃账户/VM 中真实安装包，从桌面空白处创建盒子、绑定文件夹、观察加载/失效/恢复并排序/刷新/打开、Explorer 拖入、盒子间改归属并撤销，最后验证 Explorer 重启和卸载恢复。当前环境不符合这些门禁，因此不得用源码合同、宿主错误窗口、未签名包、当前日常账户或降低系统安全策略替代物理 Pass，也不得继续增加 M1 邻接探针或外围功能。TASKBAR-R2B1-B 同样保持 `EnvironmentBlocked`；Stage 248 已证明官方 Stable 2.4.0 self-contained 仍复现相同 XAML 启动指纹，Stage 255 又真实确认 M1 零启动和任务栏 Host `Blocked / mutationAllowed=false`。最新精确接续条件、开放 Issue 和禁止项见 [Stage 255](255-m1-evidence-root-reparse-point-audit.md)。
 
 严格按下列顺序交付，不再插入相邻探针或新宽度功能：
 
@@ -862,3 +862,9 @@ Stage 241 从最终 `main@99ee050` 重新复读统一计划、30 项 PF 总表�
 从 `main@dd672af` 重跑外部准入，#23/#274 无更新；M1 继续零启动、零会话 `BlockedByIncompleteRuntime`，TASKBAR Host 在安全 `.wsb` 已复读的情况下仍因 Sandbox launcher 缺失返回 `Blocked / mutationAllowed=false`。两条均未准入，实际代码复读转而发现计划页头已经以 Stage 253 为最新来源，但第 9 节当前队列仍把 Stage 249 写成最新精确条件；旧 freshness 合同对此错误返回 Pass。
 
 现让同一只读合同结构化定位计划当前队列，并要求它与页头的 Stage/audit 完全一致；应用到修正文档前真实得到 `execution-plan-current-queue:audit-expected=253-actual=249`，修正后 Windows PowerShell 5.1、PowerShell 7 与 Action-pin 聚合入口均通过。新增内存 Stage 252 回退固定失败；完整 `1,400/1,400`、coverage lines `90.42%`、branches `76.16%`、198-ID、漏洞 0。产品完成度、Runtime、签名、Sandbox 和唯一外部接续点不变，详见 [Stage 254](254-execution-plan-current-queue-freshness-audit.md)。
+
+### 13.33 Stage 255：M1 证据根重解析点清理安全
+
+从 `main@f653f2f` 重跑外部准入，#23/#274 无更新；M1 仍以零启动、零会话的 `BlockedByIncompleteRuntime` 失败关闭，TASKBAR Host 在安全配置复读后仍因 `HardwareEvidenceUnavailable / WindowsSandboxLauncherMissing` 返回 `Blocked / mutationAllowed=false / modifiedSystemState=false`。两条产品入口均未准入，实际代码复读发现 cleanup 虽拒绝会话目录重解析点，却没有验证固定证据根本身。
+
+测试自有临时脚本与 junction 根真实证明，修正前 cleanup 返回 0 并删除 junction 目标中的精确 marker 会话。现于任何递归 cleanup 前验证证据根不是重解析点；正常会话创建也先显式创建并验证根，ValidateOnly/ExternalAutomation 仍不创建目录。相同测试修正后非零拒绝，目标 session/sentinel 与 LongGrid PID 集合不变；M1 相邻专项 `6/6`、完整 `1,401/1,401`、coverage lines `90.43%`、branches `76.17%`、198-ID、漏洞 0。M1/M2、30 项 PF、Runtime、签名、Sandbox 和唯一外部接续点不变，详见 [Stage 255](255-m1-evidence-root-reparse-point-audit.md)。

@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新执行队列新鲜度修正与边界见 [Stage 254](254-execution-plan-current-queue-freshness-audit.md)，换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)，既有代码、环境、完成度与证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 254/251/241 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新 M1 证据根清理安全修正与边界见 [Stage 255](255-m1-evidence-root-reparse-point-audit.md)，换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)，既有代码、环境、完成度与证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 255/251/241 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 2026-08-31 Stage 243 复验补充：setup-dotnet v6 合并后的 main format 宿主发现竞态已改为绝对 SDK host 与一次精确错误重试；PR 文档提交又真实暴露原生 UIA 证据菜单未退出并被 2 分钟 watchdog 终止。内部证据入口现以独立计时器向真实窗口投递 `WM_CANCELMODE`，正式产品菜单不变；CI 在完整真实进程测试前关闭 MSBuild/Roslyn server，产品缩略图 1.5 秒预算不放宽。本机精确 UIA 场景修正前/后各 `10/10`；PR #316 与合并后 `main@e0231d1` 均完整通过，main 为 `1,395/1,395`、coverage `90.14%/76.03%`、双语言 CodeQL open alerts=0。Stage 243 已关闭。
 
@@ -33,6 +33,8 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-08-31 Stage 253 M1 marker 后证据准备异常清理：真实故障注入证明配置/夹具/`journey.json` 准备异常位于 Stage 247 旧 catch 外，会留下带精确 marker 的半成品 GUID 会话。现把 marker 后准备、启动和 Ready 等待统一纳入异常边界，并仅在 `$markerWritten=true` 时调用既有严格 cleanup；修正后目录/PID 集合零差异，M1 专项 `5/5`、完整 `1,400/1,400` 通过。产品完成度和外部门禁不变，详见 [Stage 253](253-m1-evidence-preparation-cleanup-audit.md)。
 
 2026-08-31 Stage 254 统一执行计划当前队列新鲜度：真实复读发现计划页头已到 Stage 253，但第 9 节仍把 Stage 249 写成最新精确条件，旧 freshness 合同错误放行。现把计划当前队列纳入同一只读正/负合同；修正前精确失败为 `expected=253-actual=249`，修正后 Windows PowerShell 5.1、PowerShell 7、完整 `1,400/1,400`、coverage `90.42%/76.16%` 和 198-ID 均通过。产品完成度与外部门禁不变，详见 [Stage 254](254-execution-plan-current-queue-freshness-audit.md)。
+
+2026-08-31 Stage 255 M1 证据根重解析点安全：测试自有 junction 根真实证明 cleanup 只检查 session 子目录时会返回 0 并删除 junction 目标中的精确 marker 会话。现于创建和递归清理前验证固定证据根不是重解析点；同一测试修正后非零拒绝，目标 session/sentinel 与 LongGrid PID 不变。M1 专项 `6/6`、完整 `1,401/1,401`、coverage `90.43%/76.17%`、198-ID、漏洞 0 通过。产品完成度和外部门禁不变，详见 [Stage 255](255-m1-evidence-root-reparse-point-audit.md)。
 
 ## Phase 0：立项与技术验证
 
