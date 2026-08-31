@@ -1,12 +1,12 @@
 # Long方格产品重对齐与统一开发计划
 
-版本：3.1
+版本：3.2
 
 状态：Required / 当前唯一执行计划
 
 更新日期：2026-09-01
 
-代码审计输入基线：`origin/main@fb5af3c`；最新 M1 marker 前空会话目录清理与接续边界见 [Stage 256](256-m1-pre-marker-evidence-cleanup-audit.md)，前一轮证据根安全修正见 [Stage 255](255-m1-evidence-root-reparse-point-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)，既有证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)
+代码审计输入基线：`origin/main@5142e37`；最新 M1 精确 marker 内容修正与接续边界见 [Stage 257](257-m1-exact-marker-content-audit.md)，前一轮 marker 前清理见 [Stage 256](256-m1-pre-marker-evidence-cleanup-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)，既有证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -265,7 +265,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**等待 BOX-R1-C/D 与 M1 完整物理旅程的外部准入（ExternalEnvironmentBlocked）**。FOLDER-R1 的路径、基础排序、加载状态和一次性恢复反馈已由 PR #267～#270 全部合入。下一用户结果是在具备受保护签名、完整兼容 Windows App Runtime、安全 WinUI/UIA、无既有 Long方格进程的可丢弃账户/VM 中真实安装包，从桌面空白处创建盒子、绑定文件夹、观察加载/失效/恢复并排序/刷新/打开、Explorer 拖入、盒子间改归属并撤销，最后验证 Explorer 重启和卸载恢复。当前环境不符合这些门禁，因此不得用源码合同、宿主错误窗口、未签名包、当前日常账户或降低系统安全策略替代物理 Pass，也不得继续增加 M1 邻接探针或外围功能。TASKBAR-R2B1-B 同样保持 `EnvironmentBlocked`；Stage 248 已证明官方 Stable 2.4.0 self-contained 仍复现相同 XAML 启动指纹，Stage 256 又真实确认 M1 零启动和任务栏 Host `Blocked / mutationAllowed=false`。最新精确接续条件、开放 Issue 和禁止项见 [Stage 256](256-m1-pre-marker-evidence-cleanup-audit.md)。
+当前执行项：**等待 BOX-R1-C/D 与 M1 完整物理旅程的外部准入（ExternalEnvironmentBlocked）**。FOLDER-R1 的路径、基础排序、加载状态和一次性恢复反馈已由 PR #267～#270 全部合入。下一用户结果是在具备受保护签名、完整兼容 Windows App Runtime、安全 WinUI/UIA、无既有 Long方格进程的可丢弃账户/VM 中真实安装包，从桌面空白处创建盒子、绑定文件夹、观察加载/失效/恢复并排序/刷新/打开、Explorer 拖入、盒子间改归属并撤销，最后验证 Explorer 重启和卸载恢复。当前环境不符合这些门禁，因此不得用源码合同、宿主错误窗口、未签名包、当前日常账户或降低系统安全策略替代物理 Pass，也不得继续增加 M1 邻接探针或外围功能。TASKBAR-R2B1-B 同样保持 `EnvironmentBlocked`；Stage 248 已证明官方 Stable 2.4.0 self-contained 仍复现相同 XAML 启动指纹，Stage 257 又真实确认 M1 零启动和任务栏 Host `Blocked / mutationAllowed=false`。最新精确接续条件、开放 Issue 和禁止项见 [Stage 257](257-m1-exact-marker-content-audit.md)。
 
 严格按下列顺序交付，不再插入相邻探针或新宽度功能：
 
@@ -874,3 +874,9 @@ Stage 241 从最终 `main@99ee050` 重新复读统一计划、30 项 PF 总表�
 从 `main@fb5af3c` 重跑外部准入，#23/#274 无更新；M1 仍以零启动、零会话的 `BlockedByIncompleteRuntime` 失败关闭，TASKBAR Host 仍因 `HardwareEvidenceUnavailable / WindowsSandboxLauncherMissing / SandboxConfigurationMissing` 返回 `Blocked / mutationAllowed=false / modifiedSystemState=false`。实际代码复读确认配置和夹具目录先于所有权 marker 创建，marker 写入前的异常会留下无 marker GUID 半成品目录。
 
 测试自有脚本与隔离证据根在 marker 前注入异常，修正前真实遗留一个无 marker GUID 目录。现先独占创建空会话目录和精确 marker，再创建配置/夹具；marker 前失败只允许删除本次已确认创建、仍为空且非重解析点的精确 GUID 目录，任何非空未标记目录继续失败关闭而不递归删除。同一注入修正后目录与 LongGrid PID 集合不变；M1 相邻专项 `7/7`、完整 `1,402/1,402`、coverage lines `90.43%`、branches `76.17%`、198-ID、漏洞 0，详见 [Stage 256](256-m1-pre-marker-evidence-cleanup-audit.md)。M1/M2、30 项 PF、Runtime、签名、Sandbox 和唯一外部接续点不变。
+
+### 13.35 Stage 257：M1 精确 marker 内容清理安全
+
+从 `main@5142e37` 重跑外部准入，#23/#274 无更新；M1 继续零启动、零会话 `BlockedByIncompleteRuntime`，TASKBAR Host 继续 `Blocked / mutationAllowed=false / modifiedSystemState=false`。代码复读发现 cleanup 对 marker 原文调用 `.Trim()` 后再比较，使带前后空白的非产品 marker 也能授权递归删除。
+
+隔离会话写入 ` GUID ` marker 和 sentinel，修正前 cleanup 真实返回 0 并删除整个目录。现以规范化会话目录叶名作为期望值，要求 marker 原文使用大小写敏感的逐字符完全匹配，不再修剪或规范化令牌。同一输入修正后非零拒绝且目录、sentinel、LongGrid PID 不变；M1 相邻专项 `8/8`、完整 `1,403/1,403`、coverage `90.43%/76.17%`、198-ID、漏洞 0。完整审计见 [Stage 257](257-m1-exact-marker-content-audit.md)，产品完成度和外部门禁不变。

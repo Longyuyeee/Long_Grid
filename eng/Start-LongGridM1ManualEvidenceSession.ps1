@@ -83,10 +83,11 @@ function Remove-EvidenceDirectory {
         (($directoryItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) `
         'Refused to clean a reparse-point M1 manual evidence directory.'
     $markerPath = Join-Path $directory '.longgrid-m1-session'
+    $expectedMarker = Split-Path -Leaf $directory
     Assert-Condition `
         ((Test-Path -LiteralPath $markerPath -PathType Leaf) -and
-            (Get-Content -LiteralPath $markerPath -Raw).Trim() -eq
-                $SessionId) `
+            (Get-Content -LiteralPath $markerPath -Raw) -ceq
+                $expectedMarker) `
         'Refused to clean an M1 directory without its exact marker.'
     Remove-Item -LiteralPath $directory -Recurse -Force
     Assert-Condition (-not (Test-Path -LiteralPath $directory)) `
