@@ -27,4 +27,9 @@
     <ProjectReference Include="..\..\src\LongGrid.Infrastructure\LongGrid.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\..\src\LongGrid.App\ProductM1ManualEvidenceSession.cs"
+             Link="Runtime\ProductM1ManualEvidenceSession.cs" />
+  </ItemGroup>
+
 </Project>
