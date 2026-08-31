@@ -12,8 +12,8 @@
     },
     {
       "target": "actions/setup-dotnet",
-      "version": "v5",
-      "commit": "26b0ec14cb23fa6904739307f278c14f94c95bf1",
+      "version": "v6",
+      "commit": "a98b56852c35b8e3190ac28c8c2271da59106c68",
       "workflows": [
         ".github/workflows/ci.yml",
         ".github/workflows/codeql.yml"

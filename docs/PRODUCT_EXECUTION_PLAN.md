@@ -4,9 +4,9 @@
 
 状态：Required / 当前唯一执行计划
 
-更新日期：2026-08-30
+更新日期：2026-08-31
 
-代码审计输入基线：`origin/main@99ee050`；最新整体完成度、换机接续、证据传递边界、真实环境 Actual 与唯一接续条件见 [Stage 241](241-current-development-handoff-audit.md)
+代码审计输入基线：`origin/main@fc6d373`；最新供应链维护见 [Stage 242](242-setup-dotnet-v6-pinned-upgrade-audit.md)，整体完成度、换机接续、证据传递边界、真实环境 Actual 与唯一产品接续条件仍见 [Stage 241](241-current-development-handoff-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
