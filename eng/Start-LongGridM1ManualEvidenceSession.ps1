@@ -81,6 +81,13 @@ function Remove-EvidenceDirectory {
         'The exact M1 manual evidence directory still exists after cleanup.'
 }
 
+if ($ValidateOnly -and $ExternalAutomation) {
+    throw $(
+        'ValidateOnly and ExternalAutomation are mutually exclusive. ' +
+        'Run ValidateOnly for the static launcher contract, then run ' +
+        'ExternalAutomation separately for the real runtime preflight.')
+}
+
 if ($ValidateOnly) {
     $programCode = Get-Content (Join-Path $projectRoot 'src\LongGrid.App\Program.cs') -Raw
     $appCode = Get-Content (Join-Path $projectRoot 'src\LongGrid.App\App.xaml.cs') -Raw
