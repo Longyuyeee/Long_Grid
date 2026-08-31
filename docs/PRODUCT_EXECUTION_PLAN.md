@@ -1,12 +1,12 @@
 # Long方格产品重对齐与统一开发计划
 
-版本：2.6
+版本：2.7
 
 状态：Required / 当前唯一执行计划
 
 更新日期：2026-08-31
 
-代码审计输入基线：`origin/main@462380c`；最新执行源与换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)，前一轮新鲜度合同见 [Stage 250](250-readme-continuation-source-freshness-contract-audit.md)，完整接续条件见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)，Windows App SDK 2.4.0 真实启动对照见 [Stage 248](248-windows-app-sdk-2-4-runtime-upgrade-audit.md)，既有证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)
+代码审计输入基线：`origin/main@1dcea5c`；最新质量修正与接续边界见 [Stage 252](252-m1-missing-cleanup-and-taskbar-test-host-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)，新鲜度合同见 [Stage 250](250-readme-continuation-source-freshness-contract-audit.md)，完整接续条件见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)，既有证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -844,3 +844,9 @@ Stage 241 从最终 `main@99ee050` 重新复读统一计划、30 项 PF 总表�
 从 `main@462380c` 暂停继续编码并准备换机。严格完成度仍为 M1/M2 `0/2 Complete`、30 项 PF `0 Complete`；BOX/FOLDER 与 PF-001～PF-007 工程链已形成，TASKBAR 仍停在 R2B1-A2。#19/#20/#23/#24/#274 保持 OPEN，Runtime、受保护签名包、许可证/Publisher 输入和独占可丢弃 Windows 会话仍未准入。
 
 换机只传递 GitHub `main`、文档、测试、匿名报告与远端运行记录；不传递 Runtime/Appx、证书/秘密、PID/句柄、截图、临时目录、WER 或 unsigned 包。新电脑必须按 clone/ff-only、文档新鲜度合同、Runtime/M1/TASKBAR 只读预检、完整工程基线的顺序重新取得 Actual，再按 BOX/M1、TASKBAR Guest 或真实缺陷三条路径择一接续。详见 [Stage 251](251-current-development-computer-handoff.md)。
+
+### 13.30 Stage 252：M1 不存在会话清理与任务栏测试宿主纠偏
+
+从 `main@1dcea5c` 按 Stage 251 在当前电脑重跑准入，M1 继续零启动 `BlockedByIncompleteRuntime`，TASKBAR Host 继续阻断。代码复读与真实调用发现，不存在的合法 GUID session 会让 M1 cleanup 跳过目录/marker/reparse-point 校验却返回 `Pass / removed=true`；现要求精确目录实际存在，不存在时非零失败且不得改变 LongGrid PID 或证据集合。合法 marker 会话仍可正常删除，新增真实 Windows PowerShell 子进程回归后专项 `2/2` 通过。
+
+完整套件首轮又真实得到 `1,398/1,399`：任务栏恢复事务测试以裸 `dotnet` 启动 x64 子测试，但当前 PATH 首项为 x86 host，独立连续 `0/10` 且没有 readiness。相同子命令固定 Program Files x64 host 后约 2 秒产生 journal/lock/readiness；测试修正后连续 `10/10`，10 秒测试预算与产品预算均未放宽。最终完整 `1,399/1,399`、coverage lines `90.43%`、branches `76.17%`、198-ID、漏洞 0，许可证与分发继续失败关闭。M1/M2、30 项 PF 和唯一外部接续点不变，详见 [Stage 252](252-m1-missing-cleanup-and-taskbar-test-host-audit.md)。

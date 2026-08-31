@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新执行源与换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)，既有代码、环境、完成度与证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 251/241 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新质量修正与执行边界见 [Stage 252](252-m1-missing-cleanup-and-taskbar-test-host-audit.md)，换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)，既有代码、环境、完成度与证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 252/251/241 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 2026-08-31 Stage 243 复验补充：setup-dotnet v6 合并后的 main format 宿主发现竞态已改为绝对 SDK host 与一次精确错误重试；PR 文档提交又真实暴露原生 UIA 证据菜单未退出并被 2 分钟 watchdog 终止。内部证据入口现以独立计时器向真实窗口投递 `WM_CANCELMODE`，正式产品菜单不变；CI 在完整真实进程测试前关闭 MSBuild/Roslyn server，产品缩略图 1.5 秒预算不放宽。本机精确 UIA 场景修正前/后各 `10/10`；PR #316 与合并后 `main@e0231d1` 均完整通过，main 为 `1,395/1,395`、coverage `90.14%/76.03%`、双语言 CodeQL open alerts=0。Stage 243 已关闭。
 
@@ -27,6 +27,8 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-08-31 Stage 250 README 接续源新鲜度合同：实际从 README 接续发现顶部 Stage 249 与导航 Stage 247/246、建议段 Stage 226 冲突，且建议段缺完整 Runtime、Stage 216 Guest 与 #23/#274 条件。新增纯 ASCII、Windows PowerShell 5.1 可执行的只读合同，以统一计划为源联查 README、Stage 153 backlog 和路线图；修正前真实失败，修正后通过，Stage 226 内存回退被精确拒绝。完整套件首轮又真实发现任务栏认证测试 3 秒 harness 预算在并行负载下超时；独立测试与正式脚本证明环境正常，测试专用预算改为 10 秒而产品 3 秒不变，随后专项 `10/10`、完整 `1,398/1,398`、coverage `90.46%/76.16%`、198-ID、漏洞 0 通过。产品完成度和外部门禁不变，详见 [Stage 250](250-readme-continuation-source-freshness-contract-audit.md)。
 
 2026-08-31 Stage 251 换电脑接续：从 `main@462380c` 暂停编码，严格完成度保持 M1/M2 `0/2 Complete`、30 项 PF `0 Complete`。交接手册固定 GitHub 可迁移内容、Runtime/证书/临时状态禁止迁移边界、新电脑 clone→新鲜度合同→三项只读准入→工程基线顺序，以及 BOX/M1、TASKBAR Guest、真实缺陷三条决策路径。换机不改变产品完成度或外部门禁，详见 [Stage 251](251-current-development-computer-handoff.md)。
+
+2026-08-31 Stage 252 证据准确性与测试宿主纠偏：真实不存在的 M1 session 调用 cleanup 会错误返回 `Pass / removed=true`，现要求精确目录必须实际存在后才继续 marker/reparse-point 校验；新增真实子进程回归证明缺失目录非零失败且进程/证据集合不变。完整测试首轮又稳定复现任务栏恢复子测试因 PATH 首项 x86 dotnet 而无法产生 x64 readiness；固定到 Program Files x64 host 后连续 `10/10` 和完整 `1,399/1,399` 通过，测试 10 秒预算与产品预算均未放宽。M1/M2、30 项 PF 和外部门禁不变，详见 [Stage 252](252-m1-missing-cleanup-and-taskbar-test-host-audit.md)。
 
 ## Phase 0：立项与技术验证
 

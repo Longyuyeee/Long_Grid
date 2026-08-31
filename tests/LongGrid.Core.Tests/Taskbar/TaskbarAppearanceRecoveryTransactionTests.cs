@@ -422,11 +422,18 @@ public sealed class TaskbarAppearanceRecoveryTransactionTests
             return;
         }
 
+        string dotnetHost = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            "dotnet",
+            "dotnet.exe");
+        Assert.True(
+            File.Exists(dotnetHost),
+            $"The x64 dotnet host was not found: {dotnetHost}");
         string directory = CreateTemporaryDirectory();
         Process? child = null;
         try
         {
-            ProcessStartInfo startInfo = new("dotnet")
+            ProcessStartInfo startInfo = new(dotnetHost)
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
