@@ -464,7 +464,8 @@ public sealed class ProductWorkspaceSaveControllerTests
         var store = new ProductConfigurationStore(directory.Path);
         var workflow = new ProductConfigurationSaveWorkflow(
             new ProductConfigurationSaveCoordinator(store));
-        var controller = new ProductWorkspaceSaveController(workflow, scheduler);
+        await using var controller =
+            new ProductWorkspaceSaveController(workflow, scheduler);
 
         controller.Submit(CreateEdit("Persisted"));
         await scheduler.WaitForCountAsync(1);
@@ -831,9 +832,18 @@ public sealed class ProductWorkspaceSaveControllerTests
 
         public void Dispose()
         {
-            if (Directory.Exists(Path))
+            for (int attempt = 1; attempt <= 40 && Directory.Exists(Path); attempt++)
             {
-                Directory.Delete(Path, recursive: true);
+                try
+                {
+                    Directory.Delete(Path, recursive: true);
+                }
+                catch (Exception exception) when (
+                    attempt < 40
+                    && exception is IOException or UnauthorizedAccessException)
+                {
+                    Thread.Sleep(50);
+                }
             }
         }
     }
