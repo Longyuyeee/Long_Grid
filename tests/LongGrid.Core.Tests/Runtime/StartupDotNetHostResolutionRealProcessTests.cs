@@ -65,6 +65,11 @@ public sealed class DotNetHostResolutionRealProcessTests
             repositoryRoot,
             "eng",
             "Start-LongGridM1ManualEvidenceSession.ps1"));
+        string appSource = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "src",
+            "LongGrid.App",
+            "App.xaml.cs"));
         string boxLauncher = File.ReadAllText(Path.Combine(
             repositoryRoot,
             "eng",
@@ -72,8 +77,20 @@ public sealed class DotNetHostResolutionRealProcessTests
 
         Assert.Contains("'AppConstructed'", m1Launcher, StringComparison.Ordinal);
         Assert.Contains(
-            "managed launch did not become ready",
+            "'ProductWindowActivated'",
             m1Launcher,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "managed product window did not become ready",
+            m1Launcher,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "EvidenceSession: m1ManualEvidenceSession is not null",
+            appSource,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "RecordStage(\"ProductWindowActivated\")",
+            appSource,
             StringComparison.Ordinal);
         Assert.Contains(
             "OwnedProcess.MainWindowTitle",

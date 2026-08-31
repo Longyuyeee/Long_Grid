@@ -119,9 +119,11 @@ if ($ValidateOnly) {
     $scriptCode = Get-Content -LiteralPath $PSCommandPath -Raw
     Assert-Condition `
         ($scriptCode.Contains("'AppConstructed'") -and
+            $scriptCode.Contains("'ProductWindowActivated'") -and
             $scriptCode.Contains('MainWindowTitle') -and
-            $scriptCode.Contains('managed launch did not become ready')) `
-        'M1 manual evidence must require managed launch readiness.'
+            $scriptCode.Contains('$productWindowReady') -and
+            $scriptCode.Contains('managed product window did not become ready')) `
+        'M1 manual evidence must require managed product window readiness.'
     [ordered]@{
         schemaVersion = 1
         purpose = 'M1ManualProductJourneyEvidence'
@@ -278,6 +280,8 @@ finally {
 $launchLogPath = Join-Path $evidenceDirectory 'launch.log'
 $launchDeadline = [DateTimeOffset]::UtcNow.AddSeconds(10)
 $managedLaunchReady = $false
+$productWindowActivated = $false
+$productWindowReady = $false
 $hostWindowTitle = $null
 do {
     if ($process.HasExited) { break }
@@ -295,12 +299,17 @@ do {
                 ForEach-Object { ($_ -split '\|')[-1] }
         )
         $managedLaunchReady = 'AppConstructed' -in $observedStages
+        $productWindowActivated = 'ProductWindowActivated' -in $observedStages
     }
-    if (-not $managedLaunchReady) { Start-Sleep -Milliseconds 100 }
-} while (-not $managedLaunchReady -and
+    $productWindowReady =
+        $managedLaunchReady -and
+        $productWindowActivated -and
+        -not [string]::IsNullOrWhiteSpace($hostWindowTitle)
+    if (-not $productWindowReady) { Start-Sleep -Milliseconds 100 }
+} while (-not $productWindowReady -and
     [DateTimeOffset]::UtcNow -lt $launchDeadline)
 
-if (-not $managedLaunchReady) {
+if (-not $productWindowReady) {
     $processExited = $process.HasExited
     $exitCode = if ($processExited) { $process.ExitCode } else { $null }
     if (-not $processExited) {
@@ -310,7 +319,7 @@ if (-not $managedLaunchReady) {
     $process.Dispose()
     Remove-EvidenceDirectory $sessionId
     throw $(
-        'LongGrid.App managed launch did not become ready. ' +
+        'LongGrid.App managed product window did not become ready. ' +
         "ProcessExited=$processExited; ExitCode=$exitCode; " +
         "WindowTitle=$hostWindowTitle")
 }
@@ -331,6 +340,8 @@ if (-not $managedLaunchReady) {
     runtimePreflight = if ($ExternalAutomation) { $runtimePreflight } else { $null }
     desktopHostDisabledForIsolation = -not $EnableDesktopHost
     managedLaunchReady = $managedLaunchReady
+    productWindowActivated = $productWindowActivated
+    productWindowReady = $productWindowReady
     hostWindowTitle = $hostWindowTitle
     outcome = 'ReadyForPhysicalInput'
 } | ConvertTo-Json
