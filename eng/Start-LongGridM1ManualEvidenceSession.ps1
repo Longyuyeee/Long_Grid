@@ -60,9 +60,20 @@ function Resolve-EvidenceDirectory {
     return $directory
 }
 
+function Assert-EvidenceRootSafe {
+    if (-not (Test-Path -LiteralPath $evidenceRoot -PathType Container)) {
+        return
+    }
+    $rootItem = Get-Item -LiteralPath $evidenceRoot -Force
+    Assert-Condition `
+        (($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) `
+        'Refused to use a reparse-point M1 manual evidence root.'
+}
+
 function Remove-EvidenceDirectory {
     param([string]$SessionId)
 
+    Assert-EvidenceRootSafe
     $directory = Resolve-EvidenceDirectory $SessionId
     Assert-Condition `
         (Test-Path -LiteralPath $directory -PathType Container) `
@@ -125,6 +136,11 @@ if ($ValidateOnly) {
             $scriptCode.Contains('$productWindowReady') -and
             $scriptCode.Contains('managed product window did not become ready')) `
         'M1 manual evidence must require managed product window readiness.'
+    Assert-Condition `
+        ($scriptCode.Contains('Assert-EvidenceRootSafe') -and
+            $scriptCode.Contains(
+                'Refused to use a reparse-point M1 manual evidence root.')) `
+        'M1 manual evidence must reject a reparse-point evidence root.'
     [ordered]@{
         schemaVersion = 1
         purpose = 'M1ManualProductJourneyEvidence'
@@ -185,6 +201,8 @@ if ($EnableDesktopHost) {
         'DesktopHost evidence requires a dedicated account with no existing LongGrid.App process.'
 }
 
+[IO.Directory]::CreateDirectory($evidenceRoot) | Out-Null
+Assert-EvidenceRootSafe
 $sessionId = [Guid]::NewGuid().ToString('N')
 $evidenceDirectory = Resolve-EvidenceDirectory $sessionId
 $configurationDirectory = Join-Path $evidenceDirectory 'config'

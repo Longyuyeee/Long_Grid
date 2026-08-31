@@ -401,6 +401,87 @@ public sealed class DotNetHostResolutionRealProcessTests
     }
 
     [Fact]
+    public async Task M1CleanupRejectsReparsePointEvidenceRoot()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string repositoryRoot = FindRepositoryRoot();
+        string temporaryRoot = Path.Combine(
+            Path.GetTempPath(),
+            "LongGrid-M1-RootReparse-" + Guid.NewGuid().ToString("N"));
+        string temporaryEngineering = Path.Combine(temporaryRoot, "eng");
+        string evidenceName =
+            "LongGridM1ManualEvidence-" + Guid.NewGuid().ToString("N");
+        string evidenceRoot = Path.Combine(Path.GetTempPath(), evidenceName);
+        string redirectedRoot = Path.Combine(temporaryRoot, "redirected-evidence");
+        string sessionId = Guid.NewGuid().ToString("N");
+        string redirectedSession = Path.Combine(redirectedRoot, sessionId);
+        string sentinelPath = Path.Combine(redirectedSession, "sentinel.txt");
+        Directory.CreateDirectory(temporaryEngineering);
+        Directory.CreateDirectory(redirectedSession);
+        await File.WriteAllTextAsync(
+            Path.Combine(redirectedSession, ".longgrid-m1-session"),
+            sessionId);
+        await File.WriteAllTextAsync(sentinelPath, "must remain");
+        await CreateDirectoryJunctionAsync(evidenceRoot, redirectedRoot);
+        int[] processesBefore = GetLongGridProcessIds();
+
+        try
+        {
+            string launcherSource = await File.ReadAllTextAsync(Path.Combine(
+                repositoryRoot,
+                "eng",
+                "Start-LongGridM1ManualEvidenceSession.ps1"));
+            launcherSource = launcherSource.Replace(
+                "'LongGridM1ManualEvidence'",
+                $"'{evidenceName}'",
+                StringComparison.Ordinal);
+            await File.WriteAllTextAsync(
+                Path.Combine(
+                    temporaryEngineering,
+                    "Start-LongGridM1ManualEvidenceSession.ps1"),
+                launcherSource);
+            File.Copy(
+                Path.Combine(repositoryRoot, "eng", "LongGrid.DotNetHost.ps1"),
+                Path.Combine(temporaryEngineering, "LongGrid.DotNetHost.ps1"));
+
+            ProcessResult cleanup = await RunPowerShellFileAsync(
+                Path.Combine(
+                    temporaryEngineering,
+                    "Start-LongGridM1ManualEvidenceSession.ps1"),
+                temporaryRoot,
+                "-CleanupSessionId",
+                sessionId);
+
+            Assert.NotEqual(0, cleanup.ExitCode);
+            Assert.Contains(
+                "Refused to use a reparse-point M1 manual evidence root.",
+                cleanup.Error,
+                StringComparison.Ordinal);
+            Assert.True(Directory.Exists(redirectedSession));
+            Assert.True(File.Exists(sentinelPath));
+            Assert.Equal(processesBefore, GetLongGridProcessIds());
+        }
+        finally
+        {
+            if (Directory.Exists(evidenceRoot))
+            {
+                FileAttributes attributes = File.GetAttributes(evidenceRoot);
+                Assert.True((attributes & FileAttributes.ReparsePoint) != 0);
+                Directory.Delete(evidenceRoot);
+            }
+
+            if (Directory.Exists(temporaryRoot))
+            {
+                Directory.Delete(temporaryRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task M1LaunchFailureRemovesItsEvidenceAndLeavesProcessesUnchanged()
     {
         if (!OperatingSystem.IsWindows())
@@ -787,6 +868,46 @@ public sealed class DotNetHostResolutionRealProcessTests
             (await outputTask).Trim(),
             (await errorTask).Trim(),
             PoisonedPowerShellInvoked: false);
+    }
+
+    private static async Task CreateDirectoryJunctionAsync(
+        string junctionPath,
+        string targetPath)
+    {
+        ProcessStartInfo startInfo = new(
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "WindowsPowerShell",
+                "v1.0",
+                "powershell.exe"))
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+        startInfo.Environment["LONGGRID_TEST_JUNCTION"] = junctionPath;
+        startInfo.Environment["LONGGRID_TEST_TARGET"] = targetPath;
+        startInfo.ArgumentList.Add("-NoProfile");
+        startInfo.ArgumentList.Add("-Command");
+        startInfo.ArgumentList.Add(
+            "$ErrorActionPreference = 'Stop'; "
+            + "New-Item -ItemType Junction "
+            + "-Path $env:LONGGRID_TEST_JUNCTION "
+            + "-Target $env:LONGGRID_TEST_TARGET | Out-Null");
+
+        using Process process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException(
+                "Failed to start the junction fixture process.");
+        Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+        Task<string> errorTask = process.StandardError.ReadToEndAsync();
+        using CancellationTokenSource timeoutSource = new(ProcessTimeout);
+        await process.WaitForExitAsync(timeoutSource.Token);
+        string output = await outputTask;
+        string error = await errorTask;
+        Assert.True(
+            process.ExitCode == 0,
+            $"Junction fixture failed. Output={output}; Error={error}");
     }
 
     private static string[] GetDirectoryNames(string root) =>
