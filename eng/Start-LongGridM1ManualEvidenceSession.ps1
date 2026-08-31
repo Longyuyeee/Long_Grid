@@ -253,75 +253,83 @@ Set-Content `
     -Value $expected `
     -Encoding utf8
 
+$process = $null
 try {
-    [Environment]::SetEnvironmentVariable($environmentName, $sessionId, 'Process')
-    [Environment]::SetEnvironmentVariable(
-        $disableHostEnvironmentName,
-        $(if ($EnableDesktopHost) { $null } else { '1' }),
-        'Process')
-    $process = Start-Process `
-        -FilePath $appPath `
-        -WorkingDirectory $outputDirectory `
-        -PassThru
-    Start-Sleep -Milliseconds 750
-    $process.Refresh()
-}
-finally {
-    [Environment]::SetEnvironmentVariable(
-        $environmentName,
-        $previousSession,
-        'Process')
-    [Environment]::SetEnvironmentVariable(
-        $disableHostEnvironmentName,
-        $previousDisableHost,
-        'Process')
-}
+    try {
+        [Environment]::SetEnvironmentVariable($environmentName, $sessionId, 'Process')
+        [Environment]::SetEnvironmentVariable(
+            $disableHostEnvironmentName,
+            $(if ($EnableDesktopHost) { $null } else { '1' }),
+            'Process')
+        $process = Start-Process `
+            -FilePath $appPath `
+            -WorkingDirectory $outputDirectory `
+            -PassThru
+        Start-Sleep -Milliseconds 750
+        $process.Refresh()
+    }
+    finally {
+        [Environment]::SetEnvironmentVariable(
+            $environmentName,
+            $previousSession,
+            'Process')
+        [Environment]::SetEnvironmentVariable(
+            $disableHostEnvironmentName,
+            $previousDisableHost,
+            'Process')
+    }
 
-$launchLogPath = Join-Path $evidenceDirectory 'launch.log'
-$launchDeadline = [DateTimeOffset]::UtcNow.AddSeconds(10)
-$managedLaunchReady = $false
-$productWindowActivated = $false
-$productWindowReady = $false
-$hostWindowTitle = $null
-do {
-    if ($process.HasExited) { break }
-    $process.Refresh()
-    $hostWindowTitle = $process.MainWindowTitle
-    if (-not [string]::IsNullOrWhiteSpace($hostWindowTitle) -and
-        $hostWindowTitle.EndsWith(
-            'This application could not be started',
-            [StringComparison]::OrdinalIgnoreCase)) {
-        break
-    }
-    if (Test-Path -LiteralPath $launchLogPath -PathType Leaf) {
-        $observedStages = @(
-            Get-Content -LiteralPath $launchLogPath |
-                ForEach-Object { ($_ -split '\|')[-1] }
-        )
-        $managedLaunchReady = 'AppConstructed' -in $observedStages
-        $productWindowActivated = 'ProductWindowActivated' -in $observedStages
-    }
-    $productWindowReady =
-        $managedLaunchReady -and
-        $productWindowActivated -and
-        -not [string]::IsNullOrWhiteSpace($hostWindowTitle)
-    if (-not $productWindowReady) { Start-Sleep -Milliseconds 100 }
-} while (-not $productWindowReady -and
-    [DateTimeOffset]::UtcNow -lt $launchDeadline)
+    $launchLogPath = Join-Path $evidenceDirectory 'launch.log'
+    $launchDeadline = [DateTimeOffset]::UtcNow.AddSeconds(10)
+    $managedLaunchReady = $false
+    $productWindowActivated = $false
+    $productWindowReady = $false
+    $hostWindowTitle = $null
+    do {
+        if ($process.HasExited) { break }
+        $process.Refresh()
+        $hostWindowTitle = $process.MainWindowTitle
+        if (-not [string]::IsNullOrWhiteSpace($hostWindowTitle) -and
+            $hostWindowTitle.EndsWith(
+                'This application could not be started',
+                [StringComparison]::OrdinalIgnoreCase)) {
+            break
+        }
+        if (Test-Path -LiteralPath $launchLogPath -PathType Leaf) {
+            $observedStages = @(
+                Get-Content -LiteralPath $launchLogPath |
+                    ForEach-Object { ($_ -split '\|')[-1] }
+            )
+            $managedLaunchReady = 'AppConstructed' -in $observedStages
+            $productWindowActivated = 'ProductWindowActivated' -in $observedStages
+        }
+        $productWindowReady =
+            $managedLaunchReady -and
+            $productWindowActivated -and
+            -not [string]::IsNullOrWhiteSpace($hostWindowTitle)
+        if (-not $productWindowReady) { Start-Sleep -Milliseconds 100 }
+    } while (-not $productWindowReady -and
+        [DateTimeOffset]::UtcNow -lt $launchDeadline)
 
-if (-not $productWindowReady) {
-    $processExited = $process.HasExited
-    $exitCode = if ($processExited) { $process.ExitCode } else { $null }
-    if (-not $processExited) {
-        $process.Kill()
-        $process.WaitForExit()
+    if (-not $productWindowReady) {
+        $processExited = $process.HasExited
+        $exitCode = if ($processExited) { $process.ExitCode } else { $null }
+        throw $(
+            'LongGrid.App managed product window did not become ready. ' +
+            "ProcessExited=$processExited; ExitCode=$exitCode; " +
+            "WindowTitle=$hostWindowTitle")
     }
-    $process.Dispose()
+}
+catch {
+    if ($null -ne $process) {
+        if (-not $process.HasExited) {
+            $process.Kill()
+            $process.WaitForExit()
+        }
+        $process.Dispose()
+    }
     Remove-EvidenceDirectory $sessionId
-    throw $(
-        'LongGrid.App managed product window did not become ready. ' +
-        "ProcessExited=$processExited; ExitCode=$exitCode; " +
-        "WindowTitle=$hostWindowTitle")
+    throw
 }
 
 [ordered]@{

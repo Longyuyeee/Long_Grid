@@ -6,7 +6,7 @@
 
 更新日期：2026-08-31
 
-代码审计输入基线：`origin/main@98b53f0`；最新 M1 可见窗口 Ready 与自包含 Runtime 真实审计见 [Stage 246](246-m1-visible-window-readiness-and-self-contained-runtime-audit.md)，cleanup 模式隔离见 [Stage 245](245-m1-cleanup-mode-isolation-audit.md)，整体完成度、换机接续、证据传递边界与唯一产品接续条件仍见 [Stage 241](241-current-development-handoff-audit.md)
+代码审计输入基线：`origin/main@2a7c811`；最新 M1 启动异常清理审计见 [Stage 247](247-m1-launch-exception-cleanup-audit.md)，可见窗口 Ready 与自包含 Runtime 审计见 [Stage 246](246-m1-visible-window-readiness-and-self-contained-runtime-audit.md)，整体完成度、换机接续、证据传递边界与唯一产品接续条件仍见 [Stage 241](241-current-development-handoff-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -816,3 +816,7 @@ Stage 241 从最终 `main@99ee050` 重新复读统一计划、30 项 PF 总表�
 从 `main@98b53f0` 本机构建精确自包含 ZIP，802 个 payload 文件及内部哈希全部通过，但真实 M1 启动虽写出 `AppConstructed`，15 秒内仍无窗口标题。代码复读确认 M1 会话被错误传成 `EvidenceSession: false`，而启动器也把托管构造误当成可见可操作。修正后 evidence session 进入既有控制中心激活路径，并新增 `ProductWindowActivated`；只有托管构造、实际激活与非空标题同时成立才返回 Ready。
 
 修正后的临时自包含发布在当前机器仍于 AppConstructed 后退出，Windows Application Error 1000 两次给出相同 `Microsoft.UI.Xaml.dll 3.2.3.0 / 0xc000027b / offset 0x3a9c5d` 指纹。自包含绕开了系统包缺失，却没有消除当前 XAML 风险，因此本阶段只验收“失败关闭、不误报 Ready”，不宣称正向物理旅程。专项 `27/27`、格式、Release 0 warning/error、完整 `1,397/1,397`、coverage lines `90.46%` / branches `76.16%`、漏洞 0、许可证与 ExternalAutomation 否定性门禁均通过。PR #322 与精确合并提交 `main@2a174e9` 的 CI/CodeQL 均成功；main 测试 `1,397/1,397`、coverage `90.14%/76.04%`、双语言 open alerts=0。M1/M2、PF 和唯一接续点不变，详见 [Stage 246](246-m1-visible-window-readiness-and-self-contained-runtime-audit.md)。
+
+### 13.25 Stage 247：M1 启动异常统一清理
+
+从 `main@2a7c811` 继续审计 Stage 246 Ready 失败路径。真实 Windows PowerShell 5.1 子进程以隔离临时树中的无效 `LongGrid.App.exe` PE 启动，Expected 为非零退出且证据/进程集合不变，Initial Actual 却新增一个已写 marker 的会话目录；原因是 Start-Process 异常发生在旧的窗口未就绪清理分支之前。现把证据创建后的启动、刷新与 Ready 等待统一纳入 catch，只处理本次取得的进程句柄，并复用精确 GUID、marker 与非 reparse-point 清理合同。同一真实输入修正后新增目录 0、进程集合不变；相关 `4/4`、完整 `1,398/1,398`、coverage `90.46%/76.16%`、漏洞 0、许可证和 ExternalAutomation 继续失败关闭。PR/main 验证 Pending；M1/M2、PF 与唯一接续点不变，详见 [Stage 247](247-m1-launch-exception-cleanup-audit.md)。

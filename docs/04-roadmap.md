@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新 M1 可见窗口 Ready 审计见 [Stage 246](246-m1-visible-window-readiness-and-self-contained-runtime-audit.md)，代码、环境、完成度与换机证据边界仍见 [Stage 241](241-current-development-handoff-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 241 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新 M1 启动异常清理审计见 [Stage 247](247-m1-launch-exception-cleanup-audit.md)，代码、环境、完成度与换机证据边界仍见 [Stage 241](241-current-development-handoff-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 241 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 2026-08-31 Stage 243 复验补充：setup-dotnet v6 合并后的 main format 宿主发现竞态已改为绝对 SDK host 与一次精确错误重试；PR 文档提交又真实暴露原生 UIA 证据菜单未退出并被 2 分钟 watchdog 终止。内部证据入口现以独立计时器向真实窗口投递 `WM_CANCELMODE`，正式产品菜单不变；CI 在完整真实进程测试前关闭 MSBuild/Roslyn server，产品缩略图 1.5 秒预算不放宽。本机精确 UIA 场景修正前/后各 `10/10`；PR #316 与合并后 `main@e0231d1` 均完整通过，main 为 `1,395/1,395`、coverage `90.14%/76.03%`、双语言 CodeQL open alerts=0。Stage 243 已关闭。
 
@@ -17,6 +17,8 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-08-31 Stage 245 M1 cleanup 模式隔离：真实 marker 会话证明 `-ExternalAutomation -CleanupSessionId` 会先返回 Runtime 阻断并留下目录；现于 Runtime/证据操作前拒绝 Cleanup 与 ValidateOnly/ExternalAutomation 组合，并要求分开调用。修正后非法组合 exit 1、目录保持、LongGrid 进程 `1→1`；合法 cleanup 删除同一目录。专项 `1/1`、本机完整 `1,397/1,397`、coverage `90.46%/76.16%`；PR #320 与合并后 `main@19c929d` 均完整通过，main 为 `1,397/1,397`、coverage `90.14%/76.04%`、双语言 CodeQL open alerts=0。Stage 245 已关闭；产品完成度、外部门禁和唯一接续点不变。
 
 2026-08-31 Stage 246 M1 可见窗口就绪与自包含 Runtime 真实审计：从 `origin/main@98b53f0` 构建的 802 文件自包含 ZIP 哈希完整，但真实启动只到 `AppConstructed`，窗口标题为空；修正 M1 evidence-session 首启语义，并要求 `AppConstructed + ProductWindowActivated + 非空标题` 才能 Ready。修正后的自包含启动在当前机器仍以 `Microsoft.UI.Xaml.dll 3.2.3.0 / 0xc000027b / 0x3a9c5d` 退出，因此正确结果是失败关闭，M1 物理旅程继续 Pending。本机专项 `27/27`、完整 `1,397/1,397`、coverage `90.46%/76.16%`、漏洞 0、198-ID UI 合同通过；ExternalAutomation 继续零启动 `BlockedByIncompleteRuntime`。PR #322 与合并后 `main@2a174e9` 均完整通过，main 为 `1,397/1,397`、coverage `90.14%/76.04%`、双语言 CodeQL open alerts=0。Stage 246 已关闭，详见 [Stage 246](246-m1-visible-window-readiness-and-self-contained-runtime-audit.md)。
+
+2026-08-31 Stage 247 M1 启动异常统一清理：真实 Windows PowerShell 5.1 无效 PE 启动证明 Start-Process 抛异常时会留下一个已写 marker 的 M1 配置/夹具目录；现将证据创建后的启动、刷新和 Ready 等待纳入统一异常边界，只回收本次进程句柄并按既有 marker/path/reparse-point 合同清理。相同真实输入从新增目录 1 收敛为 0；相关 `4/4`、完整 `1,398/1,398`、coverage `90.46%/76.16%`、漏洞 0、198-ID UI 合同通过。PR/main 验证 Pending；物理旅程和外部门禁不变，详见 [Stage 247](247-m1-launch-exception-cleanup-audit.md)。
 
 ## Phase 0：立项与技术验证
 
