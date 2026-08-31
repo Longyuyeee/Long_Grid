@@ -18,7 +18,7 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 
 2026-08-31 Stage 246 M1 可见窗口就绪与自包含 Runtime 真实审计：从 `origin/main@98b53f0` 构建的 802 文件自包含 ZIP 哈希完整，但真实启动只到 `AppConstructed`，窗口标题为空；修正 M1 evidence-session 首启语义，并要求 `AppConstructed + ProductWindowActivated + 非空标题` 才能 Ready。修正后的自包含启动在当前机器仍以 `Microsoft.UI.Xaml.dll 3.2.3.0 / 0xc000027b / 0x3a9c5d` 退出，因此正确结果是失败关闭，M1 物理旅程继续 Pending。本机专项 `27/27`、完整 `1,397/1,397`、coverage `90.46%/76.16%`、漏洞 0、198-ID UI 合同通过；ExternalAutomation 继续零启动 `BlockedByIncompleteRuntime`。PR #322 与合并后 `main@2a174e9` 均完整通过，main 为 `1,397/1,397`、coverage `90.14%/76.04%`、双语言 CodeQL open alerts=0。Stage 246 已关闭，详见 [Stage 246](246-m1-visible-window-readiness-and-self-contained-runtime-audit.md)。
 
-2026-08-31 Stage 247 M1 启动异常统一清理：真实 Windows PowerShell 5.1 无效 PE 启动证明 Start-Process 抛异常时会留下一个已写 marker 的 M1 配置/夹具目录；现将证据创建后的启动、刷新和 Ready 等待纳入统一异常边界，只回收本次进程句柄并按既有 marker/path/reparse-point 合同清理。相同真实输入从新增目录 1 收敛为 0；相关 `4/4`、完整 `1,398/1,398`、coverage `90.46%/76.16%`、漏洞 0、198-ID UI 合同通过。PR/main 验证 Pending；物理旅程和外部门禁不变，详见 [Stage 247](247-m1-launch-exception-cleanup-audit.md)。
+2026-08-31 Stage 247 M1 启动异常统一清理：真实 Windows PowerShell 5.1 无效 PE 启动证明 Start-Process 抛异常时会留下一个已写 marker 的 M1 配置/夹具目录；现将证据创建后的启动、刷新和 Ready 等待纳入统一异常边界，只回收本次进程句柄并按既有 marker/path/reparse-point 合同清理。相同真实输入从新增目录 1 收敛为 0；相关 `4/4`、完整 `1,398/1,398`、coverage `90.46%/76.16%`、漏洞 0、198-ID UI 合同通过。PR #324 与合并后 `main@2b70a3f` 均完整通过，main 为 `1,398/1,398`、coverage `90.14%/76.04%`、双语言 CodeQL open alerts=0。文档收口 PR #325 首轮又暴露测试自有配置 `.lock` 的 Windows runner 目录清理短窗口，现显式异步释放控制器并仅对 GUID 沙箱执行最多 `40×50ms` 有界重试，持续占用仍失败。物理旅程和外部门禁不变，详见 [Stage 247](247-m1-launch-exception-cleanup-audit.md)。
 
 ## Phase 0：立项与技术验证
 

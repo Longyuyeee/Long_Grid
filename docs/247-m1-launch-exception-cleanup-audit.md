@@ -4,7 +4,7 @@
 
 输入基线：`origin/main@2a7c8119bcd05b20a91a005845e13b39d94e4d6d`
 
-状态：`ImplementationAndLocalVerificationPass / PullRequestAndMainVerificationPending / PhysicalJourneyPending`
+状态：`Complete / LocalPullRequestAndMainVerificationPass / PhysicalJourneyPending`
 
 ## 1. 接续条件
 
@@ -36,9 +36,17 @@
 
 覆盖率前确认 `TestResults` tracked files=0，只清理工作区内该生成目录并生成唯一 coverage；没有复用历史结果或降低阈值。
 
-## 4. 开发目标与需求对齐审计
+## 4. PR #324 与 main 真实远端验证
 
-开发目标审计：已关闭“证据目录创建后、Ready 判断前发生异常会遗留隔离配置与夹具”的生命周期缺口；真实失败复现、同输入修正复测、已有相邻路径、完整本机门禁均通过。PR 与合并后 main 证据仍 Pending。
+精确提交 `b7f6739` 的 CI run `33365941484` 与 CodeQL run `33365941661` 均成功：完整测试 `1,398/1,398`、0 skipped、29 秒；coverage lines `90.14% (46932/52064)`、branches `76.04% (15432/20294)`；漏洞 0；许可证继续 `PendingOwnerReviewAndNotice / distributionApproved=false`；artifact `9748470366`、1,002,241 bytes；C# / C++ CodeQL 成功。PR 无评论且 mergeable，Difference=`None`。
+
+PR #324 已 squash 合并为 `main@2b70a3ff8343cc414c9d9269a8df53503a24b807`。该精确 main 的 CI run `33366600792` 与 CodeQL run `33366600748` 均成功：完整测试 `1,398/1,398`、0 skipped、29 秒；coverage lines `90.14% (46932/52064)`、branches `76.04% (15432/20294)`；漏洞 0；许可证和分发继续失败关闭；artifact `9748697558`、1,003,585 bytes；C# / C++ CodeQL 成功且 main open alerts=`0`。Difference=`None`。
+
+文档收口 PR #325 首轮 CI run `33367422933` 在相同 `1,398` 项中的既有 `RealWorkflowPersistsControllerSnapshot` 失败：保存与复读断言已经完成，但测试自有 GUID 临时目录立即递归删除时，runner 报 `configuration.json.lock` 被另一进程使用；其余 `1,397` 项通过。Expected 为已完成的异步生命周期先显式释放，临时 Windows 清理占用只允许有界收敛，持续占用仍失败。测试现以 `await using` 显式释放控制器，并只对该测试自有目录的 IOException/UnauthorizedAccess 执行最多 `40×50ms` 删除重试；其他异常和最终一次失败不捕获。该修正沿用 Stage 213 已验证的 Windows runner 清理边界，不修改产品锁、保存或超时语义。本机目标用例连续 `20/20`、完整 `1,398/1,398`、coverage `90.46%/76.16%`、Release 0 warning/error、漏洞 0，Difference=`None`；修正后的 PR/main 结果待新提交验证。
+
+## 5. 开发目标与需求对齐审计
+
+开发目标审计：已关闭“证据目录创建后、Ready 判断前发生异常会遗留隔离配置与夹具”的生命周期缺口；真实失败复现、同输入修正复测、已有相邻路径、完整本机门禁、PR head 与合并后精确 main 门禁均通过。
 
 需求对齐审计：修正只收口 M1 内部证据启动器自己的失败副作用，不安装 Runtime、不调用 UIA、不发送输入、不终止既有进程，也不改变签名、安装或分发权限。M1/M2 继续 `0/2 Complete`、30 项 PF 继续 `0 Complete`。
 
