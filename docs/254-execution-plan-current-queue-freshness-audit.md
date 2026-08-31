@@ -4,7 +4,7 @@
 
 输入基线：`origin/main@dd672af8c1389a66f75c316a87484e54dfe4f07c`
 
-状态：`Complete / LocalVerificationPass / PullRequestPending / ExternalEnvironmentBlocked`
+状态：`Complete / PullRequestChecksPass / MergePending / ExternalEnvironmentBlocked`
 
 ## 1. 接续条件与开发目标
 
@@ -46,4 +46,6 @@
 
 ## 5. 远端交付
 
-当前等待本轮短分支 PR 的精确提交、CI、CodeQL、artifact、合并后 main 与最终文档收口结果。远端证据未完成前不得把本阶段写成已合并。
+精确提交 `f7a573570a961923efbfcf67ee6620b4de02df61` 已推送到短分支并创建 PR #334；PR 无评论、无 review，状态 `MERGEABLE`。CI run `33403016215` 通过：完整测试 `1,400/1,400`、0 skipped、30 秒，coverage lines `90.14% (46,928/52,064)`、branches `76.03% (15,430/20,294)`，198-ID、漏洞 0、20 项目/30 包、许可证继续 `PendingOwnerReviewAndNotice / distributionApproved=false`。artifact `9762290706`，1,003,313 bytes，digest `sha256:964ed8d1518ece5d6627706a8152ddea07777ed133869f88a4c1382f0e824738`。
+
+CodeQL run `33403016168` 的 C++ `3m37s` 与 C# `6m32s` 均通过。本文记录上述精确结果后再推送文档收口提交；最终 PR head 与合并后 main 仍须各自重新验证，未完成前不把 main 写成已交付。
