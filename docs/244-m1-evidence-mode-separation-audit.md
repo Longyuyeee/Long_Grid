@@ -4,7 +4,7 @@
 
 输入基线：`origin/main@70787059f694ed7519d25fb04b081aa8fcbef99b`
 
-状态：`CorrectionComplete / LocalVerificationPass / PullRequestPending / ProductStatusUnchanged`
+状态：`CorrectionComplete / LocalAndPullRequestVerificationPass / MainVerificationPending / ProductStatusUnchanged`
 
 ## 1. 接续判断
 
@@ -35,8 +35,21 @@
 | Coverage | lines >=90%、branches >=75% | lines `90.46% (23548/26032)`；branches `76.16% (7728/10147)` | None |
 | 依赖风险 | 漏洞 0；许可证未批准前禁止分发 | 漏洞 0；20 项目/30 包；`PendingOwnerReviewAndNotice / distributionApproved=false` | None |
 
-## 4. 开发目标与需求对齐审计
+## 4. PR #318 真实远端验证
 
-开发目标审计：本阶段没有假定外部条件变化，而是按唯一接续点重跑真实 Runtime、签名、Issue 和 M1 入口。新发现的模式误判差异已由最小互斥检查和真实子进程回归关闭，两个合法模式与完整套件均未回归。PR 与合并后 main 证据仍 Pending。
+精确实现提交 `f958547` 的 CI run `33354831626` 与 CodeQL run `33354831621` 均成功：
+
+| 门禁 | Expected | Actual | Difference |
+|---|---|---|---|
+| Format 有界重试 | 无瞬态时一次通过；精确已知宿主错误只重试一次 | 第一次真实出现 `Unable to locate dotnet CLI`；日志记录唯一 warning，attempts=2、`transientRetryObserved=true`，第二次通过 | None；首次远端实际命中并证明 Stage 243 修正有效 |
+| 真实进程测试 | 新模式互斥回归进入完整套件 | `1,396/1,396`、0 skipped、48 秒 | None |
+| Coverage | lines >=90%、branches >=75% | lines `90.14% (46930/52064)`；branches `76.04% (15432/20294)` | None |
+| 依赖与许可证 | 漏洞 0；未批准前禁止分发 | 漏洞 0；`PendingOwnerReviewAndNotice / distributionApproved=false` | None |
+| 证据制品 | 上传 TRX 与 coverage | artifact `9744956570`，1,002,160 bytes | None |
+| CodeQL | C# / C++ 成功且分支 open alerts=0 | Pass；open alerts=0 | None |
+
+## 5. 开发目标与需求对齐审计
+
+开发目标审计：本阶段没有假定外部条件变化，而是按唯一接续点重跑真实 Runtime、签名、Issue 和 M1 入口。新发现的模式误判差异已由最小互斥检查和真实子进程回归关闭，两个合法模式、本机完整套件和精确实现提交的远端门禁均未回归。最终文档 head 与合并后 main 证据仍 Pending。
 
 需求对齐审计：修正加强“真实准入不能由静态合同 Pass 替代”的既有要求，不安装 unsigned 包、不启动新产品进程、不创建证据会话、不终止现有进程，也不降低 Runtime、签名、许可证或物理旅程门槛。M1/M2 继续 `0/2 Complete`、30 项 PF 继续 `0 Complete`；下一唯一产品接续点仍是外部条件满足后的 BOX-R1-C/D 与 M1 完整物理旅程。
