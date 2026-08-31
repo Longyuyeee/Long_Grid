@@ -93,6 +93,26 @@ function Remove-EvidenceDirectory {
         'The exact M1 manual evidence directory still exists after cleanup.'
 }
 
+function Remove-EmptyUnmarkedEvidenceDirectory {
+    param([string]$SessionId)
+
+    Assert-EvidenceRootSafe
+    $directory = Resolve-EvidenceDirectory $SessionId
+    Assert-Condition `
+        (Test-Path -LiteralPath $directory -PathType Container) `
+        'The newly created unmarked M1 evidence directory is missing.'
+    $directoryItem = Get-Item -LiteralPath $directory -Force
+    Assert-Condition `
+        (($directoryItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) `
+        'Refused to clean a reparse-point unmarked M1 evidence directory.'
+    Assert-Condition `
+        (@(Get-ChildItem -LiteralPath $directory -Force).Count -eq 0) `
+        'Refused to clean a non-empty unmarked M1 evidence directory.'
+    Remove-Item -LiteralPath $directory -Force
+    Assert-Condition (-not (Test-Path -LiteralPath $directory)) `
+        'The empty unmarked M1 evidence directory still exists after cleanup.'
+}
+
 if (-not [string]::IsNullOrWhiteSpace($CleanupSessionId) -and
     ($ValidateOnly -or $ExternalAutomation)) {
     throw $(
@@ -141,6 +161,10 @@ if ($ValidateOnly) {
             $scriptCode.Contains(
                 'Refused to use a reparse-point M1 manual evidence root.')) `
         'M1 manual evidence must reject a reparse-point evidence root.'
+    Assert-Condition `
+        ($scriptCode.Contains('Remove-EmptyUnmarkedEvidenceDirectory') -and
+            $scriptCode.Contains('$evidenceDirectoryCreated')) `
+        'M1 manual evidence must clean an empty directory when marker creation fails.'
     [ordered]@{
         schemaVersion = 1
         purpose = 'M1ManualProductJourneyEvidence'
@@ -225,18 +249,20 @@ $navigation = @(
 )
 
 $process = $null
+$evidenceDirectoryCreated = $false
 $markerWritten = $false
 try {
-    New-Item -ItemType Directory -Path $configurationDirectory -Force | Out-Null
-    New-Item -ItemType Directory `
-        -Path (Join-Path $fixtureDirectory $unicodeSubdirectory) `
-        -Force |
-        Out-Null
+    New-Item -ItemType Directory -Path $evidenceDirectory | Out-Null
+    $evidenceDirectoryCreated = $true
     Set-Content `
         -LiteralPath (Join-Path $evidenceDirectory '.longgrid-m1-session') `
         -Value $sessionId `
         -NoNewline
     $markerWritten = $true
+    New-Item -ItemType Directory -Path $configurationDirectory | Out-Null
+    New-Item -ItemType Directory `
+        -Path (Join-Path $fixtureDirectory $unicodeSubdirectory) |
+        Out-Null
     Set-Content `
         -LiteralPath (Join-Path $fixtureDirectory $unicodeKeepFile) `
         -Value 'Long Grid M1 folder-binding fixture; content must not change.' `
@@ -351,6 +377,9 @@ catch {
     }
     if ($markerWritten) {
         Remove-EvidenceDirectory $sessionId
+    }
+    elseif ($evidenceDirectoryCreated) {
+        Remove-EmptyUnmarkedEvidenceDirectory $sessionId
     }
     throw
 }
