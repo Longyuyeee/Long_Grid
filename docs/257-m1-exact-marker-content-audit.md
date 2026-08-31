@@ -4,7 +4,7 @@
 
 输入基线：`origin/main@5142e37033c1c3909b63267545d19216e9a64bd9`
 
-状态：`ImplementationComplete / LocalAuditPass / PullRequestPending / ExternalEnvironmentBlocked`
+状态：`Complete / PullRequestAndMainVerificationPass / ExternalEnvironmentBlocked`
 
 ## 1. 接续与真实差异
 
@@ -33,4 +33,20 @@ cleanup 声称要求精确 `.longgrid-m1-session` marker，却对原文 `.Trim()
 | UI / 接续源 | 198 IDs；Stage 257 freshness 与 Action pins Pass |
 | 依赖 | 漏洞 0；20 项目/30 包；`PendingOwnerReviewAndNotice / distributionApproved=false` |
 
-覆盖率使用独立 ignored `artifacts/stage257-test-results`。下一唯一接续点仍由 `#23/#274`、完整兼容 Runtime、受保护签名包、独占可丢弃 Windows 会话或 Stage 216 TASKBAR Host/Guest 准入持有；未满足时只处理新复现的真实回归、质量或安全缺陷。PR 与 main 结果待远端门禁后补入。
+覆盖率使用独立 ignored `artifacts/stage257-test-results`。
+
+## 4. 远端交付与 main 验证
+
+| 对象 | 可迁移证据 |
+|---|---|
+| 实现 PR | [#340](https://github.com/Longyuyeee/Long_Grid/pull/340)，head `ea2f97192983765d6253d082b5a73a3004ffa543`，无 review/comment 遗留，MERGEABLE/CLEAN，squash 合并为 `12eb0b753aefda106e4c062053c2fb15c6f78dde` |
+| PR CI | run `33419826323` / job `99579205039` Success；`1,403/1,403`；lines `90.14% (46,932/52,064)`；branches `76.04% (15,432/20,294)` |
+| PR CodeQL | run `33419826361` Success；C# job `99579205972`；C++ job `99579206082` |
+| PR 构件 | artifact `9768706656`，1,003,450 bytes，SHA-256 `c43efd735ad2123287f5654dd94515e6bc304f31bfbfde45bf6a79a40449ce1d` |
+| main CI | run `33420634582` / job `99581845156` Success，7m43s；`1,403/1,403`、0 failed、0 skipped、31s |
+| main coverage / UI | lines `90.14% (46,930/52,064)`；branches `76.04% (15,432/20,294)`；198 required Automation IDs |
+| main 依赖 / 许可证 | 已知漏洞 0；20 项目/30 包；`PendingOwnerReviewAndNotice / distributionApproved=false` |
+| main 构件 | artifact `9768996063`，1,003,972 bytes，SHA-256 `7d76e71ca02491e1e1acb32a3de8fd4cc1471a2176297e1e54f9c0baf6e51664` |
+| main CodeQL | run `33420634564` Success；C# job `99581845110`；C++ job `99581845321` |
+
+下一唯一接续点仍由 `#23/#274`、完整兼容 Runtime、受保护签名包、独占可丢弃 Windows 会话或 Stage 216 TASKBAR Host/Guest 准入持有；未满足时只处理新复现的真实回归、质量或安全缺陷。
