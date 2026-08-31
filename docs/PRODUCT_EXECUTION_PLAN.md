@@ -6,7 +6,7 @@
 
 更新日期：2026-08-31
 
-代码审计输入基线：`origin/main@fc6d373`；最新供应链维护见 [Stage 242](242-setup-dotnet-v6-pinned-upgrade-audit.md)，整体完成度、换机接续、证据传递边界、真实环境 Actual 与唯一产品接续条件仍见 [Stage 241](241-current-development-handoff-audit.md)
+代码审计输入基线：`origin/main@b0fb5c7`；最新 CI 确定性纠偏见 [Stage 243](243-dotnet-format-host-discovery-retry-audit.md)，整体完成度、换机接续、证据传递边界、真实环境 Actual 与唯一产品接续条件仍见 [Stage 241](241-current-development-handoff-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 

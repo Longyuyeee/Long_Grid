@@ -229,6 +229,50 @@ public sealed class DotNetHostResolutionRealProcessTests
             StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task FormatGateRetriesOnlyTheExactBoundedHostDiscoveryDifference()
+    {
+        string? compatibleHost = GetCompatibleHost();
+        if (compatibleHost is null)
+        {
+            return;
+        }
+
+        ProcessResult result = await RunWithPoisonedPathAsync(
+            compatibleHost,
+            "Test-LongGridFormat.ps1",
+            "-ContractOnly");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.Error);
+        using JsonDocument document = JsonDocument.Parse(result.Output);
+        JsonElement root = document.RootElement;
+        Assert.Equal("Pass", root.GetProperty("outcome").GetString());
+        Assert.Equal(2, root.GetProperty("maximumAttempts").GetInt32());
+        Assert.True(root
+            .GetProperty("retriesExactTransientHostDifference")
+            .GetBoolean());
+        Assert.False(root
+            .GetProperty("retriesOtherFormatFailures")
+            .GetBoolean());
+        Assert.False(root.GetProperty("retriesSuccessfulRun").GetBoolean());
+
+        string repositoryRoot = FindRepositoryRoot();
+        string workflow = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            ".github",
+            "workflows",
+            "ci.yml"));
+        Assert.Contains(
+            "-File ./eng/Test-LongGridFormat.ps1",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "run: dotnet format",
+            workflow,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
     [Theory]
     [InlineData(
         "Pack-LongGrid.ps1",
