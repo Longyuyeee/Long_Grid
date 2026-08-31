@@ -820,3 +820,9 @@ Stage 241 从最终 `main@99ee050` 重新复读统一计划、30 项 PF 总表�
 ### 13.25 Stage 247：M1 启动异常统一清理
 
 从 `main@2a7c811` 继续审计 Stage 246 Ready 失败路径。真实 Windows PowerShell 5.1 子进程以隔离临时树中的无效 `LongGrid.App.exe` PE 启动，Expected 为非零退出且证据/进程集合不变，Initial Actual 却新增一个已写 marker 的会话目录；原因是 Start-Process 异常发生在旧的窗口未就绪清理分支之前。现把证据创建后的启动、刷新与 Ready 等待统一纳入 catch，只处理本次取得的进程句柄，并复用精确 GUID、marker 与非 reparse-point 清理合同。同一真实输入修正后新增目录 0、进程集合不变；相关 `4/4`、完整 `1,398/1,398`、coverage `90.46%/76.16%`、漏洞 0、许可证和 ExternalAutomation 继续失败关闭。PR #324 与精确合并提交 `main@2b70a3f` 的 CI/CodeQL 均成功；main 测试 `1,398/1,398`、coverage `90.14%/76.04%`、双语言 open alerts=0。文档收口 PR #325 首轮真实暴露已完成保存后的测试 `.lock` 目录删除短窗口，现显式异步释放控制器并只对测试自有 GUID 沙箱执行最多 `40×50ms` 有界 IOException/UnauthorizedAccess 重试，最终失败仍失败且产品锁语义不变。M1/M2、PF 与唯一接续点不变，详见 [Stage 247](247-m1-launch-exception-cleanup-audit.md)。
+
+### 13.26 Stage 248：Windows App SDK 2.4 升级与真实启动对照
+
+从 `main@15dd67d` 审计官方当前 Stable `Microsoft.WindowsAppSDK 2.4.0`。中央版本和锁文件升级后，顶级包/Runtime 为 `2.4.0`、WinUI 为 `2.3.6`，Release build `0 warning / 0 error`；临时提交 `482d61b` 生成 805 文件的双 self-contained ZIP，SHA-256 `4b65df771a782019b9ff3caf7fb4badd8e084de076b02ec50209809fa1471172`。这证明升级可恢复、可编译、可打包，不证明窗口可用。
+
+同一精确产物在本机真实隔离 M1 会话中退出，产品 exit code `-1073741189`、窗口标题为空；Application Error 1000 仍是 `Microsoft.UI.Xaml.dll 3.2.3.0 / 0xc000027b / offset 0x3a9c5d`。Stage 246 与本轮 XAML SHA-256 不同，说明二进制确有更新，但同一启动指纹未消失。新增证据会话 0、无遗留自有进程。由于官方 2.4.0 发布说明也未声明修复该指纹，无收益升级已由 `1499631` 撤回，项目继续锁定 2.3.1，系统 Runtime 2.4.0.0/XAML 3.2.3.0 风险门禁不放宽。下一接续只允许在出现明确覆盖该指纹的新 Stable，或完整兼容 Runtime、受保护签名包和独占可丢弃 Windows 会话到位后重启物理旅程；详见 [Stage 248](248-windows-app-sdk-2-4-runtime-upgrade-audit.md)。
