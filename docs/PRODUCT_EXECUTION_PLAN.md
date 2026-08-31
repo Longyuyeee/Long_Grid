@@ -6,7 +6,7 @@
 
 更新日期：2026-08-31
 
-代码审计输入基线：`origin/main@e0231d1`；最新 CI 确定性纠偏已由 [Stage 243](243-dotnet-format-host-discovery-retry-audit.md)关闭，整体完成度、换机接续、证据传递边界、真实环境 Actual 与唯一产品接续条件仍见 [Stage 241](241-current-development-handoff-audit.md)
+代码审计输入基线：`origin/main@7078705`；最新 M1 准入模式纠偏见 [Stage 244](244-m1-evidence-mode-separation-audit.md)，整体完成度、换机接续、证据传递边界、真实环境 Actual 与唯一产品接续条件仍见 [Stage 241](241-current-development-handoff-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -800,3 +800,9 @@ Stage 240 让 Live UI 在当前受信 PowerShell 进程中直接调用精确的 
 Stage 241 从最终 `main@99ee050` 重新复读统一计划、30 项 PF 总表、Stage 240、远端 CI/CodeQL、#23/#274，以及当前机器 Runtime、BOX/M1 合同和副作用。严格产品状态仍是 M1/M2 `0/2 Complete`、30 项 PF `0 Complete`；工程口径下 PF-001～PF-007、BOX-R1-A/B、FOLDER-R1-A～D、UI-R1 与 TASKBAR-R1A～R2B1-A2 已形成正式链。M1 桌面核心因此处于“工程基本完成、物理证据外部阻断”，M2 仍欠原生效果/恢复矩阵，M3～M5 仍是后续大范围开发，不得把当前阶段描述为全产品即将收尾。
 
 当前机器预检仍为 Framework `2.4.0.0`、XAML `3.2.3.0`、Singleton `8002.4.0.0` 可发现，缺 Main.2 `>=2.3.1.0` 和 DDLM `2.3.1.0-x6`；M1 外部自动化返回 `startsProcess=false / createsEvidenceSession=false`，进程保持 0→0。BOX 合同与 M1 ValidateOnly 均 Pass，但 `%TEMP%` 下一个历史 BOX GUID 空目录不是产品证据，也不应迁移。换机只依赖 Git 中的代码/文档/合同和 GitHub 运行/Issue；Runtime、签名证书、秘密、临时目录、截图、进程与设备状态必须在新电脑重新取得。完整复读顺序、可传递证据清单和停止规则见 [Stage 241](241-current-development-handoff-audit.md)。
+
+### 13.22 Stage 244：M1 证据模式分离与 Runtime 准入防误判
+
+从 `main@7078705` 按 Stage 241 重跑真实接续条件：#23/#274 未更新，受保护环境没有 Publisher/托管签名输入，签名与许可证仍禁止安装分发；本机仍缺 Main.2 `>=2.3.1.0` 和 DDLM `2.3.1.0-x6`，且已知不安全 XAML 组合仍存在。正向 BOX-R1-C/D 因此继续停止。
+
+真实审计调用发现 `Start-LongGridM1ManualEvidenceSession.ps1 -ValidateOnly -ExternalAutomation` 返回静态合同 Pass，却没有运行 ExternalAutomation 的 Runtime 预检。两种模式现被明确设为互斥；真实 PowerShell 子进程回归要求组合调用非零退出、精确错误、LongGrid.App PID 与 M1 证据目录集合不变。合法 ValidateOnly 继续 Pass；合法 ExternalAutomation 继续 `BlockedByIncompleteRuntime / startsProcess=false / createsEvidenceSession=false`。完整本机测试 `1,396/1,396`，coverage lines `90.46%`、branches `76.16%`，漏洞 0，许可证仍 `PendingOwnerReviewAndNotice / distributionApproved=false`。本轮只关闭准入误判，不改变 M1/M2、PF 或唯一产品接续点，详见 [Stage 244](244-m1-evidence-mode-separation-audit.md)。

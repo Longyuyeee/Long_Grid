@@ -200,6 +200,66 @@ public sealed class DotNetHostResolutionRealProcessTests
     }
 
     [Fact]
+    public async Task M1ValidateOnlyCannotMasqueradeAsExternalAutomationPreflight()
+    {
+        string? compatibleHost = GetCompatibleHost();
+        if (compatibleHost is null)
+        {
+            return;
+        }
+
+        int[] processesBefore = Process.GetProcessesByName("LongGrid.App")
+            .Select(process =>
+            {
+                using (process)
+                {
+                    return process.Id;
+                }
+            })
+            .Order()
+            .ToArray();
+        string evidenceRoot = Path.Combine(
+            Path.GetTempPath(),
+            "LongGridM1ManualEvidence");
+        string[] evidenceBefore = Directory.Exists(evidenceRoot)
+            ? Directory.GetDirectories(evidenceRoot)
+                .Select(path => Path.GetFileName(path)!)
+                .Order(StringComparer.Ordinal)
+                .ToArray()
+            : [];
+
+        ProcessResult result = await RunWithPoisonedPathAsync(
+            compatibleHost,
+            "Start-LongGridM1ManualEvidenceSession.ps1",
+            "-ValidateOnly",
+            "-ExternalAutomation");
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains(
+            "ValidateOnly and ExternalAutomation are mutually exclusive.",
+            result.Error,
+            StringComparison.Ordinal);
+        int[] processesAfter = Process.GetProcessesByName("LongGrid.App")
+            .Select(process =>
+            {
+                using (process)
+                {
+                    return process.Id;
+                }
+            })
+            .Order()
+            .ToArray();
+        string[] evidenceAfter = Directory.Exists(evidenceRoot)
+            ? Directory.GetDirectories(evidenceRoot)
+                .Select(path => Path.GetFileName(path)!)
+                .Order(StringComparer.Ordinal)
+                .ToArray()
+            : [];
+        Assert.Equal(processesBefore, processesAfter);
+        Assert.Equal(evidenceBefore, evidenceAfter);
+    }
+
+    [Fact]
     public async Task StartupValidateOnlyIgnoresEarlierPathHostWithoutCompatibleSdk()
     {
         string? compatibleHost = GetCompatibleHost();
