@@ -260,6 +260,96 @@ public sealed class DotNetHostResolutionRealProcessTests
     }
 
     [Fact]
+    public async Task M1CleanupCannotBeShadowedByValidationOrAutomationModes()
+    {
+        string? compatibleHost = GetCompatibleHost();
+        if (compatibleHost is null)
+        {
+            return;
+        }
+
+        string sessionId = Guid.NewGuid().ToString("N");
+        string evidenceDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "LongGridM1ManualEvidence",
+            sessionId);
+        Directory.CreateDirectory(evidenceDirectory);
+        await File.WriteAllTextAsync(
+            Path.Combine(evidenceDirectory, ".longgrid-m1-session"),
+            sessionId);
+        try
+        {
+            int[] processesBefore = Process.GetProcessesByName("LongGrid.App")
+                .Select(process =>
+                {
+                    using (process)
+                    {
+                        return process.Id;
+                    }
+                })
+                .Order()
+                .ToArray();
+
+            foreach (string[] conflictingMode in new[]
+            {
+                new[] { "-ValidateOnly" },
+                new[] { "-ExternalAutomation" },
+            })
+            {
+                ProcessResult rejected = await RunWithPoisonedPathAsync(
+                    compatibleHost,
+                    "Start-LongGridM1ManualEvidenceSession.ps1",
+                    conflictingMode
+                        .Concat(new[] { "-CleanupSessionId", sessionId })
+                        .ToArray());
+
+                Assert.NotEqual(0, rejected.ExitCode);
+                Assert.Contains(
+                    "CleanupSessionId cannot be combined with ValidateOnly "
+                    + "or ExternalAutomation.",
+                    rejected.Error,
+                    StringComparison.Ordinal);
+                Assert.True(Directory.Exists(evidenceDirectory));
+            }
+
+            int[] processesAfterRejection = Process
+                .GetProcessesByName("LongGrid.App")
+                .Select(process =>
+                {
+                    using (process)
+                    {
+                        return process.Id;
+                    }
+                })
+                .Order()
+                .ToArray();
+            Assert.Equal(processesBefore, processesAfterRejection);
+
+            ProcessResult cleanup = await RunWithPoisonedPathAsync(
+                compatibleHost,
+                "Start-LongGridM1ManualEvidenceSession.ps1",
+                "-CleanupSessionId",
+                sessionId);
+
+            Assert.Equal(0, cleanup.ExitCode);
+            Assert.Empty(cleanup.Error);
+            using JsonDocument document = JsonDocument.Parse(cleanup.Output);
+            Assert.Equal(
+                "M1ManualProductJourneyCleanup",
+                document.RootElement.GetProperty("purpose").GetString());
+            Assert.True(document.RootElement.GetProperty("removed").GetBoolean());
+            Assert.False(Directory.Exists(evidenceDirectory));
+        }
+        finally
+        {
+            if (Directory.Exists(evidenceDirectory))
+            {
+                Directory.Delete(evidenceDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task StartupValidateOnlyIgnoresEarlierPathHostWithoutCompatibleSdk()
     {
         string? compatibleHost = GetCompatibleHost();

@@ -81,6 +81,13 @@ function Remove-EvidenceDirectory {
         'The exact M1 manual evidence directory still exists after cleanup.'
 }
 
+if (-not [string]::IsNullOrWhiteSpace($CleanupSessionId) -and
+    ($ValidateOnly -or $ExternalAutomation)) {
+    throw $(
+        'CleanupSessionId cannot be combined with ValidateOnly or ' +
+        'ExternalAutomation. Run cleanup as a separate operation.')
+}
+
 if ($ValidateOnly -and $ExternalAutomation) {
     throw $(
         'ValidateOnly and ExternalAutomation are mutually exclusive. ' +
