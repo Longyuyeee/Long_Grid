@@ -192,6 +192,15 @@ $usageCount = 0
 foreach ($entry in @($manifest.actions)) {
     $usageCount += @($entry.workflows).Count
 }
+
+$executionSourceFreshnessContract = Join-Path `
+    $PSScriptRoot `
+    'Test-LongGridExecutionSourceFreshness.ps1'
+if (-not (Test-Path -LiteralPath $executionSourceFreshnessContract -PathType Leaf)) {
+    throw "Execution source freshness contract is missing: $executionSourceFreshnessContract"
+}
+& $executionSourceFreshnessContract | Out-Host
+
 [ordered]@{
     outcome = 'Pass'
     workflowCount = $documents.Count

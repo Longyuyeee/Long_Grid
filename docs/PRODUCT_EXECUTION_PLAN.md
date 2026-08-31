@@ -1,12 +1,12 @@
 # Long方格产品重对齐与统一开发计划
 
-版本：2.4
+版本：2.5
 
 状态：Required / 当前唯一执行计划
 
 更新日期：2026-08-31
 
-代码审计输入基线：`origin/main@a35e1d4`；最新执行源与接续条件审计见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)，Windows App SDK 2.4.0 真实启动对照见 [Stage 248](248-windows-app-sdk-2-4-runtime-upgrade-audit.md)，整体完成度、换机接续和证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)
+代码审计输入基线：`origin/main@2a6f257`；最新执行源与接续条件审计见 [Stage 250](250-readme-continuation-source-freshness-contract-audit.md)，前一轮完整接续条件见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)，Windows App SDK 2.4.0 真实启动对照见 [Stage 248](248-windows-app-sdk-2-4-runtime-upgrade-audit.md)，整体完成度、换机接续和证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -832,3 +832,9 @@ Stage 241 从最终 `main@99ee050` 重新复读统一计划、30 项 PF 总表�
 从 `main@a35e1d4` 进入下一步时，统一计划页头仍停在 `2a7c811 / Stage 247`，当前队列又把 Stage 234 写成最新条件；详细 PF backlog 的接续输入仍停在更早的 `fd519c8 / Stage 235`。真实重跑两个合法入口后，M1 仍因缺 Main.2 与项目锁定 DDLM 返回 `BlockedByIncompleteRuntime / startsProcess=false / createsEvidenceSession=false`；任务栏 Host 仍因 Sandbox launcher、硬件证据和隔离配置缺失返回 `Blocked / mutationAllowed=false / modifiedSystemState=false`。既有 LongGrid PID `45524` 和 M1 证据集合前后不变。
 
 因此本轮只把权威页头、详细 backlog 入口和唯一执行队列更新到当前 main、Stage 248/249 与 Stage 241 的整体边界，不修改产品代码或完成度。#23/#274 均未更新，M1/M2、30 项 PF、签名、安装和分发继续 Pending；详见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)。
+
+### 13.28 Stage 250：README 接续源新鲜度合同
+
+从 `main@2a6f257` 实际按 README 进入下一步，发现顶部已是 Stage 249，但文档导航仍把 Stage 247/246 标为当前，“建议的下一步”仍引用 Stage 226，且遗漏完整 Runtime、Stage 216 Guest 和 #23/#274 当前准入条件。新增只读 Windows PowerShell 5.1 合同，以本计划页头为唯一 Stage/基线来源，联查 README 顶部、导航、建议段、Stage 153 backlog 与路线图；修正前真实失败，修正后通过，内存 Stage 226 回退变体给出精确负向差异。合同由 CI 已执行的 Action 固定门禁调用，不增加 workflow 权限。
+
+完整套件首轮还真实发现任务栏认证测试在并行真实进程负载下把测试 harness 的 3 秒启动预算耗尽，而独立测试 959 ms 与正式认证脚本均通过、任务栏窗口身份不变。仅将该测试类的有界进程预算调整为 10 秒，产品 App 的 3 秒预算与失败关闭不变。本轮关闭执行入口漂移和真实测试可靠性质量缺陷，不修改产品行为、系统状态或外部门禁。M1/M2、30 项 PF、签名、安装与分发状态不变；唯一接续点继续由 #23/#274、完整兼容 Runtime、受保护签名包、独占可丢弃 Windows 会话或 Stage 216 Guest 准入持有，详见 [Stage 250](250-readme-continuation-source-freshness-contract-audit.md)。

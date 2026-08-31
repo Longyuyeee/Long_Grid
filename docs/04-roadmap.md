@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新执行源与接续条件见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)，代码、环境、完成度与换机证据边界仍见 [Stage 241](241-current-development-handoff-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 241 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新执行源与接续条件见 [Stage 250](250-readme-continuation-source-freshness-contract-audit.md)，代码、环境、完成度与换机证据边界仍见 [Stage 241](241-current-development-handoff-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 241 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 2026-08-31 Stage 243 复验补充：setup-dotnet v6 合并后的 main format 宿主发现竞态已改为绝对 SDK host 与一次精确错误重试；PR 文档提交又真实暴露原生 UIA 证据菜单未退出并被 2 分钟 watchdog 终止。内部证据入口现以独立计时器向真实窗口投递 `WM_CANCELMODE`，正式产品菜单不变；CI 在完整真实进程测试前关闭 MSBuild/Roslyn server，产品缩略图 1.5 秒预算不放宽。本机精确 UIA 场景修正前/后各 `10/10`；PR #316 与合并后 `main@e0231d1` 均完整通过，main 为 `1,395/1,395`、coverage `90.14%/76.03%`、双语言 CodeQL open alerts=0。Stage 243 已关闭。
 
@@ -23,6 +23,8 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-08-31 Stage 248 Windows App SDK 2.4 升级真实对照：官方当前 Stable `2.4.0` 可恢复并以 Release `0 warning / 0 error` 编译；精确临时提交生成 805 文件双 self-contained ZIP，SHA-256 `4b65df77...71172`。但本机真实 M1 启动仍以 `Microsoft.UI.Xaml.dll 3.2.3.0 / 0xc000027b / 0x3a9c5d` 退出，新增证据会话 0。新旧 XAML 二进制哈希不同但行为指纹相同，故不能宣称上游已修复；无收益依赖升级已完整撤回，系统 Runtime 风险门禁不变。M1/M2、30 项 PF、物理旅程和分发状态均不升级，详见 [Stage 248](248-windows-app-sdk-2-4-runtime-upgrade-audit.md)。
 
 2026-08-31 Stage 249 权威执行源新鲜度：真实 M1 准入仍为 `BlockedByIncompleteRuntime / startsProcess=false / createsEvidenceSession=false`；任务栏 Host 仍因 Sandbox launcher、硬件证据和隔离配置缺失返回 `Blocked / mutationAllowed=false / modifiedSystemState=false`，既有产品 PID 和证据集合不变。统一计划、Stage 153 backlog 和路线图入口已从过期的 Stage 234/235/247 基线更新到 `main@a35e1d4` 与 Stage 248/249；不修改产品代码、完成度或外部门禁，详见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)。
+
+2026-08-31 Stage 250 README 接续源新鲜度合同：实际从 README 接续发现顶部 Stage 249 与导航 Stage 247/246、建议段 Stage 226 冲突，且建议段缺完整 Runtime、Stage 216 Guest 与 #23/#274 条件。新增纯 ASCII、Windows PowerShell 5.1 可执行的只读合同，以统一计划为源联查 README、Stage 153 backlog 和路线图；修正前真实失败，修正后通过，Stage 226 内存回退被精确拒绝。完整套件首轮又真实发现任务栏认证测试 3 秒 harness 预算在并行负载下超时；独立测试与正式脚本证明环境正常，测试专用预算改为 10 秒而产品 3 秒不变，随后专项 `10/10`、完整 `1,398/1,398`、coverage `90.46%/76.16%`、198-ID、漏洞 0 通过。产品完成度和外部门禁不变，详见 [Stage 250](250-readme-continuation-source-freshness-contract-audit.md)。
 
 ## Phase 0：立项与技术验证
 
