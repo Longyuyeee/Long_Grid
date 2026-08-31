@@ -1,12 +1,12 @@
 # Long方格产品重对齐与统一开发计划
 
-版本：2.3
+版本：2.4
 
 状态：Required / 当前唯一执行计划
 
 更新日期：2026-08-31
 
-代码审计输入基线：`origin/main@2a7c811`；最新 M1 启动异常清理审计见 [Stage 247](247-m1-launch-exception-cleanup-audit.md)，可见窗口 Ready 与自包含 Runtime 审计见 [Stage 246](246-m1-visible-window-readiness-and-self-contained-runtime-audit.md)，整体完成度、换机接续、证据传递边界与唯一产品接续条件仍见 [Stage 241](241-current-development-handoff-audit.md)
+代码审计输入基线：`origin/main@a35e1d4`；最新执行源与接续条件审计见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)，Windows App SDK 2.4.0 真实启动对照见 [Stage 248](248-windows-app-sdk-2-4-runtime-upgrade-audit.md)，整体完成度、换机接续和证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -265,7 +265,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**等待 BOX-R1-C/D 与 M1 完整物理旅程的外部准入（ExternalEnvironmentBlocked）**。FOLDER-R1 的路径、基础排序、加载状态和一次性恢复反馈已由 PR #267～#270 全部合入。下一用户结果是在具备受保护签名、完整兼容 Windows App Runtime、安全 WinUI/UIA、无既有 Long方格进程的可丢弃账户/VM 中真实安装包，从桌面空白处创建盒子、绑定文件夹、观察加载/失效/恢复并排序/刷新/打开、Explorer 拖入、盒子间改归属并撤销，最后验证 Explorer 重启和卸载恢复。当前环境不符合这些门禁，因此不得用源码合同、宿主错误窗口、未签名包、当前日常账户或降低系统安全策略替代物理 Pass，也不得继续增加 M1 邻接探针或外围功能。TASKBAR-R2B1-B 同样保持 `EnvironmentBlocked`；Stage 233 已统一工程入口 SDK 解析，Stage 234 又关闭 PowerShell 5.1 清理和“PID 存活即 Ready”的证据偏移。最新精确接续条件、开放 Issue 和禁止项见 [Stage 234](234-product-evidence-managed-launch-readiness-audit.md)。
+当前执行项：**等待 BOX-R1-C/D 与 M1 完整物理旅程的外部准入（ExternalEnvironmentBlocked）**。FOLDER-R1 的路径、基础排序、加载状态和一次性恢复反馈已由 PR #267～#270 全部合入。下一用户结果是在具备受保护签名、完整兼容 Windows App Runtime、安全 WinUI/UIA、无既有 Long方格进程的可丢弃账户/VM 中真实安装包，从桌面空白处创建盒子、绑定文件夹、观察加载/失效/恢复并排序/刷新/打开、Explorer 拖入、盒子间改归属并撤销，最后验证 Explorer 重启和卸载恢复。当前环境不符合这些门禁，因此不得用源码合同、宿主错误窗口、未签名包、当前日常账户或降低系统安全策略替代物理 Pass，也不得继续增加 M1 邻接探针或外围功能。TASKBAR-R2B1-B 同样保持 `EnvironmentBlocked`；Stage 248 已证明官方 Stable 2.4.0 self-contained 仍复现相同 XAML 启动指纹，Stage 249 又真实确认 M1 零启动和任务栏 Host `Blocked / mutationAllowed=false`。最新精确接续条件、开放 Issue 和禁止项见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)。
 
 严格按下列顺序交付，不再插入相邻探针或新宽度功能：
 
@@ -826,3 +826,9 @@ Stage 241 从最终 `main@99ee050` 重新复读统一计划、30 项 PF 总表�
 从 `main@15dd67d` 审计官方当前 Stable `Microsoft.WindowsAppSDK 2.4.0`。中央版本和锁文件升级后，顶级包/Runtime 为 `2.4.0`、WinUI 为 `2.3.6`，Release build `0 warning / 0 error`；临时提交 `482d61b` 生成 805 文件的双 self-contained ZIP，SHA-256 `4b65df771a782019b9ff3caf7fb4badd8e084de076b02ec50209809fa1471172`。这证明升级可恢复、可编译、可打包，不证明窗口可用。
 
 同一精确产物在本机真实隔离 M1 会话中退出，产品 exit code `-1073741189`、窗口标题为空；Application Error 1000 仍是 `Microsoft.UI.Xaml.dll 3.2.3.0 / 0xc000027b / offset 0x3a9c5d`。Stage 246 与本轮 XAML SHA-256 不同，说明二进制确有更新，但同一启动指纹未消失。新增证据会话 0、无遗留自有进程。由于官方 2.4.0 发布说明也未声明修复该指纹，无收益升级已由 `1499631` 撤回，项目继续锁定 2.3.1，系统 Runtime 2.4.0.0/XAML 3.2.3.0 风险门禁不放宽。下一接续只允许在出现明确覆盖该指纹的新 Stable，或完整兼容 Runtime、受保护签名包和独占可丢弃 Windows 会话到位后重启物理旅程；详见 [Stage 248](248-windows-app-sdk-2-4-runtime-upgrade-audit.md)。
+
+### 13.27 Stage 249：权威执行源与接续条件新鲜度
+
+从 `main@a35e1d4` 进入下一步时，统一计划页头仍停在 `2a7c811 / Stage 247`，当前队列又把 Stage 234 写成最新条件；详细 PF backlog 的接续输入仍停在更早的 `fd519c8 / Stage 235`。真实重跑两个合法入口后，M1 仍因缺 Main.2 与项目锁定 DDLM 返回 `BlockedByIncompleteRuntime / startsProcess=false / createsEvidenceSession=false`；任务栏 Host 仍因 Sandbox launcher、硬件证据和隔离配置缺失返回 `Blocked / mutationAllowed=false / modifiedSystemState=false`。既有 LongGrid PID `45524` 和 M1 证据集合前后不变。
+
+因此本轮只把权威页头、详细 backlog 入口和唯一执行队列更新到当前 main、Stage 248/249 与 Stage 241 的整体边界，不修改产品代码或完成度。#23/#274 均未更新，M1/M2、30 项 PF、签名、安装和分发继续 Pending；详见 [Stage 249](249-execution-source-of-truth-freshness-audit.md)。
