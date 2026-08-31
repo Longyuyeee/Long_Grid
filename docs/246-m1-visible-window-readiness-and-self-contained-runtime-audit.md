@@ -4,7 +4,7 @@
 
 输入基线：`origin/main@98b53f03807d61bb1d274919e5b99f6f34e6187e`
 
-状态：`ImplementationAndLocalVerificationPass / PullRequestAndMainVerificationPending / PhysicalJourneyPending`
+状态：`Complete / LocalPullRequestAndMainVerificationPass / PhysicalJourneyPending`
 
 ## 1. 接续条件与测试边界
 
@@ -40,9 +40,17 @@
 
 覆盖率前先确认 `TestResults` 无 tracked file，只清理工作区内该生成目录，再关闭 build server 并生成唯一结果。本阶段没有复用历史 coverage，也没有降低门槛。
 
-## 4. 开发目标与需求对齐审计
+## 4. PR #322 与 main 真实远端验证
 
-开发目标审计：本阶段关闭了两个既有误判点——M1 会话未进入 evidence-session 首启路径，以及 `AppConstructed` 被错误等同于可见可操作窗口。代码、专项、完整本机门禁和当前不安全 Runtime 的真实失败关闭均已完成；PR 与合并后 main 证据仍 Pending。
+精确提交 `31fe3be` 的 CI run `33362617580` 与 CodeQL run `33362617568` 均成功：完整测试 `1,397/1,397`、0 skipped、37 秒；coverage lines `90.14% (46932/52064)`、branches `76.04% (15432/20294)`；漏洞 0；许可证继续 `PendingOwnerReviewAndNotice / distributionApproved=false`；artifact `9747362677`、1,003,300 bytes；C# / C++ CodeQL 成功。PR 无评论且 mergeable，Difference=`None`。
+
+PR #322 已 squash 合并为 `main@2a174e9a309f6886dee9eadc71a9e124dc1621e6`。该精确 main 的 CI run `33363226080` 与 CodeQL run `33363226106` 均成功：完整测试 `1,397/1,397`、0 skipped、31 秒；coverage lines `90.14% (46930/52064)`、branches `76.04% (15432/20294)`；漏洞 0；许可证和分发继续失败关闭；artifact `9747535097`、1,002,679 bytes；C# / C++ CodeQL 成功且 main open alerts=`0`。Difference=`None`。
+
+首次查询 main open alerts 时，未加引号的 `&ref=` 被 PowerShell 当作作业分隔符；该调用没有得到有效 alerts 数值，也没有修改仓库或产品状态。改为引用完整 API endpoint 后得到上述 `0`，只采用修正后的结果。
+
+## 5. 开发目标与需求对齐审计
+
+开发目标审计：本阶段关闭了两个既有误判点——M1 会话未进入 evidence-session 首启路径，以及 `AppConstructed` 被错误等同于可见可操作窗口。代码、专项、完整本机门禁、当前不安全 Runtime 的真实失败关闭、PR head 与合并后精确 main 门禁均已完成。
 
 需求对齐审计：本阶段没有安装 Runtime、调用 UIA、发送物理输入、修改用户普通配置、开放任务栏写入、签名或分发。当前电脑上的正向 M1 结果仍是 Pending，不能用 `AppConstructed` 或自包含产物替代。严格产品完成度仍为 M1/M2 `0/2 Complete`、30 项 PF `0 Complete`。
 
