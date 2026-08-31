@@ -8,6 +8,11 @@ namespace LongGrid.Core.Tests.Taskbar;
 
 public sealed class TaskbarNativeAdapterCertificationRealProcessTests
 {
+    // The full suite starts several real helper processes in parallel. Keep the
+    // test harness bounded without changing the product's three-second budget.
+    private static readonly TimeSpan RealProcessTestTimeout =
+        TimeSpan.FromSeconds(10);
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = false,
@@ -28,10 +33,10 @@ public sealed class TaskbarNativeAdapterCertificationRealProcessTests
     public async Task RealCertificationEntryReportsDefaultUnavailableWithoutMutation()
     {
         TaskbarCompatibilityClientResult before =
-            await TaskbarCompatibilityClient.ProbeAsync(TimeSpan.FromSeconds(3));
+            await TaskbarCompatibilityClient.ProbeAsync(RealProcessTestTimeout);
         ProcessResult result = await RunWorkerAsync(evidenceEnabled: true);
         TaskbarCompatibilityClientResult after =
-            await TaskbarCompatibilityClient.ProbeAsync(TimeSpan.FromSeconds(3));
+            await TaskbarCompatibilityClient.ProbeAsync(RealProcessTestTimeout);
 
         Assert.Equal(0, result.ExitCode);
         TaskbarNativeAdapterCertificationResponse? response =
@@ -90,7 +95,7 @@ public sealed class TaskbarNativeAdapterCertificationRealProcessTests
         using Process worker = Process.Start(startInfo)
             ?? throw new InvalidOperationException(
                 "Failed to start formal taskbar worker.");
-        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(3));
+        using CancellationTokenSource timeout = new(RealProcessTestTimeout);
         string output = await worker.StandardOutput.ReadToEndAsync(
             timeout.Token);
         await worker.WaitForExitAsync(timeout.Token);

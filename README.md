@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B、FOLDER-R1-A～D 与 PF-001～PF-007 工程链已完成，真实可见交互证据仍 Pending；TASKBAR-R1A～R2B1-A2 已建立只读、恢复、原生边界、可丢弃环境准入和两张有限预设卡片。Stage 249 真实复核 M1 仍为零启动的 `BlockedByIncompleteRuntime`，任务栏 Host 仍为 `Blocked / mutationAllowed=false`；权威计划入口已更新到 Stage 248/249，不绕过门禁转做外围功能。严格口径仍是 M1/M2 `0/2 Complete`、30 项 PF `0 Complete`。下一步只在具备完整兼容 Runtime、受保护签名包和独占可丢弃 Windows 会话后继续 BOX-R1-C/D 与 M1 物理旅程，或在 Stage 216 Guest 真正准入后继续 TASKBAR-R2B1-B。工程测试基线为 1,398 项；当前电脑仍缺 Main.2 `>=2.3.1.0` 与项目锁定 DDLM `2.3.1.0-x6`，许可证、Publisher、托管签名和安装生命周期外部门禁仍未满足。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)、[Stage 249](docs/249-execution-source-of-truth-freshness-audit.md) 与 [Stage 241](docs/241-current-development-handoff-audit.md)。所有产物仍不可公开分发。
+> 当前状态：产品 Core 已统一为三项——桌面空白处右键创建并管理盒子、盒子绑定真实文件夹、任务栏美化。BOX-R1-A/B、FOLDER-R1-A～D 与 PF-001～PF-007 工程链已完成，真实可见交互证据仍 Pending；TASKBAR-R1A～R2B1-A2 已建立只读、恢复、原生边界、可丢弃环境准入和两张有限预设卡片。Stage 250 已修正 README 内部 Stage 249/247/226 接续冲突，并将统一计划、README、Stage 153 backlog 与路线图的新鲜度联查接入 CI；M1 仍为零启动的 `BlockedByIncompleteRuntime`，任务栏 Host 仍为 `Blocked / mutationAllowed=false`。严格口径仍是 M1/M2 `0/2 Complete`、30 项 PF `0 Complete`。下一步只在具备完整兼容 Runtime、受保护签名包和独占可丢弃 Windows 会话后继续 BOX-R1-C/D 与 M1 物理旅程，或在 Stage 216 Guest 真正准入后继续 TASKBAR-R2B1-B。工程测试基线为 1,398 项；许可证、Publisher、托管签名和安装生命周期外部门禁仍未满足。详见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)、[Stage 250](docs/250-readme-continuation-source-freshness-contract-audit.md) 与 [Stage 241](docs/241-current-development-handoff-audit.md)。所有产物仍不可公开分发。
 
 ## 产品原则
 
@@ -16,8 +16,11 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 当前工作只需要优先阅读以下文档：
 
-- [当前 M1 启动异常统一清理与真实进程审计（Stage 247）](docs/247-m1-launch-exception-cleanup-audit.md)
-- [当前 M1 可见窗口就绪与自包含 Runtime 真实审计（Stage 246）](docs/246-m1-visible-window-readiness-and-self-contained-runtime-audit.md)
+- [当前 README 接续源新鲜度合同审计（Stage 250）](docs/250-readme-continuation-source-freshness-contract-audit.md)
+- [上一轮执行源与真实接续条件新鲜度审计（Stage 249）](docs/249-execution-source-of-truth-freshness-audit.md)
+- [Windows App SDK 2.4.0 真实 Runtime 升级对照审计（Stage 248）](docs/248-windows-app-sdk-2-4-runtime-upgrade-audit.md)
+- [上一轮 M1 启动异常统一清理与真实进程审计（Stage 247）](docs/247-m1-launch-exception-cleanup-audit.md)
+- [上一轮 M1 可见窗口就绪与自包含 Runtime 真实审计（Stage 246）](docs/246-m1-visible-window-readiness-and-self-contained-runtime-audit.md)
 - [当前唯一开发计划：产品重对齐、UI 重构、里程碑与执行队列](docs/PRODUCT_EXECUTION_PLAN.md)
 - [当前 M1 证据模式分离与 Runtime 准入防误判审计（Stage 244）](docs/244-m1-evidence-mode-separation-audit.md)
 - [当前 M1 清理模式隔离与证据生命周期防遮蔽审计（Stage 245）](docs/245-m1-cleanup-mode-isolation-audit.md)
@@ -274,7 +277,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 226 当前整体对齐审计](docs/226-current-development-and-requirement-alignment-audit.md)，下一项仍是 BOX-R1-C/D 与 M1 完整物理旅程，但必须先取得受保护签名、无既有 Long方格进程的可丢弃 Windows 账户/VM 和安全 WinUI/UIA 条件。FOLDER-R1 的路径、排序、加载与恢复状态已经合入，不得重复开发；TASKBAR-R2B1-B 同样保持环境阻断，不得改在宿主桌面试写。环境未满足时不扩张自动整理、Tab、小组件、工作空间或 Long助手运行时。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)、[Stage 250 当前执行源审计](docs/250-readme-continuation-source-freshness-contract-audit.md)和[Stage 241 换机接续边界](docs/241-current-development-handoff-audit.md)，BOX-R1-C/D 与 M1 完整物理旅程只能在 `#23/#274` 取得负责人输入，同时具备完整兼容 Runtime、受保护签名包和独占可丢弃 Windows 会话后继续。TASKBAR-R2B1-B 只能在 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) Host/Guest 准入真实达到 `ReadyToLaunch / GuestReady` 后于 Guest 内执行，不得改在宿主桌面试写。两条准入均未成立时，只处理新复现的回归、质量或安全缺陷，不扩张自动整理、Tab、小组件、工作空间或 Long助手运行时。
 
 ## 开发启动
 
