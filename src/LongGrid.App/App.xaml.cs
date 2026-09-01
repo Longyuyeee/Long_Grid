@@ -61,10 +61,12 @@ public partial class App : Application
     private ProductConfigurationLoadResult? currentConfigurationLoadResult;
     private PendingControlCenterContainerEdit? pendingControlCenterContainerEdit;
     private PendingSessionHistorySave? pendingSessionHistorySave;
+    private long? pendingFirstRunCompletionSaveRevision;
     private MainWindow? window;
     private bool closeAfterDrain;
     private bool closingDrainInProgress;
     private bool activationPending;
+    private bool boxesSettingsLoaded;
     private ProductDesktopWorkspaceCreatePreviewSession?
         desktopWorkspaceCreatePreview;
     private DesktopWorkspaceCreatePreviewWindow?
@@ -259,7 +261,8 @@ public partial class App : Application
             CommitProductWorkspaceSessionHistory,
             CommitProductWorkspaceLayoutRecovery,
             CommitProductWorkspaceLayoutRecoveryUndo,
-            CommitProductQuickStart);
+            CommitProductQuickStart,
+            ChangeProductFirstRunJourneyAsync);
         productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
         productDesktopCatalog.SnapshotChanged += ProductDesktopCatalog_SnapshotChanged;
         productDisplayTopology.SnapshotChanged +=
@@ -1425,6 +1428,7 @@ public partial class App : Application
         ProductBoxesSettingsLoadResult result =
             await boxesSettingsStore.LoadAsync();
         boxesSettingsController.Initialize(result.Settings);
+        boxesSettingsLoaded = true;
         ProductDesktopHostLifecycleSnapshot snapshot =
             productDesktopHostLifecycle.SetUserEnabled(
                 result.Settings.BoxesEnabled);
@@ -1468,7 +1472,35 @@ public partial class App : Application
             result.Settings.OpenItemsWithSingleClick
                 ? "单击打开已开启；关闭后恢复推荐的双击打开。"
                 : "推荐设置：单击选择，双击打开。");
+        window?.ApplyProductFirstRunJourneyState(
+            result.Settings.FirstRunJourneyState);
+        CompleteFirstRunForPersistedWorkspaceIfNeeded();
         ApplyProductDesktopHostProjection(productDisplayTopology.Snapshot);
+    }
+
+    private async Task<ProductBoxesSettingsChangeResult>
+        ChangeProductFirstRunJourneyAsync(ProductFirstRunJourneyState state)
+    {
+        ProductBoxesSettingsChangeResult result =
+            await boxesSettingsController.ChangeFirstRunJourneyAsync(state);
+        window?.ApplyProductFirstRunJourneyState(
+            result.Settings.FirstRunJourneyState);
+        return result;
+    }
+
+    private void CompleteFirstRunForPersistedWorkspaceIfNeeded()
+    {
+        if (!boxesSettingsLoaded
+            || productWorkspaceSession.State?.Containers.Count is not > 0
+            || boxesSettingsController.Current.FirstRunJourneyState is not (
+                ProductFirstRunJourneyState.NotStarted or
+                ProductFirstRunJourneyState.CustomizeInProgress))
+        {
+            return;
+        }
+
+        _ = ChangeProductFirstRunJourneyAsync(
+            ProductFirstRunJourneyState.Completed);
     }
 
     private async void MainWindow_BoxesEnabledChangeRequested(bool requestedValue)
@@ -1691,6 +1723,7 @@ public partial class App : Application
         productWorkspaceSession = ProductWorkspaceSessionLoader.Load(
             loadResult,
             CreateWorkspaceCatalogSnapshot(productDesktopCatalog.Snapshot));
+        CompleteFirstRunForPersistedWorkspaceIfNeeded();
         _ = workspaceCatalogRevisions.ResetBaseline(productDesktopCatalog.Snapshot);
         window?.ApplyConfigurationStartupState(startupState);
         ApplyProductWorkspaceSessionViews();
@@ -3775,6 +3808,14 @@ public partial class App : Application
         productWorkspaceSession = ProductWorkspaceSessionLoader.Load(
             currentConfigurationLoadResult,
             CreateWorkspaceCatalogSnapshot(catalog));
+        if (boxesSettingsController.Current.FirstRunJourneyState is
+            ProductFirstRunJourneyState.NotStarted or
+            ProductFirstRunJourneyState.CustomizeInProgress)
+        {
+            pendingFirstRunCompletionSaveRevision = document.Containers.Count > 0
+                ? productWorkspaceSaves.Snapshot.CurrentRevision
+                : null;
+        }
         if (pf002AppEvidenceSession is null)
         {
             ApplyProductWorkspaceSessionViews();
@@ -4334,6 +4375,16 @@ public partial class App : Application
         MainWindow currentWindow,
         ProductWorkspaceSaveSnapshot snapshot)
     {
+        if (pendingFirstRunCompletionSaveRevision is long firstRunRevision
+            && snapshot.Status == ProductWorkspaceSaveStatus.Saved
+            && snapshot.SavedRevision >= firstRunRevision
+            && productWorkspaceSession.State?.Containers.Count > 0)
+        {
+            pendingFirstRunCompletionSaveRevision = null;
+            _ = ChangeProductFirstRunJourneyAsync(
+                ProductFirstRunJourneyState.Completed);
+        }
+
         if (pendingSessionHistorySave is { } pendingHistory)
         {
             if (snapshot.Status == ProductWorkspaceSaveStatus.Saved

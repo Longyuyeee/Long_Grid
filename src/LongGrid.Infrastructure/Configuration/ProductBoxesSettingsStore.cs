@@ -318,5 +318,47 @@ public sealed class ProductBoxesSettingsController(
         }
     }
 
+    public async Task<ProductBoxesSettingsChangeResult>
+        ChangeFirstRunJourneyAsync(
+            ProductFirstRunJourneyState state,
+            CancellationToken cancellationToken = default)
+    {
+        if (!Enum.IsDefined(state))
+        {
+            throw new ArgumentOutOfRangeException(nameof(state));
+        }
+
+        await changeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (current.FirstRunJourneyState == state)
+            {
+                return new(ProductBoxesSettingsChangeStatus.Unchanged, current);
+            }
+            ProductBoxesSettings candidate = current with
+            {
+                FirstRunJourneyState = state,
+            };
+            try
+            {
+                await store.SaveAsync(candidate, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception exception) when (
+                exception is IOException
+                    or UnauthorizedAccessException
+                    or InvalidDataException)
+            {
+                return new(ProductBoxesSettingsChangeStatus.Failed, current);
+            }
+            current = candidate;
+            return new(ProductBoxesSettingsChangeStatus.Saved, current);
+        }
+        finally
+        {
+            changeGate.Release();
+        }
+    }
+
     public void Dispose() => changeGate.Dispose();
 }

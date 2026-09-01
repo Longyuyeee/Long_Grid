@@ -542,3 +542,7 @@ App composition root、Intent preparation 和 input forwarding 仍没有调用�
 ## 34. 2026-09-01 PF-011A 当前开发状态
 
 PF-011A 已将正式首次整理接入真实桌面 Catalog、空工作区、统一 reducer/SaveController/History：预览真实名称但不读正文，确认后一个方格和全部引用只形成一次保存与一个历史项；取消、陈旧预览和保存失败补偿均有限处理。真实 Unicode 文件与真实配置 Store 专项 `5/5`、完整 Release `1,465/1,465`、209-ID UI 合同通过，文件 SHA-256 不变。当前状态为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`，PF-011 整体仍 InProgress；唯一接续点为 PF-011B Customize、跳过/返回、以后再运行、重启完成态和匿名遗留退出，详见 [Stage 269](269-pf011a-quick-start-real-preview-atomic-commit-audit.md)。
+
+## 35. 2026-09-01 PF-011B 当前开发状态
+
+PF-011B 已将首次旅程四态写入既有设置 Store；Customize 复用正式方格管理，自定义进度、跳过与重新运行跨重启恢复，预览返回零提交，第一个真实方格等待保存成功后完成。匿名方格、三引用和拖放练习的 XAML/code-behind/UIA 遗留已删除。真实 Store 专项 `4/4`、最终完整 `1,469/1,469`、Release 0 warning/error、194-ID 合同通过，中文旁路文件 SHA-256 不变；首轮既有 worker/HWND 3 秒用例波动与本机 Runtime 阻断均如实保留。PF-011 工程范围收口但真人、物理键盘/Narrator、DPI 和 5 人旅程仍 Pending；当前唯一接续点为 PF-020A 规则模型、解释性预览与安全引用分配，详见 [Stage 270](270-pf011b-formal-first-run-journey-audit.md)。

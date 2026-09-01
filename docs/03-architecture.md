@@ -401,3 +401,7 @@ App 权威打开控制器现在通过独立 Windows 引用解析边界处理 `.l
 ## Stage 269：PF-011A Quick Start 原子边界
 
 Quick Start 计划器位于 Core，只消费权威 Desktop Catalog 元数据和可投影的空工作区；它以 edit revision、catalog generation、工作区 fingerprint 与所选目录 fingerprint 形成不可变预览。App 只负责展示名称和转发确认。Infrastructure 在同一锁内复核四项权威输入，再以一次 `CreateContainer`、一次 SaveController submit 和一个 `QuickStart` 会话历史项提交方格及全部引用。未确认、取消和陈旧预览均为零提交；失败保存复用内部批量加入补偿 token 整单恢复。完整边界见 [Stage 269](269-pf011a-quick-start-real-preview-atomic-commit-audit.md)。
+
+## Stage 270：PF-011B 首次旅程状态边界
+
+首次旅程复用 `ProductBoxesSettingsStore`，以 `NotStarted / CustomizeInProgress / Skipped / Completed` 四态独立于工作区 schema 持久化；旧设置缺字段自然落到 `NotStarted`，不要求 schema 提升或加载即重写。MainWindow 只负责有限状态呈现、正式导航和用户动作，App 负责协调设置 Controller 与工作区保存。新建首个方格时先记录目标 save revision，只有 `ProductWorkspaceSaveStatus.Saved` 才提交 `Completed`；补偿回空工作区不会假完成。已有持久化方格且旧状态未开始时直接迁移完成。完整边界见 [Stage 270](270-pf011b-formal-first-run-journey-audit.md)。
