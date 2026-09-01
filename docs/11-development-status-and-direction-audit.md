@@ -538,3 +538,7 @@ App composition root、Intent preparation 和 input forwarding 仍没有调用�
 近期完整套件在繁忙 runner 上真实暴露两项时序差异：恢复 worker 期望在 4 秒内观察父进程退出，实际一次 `TimedOut`；可丢弃环境预检期望 10 秒内返回有限 JSON，实际一次在读取输出时取消。Stage 225 没有靠重跑、增加生产超时或 mock 掩盖：受控 PowerShell 父进程先显式 ready，恢复 worker 的 evidence-only hang 路径在父监控建立后写 readiness，测试再释放父进程；CIM 调用增加各自 2 秒上限，进程执行器并发排空 stdout/stderr，超时终止测试自有进程树并报告 purpose/PID/输出长度。Stage 226 的后续真实 runner 进一步证明目标 marker 可在写句柄关闭前被 `File.Exists` 观察到；readiness 因而改为先写同目录临时文件、关闭后原子发布最终文件，使“可见”与“可完整读取”成为同一因果合同。
 
 真实负向测试启动 60 秒 PowerShell 子进程并在 500ms 后确认其 PID 已不存在；四项真实进程矩阵连续 5 轮共 `20/20` 通过。关闭 build server 后完整套件 `1,382/1,382`、0 跳过，coverage lines `90.43%`、branches `76.16%`；漏洞、许可证、签名和 RC 否定性合同继续通过。生产 4 秒期限、准入 10 秒总期限、任务栏默认禁用、Sandbox 阻断和 mutation 权限均未放宽。完整远端结论仍等待 Stage 225 PR/main CI 与 CodeQL；详见 [Stage 225 审计](225-real-process-handshake-and-timeout-audit.md)。外部接续点继续是 #19/#20/#24、#23、#274 以及满足 Stage 216 条件的可丢弃任务栏环境。
+
+## 34. 2026-09-01 PF-011A 当前开发状态
+
+PF-011A 已将正式首次整理接入真实桌面 Catalog、空工作区、统一 reducer/SaveController/History：预览真实名称但不读正文，确认后一个方格和全部引用只形成一次保存与一个历史项；取消、陈旧预览和保存失败补偿均有限处理。真实 Unicode 文件与真实配置 Store 专项 `5/5`、完整 Release `1,465/1,465`、209-ID UI 合同通过，文件 SHA-256 不变。当前状态为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`，PF-011 整体仍 InProgress；唯一接续点为 PF-011B Customize、跳过/返回、以后再运行、重启完成态和匿名遗留退出，详见 [Stage 269](269-pf011a-quick-start-real-preview-atomic-commit-audit.md)。

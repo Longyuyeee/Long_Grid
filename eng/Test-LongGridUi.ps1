@@ -743,6 +743,8 @@ function Test-SourceContract {
         'SettingsPageHeader',
         'ConfigurationRecoveryActionButton',
         'FirstRunPanel',
+        'ProductQuickStartSuggestionList',
+        'ProductQuickStartCommitButton',
         'AppearancePanel',
         'SafetyPanel',
         'SettingsGeneralSection',
@@ -2928,8 +2930,8 @@ function Test-SourceContract {
         'The onboarding prototype must explicitly distinguish managed move.'
     Assert-Condition ($codeBehind -match 'ManagedMovePreviewBlocked') `
         'The development prototype must expose managed move as blocked.'
-    Assert-Condition ($codeBehind -match 'SafeReferencePreview') `
-        'The development prototype must expose a safe-reference preview state.'
+    Assert-Condition ($codeBehind -match 'RealCatalogPreview') `
+        'Quick Start must expose a real-catalog preview state.'
     Assert-Condition ($codeBehind -match 'SuggestedStartSelected') `
         'The first-run prototype must expose the suggested-preview start path.'
     Assert-Condition ($codeBehind -match 'BlankStartSelected') `
@@ -4123,7 +4125,7 @@ function Test-SourceContract {
         compactWidth = 720
         dpiAwareInitialSize = 'pass'
         coreRuntimeStatus = 'desktop-read-only-config-edit-host-user-switch-uia-session-attested'
-        firstOrganizationPrototype = 'safe-reference-items-drop-semantics-undo'
+        firstOrganizationPrototype = 'real-catalog-preview-confirm-atomic-save-history'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
         configurationRepair = 'confirmed-recovery-bounded-import-export-anonymous-interaction-evidence-and-single-removal'
@@ -4609,8 +4611,8 @@ public static class LongGridWindowNative
             'Safe-reference selection did not expose its audited UIA state.'
         Scroll-UiaElementIntoView $previewButton
         Select-UiaElement $previewButton
-        Assert-Condition ($previewStatus.Current.ItemStatus -eq 'SafeReferencePreview') `
-            'Safe-reference preview did not expose its audited UIA state.'
+        Assert-Condition ($previewStatus.Current.ItemStatus -eq 'RealCatalogPreview') `
+            'Quick Start preview did not expose its audited real-catalog state.'
 
         $createPracticeContainer = Find-UiaElement $root 'CreatePracticeContainerButton'
         Scroll-UiaElementIntoView $createPracticeContainer
@@ -4758,7 +4760,7 @@ public static class LongGridWindowNative
             compactOrganizationModes = 2
             coreRuntimeStatus = 'development-read-only-host-user-switch'
             desktopHost = $desktopHostCard.Current.ItemStatus
-            firstOrganizationPrototype = 'blank-suggested-safe-preview-items-drop-semantics-two-step-undo'
+            firstOrganizationPrototype = 'blank-or-real-catalog-preview-confirm-atomic-save-history'
             layoutRecoveryPrototype = 'review-expired-review-acknowledged-blocked-automatic-cancelled'
             productDesktopCatalog = $productCatalogStatus.Current.ItemStatus
             productWorkspaceSession = $productSessionStatus.Current.ItemStatus

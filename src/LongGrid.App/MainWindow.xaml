@@ -1642,17 +1642,17 @@
                             x:Name="FirstRunPanel"
                             AutomationProperties.AccessibilityView="Content"
                             AutomationProperties.AutomationId="FirstRunPanel"
-                            AutomationProperties.Name="首次整理模式原型"
+                            AutomationProperties.Name="首次整理"
                             Spacing="20"
                             Visibility="Collapsed">
                             <StackPanel Spacing="8">
                                 <TextBlock Style="{StaticResource LongGridEyebrowTextStyle}" Text="FIRST ORGANIZATION" />
-                                <TextBlock Style="{StaticResource LongGridTitleTextStyle}" Text="先理解会发生什么，再开始整理" />
+                                <TextBlock Style="{StaticResource LongGridTitleTextStyle}" Text="整理真实桌面，只需一次确认" />
                                 <TextBlock
                                     MaxWidth="760"
                                     HorizontalAlignment="Left"
                                     Style="{StaticResource LongGridSubtitleTextStyle}"
-                                    Text="这是 Issue #23 的可操作低保真原型。此练习区只比较整理语义并生成匿名内存态预览，不使用真实桌面目录结果、不保存选择，也不执行任何文件操作。" />
+                                    Text="Long方格会根据当前桌面目录生成建议；确认后创建一个方格并保存真实引用，但不会移动、改名或删除任何原始文件。" />
                             </StackPanel>
 
                             <InfoBar
@@ -1666,7 +1666,7 @@
                             <Border Style="{StaticResource LongGridCardStyle}">
                                 <StackPanel Spacing="14">
                                     <TextBlock FontSize="20" FontWeight="SemiBold" Text="选择起点" />
-                                    <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="一键建议只生成匿名布局预览；从空白开始不会创建任何容器。" />
+                                    <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="先查看真实项目建议，再决定是否一次性创建；也可以直接从空白开始。" />
                                     <Grid x:Name="StartChoiceGrid" ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -1681,7 +1681,7 @@
                                             Grid.Column="0"
                                             AutomationProperties.AutomationId="SuggestedStartChoice"
                                             Click="StartChoice_Click"
-                                            Content="一键建议（仅预览）"
+                                            Content="查看一键建议"
                                             HorizontalAlignment="Stretch"
                                             HorizontalContentAlignment="Center"
                                             Tag="suggested" />
@@ -1701,13 +1701,13 @@
                                         AutomationProperties.ItemStatus="SuggestedStartSelected"
                                         AutomationProperties.LiveSetting="Polite"
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
-                                        Text="当前：一键建议，只生成匿名预览。" />
+                                        Text="当前：查看真实桌面项目建议。" />
                                 </StackPanel>
                             </Border>
 
                             <StackPanel Spacing="12">
                                 <TextBlock FontSize="20" FontWeight="SemiBold" Text="选择整理方式" />
-                                <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="安全引用是当前推荐起点；真实移动仍等待负责人范围决策。" />
+                                <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="安全引用是默认方式；它只保存组织关系，不改变文件位置。" />
                                 <Grid x:Name="OrganizationModeGrid" ColumnSpacing="14">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -1792,10 +1792,25 @@
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
                                         Text="尚未生成预览；尚未修改任何文件。"
                                         TextWrapping="Wrap" />
+                                    <ListView
+                                        x:Name="ProductQuickStartSuggestionList"
+                                        AutomationProperties.AutomationId="ProductQuickStartSuggestionList"
+                                        AutomationProperties.Name="真实桌面项目建议"
+                                        MaxHeight="220"
+                                        SelectionMode="None"
+                                        Visibility="Collapsed" />
+                                    <Button
+                                        x:Name="ProductQuickStartCommitButton"
+                                        AutomationProperties.AutomationId="ProductQuickStartCommitButton"
+                                        AutomationProperties.Name="确认创建建议方格"
+                                        Click="ProductQuickStartCommitButton_Click"
+                                        Content="确认并创建"
+                                        HorizontalAlignment="Left"
+                                        IsEnabled="False" />
                                 </StackPanel>
                             </Border>
 
-                            <Border Style="{StaticResource LongGridCardStyle}">
+                            <Border Style="{StaticResource LongGridCardStyle}" Visibility="Collapsed">
                                 <StackPanel Spacing="14">
                                     <TextBlock FontSize="20" FontWeight="SemiBold" Text="练习创建第一个方格" />
                                     <TextBlock

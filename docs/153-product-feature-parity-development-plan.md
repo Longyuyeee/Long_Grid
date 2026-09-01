@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：PF 功能详细 backlog 与历史验收账本；当前状态、执行顺序和里程碑以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 当前开发项：**PF-011A Quick Start 真实只读建议预览与原子提交**；顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 当前接续输入基线：PF-010B3 基于 `origin/main@bc74a5b` 完成单一撤销用户语义和规则依赖纠偏；真实测试、完成边界和 PF-011A 唯一接续点见 [Stage 268](268-pf010b3-undo-semantics-convergence-audit.md)，重启恢复见 [Stage 267](267-pf010b2-restart-safe-recovery-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
+- 当前开发项：**PF-011B Customize、跳过/返回与完成态恢复**；顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
+- 当前接续输入基线：PF-011A 基于 `origin/main@d427dff` 完成真实目录建议、确认后原子提交和统一历史；真实测试、完成边界和 PF-011B 唯一接续点见 [Stage 269](269-pf011a-quick-start-real-preview-atomic-commit-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 - 最新功能工程审计：PF-007A2 已完成正式 OLE Link 拖入；PF-007B 已完成已选正式引用在盒子间的原生有限拖动、冻结权威准入、原子保存/补偿和一次撤销。真实 STA/HWND/隔离文件路径与 SHA-256 零变化通过，物理鼠标与屏幕证据仍 Pending。PF-007 为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
@@ -353,7 +353,7 @@
 - 删除方格的撤销只恢复 Long方格配置，不恢复真实文件；
 - 批量动作必须作为一个历史单元。
 
-**当前工程进度（2026-09-01）**：PF-010A 已完成 50 步 cursor 历史、正式 UI、Undo/Redo、分支截断和首批五类动作；PF-010B1 已完成删除、布局、文件夹与引用动作广度；PF-010B2 已完成双指纹重启安全恢复点；PF-010B3 已移除六个旧单步撤销用户按钮，内部 token 仅用于失败补偿。真实代码没有正式规则用户动作，规则模型/应用按 PF-020/021 交付，PF-021 已明确“一次应用=一个事务和一个历史项”。PF-010 工程范围收口但物理键盘/Narrator 证据 Pending，不标为产品 Complete；下一步只做 PF-011A，详见 [Stage 268](268-pf010b3-undo-semantics-convergence-audit.md)。
+**当前工程进度（2026-09-01）**：PF-010A～B3 已完成统一历史；PF-011A 已完成真实桌面目录建议、确认前零提交、确认后一次原子保存与一个统一历史项，取消、陈旧预览、失败补偿和真实文件零变化通过。PF-011A 工程收口但物理键盘/Narrator 证据 Pending，不标为产品 Complete；下一步只做 PF-011B Customize、跳过/返回与完成态恢复，详见 [Stage 269](269-pf011a-quick-start-real-preview-atomic-commit-audit.md)。
 
 **验收目标**：
 
@@ -900,6 +900,6 @@
 
 PF-001～PF-006、PF-007A1/A2/B 与单文件夹绑定 A～D 均为 `EngineeringComplete / ProductEvidencePending`。PF-007 的物理 Explorer 拖入和方格间改归属尚未完成，但不得再把 B 写成工程未实现。
 
-当前唯一主开发项为 **PF-011A**。PF-010A～B3 已交付统一 50 步历史、动作广度、重启安全恢复点和单一用户撤销语义，状态为 `EngineeringComplete / ProductEvidencePending`。规则系统尚未实现，规则应用接入同一历史是 PF-021 的强制验收，不以假 API 提前占位。PF-011A 只做真实只读建议预览与确认后原子提交；每个切片继续记录真实 Expected / Initial Actual / Difference / Correction / Final Actual。
+当前唯一主开发项为 **PF-011B**。PF-011A 已交付真实只读建议预览、一次原子配置提交、统一历史、陈旧拒绝和失败补偿，状态为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`。PF-011B 只做 Customize、跳过/返回/以后再运行、重启完成态和匿名遗留退出；每个切片继续记录真实 Expected / Initial Actual / Difference / Correction / Final Actual。
 
 M1 集中产品证据、BOX-R1-C/D 和 TASKBAR-R2B1-B 改为并行外部门禁：环境满足时优先完成完整旅程，环境未满足时保持 Pending，不冻结 PF-008～PF-011 功能开发。任何版本在签名和安装门禁完成前仍不得分发。完整决策见 [Stage 259](259-function-first-development-priority-realignment.md)。

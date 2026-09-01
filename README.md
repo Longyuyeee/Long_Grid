@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：PF-010A～B3 工程范围已收口；正式 App 只保留统一 50 步历史的撤销/重做，六个旧单步撤销按钮已移除，内部 token 仅用于失败补偿。真实代码确认规则系统尚未开发，规则应用的原子历史验收归回 PF-021，未制造假能力。完整 Release `1,460/1,460`、Release 0 warning/error、207-ID UI 合同通过；PF-010 为 `EngineeringComplete / ProductEvidencePending`，M1/M2 仍为 `0/2 Complete`、30 项 PF 仍为 `0 Complete`。唯一接续点是 PF-011A Quick Start 真实只读建议预览与原子提交，完整审计见 [Stage 268](docs/268-pf010b3-undo-semantics-convergence-audit.md)。
+> 当前状态：PF-011A 已把匿名首次整理升级为真实桌面目录建议、确认后一次原子配置提交和一个统一历史项；取消、目录/修订变化、保存失败补偿与真实 Unicode 文件零变化均已验证。完整 Release `1,465/1,465`、Release 0 warning/error、209-ID UI 合同通过；PF-011A 为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`，PF-011 整体尚未完成，M1/M2 仍为 `0/2 Complete`、30 项 PF 仍为 `0 Complete`。唯一接续点是 PF-011B Customize、跳过/返回与完成态恢复，完整审计见 [Stage 269](docs/269-pf011a-quick-start-real-preview-atomic-commit-audit.md)。
 
 ## 产品原则
 
@@ -23,6 +23,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-010B1 统一历史动作广度审计（Stage 266）](docs/266-pf010b1-unified-history-action-breadth-audit.md)
 - [PF-010B2 重启后最近安全恢复点审计（Stage 267）](docs/267-pf010b2-restart-safe-recovery-audit.md)
 - [PF-010B3 统一撤销用户语义与规则依赖纠偏审计（Stage 268）](docs/268-pf010b3-undo-semantics-convergence-audit.md)
+- [PF-011A Quick Start 真实建议预览与原子提交审计（Stage 269）](docs/269-pf011a-quick-start-real-preview-atomic-commit-audit.md)
 - [PF-009B 桌面搜索浮层与结果导航审计（Stage 264）](docs/264-pf009b-desktop-search-navigation-audit.md)
 - [PF-008B 类型与修改时间稳定排序审计（Stage 261）](docs/261-pf008b-type-modified-sort-audit.md)
 - [PF-008A 视图密度与连续滚动审计（Stage 260）](docs/260-pf008a-view-density-continuous-scroll-audit.md)
@@ -296,7 +297,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 268](docs/268-pf010b3-undo-semantics-convergence-audit.md)的**功能优先（FunctionFirst）**基准，PF-008A～C、PF-009A/B、PF-010A～B3 已工程收口；当前唯一主开发项是 **PF-011A Quick Start 真实只读建议预览与原子提交**。BOX-R1-C/D 与 M1 的 #23/#274、完整 Runtime 和独占可丢弃会话，以及 TASKBAR-R2B1-B 的 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) Guest 准入继续作为并行外部门禁；未准入只阻止对应物理证据、系统写入和 Complete 声明，不冻结 PF-011A。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 269](docs/269-pf011a-quick-start-real-preview-atomic-commit-audit.md)的**功能优先（FunctionFirst）**基准，PF-008A～C、PF-009A/B、PF-010A～B3、PF-011A 已工程收口；当前唯一主开发项是 **PF-011B Customize、跳过/返回与完成态恢复**。BOX-R1-C/D 与 M1 的 #23/#274、完整 Runtime 和独占可丢弃会话，以及 TASKBAR-R2B1-B 的 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) Guest 准入继续作为并行外部门禁；未准入只阻止对应物理证据、系统写入和 Complete 声明，不冻结 PF-011B。
 
 ## 开发启动
 
