@@ -410,7 +410,7 @@ internal sealed class WindowsProductDesktopHostUiaContainerProvider
         int header = ProductDesktopHostSurfaceLayout.ToPixels(
             ProductDesktopHostSurfaceLayout.HeaderHeightDip, scale);
         int height = ProductDesktopHostSurfaceLayout.ToPixels(
-            ProductDesktopHostSurfaceLayout.ItemHeightDip, scale);
+            ProductDesktopHostSurfaceLayout.GetItemHeightDip(projection), scale);
         int count = projection.IsCollapsed ? 0 : Math.Min(
             projection.ItemNames.Count,
             Math.Max(0, (bounds.Height - header) / height));
@@ -426,6 +426,7 @@ internal sealed class WindowsProductDesktopHostUiaContainerProvider
     internal IReadOnlyList<WindowsProductDesktopHostUiaItemProvider> Items => items;
     internal int Index => index;
     internal string ContainerId => projection.ContainerId;
+    internal ProductDesktopHostReadOnlyProjection Projection => projection;
     public ProviderOptions ProviderOptions => root.ProviderOptions;
     public IRawElementProviderSimple? HostRawElementProvider => null;
     public Rect BoundingRectangle => root.ScreenBounds(
@@ -502,7 +503,8 @@ internal sealed class WindowsProductDesktopHostUiaItemProvider
             double header = ProductDesktopHostSurfaceLayout.ToPixels(
                 ProductDesktopHostSurfaceLayout.HeaderHeightDip, scale);
             double height = ProductDesktopHostSurfaceLayout.ToPixels(
-                ProductDesktopHostSurfaceLayout.ItemHeightDip, scale);
+                ProductDesktopHostSurfaceLayout.GetItemHeightDip(
+                    container.Projection), scale);
             double top = parent.Top + header + (index * height);
             return new(parent.Left, top, parent.Width,
                 Math.Max(0, Math.Min(height, parent.Bottom - top)));
@@ -546,7 +548,7 @@ internal sealed class WindowsProductDesktopHostUiaItemProvider
     public int[] GetRuntimeId() =>
         [AutomationInteropProvider.AppendRuntimeId, marker,
             2000 + (container.Index *
-                ProductDesktopHostReadOnlyProjection.MaximumVisibleItems) + index];
+                ProductDesktopHostReadOnlyProjection.MaximumCompactVisibleItems) + index];
     public IRawElementProviderSimple[]? GetEmbeddedFragmentRoots() => null;
     public void SetFocus() => Select();
     public bool IsSelected =>

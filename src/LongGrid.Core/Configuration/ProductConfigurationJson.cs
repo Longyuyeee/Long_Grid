@@ -135,6 +135,24 @@ public static class ProductConfigurationJson
             };
         }
 
+        if (document.SchemaVersion == 4)
+        {
+            return document with
+            {
+                SchemaVersion = ProductConfigurationLimits.CurrentSchemaVersion,
+                Containers = document.Containers
+                    .Select(container => container with
+                    {
+                        Appearance = container.Appearance with
+                        {
+                            ContentDensity =
+                                ProductContainerContentDensity.Comfortable,
+                        },
+                    })
+                    .ToArray(),
+            };
+        }
+
         throw new ProductConfigurationContractException(
             ProductConfigurationError.UnsupportedSchema);
     }

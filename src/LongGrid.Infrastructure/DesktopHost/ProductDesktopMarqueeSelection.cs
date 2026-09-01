@@ -73,7 +73,7 @@ internal static class ProductDesktopMarqueeSelectionAdapter
             ProductDesktopHostSurfaceLayout.HeaderHeightDip,
             scale);
         int itemHeight = ProductDesktopHostSurfaceLayout.ToPixels(
-            ProductDesktopHostSurfaceLayout.ItemHeightDip,
+            ProductDesktopHostSurfaceLayout.GetItemHeightDip(container),
             scale);
         int contentTop = checked(bounds.Top + headerHeight);
         int itemBottom = checked(contentTop + (container.ItemIds.Count * itemHeight));

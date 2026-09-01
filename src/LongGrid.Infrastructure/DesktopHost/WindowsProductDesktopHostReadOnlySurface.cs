@@ -45,7 +45,7 @@ internal static class ProductDesktopPointerSelectionAdapter
             ProductDesktopHostSurfaceLayout.HeaderHeightDip,
             scale);
         int itemHeight = ProductDesktopHostSurfaceLayout.ToPixels(
-            ProductDesktopHostSurfaceLayout.ItemHeightDip,
+            ProductDesktopHostSurfaceLayout.GetItemHeightDip(container),
             scale);
         int index = (y - bounds.Top - headerHeight) / itemHeight;
         if (x < bounds.Left || x >= bounds.Right
@@ -1727,7 +1727,8 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             .SingleOrDefault(candidate =>
                 !candidate.IsCollapsed
                 && candidate.TotalItemCount >
-                    ProductDesktopHostReadOnlyProjection.MaximumVisibleItems
+                    ProductDesktopHostReadOnlyProjection.VisibleItemCapacity(
+                        candidate.ContentDensity)
                 && Contains(
                     ProductDesktopHostSurfaceLayout.GetContainerBounds(
                         projection,
@@ -2509,7 +2510,7 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             ? ["空方格 · 只读预览"]
             : container.ItemNames;
         int itemHeight = ToPixels(
-            ProductDesktopHostSurfaceLayout.ItemHeightDip,
+            ProductDesktopHostSurfaceLayout.GetItemHeightDip(container),
             scale);
         int horizontalPadding = ToPixels(18, scale);
         int iconSize = ToPixels(20, scale);

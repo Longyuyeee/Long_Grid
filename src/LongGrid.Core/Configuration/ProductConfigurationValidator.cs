@@ -2,7 +2,7 @@ namespace LongGrid.Core.Configuration;
 
 public static class ProductConfigurationLimits
 {
-    public const int CurrentSchemaVersion = 4;
+    public const int CurrentSchemaVersion = 5;
     public const int MaximumSerializedBytes = 4 * 1024 * 1024;
     public const int MaximumContainers = 100;
     public const int MaximumItems = 500;
@@ -128,7 +128,8 @@ public static class ProductConfigurationValidator
                 "opacity",
                 "collapsed",
                 "titleVisibility",
-                "titleDoubleClickAction"))
+                "titleDoubleClickAction",
+                "contentDensity"))
             {
                 return new(ProductConfigurationError.InvalidExtensionData);
             }
@@ -265,7 +266,8 @@ public static class ProductConfigurationValidator
         && double.IsFinite(appearance.Opacity)
         && appearance.Opacity is >= 0 and <= 1
         && Enum.IsDefined(appearance.TitleVisibility)
-        && Enum.IsDefined(appearance.TitleDoubleClickAction);
+        && Enum.IsDefined(appearance.TitleDoubleClickAction)
+        && Enum.IsDefined(appearance.ContentDensity);
 
     private static bool IsValidPlacement(ContainerPlacementConfiguration? placement) =>
         placement is not null

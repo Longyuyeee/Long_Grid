@@ -6,7 +6,7 @@
 
 更新日期：2026-09-01
 
-代码审计输入基线：`origin/main@d4d0032`；当前功能优先基准与 PF-008 接续边界见 [Stage 259](259-function-first-development-priority-realignment.md)，上一轮 M1 正式 App 精确 marker 修正见 [Stage 258](258-m1-app-exact-marker-consumption-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
+代码审计输入基线：`origin/main@b66aaf6`；PF-008A 真实实现与唯一接续边界见 [Stage 260](260-pf008a-view-density-continuous-scroll-audit.md)，功能优先基准见 [Stage 259](259-function-first-development-priority-realignment.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -267,7 +267,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**PF-008 方格内视图、排序、滚动与间距（FunctionFirst / InProgress）**。先交付 PF-008A 视图密度与连续滚动，再交付 PF-008B 类型/修改时间排序和 PF-008C 自定义顺序与一次撤销。每个切片必须形成正式产品链、真实 Core/配置/文件系统或 HWND 结果，并证明真实文件数量、路径和哈希不变化；当前 Runtime 阻断可见 App 时只能保持 `ProductEvidencePending`，但不阻止工程实现。BOX-R1-C/D 与 M1 的 `ExternalEnvironmentBlocked`、TASKBAR-R2B1-B 的 Guest 准入作为并行门禁持续跟踪，不能用源码合同替代物理 Pass，也不能反过来冻结 PF-008。最新精确基准见 [Stage 259](259-function-first-development-priority-realignment.md)。
+当前执行项：**PF-008B 类型与修改时间稳定排序（FunctionFirst / InProgress）**。PF-008A 已完成两档密度、连续滚动、schema v5 持久化，并通过真实 HWND 与 24 个 Unicode 文件 SHA-256 零变化验证；正式 App 跨进程物理证据保持 Pending。下一步只交付类型/修改时间升降序、文件夹优先与稳定 tie-break，再进入 PF-008C。BOX-R1-C/D 与 TASKBAR-R2B1-B 继续作为并行外部门禁，不冻结 PF-008B。最新精确基准见 [Stage 260](260-pf008a-view-density-continuous-scroll-audit.md)。
 
 严格按下列顺序交付，不再插入非当前队列的相邻探针或功能：
 
@@ -279,7 +279,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 6. **BOX-R1（B 已完成，C Pending）**：A 有限激活合同（EngineeringComplete / RealProcessPass）→ B 原生 `IExplorerCommand` 与真实 unsigned MSIX（EngineeringComplete / NativeDllPass / RealUnsignedPackagePass）→ C 可丢弃账户真实安装/菜单/卸载证据（PendingApproval）→ D Explorer 重启、显示器、DPI 与失败恢复；全部复用统一创建预览和事务。
 7. **FOLDER-R1（A～D EngineeringComplete / RealFilesystemPass / ProductEvidencePending）**：A 持久化/身份/健康合同 → B 显式选择、取消零写入、绑定/解绑/重连原子提交 → C 目录内容呈现、显式刷新、变更通知和安全打开 → D 权限、离线、同路径替换、失效恢复和有限状态；路径、三种 schema v4 基础排序、真实加载状态和一次性有限恢复反馈均已合入，同时保留 Ready/Empty/Truncated 等权威内容状态；物理 Picker、可见加载/失效/恢复/刷新/打开/排序、键盘和 Narrator 进入 M1 集中证据。
 8. **PF-007A2 / PF-007B（EngineeringComplete / RealHwndPass / ProductEvidencePending）**：A2 已完成正式 HWND OLE DropTarget 和安全 Link 引用提交；B 已完成盒子间改归属、无效目标、失败补偿和一次撤销。
-9. **PF-008（InProgress / 当前主队列）**：A 视图密度与连续滚动 → B 类型/修改时间稳定排序 → C 自定义顺序、保存补偿和一次撤销；只改变 Long方格展示或配置，不移动真实文件。
+9. **PF-008（InProgress / 当前主队列）**：A 已 `EngineeringComplete / RealHwndPass / RealFilesystemPass / ProductEvidencePending`；当前进入 B 类型/修改时间稳定排序，随后 C 自定义顺序、保存补偿和一次撤销；只改变 Long方格展示或配置，不移动真实文件。
 10. **PF-009～PF-011（Queued）**：依次完成搜索筛选、统一撤销/操作历史和首次启动体验；PF-008 未形成可演示用户结果前不并行扩张。
 11. **M1 产品证据冲刺（ExternalEnvironmentBlocked / ParallelGate）**：等待安全 WinUI 运行时、专用账户和可安装签名条件；条件具备时优先执行完整两分钟旅程，不降低出口。
 12. **TASKBAR-R1～R4（R2B1-B EnvironmentBlocked / ParallelGate）**：R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵；宿主禁止试写，但不阻塞 PF 主队列。
@@ -899,3 +899,7 @@ Stage 241 从最终 `main@99ee050` 重新复读统一计划、30 项 PF 总表�
 Stage 258 已通过 PR #342 合入 `main@d4d0032`，精确 main CI 为 `1,405/1,405`、coverage `90.14%/76.04%`，双语言 CodeQL 成功。连续 M1 安全邻接已经关闭，不再把外部环境等待或新增证据探针作为产品进度。
 
 当前优先级改为核心工程实现、核心用户旅程、功能广度对标；安全与权限保持不退化，但只在真实回归、数据损坏风险或发布必要门禁触发时抢占。主队列进入 PF-008，BOX/M1 与 TASKBAR Guest 保持并行外部门禁。完整范围、真实机器 Actual、测试规则和需求审计见 [Stage 259](259-function-first-development-priority-realignment.md)。
+
+### 13.38 Stage 260：PF-008A 视图密度与连续滚动
+
+每方格新增 `Comfortable/Compact` 两档内容密度，schema v5 持久化并从 v4 保持舒适默认；桌面投影、原生绘制、命中、UIA、缩略图与视口统一使用 12×28 / 18×20。鼠标滚轮由整页跳转改为逐项连续滚动，PageUp/PageDown 保持密度感知整页语义。初始回归精确复现 `Expected=1 / Actual=12`，修正后真实 HWND 为 SameHwnd、18 项、NextStart=1，24 个 Unicode 文件 SHA-256 不变；专项 `115/115`、完整 `1,407/1,407`。完整审计和 PF-008B 接续点见 [Stage 260](260-pf008a-view-density-continuous-scroll-audit.md)。

@@ -116,7 +116,7 @@ public static class ProductDesktopInteractionHitTestAdapter
         if (!container.IsCollapsed && container.ItemNames.Count > 0)
         {
             int itemHeight = ProductDesktopHostSurfaceLayout.ToPixels(
-                ProductDesktopHostSurfaceLayout.ItemHeightDip,
+                ProductDesktopHostSurfaceLayout.GetItemHeightDip(container),
                 scale);
             int visibleItemCount = Math.Min(
                 container.ItemNames.Count,

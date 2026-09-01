@@ -18,7 +18,8 @@ internal sealed record ProductWorkspaceContainerEditCandidatePresentation(
     ProductContainerTitleVisibilityPolicy TitleVisibility,
     ProductContainerTitleDoubleClickAction TitleDoubleClickAction,
     ProductContainerFolderBindingResolution? FolderBindingResolution,
-    ProductContainerFolderSortMode? FolderContentSortMode)
+    ProductContainerFolderSortMode? FolderContentSortMode,
+    ProductContainerContentDensity ContentDensity)
 {
     public string AccessibilityName => $"方格 {Ordinal}，{DisplayName}";
 
@@ -53,6 +54,10 @@ internal sealed record ProductWorkspaceContainerTitleVisibilityChoicePresentatio
 
 internal sealed record ProductWorkspaceContainerTitleDoubleClickChoicePresentation(
     ProductContainerTitleDoubleClickAction Action,
+    string DisplayName);
+
+internal sealed record ProductWorkspaceContainerContentDensityChoicePresentation(
+    ProductContainerContentDensity Density,
     string DisplayName);
 
 internal sealed record ProductWorkspaceContainerEditPresentation(
@@ -100,6 +105,14 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
     [
         new(ProductContainerTitleDoubleClickAction.ToggleCollapsed, "双击折叠 / 展开"),
         new(ProductContainerTitleDoubleClickAction.None, "双击不执行操作"),
+    ];
+
+    public static IReadOnlyList<ProductWorkspaceContainerContentDensityChoicePresentation>
+        ContentDensityChoices
+    { get; } =
+    [
+        new(ProductContainerContentDensity.Comfortable, "舒适 · 12 项 / 页"),
+        new(ProductContainerContentDensity.Compact, "紧凑 · 18 项 / 页"),
     ];
 
     public static IReadOnlyList<ProductWorkspaceContainerOpacityChoicePresentation>
@@ -201,7 +214,8 @@ internal sealed record ProductWorkspaceContainerEditPresentation(
                 container.TitleVisibility,
                 container.TitleDoubleClickAction,
                 container.FolderBindingResolution,
-                container.FolderContentSortMode))
+                container.FolderContentSortMode,
+                container.ContentDensity))
             .ToArray();
         return new(
             editRevision,

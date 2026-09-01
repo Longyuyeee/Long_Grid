@@ -52,6 +52,7 @@ public sealed record ProductDesktopHostLifecycleSnapshot(
 public sealed record ProductDesktopHostReadOnlyProjection
 {
     public const int MaximumVisibleItems = 12;
+    public const int MaximumCompactVisibleItems = 18;
     public const int MaximumVisibleNameLength = 512;
 
     private ProductDesktopHostReadOnlyProjection(
@@ -71,7 +72,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
         IReadOnlyList<ProductDesktopItemVisualPresentation> itemVisuals,
         ProductContainerTitleVisibilityPolicy titleVisibility,
         ProductContainerTitleDoubleClickAction titleDoubleClickAction,
-        int visibleItemStartOrdinal)
+        int visibleItemStartOrdinal,
+        ProductContainerContentDensity contentDensity)
     {
         ContainerId = containerId;
         Title = title;
@@ -90,6 +92,7 @@ public sealed record ProductDesktopHostReadOnlyProjection
         TitleVisibility = titleVisibility;
         TitleDoubleClickAction = titleDoubleClickAction;
         VisibleItemStartOrdinal = visibleItemStartOrdinal;
+        ContentDensity = contentDensity;
     }
 
     public string ContainerId { get; }
@@ -126,6 +129,16 @@ public sealed record ProductDesktopHostReadOnlyProjection
 
     public int VisibleItemStartOrdinal { get; }
 
+    public ProductContainerContentDensity ContentDensity { get; }
+
+    public static int VisibleItemCapacity(ProductContainerContentDensity density) =>
+        density switch
+        {
+            ProductContainerContentDensity.Comfortable => MaximumVisibleItems,
+            ProductContainerContentDensity.Compact => MaximumCompactVisibleItems,
+            _ => throw new ArgumentOutOfRangeException(nameof(density)),
+        };
+
     public ProductDesktopContainerHeaderPresentation Header =>
         ProductDesktopContainerHeaderPresentation.Create(
             Title,
@@ -154,18 +167,21 @@ public sealed record ProductDesktopHostReadOnlyProjection
             ProductContainerTitleVisibilityPolicy.Always,
         ProductContainerTitleDoubleClickAction titleDoubleClickAction =
             ProductContainerTitleDoubleClickAction.ToggleCollapsed,
-        int visibleItemStartOrdinal = 1)
+        int visibleItemStartOrdinal = 1,
+        ProductContainerContentDensity contentDensity =
+            ProductContainerContentDensity.Comfortable)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(containerId);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentNullException.ThrowIfNull(itemNames);
+        int visibleItemCapacity = VisibleItemCapacity(contentDensity);
         string[] visibleItems = itemNames
-            .Take(MaximumVisibleItems)
+            .Take(visibleItemCapacity)
             .ToArray();
         string[] visibleItemIds = (itemIds
                 ?? Enumerable.Range(1, visibleItems.Length)
                     .Select(ordinal => $"item:{ordinal}"))
-            .Take(MaximumVisibleItems)
+            .Take(visibleItemCapacity)
             .ToArray();
         int boundedTotalItemCount = totalItemCount ?? visibleItems.Length;
         int boundedVisibleItemStartOrdinal = boundedTotalItemCount == 0
@@ -176,7 +192,7 @@ public sealed record ProductDesktopHostReadOnlyProjection
                 ProductDesktopItemVisualPresentation.Create(
                     ConfigurationItemKind.File,
                     ProductItemReferenceResolution.Resolved)))
-            .Take(MaximumVisibleItems)
+            .Take(visibleItemCapacity)
             .ToArray();
         if (visibleItems.Any(string.IsNullOrWhiteSpace)
             || containerId.Length > ProductConfigurationLimits.MaximumIdLength
@@ -208,6 +224,7 @@ public sealed record ProductDesktopHostReadOnlyProjection
             || !double.IsFinite(heightDip)
             || !Enum.IsDefined(titleVisibility)
             || !Enum.IsDefined(titleDoubleClickAction)
+            || !Enum.IsDefined(contentDensity)
             || widthDip <= 0
             || heightDip <= 0)
         {
@@ -232,7 +249,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
             Array.AsReadOnly(visibleItemVisuals),
             titleVisibility,
             titleDoubleClickAction,
-            boundedVisibleItemStartOrdinal);
+            boundedVisibleItemStartOrdinal,
+            contentDensity);
     }
 }
 
@@ -1918,7 +1936,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                 || !surfaces.Contains(surface)
                 || targets.Length != 1
                 || targets[0].TotalItemCount <=
-                    ProductDesktopHostReadOnlyProjection.MaximumVisibleItems
+                    ProductDesktopHostReadOnlyProjection.VisibleItemCapacity(
+                        targets[0].ContentDensity)
                 || input.WheelDelta == 0
                 || !input.SourceAttested
                 || input.IsInjected
@@ -1936,7 +1955,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     input.WheelDelta,
                     input.SourceAttested,
                     input.IsInjected,
-                    input.IsAutoRepeat));
+                    input.IsAutoRepeat,
+                    input.PageNavigation));
             }
             catch (Exception exception) when (
                 exception is ArgumentException
@@ -1974,7 +1994,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     input.ContainerId, StringComparison.Ordinal)
                 || targets.Length != 1
                 || targets[0].TotalItemCount <=
-                    ProductDesktopHostReadOnlyProjection.MaximumVisibleItems
+                    ProductDesktopHostReadOnlyProjection.VisibleItemCapacity(
+                        targets[0].ContentDensity)
                 || input.WheelDelta == 0
                 || !input.SourceAttested
                 || input.IsInjected
@@ -1992,7 +2013,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                     input.WheelDelta,
                     input.SourceAttested,
                     input.IsInjected,
-                    input.IsAutoRepeat));
+                    input.IsAutoRepeat,
+                    input.PageNavigation));
             }
             catch (Exception exception) when (
                 exception is ArgumentException

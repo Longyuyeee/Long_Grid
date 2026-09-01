@@ -1,3 +1,4 @@
+using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopHost;
 
 namespace LongGrid.Infrastructure.DesktopHost;
@@ -6,6 +7,7 @@ internal static class ProductDesktopHostSurfaceLayout
 {
     internal const int HeaderHeightDip = 54;
     internal const int ItemHeightDip = 28;
+    internal const int CompactItemHeightDip = 20;
     internal const int EmptyCardWidthDip = 360;
     internal const int EmptyCardHeightDip = 184;
     internal const int EmptyCreateButtonWidthDip = 248;
@@ -14,6 +16,17 @@ internal static class ProductDesktopHostSurfaceLayout
     internal const int ContinuedCreateButtonHeightDip = 40;
     internal const int ContinuedCreateButtonMarginDip = 16;
     internal const int ContinuedCreateButtonGapDip = 8;
+
+    internal static int GetItemHeightDip(
+        ProductDesktopHostReadOnlyProjection container) =>
+        container.ContentDensity switch
+        {
+            ProductContainerContentDensity.Comfortable =>
+                ItemHeightDip,
+            ProductContainerContentDensity.Compact =>
+                CompactItemHeightDip,
+            _ => throw new ArgumentOutOfRangeException(nameof(container)),
+        };
 
     internal static PixelRect GetEmptyCardBounds(
         ProductDesktopHostDisplayProjection display)
@@ -121,7 +134,8 @@ internal static class ProductDesktopHostSurfaceLayout
             : Math.Max(
                 container.HeightDip,
                 HeaderHeightDip
-                    + (Math.Max(1, container.ItemNames.Count) * ItemHeightDip)
+                    + (Math.Max(1, container.ItemNames.Count)
+                        * GetItemHeightDip(container))
                     + 18);
         int height = Math.Clamp(
             ToPixels(requestedHeight, scale),

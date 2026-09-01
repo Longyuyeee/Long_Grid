@@ -136,6 +136,7 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerSizePreset?,
         ProductContainerTitleVisibilityPolicy?,
         ProductContainerTitleDoubleClickAction?,
+        ProductContainerContentDensity?,
         bool,
         ProductWorkspaceContainerCommitResult> _commitProductWorkspaceContainerAction;
     private readonly Func<
@@ -278,6 +279,7 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerSizePreset?,
             ProductContainerTitleVisibilityPolicy?,
             ProductContainerTitleDoubleClickAction?,
+            ProductContainerContentDensity?,
             bool,
             ProductWorkspaceContainerCommitResult> commitProductWorkspaceContainerAction,
         Func<
@@ -1985,6 +1987,8 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerEditPresentation.TitleVisibilityChoices;
         ProductWorkspaceContainerTitleDoubleClickSelector.ItemsSource =
             ProductWorkspaceContainerEditPresentation.TitleDoubleClickChoices;
+        ProductWorkspaceContainerContentDensitySelector.ItemsSource =
+            ProductWorkspaceContainerEditPresentation.ContentDensityChoices;
         ProductWorkspaceContainerPositionSelector.ItemsSource =
             ProductWorkspaceContainerEditPresentation.PositionChoices;
         ProductWorkspaceContainerSizeSelector.ItemsSource =
@@ -2219,6 +2223,7 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerOpacitySelector.SelectedIndex = -1;
             ProductWorkspaceContainerTitleVisibilitySelector.SelectedIndex = -1;
             ProductWorkspaceContainerTitleDoubleClickSelector.SelectedIndex = -1;
+            ProductWorkspaceContainerContentDensitySelector.SelectedIndex = -1;
             ProductWorkspaceContainerPositionSelector.SelectedIndex = -1;
             ProductWorkspaceContainerSizeSelector.SelectedIndex = -1;
             ProductWorkspaceFolderSortSelector.SelectedIndex = -1;
@@ -2307,6 +2312,13 @@ public sealed partial class MainWindow : Window
                 .Select(pair => pair.index)
                 .DefaultIfEmpty(-1)
                 .First();
+        ProductWorkspaceContainerContentDensitySelector.SelectedIndex =
+            ProductWorkspaceContainerEditPresentation.ContentDensityChoices
+                .Select((choice, index) => (choice, index))
+                .Where(pair => pair.choice.Density == selected.ContentDensity)
+                .Select(pair => pair.index)
+                .DefaultIfEmpty(-1)
+                .First();
     }
 
     private void ApplyProductWorkspaceContainerPlacementSelection(
@@ -2373,6 +2385,8 @@ public sealed partial class MainWindow : Window
             canEditAppearance;
         ProductWorkspaceContainerTitleDoubleClickSelector.IsEnabled =
             canEditAppearance;
+        ProductWorkspaceContainerContentDensitySelector.IsEnabled =
+            canEditAppearance;
         ProductWorkspaceContainerColorChoicePresentation? colorChoice =
             ProductWorkspaceContainerColorSelector.SelectedItem as
                 ProductWorkspaceContainerColorChoicePresentation;
@@ -2385,12 +2399,16 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerTitleDoubleClickChoicePresentation? titleDoubleClick =
             ProductWorkspaceContainerTitleDoubleClickSelector.SelectedItem as
                 ProductWorkspaceContainerTitleDoubleClickChoicePresentation;
+        ProductWorkspaceContainerContentDensityChoicePresentation? contentDensity =
+            ProductWorkspaceContainerContentDensitySelector.SelectedItem as
+                ProductWorkspaceContainerContentDensityChoicePresentation;
         ProductWorkspaceContainerAppearanceButton.IsEnabled =
             canEditAppearance
             && colorChoice is not null
             && opacityChoice is not null
             && titleVisibility is not null
             && titleDoubleClick is not null
+            && contentDensity is not null
             && (!string.Equals(
                     colorChoice.Color,
                     selected!.Color,
@@ -2793,7 +2811,9 @@ public sealed partial class MainWindow : Window
             || ProductWorkspaceContainerTitleVisibilitySelector.SelectedItem is not
                 ProductWorkspaceContainerTitleVisibilityChoicePresentation titleVisibility
             || ProductWorkspaceContainerTitleDoubleClickSelector.SelectedItem is not
-                ProductWorkspaceContainerTitleDoubleClickChoicePresentation titleDoubleClick)
+                ProductWorkspaceContainerTitleDoubleClickChoicePresentation titleDoubleClick
+            || ProductWorkspaceContainerContentDensitySelector.SelectedItem is not
+                ProductWorkspaceContainerContentDensityChoicePresentation contentDensity)
         {
             return;
         }
@@ -2804,7 +2824,8 @@ public sealed partial class MainWindow : Window
             colorPreset: color.Preset,
             opacityPreset: opacity.Preset,
             titleVisibility: titleVisibility.Policy,
-            titleDoubleClickAction: titleDoubleClick.Action);
+            titleDoubleClickAction: titleDoubleClick.Action,
+            contentDensity: contentDensity.Density);
     }
 
     private void ProductWorkspaceContainerPlacementButton_Click(
@@ -2918,6 +2939,7 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerSizePreset? sizePreset = null,
         ProductContainerTitleVisibilityPolicy? titleVisibility = null,
         ProductContainerTitleDoubleClickAction? titleDoubleClickAction = null,
+        ProductContainerContentDensity? contentDensity = null,
         bool confirmed = false)
     {
         string name = action == ProductWorkspaceContainerCommitAction.Remove
@@ -2936,6 +2958,7 @@ public sealed partial class MainWindow : Window
                 sizePreset,
                 titleVisibility,
                 titleDoubleClickAction,
+                contentDensity,
                 confirmed);
         bool changed = result.IsAccepted;
         ProductWorkspaceContainerEditStatus.Text = result.Status switch
