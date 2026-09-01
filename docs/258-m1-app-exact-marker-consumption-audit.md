@@ -4,7 +4,7 @@
 
 输入基线：`origin/main@fc29a40dfff80b047d479c4008565359ef53720c`
 
-状态：`ImplementationComplete / LocalAuditPass / PullRequestPending / ExternalEnvironmentBlocked`
+状态：`ImplementationComplete / PullRequestMerged / MainAuditPass / ExternalEnvironmentBlocked`
 
 ## 1. 接续、需求与真实差异
 
@@ -36,8 +36,14 @@
 
 覆盖率使用全新 ignored `artifacts/stage258-test-results`。首次精确测试命令命中 PATH 首项 x86 `dotnet` 而看不到 SDK，按已有 Stage 252 宿主合同改用 `C:\Program Files\dotnet\dotnet.exe`，未改变 SDK 版本或测试预算。
 
-## 4. 需求对齐与下一接续点
+## 4. 远端与精确 main 收口
+
+实现通过 [PR #342](https://github.com/Longyuyeee/Long_Grid/pull/342) 合入 `main@d4d0032239d680db5dd81e719efd121f34097d56`。PR CI、C# CodeQL 和 C/C++ CodeQL 均成功。
+
+精确 main CI run `33425442177` 为 Release `0 warning / 0 error`、完整测试 `1,405/1,405`、0 failed、0 skipped、coverage lines `90.14% (46,932/52,064)`、branches `76.04% (15,432/20,294)`、198 required Automation IDs、已知依赖漏洞 0；main CodeQL run `33425442163` 成功。许可证与分发继续为 `distributionApproved=false`。
+
+## 5. 需求对齐与下一接续点
 
 本轮只收紧已有 M1 证据所有权消费，不修改产品配置、用户文件、Runtime、任务栏、签名、安装或分发状态。M1/M2 继续 `0/2 Complete`，30 项 PF 继续 `0 Complete`，内部 RC 继续不可分发。
 
-下一唯一接续点仍由 `#23/#274`、完整兼容 Runtime、受保护签名包、独占可丢弃 Windows 会话或 Stage 216 TASKBAR Host/Guest 准入持有；未满足时只处理新复现的真实回归、质量或安全缺陷。PR 与 main 结果待远端门禁后补入。
+Stage 258 已完整关闭，不再继续扩展 M1 marker/cleanup 相邻安全工作。开发优先级和当前主队列已由 [Stage 259](259-function-first-development-priority-realignment.md) 重对齐为 PF-008 功能开发；`#23/#274`、完整兼容 Runtime、受保护签名包、独占可丢弃 Windows 会话和 Stage 216 TASKBAR Host/Guest 准入改为并行门禁。

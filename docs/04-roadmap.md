@@ -1,14 +1,14 @@
 # Long Grid 路线图与验收门槛
 
-路线图采用“风险先行”，时间只在团队规模确定后估算。每阶段结束都需要可演示产物和量化证据。
+路线图采用“功能结果优先、风险随功能收敛”，时间只在团队规模确定后估算。每阶段结束都需要可演示产物和量化证据；权限、安全和发布门禁保持不退化，但不得脱离用户结果连续占用主开发队列。
 
 每个阶段内的需求进入、风险分级、Phase 0 双轨验证、技术探针、PR、测试、Definition of Done 和发布流程统一遵循[开发流程与交付规范](10-development-workflow.md)。
 
-从当前 Phase 0 退出推进到桌面管理 MVP、内部 RC 与正式分发的唯一执行顺序、交付物和验收门槛，统一以[Stage 125 收尾执行计划](125-phase0-internal-rc-closeout-plan.md)为准。Stage 103 保留为产品阶段设计和历史计划。
+从 Phase 0 推进到桌面管理 MVP、内部 RC 与正式分发的当前执行顺序，以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源；[Stage 125 收尾执行计划](125-phase0-internal-rc-closeout-plan.md)和 Stage 103 仅保留历史阶段设计与证据。
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，最新 M1 正式 App 精确 marker 消费修正与边界见 [Stage 258](258-m1-app-exact-marker-consumption-audit.md)，换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)，既有代码、环境、完成度与证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)。PF-001 当前实现证据见 [Stage 154](154-pf001-boxes-enabled-implementation-audit.md)，历史全量需求快照见 [Stage 176](176-current-development-requirement-alignment-audit.md)。外部证据和发布门禁以 Stage 258/251/241 指向的 #23/#274、完整 Runtime、签名包和独占可丢弃 Windows 会话为准。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源，功能优先基准与 PF-008 当前队列见 [Stage 259](259-function-first-development-priority-realignment.md)，上一轮 M1 正式 App 精确 marker 修正见 [Stage 258](258-m1-app-exact-marker-consumption-audit.md)，换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)。当前主队列为 PF-008；#23/#274、完整 Runtime、签名包、独占可丢弃 Windows 会话和 Stage 216 Guest 准入作为 BOX/M1/TASKBAR 并行门禁，不再冻结安全边界内的产品功能开发。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 2026-08-31 Stage 243 复验补充：setup-dotnet v6 合并后的 main format 宿主发现竞态已改为绝对 SDK host 与一次精确错误重试；PR 文档提交又真实暴露原生 UIA 证据菜单未退出并被 2 分钟 watchdog 终止。内部证据入口现以独立计时器向真实窗口投递 `WM_CANCELMODE`，正式产品菜单不变；CI 在完整真实进程测试前关闭 MSBuild/Roslyn server，产品缩略图 1.5 秒预算不放宽。本机精确 UIA 场景修正前/后各 `10/10`；PR #316 与合并后 `main@e0231d1` 均完整通过，main 为 `1,395/1,395`、coverage `90.14%/76.03%`、双语言 CodeQL open alerts=0。Stage 243 已关闭。
 
@@ -41,6 +41,8 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-09-01 Stage 257 M1 精确 marker 内容安全：带前后空白的 marker 在旧 cleanup 中经 `.Trim()` 后被错误接受，真实返回 0 并删除含 sentinel 的会话目录。现要求 marker 原文与规范化 GUID 大小写敏感、逐字符完全一致；同一输入非零拒绝且目录/PID 不变，M1 专项 `8/8`、完整 `1,403/1,403`、coverage `90.43%/76.17%`、198-ID、漏洞 0。产品完成度和外部门禁不变，详见 [Stage 257](257-m1-exact-marker-content-audit.md)。
 
 2026-09-01 Stage 258 M1 正式 App 精确 marker 消费安全：Stage 257 cleanup 已拒绝带空白 marker，但正式 `ProductM1ManualEvidenceSession` 仍经 `.Trim()` 接受同一非精确令牌。直接编译正式会话类的回归修正前精确失败为 `No exception was thrown`；现启动端与清理端均要求 marker 原文逐字符匹配。消费端 `2/2`、M1 相关 `10/10`、完整 `1,405/1,405`、coverage `90.44%/76.17%`、198-ID、漏洞 0 通过。产品完成度和外部门禁不变，详见 [Stage 258](258-m1-app-exact-marker-consumption-audit.md)。
+
+2026-09-01 Stage 259 功能优先重对齐：Stage 258 已通过 PR #342 合入 `main@d4d0032`，精确 main CI `1,405/1,405`、coverage `90.14%/76.04%`，双语言 CodeQL 成功。开发优先级改为核心工程实现、核心用户旅程、功能广度对标；安全作为功能验收底线，不再连续扩展 M1 邻接探针。主队列进入 PF-008A 视图密度与连续滚动，随后 PF-008B/C、PF-009～PF-011；BOX/M1 与 TASKBAR Guest 作为并行门禁。详见 [Stage 259](259-function-first-development-priority-realignment.md)。
 
 ## Phase 0：立项与技术验证
 

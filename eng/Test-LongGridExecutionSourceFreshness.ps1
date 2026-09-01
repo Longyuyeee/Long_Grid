@@ -74,9 +74,10 @@ function Get-FreshnessDifferences {
     $backlogLead = if ($BacklogText.Length -gt 3000) { $BacklogText.Substring(0, 3000) } else { $BacklogText }
 
     $planQueueText = Get-LevelTwoSections -Text $PlanText | Where-Object {
+            $_.Contains('PF-008') -and
             $_.Contains('BOX-R1-C/D') -and
             $_.Contains('TASKBAR-R2B1-B') -and
-            $_.Contains('ExternalEnvironmentBlocked')
+            $_.Contains('FunctionFirst')
         } | Select-Object -First 1
     if ($null -eq $planQueueText) {
         $differences += 'execution-plan-current-queue:section-missing'
@@ -124,7 +125,9 @@ function Get-FreshnessDifferences {
     }
 
     $continuationText = $readmeSections | Where-Object {
-            $_.Contains('BOX-R1-C/D') -and $_.Contains('TASKBAR-R2B1-B')
+            $_.Contains('PF-008') -and
+            $_.Contains('BOX-R1-C/D') -and
+            $_.Contains('TASKBAR-R2B1-B')
         } | Select-Object -First 1
     if ($null -eq $continuationText) {
         $differences += 'readme-continuation:section-missing'
@@ -136,6 +139,8 @@ function Get-FreshnessDifferences {
             $differences += "readme-continuation:audit-expected=$($source.stage)-actual=$actualValue"
         }
         foreach ($requiredTerm in @(
+                'PF-008',
+                'FunctionFirst',
                 'BOX-R1-C/D',
                 'TASKBAR-R2B1-B',
                 'Runtime',
@@ -169,7 +174,9 @@ if ($actualDifferences.Count -gt 0) {
 }
 
 $continuation = Get-LevelTwoSections -Text $readme | Where-Object {
-        $_.Contains('BOX-R1-C/D') -and $_.Contains('TASKBAR-R2B1-B')
+        $_.Contains('PF-008') -and
+        $_.Contains('BOX-R1-C/D') -and
+        $_.Contains('TASKBAR-R2B1-B')
     } | Select-Object -First 1
 $readmeLinkPattern = '\[[^\]]*Stage ' + $source.stage + '[^\]]*\]\(docs/' +
     [regex]::Escape($source.document) + '\)'
@@ -189,9 +196,10 @@ if ($negativeDifferences -notcontains $expectedNegativeDifference) {
 }
 
 $planQueue = Get-LevelTwoSections -Text $plan | Where-Object {
+        $_.Contains('PF-008') -and
         $_.Contains('BOX-R1-C/D') -and
         $_.Contains('TASKBAR-R2B1-B') -and
-        $_.Contains('ExternalEnvironmentBlocked')
+        $_.Contains('FunctionFirst')
     } | Select-Object -First 1
 $stalePlanStage = [Math]::Max(0, $source.stage - 1)
 $stalePlanQueue = $planQueue.Replace(

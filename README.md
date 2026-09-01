@@ -2,20 +2,22 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：Stage 258 已关闭正式 App 仍通过 `.Trim()` 接受带空白的非精确 M1 marker、与 Stage 257 cleanup 语义不一致的安全缺口；启动端与清理端现均要求 marker 原文与规范化 GUID 逐字符完全一致。M1/M2 仍是 `0/2 Complete`、30 项 PF 仍是 `0 Complete`；当前电脑实测 M1 继续以零启动、零会话的 `BlockedByIncompleteRuntime` 失败关闭，任务栏 Host 仍未准入。完整修正、测试和边界见 [Stage 258](docs/258-m1-app-exact-marker-consumption-audit.md)，换电脑恢复边界仍见 [Stage 251](docs/251-current-development-computer-handoff.md)；统一执行源见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)。所有产物仍不可公开分发。
+> 当前状态：Stage 259 已把开发基准重对齐为“核心工程实现 → 核心用户旅程 → 功能广度对标”，安全、权限和证据链保留为不退化底线，不再连续占用主开发队列。Stage 258 已合入 `main@d4d0032` 并通过精确 main CI/CodeQL；当前主开发项转为 PF-008 方格视图、排序、滚动与间距。BOX-R1-C/D、M1 和 TASKBAR-R2B1-B 的外部准入改为并行门禁，不阻塞安全边界内的功能编码。严格完成度仍为 M1/M2 `0/2 Complete`、30 项 PF `0 Complete`，所有产物仍不可公开分发。完整基准见 [Stage 259](docs/259-function-first-development-priority-realignment.md)，统一执行源见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)。
 
 ## 产品原则
 
-1. **零惊吓**：绝不擅自移动、删除或加密用户文件；所有自动化均可预览、撤销和恢复。
-2. **轻量常驻**：启动快、空闲占用低，不干扰 Explorer、游戏、演示和多显示器切换。
-3. **本地优先**：核心能力无需登录和联网；用户数据默认只留在本机。
-4. **融入 Windows**：遵循系统交互、辅助功能、DPI、主题和快捷键约定。
-5. **渐进增强**：先把桌面分组和布局恢复做可靠，再扩展工作空间、插件和智能能力。
+1. **功能优先**：先交付用户能看到、能操作、能验证的核心能力和完整旅程，再扩展工程辅助设施。
+2. **零惊吓**：绝不擅自移动、删除或加密用户文件；所有自动化均可预览、撤销和恢复。
+3. **轻量常驻**：启动快、空闲占用低，不干扰 Explorer、游戏、演示和多显示器切换。
+4. **本地优先**：核心能力无需登录和联网；用户数据默认只留在本机。
+5. **融入 Windows**：遵循系统交互、辅助功能、DPI、主题和快捷键约定。
+6. **安全不退化**：权限、安全、恢复和发布门禁是功能验收底线，不作为脱离用户结果的连续开发主线。
 
 ## 文档导航
 
 当前工作只需要优先阅读以下文档：
 
+- [功能优先开发基准与当前队列重对齐（Stage 259）](docs/259-function-first-development-priority-realignment.md)
 - [M1 正式 App 精确 marker 消费安全审计（Stage 258）](docs/258-m1-app-exact-marker-consumption-audit.md)
 - [M1 精确 marker 内容清理安全审计（Stage 257）](docs/257-m1-exact-marker-content-audit.md)
 - [M1 marker 前空会话目录清理审计（Stage 256）](docs/256-m1-pre-marker-evidence-cleanup-audit.md)
@@ -285,7 +287,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 258](docs/258-m1-app-exact-marker-consumption-audit.md)，BOX-R1-C/D 与 M1 只有在 `#23/#274` 负责人输入、完整兼容 Runtime、受保护签名包和独占可丢弃 Windows 会话同时具备时继续；TASKBAR-R2B1-B 只有 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) 达到 `ReadyToLaunch / GuestReady` 后在 Guest 内继续。两条均未准入时，只处理真实回归、质量或安全缺陷；换电脑的不可迁移边界继续遵循 Stage 251。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 259](docs/259-function-first-development-priority-realignment.md)的**功能优先（FunctionFirst）**基准，当前唯一主开发项是 **PF-008 方格内视图、排序、滚动与间距**，先交付 PF-008A 视图密度与连续滚动，再交付类型/修改时间排序和自定义顺序。BOX-R1-C/D 与 M1 的 `#23/#274`、完整兼容 Runtime、受保护签名包和独占可丢弃 Windows 会话，以及 TASKBAR-R2B1-B 的 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) `ReadyToLaunch / GuestReady`，作为并行门禁持续跟踪；未准入只阻止对应真实安装、任务栏写入和 Complete 声明，不再冻结安全边界内的功能开发。安全工作只有在真实回归、数据损坏风险或发布必要门禁触发时才能抢占 PF-008。
 
 ## 开发启动
 

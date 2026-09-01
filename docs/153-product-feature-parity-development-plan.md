@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：PF 功能详细 backlog 与历史验收账本；当前状态、执行顺序和里程碑以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 当前开发项：**M1 集中产品证据冲刺**；顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 当前接续输入基线：`origin/main@fc29a40`；最新 M1 正式 App 精确 marker 消费修正与执行边界见 [Stage 258](258-m1-app-exact-marker-consumption-audit.md)，前一轮 cleanup 精确 marker 修正见 [Stage 257](257-m1-exact-marker-content-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)，既有证据边界见 [Stage 241](241-current-development-handoff-audit.md)
+- 当前开发项：**PF-008 方格内视图、排序、滚动与间距**；顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
+- 当前接续输入基线：`origin/main@d4d0032`；功能优先基准与 PF-008 当前队列见 [Stage 259](259-function-first-development-priority-realignment.md)，上一轮 M1 正式 App 精确 marker 修正见 [Stage 258](258-m1-app-exact-marker-consumption-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 - 最新功能工程审计：PF-007A2 已完成正式 OLE Link 拖入；PF-007B 已完成已选正式引用在盒子间的原生有限拖动、冻结权威准入、原子保存/补偿和一次撤销。真实 STA/HWND/隔离文件路径与 SHA-256 零变化通过，物理鼠标与屏幕证据仍 Pending。PF-007 为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
@@ -15,7 +15,7 @@
 
 本文从用户功能重新组织开发工作：对标产品能做什么、Long方格现在能不能做、下一步具体开发什么、用户怎样操作、状态怎样变化、哪些异常必须处理、什么结果才算本功能完成。后续每次开发从本文领取一个 `PF-*` 编号，不再以“再增加一个验证脚本”作为产品进度。
 
-外部证据、稳定性、签名和安装仍是发布门禁，但不再阻塞安全边界内的产品功能编码。任何功能进入公开或受控分发前，仍必须完成对应 G0 门禁。
+开发优先级固定为核心工程实现、核心用户旅程、功能广度对标。外部证据、稳定性、签名、权限和安装仍是发布及 Complete 门禁，但不再阻塞安全边界内的产品功能编码，也不得脱离当前用户结果连续扩展安全探针。
 
 **2026-08-25 Core 范围覆盖决定**：项目负责人明确三项 Core 为“桌面右键创建和管理盒子、盒子绑定单个真实文件夹、任务栏美化”。因此 PF-040 的单文件夹绑定部分升为 Core；PF-081 不再包含任务栏，任务栏改由统一计划中的 `TASKBAR-R1～R4` 跟踪。自动整理、Tab、Peek、工作空间、Widgets、壁纸和 AI 均为扩展。当前执行顺序只看[统一开发计划](PRODUCT_EXECUTION_PLAN.md)，不得按本表旧编号把文件夹绑定或任务栏继续后移。
 
@@ -69,7 +69,7 @@
 | 5 | PF-005 | 正式项目图标、缩略图与状态 | `EngineeringComplete / ProductEvidencePending` | Fences/Nimi 项目呈现 |
 | 6 | PF-006 | 项目选择、键盘导航与打开 | `EngineeringComplete / ProductEvidencePending`：A/B/C 工程范围含框选均已集成；物理输入/Narrator/高对比仍 Pending | Fences/Portal 日常访问 |
 | 7 | PF-007 | Explorer 拖入与方格间拖放 | `EngineeringComplete / ProductEvidencePending`：A1/A2/B 工程链完成；真实 Explorer 指针、盒子间物理拖动和撤销证据待 M1 | iTop/Fences 直接拖放 |
-| 8 | PF-008 | 方格内视图、排序、滚动与间距 | Core 绑定文件夹已有三种持久化基础排序；多视图、时间/类型/自定义排序与间距仍未实现 | Nimi/Fences 视图控制 |
+| 8 | PF-008 | 方格内视图、排序、滚动与间距 | `InProgress`：Core 绑定文件夹已有三种持久化基础排序；当前先做 PF-008A 视图密度与连续滚动，再做类型/修改时间排序和自定义顺序 | Nimi/Fences 视图控制 |
 | 9 | PF-009 | 桌面搜索、筛选与快速定位 | 控制中心搜索 | iTop Search |
 | 10 | PF-010 | 统一撤销、重做与操作历史 | 最近动作撤销 | iTop Snapshot/安全恢复 |
 | 11 | PF-011 | 首次启动 Quick Start/Customize | 匿名练习存在 | iTop 首次启动 |
@@ -285,7 +285,7 @@
 - Narrator/键盘有等价“添加引用”“移动到方格”操作；
 - 视觉效果不能暗示真实文件已经移动。
 
-**2026-08-26 实施状态**：`InProgress`。PF-007A1 已完成真实 `CF_HDROP` HGLOBAL 的 1～256 项有界解析和权威准入；PF-007A2 已在正式 DesktopHost HWND 注册/撤销 OLE `IDropTarget`，只发布 Link，并经 Lifecycle/App 接入原子批量引用、保存补偿和一次撤销。PF-007B 已完成已选正式引用在盒子间的有限原生手势，冻结 lease/workspace/topology/window/selection 权威信息，并拒绝同源、锁定、BoundFolder 临时项目、失效引用和超过 256 项。真实 STA/HWND/Unicode 文件实际一次回调、一次保存、源 1→0、目标 0→1且路径/哈希不变；物理 Explorer 与盒子间鼠标证据仍 Pending，当前进入 M1 集中产品证据冲刺。
+**2026-08-26 历史实施状态**：`InProgress`。PF-007A1 已完成真实 `CF_HDROP` HGLOBAL 的 1～256 项有界解析和权威准入；PF-007A2 已在正式 DesktopHost HWND 注册/撤销 OLE `IDropTarget`，只发布 Link，并经 Lifecycle/App 接入原子批量引用、保存补偿和一次撤销。PF-007B 已完成已选正式引用在盒子间的有限原生手势，冻结 lease/workspace/topology/window/selection 权威信息，并拒绝同源、锁定、BoundFolder 临时项目、失效引用和超过 256 项。真实 STA/HWND/Unicode 文件实际一次回调、一次保存、源 1→0、目标 0→1且路径/哈希不变；物理 Explorer 与盒子间鼠标证据仍 Pending，当时进入 M1 集中产品证据冲刺，当前队列已由 Stage 259 切换为 PF-008。
 
 ### PF-008：方格内视图、排序、滚动与间距
 
@@ -886,7 +886,7 @@
 | `NotStarted` | 尚未进入正式开发 |
 | `InProgress` | 当前唯一开发切片 |
 | `EngineeringComplete` | 正式产品链和自动化完成 |
-| `ProductEvidencePending` | 仍需真人/硬件/长稳证据，不影响下一安全功能编码 |
+| `ProductEvidencePending` | 仍需真人/硬件/长稳证据，不影响下一项安全边界内的产品功能编码 |
 | `Complete` | 用户闭环和要求的产品证据全部满足 |
 | `DecisionRequired` | 涉及权限、隐私、商业或系统边界，等待负责人决定 |
 | `IntentionallyDeferred` | 明确不进入当前版本 |
@@ -897,4 +897,6 @@
 
 PF-001～PF-006、PF-007A1/A2/B 与单文件夹绑定 A～D 均为 `EngineeringComplete / ProductEvidencePending`。PF-007 的物理 Explorer 拖入和方格间改归属尚未完成，但不得再把 B 写成工程未实现。
 
-2026-08-26 PF-007A/B 工程链完成后，当前唯一执行项为 [M1 集中产品证据冲刺](PRODUCT_EXECUTION_PLAN.md)，以完整用户旅程补齐 BOX、FOLDER、Explorer/盒子拖动和 UI-R1E 人工证据。任何版本在签名和安装门禁完成前不得分发。
+当前唯一主开发项为 **PF-008**。PF-008A 先交付至少两档有限视图密度、跨首屏连续滚动和配置重启保持；PF-008B 增加类型/修改时间稳定排序；PF-008C 增加只改变 Long方格引用顺序的自定义排序、保存补偿和一次撤销。每个切片都必须验证真实目录文件数量、路径与哈希不变。
+
+M1 集中产品证据、BOX-R1-C/D 和 TASKBAR-R2B1-B 改为并行外部门禁：环境满足时优先完成完整旅程，环境未满足时保持 Pending，不冻结 PF-008～PF-011 功能开发。任何版本在签名和安装门禁完成前仍不得分发。完整决策见 [Stage 259](259-function-first-development-priority-realignment.md)。
