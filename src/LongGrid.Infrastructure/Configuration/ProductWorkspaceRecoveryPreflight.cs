@@ -9,6 +9,7 @@ public sealed record ProductWorkspaceRecoveryPreflightResult(
     int ScenarioCount,
     bool BackupAcceptedAfterRestart,
     bool SafeModeResetAfterRestart,
+    bool RestartSafePointRecovered,
     bool CatalogRecovered,
     bool ExplicitRetrySucceeded,
     bool CancellationLeftNoRetry,
@@ -18,7 +19,7 @@ public sealed record ProductWorkspaceRecoveryPreflightResult(
 
 public static class ProductWorkspaceRecoveryPreflight
 {
-    public const int ScenarioCount = 5;
+    public const int ScenarioCount = 6;
 
     public static async Task<ProductWorkspaceRecoveryPreflightResult> RunAsync(
         CancellationToken cancellationToken = default)
@@ -36,6 +37,9 @@ public static class ProductWorkspaceRecoveryPreflight
                 cancellationToken).ConfigureAwait(false);
             bool safeModeReset = await VerifySafeModeResetAfterRestartAsync(
                 Path.Combine(sandbox, "safe-mode"),
+                cancellationToken).ConfigureAwait(false);
+            bool restartSafePoint = await VerifyRestartSafePointAsync(
+                Path.Combine(sandbox, "restart-safe-point"),
                 cancellationToken).ConfigureAwait(false);
             bool catalogRecovered = await VerifyCatalogRecoveryAsync(
                 Path.Combine(sandbox, "catalog"),
@@ -55,6 +59,7 @@ public static class ProductWorkspaceRecoveryPreflight
                 ScenarioCount,
                 backupAccepted,
                 safeModeReset,
+                restartSafePoint,
                 catalogRecovered,
                 explicitRetry,
                 cancellation,
@@ -69,6 +74,45 @@ public static class ProductWorkspaceRecoveryPreflight
                 DeleteSandbox(sandbox);
             }
         }
+    }
+
+    private static async Task<bool> VerifyRestartSafePointAsync(
+        string directory,
+        CancellationToken cancellationToken)
+    {
+        var original = new ProductConfigurationStore(directory);
+        await original.SaveAsync(
+            CreateDocument("restart-before"),
+            cancellationToken).ConfigureAwait(false);
+        await original.SaveAsync(
+            CreateDocument("restart-after"),
+            cancellationToken).ConfigureAwait(false);
+
+        var restarted = new ProductConfigurationStore(directory);
+        ProductConfigurationRestartRecoverySnapshot point =
+            await restarted.GetRestartRecoveryPointAsync(cancellationToken)
+                .ConfigureAwait(false);
+        Require(point.IsAvailable, "A restarted store did not expose its safe point.");
+        ProductConfigurationRestartRecoveryResult restored =
+            await restarted.RestoreRestartRecoveryPointAsync(
+                    point.Point!,
+                    userConfirmed: true,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        var verifiedRestart = new ProductConfigurationStore(directory);
+        ProductConfigurationLoadResult loaded =
+            await verifiedRestart.LoadAsync(cancellationToken).ConfigureAwait(false);
+        ProductConfigurationRestartRecoverySnapshot consumed =
+            await verifiedRestart.GetRestartRecoveryPointAsync(cancellationToken)
+                .ConfigureAwait(false);
+        Require(
+            restored.IsRestored
+                && loaded.Status == ProductConfigurationLoadStatus.LoadedPrimary
+                && loaded.Document?.ProfileId == "restart-before"
+                && consumed.Availability ==
+                    ProductConfigurationRestartRecoveryAvailability.Unavailable,
+            "The restart safe point did not restore once and remain consumed.");
+        return true;
     }
 
     private static async Task<bool> VerifyBackupAcceptanceAfterRestartAsync(

@@ -19,6 +19,7 @@ try
         scenarioCount = result.ScenarioCount,
         backupAcceptedAfterRestart = result.BackupAcceptedAfterRestart,
         safeModeResetAfterRestart = result.SafeModeResetAfterRestart,
+        restartSafePointRecovered = result.RestartSafePointRecovered,
         catalogRecovered = result.CatalogRecovered,
         explicitRetrySucceeded = result.ExplicitRetrySucceeded,
         cancellationLeftNoRetry = result.CancellationLeftNoRetry,

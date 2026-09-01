@@ -11,9 +11,10 @@ public sealed class ProductWorkspaceRecoveryPreflightTests
             await ProductWorkspaceRecoveryPreflight.RunAsync();
 
         Assert.Equal("Passed", result.Outcome);
-        Assert.Equal(5, result.ScenarioCount);
+        Assert.Equal(6, result.ScenarioCount);
         Assert.True(result.BackupAcceptedAfterRestart);
         Assert.True(result.SafeModeResetAfterRestart);
+        Assert.True(result.RestartSafePointRecovered);
         Assert.True(result.CatalogRecovered);
         Assert.True(result.ExplicitRetrySucceeded);
         Assert.True(result.CancellationLeftNoRetry);

@@ -321,6 +321,26 @@
                                     </StackPanel>
                                 </Border>
 
+                                <InfoBar
+                                    x:Name="ProductRestartRecoveryBanner"
+                                    AutomationProperties.AutomationId="ProductRestartRecoveryBanner"
+                                    AutomationProperties.ItemStatus="RestartRecovery:Unavailable:DesktopFilesChanged=False"
+                                    IsClosable="False"
+                                    IsOpen="False"
+                                    Severity="Informational"
+                                    Title="可恢复上次保存前的配置"
+                                    Message="只恢复 Long方格配置，不会删除、移动或修改真实文件。">
+                                    <InfoBar.ActionButton>
+                                        <Button
+                                            x:Name="ProductRestartRecoveryButton"
+                                            AutomationProperties.AutomationId="ProductRestartRecoveryButton"
+                                            AutomationProperties.Name="恢复上次保存前的 Long方格配置；不会修改真实文件"
+                                            Click="ProductRestartRecoveryButton_Click"
+                                            Content="检查并恢复"
+                                            IsEnabled="False" />
+                                    </InfoBar.ActionButton>
+                                </InfoBar>
+
                                 <Border
                                     AutomationProperties.AccessibilityView="Content"
                                     AutomationProperties.AutomationId="OverviewRecentActionCard"

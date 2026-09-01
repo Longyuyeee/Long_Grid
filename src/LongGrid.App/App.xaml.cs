@@ -229,6 +229,7 @@ public partial class App : Application
     {
         window = new MainWindow(
             RecoverConfigurationAsync,
+            RestoreRestartRecoveryPointAsync,
             PrepareConfigurationImportAsync,
             CommitConfigurationImportAsync,
             () => configurationStore.PrepareExportAsync(),
@@ -625,6 +626,38 @@ public partial class App : Application
         ProductConfigurationLoadResult loadResult =
             await configurationStore.LoadAsync();
         ApplyProductConfigurationLoadResult(loadResult);
+        window?.ApplyProductRestartRecoveryPoint(
+            await configurationStore.GetRestartRecoveryPointAsync());
+    }
+
+    private async Task<ProductConfigurationRestartRecoveryResult>
+        RestoreRestartRecoveryPointAsync(
+            ProductConfigurationRestartRecoveryPoint point,
+            bool userConfirmed)
+    {
+        ProductWorkspaceSaveSnapshot save = productWorkspaceSaves.Snapshot;
+        if (!ProductConfigurationRestartRecoveryAdmission.CanRestore(save))
+        {
+            return new(
+                ProductConfigurationRestartRecoveryStatus
+                    .CurrentConfigurationChanged,
+                null);
+        }
+
+        ProductConfigurationRestartRecoveryResult result =
+            await configurationStore.RestoreRestartRecoveryPointAsync(
+                point,
+                userConfirmed);
+        if (!result.IsRestored)
+        {
+            return result;
+        }
+
+        ProductConfigurationLoadResult loadResult =
+            await configurationStore.LoadAsync();
+        ApplyProductConfigurationLoadResult(loadResult);
+        ApplyProductDesktopHostProjection(productDisplayTopology.Snapshot);
+        return result;
     }
 
     private async Task RunPf002AppEvidenceSessionAsync(
