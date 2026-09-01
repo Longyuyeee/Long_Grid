@@ -395,15 +395,6 @@
                                                 </Button.KeyboardAccelerators>
                                             </Button>
                                         </StackPanel>
-                                        <Button
-                                            x:Name="OverviewLatestUndoButton"
-                                            Grid.Column="2"
-                                            AutomationProperties.AutomationId="OverviewLatestUndoButton"
-                                            AutomationProperties.Name="没有可撤销的盒子操作"
-                                            Click="ProductWorkspaceLatestUndoButton_Click"
-                                            Content="撤销"
-                                            IsEnabled="False"
-                                            Visibility="Collapsed" />
                                         <ListView
                                             x:Name="ProductWorkspaceHistoryList"
                                             Grid.Row="1"
@@ -633,16 +624,6 @@
                                             FontSize="11"
                                             Foreground="{ThemeResource LongGridTextSecondaryBrush}"
                                             Text="引用解析计数尚不可用" />
-                                        <Button
-                                            x:Name="ProductWorkspaceLatestUndoButton"
-                                            AutomationProperties.AutomationId="ProductWorkspaceLatestUndoButton"
-                                            AutomationProperties.ItemStatus="LatestWorkspaceEditUndo:Kind=Unavailable:CanUndo=False:DesktopFilesChanged=False:DesktopWindowsChanged=False"
-                                            AutomationProperties.Name="没有可撤销的 Long方格配置编辑"
-                                            Click="ProductWorkspaceLatestUndoButton_Click"
-                                            Content="没有可撤销的配置编辑"
-                                            HorizontalAlignment="Left"
-                                            IsEnabled="False"
-                                            Visibility="Collapsed" />
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -681,14 +662,6 @@
                                         AutomationProperties.Name="审查并确认配置级布局恢复"
                                         Click="ProductWorkspaceLayoutRecoveryConfirmButton_Click"
                                         Content="审查并确认配置恢复"
-                                        IsEnabled="False"
-                                        Visibility="Collapsed" />
-                                    <Button
-                                        x:Name="ProductWorkspaceLayoutRecoveryUndoButton"
-                                        AutomationProperties.AutomationId="ProductWorkspaceLayoutRecoveryUndoButton"
-                                        AutomationProperties.Name="撤销本次配置级布局恢复"
-                                        Click="ProductWorkspaceLayoutRecoveryUndoButton_Click"
-                                        Content="撤销本次配置恢复"
                                         IsEnabled="False"
                                         Visibility="Collapsed" />
                                 </StackPanel>
@@ -998,13 +971,6 @@
                                                 Click="ProductWorkspaceContainerRemoveButton_Click"
                                                 Content="删除盒子"
                                                 IsEnabled="False" />
-                                            <Button
-                                                x:Name="ProductWorkspaceContainerRemovalUndoButton"
-                                                AutomationProperties.AutomationId="ProductWorkspaceContainerRemovalUndoButton"
-                                                AutomationProperties.Name="撤销最近一次正式方格删除"
-                                                Click="ProductWorkspaceContainerRemovalUndoButton_Click"
-                                                Content="撤销删除"
-                                                IsEnabled="False" />
                                         </StackPanel>
                                         </Expander>
                                         <Expander
@@ -1060,13 +1026,6 @@
                                                 AutomationProperties.Name="把所选桌面项目作为引用批量加入正式方格并保存"
                                                 Click="ProductWorkspaceResolvedReferenceAddButton_Click"
                                                 Content="添加所选项目"
-                                                IsEnabled="False" />
-                                            <Button
-                                                x:Name="ProductWorkspaceReferenceBatchAdditionUndoButton"
-                                                AutomationProperties.AutomationId="ProductWorkspaceReferenceBatchAdditionUndoButton"
-                                                AutomationProperties.Name="撤销最近一次批量加入引用"
-                                                Click="ProductWorkspaceReferenceBatchAdditionUndoButton_Click"
-                                                Content="撤销批量加入"
                                                 IsEnabled="False" />
                                         </StackPanel>
                                         <TextBlock
@@ -1179,14 +1138,6 @@
                                                 AutomationProperties.Name="把同一源方格内所选引用批量改归属到目标正式方格并保存"
                                                 Click="ProductWorkspaceResolvedReferenceReassignmentButton_Click"
                                                 Content="移动所选项目"
-                                                IsEnabled="False" />
-                                            <Button
-                                                x:Name="ProductWorkspaceResolvedReferenceRemovalUndoButton"
-                                                Grid.Column="2"
-                                                AutomationProperties.AutomationId="ProductWorkspaceResolvedReferenceRemovalUndoButton"
-                                                AutomationProperties.Name="撤销上一次引用移除或改归属并保存"
-                                                Click="ProductWorkspaceResolvedReferenceRemovalUndoButton_Click"
-                                                Content="撤销上次变更"
                                                 IsEnabled="False" />
                                         </Grid>
                                         <TextBlock

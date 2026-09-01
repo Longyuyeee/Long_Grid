@@ -6,7 +6,7 @@
 
 状态：`HandoffPrepared / DevelopmentPaused / ExternalAdmissionPending`
 
-> 2026-09-01 接续更新：本文保留 Stage 251 当时的环境交接证据；最新代码和唯一功能接续点已前进到 [Stage 267](267-pf010b2-restart-safe-recovery-audit.md)。换电脑仍必须从最新 GitHub `main` 全新拉取，不使用本文的历史 SHA 作为 checkout 目标。PF-010B2 已完成双指纹重启安全恢复点、正式 App 显式确认、一次消费和真实 Store 重载，最新完整 Release 测试为 `1,460/1,460`、Release 0 warning/error、UI 合同通过；下一步只进入 PF-010B3 规则应用统一历史与旧撤销入口收敛。
+> 2026-09-01 接续更新：本文保留 Stage 251 当时的环境交接证据；最新代码和唯一功能接续点已前进到 [Stage 268](268-pf010b3-undo-semantics-convergence-audit.md)。换电脑仍必须从最新 GitHub `main` 全新拉取，不使用本文的历史 SHA 作为 checkout 目标。PF-010A～B3 已完成统一历史、重启安全恢复和旧撤销用户入口收敛，最新完整 Release 测试为 `1,460/1,460`、Release 0 warning/error、207-ID UI 合同通过；规则应用按 PF-020/021 开发，下一步只进入 PF-011A Quick Start 真实只读建议预览与原子提交。
 
 ## 1. 交接结论
 

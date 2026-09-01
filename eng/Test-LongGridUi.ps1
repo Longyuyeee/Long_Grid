@@ -736,7 +736,6 @@ function Test-SourceContract {
         'ProductRestartRecoveryButton',
         'OverviewRecentActionCard',
         'OverviewRecentActionDetail',
-        'OverviewLatestUndoButton',
         'ProductWorkspaceHistoryUndoButton',
         'ProductWorkspaceHistoryRedoButton',
         'ProductWorkspaceHistoryList',
@@ -817,13 +816,11 @@ function Test-SourceContract {
         'ProductWorkspaceSessionTitle',
         'ProductWorkspaceSessionDetail',
         'ProductWorkspaceSessionSummary',
-        'ProductWorkspaceLatestUndoButton',
         'ProductWorkspaceLayoutRecoveryCard',
         'ProductWorkspaceLayoutRecoveryTitle',
         'ProductWorkspaceLayoutRecoveryDetail',
         'ProductWorkspaceLayoutRecoverySummary',
         'ProductWorkspaceLayoutRecoveryConfirmButton',
-        'ProductWorkspaceLayoutRecoveryUndoButton',
         'ProductWorkspaceViewCard',
         'ProductWorkspaceViewTitle',
         'ProductWorkspaceViewDetail',
@@ -851,12 +848,10 @@ function Test-SourceContract {
         'ProductWorkspaceContainerSizeSelector',
         'ProductWorkspaceContainerPlacementButton',
         'ProductWorkspaceContainerRemoveButton',
-        'ProductWorkspaceContainerRemovalUndoButton',
         'ProductWorkspaceResolvedReferenceSelector',
         'ProductWorkspaceResolvedReferenceSelectFirstBatchButton',
         'ProductWorkspaceResolvedReferenceClearSelectionButton',
         'ProductWorkspaceResolvedReferenceAddButton',
-        'ProductWorkspaceReferenceBatchAdditionUndoButton',
         'ProductWorkspaceResolvedReferenceAddStatus',
         'ProductWorkspaceResolvedReferenceRemovalSelector',
         'ProductWorkspaceResolvedReferenceSelectContainerBatchButton',
@@ -867,7 +862,6 @@ function Test-SourceContract {
         'ProductWorkspaceResolvedReferenceReassignmentTargetSelector',
         'ProductWorkspaceResolvedReferenceRemovalButton',
         'ProductWorkspaceResolvedReferenceReassignmentButton',
-        'ProductWorkspaceResolvedReferenceRemovalUndoButton',
         'ProductWorkspaceResolvedReferenceRemovalStatus',
         'ProductWorkspaceContainerEditStatus',
         'ProductWorkspaceManagementGrid',
@@ -1133,30 +1127,27 @@ function Test-SourceContract {
         'ProductWorkspaceSessionCard'
     Assert-Condition (-not ($productSessionCardNode.OuterXml -match 'Storyboard|Transition')) `
         'Product session status must keep a Reduced Motion-safe static baseline.'
-    $latestUndoButtonNode = Get-XamlNodeByAutomationId `
-        $document `
-        'ProductWorkspaceLatestUndoButton'
     Assert-Condition (
-        $latestUndoButtonNode.GetAttribute('IsEnabled') -eq 'False' -and
-        $latestUndoButtonNode.GetAttribute('Visibility') -eq 'Collapsed' -and
-        $latestUndoButtonNode.GetAttribute('Click') -eq `
-            'ProductWorkspaceLatestUndoButton_Click' -and
-        $latestUndoButtonNode.GetAttribute('AutomationProperties.ItemStatus') -eq `
-            'LatestWorkspaceEditUndo:Kind=Unavailable:CanUndo=False:DesktopFilesChanged=False:DesktopWindowsChanged=False'
-    ) 'Latest workspace edit undo must start hidden, disabled, finite, and non-mutating.'
+        -not $document.OuterXml.Contains('OverviewLatestUndoButton') -and
+        -not $document.OuterXml.Contains('ProductWorkspaceLatestUndoButton') -and
+        -not $document.OuterXml.Contains('ProductWorkspaceLayoutRecoveryUndoButton') -and
+        -not $document.OuterXml.Contains('ProductWorkspaceContainerRemovalUndoButton') -and
+        -not $document.OuterXml.Contains('ProductWorkspaceReferenceBatchAdditionUndoButton') -and
+        -not $document.OuterXml.Contains('ProductWorkspaceResolvedReferenceRemovalUndoButton')
+    ) 'Legacy one-step undo user buttons must be removed after unified session-history convergence.'
     Assert-Condition (
         $latestUndoSelectorCode.Contains('available.Length != 1') -and
         $latestUndoSelectorCode.Contains('ProductWorkspaceLatestUndoKind.Conflict') -and
         $latestUndoPresentationCode.Contains('ProductWorkspaceLatestUndoSelector.Select') -and
         $latestUndoPresentationCode.Contains('DesktopFilesChanged=False') -and
-        $codeBehind.Contains('private void ProductWorkspaceLatestUndoButton_Click(') -and
+        -not $codeBehind.Contains('ProductWorkspaceLatestUndoButton_Click') -and
         $codeBehind.Contains('_commitProductWorkspaceLayoutRecoveryUndo(token, true)') -and
         $codeBehind.Contains('_commitProductWorkspaceContainerRemovalUndo(token, true)') -and
         $codeBehind.Contains('_commitProductWorkspaceReferenceBatchAdditionUndo(token, true)') -and
         $codeBehind.Contains('_commitProductWorkspaceReferenceRemovalUndo(token, true)') -and
         $codeBehind.Contains('_commitProductWorkspaceReferenceReassignmentUndo(token, true)') -and
         $appCode.Contains('ApplyProductWorkspaceLatestUndo(')
-    ) 'Latest workspace edit undo must fail closed and reuse every audited token/commit path.'
+    ) 'Legacy undo tokens must remain internal for evidence and failed-save compensation without a second user-facing undo command.'
 
     $historyUndoNode = Get-XamlNodeByAutomationId `
         $document `
@@ -1341,8 +1332,7 @@ function Test-SourceContract {
             'ProductWorkspaceContainerCollapseButton',
             'ProductWorkspaceContainerAppearanceButton',
             'ProductWorkspaceContainerPlacementButton',
-            'ProductWorkspaceContainerRemoveButton',
-            'ProductWorkspaceContainerRemovalUndoButton'
+            'ProductWorkspaceContainerRemoveButton'
         )) {
         $buttonNode = Get-XamlNodeByAutomationId $document $buttonId
         Assert-Condition ($buttonNode.GetAttribute('IsEnabled') -eq 'False') `
@@ -1359,8 +1349,6 @@ function Test-SourceContract {
             'ProductWorkspaceContainerPlacementButton_Click'
         ProductWorkspaceContainerRemoveButton = `
             'ProductWorkspaceContainerRemoveButton_Click'
-        ProductWorkspaceContainerRemovalUndoButton = `
-            'ProductWorkspaceContainerRemovalUndoButton_Click'
     }
     foreach ($selectorId in @(
             'ProductWorkspaceContainerColorSelector',
@@ -1569,14 +1557,6 @@ function Test-SourceContract {
         $resolvedReferenceAddButtonNode.GetAttribute('Click') -eq `
             'ProductWorkspaceResolvedReferenceAddButton_Click'
     ) 'Resolved-reference addition must require an explicit valid selection.'
-    $resolvedReferenceBatchUndoButtonNode = Get-XamlNodeByAutomationId `
-        $document `
-        'ProductWorkspaceReferenceBatchAdditionUndoButton'
-    Assert-Condition (
-        $resolvedReferenceBatchUndoButtonNode.GetAttribute('IsEnabled') -eq 'False' -and
-        $resolvedReferenceBatchUndoButtonNode.GetAttribute('Click') -eq `
-            'ProductWorkspaceReferenceBatchAdditionUndoButton_Click'
-    ) 'Batch-reference addition undo must start disabled and require an explicit click.'
     $resolvedReferenceAddStatusNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceResolvedReferenceAddStatus'
@@ -1613,8 +1593,6 @@ function Test-SourceContract {
     foreach ($entry in @{
             ProductWorkspaceResolvedReferenceRemovalButton =
                 'ProductWorkspaceResolvedReferenceRemovalButton_Click'
-            ProductWorkspaceResolvedReferenceRemovalUndoButton =
-                'ProductWorkspaceResolvedReferenceRemovalUndoButton_Click'
             ProductWorkspaceReferenceMoveEarlierButton =
                 'ProductWorkspaceReferenceMoveEarlierButton_Click'
             ProductWorkspaceReferenceMoveLaterButton =
@@ -3928,9 +3906,8 @@ function Test-SourceContract {
         $referenceCommitCode -match 'CurrentLayoutRecoveryUndoToken' -and
         $referenceCommitCode -match 'pendingLayoutRecoveryUndo\s*=\s*null' -and
         $appCode -match 'CommitProductWorkspaceLayoutRecoveryUndo' -and
-        $codeBehind -match 'ProductWorkspaceLayoutRecoveryUndoButton_Click' -and
-        $codeBehind -match 'DefaultButton\s*=\s*ContentDialogButton\.Close'
-    ) 'Layout recovery undo must be one-time, revision/fingerprint bound, explicitly confirmed, and shared-save coordinated.'
+        -not ($codeBehind -match 'ProductWorkspaceLayoutRecoveryUndoButton_Click')
+    ) 'Layout recovery compensation must remain revision/fingerprint bound and shared-save coordinated without a separate user-facing undo button.'
     Assert-Condition (-not ($appCode -match `
             'LayoutRecoveryTransactionCoordinator|ILayoutRecoveryWindowBatchAdapter')) `
         'Product App must not connect the real-window recovery transaction adapter.'
@@ -4159,13 +4136,13 @@ function Test-SourceContract {
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-shared-item-results-desktop-overlay-keyboard-reveal-open-locate-revision-display-kind-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-drag-bounds-inline-preview-fallback-review-shortcut-anonymous-unresolved'
-        productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
-        productWorkspaceSessionHistory = 'bounded-50-create-delete-rename-layout-folder-reference-add-remove-reassign-order-lock-collapse-appearance-recovery-undo-redo-branch-truncate-save-compensate-config-only'
+        productWorkspaceLatestUndo = 'internal-token-compensation-only-no-user-command'
+        productWorkspaceSessionHistory = 'single-user-undo-semantics-bounded-50-create-delete-rename-layout-folder-reference-add-remove-reassign-order-lock-collapse-appearance-recovery-undo-redo-branch-truncate-save-compensate-config-only'
         productWorkspaceRestartRecovery = 'previous-saved-primary-backup-dual-fingerprint-4k-path-free-explicit-confirm-once-config-only'
-        productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
-        productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
+        productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-unified-history'
+        productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-unified-history'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
-        productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-single-undo-native-selected-item-drag-authority-frozen'
+        productResolvedReferenceReassignment = 'same-source-bounded-256-confirmed-atomic-config-only-unified-history-native-selected-item-drag-authority-frozen'
         productContainerEdits = 'shared-revision-bounded-name-intent-guidance-create-rename-lock-collapse-finite-appearance-title-visibility-title-double-click-placement-single-folder-picker-cancel-zero-write-bind-unbind-reconnect-stable-identity-basic-persisted-sort-remove-unified-edit-undo-save-compensation-selected-reference-preview-snapshot-atomic-move-full-restore-config-only-desktop-layout-session-candidate-publish-compensate-keyboard-title-focus-transaction-cross-display-mixed-dpi'
         productReferenceReview = 'anonymous-generation-revision-gated-explicit-save-submission'
                     productSavePresentation = 'privacy-safe-static-reduced-motion'
