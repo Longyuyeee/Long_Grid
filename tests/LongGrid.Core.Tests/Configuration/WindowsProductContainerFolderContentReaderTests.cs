@@ -40,6 +40,79 @@ public sealed class WindowsProductContainerFolderContentReaderTests
         Assert.Equal(before, sandbox.CaptureFiles());
     }
 
+    [Theory]
+    [InlineData(ProductContainerFolderSortMode.TypeAscending,
+        "甲文件夹,b-图片.png,a-报告.txt,c-笔记.txt")]
+    [InlineData(ProductContainerFolderSortMode.TypeDescending,
+        "甲文件夹,a-报告.txt,c-笔记.txt,b-图片.png")]
+    public void RealUnicodeDirectoryGroupsFolderThenFileTypesWithStableNames(
+        ProductContainerFolderSortMode sortMode,
+        string expectedOrder)
+    {
+        using var sandbox = RealFolderContentSandbox.Create();
+        string bound = sandbox.CreateDirectory("类型排序");
+        Directory.CreateDirectory(Path.Combine(bound, "甲文件夹"));
+        File.WriteAllText(Path.Combine(bound, "a-报告.txt"), "same-type-a");
+        File.WriteAllText(Path.Combine(bound, "b-图片.png"), "image");
+        File.WriteAllText(Path.Combine(bound, "c-笔记.txt"), "same-type-c");
+        IReadOnlyDictionary<string, string> before = sandbox.CaptureFiles();
+
+        ProductWorkspaceContainerFolderContent actual =
+            WindowsProductContainerFolderContentReader.ReadWorkspace(
+                CreateWorkspace(
+                    bound,
+                    sortMode),
+                generation: 21).Find("container-1")!;
+
+        Assert.Equal(
+            expectedOrder.Split(','),
+            actual.Items.Select(item => item.DisplayName));
+        Assert.Equal(before, sandbox.CaptureFiles());
+    }
+
+    [Theory]
+    [InlineData(ProductContainerFolderSortMode.ModifiedNewestFirst,
+        "甲文件夹,b-最新.txt,c-同刻.txt,a-最旧.txt")]
+    [InlineData(ProductContainerFolderSortMode.ModifiedOldestFirst,
+        "甲文件夹,a-最旧.txt,b-最新.txt,c-同刻.txt")]
+    public void RealUnicodeDirectorySortsModificationTimeWithStableNameTieBreak(
+        ProductContainerFolderSortMode sortMode,
+        string expectedOrder)
+    {
+        using var sandbox = RealFolderContentSandbox.Create();
+        string bound = sandbox.CreateDirectory("时间排序");
+        string folder = Directory.CreateDirectory(
+            Path.Combine(bound, "甲文件夹")).FullName;
+        string oldest = Path.Combine(bound, "a-最旧.txt");
+        string newestA = Path.Combine(bound, "b-最新.txt");
+        string newestB = Path.Combine(bound, "c-同刻.txt");
+        File.WriteAllText(oldest, "oldest");
+        File.WriteAllText(newestA, "newest-a");
+        File.WriteAllText(newestB, "newest-b");
+        DateTime oldUtc = new(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+        DateTime newUtc = oldUtc.AddDays(2);
+        File.SetLastWriteTimeUtc(oldest, oldUtc);
+        File.SetLastWriteTimeUtc(newestA, newUtc);
+        File.SetLastWriteTimeUtc(newestB, newUtc);
+        Directory.SetLastWriteTimeUtc(folder, oldUtc.AddDays(-1));
+        IReadOnlyDictionary<string, string> before = sandbox.CaptureFiles();
+
+        ProductWorkspaceContainerFolderContent actual =
+            WindowsProductContainerFolderContentReader.ReadWorkspace(
+                CreateWorkspace(
+                    bound,
+                    sortMode),
+                generation: 22).Find("container-1")!;
+
+        Assert.Equal(
+            expectedOrder.Split(','),
+            actual.Items.Select(item => item.DisplayName));
+        Assert.Equal(before, sandbox.CaptureFiles());
+        Assert.Equal(oldUtc, File.GetLastWriteTimeUtc(oldest));
+        Assert.Equal(newUtc, File.GetLastWriteTimeUtc(newestA));
+        Assert.Equal(newUtc, File.GetLastWriteTimeUtc(newestB));
+    }
+
     [Fact]
     public void RealDirectoryProjectsOnlyDirectChildrenWithoutChangingFiles()
     {
