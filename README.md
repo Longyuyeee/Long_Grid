@@ -291,7 +291,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 263](docs/263-pf009a-shared-search-results-audit.md)的**功能优先（FunctionFirst）**基准，PF-009A 已工程收口；当前唯一主开发项是 **PF-009B 桌面搜索浮层与结果导航**。BOX-R1-C/D 与 M1 的 #23/#274、完整 Runtime 和独占可丢弃会话，以及 TASKBAR-R2B1-B 的 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) Guest 准入继续作为并行外部门禁；未准入只阻止对应物理证据、系统写入和 Complete 声明，不冻结 PF-009B。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 263](docs/263-pf009a-shared-search-results-audit.md)的**功能优先（FunctionFirst）**基准，PF-008A～C 与 PF-009A 已工程收口；当前唯一主开发项是 **PF-009B 桌面搜索浮层与结果导航**。BOX-R1-C/D 与 M1 的 #23/#274、完整 Runtime 和独占可丢弃会话，以及 TASKBAR-R2B1-B 的 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) Guest 准入继续作为并行外部门禁；未准入只阻止对应物理证据、系统写入和 Complete 声明，不冻结 PF-009B。
 
 ## 开发启动
 
