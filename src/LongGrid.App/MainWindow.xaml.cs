@@ -64,6 +64,11 @@ public sealed partial class MainWindow : Window
     private readonly Func<
         ProductConfigurationRecoveryAction,
         Task<ProductConfigurationStartupState>> _recoverConfiguration;
+    private readonly Func<
+        ProductConfigurationRestartRecoveryPoint,
+        bool,
+        Task<ProductConfigurationRestartRecoveryResult>>
+        _restoreRestartRecoveryPoint;
     private readonly Func<Task<ProductConfigurationImportPlan?>> _prepareConfigurationImport;
     private readonly Func<
         ProductConfigurationImportPlan,
@@ -217,11 +222,17 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceLatestUndoPresentation.Unavailable;
     private ProductWorkspaceSessionHistoryPresentation _sessionHistory =
         ProductWorkspaceSessionHistoryPresentation.Empty;
+    private ProductConfigurationRestartRecoveryPoint? _restartRecoveryPoint;
 
     public MainWindow(
         Func<
             ProductConfigurationRecoveryAction,
             Task<ProductConfigurationStartupState>> recoverConfiguration,
+        Func<
+            ProductConfigurationRestartRecoveryPoint,
+            bool,
+            Task<ProductConfigurationRestartRecoveryResult>>
+            restoreRestartRecoveryPoint,
         Func<Task<ProductConfigurationImportPlan?>> prepareConfigurationImport,
         Func<
             ProductConfigurationImportPlan,
@@ -344,6 +355,7 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceLayoutRecoveryUndo)
     {
         ArgumentNullException.ThrowIfNull(recoverConfiguration);
+        ArgumentNullException.ThrowIfNull(restoreRestartRecoveryPoint);
         ArgumentNullException.ThrowIfNull(prepareConfigurationImport);
         ArgumentNullException.ThrowIfNull(commitConfigurationImport);
         ArgumentNullException.ThrowIfNull(prepareConfigurationExport);
@@ -383,6 +395,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecovery);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecoveryUndo);
         _recoverConfiguration = recoverConfiguration;
+        _restoreRestartRecoveryPoint = restoreRestartRecoveryPoint;
         _prepareConfigurationImport = prepareConfigurationImport;
         _commitConfigurationImport = commitConfigurationImport;
         _prepareConfigurationExport = prepareConfigurationExport;
@@ -1853,6 +1866,104 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetItemStatus(
             ProductWorkspaceHistoryList,
             presentation.MachineStatus);
+    }
+
+    internal void ApplyProductRestartRecoveryPoint(
+        ProductConfigurationRestartRecoverySnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        _restartRecoveryPoint = snapshot.IsAvailable ? snapshot.Point : null;
+        ProductRestartRecoveryBanner.IsOpen = snapshot.IsAvailable;
+        ProductRestartRecoveryButton.IsEnabled = snapshot.IsAvailable;
+        ProductRestartRecoveryBanner.Severity = snapshot.Availability switch
+        {
+            ProductConfigurationRestartRecoveryAvailability.Available =>
+                InfoBarSeverity.Informational,
+            ProductConfigurationRestartRecoveryAvailability.Unavailable =>
+                InfoBarSeverity.Informational,
+            _ => InfoBarSeverity.Warning,
+        };
+        if (snapshot.Point is { } point)
+        {
+            ProductRestartRecoveryBanner.Title = "可恢复上次保存前的配置";
+            ProductRestartRecoveryBanner.Message =
+                $"{point.ActionSummary}：{point.ContainerCount} 个方格、" +
+                $"{point.ItemCount} 个项目。只恢复 Long方格配置，" +
+                "不会删除、移动或修改真实文件。";
+        }
+        AutomationProperties.SetItemStatus(
+            ProductRestartRecoveryBanner,
+            $"RestartRecovery:{snapshot.Availability}:" +
+                $"Available={snapshot.IsAvailable}:" +
+                $"ContainerCount={snapshot.Point?.ContainerCount ?? 0}:" +
+                $"ItemCount={snapshot.Point?.ItemCount ?? 0}:" +
+                "DesktopFilesChanged=False");
+    }
+
+    private async void ProductRestartRecoveryButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ProductConfigurationRestartRecoveryPoint? point = _restartRecoveryPoint;
+        if (point is null || !ProductRestartRecoveryButton.IsEnabled)
+        {
+            return;
+        }
+
+        var confirmation = new ContentDialog
+        {
+            XamlRoot = RootLayout.XamlRoot,
+            Title = "恢复上次保存前的配置？",
+            Content =
+                $"将恢复 {point.ContainerCount} 个方格和 {point.ItemCount} 个项目的" +
+                " Long方格配置。不会删除、移动或修改任何真实文件。",
+            PrimaryButtonText = "恢复配置",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        ProductRestartRecoveryButton.IsEnabled = false;
+        ProductConfigurationRestartRecoveryResult result =
+            await _restoreRestartRecoveryPoint(point, true);
+        if (result.IsRestored)
+        {
+            _restartRecoveryPoint = null;
+            ProductRestartRecoveryBanner.IsOpen = true;
+            ProductRestartRecoveryBanner.Severity = InfoBarSeverity.Success;
+            ProductRestartRecoveryBanner.Title = "已恢复上次保存前的配置";
+            ProductRestartRecoveryBanner.Message =
+                "Long方格配置已恢复并重新加载；真实文件没有改变。";
+        }
+        else
+        {
+            ProductRestartRecoveryBanner.IsOpen = true;
+            ProductRestartRecoveryBanner.Severity = InfoBarSeverity.Warning;
+            ProductRestartRecoveryBanner.Title = "未恢复配置";
+            ProductRestartRecoveryBanner.Message = result.Status switch
+            {
+                ProductConfigurationRestartRecoveryStatus
+                    .CurrentConfigurationChanged =>
+                    "当前配置已变化，旧恢复点未执行。真实文件没有改变。",
+                ProductConfigurationRestartRecoveryStatus
+                    .RecoveryPointChanged =>
+                    "恢复点已变化或失效，未执行模糊恢复。真实文件没有改变。",
+                ProductConfigurationRestartRecoveryStatus
+                    .WriteLeaseUnavailable =>
+                    "配置正在被占用，本次未恢复；稍后可重试。真实文件没有改变。",
+                _ => "恢复点不可用，本次没有修改配置或真实文件。",
+            };
+            ProductRestartRecoveryButton.IsEnabled =
+                result.Status ==
+                ProductConfigurationRestartRecoveryStatus.WriteLeaseUnavailable;
+        }
+        AutomationProperties.SetItemStatus(
+            ProductRestartRecoveryBanner,
+            $"RestartRecoveryCommit:{result.Status}:" +
+                $"Changed={result.IsRestored}:DesktopFilesChanged=False");
     }
 
     private void ProductWorkspaceHistoryUndoButton_Click(

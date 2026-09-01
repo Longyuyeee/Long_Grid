@@ -121,6 +121,7 @@ public sealed partial class ProductConfigurationStore
         BackupPath = PrimaryPath + ".bak";
         TemporaryPath = PrimaryPath + ".new";
         WriteLeasePath = PrimaryPath + ".lock";
+        RestartRecoveryPointPath = PrimaryPath + ".restart-recovery.json";
     }
 
     public string DirectoryPath { get; }
@@ -132,6 +133,8 @@ public sealed partial class ProductConfigurationStore
     public string TemporaryPath { get; }
 
     public string WriteLeasePath { get; }
+
+    public string RestartRecoveryPointPath { get; }
 
     internal string RecoveryTemporaryPath => PrimaryPath + ".recovery.new";
 
@@ -259,6 +262,11 @@ public sealed partial class ProductConfigurationStore
             {
                 TryDeleteTemporaryFile();
             }
+
+            await TryPublishRestartRecoveryPointAsync(
+                    existing.Document,
+                    document)
+                .ConfigureAwait(false);
         }
         catch (ProductConfigurationSaveException)
         {

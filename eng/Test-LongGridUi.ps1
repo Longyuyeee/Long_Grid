@@ -91,6 +91,8 @@ $workspaceSessionHistoryCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceSessionHistory.cs'
 $workspaceSessionHistoryPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceSessionHistoryPresentation.cs'
+$restartRecoveryCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\Configuration\ProductConfigurationStore.RestartRecovery.cs'
 $referenceBatchAdditionUndoCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReferenceBatchAdditionUndo.cs'
 $layoutRecoveryPreviewCodePath = Join-Path $projectRoot `
@@ -419,6 +421,10 @@ function Test-SourceContract {
         -LiteralPath $workspaceSessionHistoryPresentationCodePath `
         -Raw `
         -Encoding UTF8
+    $restartRecoveryCode = Get-Content `
+        -LiteralPath $restartRecoveryCodePath `
+        -Raw `
+        -Encoding UTF8
     $referenceBatchAdditionUndoCode = Get-Content `
         -LiteralPath $referenceBatchAdditionUndoCodePath `
         -Raw `
@@ -726,6 +732,8 @@ function Test-SourceContract {
         'OverviewEmptyState',
         'OverviewEmptyCreateButton',
         'OverviewContainerList',
+        'ProductRestartRecoveryBanner',
+        'ProductRestartRecoveryButton',
         'OverviewRecentActionCard',
         'OverviewRecentActionDetail',
         'OverviewLatestUndoButton',
@@ -1196,6 +1204,33 @@ function Test-SourceContract {
         $codeBehind.Contains('ProductWorkspaceSessionHistoryDirection.Undo') -and
         $codeBehind.Contains('ProductWorkspaceSessionHistoryDirection.Redo')
     ) 'Session history must bind 50-step branching navigation, save compensation, UI state, and the no-file-mutation boundary.'
+    $restartRecoveryBannerNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductRestartRecoveryBanner'
+    $restartRecoveryButtonNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductRestartRecoveryButton'
+    Assert-Condition (
+        $restartRecoveryBannerNode.GetAttribute('IsOpen') -eq 'False' -and
+        $restartRecoveryBannerNode.GetAttribute('IsClosable') -eq 'False' -and
+        $restartRecoveryButtonNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $restartRecoveryButtonNode.GetAttribute('Click') -eq `
+            'ProductRestartRecoveryButton_Click' -and
+        $restartRecoveryButtonNode.GetAttribute('AutomationProperties.Name').Contains(
+            '不会修改真实文件')
+    ) 'Restart recovery must be hidden by default and require an explicit confirmed action.'
+    Assert-Condition (
+        $restartRecoveryCode.Contains('MaximumRestartRecoveryMetadataBytes = 4096') -and
+        $restartRecoveryCode.Contains('marker.CurrentFingerprint') -and
+        $restartRecoveryCode.Contains('marker.RecoveryFingerprint') -and
+        $restartRecoveryCode.Contains('BackupPath') -and
+        $restartRecoveryCode.Contains('TryDeleteRestartRecoveryPointFiles') -and
+        $appCode.Contains('GetRestartRecoveryPointAsync') -and
+        $appCode.Contains('RestoreRestartRecoveryPointAsync') -and
+        $appCode.Contains('ProductConfigurationRestartRecoveryAdmission.CanRestore') -and
+        $codeBehind.Contains('恢复上次保存前的配置？') -and
+        $codeBehind.Contains('不会删除、移动或修改任何真实文件')
+    ) 'Restart recovery must bind a bounded path-free marker to current and backup fingerprints, consume once, and expose a confirmed config-only journey.'
 
     $layoutRecoveryDetailNode = Get-XamlNodeByAutomationId `
         $document `
@@ -4126,6 +4161,7 @@ function Test-SourceContract {
         productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-shared-item-results-desktop-overlay-keyboard-reveal-open-locate-revision-display-kind-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-drag-bounds-inline-preview-fallback-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productWorkspaceSessionHistory = 'bounded-50-create-delete-rename-layout-folder-reference-add-remove-reassign-order-lock-collapse-appearance-recovery-undo-redo-branch-truncate-save-compensate-config-only'
+        productWorkspaceRestartRecovery = 'previous-saved-primary-backup-dual-fingerprint-4k-path-free-explicit-confirm-once-config-only'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
