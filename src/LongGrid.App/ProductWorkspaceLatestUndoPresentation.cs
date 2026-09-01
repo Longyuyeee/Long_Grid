@@ -34,6 +34,7 @@ internal sealed record ProductWorkspaceLatestUndoPresentation(
             ProductWorkspaceContainerEditUndoKind.Collapsed => "撤销折叠状态",
             ProductWorkspaceContainerEditUndoKind.Appearance => "撤销方格外观",
             ProductWorkspaceContainerEditUndoKind.Placement => "撤销方格布局",
+            ProductWorkspaceContainerEditUndoKind.ReferenceOrder => "撤销引用排序",
             _ => "撤销方格编辑",
         },
         _ => "没有可撤销的配置编辑",

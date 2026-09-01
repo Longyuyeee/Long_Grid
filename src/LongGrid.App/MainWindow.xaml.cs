@@ -32,6 +32,8 @@ public sealed partial class MainWindow : Window
     private const double MaximumWorkAreaFraction = 0.9;
     private bool _initialSizeApplied;
     private bool _suppressBatchSelectionAnnouncements;
+    private (int ContainerOrdinal, int ItemOrdinal)?
+        _pendingReferenceOrderSelection;
     private bool _suppressProductWorkspaceViewChanges;
     private bool _canResetProductWorkspaceView;
     private bool _canOpenProductWorkspaceEmptyCreate;
@@ -124,6 +126,11 @@ public sealed partial class MainWindow : Window
         bool,
         ProductWorkspaceReferenceReassignmentUndoCommitResult>
         _commitProductWorkspaceReferenceReassignmentUndo;
+    private readonly Func<
+        long,
+        ProductWorkspaceResolvedReferenceRemovalCandidatePresentation,
+        bool,
+        ProductWorkspaceContainerCommitResult> _commitProductWorkspaceReferenceOrder;
     private readonly Func<
         ProductWorkspaceContainerCommitAction,
         long,
@@ -268,6 +275,11 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceReferenceReassignmentUndoCommitResult>
             commitProductWorkspaceReferenceReassignmentUndo,
         Func<
+            long,
+            ProductWorkspaceResolvedReferenceRemovalCandidatePresentation,
+            bool,
+            ProductWorkspaceContainerCommitResult> commitProductWorkspaceReferenceOrder,
+        Func<
             ProductWorkspaceContainerCommitAction,
             long,
             int,
@@ -385,6 +397,8 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceResolvedReferenceReassignment;
         _commitProductWorkspaceReferenceReassignmentUndo =
             commitProductWorkspaceReferenceReassignmentUndo;
+        _commitProductWorkspaceReferenceOrder =
+            commitProductWorkspaceReferenceOrder;
         _commitProductWorkspaceContainerAction =
             commitProductWorkspaceContainerAction;
         _commitProductWorkspaceContainerFolderBinding =
@@ -3274,6 +3288,11 @@ public sealed partial class MainWindow : Window
                 .OfType<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>()
                 .Select(item => (item.ContainerOrdinal, item.ItemOrdinal))
                 .ToArray();
+        (int ContainerOrdinal, int ItemOrdinal)[] restoreSelection =
+            _pendingReferenceOrderSelection is { } pending
+                ? [pending]
+                : previous;
+        _pendingReferenceOrderSelection = null;
         _resolvedReferenceRemoval = presentation;
         _suppressBatchSelectionAnnouncements = true;
         try
@@ -3281,7 +3300,7 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceResolvedReferenceRemovalSelector.ItemsSource =
                 presentation.Candidates;
             foreach (ProductWorkspaceResolvedReferenceRemovalCandidatePresentation candidate
-                in presentation.Candidates.Where(candidate => previous.Contains(
+                in presentation.Candidates.Where(candidate => restoreSelection.Contains(
                     (candidate.ContainerOrdinal, candidate.ItemOrdinal))))
             {
                 ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems.Add(candidate);
@@ -3443,6 +3462,20 @@ public sealed partial class MainWindow : Window
             _resolvedReferenceRemoval.CanRemove && sameContainer;
         ProductWorkspaceResolvedReferenceRemovalClearSelectionButton.IsEnabled =
             sources.Length > 0;
+        ProductWorkspaceResolvedReferenceRemovalCandidatePresentation? single =
+            sources.Length == 1 ? sources[0] : null;
+        ProductWorkspaceReferenceMoveEarlierButton.IsEnabled =
+            _resolvedReferenceRemoval.CanRemove
+            && single is not null
+            && _resolvedReferenceRemoval.Candidates.Any(candidate =>
+                candidate.ContainerOrdinal == single.ContainerOrdinal
+                && candidate.ItemOrdinal == single.ItemOrdinal - 1);
+        ProductWorkspaceReferenceMoveLaterButton.IsEnabled =
+            _resolvedReferenceRemoval.CanRemove
+            && single is not null
+            && _resolvedReferenceRemoval.Candidates.Any(candidate =>
+                candidate.ContainerOrdinal == single.ContainerOrdinal
+                && candidate.ItemOrdinal == single.ItemOrdinal + 1);
         ProductWorkspaceResolvedReferenceReassignmentTargetSelector.IsEnabled =
             _resolvedReferenceReassignment.CanReassign
             && sameContainer
@@ -3483,6 +3516,89 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems
             .OfType<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>()
             .ToArray();
+
+    private async void ProductWorkspaceReferenceMoveEarlierButton_Click(
+        object sender,
+        RoutedEventArgs e) =>
+        await MoveSelectedProductWorkspaceReferenceAsync(moveEarlier: true);
+
+    private async void ProductWorkspaceReferenceMoveLaterButton_Click(
+        object sender,
+        RoutedEventArgs e) =>
+        await MoveSelectedProductWorkspaceReferenceAsync(moveEarlier: false);
+
+    private async Task MoveSelectedProductWorkspaceReferenceAsync(bool moveEarlier)
+    {
+        ProductWorkspaceResolvedReferenceRemovalCandidatePresentation[] selected =
+            ProductWorkspaceResolvedReferenceRemovalSelector.SelectedItems
+                .OfType<
+                    ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>()
+                .ToArray();
+        if (selected.Length != 1)
+        {
+            return;
+        }
+
+        ProductWorkspaceResolvedReferenceRemovalCandidatePresentation source =
+            selected[0];
+        int neighborOrdinal = source.ItemOrdinal + (moveEarlier ? -1 : 1);
+        ProductWorkspaceResolvedReferenceRemovalCandidatePresentation? neighbor =
+            _resolvedReferenceRemoval.Candidates.FirstOrDefault(candidate =>
+                candidate.ContainerOrdinal == source.ContainerOrdinal
+                && candidate.ItemOrdinal == neighborOrdinal);
+        if (neighbor is null)
+        {
+            return;
+        }
+
+        ContentDialog preview = new()
+        {
+            XamlRoot = RootLayout.XamlRoot,
+            Title = moveEarlier ? "预览：引用上移一位" : "预览：引用下移一位",
+            Content = $"当前：{source.DisplayName}。保存后它将位于“{neighbor.DisplayName}”" +
+                $"{(moveEarlier ? "之前" : "之后")}。只改变 Long方格引用顺序，不移动真实文件。",
+            PrimaryButtonText = moveEarlier ? "确认上移并保存" : "确认下移并保存",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        if (await preview.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        _pendingReferenceOrderSelection =
+            (source.ContainerOrdinal, neighborOrdinal);
+        ProductWorkspaceContainerCommitResult result =
+            _commitProductWorkspaceReferenceOrder(
+                _resolvedReferenceRemoval.EditRevision,
+                source,
+                moveEarlier);
+        if (!result.IsAccepted)
+        {
+            _pendingReferenceOrderSelection = null;
+        }
+        ProductWorkspaceResolvedReferenceRemovalStatus.Text = result.Status switch
+        {
+            ProductWorkspaceContainerCommitStatus.Accepted =>
+                $"已将引用{(moveEarlier ? "上移" : "下移")}一位并进入原子保存队列；桌面文件未改变，可撤销一次。",
+            ProductWorkspaceContainerCommitStatus.StaleEditRevision =>
+                "工作区已经更新，请按最新引用顺序重新选择。",
+            ProductWorkspaceContainerCommitStatus.ReducerRejected
+                when result.EditError == ProductWorkspaceEditError.ContainerLocked =>
+                "所选方格已经锁定，引用顺序未改变。",
+            ProductWorkspaceContainerCommitStatus.SaveRejected =>
+                "保存控制器未接受排序；配置与桌面文件均未改变。",
+            _ => "相邻引用已经变化，未提交排序。",
+        };
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceResolvedReferenceRemovalStatus,
+            $"ReferenceOrder:{result.Status}:Direction=" +
+                $"{(moveEarlier ? "Earlier" : "Later")}:" +
+                $"Revision={result.EditRevision}:Changed={result.IsAccepted}:" +
+                "DesktopFilesChanged=False");
+        RaiseLiveRegionChanged(ProductWorkspaceResolvedReferenceRemovalStatus);
+        UpdateProductWorkspaceResolvedReferenceRemovalButtons();
+    }
 
     private void ProductWorkspaceSelectedReferenceCreateButton_Click(
         object sender,

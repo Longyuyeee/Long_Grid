@@ -6,7 +6,7 @@
 
 更新日期：2026-09-01
 
-代码审计输入基线：`origin/main@e206a72`；PF-008B 真实实现与唯一接续边界见 [Stage 261](261-pf008b-type-modified-sort-audit.md)，PF-008A 见 [Stage 260](260-pf008a-view-density-continuous-scroll-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
+代码审计输入基线：PF-008C 分支基于 `origin/main@c40bc81`；PF-008A～C 真实实现与 PF-009A 唯一接续边界见 [Stage 262](262-pf008c-custom-reference-order-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -267,7 +267,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**PF-008C 自定义顺序、保存补偿和一次撤销（FunctionFirst / InProgress）**。PF-008A/B 已完成两档密度、连续滚动以及类型/修改时间升降序，并通过真实 HWND、真实 Unicode 目录和文件零变化验证；正式 App 跨进程物理证据保持 Pending。下一步只改变 Long方格持久化引用顺序，不向绑定目录写入排序。BOX-R1-C/D 与 TASKBAR-R2B1-B 继续作为并行外部门禁，不冻结 PF-008C。最新精确基准见 [Stage 261](261-pf008b-type-modified-sort-audit.md)。
+当前执行项：**PF-009A 桌面搜索共用查询模型与正式结果列表（FunctionFirst / InProgress）**。PF-008A/B/C 已完成两档密度、连续滚动、类型/修改时间排序以及配置引用自定义顺序、保存失败补偿和一次撤销；真实 HWND、真实 Unicode 文件系统和文件零变化通过，正式 App 跨进程物理证据保持 Pending。下一步建立方格与项目共用查询模型和正式结果列表，不读取文件内容。BOX-R1-C/D 与 TASKBAR-R2B1-B 继续作为并行外部门禁，不冻结 PF-009A。最新精确基准见 [Stage 262](262-pf008c-custom-reference-order-audit.md)。
 
 严格按下列顺序交付，不再插入非当前队列的相邻探针或功能：
 
@@ -279,10 +279,11 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 6. **BOX-R1（B 已完成，C Pending）**：A 有限激活合同（EngineeringComplete / RealProcessPass）→ B 原生 `IExplorerCommand` 与真实 unsigned MSIX（EngineeringComplete / NativeDllPass / RealUnsignedPackagePass）→ C 可丢弃账户真实安装/菜单/卸载证据（PendingApproval）→ D Explorer 重启、显示器、DPI 与失败恢复；全部复用统一创建预览和事务。
 7. **FOLDER-R1（A～D EngineeringComplete / RealFilesystemPass / ProductEvidencePending）**：A 持久化/身份/健康合同 → B 显式选择、取消零写入、绑定/解绑/重连原子提交 → C 目录内容呈现、显式刷新、变更通知和安全打开 → D 权限、离线、同路径替换、失效恢复和有限状态；路径、三种 schema v4 基础排序、真实加载状态和一次性有限恢复反馈均已合入，同时保留 Ready/Empty/Truncated 等权威内容状态；物理 Picker、可见加载/失效/恢复/刷新/打开/排序、键盘和 Narrator 进入 M1 集中证据。
 8. **PF-007A2 / PF-007B（EngineeringComplete / RealHwndPass / ProductEvidencePending）**：A2 已完成正式 HWND OLE DropTarget 和安全 Link 引用提交；B 已完成盒子间改归属、无效目标、失败补偿和一次撤销。
-9. **PF-008（InProgress / 当前主队列）**：A/B 已 `EngineeringComplete / RealHwndPass or RealFilesystemPass / ProductEvidencePending`；当前进入 C 自定义顺序、保存补偿和一次撤销；只改变 Long方格展示或配置，不移动真实文件。
-10. **PF-009～PF-011（Queued）**：依次完成搜索筛选、统一撤销/操作历史和首次启动体验；PF-008 未形成可演示用户结果前不并行扩张。
-11. **M1 产品证据冲刺（ExternalEnvironmentBlocked / ParallelGate）**：等待安全 WinUI 运行时、专用账户和可安装签名条件；条件具备时优先执行完整两分钟旅程，不降低出口。
-12. **TASKBAR-R1～R4（R2B1-B EnvironmentBlocked / ParallelGate）**：R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵；宿主禁止试写，但不阻塞 PF 主队列。
+9. **PF-008（A～C EngineeringComplete / ProductEvidencePending）**：两档密度、连续滚动、类型/时间排序和配置引用自定义顺序已通过真实 HWND/文件系统、保存失败补偿和一次撤销；物理鼠标、键盘、Narrator、触控和截图证据待集中完成。
+10. **PF-009（InProgress / 当前主队列）**：A 先完成方格与项目共用查询模型、类型/健康/显示器筛选及正式结果列表，再接入桌面浮层、临时展开/滚动/高亮与打开/定位；查询不读取文件内容。
+11. **PF-010～PF-011（Queued）**：依次完成统一撤销/操作历史和首次启动体验；PF-009A 未形成可演示用户结果前不并行扩张。
+12. **M1 产品证据冲刺（ExternalEnvironmentBlocked / ParallelGate）**：等待安全 WinUI 运行时、专用账户和可安装签名条件；条件具备时优先执行完整两分钟旅程，不降低出口。
+13. **TASKBAR-R1～R4（R2B1-B EnvironmentBlocked / ParallelGate）**：R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵；宿主禁止试写，但不阻塞 PF 主队列。
 
 UI-R1 允许重构产品壳层，但不得重写已经验证的 Core、配置事务和 DesktopHost 安全边界。
 
@@ -907,3 +908,7 @@ Stage 258 已通过 PR #342 合入 `main@d4d0032`，精确 main CI 为 `1,405/1,
 ### 13.39 Stage 261：PF-008B 类型与修改时间稳定排序
 
 现有每方格 FolderBinding 排序追加类型升/降与修改时间新/旧优先；四种模式保持文件夹优先，并分别以扩展名、真实 UTC ticks 和名称形成稳定顺序。真实 Unicode 目录初始对照精确失败为名称升序，修正后四种新模式、配置 round-trip、正式提交/撤销和文件零变化专项 `78/78`，完整 `1,411/1,411`。PF-008B 为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`；唯一接续点为 PF-008C，详见 [Stage 261](261-pf008b-type-modified-sort-audit.md)。
+
+### 13.40 Stage 262：PF-008C 自定义引用顺序与恢复
+
+持久化引用可在控制中心预览后相邻上移/下移，经正式 reducer、revision、原子保存和 `ReferenceOrder` 一次撤销提交；绑定文件夹临时内容排除。真实 Unicode 文件成功重载与真实独占写租约失败补偿均保持文件路径、数量和 SHA-256 不变；专项 `53/53`、完整 `1,416/1,416`、Release 0 warning/error、200-ID UI 合同通过。PF-008A～C 工程收口但产品物理证据仍 Pending；唯一接续点为 PF-009A，详见 [Stage 262](262-pf008c-custom-reference-order-audit.md)。

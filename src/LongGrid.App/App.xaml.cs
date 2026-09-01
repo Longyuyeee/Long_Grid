@@ -245,6 +245,7 @@ public partial class App : Application
             CommitProductWorkspaceReferenceRemovalUndo,
             CommitProductWorkspaceResolvedReferenceReassignment,
             CommitProductWorkspaceReferenceReassignmentUndo,
+            CommitProductWorkspaceReferenceOrder,
             CommitProductWorkspaceContainerAction,
             CommitProductWorkspaceContainerFolderBinding,
             CommitProductWorkspaceContainerFolderSort,
@@ -2334,6 +2335,29 @@ public partial class App : Application
             contentDensity: contentDensity);
 
     private ProductWorkspaceContainerCommitResult
+        CommitProductWorkspaceReferenceOrder(
+            long expectedEditRevision,
+            ProductWorkspaceResolvedReferenceRemovalCandidatePresentation candidate,
+            bool moveEarlier) =>
+        CommitProductWorkspaceContainerActionCore(
+            moveEarlier
+                ? ProductWorkspaceContainerCommitAction.MoveReferenceEarlier
+                : ProductWorkspaceContainerCommitAction.MoveReferenceLater,
+            expectedEditRevision,
+            candidate.ContainerOrdinal,
+            name: string.Empty,
+            stateValue: null,
+            colorPreset: null,
+            opacityPreset: null,
+            positionPreset: null,
+            sizePreset: null,
+            confirmed: true,
+            createDisplayId: null,
+            createBoundsPixels: null,
+            useDefaultName: false,
+            itemOrdinal: candidate.ItemOrdinal);
+
+    private ProductWorkspaceContainerCommitResult
         CommitProductWorkspaceContainerFolderBinding(
             long expectedEditRevision,
             int containerOrdinal,
@@ -2405,7 +2429,8 @@ public partial class App : Application
             ProductContainerTitleVisibilityPolicy? titleVisibility = null,
             ProductContainerTitleDoubleClickAction? titleDoubleClickAction = null,
             ProductContainerFolderBindingState? folderBinding = null,
-            ProductContainerContentDensity? contentDensity = null)
+            ProductContainerContentDensity? contentDensity = null,
+            int itemOrdinal = 0)
     {
         ProductWorkspaceState? state = productWorkspaceSession.State;
         bool creatingFirstConfiguration =
@@ -2469,7 +2494,8 @@ public partial class App : Application
                     titleVisibility,
                     titleDoubleClickAction,
                     FolderBinding: folderBinding,
-                    ContentDensity: contentDensity));
+                    ContentDensity: contentDensity,
+                    ItemOrdinal: itemOrdinal));
         if (!result.IsAccepted)
         {
             return result;

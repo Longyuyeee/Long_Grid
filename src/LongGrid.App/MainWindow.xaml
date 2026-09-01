@@ -1035,6 +1035,29 @@
                                                 Grid.Column="1"
                                                 IsEnabled="False" />
                                         </Grid>
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Button
+                                                x:Name="ProductWorkspaceReferenceMoveEarlierButton"
+                                                AutomationProperties.AutomationId="ProductWorkspaceReferenceMoveEarlierButton"
+                                                AutomationProperties.Name="预览并将单个持久化引用上移一位"
+                                                Click="ProductWorkspaceReferenceMoveEarlierButton_Click"
+                                                Content="上移一位"
+                                                HorizontalAlignment="Stretch"
+                                                IsEnabled="False" />
+                                            <Button
+                                                x:Name="ProductWorkspaceReferenceMoveLaterButton"
+                                                Grid.Column="1"
+                                                AutomationProperties.AutomationId="ProductWorkspaceReferenceMoveLaterButton"
+                                                AutomationProperties.Name="预览并将单个持久化引用下移一位"
+                                                Click="ProductWorkspaceReferenceMoveLaterButton_Click"
+                                                Content="下移一位"
+                                                HorizontalAlignment="Stretch"
+                                                IsEnabled="False" />
+                                        </Grid>
                                         <Button
                                             x:Name="ProductWorkspaceSelectedReferenceCreateButton"
                                             AutomationProperties.AutomationId="ProductWorkspaceSelectedReferenceCreateButton"
