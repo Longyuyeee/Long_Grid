@@ -526,7 +526,7 @@ public sealed record ProductWorkspaceLayoutRecoveryUndoCommitResult(
         && Document is not null;
 }
 
-public sealed class ProductWorkspaceCommitCoordinator
+public sealed partial class ProductWorkspaceCommitCoordinator
 {
     public const int MaximumResolvedReferenceBatchSize = 256;
     public const int MaximumResolvedReferenceRemovalBatchSize = 256;

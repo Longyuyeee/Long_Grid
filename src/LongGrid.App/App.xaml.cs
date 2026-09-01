@@ -258,7 +258,8 @@ public partial class App : Application
             CommitProductWorkspaceContainerEditUndo,
             CommitProductWorkspaceSessionHistory,
             CommitProductWorkspaceLayoutRecovery,
-            CommitProductWorkspaceLayoutRecoveryUndo);
+            CommitProductWorkspaceLayoutRecoveryUndo,
+            CommitProductQuickStart);
         productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
         productDesktopCatalog.SnapshotChanged += ProductDesktopCatalog_SnapshotChanged;
         productDisplayTopology.SnapshotChanged +=
@@ -2052,6 +2053,7 @@ public partial class App : Application
         }
 
         currentWindow.ApplyProductWorkspaceSessionState(productWorkspaceSession);
+        ApplyProductQuickStartSuggestion(currentWindow);
         EnsureProductWorkspaceFolderContents();
         ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
         ProductWorkspaceLayoutRecoveryReviewResult layoutReview =
@@ -2149,6 +2151,29 @@ public partial class App : Application
                 workspaceCommits.GetSessionHistorySnapshot(
                     productWorkspaceSession.State)));
         ApplyProductWorkspaceReferenceReview();
+    }
+
+    private void ApplyProductQuickStartSuggestion(MainWindow currentWindow)
+    {
+        ProductWorkspaceState? state = ResolveDesktopWorkspaceCreateState();
+        long workspaceRevision = state is null
+            ? 0
+            : workspaceCommits.CurrentEditRevision;
+        if (state is null)
+        {
+            state = ProductWorkspaceConfigurationResolver.Resolve(
+                ProductConfigurationDefaults.CreateEmpty(),
+                Array.Empty<DesktopCatalogEntry>()).State;
+        }
+        ProductDesktopCatalogSnapshot catalog = productDesktopCatalog.Snapshot;
+        ProductQuickStartSuggestionSnapshot suggestion =
+            ProductQuickStartSuggestionPlanner.Create(
+                state!,
+                workspaceRevision,
+                catalog.Generation,
+                catalog.IsAuthoritative,
+                catalog.Entries);
+        currentWindow.ApplyProductQuickStartSuggestion(suggestion);
     }
 
     private void ApplyProductWorkspaceReferenceReview()
@@ -4024,6 +4049,46 @@ public partial class App : Application
             ApplyProductWorkspaceSessionViews();
         }
 
+        return result;
+    }
+
+    private ProductQuickStartCommitResult CommitProductQuickStart(
+        ProductQuickStartSuggestionSnapshot preview)
+    {
+        ProductWorkspaceState? state = ResolveDesktopWorkspaceCreateState();
+        ProductDesktopCatalogSnapshot catalog = productDesktopCatalog.Snapshot;
+        ProductContainerState? container = state is null
+            ? null
+            : CreateDefaultContainer(
+                state,
+                preview.ContainerName,
+                requestedDisplayId: null,
+                requestedBoundsPixels: null);
+        if (state is null || container is null || productWorkspaceSession.IsReadOnly)
+        {
+            return new(
+                ProductQuickStartCommitStatus.InvalidRequest,
+                ProductWorkspaceEditError.InvalidState,
+                null,
+                workspaceCommits.CurrentEditRevision,
+                null,
+                null,
+                null);
+        }
+
+        ProductQuickStartCommitResult result = workspaceCommits.CommitQuickStart(
+            state,
+            catalog.Generation,
+            catalog.Entries,
+            new(preview, container));
+        if (result.IsAccepted)
+        {
+            ApplyAcceptedProductWorkspaceDocument(result.Document!, catalog);
+        }
+        else
+        {
+            ApplyProductWorkspaceSessionViews();
+        }
         return result;
     }
 

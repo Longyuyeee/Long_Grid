@@ -6,7 +6,7 @@
 
 更新日期：2026-09-01
 
-代码审计输入基线：PF-010B3 基于 `origin/main@bc74a5b` 完成单一用户撤销语义和规则依赖纠偏；真实回归、完成边界与 PF-011A 唯一接续点见 [Stage 268](268-pf010b3-undo-semantics-convergence-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
+代码审计输入基线：PF-011A 基于 `origin/main@d427dff` 完成真实目录建议、确认后原子提交和统一历史；真实回归、完成边界与 PF-011B 唯一接续点见 [Stage 269](269-pf011a-quick-start-real-preview-atomic-commit-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -267,7 +267,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**PF-011A Quick Start 真实只读建议预览与原子提交（FunctionFirst / InProgress）**。PF-010A～B3 已完成统一 50 步历史、动作广度、重启安全恢复点和单一用户撤销语义；六个旧单步撤销按钮已移除，内部 token 只保留失败补偿。代码确认规则系统尚未开发，正式规则应用的原子历史按 PF-021 交付，不制造假能力。PF-010 为 `EngineeringComplete / ProductEvidencePending`。BOX-R1-C/D 与 TASKBAR-R2B1-B 作为并行外部门禁，不冻结 PF-011A。最新精确基准见 [Stage 268](268-pf010b3-undo-semantics-convergence-audit.md)。
+当前执行项：**PF-011B Customize、跳过/返回与完成态恢复（FunctionFirst / InProgress）**。PF-011A 已完成真实桌面目录建议、确认前零提交、确认后一次原子保存与一个统一历史项，取消、陈旧预览、失败补偿和真实文件零变化通过；状态为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`。PF-011B 负责 Customize、跳过/返回/以后再运行、重启完成态与匿名遗留退出。BOX-R1-C/D 与 TASKBAR-R2B1-B 作为并行外部门禁，不冻结 PF-011B。最新精确基准见 [Stage 269](269-pf011a-quick-start-real-preview-atomic-commit-audit.md)。
 
 严格按下列顺序交付，不再插入非当前队列的相邻探针或功能：
 
@@ -281,7 +281,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 8. **PF-007A2 / PF-007B（EngineeringComplete / RealHwndPass / ProductEvidencePending）**：A2 已完成正式 HWND OLE DropTarget 和安全 Link 引用提交；B 已完成盒子间改归属、无效目标、失败补偿和一次撤销。
 9. **PF-008（A～C EngineeringComplete / ProductEvidencePending）**：两档密度、连续滚动、类型/时间排序和配置引用自定义顺序已通过真实 HWND/文件系统、保存失败补偿和一次撤销；物理鼠标、键盘、Narrator、触控和截图证据待集中完成。
 10. **PF-009（A/B EngineeringComplete / ProductEvidencePending）**：共用查询、类型/健康/显示器筛选、正式结果、桌面浮层、临时展开/滚动/高亮与打开/定位均已完成；查询不读取文件内容。
-11. **PF-010（A～B3 EngineeringComplete / ProductEvidencePending）/ PF-011A（当前主队列）**：PF-010 已完成统一会话历史、现有动作广度、重启安全恢复点和旧撤销用户入口收敛；规则应用随 PF-020/021 交付并强制复用同一历史。PF-011A 先把匿名首次整理升级为真实只读建议预览与确认后原子提交。
+11. **PF-010（A～B3 EngineeringComplete / ProductEvidencePending）/ PF-011（A EngineeringComplete，B 当前主队列）**：PF-010 已完成统一会话历史；PF-011A 已把匿名首次整理升级为真实只读建议预览与确认后原子提交。PF-011B 继续完成 Customize、跳过/返回、以后再运行和重启完成态，并删除隐藏匿名练习遗留。
 12. **M1 产品证据冲刺（ExternalEnvironmentBlocked / ParallelGate）**：等待安全 WinUI 运行时、专用账户和可安装签名条件；条件具备时优先执行完整两分钟旅程，不降低出口。
 13. **TASKBAR-R1～R4（R2B1-B EnvironmentBlocked / ParallelGate）**：R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵；宿主禁止试写，但不阻塞 PF 主队列。
 
@@ -936,3 +936,7 @@ Core 查询模型同时覆盖盒子和项目，支持目标、类型、健康状
 ### 13.46 Stage 268：PF-010B3 统一撤销用户语义与规则依赖纠偏
 
 真实 XAML 合同初始失败证明两个 LatestUndo 与四个深层单步撤销按钮仍存在；修正后正式用户只通过统一 50 步历史 Undo/Redo 与 Ctrl+Z/Ctrl+Y 导航，旧 token 仅供内部失败补偿。首次 Release 构建又发现内部共用失败文案映射被误删，恢复纯映射后 0 warning/error；相关 `36/36`、完整 `1,460/1,460`、207-ID 合同通过。代码确认正式规则系统为零，PF-010 提前要求规则接线属于 PF-020/021 依赖倒置；PF-021 保持“一次应用=一个事务和一个统一历史项”的强制门槛，不制造假 API。PF-010 工程范围收口、物理证据 Pending；唯一接续点为 PF-011A，详见 [Stage 268](268-pf010b3-undo-semantics-convergence-audit.md)。
+
+### 13.47 Stage 269：PF-011A Quick Start 真实建议预览与原子提交
+
+真实桌面第一层 Catalog 现在生成最多 256 项的只读建议，预览不读取文件正文；确认后创建一个方格和全部引用只执行一次 reducer、一次保存并形成一个 `QuickStart` 统一历史项。revision、catalog generation、工作区与目录 fingerprint 共同拒绝陈旧确认；取消零保存，fail-once 可整单补偿。初始红测为正式计划器类型 `null`；真实 undo/redo 测试又发现测试过早终止保存控制器，按真实生命周期修正后通过。专项 `5/5`、完整 `1,465/1,465`、Release 0 warning/error、209-ID 合同通过，真实 Unicode 文件 SHA-256 不变。PF-011A 为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`；唯一接续点为 PF-011B Customize、跳过/返回与完成态恢复，详见 [Stage 269](269-pf011a-quick-start-real-preview-atomic-commit-audit.md)。

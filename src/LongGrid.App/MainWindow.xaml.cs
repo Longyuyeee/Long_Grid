@@ -59,6 +59,8 @@ public sealed partial class MainWindow : Window
     internal event Action<bool>? SingleClickOpenChangeRequested;
     private string _organizationStartChoice = "suggested";
     private bool _practiceItemsAdded;
+    private bool _quickStartDismissed;
+    private ProductQuickStartSuggestionSnapshot? _quickStartSuggestion;
     private ProductConfigurationStartupMode _configurationStartupMode;
     private ProductConfigurationEvidenceInventory? _configurationEvidenceInventory;
     private readonly Func<
@@ -191,6 +193,9 @@ public sealed partial class MainWindow : Window
         bool,
         ProductWorkspaceLayoutRecoveryUndoCommitResult>
         _commitProductWorkspaceLayoutRecoveryUndo;
+    private readonly Func<
+        ProductQuickStartSuggestionSnapshot,
+        ProductQuickStartCommitResult> _commitProductQuickStart;
     private ProductWorkspaceReferenceReviewPresentation _referenceReview =
         ProductWorkspaceReferenceReviewPresentation.Unavailable;
     private ProductWorkspaceContainerEditPresentation _containerEditor =
@@ -352,7 +357,10 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceLayoutRecoveryUndoToken,
             bool,
             ProductWorkspaceLayoutRecoveryUndoCommitResult>
-            commitProductWorkspaceLayoutRecoveryUndo)
+            commitProductWorkspaceLayoutRecoveryUndo,
+        Func<
+            ProductQuickStartSuggestionSnapshot,
+            ProductQuickStartCommitResult> commitProductQuickStart)
     {
         ArgumentNullException.ThrowIfNull(recoverConfiguration);
         ArgumentNullException.ThrowIfNull(restoreRestartRecoveryPoint);
@@ -394,6 +402,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceSessionHistory);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecovery);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecoveryUndo);
+        ArgumentNullException.ThrowIfNull(commitProductQuickStart);
         _recoverConfiguration = recoverConfiguration;
         _restoreRestartRecoveryPoint = restoreRestartRecoveryPoint;
         _prepareConfigurationImport = prepareConfigurationImport;
@@ -444,6 +453,7 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceLayoutRecovery;
         _commitProductWorkspaceLayoutRecoveryUndo =
             commitProductWorkspaceLayoutRecoveryUndo;
+        _commitProductQuickStart = commitProductQuickStart;
         InitializeComponent();
         RootLayout.Loaded += RootLayout_Loaded;
         RootLayout.SizeChanged += RootLayout_SizeChanged;
@@ -825,6 +835,53 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetItemStatus(
             ProductWorkspaceSessionDetail,
             automationStatus);
+    }
+
+    internal void ApplyProductQuickStartSuggestion(
+        ProductQuickStartSuggestionSnapshot suggestion)
+    {
+        ArgumentNullException.ThrowIfNull(suggestion);
+        _quickStartSuggestion = suggestion;
+        bool eligible = suggestion.Status is
+            ProductQuickStartSuggestionStatus.Ready or
+            ProductQuickStartSuggestionStatus.CatalogUnavailable or
+            ProductQuickStartSuggestionStatus.NoItems;
+        bool overviewSelected = ShellNavigation.SelectedItem is
+            NavigationViewItem { Tag: string tag }
+            && tag == "overview";
+        bool show = eligible && !_quickStartDismissed && overviewSelected;
+        FirstRunPanel.Visibility = show
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        if (overviewSelected)
+        {
+            OverviewPanel.Visibility = show
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+        }
+
+        ProductQuickStartSuggestionList.ItemsSource = suggestion.Items
+            .Select(item => item.DisplayName)
+            .ToArray();
+        ProductQuickStartSuggestionList.Visibility = Visibility.Collapsed;
+        ProductQuickStartCommitButton.IsEnabled = false;
+        OrganizationPreviewButton.IsEnabled = suggestion.Status ==
+            ProductQuickStartSuggestionStatus.Ready;
+        OrganizationPreviewStatus.Text = suggestion.Status switch
+        {
+            ProductQuickStartSuggestionStatus.Ready =>
+                $"已找到 {suggestion.TotalCandidateCount} 个真实桌面项目；点击预览查看，不会修改文件。",
+            ProductQuickStartSuggestionStatus.CatalogUnavailable =>
+                "正在读取真实桌面目录；完成后即可生成建议。",
+            ProductQuickStartSuggestionStatus.NoItems =>
+                "当前桌面没有可整理项目，可以从空白开始。",
+            ProductQuickStartSuggestionStatus.WorkspaceNotEmpty =>
+                "首次整理已经完成。",
+            _ => "当前工作区暂时无法生成建议。",
+        };
+        AutomationProperties.SetItemStatus(
+            OrganizationPreviewStatus,
+            suggestion.Status.ToString());
     }
 
     internal void ApplyProductWorkspaceReadModel(
@@ -4712,8 +4769,14 @@ public sealed partial class MainWindow : Window
         var tag = (args.SelectedItemContainer?.Tag as string) ?? "overview";
         bool overviewVisible = tag is "overview" or "boxes";
         bool boxesOnly = tag == "boxes";
+        bool quickStartVisible = tag == "overview"
+            && !_quickStartDismissed
+            && _quickStartSuggestion?.Status is
+                ProductQuickStartSuggestionStatus.Ready or
+                ProductQuickStartSuggestionStatus.CatalogUnavailable or
+                ProductQuickStartSuggestionStatus.NoItems;
 
-        OverviewPanel.Visibility = overviewVisible
+        OverviewPanel.Visibility = overviewVisible && !quickStartVisible
             ? Visibility.Visible
             : Visibility.Collapsed;
         AppearancePanel.Visibility = tag == "personalization"
@@ -4722,7 +4785,9 @@ public sealed partial class MainWindow : Window
         SafetyPanel.Visibility = tag == "settings"
             ? Visibility.Visible
             : Visibility.Collapsed;
-        FirstRunPanel.Visibility = Visibility.Collapsed;
+        FirstRunPanel.Visibility = quickStartVisible
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         RecoveryPanel.Visibility = Visibility.Collapsed;
 
         if (overviewVisible)
@@ -5477,6 +5542,12 @@ public sealed partial class MainWindow : Window
         if (sender is Button { Tag: string choice })
         {
             ApplyStartChoice(choice);
+            if (choice == "blank")
+            {
+                _quickStartDismissed = true;
+                FirstRunPanel.Visibility = Visibility.Collapsed;
+                OverviewPanel.Visibility = Visibility.Visible;
+            }
         }
     }
 
@@ -5485,7 +5556,7 @@ public sealed partial class MainWindow : Window
         _organizationStartChoice = choice == "blank" ? "blank" : "suggested";
         StartChoiceStatus.Text = _organizationStartChoice == "blank"
             ? "当前：从空白开始，不创建任何容器。"
-            : "当前：一键建议，只生成匿名预览。";
+            : "当前：查看真实桌面项目建议。";
         AutomationProperties.SetItemStatus(
             StartChoiceStatus,
             _organizationStartChoice == "blank"
@@ -5546,12 +5617,22 @@ public sealed partial class MainWindow : Window
 
         if (mode == FileOrganizationMode.SafeReference)
         {
+            ProductQuickStartSuggestionSnapshot? suggestion =
+                _quickStartSuggestion;
+            bool canCommit = _organizationStartChoice != "blank"
+                && suggestion?.CanCommit == true;
             OrganizationPreviewStatus.Text = _organizationStartChoice == "blank"
                 ? "预览：从空白布局开始；不会创建容器或移动文件。尚未修改任何文件。"
-                : "预览：将建议 4 个匿名引用；原始文件保持原位。尚未修改任何文件。";
+                : canCommit
+                    ? $"预览：将创建“{suggestion!.ContainerName}”并加入 {suggestion.Items.Count} 个真实项目引用；原始文件保持原位。"
+                    : "当前没有可确认的真实目录建议。";
+            ProductQuickStartSuggestionList.Visibility = canCommit
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            ProductQuickStartCommitButton.IsEnabled = canCommit;
             AutomationProperties.SetItemStatus(
                 OrganizationPreviewStatus,
-                "SafeReferencePreview");
+                canCommit ? "RealCatalogPreview" : "PreviewUnavailable");
             return;
         }
 
@@ -5560,6 +5641,39 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetItemStatus(
             OrganizationPreviewStatus,
             "ManagedMovePreviewBlocked");
+    }
+
+    private void ProductQuickStartCommitButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ProductQuickStartSuggestionSnapshot? suggestion = _quickStartSuggestion;
+        if (suggestion?.CanCommit != true)
+        {
+            OrganizationPreviewStatus.Text = "建议已经失效，请等待目录刷新后重新预览。";
+            ProductQuickStartCommitButton.IsEnabled = false;
+            return;
+        }
+
+        ProductQuickStartCommitButton.IsEnabled = false;
+        ProductQuickStartCommitResult result = _commitProductQuickStart(suggestion);
+        OrganizationPreviewStatus.Text = result.Status switch
+        {
+            ProductQuickStartCommitStatus.Accepted =>
+                "首次整理已提交并进入保存队列；原始文件没有移动、改名或删除。",
+            ProductQuickStartCommitStatus.StaleCatalogGeneration or
+            ProductQuickStartCommitStatus.StaleEditRevision or
+            ProductQuickStartCommitStatus.StalePreview =>
+                "目录或工作区已经变化，请查看刷新后的建议再确认。",
+            ProductQuickStartCommitStatus.WorkspaceNotEmpty =>
+                "工作区已经包含方格，无需重复首次整理。",
+            ProductQuickStartCommitStatus.SaveRejected =>
+                "当前无法提交保存；工作区没有采用这次建议。",
+            _ => "这次建议无法提交，请刷新后重试。",
+        };
+        AutomationProperties.SetItemStatus(
+            OrganizationPreviewStatus,
+            result.Status.ToString());
     }
 
     private void CreatePracticeContainerButton_Click(

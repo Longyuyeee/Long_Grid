@@ -626,3 +626,7 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 2026-08-14 E2a Intent 消费准入补充：Prepared Intent 的验证、清除和代次推进必须在准备桥同一锁内完成，外部不得先检查再消费；正式生命周期必须在每次准备、转发和消费前复读产品表面，只有 Passive 且 registry generation 一致才可继续。消费后只准进入既有 admission / surface / selection 事务；系统事件、投影替换、detach 和关闭必须先取消。项目选择使用不含名称、路径或文件身份的局部匿名 ID。正式输入源接入前 App 不得调用消费入口，E2 自动化不得冒充物理输入或 Narrator 证据。
 
 2026-08-14 正式多表面模式切换补充：正式 Explicit 只能由匹配 window registry generation 的 lease 请求；每个 surface 的返回值必须与三态终态复读同时成立。任何部分应用、异常、冲突或复读失败都要按创建顺序的反向隐藏全部表面，且不得从不含 lease 的旧 Explicit evidence 重建权限。源码合同必须分别证明“adapter 具备 Explicit 能力”和“App/输入桥仍未消费它”，不能继续用硬编码拒绝冒充隔离。
+
+## PF-011 Quick Start 真实测试与阶段审计补充
+
+首次启动建议必须使用真实临时目录/文件、真实 Catalog 条目和真实配置 Store 验证，不能以匿名列表或仅反射存在性作为最终通过。测试记录至少写明 Expected、Initial Actual、Difference、Correction、Final Actual，并在确认、取消、catalog/revision 变化、撤销/重做、保存失败补偿和重启边界分别核对提交次数与文件 SHA-256。阶段结束必须更新统一执行计划、功能对标状态、路线图和 README，并把唯一接续点写到最新 Stage 审计后再推送。PF-011A 实例见 [Stage 269](269-pf011a-quick-start-real-preview-atomic-commit-audit.md)。

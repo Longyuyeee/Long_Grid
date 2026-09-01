@@ -397,3 +397,7 @@ App 权威打开控制器现在通过独立 Windows 引用解析边界处理 `.l
 ## Stage 196：PF-006B2B2 权威重试与安全 Explorer 定位
 
 打开结果只向 Surface 投影有限状态、无路径消息和 Retry/Locate 可用位；原生项目右键菜单把可信、非注入动作作为新的打开来源交回既有生命周期，生命周期重新附加当前 display/revision/topology。Retry 完整重跑安全打开；Locate 在 App 权威边界重新验证 resolved filesystem 引用、Catalog/Persisted 一致性、现场父目录/目标及 ReparsePoint，再调用绝对 `%WINDIR%\explorer.exe`。存在目标才用 `/select`，缺失目标只打开安全父目录。详见 [Stage 196](196-pf006b2b2-authoritative-retry-safe-explorer-locate-audit.md)。
+
+## Stage 269：PF-011A Quick Start 原子边界
+
+Quick Start 计划器位于 Core，只消费权威 Desktop Catalog 元数据和可投影的空工作区；它以 edit revision、catalog generation、工作区 fingerprint 与所选目录 fingerprint 形成不可变预览。App 只负责展示名称和转发确认。Infrastructure 在同一锁内复核四项权威输入，再以一次 `CreateContainer`、一次 SaveController submit 和一个 `QuickStart` 会话历史项提交方格及全部引用。未确认、取消和陈旧预览均为零提交；失败保存复用内部批量加入补偿 token 整单恢复。完整边界见 [Stage 269](269-pf011a-quick-start-real-preview-atomic-commit-audit.md)。
