@@ -534,6 +534,7 @@ public sealed class ProductWorkspaceCommitCoordinator
 
     private readonly object gate = new();
     private readonly ProductWorkspaceSaveController saves;
+    private readonly ProductWorkspaceSessionHistory sessionHistory = new();
     private long editRevision;
     private PendingLayoutRecoveryUndo? pendingLayoutRecoveryUndo;
     private PendingReferenceRemovalUndo? pendingReferenceRemovalUndo;
@@ -543,6 +544,7 @@ public sealed class ProductWorkspaceCommitCoordinator
     private PendingReferenceBatchAdditionUndo? pendingReferenceBatchAdditionUndo;
     private PendingContainerLayoutPublication?
         pendingContainerLayoutPublication;
+    private PendingSessionHistoryNavigation? pendingSessionHistoryNavigation;
 
     public ProductWorkspaceCommitCoordinator(
         ProductWorkspaceSaveController saves)
@@ -559,6 +561,15 @@ public sealed class ProductWorkspaceCommitCoordinator
             {
                 return editRevision;
             }
+        }
+    }
+
+    public ProductWorkspaceSessionHistorySnapshot GetSessionHistorySnapshot(
+        ProductWorkspaceState? currentState)
+    {
+        lock (gate)
+        {
+            return sessionHistory.Snapshot(currentState);
         }
     }
 
@@ -661,6 +672,8 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingContainerEditUndo = null;
             pendingReferenceBatchAdditionUndo = null;
             pendingContainerLayoutPublication = null;
+            pendingSessionHistoryNavigation = null;
+            sessionHistory.Invalidate("工作区已加载新的外部修订");
             return editRevision;
         }
     }
@@ -1315,6 +1328,25 @@ public sealed class ProductWorkspaceCommitCoordinator
             }
 
             editRevision = nextEditRevision;
+            if (request.TrackUndo
+                && TryDescribeSessionHistoryAction(
+                    request,
+                    target,
+                    edit.State!,
+                    out ProductWorkspaceSessionHistoryActionKind historyKind,
+                    out string historyActionText,
+                    out string historyTargetName))
+            {
+                _ = sessionHistory.Record(
+                    state,
+                    edit.State!,
+                    historyKind,
+                    historyActionText,
+                    historyTargetName,
+                    targetCount: 1,
+                    DateTimeOffset.UtcNow,
+                    Guid.NewGuid());
+            }
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = null;
             pendingReferenceReassignmentUndo = null;
@@ -1325,6 +1357,7 @@ public sealed class ProductWorkspaceCommitCoordinator
                 ? null
                 : new(editUndoToken, state);
             pendingReferenceBatchAdditionUndo = null;
+            pendingSessionHistoryNavigation = null;
             return new(
                 ProductWorkspaceContainerCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -1359,6 +1392,186 @@ public sealed class ProductWorkspaceCommitCoordinator
                 ProductWorkspaceContainerEditUndoKind.ReferenceOrder,
             _ => null,
         };
+
+    private static bool TryDescribeSessionHistoryAction(
+        ProductWorkspaceContainerCommitRequest request,
+        ProductContainerState? previousTarget,
+        ProductWorkspaceState editedState,
+        out ProductWorkspaceSessionHistoryActionKind kind,
+        out string actionText,
+        out string targetName)
+    {
+        kind = default;
+        actionText = string.Empty;
+        targetName = string.Empty;
+        ProductContainerState? editedTarget = request.Action ==
+            ProductWorkspaceContainerCommitAction.Create
+                ? editedState.Containers.Count == 0
+                    ? null
+                    : editedState.Containers[^1]
+                : previousTarget is null
+                    ? null
+                    : editedState.Containers.FirstOrDefault(container =>
+                        string.Equals(
+                            container.Id,
+                            previousTarget.Id,
+                            StringComparison.Ordinal));
+        if (editedTarget is null)
+        {
+            return false;
+        }
+
+        targetName = editedTarget.Name;
+        (kind, actionText) = request.Action switch
+        {
+            ProductWorkspaceContainerCommitAction.Create =>
+                (ProductWorkspaceSessionHistoryActionKind.Create, "创建方格"),
+            ProductWorkspaceContainerCommitAction.Rename =>
+                (ProductWorkspaceSessionHistoryActionKind.Rename, "重命名方格"),
+            ProductWorkspaceContainerCommitAction.SetLocked =>
+                (ProductWorkspaceSessionHistoryActionKind.Locked,
+                    request.StateValue == true ? "锁定方格" : "解锁方格"),
+            ProductWorkspaceContainerCommitAction.SetCollapsed =>
+                (ProductWorkspaceSessionHistoryActionKind.Collapsed,
+                    request.StateValue == true ? "折叠方格" : "展开方格"),
+            ProductWorkspaceContainerCommitAction.SetAppearancePreset =>
+                (ProductWorkspaceSessionHistoryActionKind.Appearance, "调整方格外观"),
+            _ => default,
+        };
+        return request.Action is ProductWorkspaceContainerCommitAction.Create
+            or ProductWorkspaceContainerCommitAction.Rename
+            or ProductWorkspaceContainerCommitAction.SetLocked
+            or ProductWorkspaceContainerCommitAction.SetCollapsed
+            or ProductWorkspaceContainerCommitAction.SetAppearancePreset;
+    }
+
+    public ProductWorkspaceSessionHistoryCommitResult CommitSessionHistoryNavigation(
+        ProductWorkspaceState state,
+        ProductWorkspaceSessionHistoryDirection direction)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        lock (gate)
+        {
+            ProductWorkspaceSessionHistory.NavigationPlan? plan =
+                sessionHistory.Prepare(state, direction, out var failure);
+            if (plan is null)
+            {
+                return SessionHistoryFailure(failure, direction);
+            }
+
+            ProductWorkspaceProjectionResult projection =
+                ProductWorkspaceConfigurationProjector.Project(plan.ToState);
+            if (!projection.IsSuccess)
+            {
+                return SessionHistoryFailure(
+                    ProductWorkspaceSessionHistoryNavigationStatus.InvalidState,
+                    direction,
+                    ProductWorkspaceSaveSubmissionStatus.InvalidState);
+            }
+
+            var edit = new ProductWorkspaceEditResult(
+                ProductWorkspaceEditError.None,
+                ProductWorkspaceProjectionError.None,
+                ProductConfigurationError.None,
+                plan.ToState,
+                Changed: true);
+            ProductWorkspaceSaveSubmissionResult submission = saves.Submit(edit);
+            if (!submission.IsAccepted)
+            {
+                return SessionHistoryFailure(
+                    ProductWorkspaceSessionHistoryNavigationStatus.SaveRejected,
+                    direction,
+                    submission.Status);
+            }
+
+            ProductWorkspaceSessionHistoryNavigationToken token =
+                sessionHistory.Accept(plan);
+            editRevision = checked(editRevision + 1);
+            pendingLayoutRecoveryUndo = null;
+            pendingReferenceRemovalUndo = null;
+            pendingReferenceReassignmentUndo = null;
+            pendingContainerRemovalUndo = null;
+            pendingContainerEditUndo = null;
+            pendingReferenceBatchAdditionUndo = null;
+            pendingContainerLayoutPublication = null;
+            pendingSessionHistoryNavigation = new(token, plan);
+            return new(
+                ProductWorkspaceSessionHistoryNavigationStatus.Accepted,
+                submission.Status,
+                direction,
+                editRevision,
+                plan.ToState,
+                projection.Document,
+                token);
+        }
+    }
+
+    public ProductWorkspaceSessionHistoryCommitResult
+        CompensateSessionHistoryNavigation(
+            ProductWorkspaceState state,
+            ProductWorkspaceSessionHistoryNavigationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(token);
+        lock (gate)
+        {
+            PendingSessionHistoryNavigation? pending =
+                pendingSessionHistoryNavigation;
+            if (saves.Snapshot.Status != ProductWorkspaceSaveStatus.Failed
+                || pending is null
+                || pending.Token != token
+                || !sessionHistory.TryPrepareCompensation(
+                    state,
+                    token,
+                    pending.Plan,
+                    out ProductWorkspaceState? restoreState)
+                || restoreState is null)
+            {
+                return SessionHistoryFailure(
+                    ProductWorkspaceSessionHistoryNavigationStatus
+                        .CurrentConfigurationChanged,
+                    token.Direction);
+            }
+
+            ProductWorkspaceProjectionResult projection =
+                ProductWorkspaceConfigurationProjector.Project(restoreState);
+            if (!projection.IsSuccess)
+            {
+                return SessionHistoryFailure(
+                    ProductWorkspaceSessionHistoryNavigationStatus.InvalidState,
+                    token.Direction,
+                    ProductWorkspaceSaveSubmissionStatus.InvalidState);
+            }
+
+            var edit = new ProductWorkspaceEditResult(
+                ProductWorkspaceEditError.None,
+                ProductWorkspaceProjectionError.None,
+                ProductConfigurationError.None,
+                restoreState,
+                Changed: true);
+            ProductWorkspaceSaveSubmissionResult submission = saves.Submit(edit);
+            if (!submission.IsAccepted)
+            {
+                return SessionHistoryFailure(
+                    ProductWorkspaceSessionHistoryNavigationStatus.SaveRejected,
+                    token.Direction,
+                    submission.Status);
+            }
+
+            sessionHistory.AcceptCompensation(token);
+            editRevision = checked(editRevision + 1);
+            pendingSessionHistoryNavigation = null;
+            return new(
+                ProductWorkspaceSessionHistoryNavigationStatus.Accepted,
+                submission.Status,
+                token.Direction,
+                editRevision,
+                restoreState,
+                projection.Document,
+                token,
+                IsCompensation: true);
+        }
+    }
 
     public ProductWorkspaceContainerRemovalUndoCommitResult
         CommitContainerRemovalUndo(
@@ -2553,6 +2766,10 @@ public sealed class ProductWorkspaceCommitCoordinator
         ProductContainerPlacementState OriginalPlacement,
         ProductContainerPlacementState CommittedPlacement);
 
+    private sealed record PendingSessionHistoryNavigation(
+        ProductWorkspaceSessionHistoryNavigationToken Token,
+        ProductWorkspaceSessionHistory.NavigationPlan Plan);
+
     public static string ResolveColor(ProductWorkspaceContainerColorPreset preset) =>
         preset switch
         {
@@ -2684,6 +2901,19 @@ public sealed class ProductWorkspaceCommitCoordinator
             editError,
             submissionStatus,
             editRevision,
+            null,
+            null);
+
+    private ProductWorkspaceSessionHistoryCommitResult SessionHistoryFailure(
+        ProductWorkspaceSessionHistoryNavigationStatus status,
+        ProductWorkspaceSessionHistoryDirection direction,
+        ProductWorkspaceSaveSubmissionStatus? submissionStatus = null) =>
+        new(
+            status,
+            submissionStatus,
+            direction,
+            editRevision,
+            null,
             null,
             null);
 

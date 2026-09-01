@@ -60,6 +60,7 @@ public partial class App : Application
         ProductWorkspaceSessionSnapshot.Initial;
     private ProductConfigurationLoadResult? currentConfigurationLoadResult;
     private PendingControlCenterContainerEdit? pendingControlCenterContainerEdit;
+    private PendingSessionHistorySave? pendingSessionHistorySave;
     private MainWindow? window;
     private bool closeAfterDrain;
     private bool closingDrainInProgress;
@@ -254,6 +255,7 @@ public partial class App : Application
             CommitProductWorkspaceContainerFolderSort,
             CommitProductWorkspaceContainerRemovalUndo,
             CommitProductWorkspaceContainerEditUndo,
+            CommitProductWorkspaceSessionHistory,
             CommitProductWorkspaceLayoutRecovery,
             CommitProductWorkspaceLayoutRecoveryUndo);
         productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
@@ -2109,6 +2111,10 @@ public partial class App : Application
                 workspaceCommits.CurrentReferenceRemovalUndoToken,
                 workspaceCommits.CurrentReferenceReassignmentUndoToken,
                 workspaceCommits.CurrentContainerEditUndoToken));
+        currentWindow.ApplyProductWorkspaceSessionHistory(
+            ProductWorkspaceSessionHistoryPresentation.Create(
+                workspaceCommits.GetSessionHistorySnapshot(
+                    productWorkspaceSession.State)));
         ApplyProductWorkspaceReferenceReview();
     }
 
@@ -3657,6 +3663,46 @@ public partial class App : Application
         return result;
     }
 
+    private ProductWorkspaceSessionHistoryCommitResult
+        CommitProductWorkspaceSessionHistory(
+            ProductWorkspaceSessionHistoryDirection direction)
+    {
+        ProductWorkspaceState? state = productWorkspaceSession.State;
+        if (state is null || productWorkspaceSession.IsReadOnly)
+        {
+            return new(
+                ProductWorkspaceSessionHistoryNavigationStatus.InvalidState,
+                null,
+                direction,
+                workspaceCommits.CurrentEditRevision,
+                null,
+                null,
+                null);
+        }
+
+        ProductWorkspaceSessionHistoryCommitResult result =
+            workspaceCommits.CommitSessionHistoryNavigation(
+                StampAuthoritativeDisplayTopology(state),
+                direction);
+        if (result.IsAccepted)
+        {
+            pendingControlCenterContainerEdit = null;
+            pendingSessionHistorySave = new(
+                result.NavigationToken!,
+                result.EditRevision,
+                productWorkspaceSaves.Snapshot.CurrentRevision);
+            ApplyAcceptedProductWorkspaceDocument(
+                result.Document!,
+                productDesktopCatalog.Snapshot);
+        }
+        else
+        {
+            ApplyProductWorkspaceSessionViews();
+        }
+
+        return result;
+    }
+
     private void ApplyAcceptedProductWorkspaceDocument(
         ProductConfigurationDocument document,
         ProductDesktopCatalogSnapshot catalog)
@@ -4190,6 +4236,42 @@ public partial class App : Application
         MainWindow currentWindow,
         ProductWorkspaceSaveSnapshot snapshot)
     {
+        if (pendingSessionHistorySave is { } pendingHistory)
+        {
+            if (snapshot.Status == ProductWorkspaceSaveStatus.Saved
+                && snapshot.SavedRevision == pendingHistory.SaveRevision)
+            {
+                pendingSessionHistorySave = null;
+            }
+            else if (snapshot.Status == ProductWorkspaceSaveStatus.Failed
+                && snapshot.CurrentRevision == pendingHistory.SaveRevision
+                && workspaceCommits.CurrentEditRevision ==
+                    pendingHistory.EditRevision
+                && productWorkspaceSession.State is { } failedHistoryState)
+            {
+                pendingSessionHistorySave = null;
+                ProductWorkspaceSessionHistoryCommitResult compensation =
+                    workspaceCommits.CompensateSessionHistoryNavigation(
+                        failedHistoryState,
+                        pendingHistory.Token);
+                if (compensation.IsAccepted)
+                {
+                    ApplyAcceptedProductWorkspaceDocument(
+                        compensation.Document!,
+                        productDesktopCatalog.Snapshot);
+                    currentWindow.ApplyProductWorkspaceSaveState(
+                        productWorkspaceSaves.Snapshot);
+                    return;
+                }
+            }
+            else if (workspaceCommits.CurrentEditRevision !=
+                    pendingHistory.EditRevision
+                || snapshot.CurrentRevision != pendingHistory.SaveRevision)
+            {
+                pendingSessionHistorySave = null;
+            }
+        }
+
         if (pendingControlCenterContainerEdit is { } pendingEdit)
         {
             if (snapshot.Status == ProductWorkspaceSaveStatus.Saved
@@ -4346,6 +4428,11 @@ public partial class App : Application
 
     private sealed record PendingControlCenterContainerEdit(
         ProductWorkspaceContainerEditUndoToken Token,
+        long EditRevision,
+        long SaveRevision);
+
+    private sealed record PendingSessionHistorySave(
+        ProductWorkspaceSessionHistoryNavigationToken Token,
         long EditRevision,
         long SaveRevision);
 

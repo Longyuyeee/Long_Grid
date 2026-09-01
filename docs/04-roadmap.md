@@ -8,7 +8,9 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源。PF-009A/B 工程收口与 PF-010A 接续点见 [Stage 264](264-pf009b-desktop-search-navigation-audit.md)，换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)。当前唯一主开发项为 PF-010A；#23/#274、完整 Runtime、签名包、独占可丢弃 Windows 会话和 Stage 216 Guest 准入作为 BOX/M1/TASKBAR 并行门禁，不再冻结安全边界内的产品功能开发。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源。PF-010A 工程收口与 PF-010B 接续点见 [Stage 265](265-pf010a-unified-session-history-audit.md)，换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)。当前唯一主开发项为 PF-010B；#23/#274、完整 Runtime、签名包、独占可丢弃 Windows 会话和 Stage 216 Guest 准入作为 BOX/M1/TASKBAR 并行门禁，不再冻结安全边界内的产品功能开发。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+
+2026-09-01 Stage 265 PF-010A 统一会话历史：创建、重命名、锁定、折叠与外观进入统一 50 步 cursor 历史，支持 Ctrl+Z/Ctrl+Y、redo 分支截断、外部变化失效原因和保存失败补偿。初始连续编辑精确失败为 Rename token 被 Collapsed token 覆盖；修正后五类动作分别完成 apply→undo→redo→undo，51 步只淘汰最旧项。真实 Store 重载与 Unicode 文件 SHA-256 不变；专项 `12/12`、完整 `1,438/1,438`、Release 0 warning/error、211-ID 合同通过。PF-010A 工程收口但物理产品证据 Pending，唯一接续点为 PF-010B，详见 [Stage 265](265-pf010a-unified-session-history-audit.md)。
 
 2026-09-01 Stage 264 PF-009B 桌面搜索导航：控制中心或主显示器桌面“搜”按钮可打开独立浮层，以键盘输入、上下移动、Enter 显示、Escape 关闭，并可复用既有打开/资源管理器定位链。第 20 个真实 Unicode 文件的初始投影精确失败为折叠未展开；修正后 viewport start=8、临时展开四秒并高亮 `item:20`，真实 HWND 接受投影且 20 个文件 SHA-256 不变。专项 `5/5`、完整 `1,426/1,426`、Release 0 warning/error、208-ID 合同通过；PF-009 工程收口但产品物理证据 Pending，唯一接续点为 PF-010A，详见 [Stage 264](264-pf009b-desktop-search-navigation-audit.md)。
 

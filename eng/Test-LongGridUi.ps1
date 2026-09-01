@@ -87,6 +87,10 @@ $latestUndoSelectorCodePath = Join-Path $projectRoot `
     'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceLatestUndoSelector.cs'
 $latestUndoPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceLatestUndoPresentation.cs'
+$workspaceSessionHistoryCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\Configuration\ProductWorkspaceSessionHistory.cs'
+$workspaceSessionHistoryPresentationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\ProductWorkspaceSessionHistoryPresentation.cs'
 $referenceBatchAdditionUndoCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceReferenceBatchAdditionUndo.cs'
 $layoutRecoveryPreviewCodePath = Join-Path $projectRoot `
@@ -407,6 +411,14 @@ function Test-SourceContract {
         -LiteralPath $latestUndoPresentationCodePath `
         -Raw `
         -Encoding UTF8
+    $workspaceSessionHistoryCode = Get-Content `
+        -LiteralPath $workspaceSessionHistoryCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceSessionHistoryPresentationCode = Get-Content `
+        -LiteralPath $workspaceSessionHistoryPresentationCodePath `
+        -Raw `
+        -Encoding UTF8
     $referenceBatchAdditionUndoCode = Get-Content `
         -LiteralPath $referenceBatchAdditionUndoCodePath `
         -Raw `
@@ -717,6 +729,9 @@ function Test-SourceContract {
         'OverviewRecentActionCard',
         'OverviewRecentActionDetail',
         'OverviewLatestUndoButton',
+        'ProductWorkspaceHistoryUndoButton',
+        'ProductWorkspaceHistoryRedoButton',
+        'ProductWorkspaceHistoryList',
         'PersonalizationPageHeader',
         'SettingsPageHeader',
         'ConfigurationRecoveryActionButton',
@@ -1061,11 +1076,8 @@ function Test-SourceContract {
         'The anonymous practice-container name must remain bounded to 40 characters.'
     $undoNode = Get-XamlNodeByAutomationId $document 'UndoPracticeContainerButton'
     $undoAccelerator = $undoNode.SelectSingleNode(".//*[local-name()='KeyboardAccelerator']")
-    Assert-Condition (
-        $null -ne $undoAccelerator -and
-        $undoAccelerator.GetAttribute('Key') -eq 'Z' -and
-        $undoAccelerator.GetAttribute('Modifiers') -eq 'Control'
-    ) 'The anonymous container undo action must keep its Ctrl+Z accelerator.'
+    Assert-Condition ($null -eq $undoAccelerator) `
+        'The anonymous practice must not compete with formal session-history Ctrl+Z.'
     Assert-Condition (-not ($document.OuterXml -match 'AllowDrop')) `
         'The semantic practice must not masquerade as an Explorer drop target.'
 
@@ -1137,6 +1149,46 @@ function Test-SourceContract {
         $codeBehind.Contains('_commitProductWorkspaceReferenceReassignmentUndo(token, true)') -and
         $appCode.Contains('ApplyProductWorkspaceLatestUndo(')
     ) 'Latest workspace edit undo must fail closed and reuse every audited token/commit path.'
+
+    $historyUndoNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceHistoryUndoButton'
+    $historyRedoNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceHistoryRedoButton'
+    $historyListNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceHistoryList'
+    $historyUndoAccelerator = $historyUndoNode.SelectSingleNode(
+        ".//*[local-name()='KeyboardAccelerator']")
+    $historyRedoAccelerator = $historyRedoNode.SelectSingleNode(
+        ".//*[local-name()='KeyboardAccelerator']")
+    Assert-Condition (
+        $historyUndoNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $historyUndoNode.GetAttribute('Click') -eq `
+            'ProductWorkspaceHistoryUndoButton_Click' -and
+        $historyRedoNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $historyRedoNode.GetAttribute('Click') -eq `
+            'ProductWorkspaceHistoryRedoButton_Click' -and
+        $historyListNode.GetAttribute('SelectionMode') -eq 'None' -and
+        $historyUndoAccelerator.GetAttribute('Key') -eq 'Z' -and
+        $historyUndoAccelerator.GetAttribute('Modifiers') -eq 'Control' -and
+        $historyRedoAccelerator.GetAttribute('Key') -eq 'Y' -and
+        $historyRedoAccelerator.GetAttribute('Modifiers') -eq 'Control'
+    ) 'Session history must expose finite disabled defaults and explicit undo/redo commands.'
+    Assert-Condition (
+        $workspaceSessionHistoryCode.Contains('MaximumCapacity = 50') -and
+        $workspaceSessionHistoryCode.Contains('entries.RemoveRange(cursor') -and
+        $workspaceSessionHistoryCode.Contains('TryPrepareCompensation') -and
+        $workspaceSessionHistoryPresentationCode.Contains(
+            '不会删除或移动真实文件') -and
+        $referenceCommitCode.Contains('CommitSessionHistoryNavigation(') -and
+        $referenceCommitCode.Contains('CompensateSessionHistoryNavigation(') -and
+        $appCode.Contains('pendingSessionHistorySave') -and
+        $appCode.Contains('GetSessionHistorySnapshot(') -and
+        $codeBehind.Contains('ProductWorkspaceSessionHistoryDirection.Undo') -and
+        $codeBehind.Contains('ProductWorkspaceSessionHistoryDirection.Redo')
+    ) 'Session history must bind 50-step branching navigation, save compensation, UI state, and the no-file-mutation boundary.'
 
     $layoutRecoveryDetailNode = Get-XamlNodeByAutomationId `
         $document `
@@ -4066,6 +4118,7 @@ function Test-SourceContract {
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-shared-item-results-desktop-overlay-keyboard-reveal-open-locate-revision-display-kind-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-drag-bounds-inline-preview-fallback-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
+        productWorkspaceSessionHistory = 'bounded-50-create-rename-lock-collapse-appearance-undo-redo-branch-truncate-save-compensate-config-only'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'
