@@ -8,7 +8,9 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源。PF-008B 类型/修改时间稳定排序与 PF-008C 接续点见 [Stage 261](261-pf008b-type-modified-sort-audit.md)，PF-008A 见 [Stage 260](260-pf008a-view-density-continuous-scroll-audit.md)，换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)。当前唯一主开发项为 PF-008C；#23/#274、完整 Runtime、签名包、独占可丢弃 Windows 会话和 Stage 216 Guest 准入作为 BOX/M1/TASKBAR 并行门禁，不再冻结安全边界内的产品功能开发。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源。PF-008A～C 工程收口与 PF-009A 接续点见 [Stage 262](262-pf008c-custom-reference-order-audit.md)，换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)。当前唯一主开发项为 PF-009A；#23/#274、完整 Runtime、签名包、独占可丢弃 Windows 会话和 Stage 216 Guest 准入作为 BOX/M1/TASKBAR 并行门禁，不再冻结安全边界内的产品功能开发。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+
+2026-09-01 Stage 262 PF-008C 自定义引用顺序：控制中心单选持久化引用后可预览并相邻上移/下移，确认才经正式 revision/reducer/原子保存提交；`BoundFolder` 临时内容排除。真实 Unicode 文件成功重载与独占写租约失败补偿均通过，文件路径、数量和 SHA-256 不变；专项 `53/53`、完整 `1,416/1,416`、Release 0 warning/error、200-ID 合同通过。PF-008A～C 工程收口但物理产品证据仍 Pending，30 项 PF 保持 `0 Complete`；唯一接续点切换到 PF-009A，详见 [Stage 262](262-pf008c-custom-reference-order-audit.md)。
 
 2026-08-31 Stage 243 复验补充：setup-dotnet v6 合并后的 main format 宿主发现竞态已改为绝对 SDK host 与一次精确错误重试；PR 文档提交又真实暴露原生 UIA 证据菜单未退出并被 2 分钟 watchdog 终止。内部证据入口现以独立计时器向真实窗口投递 `WM_CANCELMODE`，正式产品菜单不变；CI 在完整真实进程测试前关闭 MSBuild/Roslyn server，产品缩略图 1.5 秒预算不放宽。本机精确 UIA 场景修正前/后各 `10/10`；PR #316 与合并后 `main@e0231d1` 均完整通过，main 为 `1,395/1,395`、coverage `90.14%/76.03%`、双语言 CodeQL open alerts=0。Stage 243 已关闭。
 

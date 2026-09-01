@@ -102,6 +102,88 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
     }
 
     [Fact]
+    public async Task ReferenceOrderCommitsAtomicallyAndCanBeUndoneExactlyOnce()
+    {
+        var workflow = new FakeWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        ProductWorkspaceState state = State(ReferenceContainer());
+        long revision = coordinator.AdvanceExternalRevision();
+
+        ProductWorkspaceContainerCommitResult moved = coordinator.CommitContainer(
+            state,
+            new(
+                ProductWorkspaceContainerCommitAction.MoveReferenceEarlier,
+                revision,
+                1,
+                string.Empty,
+                Confirmed: true,
+                ItemOrdinal: 3));
+        ProductWorkspaceContainerEditUndoCommitResult undone =
+            coordinator.CommitContainerEditUndo(
+                moved.State!,
+                moved.EditUndoToken!,
+                confirmed: true);
+        ProductWorkspaceContainerEditUndoCommitResult secondUndo =
+            coordinator.CommitContainerEditUndo(
+                undone.State!,
+                moved.EditUndoToken!,
+                confirmed: true);
+
+        Assert.True(moved.IsAccepted);
+        Assert.Equal(
+            ["item-1", "item-3", "item-2"],
+            moved.State!.Containers[0].Items.Select(item => item.Id));
+        Assert.Equal(
+            ProductWorkspaceContainerEditUndoKind.ReferenceOrder,
+            moved.EditUndoToken!.Kind);
+        Assert.True(undone.IsAccepted);
+        Assert.Equal(
+            ["item-1", "item-2", "item-3"],
+            undone.State!.Containers[0].Items.Select(item => item.Id));
+        Assert.Equal(
+            ProductWorkspaceContainerEditUndoStatus.Unavailable,
+            secondUndo.UndoStatus);
+    }
+
+    [Fact]
+    public async Task ReferenceOrderFailureCanBeCompensatedToTheOriginalOrder()
+    {
+        var workflow = new FailOnceWorkflow();
+        await using ProductWorkspaceSaveController saves = CreateSaves(workflow);
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        ProductWorkspaceState state = State(ReferenceContainer());
+        long revision = coordinator.AdvanceExternalRevision();
+
+        ProductWorkspaceContainerCommitResult moved = coordinator.CommitContainer(
+            state,
+            new(
+                ProductWorkspaceContainerCommitAction.MoveReferenceLater,
+                revision,
+                1,
+                string.Empty,
+                Confirmed: true,
+                ItemOrdinal: 1));
+        await WaitForStatusAsync(saves, ProductWorkspaceSaveStatus.Failed);
+        ProductWorkspaceContainerEditUndoCommitResult compensation =
+            coordinator.CommitContainerEditUndo(
+                moved.State!,
+                moved.EditUndoToken!,
+                confirmed: true);
+        ProductWorkspaceSaveCompletionResult completion =
+            await saves.CompleteAsync();
+
+        Assert.True(moved.IsAccepted);
+        Assert.Equal(ProductWorkspaceSaveFailure.IoFailure, workflow.FirstFailure);
+        Assert.True(compensation.IsAccepted);
+        Assert.Equal(
+            ["item-1", "item-2", "item-3"],
+            compensation.State!.Containers[0].Items.Select(item => item.Id));
+        Assert.Equal(ProductWorkspaceSaveCompletionStatus.Completed, completion.Status);
+        Assert.Equal(2, workflow.SaveCalls);
+    }
+
+    [Fact]
     public async Task ContainerCommitInvalidatesOpenReferenceReviewToken()
     {
         var workflow = new FakeWorkflow();
@@ -1183,6 +1265,42 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
             Items = Array.Empty<ProductItemReferenceState>(),
         };
 
+    private static ProductContainerState ReferenceContainer() =>
+        Container("container-1", "References") with
+        {
+            Items = Enumerable.Range(1, 3)
+                .Select(index => ProductItemReferenceState.CreateResolved(
+                    $"item-{index}",
+                    new DesktopCatalogEntry(
+                        new DesktopItemIdentity(
+                            "filesystem",
+                            Path.Combine(
+                                Path.GetTempPath(),
+                                "LongGrid.ReferenceOrder.Tests",
+                                $"项目-{index}.txt")),
+                        "user-desktop",
+                        $"项目-{index}.txt",
+                        DesktopItemKind.File)))
+                .ToArray(),
+        };
+
+    private static async Task WaitForStatusAsync(
+        ProductWorkspaceSaveController saves,
+        ProductWorkspaceSaveStatus expected)
+    {
+        for (int attempt = 0; attempt < 200; attempt++)
+        {
+            if (saves.Snapshot.Status == expected)
+            {
+                return;
+            }
+
+            await Task.Delay(5);
+        }
+
+        Assert.Equal(expected, saves.Snapshot.Status);
+    }
+
     private sealed class ImmediateScheduler : IProductWorkspaceSaveScheduler
     {
         public Task DelayAsync(
@@ -1219,6 +1337,50 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
                     ProductConfigurationSaveAttemptStatus.NoRetryAvailable,
                     null,
                     CanRetry: false));
+
+        public void DiscardRetry()
+        {
+        }
+
+        public Task CompleteAsync(CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+    }
+
+    private sealed class FailOnceWorkflow : IProductConfigurationSaveWorkflow
+    {
+        private int saveCalls;
+
+        public int SaveCalls => Volatile.Read(ref saveCalls);
+
+        public ProductWorkspaceSaveFailure FirstFailure { get; private set; } =
+            ProductWorkspaceSaveFailure.None;
+
+        public Task<ProductConfigurationSaveAttemptResult> SaveAsync(
+            ProductConfigurationDocument document,
+            CancellationToken cancellationToken = default)
+        {
+            int call = Interlocked.Increment(ref saveCalls);
+            if (call == 1)
+            {
+                FirstFailure = ProductWorkspaceSaveFailure.IoFailure;
+                return Task.FromResult(new ProductConfigurationSaveAttemptResult(
+                    ProductConfigurationSaveAttemptStatus.Failed,
+                    ProductConfigurationSaveError.IoFailure,
+                    CanRetry: true));
+            }
+
+            return Task.FromResult(new ProductConfigurationSaveAttemptResult(
+                ProductConfigurationSaveAttemptStatus.Saved,
+                null,
+                CanRetry: false));
+        }
+
+        public Task<ProductConfigurationSaveAttemptResult> RetryAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ProductConfigurationSaveAttemptResult(
+                ProductConfigurationSaveAttemptStatus.NoRetryAvailable,
+                null,
+                CanRetry: false));
 
         public void DiscardRetry()
         {

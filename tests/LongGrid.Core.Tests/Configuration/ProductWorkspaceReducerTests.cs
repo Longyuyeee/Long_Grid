@@ -197,6 +197,62 @@ public sealed class ProductWorkspaceReducerTests
     }
 
     [Fact]
+    public void ReferenceOrderMovesOneAdjacentItemAndFailsClosedAtBoundaries()
+    {
+        ProductWorkspaceState state = CreateState() with
+        {
+            Containers =
+            [
+                CreateState().Containers[0] with
+                {
+                    Items =
+                    [
+                        CreateItem("item-1", "First"),
+                        CreateItem("item-2", "Second"),
+                        CreateItem("item-3", "Third"),
+                    ],
+                },
+            ],
+        };
+
+        ProductWorkspaceEditResult moved = ProductWorkspaceReducer.MoveReference(
+            state,
+            "container-1",
+            "item-3",
+            -1);
+        ProductWorkspaceEditResult boundary = ProductWorkspaceReducer.MoveReference(
+            state,
+            "container-1",
+            "item-1",
+            -1);
+        ProductWorkspaceEditResult malformed = ProductWorkspaceReducer.MoveReference(
+            state,
+            "container-1",
+            "item-2",
+            2);
+        ProductWorkspaceEditResult locked = ProductWorkspaceReducer.MoveReference(
+            state with
+            {
+                Containers = [state.Containers[0] with { IsLocked = true }],
+            },
+            "container-1",
+            "item-2",
+            1);
+
+        Assert.True(moved.IsSuccess);
+        Assert.Equal(
+            ["item-1", "item-3", "item-2"],
+            moved.State!.Containers[0].Items.Select(item => item.Id));
+        Assert.Equal(
+            ["item-1", "item-2", "item-3"],
+            state.Containers[0].Items.Select(item => item.Id));
+        Assert.True(boundary.IsSuccess);
+        Assert.False(boundary.Changed);
+        Assert.Equal(ProductWorkspaceEditError.InvalidState, malformed.Error);
+        Assert.Equal(ProductWorkspaceEditError.ContainerLocked, locked.Error);
+    }
+
+    [Fact]
     public void MissingReferenceIsPreservedUnlessRemovalIsConfirmed()
     {
         ProductWorkspaceState state = CreateMissingState();

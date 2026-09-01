@@ -175,6 +175,65 @@ public static class ProductWorkspaceReducer
             });
     }
 
+    public static ProductWorkspaceEditResult MoveReference(
+        ProductWorkspaceState state,
+        string containerId,
+        string itemId,
+        int offset)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        if (offset is not (-1 or 1))
+        {
+            return Failure(ProductWorkspaceEditError.InvalidState);
+        }
+
+        ProductWorkspaceEditResult? preparation =
+            Prepare(state, out ProductWorkspaceState? snapshot);
+        if (preparation is not null)
+        {
+            return preparation;
+        }
+
+        int containerIndex = FindContainer(snapshot!, containerId);
+        if (containerIndex < 0)
+        {
+            return Failure(ProductWorkspaceEditError.ContainerNotFound);
+        }
+
+        ProductContainerState container = snapshot!.Containers[containerIndex];
+        if (container.IsLocked)
+        {
+            return Failure(ProductWorkspaceEditError.ContainerLocked);
+        }
+
+        int itemIndex = container.Items
+            .Select((item, index) => new { item.Id, Index = index })
+            .Where(candidate => string.Equals(
+                candidate.Id,
+                itemId,
+                StringComparison.Ordinal))
+            .Select(candidate => candidate.Index)
+            .DefaultIfEmpty(-1)
+            .Single();
+        if (itemIndex < 0)
+        {
+            return Failure(ProductWorkspaceEditError.ItemNotFound);
+        }
+
+        int targetIndex = itemIndex + offset;
+        if (targetIndex < 0 || targetIndex >= container.Items.Count)
+        {
+            return Validate(snapshot, changed: false);
+        }
+
+        ProductItemReferenceState[] items = container.Items.ToArray();
+        (items[itemIndex], items[targetIndex]) =
+            (items[targetIndex], items[itemIndex]);
+        ProductContainerState[] containers = snapshot.Containers.ToArray();
+        containers[containerIndex] = container with { Items = items };
+        return Validate(snapshot with { Containers = containers }, changed: true);
+    }
+
     public static ProductWorkspaceEditResult ReplaceReference(
         ProductWorkspaceState state,
         string containerId,

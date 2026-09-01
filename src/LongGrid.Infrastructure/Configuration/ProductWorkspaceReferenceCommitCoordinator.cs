@@ -37,6 +37,8 @@ public enum ProductWorkspaceContainerCommitAction
     SetPlacementPreset,
     BindFolder,
     UnbindFolder,
+    MoveReferenceEarlier,
+    MoveReferenceLater,
     Remove,
 }
 
@@ -99,7 +101,8 @@ public sealed record ProductWorkspaceContainerCommitRequest(
     ProductContainerTitleDoubleClickAction? TitleDoubleClickAction = null,
     bool TrackUndo = true,
     ProductContainerFolderBindingState? FolderBinding = null,
-    ProductContainerContentDensity? ContentDensity = null);
+    ProductContainerContentDensity? ContentDensity = null,
+    int ItemOrdinal = 0);
 
 public sealed record ProductWorkspaceContainerCommitResult(
     ProductWorkspaceContainerCommitStatus Status,
@@ -1029,7 +1032,12 @@ public sealed class ProductWorkspaceCommitCoordinator
             }
             bool hasTitleVisibility = request.TitleVisibility is not null;
             bool hasTitleDoubleClick = request.TitleDoubleClickAction is not null;
-            if (hasTitleVisibility != hasTitleDoubleClick
+            bool movesReference = request.Action is
+                ProductWorkspaceContainerCommitAction.MoveReferenceEarlier
+                or ProductWorkspaceContainerCommitAction.MoveReferenceLater;
+            if ((movesReference && request.ItemOrdinal <= 0)
+                || (!movesReference && request.ItemOrdinal != 0)
+                || hasTitleVisibility != hasTitleDoubleClick
                 || (request.ContentDensity is not null
                     && (request.Action !=
                             ProductWorkspaceContainerCommitAction.SetAppearancePreset
@@ -1191,6 +1199,28 @@ public sealed class ProductWorkspaceCommitCoordinator
                         state,
                         target.Id,
                         null),
+                ProductWorkspaceContainerCommitAction.MoveReferenceEarlier
+                    or ProductWorkspaceContainerCommitAction.MoveReferenceLater
+                    when request.NewContainer is null
+                        && request.StateValue is null
+                        && request.ColorPreset is null
+                        && request.OpacityPreset is null
+                        && request.PositionPreset is null
+                        && request.SizePreset is null
+                        && request.FolderBinding is null
+                        && string.IsNullOrEmpty(request.Name)
+                        && request.Confirmed
+                        && target is not null
+                        && request.ItemOrdinal > 0
+                        && request.ItemOrdinal <= target.Items.Count =>
+                    ProductWorkspaceReducer.MoveReference(
+                        state,
+                        target.Id,
+                        target.Items[request.ItemOrdinal - 1].Id,
+                        request.Action ==
+                            ProductWorkspaceContainerCommitAction.MoveReferenceEarlier
+                                ? -1
+                                : 1),
                 ProductWorkspaceContainerCommitAction.Remove
                     when request.NewContainer is null
                         && request.StateValue is null
@@ -1324,6 +1354,9 @@ public sealed class ProductWorkspaceCommitCoordinator
             ProductWorkspaceContainerCommitAction.BindFolder
                 or ProductWorkspaceContainerCommitAction.UnbindFolder =>
                 ProductWorkspaceContainerEditUndoKind.FolderBinding,
+            ProductWorkspaceContainerCommitAction.MoveReferenceEarlier
+                or ProductWorkspaceContainerCommitAction.MoveReferenceLater =>
+                ProductWorkspaceContainerEditUndoKind.ReferenceOrder,
             _ => null,
         };
 

@@ -814,6 +814,8 @@ function Test-SourceContract {
         'ProductWorkspaceResolvedReferenceRemovalSelector',
         'ProductWorkspaceResolvedReferenceSelectContainerBatchButton',
         'ProductWorkspaceResolvedReferenceRemovalClearSelectionButton',
+        'ProductWorkspaceReferenceMoveEarlierButton',
+        'ProductWorkspaceReferenceMoveLaterButton',
         'ProductWorkspaceSelectedReferenceCreateButton',
         'ProductWorkspaceResolvedReferenceReassignmentTargetSelector',
         'ProductWorkspaceResolvedReferenceRemovalButton',
@@ -1487,6 +1489,10 @@ function Test-SourceContract {
                 'ProductWorkspaceResolvedReferenceRemovalButton_Click'
             ProductWorkspaceResolvedReferenceRemovalUndoButton =
                 'ProductWorkspaceResolvedReferenceRemovalUndoButton_Click'
+            ProductWorkspaceReferenceMoveEarlierButton =
+                'ProductWorkspaceReferenceMoveEarlierButton_Click'
+            ProductWorkspaceReferenceMoveLaterButton =
+                'ProductWorkspaceReferenceMoveLaterButton_Click'
         }.GetEnumerator()) {
         $node = Get-XamlNodeByAutomationId $document $entry.Key
         Assert-Condition (
@@ -1494,6 +1500,18 @@ function Test-SourceContract {
             $node.GetAttribute('Click') -eq $entry.Value
         ) "Resolved-reference removal action '$($entry.Key)' must start disabled and use its audited handler."
     }
+    Assert-Condition (
+        $codeBehind -match 'MoveSelectedProductWorkspaceReferenceAsync' -and
+        $codeBehind -match '预览：引用上移一位' -and
+        $codeBehind -match '只改变 Long方格引用顺序，不移动真实文件' -and
+        $workspaceReducerCode -match 'MoveReference' -and
+        $referenceCommitCode -match 'MoveReferenceEarlier' -and
+        $referenceCommitCode -match 'ReferenceOrder' -and
+        $resolvedReferenceRemovalPresentationCode -match `
+            'ProductWorkspaceReadItemSource.Reference' -and
+        $appCode -match 'CommitProductWorkspaceReferenceOrder' -and
+        $appCode -match 'pendingControlCenterContainerEdit'
+    ) 'PF-008C must preview adjacent persisted-reference order, use the formal atomic commit/undo chain, and retain save-failure compensation.'
     $resolvedReferenceRemovalStatusNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceResolvedReferenceRemovalStatus'
