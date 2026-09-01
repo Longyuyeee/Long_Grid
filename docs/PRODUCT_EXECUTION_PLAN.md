@@ -1,12 +1,12 @@
 # Long方格产品重对齐与统一开发计划
 
-版本：3.7
+版本：3.8
 
 状态：Required / 当前唯一执行计划
 
 更新日期：2026-09-01
 
-代码审计输入基线：PF-010A 分支基于 `origin/main@3ccaca8`；统一会话历史、50 步撤销/重做与 PF-010B 唯一接续边界见 [Stage 265](265-pf010a-unified-session-history-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
+代码审计输入基线：PF-010B1 基于 `origin/main@5a21fc9` 完成统一历史动作广度；真实文件系统证据、完成边界与 PF-010B2 唯一接续点见 [Stage 266](266-pf010b1-unified-history-action-breadth-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -267,7 +267,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**PF-010B 统一历史动作广度与重启恢复点（FunctionFirst / InProgress）**。PF-010A 已完成统一 history item/cursor、50 步 undo/redo、redo 分支截断、创建/重命名/锁定/折叠/外观首批动作、正式历史 UI 与保存失败补偿；真实配置 Store 和 Unicode 文件 SHA-256 不变，正式 App 跨进程物理证据保持 Pending。下一步把删除、布局、文件夹绑定和引用批量动作迁入同一历史，并定义重启后最近一次安全恢复点。BOX-R1-C/D 与 TASKBAR-R2B1-B 继续作为并行外部门禁，不冻结 PF-010B。最新精确基准见 [Stage 265](265-pf010a-unified-session-history-audit.md)。
+当前执行项：**PF-010B2 重启后最近一次安全恢复点（FunctionFirst / InProgress）**。PF-010B1 已把删除、布局、文件夹绑定/解绑、引用单个/批量增删、批量改归属、自定义顺序和布局恢复迁入同一 50 步历史；批量一步、真实目录/Unicode 文件零修改及 Failed-save 历史补偿通过。PF-010B 尚未整体完成，下一步只定义并实现重启后最近一次已保存安全配置点；规则应用、旧 LatestUndo UI 收敛和物理证据继续如实 Pending。BOX-R1-C/D 与 TASKBAR-R2B1-B 作为并行外部门禁，不冻结 PF-010B2。最新精确基准见 [Stage 266](266-pf010b1-unified-history-action-breadth-audit.md)。
 
 严格按下列顺序交付，不再插入非当前队列的相邻探针或功能：
 
@@ -281,7 +281,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 8. **PF-007A2 / PF-007B（EngineeringComplete / RealHwndPass / ProductEvidencePending）**：A2 已完成正式 HWND OLE DropTarget 和安全 Link 引用提交；B 已完成盒子间改归属、无效目标、失败补偿和一次撤销。
 9. **PF-008（A～C EngineeringComplete / ProductEvidencePending）**：两档密度、连续滚动、类型/时间排序和配置引用自定义顺序已通过真实 HWND/文件系统、保存失败补偿和一次撤销；物理鼠标、键盘、Narrator、触控和截图证据待集中完成。
 10. **PF-009（A/B EngineeringComplete / ProductEvidencePending）**：共用查询、类型/健康/显示器筛选、正式结果、桌面浮层、临时展开/滚动/高亮与打开/定位均已完成；查询不读取文件内容。
-11. **PF-010（A EngineeringComplete / B 当前主队列）/ PF-011（Queued）**：PF-010A 已完成统一会话历史、50 步 undo/redo 和首批五类动作；PF-010B 扩展删除、布局、文件夹与引用动作并补重启恢复点，PF-010 未收口前不并行 PF-011。
+11. **PF-010（A/B1 EngineeringComplete / B2 当前主队列）/ PF-011（Queued）**：PF-010A 已完成统一会话历史、50 步 undo/redo 和首批五类动作；PF-010B1 已扩展删除、布局、文件夹与引用动作，PF-010B2 只补重启安全恢复点，PF-010 未收口前不并行 PF-011。
 12. **M1 产品证据冲刺（ExternalEnvironmentBlocked / ParallelGate）**：等待安全 WinUI 运行时、专用账户和可安装签名条件；条件具备时优先执行完整两分钟旅程，不降低出口。
 13. **TASKBAR-R1～R4（R2B1-B EnvironmentBlocked / ParallelGate）**：R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵；宿主禁止试写，但不阻塞 PF 主队列。
 
@@ -924,3 +924,7 @@ Core 查询模型同时覆盖盒子和项目，支持目标、类型、健康状
 ### 13.43 Stage 265：PF-010A 统一会话历史与 50 步撤销/重做
 
 创建、重命名、锁定/解锁、折叠/展开与外观进入统一 50 步 cursor 历史，支持 Ctrl+Z/Ctrl+Y、redo 分支截断、外部变化失效原因和保存失败补偿。初始连续编辑精确失败为 Rename token 被 Collapsed token 覆盖；修正后五类动作分别完成 apply→undo→redo→undo，51 步只淘汰最旧成功动作。真实 Store 重载与 Unicode 文件 SHA-256 不变；专项 `12/12`、完整 `1,438/1,438`、Release 0 warning/error、211-ID UI 合同通过。PF-010A 工程收口但产品物理证据 Pending；唯一接续点为 PF-010B，详见 [Stage 265](265-pf010a-unified-session-history-audit.md)。
+
+### 13.44 Stage 266：PF-010B1 统一历史动作广度
+
+删除、布局预设/拖动、文件夹绑定/解绑、引用单个/批量增删、批量改归属、自定义顺序和布局恢复进入同一 50 步历史；批量动作保持一步，Failed-save 兼容补偿同步撤回假成功历史。初始布局红测 Expected 为“调整方格布局”、Actual 为空集合；修正后专项 `20/20`、相关 `33/33`、完整 Release `1,447/1,447`。真实中文目录/文件旅程与 lease 失败补偿保持 SHA-256 和 sentinel 不变；Release 0 warning/error、211-ID UI 合同通过。PF-010B1 工程收口但 PF-010B 整体仍 InProgress；唯一接续点为 PF-010B2 重启后最近一次安全恢复点，详见 [Stage 266](266-pf010b1-unified-history-action-breadth-audit.md)。

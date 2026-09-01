@@ -8,6 +8,34 @@ namespace LongGrid.Core.Tests.Configuration;
 public sealed class ProductWorkspaceSessionHistoryIntegrationTests
 {
     [Fact]
+    public async Task PlacementEditAppearsInUnifiedHistory()
+    {
+        await using ProductWorkspaceSaveController saves = Saves(new Workflow());
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        ProductWorkspaceState state = State("Before");
+        long revision = coordinator.AdvanceExternalRevision();
+
+        ProductWorkspaceContainerCommitResult placement =
+            coordinator.CommitContainer(
+                state,
+                new(
+                    ProductWorkspaceContainerCommitAction.SetPlacementPreset,
+                    revision,
+                    1,
+                    string.Empty,
+                    PositionPreset:
+                        ProductWorkspaceContainerPositionPreset.OffsetTwo,
+                    SizePreset: ProductWorkspaceContainerSizePreset.Wide));
+        ProductWorkspaceSessionHistorySnapshot snapshot =
+            coordinator.GetSessionHistorySnapshot(placement.State);
+
+        Assert.True(placement.IsAccepted);
+        Assert.Contains(
+            snapshot.Items,
+            item => item.ActionText == "调整方格布局");
+    }
+
+    [Fact]
     public async Task ConsecutiveEditsSupportApplyUndoRedoUndo()
     {
         await using ProductWorkspaceSaveController saves = Saves(new Workflow());
@@ -91,15 +119,26 @@ public sealed class ProductWorkspaceSessionHistoryIntegrationTests
     [InlineData(ProductWorkspaceContainerCommitAction.SetLocked)]
     [InlineData(ProductWorkspaceContainerCommitAction.SetCollapsed)]
     [InlineData(ProductWorkspaceContainerCommitAction.SetAppearancePreset)]
+    [InlineData(ProductWorkspaceContainerCommitAction.Remove)]
+    [InlineData(ProductWorkspaceContainerCommitAction.SetPlacementPreset)]
+    [InlineData(ProductWorkspaceContainerCommitAction.MoveReferenceEarlier)]
+    [InlineData(ProductWorkspaceContainerCommitAction.MoveReferenceLater)]
     public async Task EachIncludedActionSupportsApplyUndoRedoUndo(
         ProductWorkspaceContainerCommitAction action)
     {
         await using ProductWorkspaceSaveController saves = Saves(new Workflow());
         var coordinator = new ProductWorkspaceCommitCoordinator(saves);
-        ProductWorkspaceState before = action ==
-            ProductWorkspaceContainerCommitAction.Create
-                ? EmptyState()
-                : State("Before");
+        ProductWorkspaceState before = action switch
+        {
+            ProductWorkspaceContainerCommitAction.Create => EmptyState(),
+            ProductWorkspaceContainerCommitAction.MoveReferenceEarlier
+                or ProductWorkspaceContainerCommitAction.MoveReferenceLater =>
+                State("Before") with
+                {
+                    Containers = [ReferenceContainer()],
+                },
+            _ => State("Before"),
+        };
         long revision = coordinator.AdvanceExternalRevision();
         ProductWorkspaceContainerCommitRequest request = action switch
         {
@@ -115,6 +154,19 @@ public sealed class ProductWorkspaceSessionHistoryIntegrationTests
                 new(action, revision, 1, string.Empty,
                     ColorPreset: ProductWorkspaceContainerColorPreset.Emerald,
                     OpacityPreset: ProductWorkspaceContainerOpacityPreset.Soft),
+            ProductWorkspaceContainerCommitAction.Remove =>
+                new(action, revision, 1, string.Empty, Confirmed: true),
+            ProductWorkspaceContainerCommitAction.SetPlacementPreset =>
+                new(action, revision, 1, string.Empty,
+                    PositionPreset:
+                        ProductWorkspaceContainerPositionPreset.OffsetTwo,
+                    SizePreset: ProductWorkspaceContainerSizePreset.Wide),
+            ProductWorkspaceContainerCommitAction.MoveReferenceEarlier =>
+                new(action, revision, 1, string.Empty,
+                    Confirmed: true, ItemOrdinal: 3),
+            ProductWorkspaceContainerCommitAction.MoveReferenceLater =>
+                new(action, revision, 1, string.Empty,
+                    Confirmed: true, ItemOrdinal: 1),
             _ => throw new ArgumentOutOfRangeException(nameof(action)),
         };
 
@@ -132,6 +184,60 @@ public sealed class ProductWorkspaceSessionHistoryIntegrationTests
         Assert.True(redo.IsAccepted);
         Assert.True(finalUndo.IsAccepted);
         Assert.Equal(Fingerprint(before), Fingerprint(finalUndo.State!));
+    }
+
+    [Fact]
+    public async Task RealFolderBindingAndUnbindingAreUnifiedHistoryActions()
+    {
+        string sandbox = Path.Combine(Path.GetTempPath(),
+            "LongGrid.SessionHistory.FolderBinding", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(sandbox);
+        try
+        {
+            await using ProductWorkspaceSaveController saves = Saves(new Workflow());
+            var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+            ProductWorkspaceState before = State("Folder");
+            long revision = coordinator.AdvanceExternalRevision();
+            ProductContainerFolderBindingState binding =
+                WindowsProductContainerFolderBinding.CreateResolved(
+                    WindowsProductContainerFolderBinding.Probe(sandbox));
+
+            ProductWorkspaceContainerCommitResult bound =
+                coordinator.CommitContainer(
+                    before,
+                    new(ProductWorkspaceContainerCommitAction.BindFolder,
+                        revision, 1, string.Empty, FolderBinding: binding));
+            ProductWorkspaceSessionHistoryCommitResult bindUndo = Navigate(
+                coordinator, bound.State!, ProductWorkspaceSessionHistoryDirection.Undo);
+            ProductWorkspaceSessionHistoryCommitResult bindRedo = Navigate(
+                coordinator, bindUndo.State!, ProductWorkspaceSessionHistoryDirection.Redo);
+            ProductWorkspaceContainerCommitResult unbound = coordinator.CommitContainer(
+                bindRedo.State!,
+                new(ProductWorkspaceContainerCommitAction.UnbindFolder,
+                    bindRedo.EditRevision, 1, string.Empty, Confirmed: true));
+            ProductWorkspaceSessionHistoryCommitResult unbindUndo = Navigate(
+                coordinator, unbound.State!, ProductWorkspaceSessionHistoryDirection.Undo);
+            ProductWorkspaceSessionHistoryCommitResult unbindRedo = Navigate(
+                coordinator, unbindUndo.State!, ProductWorkspaceSessionHistoryDirection.Redo);
+            ProductWorkspaceSessionHistoryCommitResult finalUndo = Navigate(
+                coordinator, unbindRedo.State!, ProductWorkspaceSessionHistoryDirection.Undo);
+
+            Assert.True(bound.IsAccepted);
+            Assert.Null(bindUndo.State!.Containers[0].FolderBinding);
+            Assert.NotNull(bindRedo.State!.Containers[0].FolderBinding);
+            Assert.True(unbound.IsAccepted);
+            Assert.NotNull(unbindUndo.State!.Containers[0].FolderBinding);
+            Assert.Null(unbindRedo.State!.Containers[0].FolderBinding);
+            Assert.NotNull(finalUndo.State!.Containers[0].FolderBinding);
+            Assert.Equal(
+                ["解除文件夹绑定", "绑定文件夹"],
+                coordinator.GetSessionHistorySnapshot(finalUndo.State).Items
+                    .Select(item => item.ActionText));
+        }
+        finally
+        {
+            Directory.Delete(sandbox, recursive: true);
+        }
     }
 
     [Fact]
@@ -253,6 +359,141 @@ public sealed class ProductWorkspaceSessionHistoryIntegrationTests
     }
 
     [Fact]
+    public async Task RealReferenceBatchJourneyUsesOneHistoryStepPerUserAction()
+    {
+        string sandbox = Path.Combine(Path.GetTempPath(),
+            "LongGrid.SessionHistory.ReferenceJourney",
+            Guid.NewGuid().ToString("N"));
+        string firstPath = Path.Combine(sandbox, "项目甲.txt");
+        string secondPath = Path.Combine(sandbox, "项目乙.txt");
+        Directory.CreateDirectory(sandbox);
+        await File.WriteAllTextAsync(firstPath, "first-real-content");
+        await File.WriteAllTextAsync(secondPath, "second-real-content");
+        string[] expectedHashes =
+        [
+            Convert.ToHexString(SHA256.HashData(
+                await File.ReadAllBytesAsync(firstPath))),
+            Convert.ToHexString(SHA256.HashData(
+                await File.ReadAllBytesAsync(secondPath))),
+        ];
+        try
+        {
+            await using ProductWorkspaceSaveController saves = Saves(new Workflow());
+            var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+            ProductWorkspaceState before = new()
+            {
+                ProfileId = "default",
+                Containers =
+                [
+                    Container("source", "来源"),
+                    Container("target", "目标"),
+                ],
+            };
+            long revision = coordinator.AdvanceExternalRevision();
+
+            ProductWorkspaceResolvedReferenceBatchCommitResult added =
+                coordinator.CommitResolvedReferenceBatch(
+                    before,
+                    9,
+                    [Entry(firstPath), Entry(secondPath)],
+                    new(revision, 9, 1, [0, 1]));
+            ProductWorkspaceSessionHistoryCommitResult addUndo = Navigate(
+                coordinator, added.State!, ProductWorkspaceSessionHistoryDirection.Undo);
+            ProductWorkspaceSessionHistoryCommitResult addRedo = Navigate(
+                coordinator, addUndo.State!, ProductWorkspaceSessionHistoryDirection.Redo);
+            ProductWorkspaceResolvedReferenceReassignmentCommitResult moved =
+                coordinator.CommitResolvedReferenceReassignment(
+                    addRedo.State!,
+                    new(addRedo.EditRevision, 1, [2, 1], 2));
+            ProductWorkspaceSessionHistoryCommitResult moveUndo = Navigate(
+                coordinator, moved.State!, ProductWorkspaceSessionHistoryDirection.Undo);
+            ProductWorkspaceSessionHistoryCommitResult moveRedo = Navigate(
+                coordinator, moveUndo.State!, ProductWorkspaceSessionHistoryDirection.Redo);
+            ProductWorkspaceResolvedReferenceBatchRemovalCommitResult removed =
+                coordinator.CommitResolvedReferenceBatchRemoval(
+                    moveRedo.State!,
+                    new(moveRedo.EditRevision, 2, [1, 2]));
+            ProductWorkspaceSessionHistoryCommitResult removeUndo = Navigate(
+                coordinator, removed.State!, ProductWorkspaceSessionHistoryDirection.Undo);
+            ProductWorkspaceSessionHistoryCommitResult removeRedo = Navigate(
+                coordinator, removeUndo.State!, ProductWorkspaceSessionHistoryDirection.Redo);
+            ProductWorkspaceSessionHistoryCommitResult finalUndo = Navigate(
+                coordinator, removeRedo.State!, ProductWorkspaceSessionHistoryDirection.Undo);
+            ProductWorkspaceSessionHistorySnapshot snapshot =
+                coordinator.GetSessionHistorySnapshot(finalUndo.State);
+            _ = await saves.CompleteAsync();
+
+            Assert.True(added.IsAccepted);
+            Assert.Empty(addUndo.State!.Containers[0].Items);
+            Assert.Equal(2, addRedo.State!.Containers[0].Items.Count);
+            Assert.True(moved.IsAccepted);
+            Assert.Equal(2, moveUndo.State!.Containers[0].Items.Count);
+            Assert.Equal(2, moveRedo.State!.Containers[1].Items.Count);
+            Assert.True(removed.IsAccepted);
+            Assert.Empty(removeRedo.State!.Containers[1].Items);
+            Assert.Equal(2, finalUndo.State!.Containers[1].Items.Count);
+            Assert.Equal(3, snapshot.Items.Count);
+            Assert.Equal(
+                ["批量移除项目", "批量移动项目", "批量加入项目"],
+                snapshot.Items.Select(item => item.ActionText));
+            Assert.Equal([2, 2, 2],
+                snapshot.Items.Select(item => item.TargetCount));
+            string[] actualHashes =
+            [
+                Convert.ToHexString(SHA256.HashData(
+                    await File.ReadAllBytesAsync(firstPath))),
+                Convert.ToHexString(SHA256.HashData(
+                    await File.ReadAllBytesAsync(secondPath))),
+            ];
+            Assert.Equal(expectedHashes, actualHashes);
+        }
+        finally
+        {
+            Directory.Delete(sandbox, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task SingleReferenceAdditionAndRemovalSupportUndoRedoUndo()
+    {
+        string path = Path.Combine(Path.GetTempPath(),
+            "LongGrid.SessionHistory.SingleReference", "单个项目.txt");
+        await using ProductWorkspaceSaveController saves = Saves(new Workflow());
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        ProductWorkspaceState before = State("单个项目");
+        long revision = coordinator.AdvanceExternalRevision();
+
+        ProductWorkspaceResolvedReferenceCommitResult added =
+            coordinator.CommitResolvedReference(
+                before, 4, [Entry(path)], new(revision, 4, 1, 0));
+        ProductWorkspaceSessionHistoryCommitResult addUndo = Navigate(
+            coordinator, added.State!, ProductWorkspaceSessionHistoryDirection.Undo);
+        ProductWorkspaceSessionHistoryCommitResult addRedo = Navigate(
+            coordinator, addUndo.State!, ProductWorkspaceSessionHistoryDirection.Redo);
+        ProductWorkspaceResolvedReferenceRemovalCommitResult removed =
+            coordinator.CommitResolvedReferenceRemoval(
+                addRedo.State!, new(addRedo.EditRevision, 1, 1));
+        ProductWorkspaceSessionHistoryCommitResult removeUndo = Navigate(
+            coordinator, removed.State!, ProductWorkspaceSessionHistoryDirection.Undo);
+        ProductWorkspaceSessionHistoryCommitResult removeRedo = Navigate(
+            coordinator, removeUndo.State!, ProductWorkspaceSessionHistoryDirection.Redo);
+        ProductWorkspaceSessionHistoryCommitResult finalUndo = Navigate(
+            coordinator, removeRedo.State!, ProductWorkspaceSessionHistoryDirection.Undo);
+
+        Assert.True(added.IsAccepted);
+        Assert.Empty(addUndo.State!.Containers[0].Items);
+        Assert.Single(addRedo.State!.Containers[0].Items);
+        Assert.True(removed.IsAccepted);
+        Assert.Single(removeUndo.State!.Containers[0].Items);
+        Assert.Empty(removeRedo.State!.Containers[0].Items);
+        Assert.Single(finalUndo.State!.Containers[0].Items);
+        Assert.Equal(
+            ["移除项目", "加入项目"],
+            coordinator.GetSessionHistorySnapshot(finalUndo.State).Items
+                .Select(item => item.ActionText));
+    }
+
+    [Fact]
     public async Task RealStorePersistsApplyUndoRedoUndoWithoutChangingUserFile()
     {
         string sandbox = Path.Combine(Path.GetTempPath(),
@@ -365,6 +606,24 @@ public sealed class ProductWorkspaceSessionHistoryIntegrationTests
         },
         Items = Array.Empty<ProductItemReferenceState>(),
     };
+
+    private static ProductContainerState ReferenceContainer() =>
+        Container("container-1", "References") with
+        {
+            Items = Enumerable.Range(1, 3)
+                .Select(index => ProductItemReferenceState.CreateResolved(
+                    $"item-{index}",
+                    Entry(Path.Combine(Path.GetTempPath(),
+                        "LongGrid.SessionHistory.ReferenceOrder",
+                        $"项目-{index}.txt"))))
+                .ToArray(),
+        };
+
+    private static DesktopCatalogEntry Entry(string path) => new(
+        new DesktopItemIdentity("filesystem", path),
+        "user-desktop",
+        Path.GetFileName(path),
+        DesktopItemKind.File);
 
     private static async Task WaitForStatusAsync(
         ProductWorkspaceSaveController saves,
