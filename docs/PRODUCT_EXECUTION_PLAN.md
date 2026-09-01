@@ -1,12 +1,12 @@
 # Long方格产品重对齐与统一开发计划
 
-版本：3.3
+版本：3.4
 
 状态：Required / 当前唯一执行计划
 
 更新日期：2026-09-01
 
-代码审计输入基线：`origin/main@fc29a40`；最新 M1 正式 App 精确 marker 消费修正与接续边界见 [Stage 258](258-m1-app-exact-marker-consumption-audit.md)，前一轮 cleanup 精确 marker 修正见 [Stage 257](257-m1-exact-marker-content-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)，既有证据传递边界仍见 [Stage 241](241-current-development-handoff-audit.md)
+代码审计输入基线：`origin/main@d4d0032`；当前功能优先基准与 PF-008 接续边界见 [Stage 259](259-function-first-development-priority-realignment.md)，上一轮 M1 正式 App 精确 marker 修正见 [Stage 258](258-m1-app-exact-marker-consumption-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -22,6 +22,8 @@
 - 其他编号 Stage 文档均为历史证据，不得用文档数量代表产品进度。
 
 若状态冲突，以代码与测试事实为准，并在同一 PR 更新本文。任一时刻只能有一个“当前执行项”。
+
+当前优先级固定为“核心工程实现 → 核心用户旅程 → 功能广度对标”。权限、安全、证据和发布门禁必须随功能保持不退化，但不得在没有真实回归、数据损坏风险或发布必要性的情况下连续占用主开发队列。
 
 ## 2. 统一产品定义
 
@@ -87,7 +89,7 @@ GitHub 集成结果：#238 已注明被 #239 覆盖并关闭；#239、#240、#24
 
 代码结构风险仍然偏高并继续上升：`MainWindow.xaml.cs` 5,659 行、`App.xaml.cs` 4,258 行、`WindowsProductDesktopHostReadOnlySurface.cs` 3,701 行。后续在当前用户旅程内就近提取页面协调器、创建/绑定服务与原生输入适配器；不得另开长期“纯重构阶段”，也不得继续把新业务集中进上述三个文件。
 
-本次没有发现产品目标再次偏移；FOLDER-R1 的路径、排序、加载与恢复状态偏移均已在主干纠正，“底座成熟度被当成核心旅程完成度”的口径继续由本文约束。M1 物理证据因受保护签名、可丢弃账户和已确认的上游 UIA 风险保持 Pending；不得再增加 M1 邻接探针。TASKBAR-R2B1-B 同样只能在通过准入的可丢弃环境继续，不得在宿主试写；环境不满足时不插入自动整理、小组件或新协议功能。
+本次没有发现产品目标再次偏移；FOLDER-R1 的路径、排序、加载与恢复状态偏移均已在主干纠正，“底座成熟度被当成核心旅程完成度”的口径继续由本文约束。M1 物理证据因受保护签名、可丢弃账户和已确认的上游 UIA 风险保持 Pending；不得再增加 M1 邻接探针。TASKBAR-R2B1-B 同样只能在通过准入的可丢弃环境继续，不得在宿主试写。外部准入改为并行门禁，环境不满足时继续 PF-008、PF-009、PF-010、PF-011 等安全边界内的用户功能，不再冻结主开发队列。
 
 ## 4. Long_Decompress 界面参考审计
 
@@ -265,9 +267,9 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**等待 BOX-R1-C/D 与 M1 完整物理旅程的外部准入（ExternalEnvironmentBlocked）**。FOLDER-R1 的路径、基础排序、加载状态和一次性恢复反馈已由 PR #267～#270 全部合入。下一用户结果是在具备受保护签名、完整兼容 Windows App Runtime、安全 WinUI/UIA、无既有 Long方格进程的可丢弃账户/VM 中真实安装包，从桌面空白处创建盒子、绑定文件夹、观察加载/失效/恢复并排序/刷新/打开、Explorer 拖入、盒子间改归属并撤销，最后验证 Explorer 重启和卸载恢复。当前环境不符合这些门禁，因此不得用源码合同、宿主错误窗口、未签名包、当前日常账户或降低系统安全策略替代物理 Pass，也不得继续增加 M1 邻接探针或外围功能。TASKBAR-R2B1-B 同样保持 `EnvironmentBlocked`；Stage 248 已证明官方 Stable 2.4.0 self-contained 仍复现相同 XAML 启动指纹，Stage 258 又真实确认 M1 零启动和任务栏 Host `Blocked / mutationAllowed=false`。最新精确接续条件、开放 Issue 和禁止项见 [Stage 258](258-m1-app-exact-marker-consumption-audit.md)。
+当前执行项：**PF-008 方格内视图、排序、滚动与间距（FunctionFirst / InProgress）**。先交付 PF-008A 视图密度与连续滚动，再交付 PF-008B 类型/修改时间排序和 PF-008C 自定义顺序与一次撤销。每个切片必须形成正式产品链、真实 Core/配置/文件系统或 HWND 结果，并证明真实文件数量、路径和哈希不变化；当前 Runtime 阻断可见 App 时只能保持 `ProductEvidencePending`，但不阻止工程实现。BOX-R1-C/D 与 M1 的 `ExternalEnvironmentBlocked`、TASKBAR-R2B1-B 的 Guest 准入作为并行门禁持续跟踪，不能用源码合同替代物理 Pass，也不能反过来冻结 PF-008。最新精确基准见 [Stage 259](259-function-first-development-priority-realignment.md)。
 
-严格按下列顺序交付，不再插入相邻探针或新宽度功能：
+严格按下列顺序交付，不再插入非当前队列的相邻探针或功能：
 
 1. **UI-R1A 壳层拆分（EngineeringComplete / ProductEvidencePending）**：已提取品牌头与 PageHeader 组件，建立“桌面概览 / 盒子管理 / 个性化 / 设置”导航，移除开发期徽标，并将匿名示例与 Design Token 样例移出产品表面。为避免再次以架构重构替代用户结果，本轮没有先行抽空整个 AppShell；`MainWindow` 继续拆分归入各后续页面交付。
 2. **UI-R1B 桌面概览（EngineeringComplete / ProductEvidencePending）**：已使用真实 workspace presentation 提供盒子数、项目数、健康状态、最多四个盒子摘要、空状态和最近撤销；旧 Core/文件策略/宿主/代次工程卡退出首屏。真实空工作区已核对，非空盒子与撤销可见证据随 UI-R1C 创建旅程补齐。
@@ -277,8 +279,10 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 6. **BOX-R1（B 已完成，C Pending）**：A 有限激活合同（EngineeringComplete / RealProcessPass）→ B 原生 `IExplorerCommand` 与真实 unsigned MSIX（EngineeringComplete / NativeDllPass / RealUnsignedPackagePass）→ C 可丢弃账户真实安装/菜单/卸载证据（PendingApproval）→ D Explorer 重启、显示器、DPI 与失败恢复；全部复用统一创建预览和事务。
 7. **FOLDER-R1（A～D EngineeringComplete / RealFilesystemPass / ProductEvidencePending）**：A 持久化/身份/健康合同 → B 显式选择、取消零写入、绑定/解绑/重连原子提交 → C 目录内容呈现、显式刷新、变更通知和安全打开 → D 权限、离线、同路径替换、失效恢复和有限状态；路径、三种 schema v4 基础排序、真实加载状态和一次性有限恢复反馈均已合入，同时保留 Ready/Empty/Truncated 等权威内容状态；物理 Picker、可见加载/失效/恢复/刷新/打开/排序、键盘和 Narrator 进入 M1 集中证据。
 8. **PF-007A2 / PF-007B（EngineeringComplete / RealHwndPass / ProductEvidencePending）**：A2 已完成正式 HWND OLE DropTarget 和安全 Link 引用提交；B 已完成盒子间改归属、无效目标、失败补偿和一次撤销。
-9. **M1 产品证据冲刺（ExternalEnvironmentBlocked）**：完整两分钟旅程，而不是分散控件证据；等待安全 WinUI 运行时、专用账户和可安装签名条件，不降低出口。
-10. **TASKBAR-R1～R4（R1～R2B1-A2 工程范围完成，R2B1-B 环境阻断）**：既有只读、恢复凭据、唯一所有权、启动预检、默认空原生边界和正式预设准入保持通过；R2B1-A 已证明不满足专用环境时真实阻断且不修改系统，A2 只提供产品卡片和失败关闭。R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵。
+9. **PF-008（InProgress / 当前主队列）**：A 视图密度与连续滚动 → B 类型/修改时间稳定排序 → C 自定义顺序、保存补偿和一次撤销；只改变 Long方格展示或配置，不移动真实文件。
+10. **PF-009～PF-011（Queued）**：依次完成搜索筛选、统一撤销/操作历史和首次启动体验；PF-008 未形成可演示用户结果前不并行扩张。
+11. **M1 产品证据冲刺（ExternalEnvironmentBlocked / ParallelGate）**：等待安全 WinUI 运行时、专用账户和可安装签名条件；条件具备时优先执行完整两分钟旅程，不降低出口。
+12. **TASKBAR-R1～R4（R2B1-B EnvironmentBlocked / ParallelGate）**：R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵；宿主禁止试写，但不阻塞 PF 主队列。
 
 UI-R1 允许重构产品壳层，但不得重写已经验证的 Core、配置事务和 DesktopHost 安全边界。
 
@@ -433,11 +437,14 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 
 禁止：仅凭 XAML 存在、AutomationId、静态合同、Mock、内存原型或截图成功声明产品完成。自动化负责防回归，真实键鼠/触控/Narrator/显示环境负责证明产品效果。
 
+功能测试必须优先证明本轮用户结果。只有功能实际涉及权限、系统写入、用户文件、Explorer/任务栏或发布时，才增加对应专项安全测试；不得为了扩大非当前功能的探针、marker、cleanup 或准入覆盖而推迟当前功能。
+
 每个切片结束前还必须完成开发目标审计和需求对齐审计：逐项复核本轮目标是否达到、PRD/本文/交互与架构是否仍一致、首次真实差异是否保留、修正后是否复测、状态和下一唯一接续点是否更新。完成所需门禁后提交并推送当前短分支，核对远端提交与本地一致；禁止直接推送 `main`，也禁止用推送、PR 或 CI 成功替代真实用户旅程完成结论。
 
 ## 11. 开发节奏与文档瘦身
 
 - 一个 PR 交付一个可演示的用户结果，建议控制在 1～3 个工作日；
+- 主开发队列按核心工程、核心旅程、功能广度排序；外部环境门禁并行跟踪，不再把“等待”当作开发项；
 - PR 开始前在本文领取当前编号，完成后只更新该编号和真实差异；
 - 普通功能不新增编号 Stage 文档；证据写入 PR、测试结果和本文状态；
 - 只有 R3/R4 平台风险、架构决策、协议版本或发布门禁需要专项审计/ADR；
@@ -452,7 +459,7 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 - GitHub 主分支交付：UI-R1A～UI-R1F、BOX-R1-A/B、FOLDER-R1-A～D、路径/基础排序/加载/恢复状态纠偏、PF-007A2/B、M1-A/B 证据安全入口与 TASKBAR-R1A～R2B1-A2 已合入 `origin/main@061a590`；Stage 220～225 又补齐许可证元数据、双语言 CodeQL、Action 固定/更新和真实进程确定性门禁；
 - M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，BOX-R1-C、FOLDER-R1、真实 Explorer 指针拖入和盒子间物理拖动证据 Pending；当前为 `ExternalEnvironmentBlocked`，不降低出口；
 - M2 任务栏美化核心：TASKBAR-R1A～R2B1-A 工程链和 R2B1-A2 正式预设准入已通过；默认原生目录为空，当前 Host 因专用环境缺失真实阻断；卡片可见但不可应用，R2B1-B/R3/R4 未完成；
-- M3 桌面管理增强：未开始闭环；
+- M3 桌面管理增强：PF-008 已进入 `InProgress`，PF-009～PF-011 排队；其余尚未闭环；
 - M4 工作空间/小组件/插件：协议或文档阶段；
 - M5 正式交付：内部未签名链存在，正式发布未开始。
 
@@ -603,9 +610,9 @@ PF-007B DesktopHost 盒子间改归属记录（2026-08-26，基线 `origin/main@
 
 详细证据见 [PF-007B 桌面盒子间原生引用改归属审计](208-pf007b-native-reference-reassignment-audit.md)。PF-007B 的完成边界是正式工程路径与真实 HWND/文件安全已闭环；没有物理鼠标与屏幕证据，因此 PF-007 和 M1 均不能标为用户旅程 Complete。
 
-## 13. 下一步开始条件
+## 13. 并行外部门禁与历史证据
 
-M1 产品证据冲刺的开始条件保持不变：取得安全 WinUI 运行时、可丢弃 Windows 测试账户和可安装签名条件后，按“安装 BOX-R1 命令 → 桌面空白处创建盒子 → Picker 绑定真实文件夹并刷新/打开 → Explorer Link 拖入 → 选中项目拖到另一盒子并撤销 → 高对比/减少动画/键盘/Narrator → 卸载并核对恢复”的完整旅程记录预期、实际、差异和修正。环境阻断必须保持 Pending，不能以 reducer、源码合同或证据入口冒充物理 Pass。等待期间任务栏只按 R2/R3/R4 的安全顺序推进，不扩张其他功能宽度。
+M1 产品证据冲刺作为并行门禁保留：取得安全 WinUI 运行时、可丢弃 Windows 测试账户和可安装签名条件后，按“安装 BOX-R1 命令 → 桌面空白处创建盒子 → Picker 绑定真实文件夹并刷新/打开 → Explorer Link 拖入 → 选中项目拖到另一盒子并撤销 → 高对比/减少动画/键盘/Narrator → 卸载并核对恢复”的完整旅程记录预期、实际、差异和修正。环境阻断必须保持 Pending，不能以 reducer、源码合同或证据入口冒充物理 Pass；门禁未满足期间主开发队列继续 PF-008 及后续已排队功能，任务栏只在准入 Guest 推进 R2/R3/R4。
 
 ### 13.1 M1-A 隔离人工产品会话（2026-08-26）
 
@@ -886,3 +893,9 @@ Stage 241 从最终 `main@99ee050` 重新复读统一计划、30 项 PF 总表�
 从 `main@fc29a40` 重跑外部准入，#23/#274 无更新；M1 继续零启动、零会话 `BlockedByIncompleteRuntime`，TASKBAR Host 继续 `Blocked / mutationAllowed=false / modifiedSystemState=false`。复读 Stage 257 修正与正式 App 实际消费代码后发现，cleanup 已要求 marker 原文精确匹配，但 `ProductM1ManualEvidenceSession` 仍对相同文件 `.Trim()`，启动端与清理端所有权语义分裂。
 
 直接编译正式会话类的回归写入 ` GUID ` marker，修正前精确失败为 `Assert.Throws Failure: No exception was thrown`。现移除正式 App 消费端的 `.Trim()`，保留 `StringComparison.Ordinal`；带空白 marker 被拒绝，精确 marker 仍可创建会话。消费端专项 `2/2`、M1 相关 `10/10`、完整 `1,405/1,405`、coverage lines `90.44%` / branches `76.17%`、198-ID、漏洞 0 通过。完整审计见 [Stage 258](258-m1-app-exact-marker-consumption-audit.md)；产品完成度、Runtime、签名、Sandbox 与分发门禁不变。
+
+### 13.37 Stage 259：功能优先开发基准与当前队列重对齐
+
+Stage 258 已通过 PR #342 合入 `main@d4d0032`，精确 main CI 为 `1,405/1,405`、coverage `90.14%/76.04%`，双语言 CodeQL 成功。连续 M1 安全邻接已经关闭，不再把外部环境等待或新增证据探针作为产品进度。
+
+当前优先级改为核心工程实现、核心用户旅程、功能广度对标；安全与权限保持不退化，但只在真实回归、数据损坏风险或发布必要门禁触发时抢占。主队列进入 PF-008，BOX/M1 与 TASKBAR Guest 保持并行外部门禁。完整范围、真实机器 Actual、测试规则和需求审计见 [Stage 259](259-function-first-development-priority-realignment.md)。
