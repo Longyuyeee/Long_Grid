@@ -6,7 +6,7 @@
 
 状态：`HandoffPrepared / DevelopmentPaused / ExternalAdmissionPending`
 
-> 2026-09-01 接续更新：本文保留 Stage 251 当时的环境交接证据；最新代码和唯一功能接续点已前进到 [Stage 263](263-pf009a-shared-search-results-audit.md)。换电脑仍必须从最新 GitHub `main` 全新拉取，不使用本文的历史 SHA 作为 checkout 目标。PF-009A 已工程收口，最新完整测试为 `1,422/1,422`、Release 0 warning/error、206-ID UI 合同；下一步仅进入 PF-009B 桌面搜索浮层与结果导航。
+> 2026-09-01 接续更新：本文保留 Stage 251 当时的环境交接证据；最新代码和唯一功能接续点已前进到 [Stage 264](264-pf009b-desktop-search-navigation-audit.md)。换电脑仍必须从最新 GitHub `main` 全新拉取，不使用本文的历史 SHA 作为 checkout 目标。PF-009A/B 已工程收口，最新完整测试为 `1,426/1,426`、Release 0 warning/error、208-ID UI 合同；下一步仅进入 PF-010A 统一会话历史模型与 50 步撤销/重做骨架。
 
 ## 1. 交接结论
 

@@ -102,6 +102,7 @@ internal enum ProductDesktopActivationRegionKind
     ToggleCollapsed,
     ToggleLocked,
     OpenMoreMenu,
+    OpenSearch,
 }
 
 internal interface IProductDesktopInteractionActivationSource : IDisposable
@@ -157,6 +158,10 @@ internal interface IProductDesktopInteractionActivationSource : IDisposable
         Func<ProductDesktopContainerMenuSurfaceInput, bool> apply)
     {
     }
+
+    void BindSearch(Func<string, bool> apply)
+    {
+    }
 }
 
 internal interface IProductDesktopInteractionActivationSourceFactory
@@ -206,6 +211,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
     private Func<bool> cancelSelection = static () => false;
     private Func<ProductDesktopItemOpenSurfaceInput, bool> requestItemOpen =
         static _ => false;
+    private Func<string, bool> requestSearch = static _ => false;
     private Func<ProductDesktopItemViewportSurfaceInput, bool>
         requestItemViewport = static _ => false;
     private Func<ProductDesktopContainerLayoutKeyboardCommand, bool>
@@ -402,6 +408,12 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
     {
         ArgumentNullException.ThrowIfNull(apply);
         requestItemOpen = apply;
+    }
+
+    public void BindSearch(Func<string, bool> apply)
+    {
+        ArgumentNullException.ThrowIfNull(apply);
+        requestSearch = apply;
     }
 
     public void BindItemViewport(
@@ -694,6 +706,14 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                 isInjected,
                 isAutoRepeat);
         }
+        if (region.Kind == ProductDesktopActivationRegionKind.OpenSearch)
+        {
+            return CommandSurfaceAvailable
+                && sourceAttested
+                && !isInjected
+                && !isAutoRepeat
+                && requestSearch(projection.DisplayId);
+        }
         if (!CommandSurfaceAvailable
             || !sourceAttested
             || isInjected
@@ -732,6 +752,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
         ProductDesktopActivationRegionKind.ToggleLocked =>
             region.IsLocked ? "解" : "锁",
         ProductDesktopActivationRegionKind.OpenMoreMenu => "⋯",
+        ProductDesktopActivationRegionKind.OpenSearch => "搜",
         _ => string.Empty,
     };
 
@@ -1201,12 +1222,20 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             {
                 PixelRect bounds = ProductDesktopHostSurfaceLayout
                     .GetContainerBounds(projection, container);
+                bool includesSearch = projection.IsPrimary && containerIndex == 0;
                 int size = Math.Min(
                     buttonSize,
-                    Math.Min(bounds.Width / 4, bounds.Height));
+                    Math.Min(bounds.Width / (includesSearch ? 5 : 4), bounds.Height));
                 int right = checked(bounds.Left + bounds.Width);
-                return new[]
+                var buttons = new List<ActivationRegion>();
+                if (includesSearch)
                 {
+                    buttons.Add(CreateRegion(
+                        right - (size * 5),
+                        ProductDesktopActivationRegionKind.OpenSearch));
+                }
+                buttons.AddRange(
+                [
                     CreateRegion(
                         right - (size * 4),
                         ProductDesktopActivationRegionKind.ToggleLocked),
@@ -1219,7 +1248,8 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                     CreateRegion(
                         right - size,
                         ProductDesktopActivationRegionKind.OpenMoreMenu),
-                };
+                ]);
+                return buttons;
 
                 ActivationRegion CreateRegion(
                     int left,
@@ -1860,6 +1890,8 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                         string.IsNullOrWhiteSpace(region.Title)
                             ? "更多桌面方格管理操作"
                             : $"更多 {region.Title} 管理操作",
+                    ProductDesktopActivationRegionKind.OpenSearch =>
+                        "搜索桌面盒子和项目",
                     _ => "桌面方格操作",
                 },
             var id when id == AutomationElementIdentifiers.AutomationIdProperty.Id =>

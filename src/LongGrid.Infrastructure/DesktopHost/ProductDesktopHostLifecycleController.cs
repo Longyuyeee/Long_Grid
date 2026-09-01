@@ -73,7 +73,9 @@ public sealed record ProductDesktopHostReadOnlyProjection
         ProductContainerTitleVisibilityPolicy titleVisibility,
         ProductContainerTitleDoubleClickAction titleDoubleClickAction,
         int visibleItemStartOrdinal,
-        ProductContainerContentDensity contentDensity)
+        ProductContainerContentDensity contentDensity,
+        bool searchHighlighted,
+        string? searchHighlightedItemId)
     {
         ContainerId = containerId;
         Title = title;
@@ -93,6 +95,8 @@ public sealed record ProductDesktopHostReadOnlyProjection
         TitleDoubleClickAction = titleDoubleClickAction;
         VisibleItemStartOrdinal = visibleItemStartOrdinal;
         ContentDensity = contentDensity;
+        SearchHighlighted = searchHighlighted;
+        SearchHighlightedItemId = searchHighlightedItemId;
     }
 
     public string ContainerId { get; }
@@ -130,6 +134,10 @@ public sealed record ProductDesktopHostReadOnlyProjection
     public int VisibleItemStartOrdinal { get; }
 
     public ProductContainerContentDensity ContentDensity { get; }
+
+    public bool SearchHighlighted { get; }
+
+    public string? SearchHighlightedItemId { get; }
 
     public static int VisibleItemCapacity(ProductContainerContentDensity density) =>
         density switch
@@ -169,7 +177,9 @@ public sealed record ProductDesktopHostReadOnlyProjection
             ProductContainerTitleDoubleClickAction.ToggleCollapsed,
         int visibleItemStartOrdinal = 1,
         ProductContainerContentDensity contentDensity =
-            ProductContainerContentDensity.Comfortable)
+            ProductContainerContentDensity.Comfortable,
+        bool searchHighlighted = false,
+        string? searchHighlightedItemId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(containerId);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
@@ -225,6 +235,11 @@ public sealed record ProductDesktopHostReadOnlyProjection
             || !Enum.IsDefined(titleVisibility)
             || !Enum.IsDefined(titleDoubleClickAction)
             || !Enum.IsDefined(contentDensity)
+            || searchHighlightedItemId is not null
+                && (!searchHighlighted
+                    || !visibleItemIds.Contains(
+                        searchHighlightedItemId,
+                        StringComparer.Ordinal))
             || widthDip <= 0
             || heightDip <= 0)
         {
@@ -250,7 +265,9 @@ public sealed record ProductDesktopHostReadOnlyProjection
             titleVisibility,
             titleDoubleClickAction,
             boundedVisibleItemStartOrdinal,
-            contentDensity);
+            contentDensity,
+            searchHighlighted,
+            searchHighlightedItemId);
     }
 }
 
@@ -401,6 +418,7 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         requestItemOpen = static request => new(
             ProductDesktopItemOpenStatus.InvalidRequest,
             request.Source);
+    private Func<string, bool> requestDesktopSearch = static _ => false;
     private Func<object, string, bool> requestExplorerReferenceDrop =
         static (_, _) => false;
     private Func<ProductDesktopReferenceReassignmentRequest, bool>
@@ -588,6 +606,16 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             requestItemOpen = requestOpen;
+        }
+    }
+
+    public void BindDesktopSearch(Func<string, bool> requestSearch)
+    {
+        ArgumentNullException.ThrowIfNull(requestSearch);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            requestDesktopSearch = requestSearch;
         }
     }
 
@@ -1592,6 +1620,8 @@ public sealed class ProductDesktopHostLifecycleController : IAsyncDisposable
                                 source,
                                 display,
                                 input));
+                        source.BindSearch(displayId =>
+                            requestDesktopSearch(displayId));
                         source.BindItemViewport(input =>
                             ApplyItemViewportFromActivationSource(
                                 source,

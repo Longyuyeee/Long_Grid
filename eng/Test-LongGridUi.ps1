@@ -65,6 +65,10 @@ $workspaceSearchCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceSearch.cs'
 $workspaceSearchPresentationCodePath = Join-Path $projectRoot `
     'src\LongGrid.App\ProductWorkspaceSearchPresentation.cs'
+$desktopSearchOverlayCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\DesktopSearchOverlayWindow.cs'
+$desktopSearchNavigationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Infrastructure\DesktopHost\ProductDesktopSearchNavigation.cs'
 $workspaceContainerSortPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceContainerSortPolicy.cs'
 $workspaceViewResetPolicyCodePath = Join-Path $projectRoot `
@@ -353,6 +357,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $workspaceSearchPresentationCode = Get-Content `
         -LiteralPath $workspaceSearchPresentationCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopSearchOverlayCode = Get-Content `
+        -LiteralPath $desktopSearchOverlayCodePath `
+        -Raw `
+        -Encoding UTF8
+    $desktopSearchNavigationCode = Get-Content `
+        -LiteralPath $desktopSearchNavigationCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceContainerSortPolicyCode = Get-Content `
@@ -848,6 +860,8 @@ function Test-SourceContract {
         'ProductWorkspaceSearchDisplaySelector',
         'ProductWorkspaceSearchStatus',
         'ProductWorkspaceSearchResults',
+        'OpenDesktopSearchOverlayButton',
+        'NavigateSelectedSearchResultButton',
         'ProductWorkspaceHealthFilterSelector',
         'ProductWorkspaceSortSelector',
         'ProductWorkspaceResetViewButton',
@@ -3162,6 +3176,47 @@ function Test-SourceContract {
         -not ($workspaceSearchPresentationCode -match `
             'Query=\{|SearchQuery|PersistedTarget|CanonicalTarget')
     ) 'Formal search must use approved read-model fields without reading content, paths, shortcut arguments, or URL content and without echoing queries.'
+    $desktopSearchOpenNode = Get-XamlNodeByAutomationId `
+        $document `
+        'OpenDesktopSearchOverlayButton'
+    $desktopSearchNavigateNode = Get-XamlNodeByAutomationId `
+        $document `
+        'NavigateSelectedSearchResultButton'
+    Assert-Condition (
+        $desktopSearchOpenNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $desktopSearchOpenNode.GetAttribute('Click') -eq `
+            'OpenDesktopSearchOverlayButton_Click' -and
+        $desktopSearchNavigateNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $desktopSearchNavigateNode.GetAttribute('Click') -eq `
+            'NavigateSelectedSearchResultButton_Click'
+    ) 'Desktop search overlay and selected-result navigation must require explicit enabled user actions.'
+    Assert-Condition (
+        $desktopSearchOverlayCode -match 'DesktopSearchOverlayQuery' -and
+        $desktopSearchOverlayCode -match 'DesktopSearchOverlayResults' -and
+        $desktopSearchOverlayCode -match 'DesktopSearchOverlayRevealButton' -and
+        $desktopSearchOverlayCode -match 'DesktopSearchOverlayOpenButton' -and
+        $desktopSearchOverlayCode -match 'DesktopSearchOverlayLocateButton' -and
+        $desktopSearchOverlayCode -match 'VirtualKey\.Escape' -and
+        $desktopSearchOverlayCode -match 'VirtualKey\.Down' -and
+        $desktopSearchOverlayCode -match 'VirtualKey\.Up' -and
+        $desktopSearchOverlayCode -match 'ProductWorkspaceSearchPresentation\.Create' -and
+        $desktopSearchNavigationCode -match 'ExpectedWorkspaceRevision' -and
+        $desktopSearchNavigationCode -match 'ExpectedTopologyGeneration' -and
+        $desktopSearchNavigationCode -match 'ProductDesktopItemViewportPolicy\.ClampStart' -and
+        $desktopHostProjectionBuilderCode -match 'searchTarget\.ViewportStart' -and
+        $desktopHostProjectionBuilderCode -match 'visible\.IsCollapsed\s*&&\s*!isSearchTarget' -and
+        $windowsDesktopHostReadOnlySurfaceCode -match 'SearchHighlightedItemId' -and
+        $desktopInteractionActivationSourceCode -match 'ProductDesktopActivationRegionKind\.OpenSearch' -and
+        $appCode -match 'ProductDesktopSearchNavigation\.Resolve' -and
+        $appCode -match 'ProductDesktopItemOpenSource\.FeedbackLocateInExplorer' -and
+        $appCode -match 'TimeSpan\.FromSeconds\(4\)'
+    ) 'PF-009B must reuse shared search, expose finite keyboard overlay actions, reject stale navigation, reveal and temporarily highlight the target, and reuse existing open/locate execution.'
+    Assert-Condition (
+        -not ($desktopSearchOverlayCode -match `
+            'File\.|Directory\.|ShellExecute|Process\.Start|PersistedTarget|CanonicalTarget') -and
+        -not ($desktopSearchNavigationCode -match `
+            'File\.|Directory\.|ShellExecute|Process\.Start|PersistedTarget|CanonicalTarget')
+    ) 'Desktop search overlay and navigation policy must not read file content or bypass the existing item execution controller.'
     $workspaceSortNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceSortSelector'
@@ -4009,7 +4064,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-shared-item-results-revision-display-kind-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-drag-bounds-inline-preview-fallback-review-shortcut-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-shared-item-results-desktop-overlay-keyboard-reveal-open-locate-revision-display-kind-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-drag-bounds-inline-preview-fallback-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
