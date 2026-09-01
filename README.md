@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：PF-009A/B 已完成共用查询、正式结果、桌面浮层、键盘导航、临时展开/滚动/高亮及既有打开/定位入口复用，真实 Unicode 文件、500 项规模与 DesktopHost HWND 通过，状态为 `EngineeringComplete / ProductEvidencePending`。唯一接续点是 PF-010A 统一会话历史模型与 50 步撤销/重做骨架；M1/M2 仍为 `0/2 Complete`、30 项 PF 仍为 `0 Complete`，所有产物不可公开分发。完整审计见 [Stage 264](docs/264-pf009b-desktop-search-navigation-audit.md)，统一执行源见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)。
+> 当前状态：PF-010A 已完成统一会话历史、50 步容量、undo/redo、分支截断、创建/重命名/锁定/折叠/外观首批动作、正式历史 UI 与保存失败补偿，真实配置 Store 和 Unicode 文件 SHA-256 通过，状态为 `EngineeringComplete / RealStorePass / ProductEvidencePending`。唯一接续点是 PF-010B 统一历史动作广度与重启恢复点；M1/M2 仍为 `0/2 Complete`、30 项 PF 仍为 `0 Complete`，所有产物不可公开分发。完整审计见 [Stage 265](docs/265-pf010a-unified-session-history-audit.md)，统一执行源见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)。
 
 ## 产品原则
 
@@ -19,6 +19,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 - [PF-008C 自定义引用顺序与恢复审计（Stage 262）](docs/262-pf008c-custom-reference-order-audit.md)
 - [PF-009A 共用搜索模型与正式结果列表审计（Stage 263）](docs/263-pf009a-shared-search-results-audit.md)
+- [PF-010A 统一会话历史与 50 步撤销/重做审计（Stage 265）](docs/265-pf010a-unified-session-history-audit.md)
 - [PF-009B 桌面搜索浮层与结果导航审计（Stage 264）](docs/264-pf009b-desktop-search-navigation-audit.md)
 - [PF-008B 类型与修改时间稳定排序审计（Stage 261）](docs/261-pf008b-type-modified-sort-audit.md)
 - [PF-008A 视图密度与连续滚动审计（Stage 260）](docs/260-pf008a-view-density-continuous-scroll-audit.md)
@@ -292,7 +293,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 264](docs/264-pf009b-desktop-search-navigation-audit.md)的**功能优先（FunctionFirst）**基准，PF-008A～C 与 PF-009A/B 已工程收口；当前唯一主开发项是 **PF-010A 统一会话历史模型与 50 步撤销/重做骨架**。BOX-R1-C/D 与 M1 的 #23/#274、完整 Runtime 和独占可丢弃会话，以及 TASKBAR-R2B1-B 的 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) Guest 准入继续作为并行外部门禁；未准入只阻止对应物理证据、系统写入和 Complete 声明，不冻结 PF-010A。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 265](docs/265-pf010a-unified-session-history-audit.md)的**功能优先（FunctionFirst）**基准，PF-008A～C、PF-009A/B 与 PF-010A 已工程收口；当前唯一主开发项是 **PF-010B 统一历史动作广度与重启恢复点**。BOX-R1-C/D 与 M1 的 #23/#274、完整 Runtime 和独占可丢弃会话，以及 TASKBAR-R2B1-B 的 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) Guest 准入继续作为并行外部门禁；未准入只阻止对应物理证据、系统写入和 Complete 声明，不冻结 PF-010B。
 
 ## 开发启动
 

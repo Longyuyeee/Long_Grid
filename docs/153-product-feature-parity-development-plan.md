@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：PF 功能详细 backlog 与历史验收账本；当前状态、执行顺序和里程碑以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 当前开发项：**PF-010A 统一会话历史模型与 50 步撤销/重做骨架**；顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 当前接续输入基线：PF-009B 分支基于 `origin/main@5658874`；桌面浮层、结果导航与 PF-010A 接续点见 [Stage 264](264-pf009b-desktop-search-navigation-audit.md)，共用查询模型见 [Stage 263](263-pf009a-shared-search-results-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
+- 当前开发项：**PF-010B 统一历史动作广度与重启恢复点**；顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
+- 当前接续输入基线：PF-010A 分支基于 `origin/main@3ccaca8`；统一 50 步历史、正式 UI 与 PF-010B 接续点见 [Stage 265](265-pf010a-unified-session-history-audit.md)，桌面搜索导航见 [Stage 264](264-pf009b-desktop-search-navigation-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 - 最新功能工程审计：PF-007A2 已完成正式 OLE Link 拖入；PF-007B 已完成已选正式引用在盒子间的原生有限拖动、冻结权威准入、原子保存/补偿和一次撤销。真实 STA/HWND/隔离文件路径与 SHA-256 零变化通过，物理鼠标与屏幕证据仍 Pending。PF-007 为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
@@ -897,6 +897,6 @@
 
 PF-001～PF-006、PF-007A1/A2/B 与单文件夹绑定 A～D 均为 `EngineeringComplete / ProductEvidencePending`。PF-007 的物理 Explorer 拖入和方格间改归属尚未完成，但不得再把 B 写成工程未实现。
 
-当前唯一主开发项为 **PF-010A**。PF-009A/B 已交付共用查询、正式结果、桌面浮层、键盘导航、临时展开/滚动/高亮及既有打开/定位入口复用，状态为 `EngineeringComplete / RealHwndPass / RealFilesystemPass / ProductEvidencePending`。PF-010A 先建立统一会话历史项、cursor、50 步有界 undo/redo 和分支截断，并接入已有完整 undo token 的创建、重命名、锁定、折叠与外观动作。每个切片继续记录真实 Expected / Initial Actual / Difference / Correction / Final Actual。
+当前唯一主开发项为 **PF-010B**。PF-010A 已交付统一会话历史项、cursor、50 步有界 undo/redo、分支截断、创建/重命名/锁定/折叠/外观动作、正式历史 UI 和保存失败补偿，状态为 `EngineeringComplete / RealStorePass / ProductEvidencePending`。PF-010B 接续删除、布局、文件夹绑定、引用批量动作和重启后最近安全恢复点；PF-010 整体尚未 Complete。每个切片继续记录真实 Expected / Initial Actual / Difference / Correction / Final Actual。
 
 M1 集中产品证据、BOX-R1-C/D 和 TASKBAR-R2B1-B 改为并行外部门禁：环境满足时优先完成完整旅程，环境未满足时保持 Pending，不冻结 PF-008～PF-011 功能开发。任何版本在签名和安装门禁完成前仍不得分发。完整决策见 [Stage 259](259-function-first-development-priority-realignment.md)。

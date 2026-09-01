@@ -173,6 +173,10 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerEditUndoCommitResult>
         _commitProductWorkspaceContainerEditUndo;
     private readonly Func<
+        ProductWorkspaceSessionHistoryDirection,
+        ProductWorkspaceSessionHistoryCommitResult>
+        _commitProductWorkspaceSessionHistory;
+    private readonly Func<
         ProductWorkspaceLayoutRecoveryReviewToken,
         bool,
         ProductWorkspaceLayoutRecoveryCommitResult>
@@ -211,6 +215,8 @@ public sealed partial class MainWindow : Window
                 null));
     private ProductWorkspaceLatestUndoPresentation _latestUndo =
         ProductWorkspaceLatestUndoPresentation.Unavailable;
+    private ProductWorkspaceSessionHistoryPresentation _sessionHistory =
+        ProductWorkspaceSessionHistoryPresentation.Empty;
 
     public MainWindow(
         Func<
@@ -323,6 +329,10 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceContainerEditUndoCommitResult>
             commitProductWorkspaceContainerEditUndo,
         Func<
+            ProductWorkspaceSessionHistoryDirection,
+            ProductWorkspaceSessionHistoryCommitResult>
+            commitProductWorkspaceSessionHistory,
+        Func<
             ProductWorkspaceLayoutRecoveryReviewToken,
             bool,
             ProductWorkspaceLayoutRecoveryCommitResult>
@@ -369,6 +379,7 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceContainerRemovalUndo);
         ArgumentNullException.ThrowIfNull(
             commitProductWorkspaceContainerEditUndo);
+        ArgumentNullException.ThrowIfNull(commitProductWorkspaceSessionHistory);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecovery);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecoveryUndo);
         _recoverConfiguration = recoverConfiguration;
@@ -414,6 +425,8 @@ public sealed partial class MainWindow : Window
             commitProductWorkspaceContainerRemovalUndo;
         _commitProductWorkspaceContainerEditUndo =
             commitProductWorkspaceContainerEditUndo;
+        _commitProductWorkspaceSessionHistory =
+            commitProductWorkspaceSessionHistory;
         _commitProductWorkspaceLayoutRecovery =
             commitProductWorkspaceLayoutRecovery;
         _commitProductWorkspaceLayoutRecoveryUndo =
@@ -1819,6 +1832,62 @@ public sealed partial class MainWindow : Window
                 $"Changed={result.IsAccepted}:DesktopFilesChanged=False");
     }
 
+    internal void ApplyProductWorkspaceSessionHistory(
+        ProductWorkspaceSessionHistoryPresentation presentation)
+    {
+        ArgumentNullException.ThrowIfNull(presentation);
+        _sessionHistory = presentation;
+        ProductWorkspaceHistoryList.ItemsSource = presentation.Items;
+        ProductWorkspaceHistoryUndoButton.IsEnabled = presentation.CanUndo;
+        ProductWorkspaceHistoryRedoButton.IsEnabled = presentation.CanRedo;
+        OverviewRecentActionDetail.Text = presentation.Detail;
+        AutomationProperties.SetName(
+            ProductWorkspaceHistoryUndoButton,
+            presentation.UndoAccessibilityName);
+        AutomationProperties.SetName(
+            ProductWorkspaceHistoryRedoButton,
+            presentation.RedoAccessibilityName);
+        AutomationProperties.SetItemStatus(
+            OverviewRecentActionDetail,
+            presentation.MachineStatus);
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceHistoryList,
+            presentation.MachineStatus);
+    }
+
+    private void ProductWorkspaceHistoryUndoButton_Click(
+        object sender,
+        RoutedEventArgs e) =>
+        CommitProductWorkspaceSessionHistory(
+            ProductWorkspaceSessionHistoryDirection.Undo);
+
+    private void ProductWorkspaceHistoryRedoButton_Click(
+        object sender,
+        RoutedEventArgs e) =>
+        CommitProductWorkspaceSessionHistory(
+            ProductWorkspaceSessionHistoryDirection.Redo);
+
+    private void CommitProductWorkspaceSessionHistory(
+        ProductWorkspaceSessionHistoryDirection direction)
+    {
+        ProductWorkspaceSessionHistoryCommitResult result =
+            _commitProductWorkspaceSessionHistory(direction);
+        ProductWorkspaceContainerEditStatus.Text = result.IsAccepted
+            ? direction == ProductWorkspaceSessionHistoryDirection.Undo
+                ? "最近一次方格配置操作已撤销并进入保存队列；真实文件未改变。"
+                : "下一次方格配置操作已重做并进入保存队列；真实文件未改变。"
+            : result.Status ==
+                ProductWorkspaceSessionHistoryNavigationStatus
+                    .CurrentConfigurationChanged
+                ? "当前配置已变化，会话历史没有执行模糊补偿。"
+                : "撤销或重做未被接受；配置与真实文件均未改变。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceContainerEditStatus,
+            $"WorkspaceSessionHistoryNavigation:{result.Status}:" +
+                $"Direction={direction}:Revision={result.EditRevision}:" +
+                $"Changed={result.IsAccepted}:DesktopFilesChanged=False");
+    }
+
     internal void ApplyProductWorkspaceLatestUndo(
         ProductWorkspaceLatestUndoPresentation presentation)
     {
@@ -1829,17 +1898,9 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceLatestUndoButton.Visibility = presentation.CanUndo
             ? Visibility.Visible
             : Visibility.Collapsed;
-        OverviewRecentActionDetail.Text = presentation.CanUndo
-            ? $"可撤销的最近操作：{presentation.ButtonText.Replace(
-                "撤销",
-                string.Empty,
-                StringComparison.Ordinal)}"
-            : "暂无可撤销的盒子操作";
         OverviewLatestUndoButton.Content = presentation.ButtonText;
         OverviewLatestUndoButton.IsEnabled = presentation.CanUndo;
-        OverviewLatestUndoButton.Visibility = presentation.CanUndo
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        OverviewLatestUndoButton.Visibility = Visibility.Collapsed;
         AutomationProperties.SetName(
             ProductWorkspaceLatestUndoButton,
             presentation.AccessibilityName);
@@ -5628,7 +5689,7 @@ public sealed partial class MainWindow : Window
         _practiceItemsAdded = false;
         AddPracticeItemsButton.IsEnabled = true;
         UndoPracticeContainerButton.IsEnabled = true;
-        UndoPracticeContainerButton.Content = "撤销创建（Ctrl+Z）";
+        UndoPracticeContainerButton.Content = "撤销练习创建";
         DropSafeReferenceButton.IsEnabled = true;
         DropReassignButton.IsEnabled = true;
         DropManagedMoveButton.IsEnabled = true;
@@ -5651,7 +5712,7 @@ public sealed partial class MainWindow : Window
         PracticeContainerCountValue.Text = "3 个匿名引用 · 仅内存";
         _practiceItemsAdded = true;
         AddPracticeItemsButton.IsEnabled = false;
-        UndoPracticeContainerButton.Content = "撤销添加（Ctrl+Z）";
+        UndoPracticeContainerButton.Content = "撤销练习添加";
         PracticeActivityStatus.Text =
             "已添加 3 个匿名引用；只改变当前原型中的组织关系，没有读取或移动文件。";
         AutomationProperties.SetItemStatus(
@@ -5669,7 +5730,7 @@ public sealed partial class MainWindow : Window
             PracticeContainerCountValue.Text = "0 个匿名引用 · 仅内存";
             _practiceItemsAdded = false;
             AddPracticeItemsButton.IsEnabled = true;
-            UndoPracticeContainerButton.Content = "撤销创建（Ctrl+Z）";
+            UndoPracticeContainerButton.Content = "撤销练习创建";
             PracticeActivityStatus.Text =
                 "已撤销添加 3 个匿名引用；方格仍然存在，没有文件被移动或删除。";
             AutomationProperties.SetItemStatus(
