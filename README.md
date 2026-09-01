@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：PF-008A/B/C 已完成视图密度、连续滚动、扩展排序以及持久化引用自定义顺序/失败补偿/一次撤销，真实 HWND、Unicode 文件系统和文件零变化通过，状态为 `EngineeringComplete / ProductEvidencePending`。唯一接续点是 PF-009A 桌面搜索共用查询模型与正式结果列表；M1/M2 仍为 `0/2 Complete`、30 项 PF 仍为 `0 Complete`，所有产物不可公开分发。完整审计见 [Stage 262](docs/262-pf008c-custom-reference-order-audit.md)，统一执行源见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)。
+> 当前状态：PF-009A 已完成盒子/项目共用查询模型、类型/健康/显示器筛选及正式结果列表，真实 Unicode 文件、正文隔离、文件零变化与 500 项规模通过，状态为 `EngineeringComplete / ProductEvidencePending`。唯一接续点是 PF-009B 桌面搜索浮层与结果导航；M1/M2 仍为 `0/2 Complete`、30 项 PF 仍为 `0 Complete`，所有产物不可公开分发。完整审计见 [Stage 263](docs/263-pf009a-shared-search-results-audit.md)，统一执行源见 [PRODUCT_EXECUTION_PLAN](docs/PRODUCT_EXECUTION_PLAN.md)。
 
 ## 产品原则
 
@@ -18,6 +18,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 当前工作只需要优先阅读以下文档：
 
 - [PF-008C 自定义引用顺序与恢复审计（Stage 262）](docs/262-pf008c-custom-reference-order-audit.md)
+- [PF-009A 共用搜索模型与正式结果列表审计（Stage 263）](docs/263-pf009a-shared-search-results-audit.md)
 - [PF-008B 类型与修改时间稳定排序审计（Stage 261）](docs/261-pf008b-type-modified-sort-audit.md)
 - [PF-008A 视图密度与连续滚动审计（Stage 260）](docs/260-pf008a-view-density-continuous-scroll-audit.md)
 - [功能优先开发基准与当前队列重对齐（Stage 259）](docs/259-function-first-development-priority-realignment.md)
@@ -290,7 +291,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 262](docs/262-pf008c-custom-reference-order-audit.md)的**功能优先（FunctionFirst）**基准，PF-008A～C 已工程收口；当前唯一主开发项是 **PF-009A 桌面搜索共用查询模型与正式结果列表**。BOX-R1-C/D 与 M1 的 #23/#274、完整 Runtime 和独占可丢弃会话，以及 TASKBAR-R2B1-B 的 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) Guest 准入继续作为并行外部门禁；未准入只阻止对应物理证据、系统写入和 Complete 声明，不冻结 PF-009A。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 263](docs/263-pf009a-shared-search-results-audit.md)的**功能优先（FunctionFirst）**基准，PF-009A 已工程收口；当前唯一主开发项是 **PF-009B 桌面搜索浮层与结果导航**。BOX-R1-C/D 与 M1 的 #23/#274、完整 Runtime 和独占可丢弃会话，以及 TASKBAR-R2B1-B 的 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) Guest 准入继续作为并行外部门禁；未准入只阻止对应物理证据、系统写入和 Complete 声明，不冻结 PF-009B。
 
 ## 开发启动
 

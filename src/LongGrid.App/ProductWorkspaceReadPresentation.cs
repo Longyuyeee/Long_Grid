@@ -61,6 +61,11 @@ internal sealed record ProductWorkspaceReadPresentation(
     bool IsKnownEmptyWorkspace,
     IReadOnlyList<ProductWorkspaceReadContainerPresentation> Containers)
 {
+    internal long EditRevision { get; init; }
+
+    internal IReadOnlyList<ProductWorkspaceSearchContainerInput> SearchContainers
+    { get; init; } = Array.Empty<ProductWorkspaceSearchContainerInput>();
+
     public static ProductWorkspaceReadPresentation Unavailable { get; } = new(
         "正在读取盒子…",
         "WorkspaceViewUnavailable:Containers=0:Items=0",
@@ -85,7 +90,8 @@ internal sealed record ProductWorkspaceReadPresentation(
             Array.Empty<ProductWorkspaceReadContainerPresentation>());
 
     public static ProductWorkspaceReadPresentation Create(
-        ProductWorkspaceReadSnapshot snapshot)
+        ProductWorkspaceReadSnapshot snapshot,
+        long editRevision = 0)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ProductWorkspaceReadContainerPresentation[] containers = snapshot.Containers
@@ -142,7 +148,23 @@ internal sealed record ProductWorkspaceReadPresentation(
             snapshot.NeedsReviewContainerCount,
             true,
             snapshot.Containers.Count == 0,
-            containers);
+            containers)
+        {
+            EditRevision = editRevision,
+            SearchContainers = snapshot.Containers.Select(container =>
+                new ProductWorkspaceSearchContainerInput(
+                    container.Ordinal,
+                    container.UserVisibleName,
+                    container.Health,
+                    container.DisplayKey,
+                    container.Items.Select(item =>
+                        new ProductWorkspaceSearchItemInput(
+                            item.Ordinal,
+                            item.UserVisibleName,
+                            item.Kind,
+                            item.Resolution,
+                            item.Source)).ToArray())).ToArray(),
+        };
     }
 
     public ProductWorkspaceReadFilterPresentation ApplyFilter(

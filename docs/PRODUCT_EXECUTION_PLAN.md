@@ -1,12 +1,12 @@
 # Long方格产品重对齐与统一开发计划
 
-版本：3.4
+版本：3.5
 
 状态：Required / 当前唯一执行计划
 
 更新日期：2026-09-01
 
-代码审计输入基线：PF-008C 分支基于 `origin/main@c40bc81`；PF-008A～C 真实实现与 PF-009A 唯一接续边界见 [Stage 262](262-pf008c-custom-reference-order-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
+代码审计输入基线：PF-009A 分支基于 `origin/main@891832f`；共用查询模型、正式结果列表与 PF-009B 唯一接续边界见 [Stage 263](263-pf009a-shared-search-results-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -267,7 +267,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**PF-009A 桌面搜索共用查询模型与正式结果列表（FunctionFirst / InProgress）**。PF-008A/B/C 已完成两档密度、连续滚动、类型/修改时间排序以及配置引用自定义顺序、保存失败补偿和一次撤销；真实 HWND、真实 Unicode 文件系统和文件零变化通过，正式 App 跨进程物理证据保持 Pending。下一步建立方格与项目共用查询模型和正式结果列表，不读取文件内容。BOX-R1-C/D 与 TASKBAR-R2B1-B 继续作为并行外部门禁，不冻结 PF-009A。最新精确基准见 [Stage 262](262-pf008c-custom-reference-order-audit.md)。
+当前执行项：**PF-009B 桌面搜索浮层与结果导航（FunctionFirst / InProgress）**。PF-009A 已完成盒子/项目共用查询、类型/健康/显示器筛选、revision 陈旧结果拒绝、正式结果列表和 500 项规模；真实 Unicode 文件、正文隔离和文件零变化通过，正式 App 跨进程物理证据保持 Pending。下一步复用同一模型建立桌面浮层、键盘结果导航以及临时展开/滚动/高亮，不建立第二份搜索事实源。BOX-R1-C/D 与 TASKBAR-R2B1-B 继续作为并行外部门禁，不冻结 PF-009B。最新精确基准见 [Stage 263](263-pf009a-shared-search-results-audit.md)。
 
 严格按下列顺序交付，不再插入非当前队列的相邻探针或功能：
 
@@ -280,8 +280,8 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 7. **FOLDER-R1（A～D EngineeringComplete / RealFilesystemPass / ProductEvidencePending）**：A 持久化/身份/健康合同 → B 显式选择、取消零写入、绑定/解绑/重连原子提交 → C 目录内容呈现、显式刷新、变更通知和安全打开 → D 权限、离线、同路径替换、失效恢复和有限状态；路径、三种 schema v4 基础排序、真实加载状态和一次性有限恢复反馈均已合入，同时保留 Ready/Empty/Truncated 等权威内容状态；物理 Picker、可见加载/失效/恢复/刷新/打开/排序、键盘和 Narrator 进入 M1 集中证据。
 8. **PF-007A2 / PF-007B（EngineeringComplete / RealHwndPass / ProductEvidencePending）**：A2 已完成正式 HWND OLE DropTarget 和安全 Link 引用提交；B 已完成盒子间改归属、无效目标、失败补偿和一次撤销。
 9. **PF-008（A～C EngineeringComplete / ProductEvidencePending）**：两档密度、连续滚动、类型/时间排序和配置引用自定义顺序已通过真实 HWND/文件系统、保存失败补偿和一次撤销；物理鼠标、键盘、Narrator、触控和截图证据待集中完成。
-10. **PF-009（InProgress / 当前主队列）**：A 先完成方格与项目共用查询模型、类型/健康/显示器筛选及正式结果列表，再接入桌面浮层、临时展开/滚动/高亮与打开/定位；查询不读取文件内容。
-11. **PF-010～PF-011（Queued）**：依次完成统一撤销/操作历史和首次启动体验；PF-009A 未形成可演示用户结果前不并行扩张。
+10. **PF-009（A EngineeringComplete / B 当前主队列）**：A 已完成方格与项目共用查询模型、类型/健康/显示器筛选及正式结果列表；B 复用同一模型接入桌面浮层、临时展开/滚动/高亮与打开/定位。查询不读取文件内容。
+11. **PF-010～PF-011（Queued）**：依次完成统一撤销/操作历史和首次启动体验；PF-009B 未形成可演示用户结果前不并行扩张。
 12. **M1 产品证据冲刺（ExternalEnvironmentBlocked / ParallelGate）**：等待安全 WinUI 运行时、专用账户和可安装签名条件；条件具备时优先执行完整两分钟旅程，不降低出口。
 13. **TASKBAR-R1～R4（R2B1-B EnvironmentBlocked / ParallelGate）**：R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵；宿主禁止试写，但不阻塞 PF 主队列。
 
@@ -460,7 +460,7 @@ Microsoft 当前 Windows 11 正式路径是带应用身份的原生 `IExplorerCo
 - GitHub 主分支交付：UI-R1A～UI-R1F、BOX-R1-A/B、FOLDER-R1-A～D、路径/基础排序/加载/恢复状态纠偏、PF-007A2/B、M1-A/B 证据安全入口与 TASKBAR-R1A～R2B1-A2 已合入 `origin/main@061a590`；Stage 220～225 又补齐许可证元数据、双语言 CodeQL、Action 固定/更新和真实进程确定性门禁；
 - M1 桌面盒子/文件夹绑定：未完成；BOX-R1-A/B、FOLDER-R1-A～D 与 PF-007A/B 工程链已完成，BOX-R1-C、FOLDER-R1、真实 Explorer 指针拖入和盒子间物理拖动证据 Pending；当前为 `ExternalEnvironmentBlocked`，不降低出口；
 - M2 任务栏美化核心：TASKBAR-R1A～R2B1-A 工程链和 R2B1-A2 正式预设准入已通过；默认原生目录为空，当前 Host 因专用环境缺失真实阻断；卡片可见但不可应用，R2B1-B/R3/R4 未完成；
-- M3 桌面管理增强：PF-008 已进入 `InProgress`，PF-009～PF-011 排队；其余尚未闭环；
+- M3 桌面管理增强：PF-008 工程切片收口，PF-009A 工程完成、PF-009B 当前开发，PF-010～PF-011 排队；物理产品证据尚未闭环；
 - M4 工作空间/小组件/插件：协议或文档阶段；
 - M5 正式交付：内部未签名链存在，正式发布未开始。
 
@@ -912,3 +912,7 @@ Stage 258 已通过 PR #342 合入 `main@d4d0032`，精确 main CI 为 `1,405/1,
 ### 13.40 Stage 262：PF-008C 自定义引用顺序与恢复
 
 持久化引用可在控制中心预览后相邻上移/下移，经正式 reducer、revision、原子保存和 `ReferenceOrder` 一次撤销提交；绑定文件夹临时内容排除。真实 Unicode 文件成功重载与真实独占写租约失败补偿均保持文件路径、数量和 SHA-256 不变；专项 `53/53`、完整 `1,416/1,416`、Release 0 warning/error、200-ID UI 合同通过。PF-008A～C 工程收口但产品物理证据仍 Pending；唯一接续点为 PF-009A，详见 [Stage 262](262-pf008c-custom-reference-order-audit.md)。
+
+### 13.41 Stage 263：PF-009A 共用搜索模型与正式结果列表
+
+Core 查询模型同时覆盖盒子和项目，支持目标、类型、健康状态与显示器组合筛选，以 edit revision 拒绝陈旧结果，并在控制中心展示所属盒子、来源、类型和有限解析状态。真实 Unicode 文件初始类型查询精确失败为 0 项；修正后类型命中、正文不命中且 SHA-256 不变，500 项低于 100ms 并明确截断。专项 `6/6`、完整 `1,422/1,422`、Release 0 warning/error、206-ID UI 合同通过。PF-009A 工程收口但产品物理证据 Pending；唯一接续点为 PF-009B，详见 [Stage 263](263-pf009a-shared-search-results-audit.md)。

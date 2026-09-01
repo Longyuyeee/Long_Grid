@@ -61,6 +61,10 @@ $workspaceContainerQuickLockPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceContainerQuickLockPolicy.cs'
 $workspaceVisibleSearchPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceVisibleSearchPolicy.cs'
+$workspaceSearchCodePath = Join-Path $projectRoot `
+    'src\LongGrid.Core\Configuration\ProductWorkspaceSearch.cs'
+$workspaceSearchPresentationCodePath = Join-Path $projectRoot `
+    'src\LongGrid.App\ProductWorkspaceSearchPresentation.cs'
 $workspaceContainerSortPolicyCodePath = Join-Path $projectRoot `
     'src\LongGrid.Core\Configuration\ProductWorkspaceContainerSortPolicy.cs'
 $workspaceViewResetPolicyCodePath = Join-Path $projectRoot `
@@ -341,6 +345,14 @@ function Test-SourceContract {
         -Encoding UTF8
     $workspaceVisibleSearchPolicyCode = Get-Content `
         -LiteralPath $workspaceVisibleSearchPolicyCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceSearchCode = Get-Content `
+        -LiteralPath $workspaceSearchCodePath `
+        -Raw `
+        -Encoding UTF8
+    $workspaceSearchPresentationCode = Get-Content `
+        -LiteralPath $workspaceSearchPresentationCodePath `
         -Raw `
         -Encoding UTF8
     $workspaceContainerSortPolicyCode = Get-Content `
@@ -830,6 +842,12 @@ function Test-SourceContract {
         'ProductWorkspaceDeleteSettingsExpander',
         'ProductWorkspaceContentSettingsExpander',
         'ProductWorkspaceSearchBox',
+        'ProductWorkspaceSearchResultsExpander',
+        'ProductWorkspaceSearchTargetSelector',
+        'ProductWorkspaceSearchItemKindSelector',
+        'ProductWorkspaceSearchDisplaySelector',
+        'ProductWorkspaceSearchStatus',
+        'ProductWorkspaceSearchResults',
         'ProductWorkspaceHealthFilterSelector',
         'ProductWorkspaceSortSelector',
         'ProductWorkspaceResetViewButton',
@@ -3096,6 +3114,54 @@ function Test-SourceContract {
         -not ($workspaceReadPresentationCode -match `
             'Search=\{query\}|SearchQuery|Query=\{')
     ) 'Workspace search must not ingest hidden identity/detail fields or echo user queries.'
+    $workspaceSearchTargetNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceSearchTargetSelector'
+    $workspaceSearchKindNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceSearchItemKindSelector'
+    $workspaceSearchDisplayNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceSearchDisplaySelector'
+    $workspaceSearchResultsNode = Get-XamlNodeByAutomationId `
+        $document `
+        'ProductWorkspaceSearchResults'
+    Assert-Condition (
+        $workspaceSearchTargetNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $workspaceSearchTargetNode.GetAttribute('SelectedIndex') -eq '0' -and
+        $workspaceSearchTargetNode.ChildNodes.Count -eq 3 -and
+        $workspaceSearchKindNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $workspaceSearchKindNode.GetAttribute('SelectedIndex') -eq '0' -and
+        $workspaceSearchKindNode.ChildNodes.Count -eq 5 -and
+        $workspaceSearchDisplayNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $workspaceSearchDisplayNode.GetAttribute('SelectedIndex') -eq '0' -and
+        $workspaceSearchResultsNode.GetAttribute('IsEnabled') -eq 'False' -and
+        $workspaceSearchResultsNode.GetAttribute('SelectionChanged') -eq `
+            'ProductWorkspaceSearchResults_SelectionChanged'
+    ) 'Formal workspace search results must start disabled and expose finite target, item-kind, display, and selection controls.'
+    Assert-Condition (
+        $workspaceSearchCode -match 'MaximumQueryLength\s*=\s*64' -and
+        $workspaceSearchCode -match 'MaximumScannedItems\s*=\s*ProductConfigurationLimits\.MaximumItems' -and
+        $workspaceSearchCode -match 'NormalizationForm\.FormC' -and
+        $workspaceSearchCode -match 'StaleAuthority' -and
+        $workspaceSearchCode -match 'ExpectedRevision\s*!=\s*currentRevision' -and
+        $workspaceSearchCode -match 'ProductWorkspaceSearchTargetFilter\.Items' -and
+        $workspaceSearchCode -match 'ProductWorkspaceSearchItemKindFilter\.File' -and
+        $workspaceSearchCode -match 'ProductWorkspaceContainerHealthFilterPolicy\.Includes' -and
+        $workspaceSearchPresentationCode -match 'ProductWorkspaceSearch\.Resolve' -and
+        $workspaceSearchPresentationCode -match 'ProductWorkspaceSearchStatus\.NoResults' -and
+        $workspaceSearchPresentationCode -match 'ProductWorkspaceSearchStatus\.StaleAuthority' -and
+        $codeBehind -match 'ApplyProductWorkspaceSearch\(\)' -and
+        $codeBehind -match 'CreateProductWorkspaceSearchRequest' -and
+        $codeBehind -match '_workspaceRead\.EditRevision' -and
+        $codeBehind -match 'ProductWorkspaceSearchResults\.ItemsSource\s*=\s*_workspaceSearch\.Results'
+    ) 'Formal workspace search must be Unicode-normalized, revision-bound, bounded to 500 items, filterable, and rendered as explicit results.'
+    Assert-Condition (
+        -not ($workspaceSearchCode -match `
+            'File\.|Directory\.|ReadAll|PersistedTarget|CanonicalTarget|ShortcutArguments|UrlContent') -and
+        -not ($workspaceSearchPresentationCode -match `
+            'Query=\{|SearchQuery|PersistedTarget|CanonicalTarget')
+    ) 'Formal search must use approved read-model fields without reading content, paths, shortcut arguments, or URL content and without echoing queries.'
     $workspaceSortNode = Get-XamlNodeByAutomationId `
         $document `
         'ProductWorkspaceSortSelector'
@@ -3183,7 +3249,7 @@ function Test-SourceContract {
         $workspaceEmptyCreateShortcutPolicyCode -match 'ProductWorkspaceEmptyCreateShortcutStatus\.Invalid' -and
         $workspaceReadPresentationCode -match 'IsKnownEmptyWorkspace' -and
         $codeBehind -match 'ProductWorkspaceEmptyCreateShortcutPolicy\.Evaluate' -and
-        $codeBehind -match 'ApplyProductWorkspaceReadModel[\s\S]{0,1200}UpdateProductWorkspaceEmptyCreateShortcut' -and
+        $codeBehind -match 'ApplyProductWorkspaceReadModel[\s\S]{0,8000}UpdateProductWorkspaceEmptyCreateShortcut' -and
         $codeBehind -match 'ApplyProductWorkspaceContainerEditor[\s\S]{0,4000}UpdateProductWorkspaceEmptyCreateShortcut' -and
         $codeBehind -match 'ProductWorkspaceContainerNameEditor\.Focus\(\s*FocusState\.Programmatic\)' -and
         $codeBehind -match 'WorkspaceEmptyCreateShortcutOpened' -and
@@ -3943,7 +4009,7 @@ function Test-SourceContract {
         productWorkspaceSession = 'formal-load-authoritative-catalog-revisioned-edit-baseline'
         productLayoutRecovery = 'verified-input-hide-bounded-shutdown-drain-app-blocked'
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
-        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-drag-bounds-inline-preview-fallback-review-shortcut-anonymous-unresolved'
+        productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-shared-item-results-revision-display-kind-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-drag-bounds-inline-preview-fallback-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'

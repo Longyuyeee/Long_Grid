@@ -185,6 +185,8 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerEditPresentation.Unavailable;
     private ProductWorkspaceReadPresentation _workspaceRead =
         ProductWorkspaceReadPresentation.Unavailable;
+    private ProductWorkspaceSearchPresentation _workspaceSearch =
+        ProductWorkspaceSearchPresentation.Unavailable;
     private ProductWorkspaceResolvedReferenceAddPresentation _resolvedReferenceAdd =
         ProductWorkspaceResolvedReferenceAddPresentation.Unavailable;
     private ProductWorkspaceResolvedReferenceRemovalPresentation
@@ -806,6 +808,9 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceHealthFilterSelector.IsEnabled = presentation.CanFilter;
         ProductWorkspaceSearchBox.IsEnabled = presentation.CanFilter;
         ProductWorkspaceSortSelector.IsEnabled = presentation.CanFilter;
+        ProductWorkspaceSearchTargetSelector.IsEnabled = presentation.CanFilter;
+        ProductWorkspaceSearchItemKindSelector.IsEnabled = presentation.CanFilter;
+        ProductWorkspaceSearchDisplaySelector.IsEnabled = presentation.CanFilter;
         if (!presentation.CanFilter)
         {
             ProductWorkspaceSearchBox.Text = string.Empty;
@@ -817,6 +822,7 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceOpenReviewButton,
             "WorkspaceReviewShortcutPendingAlignment:Items=0:" +
                 "DesktopFilesChanged=False");
+        RefreshProductWorkspaceSearchDisplayChoices();
         ApplyProductWorkspaceFilters();
         UpdateProductWorkspaceEmptyCreateShortcut();
     }
@@ -978,7 +984,124 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetItemStatus(
             ProductWorkspaceViewStatus,
             machineStatusOverride ?? filtered.MachineStatus);
+        ApplyProductWorkspaceSearch();
     }
+
+    private void ProductWorkspaceSearchFilterSelector_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e)
+    {
+        if (_suppressProductWorkspaceViewChanges
+            || ProductWorkspaceSearchResults is null
+            || ProductWorkspaceSearchStatus is null)
+        {
+            return;
+        }
+
+        ApplyProductWorkspaceSearch();
+    }
+
+    private void ProductWorkspaceSearchResults_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e)
+    {
+        if (ProductWorkspaceSearchResults?.SelectedItem
+            is not ProductWorkspaceSearchResultPresentation selected)
+        {
+            return;
+        }
+
+        ProductWorkspaceSearchStatus.Text =
+            $"已选择 {selected.DisplayName}；没有改变方格或桌面文件。";
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceSearchStatus,
+            selected.MachineStatus + ":Selected=True:Changed=False:" +
+                "DesktopFilesChanged=False");
+    }
+
+    private void RefreshProductWorkspaceSearchDisplayChoices()
+    {
+        string? selectedKey =
+            (ProductWorkspaceSearchDisplaySelector.SelectedItem
+                as ProductWorkspaceSearchDisplayChoicePresentation)?.DisplayKey;
+        ProductWorkspaceSearchPresentation choices =
+            ProductWorkspaceSearchPresentation.Create(
+                _workspaceRead.EditRevision,
+                CreateProductWorkspaceSearchRequest(displayKey: null),
+                _workspaceRead.SearchContainers);
+        bool wasSuppressed = _suppressProductWorkspaceViewChanges;
+        _suppressProductWorkspaceViewChanges = true;
+        try
+        {
+            ProductWorkspaceSearchDisplaySelector.ItemsSource = choices.DisplayChoices;
+            int selectedIndex = choices.DisplayChoices
+                .Select((choice, index) => new { choice.DisplayKey, index })
+                .FirstOrDefault(candidate => string.Equals(
+                    candidate.DisplayKey,
+                    selectedKey,
+                    StringComparison.OrdinalIgnoreCase))?.index ?? 0;
+            ProductWorkspaceSearchDisplaySelector.SelectedIndex = selectedIndex;
+        }
+        finally
+        {
+            _suppressProductWorkspaceViewChanges = wasSuppressed;
+        }
+    }
+
+    private void ApplyProductWorkspaceSearch()
+    {
+        if (ProductWorkspaceSearchResults is null
+            || ProductWorkspaceSearchStatus is null)
+        {
+            return;
+        }
+
+        string? displayKey =
+            (ProductWorkspaceSearchDisplaySelector.SelectedItem
+                as ProductWorkspaceSearchDisplayChoicePresentation)?.DisplayKey;
+        _workspaceSearch = ProductWorkspaceSearchPresentation.Create(
+            _workspaceRead.EditRevision,
+            CreateProductWorkspaceSearchRequest(displayKey),
+            _workspaceRead.SearchContainers);
+        ProductWorkspaceSearchResults.ItemsSource = _workspaceSearch.Results;
+        ProductWorkspaceSearchResults.IsEnabled = _workspaceSearch.CanSearch
+            && _workspaceSearch.Results.Count > 0;
+        ProductWorkspaceSearchStatus.Text = _workspaceSearch.Detail;
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceSearchStatus,
+            _workspaceSearch.MachineStatus);
+    }
+
+    private ProductWorkspaceSearchRequest CreateProductWorkspaceSearchRequest(
+        string? displayKey) =>
+        new(
+            ProductWorkspaceSearchBox?.Text ?? string.Empty,
+            _workspaceRead.EditRevision,
+            ProductWorkspaceSearchTargetSelector?.SelectedIndex switch
+            {
+                0 => ProductWorkspaceSearchTargetFilter.All,
+                1 => ProductWorkspaceSearchTargetFilter.Containers,
+                2 => ProductWorkspaceSearchTargetFilter.Items,
+                _ => ProductWorkspaceSearchTargetFilter.Invalid,
+            },
+            ProductWorkspaceSearchItemKindSelector?.SelectedIndex switch
+            {
+                0 => ProductWorkspaceSearchItemKindFilter.All,
+                1 => ProductWorkspaceSearchItemKindFilter.File,
+                2 => ProductWorkspaceSearchItemKindFilter.Folder,
+                3 => ProductWorkspaceSearchItemKindFilter.Shortcut,
+                4 => ProductWorkspaceSearchItemKindFilter.Url,
+                _ => ProductWorkspaceSearchItemKindFilter.Invalid,
+            },
+            ProductWorkspaceHealthFilterSelector?.SelectedIndex switch
+            {
+                0 => ProductWorkspaceContainerHealthFilter.All,
+                1 => ProductWorkspaceContainerHealthFilter.NeedsReview,
+                2 => ProductWorkspaceContainerHealthFilter.Empty,
+                3 => ProductWorkspaceContainerHealthFilter.Ready,
+                _ => ProductWorkspaceContainerHealthFilter.Invalid,
+            },
+            displayKey);
 
     private ProductWorkspaceEmptyCreateShortcutDecision
         ResolveProductWorkspaceEmptyCreateShortcut() =>
