@@ -1864,7 +1864,9 @@ public partial class App : Application
                 folderContents);
         ApplyProductDesktopHostProjection(topology);
         ProductWorkspaceReadPresentation readPresentation = readModel.IsSuccess
-            ? ProductWorkspaceReadPresentation.Create(readModel.Snapshot!)
+            ? ProductWorkspaceReadPresentation.Create(
+                readModel.Snapshot!,
+                workspaceCommits.CurrentEditRevision)
             : productWorkspaceSession.Status ==
                 ProductWorkspaceSessionStatus.NoSavedConfiguration
                 ? ProductWorkspaceReadPresentation.NoSavedConfiguration

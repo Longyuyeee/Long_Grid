@@ -1381,6 +1381,97 @@
                                         Foreground="{ThemeResource LongGridTextSecondaryBrush}"
                                         Text="正在加载方格内容；桌面文件保持原位。"
                                         TextWrapping="Wrap" />
+                                    <Expander
+                                        x:Name="ProductWorkspaceSearchResultsExpander"
+                                        Grid.Row="6"
+                                        AutomationProperties.AutomationId="ProductWorkspaceSearchResultsExpander"
+                                        AutomationProperties.Name="正式搜索结果"
+                                        Header="搜索结果"
+                                        IsExpanded="True">
+                                        <StackPanel Spacing="10">
+                                            <Grid ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <ComboBox
+                                                    x:Name="ProductWorkspaceSearchTargetSelector"
+                                                    AutomationProperties.AutomationId="ProductWorkspaceSearchTargetSelector"
+                                                    AutomationProperties.Name="选择搜索目标"
+                                                    Header="目标"
+                                                    IsEnabled="False"
+                                                    SelectedIndex="0"
+                                                    SelectionChanged="ProductWorkspaceSearchFilterSelector_SelectionChanged">
+                                                    <ComboBoxItem Content="全部" />
+                                                    <ComboBoxItem Content="仅盒子" />
+                                                    <ComboBoxItem Content="仅项目" />
+                                                </ComboBox>
+                                                <ComboBox
+                                                    x:Name="ProductWorkspaceSearchItemKindSelector"
+                                                    Grid.Column="1"
+                                                    AutomationProperties.AutomationId="ProductWorkspaceSearchItemKindSelector"
+                                                    AutomationProperties.Name="选择项目类型"
+                                                    Header="类型"
+                                                    IsEnabled="False"
+                                                    SelectedIndex="0"
+                                                    SelectionChanged="ProductWorkspaceSearchFilterSelector_SelectionChanged">
+                                                    <ComboBoxItem Content="全部类型" />
+                                                    <ComboBoxItem Content="文件" />
+                                                    <ComboBoxItem Content="文件夹" />
+                                                    <ComboBoxItem Content="快捷方式" />
+                                                    <ComboBoxItem Content="网址" />
+                                                </ComboBox>
+                                                <ComboBox
+                                                    x:Name="ProductWorkspaceSearchDisplaySelector"
+                                                    Grid.Column="2"
+                                                    AutomationProperties.AutomationId="ProductWorkspaceSearchDisplaySelector"
+                                                    AutomationProperties.Name="选择显示器范围"
+                                                    DisplayMemberPath="DisplayName"
+                                                    Header="显示器"
+                                                    IsEnabled="False"
+                                                    SelectedIndex="0"
+                                                    SelectionChanged="ProductWorkspaceSearchFilterSelector_SelectionChanged" />
+                                            </Grid>
+                                            <TextBlock
+                                                x:Name="ProductWorkspaceSearchStatus"
+                                                AutomationProperties.AutomationId="ProductWorkspaceSearchStatus"
+                                                AutomationProperties.ItemStatus="WorkspaceSearchUnavailable:Results=0:Changed=False"
+                                                AutomationProperties.LiveSetting="Polite"
+                                                FontSize="11"
+                                                Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                                Text="搜索结果尚不可用。"
+                                                TextWrapping="Wrap" />
+                                            <ListView
+                                                x:Name="ProductWorkspaceSearchResults"
+                                                MaxHeight="240"
+                                                AutomationProperties.AutomationId="ProductWorkspaceSearchResults"
+                                                AutomationProperties.Name="正式搜索结果列表"
+                                                IsEnabled="False"
+                                                SelectionMode="Single"
+                                                SelectionChanged="ProductWorkspaceSearchResults_SelectionChanged">
+                                                <ListView.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel
+                                                            Padding="6"
+                                                            AutomationProperties.Name="{Binding AccessibilityName}"
+                                                            AutomationProperties.ItemStatus="{Binding MachineStatus}"
+                                                            Spacing="2">
+                                                            <TextBlock
+                                                                FontWeight="SemiBold"
+                                                                Text="{Binding DisplayName}"
+                                                                TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock
+                                                                FontSize="11"
+                                                                Foreground="{ThemeResource LongGridTextSecondaryBrush}"
+                                                                Text="{Binding Detail}"
+                                                                TextWrapping="Wrap" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ListView.ItemTemplate>
+                                            </ListView>
+                                        </StackPanel>
+                                    </Expander>
                                 </Grid>
                             </Border>
 

@@ -5,8 +5,8 @@
 - 主要对标：iTop Easy Desktop、Stardock Fences 6
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：PF 功能详细 backlog 与历史验收账本；当前状态、执行顺序和里程碑以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 当前开发项：**PF-009A 桌面搜索共用查询模型与正式结果列表**；顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 当前接续输入基线：PF-008C 分支基于 `origin/main@c40bc81`；PF-008A～C 工程收口与 PF-009A 接续点见 [Stage 262](262-pf008c-custom-reference-order-audit.md)，PF-008B 见 [Stage 261](261-pf008b-type-modified-sort-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
+- 当前开发项：**PF-009B 桌面搜索浮层与结果导航**；顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
+- 当前接续输入基线：PF-009A 分支基于 `origin/main@891832f`；共用查询模型、正式结果列表与 PF-009B 接续点见 [Stage 263](263-pf009a-shared-search-results-audit.md)，PF-008A～C 工程收口见 [Stage 262](262-pf008c-custom-reference-order-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 - 最新功能工程审计：PF-007A2 已完成正式 OLE Link 拖入；PF-007B 已完成已选正式引用在盒子间的原生有限拖动、冻结权威准入、原子保存/补偿和一次撤销。真实 STA/HWND/隔离文件路径与 SHA-256 零变化通过，物理鼠标与屏幕证据仍 Pending。PF-007 为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
@@ -70,7 +70,7 @@
 | 6 | PF-006 | 项目选择、键盘导航与打开 | `EngineeringComplete / ProductEvidencePending`：A/B/C 工程范围含框选均已集成；物理输入/Narrator/高对比仍 Pending | Fences/Portal 日常访问 |
 | 7 | PF-007 | Explorer 拖入与方格间拖放 | `EngineeringComplete / ProductEvidencePending`：A1/A2/B 工程链完成；真实 Explorer 指针、盒子间物理拖动和撤销证据待 M1 | iTop/Fences 直接拖放 |
 | 8 | PF-008 | 方格内视图、排序、滚动与间距 | A～C `EngineeringComplete / ProductEvidencePending`：密度、连续滚动、扩展排序、自定义引用顺序、真实失败补偿与一次撤销已完成 | Nimi/Fences 视图控制 |
-| 9 | PF-009 | 桌面搜索、筛选与快速定位 | 控制中心搜索 | iTop Search |
+| 9 | PF-009 | 桌面搜索、筛选与快速定位 | A `EngineeringComplete / ProductEvidencePending`：共用盒子/项目查询、组合筛选、正式结果列表、500 项规模已完成；B 桌面浮层与结果导航待开发 | iTop Search |
 | 10 | PF-010 | 统一撤销、重做与操作历史 | 最近动作撤销 | iTop Snapshot/安全恢复 |
 | 11 | PF-011 | 首次启动 Quick Start/Customize | 匿名练习存在 | iTop 首次启动 |
 | 12 | PF-020 | 规则模型与规则编辑器 | 文件规划器原型 | iTop/Fences Organization |
@@ -897,6 +897,6 @@
 
 PF-001～PF-006、PF-007A1/A2/B 与单文件夹绑定 A～D 均为 `EngineeringComplete / ProductEvidencePending`。PF-007 的物理 Explorer 拖入和方格间改归属尚未完成，但不得再把 B 写成工程未实现。
 
-当前唯一主开发项为 **PF-009A**。PF-008A～C 已交付两档有限视图密度、跨首屏连续滚动、类型/修改时间稳定排序、自定义持久化引用顺序、保存失败补偿和一次撤销，状态为 `EngineeringComplete / ProductEvidencePending`。PF-009A 先建立方格与项目共用查询模型、有限筛选和正式结果列表；不得读取文件内容、快捷方式参数或 URL 页面。每个切片继续记录真实 Expected / Actual 差异。
+当前唯一主开发项为 **PF-009B**。PF-009A 已交付方格与项目共用查询、目标/类型/健康/显示器筛选、revision 陈旧结果拒绝、正式结果列表与 500 项规模，状态为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`。PF-009B 复用同一查询模型建立桌面浮层、键盘结果导航以及盒子/项目临时展开、滚动和高亮；打开/定位必须复用既有入口。每个切片继续记录真实 Expected / Initial Actual / Difference / Correction / Final Actual。
 
 M1 集中产品证据、BOX-R1-C/D 和 TASKBAR-R2B1-B 改为并行外部门禁：环境满足时优先完成完整旅程，环境未满足时保持 Pending，不冻结 PF-008～PF-011 功能开发。任何版本在签名和安装门禁完成前仍不得分发。完整决策见 [Stage 259](259-function-first-development-priority-realignment.md)。

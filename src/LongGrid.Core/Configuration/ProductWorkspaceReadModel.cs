@@ -73,7 +73,8 @@ public sealed record ProductWorkspaceReadContainer(
     ProductContainerFolderBindingResolution?
         FolderBindingRecoveredFrom = null,
     ProductContainerContentDensity ContentDensity =
-        ProductContainerContentDensity.Comfortable);
+        ProductContainerContentDensity.Comfortable,
+    string DisplayKey = "");
 
 public sealed record ProductWorkspaceReadSnapshot(
     IReadOnlyList<ProductWorkspaceReadContainer> Containers,
@@ -221,7 +222,8 @@ public static class ProductWorkspaceReadModel
                 folderContent is { HasValidShape: true }
                     ? folderContent.RecoveredFromBindingResolution
                     : null,
-                container.Appearance.ContentDensity));
+                container.Appearance.ContentDensity,
+                container.Placement.DisplayKey));
         }
 
         return new(

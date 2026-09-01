@@ -6,6 +6,8 @@
 
 状态：`HandoffPrepared / DevelopmentPaused / ExternalAdmissionPending`
 
+> 2026-09-01 接续更新：本文保留 Stage 251 当时的环境交接证据；最新代码和唯一功能接续点已前进到 [Stage 263](263-pf009a-shared-search-results-audit.md)。换电脑仍必须从最新 GitHub `main` 全新拉取，不使用本文的历史 SHA 作为 checkout 目标。PF-009A 已工程收口，最新完整测试为 `1,422/1,422`、Release 0 warning/error、206-ID UI 合同；下一步仅进入 PF-009B 桌面搜索浮层与结果导航。
+
 ## 1. 交接结论
 
 从本阶段开始暂停继续扩展功能，换电脑后的唯一代码来源是 GitHub `main`。当前项目不是“功能全部完成”，也不是“需要重新开发 Core”；准确状态是：桌面盒子、单文件夹绑定和 PF-001～PF-007 的工程链已经形成，但顶层 M1/M2 和 30 项 PF 均没有取得完整产品证据；M1 受 Runtime、签名、独占可丢弃 Windows 会话及负责人输入阻断，TASKBAR-R2B1-B 受 Host/Guest 准入阻断。

@@ -8,7 +8,9 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源。PF-008A～C 工程收口与 PF-009A 接续点见 [Stage 262](262-pf008c-custom-reference-order-audit.md)，换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)。当前唯一主开发项为 PF-009A；#23/#274、完整 Runtime、签名包、独占可丢弃 Windows 会话和 Stage 216 Guest 准入作为 BOX/M1/TASKBAR 并行门禁，不再冻结安全边界内的产品功能开发。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源。PF-009A 工程收口与 PF-009B 接续点见 [Stage 263](263-pf009a-shared-search-results-audit.md)，换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)。当前唯一主开发项为 PF-009B；#23/#274、完整 Runtime、签名包、独占可丢弃 Windows 会话和 Stage 216 Guest 准入作为 BOX/M1/TASKBAR 并行门禁，不再冻结安全边界内的产品功能开发。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+
+2026-09-01 Stage 263 PF-009A 共用搜索与正式结果：Core 查询同时覆盖盒子和项目，支持目标、类型、健康状态与显示器筛选，以 edit revision 丢弃陈旧结果，并在控制中心展示所属盒子、来源和有限解析状态。初始真实 Unicode 文件按“文件”查询精确失败为 0 项；修正后类型命中、正文不命中且 SHA-256 不变，500 项低于 100ms 并明确截断。专项 `6/6`、完整 `1,422/1,422`、Release 0 warning/error、206-ID 合同通过；PF-009A 工程收口但物理产品证据 Pending，唯一接续点为 PF-009B，详见 [Stage 263](263-pf009a-shared-search-results-audit.md)。
 
 2026-09-01 Stage 262 PF-008C 自定义引用顺序：控制中心单选持久化引用后可预览并相邻上移/下移，确认才经正式 revision/reducer/原子保存提交；`BoundFolder` 临时内容排除。真实 Unicode 文件成功重载与独占写租约失败补偿均通过，文件路径、数量和 SHA-256 不变；专项 `53/53`、完整 `1,416/1,416`、Release 0 warning/error、200-ID 合同通过。PF-008A～C 工程收口但物理产品证据仍 Pending，30 项 PF 保持 `0 Complete`；唯一接续点切换到 PF-009A，详见 [Stage 262](262-pf008c-custom-reference-order-audit.md)。
 
