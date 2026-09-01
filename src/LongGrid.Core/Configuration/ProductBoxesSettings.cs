@@ -2,6 +2,14 @@ using System.Text.Json.Serialization;
 
 namespace LongGrid.Core.Configuration;
 
+public enum ProductFirstRunJourneyState
+{
+    NotStarted,
+    CustomizeInProgress,
+    Skipped,
+    Completed,
+}
+
 public sealed record ProductBoxesSettings
 {
     public const int CurrentSchemaVersion = 1;
@@ -18,6 +26,9 @@ public sealed record ProductBoxesSettings
     [JsonPropertyName("openItemsWithSingleClick")]
     public bool OpenItemsWithSingleClick { get; init; }
 
+    [JsonPropertyName("firstRunJourneyState")]
+    public ProductFirstRunJourneyState FirstRunJourneyState { get; init; }
+
     public static ProductBoxesSettings Default { get; } = new();
 
     public static ProductBoxesSettings SafeDisabled { get; } =
@@ -26,7 +37,9 @@ public sealed record ProductBoxesSettings
             BoxesEnabled = false,
             ThumbnailsEnabled = false,
             OpenItemsWithSingleClick = false,
+            FirstRunJourneyState = ProductFirstRunJourneyState.Skipped,
         };
 
-    public bool IsValid => SchemaVersion == CurrentSchemaVersion;
+    public bool IsValid => SchemaVersion == CurrentSchemaVersion
+        && Enum.IsDefined(FirstRunJourneyState);
 }

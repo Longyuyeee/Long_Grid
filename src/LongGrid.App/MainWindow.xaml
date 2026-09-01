@@ -321,6 +321,15 @@
                                     </StackPanel>
                                 </Border>
 
+                                <Button
+                                    x:Name="ProductQuickStartRestartButton"
+                                    AutomationProperties.AutomationId="ProductQuickStartRestartButton"
+                                    AutomationProperties.Name="重新运行首次整理"
+                                    Click="ProductQuickStartRestartButton_Click"
+                                    Content="重新运行首次整理"
+                                    HorizontalAlignment="Left"
+                                    Visibility="Collapsed" />
+
                                 <InfoBar
                                     x:Name="ProductRestartRecoveryBanner"
                                     AutomationProperties.AutomationId="ProductRestartRecoveryBanner"
@@ -1671,6 +1680,7 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
@@ -1690,82 +1700,29 @@
                                             Grid.Column="1"
                                             AutomationProperties.AutomationId="BlankStartChoice"
                                             Click="StartChoice_Click"
-                                            Content="从空白开始"
+                                            Content="自定义创建"
                                             HorizontalAlignment="Stretch"
                                             HorizontalContentAlignment="Center"
                                             Tag="blank" />
+                                        <Button
+                                            x:Name="ProductFirstRunSkipButton"
+                                            Grid.Column="2"
+                                            AutomationProperties.AutomationId="ProductFirstRunSkipButton"
+                                            AutomationProperties.Name="以后再进行首次整理"
+                                            Click="ProductFirstRunSkipButton_Click"
+                                            Content="以后再说"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center" />
                                     </Grid>
                                     <TextBlock
-                                        x:Name="StartChoiceStatus"
-                                        AutomationProperties.AutomationId="StartChoiceStatus"
-                                        AutomationProperties.ItemStatus="SuggestedStartSelected"
+                                        x:Name="FirstRunJourneyStatus"
+                                        AutomationProperties.AutomationId="FirstRunJourneyStatus"
+                                        AutomationProperties.ItemStatus="FirstRunJourneyLoading"
                                         AutomationProperties.LiveSetting="Polite"
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
-                                        Text="当前：查看真实桌面项目建议。" />
+                                        Text="正在恢复首次整理状态…" />
                                 </StackPanel>
                             </Border>
-
-                            <StackPanel Spacing="12">
-                                <TextBlock FontSize="20" FontWeight="SemiBold" Text="选择整理方式" />
-                                <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="安全引用是默认方式；它只保存组织关系，不改变文件位置。" />
-                                <Grid x:Name="OrganizationModeGrid" ColumnSpacing="14">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-                                    <Border
-                                        x:Name="SafeReferenceModeCard"
-                                        Grid.Column="0"
-                                        Style="{StaticResource LongGridCardStyle}">
-                                        <StackPanel Spacing="12">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <RadioButton
-                                                    x:Name="SafeReferenceMode"
-                                                    AutomationProperties.AutomationId="SafeReferenceMode"
-                                                    AutomationProperties.HelpText="只创建 Long方格组织关系，不移动磁盘文件"
-                                                    Checked="OrganizationMode_Checked"
-                                                    Content="安全引用"
-                                                    GroupName="OrganizationMode"
-                                                    Tag="safe-reference" />
-                                                <Border
-                                                    Grid.Column="1"
-                                                    Padding="8,3"
-                                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
-                                                    CornerRadius="8">
-                                                    <TextBlock FontSize="11" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" Text="推荐" />
-                                                </Border>
-                                            </Grid>
-                                            <TextBlock FontSize="17" FontWeight="SemiBold" Text="只改变 Long方格里的组织关系" />
-                                            <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="原始文件不移动、不删除；原生桌面图标可能仍然存在。" TextWrapping="Wrap" />
-                                        </StackPanel>
-                                    </Border>
-                                    <Border
-                                        x:Name="ManagedMoveModeCard"
-                                        Grid.Column="1"
-                                        Style="{StaticResource LongGridCardStyle}">
-                                        <StackPanel Spacing="12">
-                                            <RadioButton
-                                                x:Name="ManagedMoveMode"
-                                                AutomationProperties.AutomationId="ManagedMoveMode"
-                                                AutomationProperties.HelpText="了解真实文件移动所需的源、目标、冲突与确认"
-                                                Checked="OrganizationMode_Checked"
-                                                Content="真实移动（未开放）"
-                                                GroupName="OrganizationMode"
-                                                Tag="managed-move" />
-                                            <TextBlock FontSize="17" FontWeight="SemiBold" Text="会改变磁盘上的文件位置" />
-                                            <TextBlock Style="{StaticResource LongGridSubtitleTextStyle}" Text="正式能力必须展示源、目标、冲突和撤销边界，并再次明确确认。" TextWrapping="Wrap" />
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
-                            </StackPanel>
 
                             <Border Style="{StaticResource LongGridCardStyle}">
                                 <StackPanel Spacing="14">
@@ -1774,15 +1731,18 @@
                                         x:Name="OrganizationOutcomeTitle"
                                         AutomationProperties.AutomationId="OrganizationOutcomeTitle"
                                         FontSize="18"
-                                        FontWeight="SemiBold" />
+                                        FontWeight="SemiBold"
+                                        Text="添加安全引用，不移动文件" />
                                     <TextBlock
                                         x:Name="OrganizationOutcomeDetail"
                                         Style="{StaticResource LongGridSubtitleTextStyle}"
+                                        Text="确认后只保存 Long方格组织关系；原文件位置、名称和内容保持不变。"
                                         TextWrapping="Wrap" />
                                     <Button
                                         x:Name="OrganizationPreviewButton"
                                         AutomationProperties.AutomationId="OrganizationPreviewButton"
                                         Click="OrganizationPreviewButton_Click"
+                                        Content="查看真实项目预览"
                                         HorizontalAlignment="Left" />
                                     <TextBlock
                                         x:Name="OrganizationPreviewStatus"
@@ -1807,133 +1767,14 @@
                                         Content="确认并创建"
                                         HorizontalAlignment="Left"
                                         IsEnabled="False" />
-                                </StackPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource LongGridCardStyle}" Visibility="Collapsed">
-                                <StackPanel Spacing="14">
-                                    <TextBlock FontSize="20" FontWeight="SemiBold" Text="练习创建第一个方格" />
-                                    <TextBlock
-                                        Style="{StaticResource LongGridSubtitleTextStyle}"
-                                        Text="这个练习只创建当前进程中的匿名容器关系；不读取桌面、不保存配置，也不移动或删除文件。"
-                                        TextWrapping="Wrap" />
-                                    <TextBox
-                                        x:Name="PracticeContainerName"
-                                        AutomationProperties.AutomationId="PracticeContainerName"
-                                        AutomationProperties.HelpText="最多 40 个字符；不会用作文件夹名称"
-                                        Header="方格名称"
-                                        MaxLength="40"
-                                        Text="我的第一个方格" />
                                     <Button
-                                        x:Name="CreatePracticeContainerButton"
-                                        AutomationProperties.AutomationId="CreatePracticeContainerButton"
-                                        Click="CreatePracticeContainerButton_Click"
-                                        Content="创建匿名方格"
-                                        HorizontalAlignment="Left" />
-                                    <Border
-                                        x:Name="PracticeContainerPreview"
-                                        AutomationProperties.AutomationId="PracticeContainerPreview"
-                                        AutomationProperties.Name="已创建的匿名方格预览"
-                                        Padding="16"
-                                        Background="{ThemeResource LongGridSurfaceMutedBrush}"
-                                        CornerRadius="12"
-                                        Visibility="Collapsed">
-                                        <StackPanel Spacing="10">
-                                            <TextBlock
-                                                x:Name="PracticeContainerNameValue"
-                                                AutomationProperties.AutomationId="PracticeContainerNameValue"
-                                                FontSize="18"
-                                                FontWeight="SemiBold" />
-                                            <TextBlock
-                                                x:Name="PracticeContainerCountValue"
-                                                AutomationProperties.AutomationId="PracticeContainerCountValue"
-                                                Style="{StaticResource LongGridSubtitleTextStyle}"
-                                                Text="0 个匿名引用 · 仅内存" />
-                                            <ListView
-                                                x:Name="PracticeItemsList"
-                                                AutomationProperties.AutomationId="PracticeItemsList"
-                                                AutomationProperties.Name="匿名引用列表"
-                                                IsItemClickEnabled="False"
-                                                SelectionMode="None"
-                                                Visibility="Collapsed">
-                                                <ListViewItem
-                                                    AutomationProperties.AutomationId="PracticeItemOne"
-                                                    Content="匿名项目 A · 引用" />
-                                                <ListViewItem
-                                                    AutomationProperties.AutomationId="PracticeItemTwo"
-                                                    Content="匿名项目 B · 引用" />
-                                                <ListViewItem
-                                                    AutomationProperties.AutomationId="PracticeItemThree"
-                                                    Content="匿名项目 C · 引用" />
-                                            </ListView>
-                                        </StackPanel>
-                                    </Border>
-                                    <StackPanel Spacing="10">
-                                        <Button
-                                            x:Name="AddPracticeItemsButton"
-                                            AutomationProperties.AutomationId="AddPracticeItemsButton"
-                                            AutomationProperties.HelpText="向当前匿名方格添加三个内存引用；不会读取或移动文件"
-                                            Click="AddPracticeItemsButton_Click"
-                                            Content="添加 3 个匿名引用"
-                                            HorizontalAlignment="Left"
-                                            IsEnabled="False" />
-                                        <Button
-                                            x:Name="UndoPracticeContainerButton"
-                                            AutomationProperties.AutomationId="UndoPracticeContainerButton"
-                                            AutomationProperties.HelpText="撤销当前进程中的容器关系；不会删除文件"
-                                            Click="UndoPracticeContainerButton_Click"
-                                            Content="撤销练习创建"
-                                            HorizontalAlignment="Left"
-                                            IsEnabled="False" />
-                                    </StackPanel>
-                                    <TextBlock
-                                        x:Name="PracticeActivityStatus"
-                                        AutomationProperties.AutomationId="PracticeActivityStatus"
-                                        AutomationProperties.ItemStatus="PracticeContainerReady"
-                                        AutomationProperties.LiveSetting="Polite"
-                                        Style="{StaticResource LongGridSubtitleTextStyle}"
-                                        Text="可以开始练习；尚未创建关系，尚未修改任何文件。"
-                                        TextWrapping="Wrap" />
-
-                                    <TextBlock FontSize="18" FontWeight="SemiBold" Text="判断拖放会发生什么" />
-                                    <TextBlock
-                                        Style="{StaticResource LongGridSubtitleTextStyle}"
-                                        Text="这是非视觉语义练习，不接收 Explorer 数据。选择来源与目标，只查看动作徽标和安全后果。"
-                                        TextWrapping="Wrap" />
-                                    <StackPanel Spacing="8">
-                                        <Button
-                                            x:Name="DropSafeReferenceButton"
-                                            AutomationProperties.AutomationId="DropSafeReferenceButton"
-                                            Click="DropPracticeButton_Click"
-                                            Content="Explorer → 安全引用方格"
-                                            HorizontalAlignment="Left"
-                                            IsEnabled="False"
-                                            Tag="safe-reference" />
-                                        <Button
-                                            x:Name="DropReassignButton"
-                                            AutomationProperties.AutomationId="DropReassignButton"
-                                            Click="DropPracticeButton_Click"
-                                            Content="方格引用 → 另一个方格"
-                                            HorizontalAlignment="Left"
-                                            IsEnabled="False"
-                                            Tag="reassign" />
-                                        <Button
-                                            x:Name="DropManagedMoveButton"
-                                            AutomationProperties.AutomationId="DropManagedMoveButton"
-                                            Click="DropPracticeButton_Click"
-                                            Content="Explorer → 请求移动文件"
-                                            HorizontalAlignment="Left"
-                                            IsEnabled="False"
-                                            Tag="managed-move" />
-                                    </StackPanel>
-                                    <TextBlock
-                                        x:Name="DropActionStatus"
-                                        AutomationProperties.AutomationId="DropActionStatus"
-                                        AutomationProperties.ItemStatus="DropPracticeUnavailable"
-                                        AutomationProperties.LiveSetting="Polite"
-                                        Style="{StaticResource LongGridSubtitleTextStyle}"
-                                        Text="先创建匿名方格，再练习判断拖放语义。"
-                                        TextWrapping="Wrap" />
+                                        x:Name="ProductQuickStartBackButton"
+                                        AutomationProperties.AutomationId="ProductQuickStartBackButton"
+                                        AutomationProperties.Name="返回首次整理选择"
+                                        Click="ProductQuickStartBackButton_Click"
+                                        Content="返回"
+                                        HorizontalAlignment="Left"
+                                        Visibility="Collapsed" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>

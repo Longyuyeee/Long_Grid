@@ -6,7 +6,7 @@
 
 更新日期：2026-09-01
 
-代码审计输入基线：PF-011A 基于 `origin/main@d427dff` 完成真实目录建议、确认后原子提交和统一历史；真实回归、完成边界与 PF-011B 唯一接续点见 [Stage 269](269-pf011a-quick-start-real-preview-atomic-commit-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
+代码审计输入基线：PF-011A/B 基于 `origin/main@850a63c` 完成真实 Quick Start、正式 Customize、跳过/返回/重跑、保存后完成态和匿名遗留退出；真实回归、未关闭证据与 PF-020A 唯一接续点见 [Stage 270](270-pf011b-formal-first-run-journey-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -267,7 +267,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**PF-011B Customize、跳过/返回与完成态恢复（FunctionFirst / InProgress）**。PF-011A 已完成真实桌面目录建议、确认前零提交、确认后一次原子保存与一个统一历史项，取消、陈旧预览、失败补偿和真实文件零变化通过；状态为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`。PF-011B 负责 Customize、跳过/返回/以后再运行、重启完成态与匿名遗留退出。BOX-R1-C/D 与 TASKBAR-R2B1-B 作为并行外部门禁，不冻结 PF-011B。最新精确基准见 [Stage 269](269-pf011a-quick-start-real-preview-atomic-commit-audit.md)。
+当前执行项：**PF-020A 规则模型、解释性预览与安全引用分配（FunctionFirst / InProgress）**。PF-011A/B 已完成真实 Quick Start、正式 Customize、跳过/返回/重新运行、保存成功后完成态和匿名练习退出；状态为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`。PF-020A 只实现可解释规则与安全引用分配，不移动文件；PF-011 真人旅程、BOX-R1-C/D 与 TASKBAR-R2B1-B 作为并行外部门禁，不冻结 PF-020A。最新精确基准见 [Stage 270](270-pf011b-formal-first-run-journey-audit.md)。
 
 严格按下列顺序交付，不再插入非当前队列的相邻探针或功能：
 
@@ -281,9 +281,10 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 8. **PF-007A2 / PF-007B（EngineeringComplete / RealHwndPass / ProductEvidencePending）**：A2 已完成正式 HWND OLE DropTarget 和安全 Link 引用提交；B 已完成盒子间改归属、无效目标、失败补偿和一次撤销。
 9. **PF-008（A～C EngineeringComplete / ProductEvidencePending）**：两档密度、连续滚动、类型/时间排序和配置引用自定义顺序已通过真实 HWND/文件系统、保存失败补偿和一次撤销；物理鼠标、键盘、Narrator、触控和截图证据待集中完成。
 10. **PF-009（A/B EngineeringComplete / ProductEvidencePending）**：共用查询、类型/健康/显示器筛选、正式结果、桌面浮层、临时展开/滚动/高亮与打开/定位均已完成；查询不读取文件内容。
-11. **PF-010（A～B3 EngineeringComplete / ProductEvidencePending）/ PF-011（A EngineeringComplete，B 当前主队列）**：PF-010 已完成统一会话历史；PF-011A 已把匿名首次整理升级为真实只读建议预览与确认后原子提交。PF-011B 继续完成 Customize、跳过/返回、以后再运行和重启完成态，并删除隐藏匿名练习遗留。
-12. **M1 产品证据冲刺（ExternalEnvironmentBlocked / ParallelGate）**：等待安全 WinUI 运行时、专用账户和可安装签名条件；条件具备时优先执行完整两分钟旅程，不降低出口。
-13. **TASKBAR-R1～R4（R2B1-B EnvironmentBlocked / ParallelGate）**：R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵；宿主禁止试写，但不阻塞 PF 主队列。
+11. **PF-010 / PF-011（EngineeringComplete / ProductEvidencePending）**：PF-010 已完成统一会话历史；PF-011 已把匿名首次整理升级为真实只读建议预览、确认后原子提交、正式 Customize、跳过/返回/重新运行和保存后完成态，并删除隐藏匿名练习遗留。真人、物理键盘/Narrator、DPI 与 5 人任务证据保持并行 Pending。
+12. **PF-020A（当前主队列）**：建立版本化规则模型、真实 Catalog 解释性预览和只分配安全引用的一次原子应用；不读取正文，不移动或删除文件。
+13. **M1 产品证据冲刺（ExternalEnvironmentBlocked / ParallelGate）**：等待安全 WinUI 运行时、专用账户和可安装签名条件；条件具备时优先执行完整两分钟旅程，不降低出口。
+14. **TASKBAR-R1～R4（R2B1-B EnvironmentBlocked / ParallelGate）**：R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵；宿主禁止试写，但不阻塞 PF 主队列。
 
 UI-R1 允许重构产品壳层，但不得重写已经验证的 Core、配置事务和 DesktopHost 安全边界。
 
@@ -940,3 +941,7 @@ Core 查询模型同时覆盖盒子和项目，支持目标、类型、健康状
 ### 13.47 Stage 269：PF-011A Quick Start 真实建议预览与原子提交
 
 真实桌面第一层 Catalog 现在生成最多 256 项的只读建议，预览不读取文件正文；确认后创建一个方格和全部引用只执行一次 reducer、一次保存并形成一个 `QuickStart` 统一历史项。revision、catalog generation、工作区与目录 fingerprint 共同拒绝陈旧确认；取消零保存，fail-once 可整单补偿。初始红测为正式计划器类型 `null`；真实 undo/redo 测试又发现测试过早终止保存控制器，按真实生命周期修正后通过。专项 `5/5`、完整 `1,465/1,465`、Release 0 warning/error、209-ID 合同通过，真实 Unicode 文件 SHA-256 不变。PF-011A 为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`；唯一接续点为 PF-011B Customize、跳过/返回与完成态恢复，详见 [Stage 269](269-pf011a-quick-start-real-preview-atomic-commit-audit.md)。
+
+### 13.48 Stage 270：PF-011B 正式首次旅程与恢复
+
+首次旅程状态现由既有设置 Store 原子持久化为 `NotStarted / CustomizeInProgress / Skipped / Completed`。Customize 直接进入正式方格创建，自定义进度、跳过与重新运行跨重启恢复；预览返回零提交；第一个真实方格必须保存成功后才进入完成态，已有持久化方格的旧用户直接迁移。隐藏匿名方格、三引用和拖放练习 XAML/code-behind 已删除。初始红测为状态属性和变更方法 `null`；真实 Store 多重启、重复写、失败回滚、旧 v1、损坏配置专项 `4/4`，中文旁路文件 SHA-256 不变，最终完整 `1,469/1,469`、Release 0 warning/error、194-ID 合同通过。首轮既有真实缩略图 worker/HWND 3 秒失败与独立 Pass/Fail/Pass 波动被保留，未在本阶段放宽。PF-011 工程范围收口、物理/真人证据 Pending；唯一接续点为 PF-020A，详见 [Stage 270](270-pf011b-formal-first-run-journey-audit.md)。

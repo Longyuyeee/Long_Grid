@@ -629,4 +629,4 @@ PR 描述必须列出“已更新”和“不需要更新”的文档，并说�
 
 ## PF-011 Quick Start 真实测试与阶段审计补充
 
-首次启动建议必须使用真实临时目录/文件、真实 Catalog 条目和真实配置 Store 验证，不能以匿名列表或仅反射存在性作为最终通过。测试记录至少写明 Expected、Initial Actual、Difference、Correction、Final Actual，并在确认、取消、catalog/revision 变化、撤销/重做、保存失败补偿和重启边界分别核对提交次数与文件 SHA-256。阶段结束必须更新统一执行计划、功能对标状态、路线图和 README，并把唯一接续点写到最新 Stage 审计后再推送。PF-011A 实例见 [Stage 269](269-pf011a-quick-start-real-preview-atomic-commit-audit.md)。
+首次启动建议必须使用真实临时目录/文件、真实 Catalog 条目和真实配置 Store 验证，不能以匿名列表或仅反射存在性作为最终通过。测试记录至少写明 Expected、Initial Actual、Difference、Correction、Final Actual，并在确认、取消、catalog/revision 变化、撤销/重做、保存失败补偿、状态持久化和进程重启边界分别核对提交次数与文件 SHA-256；完成态必须等待真实工作区保存成功，不能在提交仅被接受时提前写入。阶段结束必须更新统一执行计划、功能对标状态、路线图和 README，并把唯一接续点写到最新审计后再推送。PF-011A/B 实例见 [Stage 269](269-pf011a-quick-start-real-preview-atomic-commit-audit.md)与 [Stage 270](270-pf011b-formal-first-run-journey-audit.md)。

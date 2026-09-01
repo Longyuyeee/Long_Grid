@@ -745,6 +745,10 @@ function Test-SourceContract {
         'FirstRunPanel',
         'ProductQuickStartSuggestionList',
         'ProductQuickStartCommitButton',
+        'ProductQuickStartBackButton',
+        'ProductQuickStartRestartButton',
+        'ProductFirstRunSkipButton',
+        'FirstRunJourneyStatus',
         'AppearancePanel',
         'SafetyPanel',
         'SettingsGeneralSection',
@@ -776,28 +780,9 @@ function Test-SourceContract {
         'FirstRunSafetyBanner',
         'SuggestedStartChoice',
         'BlankStartChoice',
-        'StartChoiceStatus',
-        'SafeReferenceMode',
-        'ManagedMoveMode',
         'OrganizationOutcomeTitle',
         'OrganizationPreviewButton',
         'OrganizationPreviewStatus',
-        'PracticeContainerName',
-        'CreatePracticeContainerButton',
-        'PracticeContainerPreview',
-        'PracticeContainerNameValue',
-        'PracticeContainerCountValue',
-        'PracticeItemsList',
-        'PracticeItemOne',
-        'PracticeItemTwo',
-        'PracticeItemThree',
-        'AddPracticeItemsButton',
-        'UndoPracticeContainerButton',
-        'PracticeActivityStatus',
-        'DropSafeReferenceButton',
-        'DropReassignButton',
-        'DropManagedMoveButton',
-        'DropActionStatus',
         'CurrentModeCard',
         'FileOperationCard',
         'DesktopHostCard',
@@ -959,18 +944,10 @@ function Test-SourceContract {
     Assert-Condition (
         $previewStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
     ) 'OrganizationPreviewStatus must politely announce preview changes.'
-    $startChoiceStatusNode = Get-XamlNodeByAutomationId $document 'StartChoiceStatus'
+    $startChoiceStatusNode = Get-XamlNodeByAutomationId $document 'FirstRunJourneyStatus'
     Assert-Condition (
         $startChoiceStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
-    ) 'StartChoiceStatus must politely announce first-run path changes.'
-    $practiceActivityNode = Get-XamlNodeByAutomationId $document 'PracticeActivityStatus'
-    Assert-Condition (
-        $practiceActivityNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
-    ) 'PracticeActivityStatus must politely announce create and undo changes.'
-    $dropActionNode = Get-XamlNodeByAutomationId $document 'DropActionStatus'
-    Assert-Condition (
-        $dropActionNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
-    ) 'DropActionStatus must politely announce the audited drop semantics.'
+    ) 'FirstRunJourneyStatus must politely announce persisted first-run path changes.'
     $recoveryStatusNode = Get-XamlNodeByAutomationId $document 'RecoveryPlanStatus'
     Assert-Condition (
         $recoveryStatusNode.GetAttribute('AutomationProperties.LiveSetting') -eq 'Polite'
@@ -1075,15 +1052,9 @@ function Test-SourceContract {
         $evidenceRemovalNode.GetAttribute('Click') -eq `
             'RemoveConfigurationEvidenceButton_Click'
     ) 'Evidence removal must remain disabled until one explicit anonymous selection.'
-    $practiceNameNode = Get-XamlNodeByAutomationId $document 'PracticeContainerName'
-    Assert-Condition ($practiceNameNode.GetAttribute('MaxLength') -eq '40') `
-        'The anonymous practice-container name must remain bounded to 40 characters.'
-    $undoNode = Get-XamlNodeByAutomationId $document 'UndoPracticeContainerButton'
-    $undoAccelerator = $undoNode.SelectSingleNode(".//*[local-name()='KeyboardAccelerator']")
-    Assert-Condition ($null -eq $undoAccelerator) `
-        'The anonymous practice must not compete with formal session-history Ctrl+Z.'
-    Assert-Condition (-not ($document.OuterXml -match 'AllowDrop')) `
-        'The semantic practice must not masquerade as an Explorer drop target.'
+    Assert-Condition (
+        -not ($document.OuterXml -match 'PracticeContainer|PracticeItems|DropAction')
+    ) 'The first-run surface must not retain the removed anonymous practice workflow.'
 
     $productCatalogDetailNode = Get-XamlNodeByAutomationId `
         $document `
@@ -2924,34 +2895,26 @@ function Test-SourceContract {
         $codeBehind -match 'RuntimeCapabilityState\.ConnectedReadOnly'
     ) `
         'The control center must distinguish default-off from enabled-but-awaiting-host state.'
-    Assert-Condition ($codeBehind -match 'FileOrganizationMode\.SafeReference') `
-        'The onboarding prototype must default to the Core safe-reference semantic.'
-    Assert-Condition ($codeBehind -match 'FileOrganizationMode\.ManagedMove') `
-        'The onboarding prototype must explicitly distinguish managed move.'
-    Assert-Condition ($codeBehind -match 'ManagedMovePreviewBlocked') `
-        'The development prototype must expose managed move as blocked.'
     Assert-Condition ($codeBehind -match 'RealCatalogPreview') `
         'Quick Start must expose a real-catalog preview state.'
     Assert-Condition ($codeBehind -match 'SuggestedStartSelected') `
         'The first-run prototype must expose the suggested-preview start path.'
-    Assert-Condition ($codeBehind -match 'BlankStartSelected') `
-        'The first-run prototype must expose the blank-layout start path.'
-    Assert-Condition ($codeBehind -match 'PracticeContainerCreated') `
-        'The practice container must expose its created state.'
-    Assert-Condition ($codeBehind -match 'PracticeContainerUndone') `
-        'The practice container must expose its undone state.'
-    Assert-Condition ($codeBehind -match 'PracticeContainerNameRequired') `
-        'The practice container must expose an empty-name validation state.'
-    Assert-Condition ($codeBehind -match 'PracticeItemsAdded') `
-        'The practice container must expose its three-reference state.'
-    Assert-Condition ($codeBehind -match 'PracticeItemsUndone') `
-        'The practice container must expose most-recent-action undo.'
-    Assert-Condition ($codeBehind -match 'AddReferenceDropPreview') `
-        'The drop practice must expose the safe-reference action badge.'
-    Assert-Condition ($codeBehind -match 'ReassignDropPreview') `
-        'The drop practice must expose relationship-only reassignment.'
-    Assert-Condition ($codeBehind -match 'ManagedMoveDropBlocked') `
-        'The drop practice must block unapproved managed moves.'
+    Assert-Condition ($codeBehind -match 'ProductFirstRunJourneyState\.CustomizeInProgress') `
+        'Customize must enter the persisted formal first-run journey.'
+    Assert-Condition ($codeBehind -match 'ProductFirstRunJourneyState\.Skipped') `
+        'First run must expose a persisted skip path.'
+    Assert-Condition ($codeBehind -match 'ProductFirstRunJourneyState\.Completed') `
+        'First run must expose a completed terminal state.'
+    Assert-Condition (
+        $appCode -match 'pendingFirstRunCompletionSaveRevision' -and
+        $appCode -match 'ProductWorkspaceSaveStatus\.Saved' -and
+        $appCode -match 'ChangeProductFirstRunJourneyAsync\(\s*ProductFirstRunJourneyState\.Completed'
+    ) 'First run must become complete only after the first real workspace save succeeds.'
+    Assert-Condition ($codeBehind -match 'QuickStartPreviewReturned') `
+        'Quick Start preview must provide an explicit non-destructive back path.'
+    Assert-Condition (
+        -not ($codeBehind -match 'PracticeContainer|PracticeItems|DropAction')
+    ) 'The code-behind must not retain the removed anonymous practice workflow.'
     Assert-Condition ($codeBehind -match 'LayoutRecoveryStatus\.Automatic') `
         'The recovery prototype must expose the Core automatic status.'
     Assert-Condition ($codeBehind -match 'LayoutRecoveryStatus\.ReviewRequired') `
@@ -4125,7 +4088,7 @@ function Test-SourceContract {
         compactWidth = 720
         dpiAwareInitialSize = 'pass'
         coreRuntimeStatus = 'desktop-read-only-config-edit-host-user-switch-uia-session-attested'
-        firstOrganizationPrototype = 'real-catalog-preview-confirm-atomic-save-history'
+        firstRunJourney = 'persisted-suggested-customize-skip-complete-restart-back'
         layoutRecoveryPrototype = 'automatic-review-blocked-expire-cancel'
         configurationRecovery = 'loaded-missing-backup-read-only-safe-mode'
         configurationRepair = 'confirmed-recovery-bounded-import-export-anonymous-interaction-evidence-and-single-removal'
@@ -4532,29 +4495,24 @@ public static class LongGridWindowNative
             $layoutRoot.Current.BoundingRectangle
 
         Select-UiaElement $firstRun
-        $safeReferenceCompact = Find-UiaElement $root 'SafeReferenceMode'
-        $managedMoveCompact = Find-UiaElement $root 'ManagedMoveMode'
-        Scroll-UiaElementIntoView $safeReferenceCompact
-        $safeReferenceBounds = $safeReferenceCompact.Current.BoundingRectangle
-        Scroll-UiaElementIntoView $managedMoveCompact
-        $managedMoveBounds = $managedMoveCompact.Current.BoundingRectangle
-        Assert-Condition (
-            $safeReferenceBounds.Width -gt 0 -and
-            $managedMoveBounds.Width -gt 0 -and
-            [Math]::Abs($safeReferenceBounds.Left - $managedMoveBounds.Left) -le 2
-        ) 'Compact organization modes did not reflow into one column.'
         $suggestedStartCompact = Find-UiaElement $root 'SuggestedStartChoice'
         $blankStartCompact = Find-UiaElement $root 'BlankStartChoice'
+        $skipStartCompact = Find-UiaElement $root 'ProductFirstRunSkipButton'
         Scroll-UiaElementIntoView $suggestedStartCompact
         $suggestedStartBounds = $suggestedStartCompact.Current.BoundingRectangle
         Scroll-UiaElementIntoView $blankStartCompact
         $blankStartBounds = $blankStartCompact.Current.BoundingRectangle
+        Scroll-UiaElementIntoView $skipStartCompact
+        $skipStartBounds = $skipStartCompact.Current.BoundingRectangle
         Assert-Condition (
             $suggestedStartBounds.Width -gt 0 -and
             $blankStartBounds.Width -gt 0 -and
+            $skipStartBounds.Width -gt 0 -and
             [Math]::Abs($suggestedStartBounds.Left - $blankStartBounds.Left) -le 2 -and
-            [Math]::Abs($suggestedStartBounds.Width - $blankStartBounds.Width) -le 2
-        ) 'Compact start choices did not reflow into one equal-width column.'
+            [Math]::Abs($blankStartBounds.Left - $skipStartBounds.Left) -le 2 -and
+            [Math]::Abs($suggestedStartBounds.Width - $blankStartBounds.Width) -le 2 -and
+            [Math]::Abs($blankStartBounds.Width - $skipStartBounds.Width) -le 2
+        ) 'Compact first-run actions did not reflow into one equal-width column.'
         Select-UiaElement $overview
 
         Assert-Condition (
@@ -4581,95 +4539,22 @@ public static class LongGridWindowNative
         $firstRunPanel = Find-UiaElement $root 'FirstRunPanel'
         Assert-Condition (-not $firstRunPanel.Current.IsOffscreen) `
             'FirstRunPanel stayed offscreen after selecting its navigation item.'
-        $blankStart = Find-UiaElement $root 'BlankStartChoice'
-        Scroll-UiaElementIntoView $blankStart
-        Select-UiaElement $blankStart
-        $startChoiceStatus = Find-UiaElement $root 'StartChoiceStatus'
-        Assert-Condition ($startChoiceStatus.Current.ItemStatus -eq 'BlankStartSelected') `
-            'Blank-layout start did not expose its audited UIA state.'
         $suggestedStart = Find-UiaElement $root 'SuggestedStartChoice'
         Scroll-UiaElementIntoView $suggestedStart
         Select-UiaElement $suggestedStart
-        Assert-Condition ($startChoiceStatus.Current.ItemStatus -eq 'SuggestedStartSelected') `
-            'Suggested-preview start did not expose its audited UIA state.'
-        $managedMove = Find-UiaElement $root 'ManagedMoveMode'
-        Scroll-UiaElementIntoView $managedMove
-        Select-UiaElement $managedMove
         $previewStatus = Find-UiaElement $root 'OrganizationPreviewStatus'
-        Assert-Condition ($previewStatus.Current.ItemStatus -eq 'ManagedMoveSelected') `
-            'Managed move selection did not expose its audited UIA state.'
+        Assert-Condition ($previewStatus.Current.ItemStatus -eq 'SuggestedStartSelected') `
+            'Suggested-preview start did not expose its audited UIA state.'
         $previewButton = Find-UiaElement $root 'OrganizationPreviewButton'
-        Scroll-UiaElementIntoView $previewButton
-        Select-UiaElement $previewButton
-        Assert-Condition ($previewStatus.Current.ItemStatus -eq 'ManagedMovePreviewBlocked') `
-            'Managed move preview was not blocked in the development shell.'
-
-        $safeReference = Find-UiaElement $root 'SafeReferenceMode'
-        Scroll-UiaElementIntoView $safeReference
-        Select-UiaElement $safeReference
-        Assert-Condition ($previewStatus.Current.ItemStatus -eq 'SafeReferenceSelected') `
-            'Safe-reference selection did not expose its audited UIA state.'
         Scroll-UiaElementIntoView $previewButton
         Select-UiaElement $previewButton
         Assert-Condition ($previewStatus.Current.ItemStatus -eq 'RealCatalogPreview') `
             'Quick Start preview did not expose its audited real-catalog state.'
-
-        $createPracticeContainer = Find-UiaElement $root 'CreatePracticeContainerButton'
-        Scroll-UiaElementIntoView $createPracticeContainer
-        Select-UiaElement $createPracticeContainer
-        $practiceActivity = Find-UiaElement $root 'PracticeActivityStatus'
-        Assert-Condition ($practiceActivity.Current.ItemStatus -eq 'PracticeContainerCreated') `
-            'Anonymous practice-container creation did not expose its audited UIA state.'
-        $practicePreview = Find-UiaElement $root 'PracticeContainerPreview'
-        Scroll-UiaElementIntoView $practicePreview
-        Assert-Condition (-not $practicePreview.Current.IsOffscreen) `
-            'The created anonymous practice container did not become visible.'
-        $undoPracticeContainer = Find-UiaElement $root 'UndoPracticeContainerButton'
-        Assert-Condition $undoPracticeContainer.Current.IsEnabled `
-            'Undo did not become available after anonymous container creation.'
-        $addPracticeItems = Find-UiaElement $root 'AddPracticeItemsButton'
-        Assert-Condition $addPracticeItems.Current.IsEnabled `
-            'Adding anonymous references did not become available after container creation.'
-        Scroll-UiaElementIntoView $addPracticeItems
-        Select-UiaElement $addPracticeItems
-        Assert-Condition ($practiceActivity.Current.ItemStatus -eq 'PracticeItemsAdded') `
-            'Adding three anonymous references did not expose its audited UIA state.'
-        $practiceItems = Find-UiaElement $root 'PracticeItemsList'
-        Scroll-UiaElementIntoView $practiceItems
-        Assert-Condition (-not $practiceItems.Current.IsOffscreen) `
-            'The three anonymous references did not become visible.'
-        foreach ($itemId in @('PracticeItemOne', 'PracticeItemTwo', 'PracticeItemThree')) {
-            $null = Find-UiaElement $root $itemId
-        }
-
-        $dropSafeReference = Find-UiaElement $root 'DropSafeReferenceButton'
-        $dropActionStatus = Find-UiaElement $root 'DropActionStatus'
-        Scroll-UiaElementIntoView $dropSafeReference
-        Select-UiaElement $dropSafeReference
-        Assert-Condition ($dropActionStatus.Current.ItemStatus -eq 'AddReferenceDropPreview') `
-            'Explorer-to-safe-reference semantics were not exposed as add-reference.'
-        $dropReassign = Find-UiaElement $root 'DropReassignButton'
-        Scroll-UiaElementIntoView $dropReassign
-        Select-UiaElement $dropReassign
-        Assert-Condition ($dropActionStatus.Current.ItemStatus -eq 'ReassignDropPreview') `
-            'Container-to-container semantics were not exposed as relationship reassignment.'
-        $dropManagedMove = Find-UiaElement $root 'DropManagedMoveButton'
-        Scroll-UiaElementIntoView $dropManagedMove
-        Select-UiaElement $dropManagedMove
-        Assert-Condition ($dropActionStatus.Current.ItemStatus -eq 'ManagedMoveDropBlocked') `
-            'Unapproved managed-move drop semantics were not blocked.'
-
-        Scroll-UiaElementIntoView $undoPracticeContainer
-        Select-UiaElement $undoPracticeContainer
-        Assert-Condition ($practiceActivity.Current.ItemStatus -eq 'PracticeItemsUndone') `
-            'Undo did not remove the most recently added anonymous references first.'
-        Assert-Condition $undoPracticeContainer.Current.IsEnabled `
-            'Container undo disappeared after only the item-add action was undone.'
-        Select-UiaElement $undoPracticeContainer
-        Assert-Condition ($practiceActivity.Current.ItemStatus -eq 'PracticeContainerUndone') `
-            'Anonymous practice-container undo did not expose its audited UIA state.'
-        Assert-Condition (-not $undoPracticeContainer.Current.IsEnabled) `
-            'Undo remained enabled after the anonymous container relationship was removed.'
+        $backButton = Find-UiaElement $root 'ProductQuickStartBackButton'
+        Scroll-UiaElementIntoView $backButton
+        Select-UiaElement $backButton
+        Assert-Condition ($previewStatus.Current.ItemStatus -eq 'QuickStartPreviewReturned') `
+            'Quick Start back did not return without changing the workspace.'
 
         Select-UiaElement $recovery
         $recoveryPanel = Find-UiaElement $root 'RecoveryPanel'
@@ -4757,10 +4642,10 @@ public static class LongGridWindowNative
             responsiveLayout = 'wide-compact-wide-720'
             responsiveItemStatus = $layoutRoot.Current.ItemStatus
             compactCards = 3
-            compactOrganizationModes = 2
+            compactFirstRunActions = 3
             coreRuntimeStatus = 'development-read-only-host-user-switch'
             desktopHost = $desktopHostCard.Current.ItemStatus
-            firstOrganizationPrototype = 'blank-or-real-catalog-preview-confirm-atomic-save-history'
+            firstRunJourney = 'suggested-preview-back-or-formal-customize-or-persisted-skip'
             layoutRecoveryPrototype = 'review-expired-review-acknowledged-blocked-automatic-cancelled'
             productDesktopCatalog = $productCatalogStatus.Current.ItemStatus
             productWorkspaceSession = $productSessionStatus.Current.ItemStatus
