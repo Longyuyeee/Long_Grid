@@ -105,7 +105,7 @@ public sealed class ProductConfigurationContractTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(5)]
+    [InlineData(6)]
     public void UnsupportedSchemaIsRejectedWithoutDocumentContent(int schemaVersion)
     {
         ProductConfigurationDocument source = CreateValidDocument() with
@@ -280,11 +280,32 @@ public sealed class ProductConfigurationContractTests
     }
 
     [Fact]
+    public void VersionFourAppearanceMigratesToComfortableContentDensity()
+    {
+        byte[] current = ProductConfigurationJson.SerializeToUtf8Bytes(
+            CreateValidDocument());
+        string versionFourJson = Encoding.UTF8.GetString(current).Replace(
+            $"\"schemaVersion\":{ProductConfigurationLimits.CurrentSchemaVersion}",
+            "\"schemaVersion\":4",
+            StringComparison.Ordinal);
+        byte[] source = Encoding.UTF8.GetBytes(versionFourJson);
+
+        ProductConfigurationDocument migrated =
+            ProductConfigurationJson.Deserialize(source);
+
+        Assert.Equal(ProductConfigurationLimits.CurrentSchemaVersion,
+            migrated.SchemaVersion);
+        Assert.Equal(
+            ProductContainerContentDensity.Comfortable,
+            migrated.Containers[0].Appearance.ContentDensity);
+    }
+
+    [Fact]
     public void FutureSchemaIsRejectedDuringDeserialize()
     {
         byte[] source = Encoding.UTF8.GetBytes(
             """
-            { "schemaVersion": 5, "profileId": "default", "containers": [] }
+            { "schemaVersion": 6, "profileId": "default", "containers": [] }
             """);
 
         ProductConfigurationContractException exception = Assert.Throws<

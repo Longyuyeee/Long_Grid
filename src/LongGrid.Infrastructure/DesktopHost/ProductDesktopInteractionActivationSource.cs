@@ -1135,7 +1135,8 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                     decision.ViewportWheelDelta,
                     SourceAttested: true,
                     IsInjected: false,
-                    IsAutoRepeat: false));
+                    IsAutoRepeat: false,
+                    PageNavigation: true));
             }
             return;
         }

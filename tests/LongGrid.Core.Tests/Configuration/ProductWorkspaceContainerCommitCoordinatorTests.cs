@@ -290,7 +290,8 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
                 1,
                 string.Empty,
                 ColorPreset: ProductWorkspaceContainerColorPreset.Emerald,
-                OpacityPreset: ProductWorkspaceContainerOpacityPreset.Soft));
+                OpacityPreset: ProductWorkspaceContainerOpacityPreset.Soft,
+                ContentDensity: ProductContainerContentDensity.Compact));
         ProductWorkspaceContainerCommitResult noChange = coordinator.CommitContainer(
             changed.State!,
             new(
@@ -299,12 +300,17 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
                 1,
                 string.Empty,
                 ColorPreset: ProductWorkspaceContainerColorPreset.Emerald,
-                OpacityPreset: ProductWorkspaceContainerOpacityPreset.Soft));
+                OpacityPreset: ProductWorkspaceContainerOpacityPreset.Soft,
+                ContentDensity: ProductContainerContentDensity.Compact));
 
         Assert.True(changed.IsAccepted);
         Assert.Equal("#059669", changed.State!.Containers[0].Appearance.Color);
         Assert.Equal(0.72, changed.State.Containers[0].Appearance.Opacity);
         Assert.False(changed.State.Containers[0].Appearance.Collapsed);
+        Assert.Equal(ProductContainerContentDensity.Compact,
+            changed.State.Containers[0].Appearance.ContentDensity);
+        Assert.Equal(ProductContainerContentDensity.Compact,
+            changed.Document!.Containers[0].Appearance.ContentDensity);
         Assert.Single(changed.State.Containers[0].Items);
         Assert.Equal(ProductWorkspaceContainerCommitStatus.NoChange, noChange.Status);
         Assert.Equal(changed.EditRevision, coordinator.CurrentEditRevision);

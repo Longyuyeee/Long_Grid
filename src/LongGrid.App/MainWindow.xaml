@@ -848,6 +848,15 @@
                                                 IsEnabled="False"
                                                 SelectionChanged="ProductWorkspaceContainerAppearanceSelector_SelectionChanged" />
                                         </Grid>
+                                        <ComboBox
+                                            x:Name="ProductWorkspaceContainerContentDensitySelector"
+                                            AutomationProperties.AutomationId="ProductWorkspaceContainerContentDensitySelector"
+                                            AutomationProperties.Name="选择正式方格内容密度"
+                                            DisplayMemberPath="DisplayName"
+                                            Header="内容密度"
+                                            HorizontalAlignment="Stretch"
+                                            IsEnabled="False"
+                                            SelectionChanged="ProductWorkspaceContainerAppearanceSelector_SelectionChanged" />
                                         <Button
                                             x:Name="ProductWorkspaceContainerAppearanceButton"
                                             AutomationProperties.AutomationId="ProductWorkspaceContainerAppearanceButton"

@@ -98,7 +98,8 @@ public sealed record ProductWorkspaceContainerCommitRequest(
     ProductContainerTitleVisibilityPolicy? TitleVisibility = null,
     ProductContainerTitleDoubleClickAction? TitleDoubleClickAction = null,
     bool TrackUndo = true,
-    ProductContainerFolderBindingState? FolderBinding = null);
+    ProductContainerFolderBindingState? FolderBinding = null,
+    ProductContainerContentDensity? ContentDensity = null);
 
 public sealed record ProductWorkspaceContainerCommitResult(
     ProductWorkspaceContainerCommitStatus Status,
@@ -1029,6 +1030,10 @@ public sealed class ProductWorkspaceCommitCoordinator
             bool hasTitleVisibility = request.TitleVisibility is not null;
             bool hasTitleDoubleClick = request.TitleDoubleClickAction is not null;
             if (hasTitleVisibility != hasTitleDoubleClick
+                || (request.ContentDensity is not null
+                    && (request.Action !=
+                            ProductWorkspaceContainerCommitAction.SetAppearancePreset
+                        || !Enum.IsDefined(request.ContentDensity.Value)))
                 || (request.Action != ProductWorkspaceContainerCommitAction.BindFolder
                     && request.FolderBinding is not null)
                 || (hasTitleVisibility
@@ -1127,6 +1132,8 @@ public sealed class ProductWorkspaceCommitCoordinator
                                 ?? target.Appearance.TitleVisibility,
                             TitleDoubleClickAction = request.TitleDoubleClickAction
                                 ?? target.Appearance.TitleDoubleClickAction,
+                            ContentDensity = request.ContentDensity
+                                ?? target.Appearance.ContentDensity,
                         }),
                 ProductWorkspaceContainerCommitAction.SetPlacementPreset
                     when request.NewContainer is null

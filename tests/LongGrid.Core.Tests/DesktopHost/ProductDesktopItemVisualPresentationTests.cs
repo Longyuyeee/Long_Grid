@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Windows.Automation;
 using LongGrid.Core.Configuration;
@@ -221,9 +222,9 @@ public sealed class ProductDesktopItemVisualPresentationTests(
         {
             return;
         }
-        string[] names = Enumerable.Range(1, 24)
-            .Select(index => $"项目 {index}")
-            .ToArray();
+        using Pf008aRealFileFixture files = Pf008aRealFileFixture.Create(24);
+        string[] names = files.Names;
+        string beforeFingerprint = files.Fingerprint();
         ProductDesktopHostReadOnlyProjection loading =
             ProductDesktopHostReadOnlyProjection.Create(
                 "container-scroll", "滚动方格", names, "#2457D6", 0.82,
@@ -231,7 +232,8 @@ public sealed class ProductDesktopItemVisualPresentationTests(
                 itemVisuals: names.Select(_ => new
                     ProductDesktopItemVisualPresentation(
                         ProductDesktopItemTypeIconKind.File,
-                        ProductDesktopItemVisualStatus.LoadingThumbnail)));
+                        ProductDesktopItemVisualStatus.LoadingThumbnail)),
+                contentDensity: ProductContainerContentDensity.Compact);
         ProductDesktopHostDisplayProjection initial =
             ProductDesktopHostDisplayProjection.Create(
                 "display-primary", new(0, 0, 1280, 720), 96, [loading]);
@@ -250,7 +252,8 @@ public sealed class ProductDesktopItemVisualPresentationTests(
                     ProductDesktopItemVisualPresentation(
                         ProductDesktopItemTypeIconKind.File,
                         ProductDesktopItemVisualStatus.ReadyThumbnail,
-                        frame)));
+                        frame)),
+                contentDensity: ProductContainerContentDensity.Compact);
         ProductDesktopHostDisplayProjection resolved =
             ProductDesktopHostDisplayProjection.Create(
                 "display-primary", new(0, 0, 1280, 720), 96, [ready]);
@@ -265,6 +268,13 @@ public sealed class ProductDesktopItemVisualPresentationTests(
         bool viewportAccepted = surface.SubmitItemViewportWheelForEvidence(
             "container-scroll",
             wheelDelta: -120);
+        int nextStart = ProductDesktopItemViewportPolicy.Move(
+            0,
+            ready.TotalItemCount,
+            captured?.WheelDelta ?? 0,
+            ready.ContentDensity,
+            captured?.PageNavigation ?? false);
+        string afterFingerprint = files.Fingerprint();
 
         Assert.True(presentationApplied);
         Assert.Equal(originalHandle, surface.Handle);
@@ -272,16 +282,22 @@ public sealed class ProductDesktopItemVisualPresentationTests(
             ProductDesktopItemVisualStatus.ReadyThumbnail,
             surface.GetItemVisualForEvidence("container-scroll", 0)!.Status);
         Assert.True(viewportAccepted);
+        Assert.Equal(18, ready.ItemNames.Count);
+        Assert.Equal(1, nextStart);
+        Assert.Equal(beforeFingerprint, afterFingerprint);
         Assert.Equal(-120, Assert.IsType<
             ProductDesktopItemViewportSurfaceInput>(captured).WheelDelta);
         output.WriteLine(JsonSerializer.Serialize(new
         {
-            Purpose = "Pf005cRealHwndPresentationViewportEvidence",
+            Purpose = "Pf008aRealHwndCompactDensityContinuousScrollEvidence",
             Expected = new
             {
                 SameHwnd = true,
                 TerminalVisual = "ReadyThumbnail",
                 ViewportWheelDelta = -120,
+                VisibleItems = 18,
+                NextViewportStart = 1,
+                FilesUnchanged = true,
             },
             Actual = new
             {
@@ -289,9 +305,58 @@ public sealed class ProductDesktopItemVisualPresentationTests(
                 TerminalVisual = surface.GetItemVisualForEvidence(
                     "container-scroll", 0)!.Status.ToString(),
                 ViewportWheelDelta = captured?.WheelDelta,
+                VisibleItems = ready.ItemNames.Count,
+                NextViewportStart = nextStart,
+                FilesUnchanged = beforeFingerprint == afterFingerprint,
             },
             Difference = "None",
         }));
+    }
+
+    private sealed class Pf008aRealFileFixture : IDisposable
+    {
+        private readonly string directory;
+
+        private Pf008aRealFileFixture(string directory, string[] names)
+        {
+            this.directory = directory;
+            Names = names;
+        }
+
+        internal string[] Names { get; }
+
+        internal static Pf008aRealFileFixture Create(int count)
+        {
+            string directory = Path.Combine(
+                Path.GetTempPath(),
+                $"LongGrid.Pf008a.{Guid.NewGuid():N}");
+            Directory.CreateDirectory(directory);
+            string[] names = Enumerable.Range(1, count)
+                .Select(index => $"项目 {index}.txt")
+                .ToArray();
+            foreach (string name in names)
+            {
+                File.WriteAllText(
+                    Path.Combine(directory, name),
+                    $"PF-008A real file {name}");
+            }
+            return new(directory, names);
+        }
+
+        internal string Fingerprint()
+        {
+            string inventory = string.Join(
+                "\n",
+                Directory.EnumerateFiles(directory)
+                    .OrderBy(path => path, StringComparer.Ordinal)
+                    .Select(path =>
+                        $"{Path.GetFileName(path)}:{Convert.ToHexString(
+                            SHA256.HashData(File.ReadAllBytes(path)))}"));
+            return Convert.ToHexString(SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(inventory)));
+        }
+
+        public void Dispose() => Directory.Delete(directory, recursive: true);
     }
 
     [Fact]

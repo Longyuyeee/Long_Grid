@@ -115,6 +115,7 @@ public static class ProductWorkspaceConfigurationProjector
                 TitleVisibility = container.Appearance.TitleVisibility,
                 TitleDoubleClickAction =
                     container.Appearance.TitleDoubleClickAction,
+                ContentDensity = container.Appearance.ContentDensity,
                 ExtensionData = container.Appearance.ExtensionData,
             },
             Placement = new ContainerPlacementConfiguration

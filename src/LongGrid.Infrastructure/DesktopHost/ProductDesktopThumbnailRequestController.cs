@@ -83,11 +83,13 @@ internal static class ProductDesktopThumbnailCandidateBuilder
                     && viewportStarts.TryGetValue(container.Id, out int requestedStart)
                         ? requestedStart
                         : 0,
-                container.Items.Count);
+                container.Items.Count,
+                container.Appearance.ContentDensity);
             int viewportEnd = Math.Min(
                 container.Items.Count,
                 viewportStart
-                    + ProductDesktopHostReadOnlyProjection.MaximumVisibleItems);
+                    + ProductDesktopHostReadOnlyProjection.VisibleItemCapacity(
+                        container.Appearance.ContentDensity));
             for (int index = viewportStart;
                 index < viewportEnd;
                 index++)

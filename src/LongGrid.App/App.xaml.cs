@@ -751,6 +751,7 @@ public partial class App : Application
                     sizePreset: null,
                     titleVisibility: null,
                     titleDoubleClickAction: null,
+                    contentDensity: null,
                     confirmed: true);
             ProductWorkspaceState afterRemovalState = productWorkspaceSession.State
                 ?? throw new InvalidOperationException(
@@ -2312,6 +2313,7 @@ public partial class App : Application
         ProductWorkspaceContainerSizePreset? sizePreset,
         ProductContainerTitleVisibilityPolicy? titleVisibility,
         ProductContainerTitleDoubleClickAction? titleDoubleClickAction,
+        ProductContainerContentDensity? contentDensity,
         bool confirmed) =>
         CommitProductWorkspaceContainerActionCore(
             action,
@@ -2328,7 +2330,8 @@ public partial class App : Application
             createBoundsPixels: null,
             useDefaultName: false,
             titleVisibility: titleVisibility,
-            titleDoubleClickAction: titleDoubleClickAction);
+            titleDoubleClickAction: titleDoubleClickAction,
+            contentDensity: contentDensity);
 
     private ProductWorkspaceContainerCommitResult
         CommitProductWorkspaceContainerFolderBinding(
@@ -2401,7 +2404,8 @@ public partial class App : Application
             bool useDefaultName,
             ProductContainerTitleVisibilityPolicy? titleVisibility = null,
             ProductContainerTitleDoubleClickAction? titleDoubleClickAction = null,
-            ProductContainerFolderBindingState? folderBinding = null)
+            ProductContainerFolderBindingState? folderBinding = null,
+            ProductContainerContentDensity? contentDensity = null)
     {
         ProductWorkspaceState? state = productWorkspaceSession.State;
         bool creatingFirstConfiguration =
@@ -2464,7 +2468,8 @@ public partial class App : Application
                     confirmed,
                     titleVisibility,
                     titleDoubleClickAction,
-                    FolderBinding: folderBinding));
+                    FolderBinding: folderBinding,
+                    ContentDensity: contentDensity));
         if (!result.IsAccepted)
         {
             return result;
@@ -2717,7 +2722,8 @@ public partial class App : Application
             if (targets.Length != 1
                 || visible is null
                 || visible.Items.Count <=
-                    ProductDesktopHostReadOnlyProjection.MaximumVisibleItems)
+                    ProductDesktopHostReadOnlyProjection.VisibleItemCapacity(
+                        visible.ContentDensity))
             {
                 return;
             }
@@ -2743,7 +2749,9 @@ public partial class App : Application
             int nextStart = ProductDesktopItemViewportPolicy.Move(
                 currentStart,
                 visible.Items.Count,
-                request.WheelDelta);
+                request.WheelDelta,
+                visible.ContentDensity,
+                request.PageNavigation);
             if (nextStart == currentStart)
             {
                 return;
@@ -3539,10 +3547,11 @@ public partial class App : Application
                     && index < readSnapshot.Containers.Count
                         ? readSnapshot.Containers[index].Items.Count
                         : container.Items.Count,
+                container.Appearance.ContentDensity,
             })
             .ToDictionary(
                 entry => entry.Id,
-                entry => entry.Count,
+                entry => (ItemCount: entry.Count, entry.ContentDensity),
                 StringComparer.Ordinal);
         foreach (string stale in desktopItemViewportStarts.Keys
             .Where(key => !valid.ContainsKey(key))
@@ -3555,7 +3564,8 @@ public partial class App : Application
             desktopItemViewportStarts[key] =
                 ProductDesktopItemViewportPolicy.ClampStart(
                     desktopItemViewportStarts[key],
-                    valid[key]);
+                    valid[key].ItemCount,
+                    valid[key].ContentDensity);
         }
     }
 

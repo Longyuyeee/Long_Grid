@@ -122,15 +122,19 @@ public static class ProductDesktopHostProjectionBuilder
         {
             ProductContainerState source = state.Containers[index];
             ProductWorkspaceReadContainer visible = readSnapshot.Containers[index];
+            ProductContainerContentDensity contentDensity =
+                source.Appearance.ContentDensity;
             int viewportStart = ProductDesktopItemViewportPolicy.ClampStart(
                 viewportStarts is not null
                     && viewportStarts.TryGetValue(source.Id, out int requestedStart)
                         ? requestedStart
                         : 0,
-                visible.Items.Count);
+                visible.Items.Count,
+                contentDensity);
             ProductWorkspaceReadItem[] viewportItems = visible.Items
                 .Skip(viewportStart)
-                .Take(ProductDesktopHostReadOnlyProjection.MaximumVisibleItems)
+                .Take(ProductDesktopHostReadOnlyProjection.VisibleItemCapacity(
+                    contentDensity))
                 .ToArray();
             IEnumerable<string> itemNames = viewportItems.Select(item =>
             {
@@ -166,7 +170,8 @@ public static class ProductDesktopHostProjectionBuilder
                     itemVisuals,
                     source.Appearance.TitleVisibility,
                     source.Appearance.TitleDoubleClickAction,
-                    visible.Items.Count == 0 ? 0 : viewportStart + 1);
+                    visible.Items.Count == 0 ? 0 : viewportStart + 1,
+                    contentDensity);
             string displayId = byDisplay.ContainsKey(source.Placement.DisplayKey)
                 ? source.Placement.DisplayKey
                 : primary.StableId;

@@ -71,7 +71,9 @@ public sealed record ProductWorkspaceReadContainer(
     int FolderContentItemCount = 0,
     ProductContainerFolderSortMode? FolderContentSortMode = null,
     ProductContainerFolderBindingResolution?
-        FolderBindingRecoveredFrom = null);
+        FolderBindingRecoveredFrom = null,
+    ProductContainerContentDensity ContentDensity =
+        ProductContainerContentDensity.Comfortable);
 
 public sealed record ProductWorkspaceReadSnapshot(
     IReadOnlyList<ProductWorkspaceReadContainer> Containers,
@@ -218,7 +220,8 @@ public static class ProductWorkspaceReadModel
                 container.FolderBinding?.SortMode,
                 folderContent is { HasValidShape: true }
                     ? folderContent.RecoveredFromBindingResolution
-                    : null));
+                    : null,
+                container.Appearance.ContentDensity));
         }
 
         return new(

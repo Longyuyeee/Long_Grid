@@ -131,6 +131,10 @@ public sealed record ContainerAppearanceConfiguration
     public ProductContainerTitleDoubleClickAction TitleDoubleClickAction
     { get; init; } = ProductContainerTitleDoubleClickAction.ToggleCollapsed;
 
+    [JsonPropertyName("contentDensity")]
+    public ProductContainerContentDensity ContentDensity { get; init; } =
+        ProductContainerContentDensity.Comfortable;
+
     [JsonExtensionData]
     public IDictionary<string, JsonElement>? ExtensionData { get; init; }
 }

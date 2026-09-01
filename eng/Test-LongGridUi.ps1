@@ -2684,7 +2684,12 @@ function Test-SourceContract {
         $desktopItemViewportCode -match `
             'ProductDesktopItemViewportPolicy' -and
         $desktopItemViewportCode -match `
-            'MaximumVisibleItems' -and
+            'VisibleItemCapacity' -and
+        $desktopItemViewportCode -match 'wheelSteps' -and
+        $containerEditPresentationCode -match 'ContentDensityChoices' -and
+        $null -ne (Get-XamlNodeByAutomationId `
+            -Document $document `
+            -AutomationId 'ProductWorkspaceContainerContentDensitySelector') -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'WmMouseWheel' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'BindItemViewport' -and
         $windowsDesktopHostReadOnlySurfaceCode -match 'ApplyPresentation' -and
@@ -2692,7 +2697,7 @@ function Test-SourceContract {
         $appCode -match 'RequestDesktopItemViewport' -and
         $appCode -match 'BindItemViewport'
     ) `
-        'PF-005C must sequence presentation-only updates in place and page 13-500 items through an authority-stamped 12-item viewport.'
+        'PF-005C/PF-008A must preserve in-place presentation updates, project density-aware bounded viewports, and continuously scroll authority-stamped items.'
     Assert-Condition (
         $desktopContainerHeaderCommandCode -match 'ToggleCollapsed' -and
         $desktopContainerHeaderCommandCode -match 'ToggleLocked' -and

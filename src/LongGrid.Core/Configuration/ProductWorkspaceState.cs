@@ -82,7 +82,16 @@ public sealed record ProductContainerAppearanceState
     public ProductContainerTitleDoubleClickAction TitleDoubleClickAction
     { get; init; } = ProductContainerTitleDoubleClickAction.ToggleCollapsed;
 
+    public ProductContainerContentDensity ContentDensity { get; init; } =
+        ProductContainerContentDensity.Comfortable;
+
     public IDictionary<string, JsonElement>? ExtensionData { get; init; }
+}
+
+public enum ProductContainerContentDensity
+{
+    Comfortable,
+    Compact,
 }
 
 public enum ProductContainerTitleVisibilityPolicy
