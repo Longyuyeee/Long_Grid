@@ -15,6 +15,9 @@ public sealed record ProductConfigurationDocument
     [JsonPropertyName("containers")]
     public required IReadOnlyList<ContainerConfiguration> Containers { get; init; }
 
+    [JsonPropertyName("rules")]
+    public IReadOnlyList<ProductAutomationRuleConfiguration> Rules { get; init; } = [];
+
     [JsonPropertyName("savedDisplayTopology")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<SavedDisplayConfiguration>? SavedDisplayTopology { get; init; }

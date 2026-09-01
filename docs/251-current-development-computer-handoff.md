@@ -6,7 +6,7 @@
 
 状态：`HandoffPrepared / DevelopmentPaused / ExternalAdmissionPending`
 
-> 2026-09-01 接续更新：本文保留 Stage 251 当时的环境交接证据；最新代码和唯一功能接续点已前进到 [Stage 268](268-pf010b3-undo-semantics-convergence-audit.md)。换电脑仍必须从最新 GitHub `main` 全新拉取，不使用本文的历史 SHA 作为 checkout 目标。PF-010A～B3 已完成统一历史、重启安全恢复和旧撤销用户入口收敛，最新完整 Release 测试为 `1,460/1,460`、Release 0 warning/error、207-ID UI 合同通过；规则应用按 PF-020/021 开发，下一步只进入 PF-011A Quick Start 真实只读建议预览与原子提交。
+> 2026-09-01 接续更新：本文保留 Stage 251 当时的环境交接证据；最新代码和唯一功能接续点已前进到 [Stage 271](271-pf020a-versioned-rule-preview-safe-assignment-audit.md)。换电脑仍必须从最新 GitHub `main` 全新拉取，不使用本文的历史 SHA 作为 checkout 目标。PF-020A 已完成 schema v6 规则、真实 Catalog 解释性预览、原子安全引用分配和统一历史，最新完整 Release 测试为 `1,475/1,475`、Release 0 warning/error、205-ID UI 合同通过；下一步只进入 PF-020B 现有规则编辑、复制、启停、删除、排序、时间条件、修复和性能收口。
 
 ## 1. 交接结论
 

@@ -105,7 +105,7 @@ public sealed class ProductConfigurationContractTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(6)]
+    [InlineData(7)]
     public void UnsupportedSchemaIsRejectedWithoutDocumentContent(int schemaVersion)
     {
         ProductConfigurationDocument source = CreateValidDocument() with
@@ -305,7 +305,7 @@ public sealed class ProductConfigurationContractTests
     {
         byte[] source = Encoding.UTF8.GetBytes(
             """
-            { "schemaVersion": 6, "profileId": "default", "containers": [] }
+            { "schemaVersion": 7, "profileId": "default", "containers": [] }
             """);
 
         ProductConfigurationContractException exception = Assert.Throws<

@@ -96,6 +96,13 @@ public static class ProductConfigurationJson
             return document;
         }
 
+        if (document.SchemaVersion is >= 1 and <= 5
+            && document.Rules.Count != 0)
+        {
+            throw new ProductConfigurationContractException(
+                ProductConfigurationError.UnsupportedSchema);
+        }
+
         if (document.SchemaVersion == 1
             && document.SavedDisplayTopology is null
             && document.Containers.All(container => container.FolderBinding is null))
@@ -150,6 +157,15 @@ public static class ProductConfigurationJson
                         },
                     })
                     .ToArray(),
+            };
+        }
+
+        if (document.SchemaVersion == 5)
+        {
+            return document with
+            {
+                SchemaVersion = ProductConfigurationLimits.CurrentSchemaVersion,
+                Rules = [],
             };
         }
 

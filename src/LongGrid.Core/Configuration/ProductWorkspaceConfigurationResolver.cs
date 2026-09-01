@@ -67,6 +67,24 @@ public static class ProductWorkspaceConfigurationResolver
         {
             ProfileId = snapshot.ProfileId,
             Containers = containers,
+            Rules = snapshot.Rules.Select(rule => new ProductAutomationRuleState
+            {
+                Id = rule.Id,
+                Name = rule.Name,
+                Enabled = rule.Enabled,
+                Priority = rule.Priority,
+                TargetContainerId = rule.TargetContainerId,
+                MatchMode = rule.MatchMode,
+                Action = rule.Action,
+                Conditions = rule.Conditions.Select(condition =>
+                    new ProductAutomationRuleConditionState
+                    {
+                        Kind = condition.Kind,
+                        Value = condition.Value,
+                        ExtensionData = condition.ExtensionData,
+                    }).ToArray(),
+                ExtensionData = rule.ExtensionData,
+            }).ToArray(),
             SavedDisplayTopology = snapshot.SavedDisplayTopology?
                 .ToArray(),
             ExtensionData = snapshot.ExtensionData,

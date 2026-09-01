@@ -27,7 +27,9 @@ public static class ProductWorkspaceConfigurationProjector
     {
         ArgumentNullException.ThrowIfNull(state);
 
-        if (state.Containers is null)
+        if (state.Containers is null
+            || state.Rules is null
+            || state.Rules.Any(rule => rule is null))
         {
             return Failure(ProductWorkspaceProjectionError.InvalidState);
         }
@@ -51,6 +53,7 @@ public static class ProductWorkspaceConfigurationProjector
             SchemaVersion = ProductConfigurationLimits.CurrentSchemaVersion,
             ProfileId = state.ProfileId,
             Containers = containers,
+            Rules = state.Rules.Select(ProjectRule).ToArray(),
             SavedDisplayTopology = state.SavedDisplayTopology?
                 .ToArray(),
             ExtensionData = state.ExtensionData,
@@ -73,6 +76,26 @@ public static class ProductWorkspaceConfigurationProjector
                 exception.Error);
         }
     }
+
+    private static ProductAutomationRuleConfiguration ProjectRule(
+        ProductAutomationRuleState rule) => new()
+        {
+            Id = rule.Id,
+            Name = rule.Name,
+            Enabled = rule.Enabled,
+            Priority = rule.Priority,
+            TargetContainerId = rule.TargetContainerId,
+            MatchMode = rule.MatchMode,
+            Action = rule.Action,
+            Conditions = rule.Conditions.Select(condition =>
+                new ProductAutomationRuleConditionConfiguration
+                {
+                    Kind = condition.Kind,
+                    Value = condition.Value,
+                    ExtensionData = condition.ExtensionData,
+                }).ToArray(),
+            ExtensionData = rule.ExtensionData,
+        };
 
     private static ProductWorkspaceProjectionResult? TryProjectContainer(
         ProductContainerState? container,

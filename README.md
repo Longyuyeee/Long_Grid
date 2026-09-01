@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：PF-011A/B 已把首次整理收敛为真实 Quick Start 与正式 Customize 旅程；跳过、返回、重新运行和完成态均可恢复，匿名练习遗留已退出。真实设置 Store 多次重启 `4/4`、最终完整 Release `1,469/1,469`、Release 0 warning/error、194-ID UI 合同通过；首轮唯一失败为既有真实缩略图 worker/HWND 3 秒时序用例，独立复跑 Pass/Fail/Pass 后全量复跑通过，首次差异仍如实保留。PF-011 为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`，M1/M2 仍为 `0/2 Complete`、30 项 PF 仍为 `0 Complete`。唯一接续点是 PF-020A 规则模型、解释性预览与安全引用分配，详见 [Stage 270](docs/270-pf011b-formal-first-run-journey-audit.md)。
+> 当前状态：PF-020A 已交付 schema v6 规则模型、真实 Catalog 解释性预览、一次原子安全引用分配和统一历史项。首个模型红测 `0/1` 已修正；真实 Unicode/持久化/重启/撤销专项 `6/6`、完整 Release `1,475/1,475`、Release 0 warning/error、205-ID UI 合同通过，真实文件 SHA-256 不变。PF-020A 为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`，PF-020 整体仍 InProgress，M1/M2 仍为 `0/2 Complete`、30 项 PF 仍为 `0 Complete`。唯一接续点是 PF-020B 现有规则编辑、复制、启停、删除、排序、时间条件和性能收口，详见 [Stage 271](docs/271-pf020a-versioned-rule-preview-safe-assignment-audit.md)。
 
 ## 产品原则
 
@@ -25,6 +25,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-010B3 统一撤销用户语义与规则依赖纠偏审计（Stage 268）](docs/268-pf010b3-undo-semantics-convergence-audit.md)
 - [PF-011A Quick Start 真实建议预览与原子提交审计（Stage 269）](docs/269-pf011a-quick-start-real-preview-atomic-commit-audit.md)
 - [PF-011B 正式首次旅程、恢复与匿名遗留退出审计（Stage 270）](docs/270-pf011b-formal-first-run-journey-audit.md)
+- [PF-020A 版本化规则、真实预览与安全引用分配审计（Stage 271）](docs/271-pf020a-versioned-rule-preview-safe-assignment-audit.md)
 - [PF-009B 桌面搜索浮层与结果导航审计（Stage 264）](docs/264-pf009b-desktop-search-navigation-audit.md)
 - [PF-008B 类型与修改时间稳定排序审计（Stage 261）](docs/261-pf008b-type-modified-sort-audit.md)
 - [PF-008A 视图密度与连续滚动审计（Stage 260）](docs/260-pf008a-view-density-continuous-scroll-audit.md)
@@ -298,7 +299,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 270](docs/270-pf011b-formal-first-run-journey-audit.md)的**功能优先（FunctionFirst）**基准，PF-008A～C、PF-009A/B、PF-010A～B3、PF-011A/B 已工程收口；当前唯一主开发项是 **PF-020A 规则模型、解释性预览与安全引用分配**。BOX-R1-C/D、PF-011 真人旅程与 M1 的 #23/#274、完整 Runtime 和独占可丢弃会话，以及 TASKBAR-R2B1-B 的 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) Guest 准入继续作为并行外部门禁；未准入只阻止对应物理证据、系统写入和 Complete 声明，不冻结 PF-020A。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 271](docs/271-pf020a-versioned-rule-preview-safe-assignment-audit.md)的**功能优先（FunctionFirst）**基准，PF-008A～C、PF-009A/B、PF-010A～B3、PF-011A/B、PF-020A 已工程收口；当前唯一主开发项是 **PF-020B 规则生命周期管理与条件/性能收口**。BOX-R1-C/D、PF-011 真人旅程与 M1 的 #23/#274、完整 Runtime 和独占可丢弃会话，以及 TASKBAR-R2B1-B 的 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) Guest 准入继续作为并行外部门禁；未准入只阻止对应物理证据、系统写入和 Complete 声明，不冻结 PF-020B。
 
 ## 开发启动
 

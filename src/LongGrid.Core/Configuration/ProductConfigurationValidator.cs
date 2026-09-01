@@ -2,10 +2,14 @@ namespace LongGrid.Core.Configuration;
 
 public static class ProductConfigurationLimits
 {
-    public const int CurrentSchemaVersion = 5;
+    public const int CurrentSchemaVersion = 6;
     public const int MaximumSerializedBytes = 4 * 1024 * 1024;
     public const int MaximumContainers = 100;
     public const int MaximumItems = 500;
+    public const int MaximumRules = 100;
+    public const int MaximumConditionsPerRule = 8;
+    public const int MaximumRulePriority = 10_000;
+    public const int MaximumRuleValueLength = 256;
     public const int MaximumIdLength = 128;
     public const int MaximumNameLength = 256;
     public const int MaximumDisplayKeyLength = 256;
@@ -36,6 +40,8 @@ public enum ProductConfigurationError
     InvalidDisplayTopology,
     TooManyItems,
     InvalidItem,
+    TooManyRules,
+    InvalidRule,
     InvalidExtensionData,
 }
 
@@ -61,7 +67,8 @@ public static class ProductConfigurationValidator
         }
 
         if (!IsBoundedText(document.ProfileId, ProductConfigurationLimits.MaximumIdLength)
-            || document.Containers is null)
+            || document.Containers is null
+            || document.Rules is null)
         {
             return new(ProductConfigurationError.InvalidProfile);
         }
@@ -71,6 +78,7 @@ public static class ProductConfigurationValidator
             "schemaVersion",
             "profileId",
             "containers",
+            "rules",
             "savedDisplayTopology"))
         {
             return new(ProductConfigurationError.InvalidExtensionData);
@@ -87,6 +95,10 @@ public static class ProductConfigurationValidator
         }
 
         HashSet<string> objectIds = new(StringComparer.Ordinal);
+        HashSet<string> containerIds = document.Containers
+            .Where(container => container is not null)
+            .Select(container => container!.Id)
+            .ToHashSet(StringComparer.Ordinal);
         int totalItems = 0;
 
         foreach (ContainerConfiguration? container in document.Containers)
@@ -183,6 +195,38 @@ public static class ProductConfigurationValidator
                 {
                     return new(ProductConfigurationError.DuplicateObjectId);
                 }
+            }
+        }
+
+        if (document.Rules.Count > ProductConfigurationLimits.MaximumRules)
+        {
+            return new(ProductConfigurationError.TooManyRules);
+        }
+        foreach (ProductAutomationRuleConfiguration? rule in document.Rules)
+        {
+            if (!ProductAutomationRulePolicy.IsValid(rule)
+                || (rule!.Enabled && !containerIds.Contains(rule.TargetContainerId)))
+            {
+                return new(ProductConfigurationError.InvalidRule);
+            }
+            if (!objectIds.Add(rule.Id))
+            {
+                return new(ProductConfigurationError.DuplicateObjectId);
+            }
+            if (!IsValidExtensionData(
+                rule.ExtensionData,
+                "id",
+                "name",
+                "enabled",
+                "priority",
+                "targetContainerId",
+                "matchMode",
+                "action",
+                "conditions")
+                || rule.Conditions.Any(condition =>
+                    !IsValidExtensionData(condition.ExtensionData, "kind", "value")))
+            {
+                return new(ProductConfigurationError.InvalidExtensionData);
             }
         }
 

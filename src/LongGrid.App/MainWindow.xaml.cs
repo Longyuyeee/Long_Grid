@@ -60,6 +60,7 @@ public sealed partial class MainWindow : Window
     private bool _firstRunJourneyLoaded;
     private ProductFirstRunJourneyState _firstRunJourneyState;
     private ProductQuickStartSuggestionSnapshot? _quickStartSuggestion;
+    private ProductAutomationRulePreviewSnapshot? _automationRulePreview;
     private ProductConfigurationStartupMode _configurationStartupMode;
     private ProductConfigurationEvidenceInventory? _configurationEvidenceInventory;
     private readonly Func<
@@ -195,6 +196,17 @@ public sealed partial class MainWindow : Window
     private readonly Func<
         ProductQuickStartSuggestionSnapshot,
         ProductQuickStartCommitResult> _commitProductQuickStart;
+    private readonly Func<
+        int,
+        string,
+        bool,
+        int,
+        ProductAutomationRuleConditionKind,
+        string,
+        ProductAutomationRulePreviewSnapshot> _prepareProductAutomationRulePreview;
+    private readonly Func<
+        ProductAutomationRulePreviewSnapshot,
+        ProductAutomationRuleCommitResult> _commitProductAutomationRule;
     private readonly Func<
         ProductFirstRunJourneyState,
         Task<ProductBoxesSettingsChangeResult>> _changeProductFirstRunJourney;
@@ -364,6 +376,17 @@ public sealed partial class MainWindow : Window
             ProductQuickStartSuggestionSnapshot,
             ProductQuickStartCommitResult> commitProductQuickStart,
         Func<
+            int,
+            string,
+            bool,
+            int,
+            ProductAutomationRuleConditionKind,
+            string,
+            ProductAutomationRulePreviewSnapshot> prepareProductAutomationRulePreview,
+        Func<
+            ProductAutomationRulePreviewSnapshot,
+            ProductAutomationRuleCommitResult> commitProductAutomationRule,
+        Func<
             ProductFirstRunJourneyState,
             Task<ProductBoxesSettingsChangeResult>> changeProductFirstRunJourney)
     {
@@ -408,6 +431,8 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecovery);
         ArgumentNullException.ThrowIfNull(commitProductWorkspaceLayoutRecoveryUndo);
         ArgumentNullException.ThrowIfNull(commitProductQuickStart);
+        ArgumentNullException.ThrowIfNull(prepareProductAutomationRulePreview);
+        ArgumentNullException.ThrowIfNull(commitProductAutomationRule);
         ArgumentNullException.ThrowIfNull(changeProductFirstRunJourney);
         _recoverConfiguration = recoverConfiguration;
         _restoreRestartRecoveryPoint = restoreRestartRecoveryPoint;
@@ -460,6 +485,8 @@ public sealed partial class MainWindow : Window
         _commitProductWorkspaceLayoutRecoveryUndo =
             commitProductWorkspaceLayoutRecoveryUndo;
         _commitProductQuickStart = commitProductQuickStart;
+        _prepareProductAutomationRulePreview = prepareProductAutomationRulePreview;
+        _commitProductAutomationRule = commitProductAutomationRule;
         _changeProductFirstRunJourney = changeProductFirstRunJourney;
         InitializeComponent();
         RootLayout.Loaded += RootLayout_Loaded;
@@ -2371,6 +2398,19 @@ public sealed partial class MainWindow : Window
                 : 0;
         _containerEditor = presentation;
         ProductWorkspaceContainerEditSelector.ItemsSource = presentation.Candidates;
+        int previousRuleTarget = ProductAutomationRuleTargetSelector.SelectedItem is
+            ProductWorkspaceContainerEditCandidatePresentation ruleTarget
+                ? ruleTarget.Ordinal
+                : 0;
+        ProductAutomationRuleTargetSelector.ItemsSource = presentation.Candidates;
+        ProductAutomationRuleTargetSelector.SelectedIndex =
+            previousRuleTarget > 0
+                && previousRuleTarget <= presentation.Candidates.Count
+                    ? previousRuleTarget - 1
+                    : presentation.Candidates.Count > 0 ? 0 : -1;
+        ProductAutomationRulePreviewButton.IsEnabled = presentation.CanCreate
+            && presentation.Candidates.Count > 0;
+        InvalidateProductAutomationRulePreview();
         ProductWorkspaceContainerColorSelector.ItemsSource =
             ProductWorkspaceContainerEditPresentation.ColorChoices;
         ProductWorkspaceContainerOpacitySelector.ItemsSource =
@@ -2406,6 +2446,124 @@ public sealed partial class MainWindow : Window
                 "Changed=False:DesktopFilesChanged=False");
         UpdateProductWorkspaceContainerEditButtons();
         UpdateProductWorkspaceEmptyCreateShortcut();
+    }
+
+    private void ProductAutomationRuleDraftChanged(
+        object sender,
+        TextChangedEventArgs e) => InvalidateProductAutomationRulePreview();
+
+    private void ProductAutomationRuleDraftSelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e) => InvalidateProductAutomationRulePreview();
+
+    private void ProductAutomationRuleDraftToggled(
+        object sender,
+        RoutedEventArgs e) => InvalidateProductAutomationRulePreview();
+
+    private void ProductAutomationRuleDraftValueChanged(
+        NumberBox sender,
+        NumberBoxValueChangedEventArgs args) =>
+        InvalidateProductAutomationRulePreview();
+
+    private void InvalidateProductAutomationRulePreview()
+    {
+        _automationRulePreview = null;
+        if (ProductAutomationRuleApplyButton is null) return;
+        ProductAutomationRuleApplyButton.IsEnabled = false;
+        ProductAutomationRulePreviewList.ItemsSource = null;
+        ProductAutomationRulePreviewMessage.Text =
+            "规则草稿尚未完成有效预览；配置和桌面文件未改变。";
+    }
+
+    private void ProductAutomationRulePreviewButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        int ordinal = ProductAutomationRuleTargetSelector.SelectedItem is
+            ProductWorkspaceContainerEditCandidatePresentation target
+                ? target.Ordinal
+                : 0;
+        ProductAutomationRuleConditionKind kind =
+            ProductAutomationRuleConditionSelector.SelectedIndex switch
+            {
+                0 => ProductAutomationRuleConditionKind.Extension,
+                1 => ProductAutomationRuleConditionKind.NameContains,
+                2 => ProductAutomationRuleConditionKind.NameStartsWith,
+                3 => ProductAutomationRuleConditionKind.NameEndsWith,
+                4 => ProductAutomationRuleConditionKind.NameEquals,
+                5 => ProductAutomationRuleConditionKind.ItemKind,
+                _ => ProductAutomationRuleConditionKind.Extension,
+            };
+        int priority = double.IsFinite(ProductAutomationRulePriorityEditor.Value)
+            ? (int)ProductAutomationRulePriorityEditor.Value
+            : -1;
+        ProductAutomationRulePreviewSnapshot preview =
+            _prepareProductAutomationRulePreview(
+                ordinal,
+                ProductAutomationRuleNameEditor.Text,
+                ProductAutomationRuleEnabledToggle.IsOn,
+                priority,
+                kind,
+                ProductAutomationRuleValueEditor.Text);
+        _automationRulePreview = preview;
+        ProductAutomationRulePreviewList.ItemsSource = preview.Samples;
+        ProductAutomationRuleApplyButton.IsEnabled = preview.CanApply
+            && ProductAutomationRuleEnabledToggle.IsOn;
+        ProductAutomationRulePreviewMessage.Text = preview.Status switch
+        {
+            ProductAutomationRulePreviewStatus.Ready =>
+                $"预期添加 {preview.TotalMatchCount} 个安全引用；实际预览 {preview.Samples.Count} 项。尚未保存，真实文件未改变。",
+            ProductAutomationRulePreviewStatus.ZeroMatches =>
+                "实际匹配 0 项；不会创建空规则或写入配置。",
+            ProductAutomationRulePreviewStatus.Conflict =>
+                $"发现 {preview.ConflictCount} 项规则冲突；应用已阻止。",
+            ProductAutomationRulePreviewStatus.TargetMissing =>
+                "目标盒子不存在；请重新选择。",
+            ProductAutomationRulePreviewStatus.TargetLocked =>
+                "目标盒子已锁定；应用已阻止。",
+            ProductAutomationRulePreviewStatus.CatalogUnavailable =>
+                "真实桌面目录尚不可用；没有使用模拟数据。",
+            ProductAutomationRulePreviewStatus.CapacityExceeded =>
+                $"实际匹配 {preview.TotalMatchCount} 项，超过单次安全上限。",
+            _ => "规则草稿无效；请检查名称、条件值和优先级。",
+        };
+        AutomationProperties.SetItemStatus(
+            ProductAutomationRulePreviewMessage,
+            $"AutomationRulePreview:{preview.Status}:Matches={preview.TotalMatchCount}:" +
+                $"Conflicts={preview.ConflictCount}:CanApply={preview.CanApply}:" +
+                "Changed=False:DesktopFilesChanged=False");
+    }
+
+    private void ProductAutomationRuleApplyButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        ProductAutomationRulePreviewSnapshot? preview = _automationRulePreview;
+        if (preview is null || !preview.CanApply)
+        {
+            InvalidateProductAutomationRulePreview();
+            return;
+        }
+        ProductAutomationRuleApplyButton.IsEnabled = false;
+        ProductAutomationRuleCommitResult result =
+            _commitProductAutomationRule(preview);
+        ProductAutomationRulePreviewMessage.Text = result.Status switch
+        {
+            ProductAutomationRuleCommitStatus.Accepted =>
+                $"已原子保存规则并添加 {preview.TotalMatchCount} 个引用；真实文件未改变。",
+            ProductAutomationRuleCommitStatus.StaleCatalogGeneration or
+            ProductAutomationRuleCommitStatus.StaleEditRevision or
+            ProductAutomationRuleCommitStatus.StalePreview =>
+                "预览已经过期；未保存任何部分，请重新预览。",
+            ProductAutomationRuleCommitStatus.SaveRejected =>
+                "保存队列拒绝本次规则；未发布部分结果。",
+            _ => "规则应用被拒绝；配置与真实文件未改变。",
+        };
+        AutomationProperties.SetItemStatus(
+            ProductAutomationRulePreviewMessage,
+            $"AutomationRuleCommit:{result.Status}:Accepted={result.IsAccepted}:" +
+                "DesktopFilesChanged=False");
+        _automationRulePreview = null;
     }
 
     internal bool OpenProductWorkspaceContainerMenuTarget(
