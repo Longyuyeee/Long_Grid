@@ -1442,6 +1442,22 @@
                                                 Foreground="{ThemeResource LongGridTextSecondaryBrush}"
                                                 Text="搜索结果尚不可用。"
                                                 TextWrapping="Wrap" />
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Button
+                                                    x:Name="OpenDesktopSearchOverlayButton"
+                                                    AutomationProperties.AutomationId="OpenDesktopSearchOverlayButton"
+                                                    AutomationProperties.Name="打开桌面搜索浮层"
+                                                    Click="OpenDesktopSearchOverlayButton_Click"
+                                                    Content="打开桌面搜索"
+                                                    IsEnabled="False" />
+                                                <Button
+                                                    x:Name="NavigateSelectedSearchResultButton"
+                                                    AutomationProperties.AutomationId="NavigateSelectedSearchResultButton"
+                                                    AutomationProperties.Name="在桌面显示所选搜索结果"
+                                                    Click="NavigateSelectedSearchResultButton_Click"
+                                                    Content="在桌面显示"
+                                                    IsEnabled="False" />
+                                            </StackPanel>
                                             <ListView
                                                 x:Name="ProductWorkspaceSearchResults"
                                                 MaxHeight="240"

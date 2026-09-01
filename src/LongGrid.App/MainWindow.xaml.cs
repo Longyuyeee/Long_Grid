@@ -51,6 +51,9 @@ public sealed partial class MainWindow : Window
     private ProductDesktopWorkspaceCreatePreviewSnapshot? _safePreviewSnapshot;
 
     internal event EventHandler? DesktopKeyboardInteractionRequested;
+    internal event Action<string?>? DesktopSearchRequested;
+    internal event Action<ProductWorkspaceSearchResultPresentation>?
+        DesktopSearchNavigationRequested;
     internal event Action<bool>? BoxesEnabledChangeRequested;
     internal event Action<bool>? ThumbnailsEnabledChangeRequested;
     internal event Action<bool>? SingleClickOpenChangeRequested;
@@ -811,6 +814,7 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceSearchTargetSelector.IsEnabled = presentation.CanFilter;
         ProductWorkspaceSearchItemKindSelector.IsEnabled = presentation.CanFilter;
         ProductWorkspaceSearchDisplaySelector.IsEnabled = presentation.CanFilter;
+        OpenDesktopSearchOverlayButton.IsEnabled = presentation.CanFilter;
         if (!presentation.CanFilter)
         {
             ProductWorkspaceSearchBox.Text = string.Empty;
@@ -825,6 +829,18 @@ public sealed partial class MainWindow : Window
         RefreshProductWorkspaceSearchDisplayChoices();
         ApplyProductWorkspaceFilters();
         UpdateProductWorkspaceEmptyCreateShortcut();
+    }
+
+    internal void ApplyDesktopSearchNavigationResult(
+        string detail,
+        string machineStatus)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(detail);
+        ArgumentException.ThrowIfNullOrWhiteSpace(machineStatus);
+        ProductWorkspaceSearchStatus.Text = detail;
+        AutomationProperties.SetItemStatus(
+            ProductWorkspaceSearchStatus,
+            machineStatus);
     }
 
     private void ApplyProductOverview(
@@ -1008,15 +1024,38 @@ public sealed partial class MainWindow : Window
         if (ProductWorkspaceSearchResults?.SelectedItem
             is not ProductWorkspaceSearchResultPresentation selected)
         {
+            NavigateSelectedSearchResultButton.IsEnabled = false;
             return;
         }
 
+        NavigateSelectedSearchResultButton.IsEnabled = true;
         ProductWorkspaceSearchStatus.Text =
             $"已选择 {selected.DisplayName}；没有改变方格或桌面文件。";
         AutomationProperties.SetItemStatus(
             ProductWorkspaceSearchStatus,
             selected.MachineStatus + ":Selected=True:Changed=False:" +
                 "DesktopFilesChanged=False");
+    }
+
+    private void OpenDesktopSearchOverlayButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        string? displayKey =
+            (ProductWorkspaceSearchDisplaySelector.SelectedItem
+                as ProductWorkspaceSearchDisplayChoicePresentation)?.DisplayKey;
+        DesktopSearchRequested?.Invoke(displayKey);
+    }
+
+    private void NavigateSelectedSearchResultButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (ProductWorkspaceSearchResults.SelectedItem
+            is ProductWorkspaceSearchResultPresentation selected)
+        {
+            DesktopSearchNavigationRequested?.Invoke(selected);
+        }
     }
 
     private void RefreshProductWorkspaceSearchDisplayChoices()
@@ -1064,6 +1103,7 @@ public sealed partial class MainWindow : Window
             CreateProductWorkspaceSearchRequest(displayKey),
             _workspaceRead.SearchContainers);
         ProductWorkspaceSearchResults.ItemsSource = _workspaceSearch.Results;
+        NavigateSelectedSearchResultButton.IsEnabled = false;
         ProductWorkspaceSearchResults.IsEnabled = _workspaceSearch.CanSearch
             && _workspaceSearch.Results.Count > 0;
         ProductWorkspaceSearchStatus.Text = _workspaceSearch.Detail;

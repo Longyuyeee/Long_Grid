@@ -2408,6 +2408,18 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
             _ = NativeMethods.SelectObject(deviceContext, previousPen);
             _ = NativeMethods.SelectObject(deviceContext, previousBrush);
 
+            if (container.SearchHighlighted)
+            {
+                NativeRect searchOutline = new(
+                    bounds.Left + 1,
+                    bounds.Top + 1,
+                    bounds.Right - 1,
+                    bounds.Bottom - 1);
+                _ = NativeMethods.DrawFocusRect(
+                    deviceContext,
+                    ref searchOutline);
+            }
+
             if (containerLayoutPreview is not null && string.Equals(
                 containerLayoutPreview.ContainerId,
                 container.ContainerId,
@@ -2554,6 +2566,28 @@ internal sealed class WindowsProductDesktopHostReadOnlySurface
                 finally
                 {
                     _ = NativeMethods.DeleteObject(selectionBrush);
+                }
+            }
+            if (itemId is not null
+                && string.Equals(
+                    container.SearchHighlightedItemId,
+                    itemId,
+                    StringComparison.Ordinal))
+            {
+                nint searchBrush = NativeMethods.CreateSolidBrush(0x00D67524);
+                try
+                {
+                    _ = NativeMethods.FillRect(
+                        deviceContext,
+                        ref itemBounds,
+                        searchBrush);
+                    _ = NativeMethods.DrawFocusRect(
+                        deviceContext,
+                        ref itemBounds);
+                }
+                finally
+                {
+                    _ = NativeMethods.DeleteObject(searchBrush);
                 }
             }
             if (activeContainer && itemId is not null

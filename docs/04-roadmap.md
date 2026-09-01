@@ -8,7 +8,9 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源。PF-009A 工程收口与 PF-009B 接续点见 [Stage 263](263-pf009a-shared-search-results-audit.md)，换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)。当前唯一主开发项为 PF-009B；#23/#274、完整 Runtime、签名包、独占可丢弃 Windows 会话和 Stage 216 Guest 准入作为 BOX/M1/TASKBAR 并行门禁，不再冻结安全边界内的产品功能开发。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源。PF-009A/B 工程收口与 PF-010A 接续点见 [Stage 264](264-pf009b-desktop-search-navigation-audit.md)，换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)。当前唯一主开发项为 PF-010A；#23/#274、完整 Runtime、签名包、独占可丢弃 Windows 会话和 Stage 216 Guest 准入作为 BOX/M1/TASKBAR 并行门禁，不再冻结安全边界内的产品功能开发。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+
+2026-09-01 Stage 264 PF-009B 桌面搜索导航：控制中心或主显示器桌面“搜”按钮可打开独立浮层，以键盘输入、上下移动、Enter 显示、Escape 关闭，并可复用既有打开/资源管理器定位链。第 20 个真实 Unicode 文件的初始投影精确失败为折叠未展开；修正后 viewport start=8、临时展开四秒并高亮 `item:20`，真实 HWND 接受投影且 20 个文件 SHA-256 不变。专项 `5/5`、完整 `1,426/1,426`、Release 0 warning/error、208-ID 合同通过；PF-009 工程收口但产品物理证据 Pending，唯一接续点为 PF-010A，详见 [Stage 264](264-pf009b-desktop-search-navigation-audit.md)。
 
 2026-09-01 Stage 263 PF-009A 共用搜索与正式结果：Core 查询同时覆盖盒子和项目，支持目标、类型、健康状态与显示器筛选，以 edit revision 丢弃陈旧结果，并在控制中心展示所属盒子、来源和有限解析状态。初始真实 Unicode 文件按“文件”查询精确失败为 0 项；修正后类型命中、正文不命中且 SHA-256 不变，500 项低于 100ms 并明确截断。专项 `6/6`、完整 `1,422/1,422`、Release 0 warning/error、206-ID 合同通过；PF-009A 工程收口但物理产品证据 Pending，唯一接续点为 PF-009B，详见 [Stage 263](263-pf009a-shared-search-results-audit.md)。
 

@@ -76,6 +76,9 @@ public partial class App : Application
     private readonly Dictionary<string, int> desktopItemViewportStarts =
         new(StringComparer.Ordinal);
     private readonly ProductDesktopItemOpenController desktopItemOpens = new();
+    private ProductDesktopSearchNavigationTarget? desktopSearchTarget;
+    private CancellationTokenSource? desktopSearchHighlightCancellation;
+    private DesktopSearchOverlayWindow? desktopSearchOverlayWindow;
 
     public App()
     {
@@ -271,6 +274,8 @@ public partial class App : Application
         productDesktopHostLifecycle.BindItemViewport(
             RequestDesktopItemViewport);
         productDesktopHostLifecycle.BindItemOpen(RequestDesktopItemOpen);
+        productDesktopHostLifecycle.BindDesktopSearch(
+            RequestDesktopSearchFromHost);
         productDesktopHostLifecycle.BindExplorerReferenceDrop(
             RequestDesktopExplorerReferenceDrop);
         productDesktopHostLifecycle.BindReferenceReassignment(
@@ -279,6 +284,9 @@ public partial class App : Application
             ProductWorkspaceFolderContentWatcher_Invalidated;
         window.DesktopKeyboardInteractionRequested +=
             MainWindow_DesktopKeyboardInteractionRequested;
+        window.DesktopSearchRequested += MainWindow_DesktopSearchRequested;
+        window.DesktopSearchNavigationRequested +=
+            MainWindow_DesktopSearchNavigationRequested;
         window.BoxesEnabledChangeRequested +=
             MainWindow_BoxesEnabledChangeRequested;
         window.ThumbnailsEnabledChangeRequested +=
@@ -1771,6 +1779,184 @@ public partial class App : Application
         window?.ApplyProductDesktopHostLifecycleState(
             productDesktopHostLifecycle.Snapshot,
             productDesktopHostLifecycle.CanRequestKeyboardInteraction);
+    }
+
+    private void MainWindow_DesktopSearchRequested(string? displayKey) =>
+        _ = OpenDesktopSearchAsync(displayKey);
+
+    private bool RequestDesktopSearchFromHost(string displayId)
+    {
+        MainWindow? currentWindow = window;
+        return currentWindow is not null
+            && currentWindow.DispatcherQueue.TryEnqueue(() =>
+                _ = OpenDesktopSearchAsync(displayId));
+    }
+
+    private void MainWindow_DesktopSearchNavigationRequested(
+        ProductWorkspaceSearchResultPresentation result) =>
+        NavigateDesktopSearchResult(
+            result,
+            DesktopSearchOverlayAction.Reveal,
+            workspaceCommits.CurrentEditRevision,
+            productDisplayTopology.Snapshot.Generation);
+
+    private async Task OpenDesktopSearchAsync(string? displayKey)
+    {
+        if (desktopSearchOverlayWindow is not null
+            || closingDrainInProgress
+            || productWorkspaceSession.State is not { } state)
+        {
+            return;
+        }
+        ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
+        ProductWorkspaceReadSnapshot? snapshot = ProductWorkspaceReadModel.Create(
+            state,
+            folderContents).Snapshot;
+        if (!topology.IsAuthoritative || snapshot is null)
+        {
+            window?.ApplyDesktopSearchNavigationResult(
+                "桌面搜索暂时不可用；工作区或显示器状态正在更新。",
+                "DesktopSearchOverlay:Unavailable:Changed=False:" +
+                    "DesktopFilesChanged=False");
+            return;
+        }
+        DisplayTopologyNode display = topology.Displays.FirstOrDefault(candidate =>
+                string.Equals(candidate.StableId, displayKey, StringComparison.Ordinal))
+            ?? topology.Displays.Single(candidate => candidate.IsPrimary);
+        long expectedRevision = workspaceCommits.CurrentEditRevision;
+        long expectedTopology = topology.Generation;
+        desktopSearchOverlayWindow = new(
+            expectedRevision,
+            snapshot.Containers.Select(container =>
+                new ProductWorkspaceSearchContainerInput(
+                    container.Ordinal,
+                    container.UserVisibleName,
+                    container.Health,
+                    container.DisplayKey,
+                    container.Items.Select(item =>
+                        new ProductWorkspaceSearchItemInput(
+                            item.Ordinal,
+                            item.UserVisibleName,
+                            item.Kind,
+                            item.Resolution,
+                            item.Source)).ToArray())).ToArray(),
+            displayKey,
+            display.WorkArea);
+        DesktopSearchOverlayOutcome? outcome;
+        try
+        {
+            outcome = await desktopSearchOverlayWindow.ShowAsync();
+        }
+        finally
+        {
+            desktopSearchOverlayWindow = null;
+        }
+        if (outcome is not null)
+        {
+            NavigateDesktopSearchResult(
+                outcome.Result,
+                outcome.Action,
+                expectedRevision,
+                expectedTopology);
+        }
+    }
+
+    private void NavigateDesktopSearchResult(
+        ProductWorkspaceSearchResultPresentation result,
+        DesktopSearchOverlayAction action,
+        long expectedRevision,
+        long expectedTopology)
+    {
+        ProductWorkspaceState? state = productWorkspaceSession.State;
+        ProductDisplayTopologySnapshot topology = productDisplayTopology.Snapshot;
+        ProductWorkspaceReadSnapshot? snapshot = state is null
+            ? null
+            : ProductWorkspaceReadModel.Create(state, folderContents).Snapshot;
+        if (state is null || snapshot is null)
+        {
+            return;
+        }
+        ProductDesktopSearchNavigationTarget target =
+            ProductDesktopSearchNavigation.Resolve(
+                workspaceCommits.CurrentEditRevision,
+                topology,
+                state,
+                snapshot,
+                new(
+                    expectedRevision,
+                    expectedTopology,
+                    result.ContainerOrdinal,
+                    result.ItemOrdinal));
+        if (!target.IsApplied)
+        {
+            window?.ApplyDesktopSearchNavigationResult(
+                target.Status == ProductDesktopSearchNavigationStatus.StaleAuthority
+                    ? "工作区已经更新，请重新搜索。"
+                    : "搜索目标当前不可用，没有改变方格或桌面文件。",
+                $"DesktopSearchNavigation:{target.Status}:Changed=False:" +
+                    "DesktopFilesChanged=False");
+            return;
+        }
+
+        desktopSearchTarget = target;
+        if (target.ItemId is not null)
+        {
+            desktopItemViewportStarts[target.ContainerId!] = target.ViewportStart;
+        }
+        ApplyProductDesktopHostProjection(topology);
+        window?.ApplyDesktopSearchNavigationResult(
+            $"已在桌面显示 {result.DisplayName}。",
+            $"DesktopSearchNavigation:Applied:Container={result.ContainerOrdinal}:" +
+                $"Item={result.ItemOrdinal}:Action={action}:Changed=False:" +
+                "DesktopFilesChanged=False");
+
+        if (target.ItemId is not null
+            && action is DesktopSearchOverlayAction.Open
+                or DesktopSearchOverlayAction.LocateInExplorer)
+        {
+            ProductDesktopItemOpenResult opened = RequestDesktopItemOpen(new(
+                target.ContainerId!,
+                target.DisplayId!,
+                target.WorkspaceRevision,
+                target.TopologyGeneration,
+                target.ItemId,
+                action == DesktopSearchOverlayAction.Open
+                    ? ProductDesktopItemOpenSource.KeyboardEnter
+                    : ProductDesktopItemOpenSource.FeedbackLocateInExplorer,
+                SourceAttested: true,
+                IsInjected: false,
+                IsAutoRepeat: false));
+            window?.ApplyDesktopSearchNavigationResult(
+                opened.UserMessage,
+                $"DesktopSearchItemAction:{opened.Status}:Action={action}:" +
+                    "Changed=False:DesktopFilesChanged=False");
+        }
+
+        desktopSearchHighlightCancellation?.Cancel();
+        desktopSearchHighlightCancellation?.Dispose();
+        desktopSearchHighlightCancellation = new CancellationTokenSource();
+        _ = ClearDesktopSearchHighlightAsync(
+            target,
+            desktopSearchHighlightCancellation.Token);
+    }
+
+    private async Task ClearDesktopSearchHighlightAsync(
+        ProductDesktopSearchNavigationTarget target,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(4), cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+        if (ReferenceEquals(desktopSearchTarget, target))
+        {
+            desktopSearchTarget = null;
+            ApplyProductDesktopHostProjection(productDisplayTopology.Snapshot);
+        }
     }
 
     private void MainWindow_Activated(
@@ -3613,7 +3799,8 @@ public partial class App : Application
                 workspaceRevision,
                 thumbnails,
                 desktopItemViewportStarts,
-                checked(++desktopHostPresentationGeneration)));
+                checked(++desktopHostPresentationGeneration),
+                desktopSearchTarget));
     }
 
     private async Task RunProductDesktopThumbnailRefreshAsync(
@@ -4216,6 +4403,9 @@ public partial class App : Application
             window.Activated -= MainWindow_Activated;
             window.DesktopKeyboardInteractionRequested -=
                 MainWindow_DesktopKeyboardInteractionRequested;
+            window.DesktopSearchRequested -= MainWindow_DesktopSearchRequested;
+            window.DesktopSearchNavigationRequested -=
+                MainWindow_DesktopSearchNavigationRequested;
             window.BoxesEnabledChangeRequested -=
                 MainWindow_BoxesEnabledChangeRequested;
             window.ThumbnailsEnabledChangeRequested -=
@@ -4230,6 +4420,11 @@ public partial class App : Application
             await productResourceTelemetry.DisposeAsync();
         }
         productThumbnailWorker.Dispose();
+        desktopSearchOverlayWindow?.AppWindow.Destroy();
+        desktopSearchOverlayWindow = null;
+        desktopSearchHighlightCancellation?.Cancel();
+        desktopSearchHighlightCancellation?.Dispose();
+        desktopSearchHighlightCancellation = null;
         folderContentWatcher.Invalidated -=
             ProductWorkspaceFolderContentWatcher_Invalidated;
         folderContentWatcher.Dispose();

@@ -915,6 +915,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
         ProductDesktopInteractionForwardedInput? forwarded = null;
         var headerInputs = new List<ProductDesktopContainerHeaderSurfaceInput>();
         var menuInputs = new List<ProductDesktopContainerMenuSurfaceInput>();
+        var searchDisplays = new List<string>();
         using WindowsProductDesktopInteractionActivationSource source =
             WindowsProductDesktopInteractionActivationSource.Create(
                 display,
@@ -940,6 +941,11 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
                 menuInputs.Add(input);
                 return true;
             });
+        source.BindSearch(displayId =>
+        {
+            searchDisplays.Add(displayId);
+            return true;
+        });
 
         AutomationElement root = AutomationElement.FromHandle(source.Handle);
         Assert.Equal(
@@ -952,12 +958,18 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
             new PropertyCondition(
                 AutomationElement.ControlTypeProperty,
                 ControlType.Button));
-        Assert.Equal(4, buttons.Count);
+        Assert.Equal(5, buttons.Count);
+        AutomationElement searchButton = buttons.Cast<AutomationElement>()
+            .Single(candidate => candidate.Current.Name == "搜索桌面盒子和项目");
+        Assert.Equal(new System.Windows.Rect(324, 236, 32, 32),
+            searchButton.Current.BoundingRectangle);
+        ((InvokePattern)searchButton.GetCurrentPattern(
+            InvokePattern.Pattern)).Invoke();
         AutomationElement button = buttons.Cast<AutomationElement>()
             .Single(candidate => candidate.Current.Name == "进入 工作 交互");
         Assert.NotNull(button);
         Assert.Equal(
-            "LongGrid.DesktopHost.ActivationButton.3",
+            "LongGrid.DesktopHost.ActivationButton.4",
             button.Current.AutomationId);
         Assert.False(button.Current.IsKeyboardFocusable);
         Assert.Equal(new System.Windows.Rect(420, 236, 32, 32),
@@ -1031,6 +1043,7 @@ public sealed class WindowsProductDesktopHostUiaProviderTests(
             menuItems);
         Assert.False(source.IsContainerMenuOpenForEvidence);
         Assert.Empty(menuInputs);
+        Assert.Equal(["display-primary"], searchDisplays);
         Assert.True(button.TryGetCurrentPattern(
             InvokePattern.Pattern,
             out object? pattern));

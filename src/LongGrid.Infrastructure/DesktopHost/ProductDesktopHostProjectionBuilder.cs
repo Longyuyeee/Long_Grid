@@ -13,7 +13,8 @@ public static class ProductDesktopHostProjectionBuilder
         IReadOnlyDictionary<string, ProductDesktopThumbnailResult>?
             thumbnailResults = null,
         IReadOnlyDictionary<string, int>? viewportStarts = null,
-        long presentationGeneration = 0)
+        long presentationGeneration = 0,
+        ProductDesktopSearchNavigationTarget? searchTarget = null)
     {
         ArgumentNullException.ThrowIfNull(topology);
         ArgumentOutOfRangeException.ThrowIfNegative(workspaceRevision);
@@ -80,7 +81,8 @@ public static class ProductDesktopHostProjectionBuilder
             workspaceRevision,
             thumbnailResults,
             viewportStarts,
-            presentationGeneration);
+            presentationGeneration,
+            searchTarget);
         return ProductDesktopHostProjectionUpdate.Create(
             workspaceRevision,
             topology.Generation,
@@ -99,7 +101,8 @@ public static class ProductDesktopHostProjectionBuilder
         IReadOnlyDictionary<string, ProductDesktopThumbnailResult>?
             thumbnailResults = null,
         IReadOnlyDictionary<string, int>? viewportStarts = null,
-        long presentationGeneration = 0)
+        long presentationGeneration = 0,
+        ProductDesktopSearchNavigationTarget? searchTarget = null)
     {
         ArgumentNullException.ThrowIfNull(topology);
         if (state is null
@@ -124,8 +127,17 @@ public static class ProductDesktopHostProjectionBuilder
             ProductWorkspaceReadContainer visible = readSnapshot.Containers[index];
             ProductContainerContentDensity contentDensity =
                 source.Appearance.ContentDensity;
+            bool isSearchTarget = searchTarget?.IsApplied == true
+                && searchTarget.WorkspaceRevision == workspaceRevision
+                && searchTarget.TopologyGeneration == topology.Generation
+                && string.Equals(
+                    searchTarget.ContainerId,
+                    source.Id,
+                    StringComparison.Ordinal);
             int viewportStart = ProductDesktopItemViewportPolicy.ClampStart(
-                viewportStarts is not null
+                isSearchTarget && searchTarget!.ItemId is not null
+                    ? searchTarget.ViewportStart
+                    : viewportStarts is not null
                     && viewportStarts.TryGetValue(source.Id, out int requestedStart)
                         ? requestedStart
                         : 0,
@@ -159,7 +171,7 @@ public static class ProductDesktopHostProjectionBuilder
                     itemNames,
                     visible.Color,
                     visible.Opacity,
-                    visible.IsCollapsed,
+                    visible.IsCollapsed && !isSearchTarget,
                     visible.XDip,
                     visible.YDip,
                     visible.WidthDip,
@@ -171,7 +183,11 @@ public static class ProductDesktopHostProjectionBuilder
                     source.Appearance.TitleVisibility,
                     source.Appearance.TitleDoubleClickAction,
                     visible.Items.Count == 0 ? 0 : viewportStart + 1,
-                    contentDensity);
+                    contentDensity,
+                    searchHighlighted: isSearchTarget,
+                    searchHighlightedItemId: isSearchTarget
+                        ? searchTarget!.ItemId
+                        : null);
             string displayId = byDisplay.ContainsKey(source.Placement.DisplayKey)
                 ? source.Placement.DisplayKey
                 : primary.StableId;
