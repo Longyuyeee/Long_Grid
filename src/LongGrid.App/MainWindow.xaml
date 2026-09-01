@@ -757,6 +757,10 @@
                                                 <ComboBoxItem Content="文件夹优先，名称升序" />
                                                 <ComboBoxItem Content="名称升序" />
                                                 <ComboBoxItem Content="名称降序" />
+                                                <ComboBoxItem Content="类型升序（文件夹优先）" />
+                                                <ComboBoxItem Content="类型降序（文件夹优先）" />
+                                                <ComboBoxItem Content="修改时间：最新优先（文件夹优先）" />
+                                                <ComboBoxItem Content="修改时间：最旧优先（文件夹优先）" />
                                             </ComboBox>
                                             <Button
                                                 x:Name="ProductWorkspaceFolderSortSaveButton"

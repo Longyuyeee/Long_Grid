@@ -46,7 +46,7 @@ public sealed class WindowsProductContainerFolderBindingTests
             WindowsProductContainerFolderBinding.CreateResolved(
                 WindowsProductContainerFolderBinding.Probe(target)) with
             {
-                SortMode = ProductContainerFolderSortMode.NameDescending,
+                SortMode = ProductContainerFolderSortMode.ModifiedNewestFirst,
             };
 
         Directory.Delete(target);
@@ -74,7 +74,7 @@ public sealed class WindowsProductContainerFolderBindingTests
             WindowsProductContainerFolderBinding.CreateResolved(
                 WindowsProductContainerFolderBinding.Probe(target)) with
             {
-                SortMode = ProductContainerFolderSortMode.NameDescending,
+                SortMode = ProductContainerFolderSortMode.ModifiedNewestFirst,
             };
         ProductWorkspaceState state = CreateWorkspace();
 
@@ -106,14 +106,14 @@ public sealed class WindowsProductContainerFolderBindingTests
         Assert.Equal(ProductConfigurationLimits.CurrentSchemaVersion,
             roundTrip.SchemaVersion);
         Assert.Equal(
-            ProductContainerFolderSortMode.NameDescending,
+            ProductContainerFolderSortMode.ModifiedNewestFirst,
             roundTrip.Containers[0].FolderBinding!.SortMode);
         Assert.Equal(Path.GetFullPath(target), roundTrip.Containers[0].FolderBinding!.Target);
         Assert.Equal(
             ProductContainerFolderBindingResolution.Resolved,
             loaded.State!.Containers[0].FolderBinding!.Resolution);
         Assert.Equal(
-            ProductContainerFolderSortMode.NameDescending,
+            ProductContainerFolderSortMode.ModifiedNewestFirst,
             loaded.State.Containers[0].FolderBinding!.SortMode);
         Assert.True(unbound.IsSuccess);
         Assert.True(unbound.Changed);

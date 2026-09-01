@@ -48,6 +48,10 @@ public enum ProductContainerFolderSortMode
     FoldersFirstNameAscending,
     NameAscending,
     NameDescending,
+    TypeAscending,
+    TypeDescending,
+    ModifiedNewestFirst,
+    ModifiedOldestFirst,
 }
 
 public sealed record ProductContainerFolderBindingState

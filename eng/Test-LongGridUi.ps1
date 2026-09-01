@@ -1319,10 +1319,15 @@ function Test-SourceContract {
         $folderSortSaveNode.GetAttribute('IsEnabled') -eq 'False' -and
         $folderSortSaveNode.GetAttribute('Click') -eq `
             'ProductWorkspaceFolderSortSaveButton_Click' -and
+        $folderSortSelectorNode.OuterXml -match '类型升序' -and
+        $folderSortSelectorNode.OuterXml -match '修改时间：最新优先' -and
+        $folderContentReaderCode -match 'TypeAscending' -and
+        $folderContentReaderCode -match 'ModifiedNewestFirst' -and
+        $folderContentReaderCode -match 'LastWriteUtcTicks' -and
         $appCode -match 'CommitProductWorkspaceContainerFolderSort' -and
         $codeBehind -match '_commitProductWorkspaceContainerFolderSort' -and
         $codeBehind -match 'DesktopFilesChanged=False'
-    ) 'Bound-folder sorting must be explicit, persisted, disabled by default, and non-mutating.'
+    ) 'Bound-folder sorting must expose persisted name, type, and modification-time modes with stable non-mutating reads.'
     Assert-Condition (
         $folderContentModelCode -match `
             'CreatePending[\s\S]{0,1800}AwaitingRefresh' -and

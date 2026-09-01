@@ -66,7 +66,8 @@ public static class WindowsProductContainerFolderContentReader
 
         string root = resolved.ResolvedTarget;
         var entries = new List<(string Target, string Name,
-            ConfigurationItemKind Kind)>(MaximumProjectedEntries + 1);
+            ConfigurationItemKind Kind, string TypeKey, long LastWriteUtcTicks)>(
+                MaximumProjectedEntries + 1);
         int skippedReparsePoints = 0;
         int examined = 0;
         bool truncated = false;
@@ -94,10 +95,15 @@ public static class WindowsProductContainerFolderContentReader
                     continue;
                 }
 
+                ConfigurationItemKind kind = MapKind(name, attributes);
                 entries.Add((
                     Path.GetFullPath(target),
                     name,
-                    MapKind(name, attributes)));
+                    kind,
+                    kind == ConfigurationItemKind.Folder
+                        ? string.Empty
+                        : Path.GetExtension(name),
+                    File.GetLastWriteTimeUtc(target).Ticks));
                 if (entries.Count > MaximumProjectedEntries)
                 {
                     truncated = true;
@@ -124,7 +130,8 @@ public static class WindowsProductContainerFolderContentReader
                 ProductContainerFolderBindingResolution.Unavailable);
         }
 
-        IEnumerable<(string Target, string Name, ConfigurationItemKind Kind)> sorted =
+        IEnumerable<(string Target, string Name, ConfigurationItemKind Kind,
+            string TypeKey, long LastWriteUtcTicks)> sorted =
             resolved.SortMode switch
             {
                 ProductContainerFolderSortMode.FoldersFirstNameAscending => entries
@@ -140,6 +147,35 @@ public static class WindowsProductContainerFolderContentReader
                         entry => entry.Name,
                         StringComparer.OrdinalIgnoreCase)
                     .ThenByDescending(entry => entry.Name, StringComparer.Ordinal),
+                ProductContainerFolderSortMode.TypeAscending => entries
+                    .OrderBy(FolderRank)
+                    .ThenBy(entry => entry.TypeKey,
+                        StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(entry => entry.TypeKey, StringComparer.Ordinal)
+                    .ThenBy(entry => entry.Name,
+                        StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(entry => entry.Name, StringComparer.Ordinal),
+                ProductContainerFolderSortMode.TypeDescending => entries
+                    .OrderBy(FolderRank)
+                    .ThenByDescending(entry => entry.TypeKey,
+                        StringComparer.OrdinalIgnoreCase)
+                    .ThenByDescending(entry => entry.TypeKey,
+                        StringComparer.Ordinal)
+                    .ThenBy(entry => entry.Name,
+                        StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(entry => entry.Name, StringComparer.Ordinal),
+                ProductContainerFolderSortMode.ModifiedNewestFirst => entries
+                    .OrderBy(FolderRank)
+                    .ThenByDescending(entry => entry.LastWriteUtcTicks)
+                    .ThenBy(entry => entry.Name,
+                        StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(entry => entry.Name, StringComparer.Ordinal),
+                ProductContainerFolderSortMode.ModifiedOldestFirst => entries
+                    .OrderBy(FolderRank)
+                    .ThenBy(entry => entry.LastWriteUtcTicks)
+                    .ThenBy(entry => entry.Name,
+                        StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(entry => entry.Name, StringComparer.Ordinal),
                 _ => throw new InvalidOperationException(
                     "Folder content sort mode was validated before enumeration."),
             };
@@ -166,6 +202,10 @@ public static class WindowsProductContainerFolderContentReader
             skippedReparsePoints,
             ProductContainerFolderBindingResolution.Resolved);
     }
+
+    private static int FolderRank((string Target, string Name,
+        ConfigurationItemKind Kind, string TypeKey, long LastWriteUtcTicks) entry) =>
+        entry.Kind == ConfigurationItemKind.Folder ? 0 : 1;
 
     private static ProductWorkspaceFolderContentStatus MapBindingFailure(
         ProductContainerFolderBindingResolution resolution) => resolution switch

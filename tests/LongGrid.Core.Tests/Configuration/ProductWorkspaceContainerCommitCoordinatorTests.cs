@@ -528,7 +528,7 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
                         FolderBinding: binding with
                         {
                             SortMode = ProductContainerFolderSortMode
-                                .NameDescending,
+                                .TypeDescending,
                         }));
             ProductWorkspaceContainerEditUndoCommitResult sortUndo =
                 coordinator.CommitContainerEditUndo(
@@ -549,7 +549,7 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
             Assert.True(rebound.IsAccepted);
             Assert.True(sorted.IsAccepted);
             Assert.Equal(
-                ProductContainerFolderSortMode.NameDescending,
+                ProductContainerFolderSortMode.TypeDescending,
                 sorted.State!.Containers[0].FolderBinding!.SortMode);
             Assert.True(sortUndo.IsAccepted);
             Assert.Equal(
