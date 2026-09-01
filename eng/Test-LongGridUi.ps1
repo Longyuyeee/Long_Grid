@@ -1179,6 +1179,13 @@ function Test-SourceContract {
     Assert-Condition (
         $workspaceSessionHistoryCode.Contains('MaximumCapacity = 50') -and
         $workspaceSessionHistoryCode.Contains('entries.RemoveRange(cursor') -and
+        $workspaceSessionHistoryCode.Contains('ReferenceAddition') -and
+        $workspaceSessionHistoryCode.Contains('ReferenceRemoval') -and
+        $workspaceSessionHistoryCode.Contains('ReferenceReassignment') -and
+        $workspaceSessionHistoryCode.Contains('ReferenceOrder') -and
+        $workspaceSessionHistoryCode.Contains('FolderBinding') -and
+        $workspaceSessionHistoryCode.Contains('LayoutRecovery') -and
+        $workspaceSessionHistoryCode.Contains('RollbackLatestRecord') -and
         $workspaceSessionHistoryCode.Contains('TryPrepareCompensation') -and
         $workspaceSessionHistoryPresentationCode.Contains(
             '不会删除或移动真实文件') -and
@@ -4118,7 +4125,7 @@ function Test-SourceContract {
         productDisplayTopology = 'readonly-ccd-monitor-strong-identity-authoritative-adapter'
         productWorkspaceView = 'formal-session-intrinsic-card-actions-direct-navigation-quick-collapse-quick-lock-finite-health-filter-visible-search-shared-item-results-desktop-overlay-keyboard-reveal-open-locate-revision-display-kind-finite-sort-zero-results-recovery-empty-create-pointer-context-hotkey-uia-drag-bounds-inline-preview-fallback-review-shortcut-anonymous-unresolved'
         productWorkspaceLatestUndo = 'single-visible-token-immediate-config-only-fail-closed'
-        productWorkspaceSessionHistory = 'bounded-50-create-rename-lock-collapse-appearance-undo-redo-branch-truncate-save-compensate-config-only'
+        productWorkspaceSessionHistory = 'bounded-50-create-delete-rename-layout-folder-reference-add-remove-reassign-order-lock-collapse-appearance-recovery-undo-redo-branch-truncate-save-compensate-config-only'
         productResolvedReferenceAdd = 'bounded-256-multi-select-atomic-config-only-single-undo'
         productResolvedReferenceRemoval = 'same-container-bounded-256-atomic-config-only-single-undo'
         productBatchSelectionControls = 'focusable-bounded-single-live-announcement-empty-reset-compact-reflow'

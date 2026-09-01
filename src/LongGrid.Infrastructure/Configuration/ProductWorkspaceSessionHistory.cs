@@ -9,6 +9,14 @@ public enum ProductWorkspaceSessionHistoryActionKind
     Locked,
     Collapsed,
     Appearance,
+    Delete,
+    Placement,
+    FolderBinding,
+    ReferenceAddition,
+    ReferenceRemoval,
+    ReferenceReassignment,
+    ReferenceOrder,
+    LayoutRecovery,
 }
 
 public enum ProductWorkspaceSessionHistoryDirection
@@ -86,6 +94,7 @@ internal sealed class ProductWorkspaceSessionHistory
     private readonly List<Entry> entries = [];
     private int cursor;
     private string? unavailableReason;
+    private RecordRollback? pendingRecordRollback;
 
     public ProductWorkspaceSessionHistorySnapshot Snapshot(
         ProductWorkspaceState? currentState)
@@ -128,6 +137,7 @@ internal sealed class ProductWorkspaceSessionHistory
         ProductWorkspaceState after,
         ProductWorkspaceSessionHistoryActionKind kind,
         string actionText,
+        string targetType,
         string targetName,
         int targetCount,
         DateTimeOffset occurredAtUtc,
@@ -137,6 +147,7 @@ internal sealed class ProductWorkspaceSessionHistory
         ArgumentNullException.ThrowIfNull(after);
         if (!Enum.IsDefined(kind)
             || string.IsNullOrWhiteSpace(actionText)
+            || string.IsNullOrWhiteSpace(targetType)
             || string.IsNullOrWhiteSpace(targetName)
             || targetCount <= 0
             || operationId == Guid.Empty
@@ -150,6 +161,9 @@ internal sealed class ProductWorkspaceSessionHistory
             return false;
         }
 
+        Entry[] previousEntries = entries.ToArray();
+        int previousCursor = cursor;
+        string? previousUnavailableReason = unavailableReason;
         if (entries.Count > 0
             && (!TryExpectedFingerprint(out string expectedFingerprint)
                 || !string.Equals(
@@ -170,7 +184,7 @@ internal sealed class ProductWorkspaceSessionHistory
             operationId,
             kind,
             actionText.Trim(),
-            "方格",
+            targetType.Trim(),
             targetName.Trim(),
             targetCount,
             occurredAtUtc,
@@ -185,7 +199,43 @@ internal sealed class ProductWorkspaceSessionHistory
             entries.RemoveRange(0, overflow);
             cursor -= overflow;
         }
+        pendingRecordRollback = new(
+            beforeFingerprint,
+            afterFingerprint,
+            previousEntries,
+            previousCursor,
+            previousUnavailableReason);
 
+        return true;
+    }
+
+    public bool RollbackLatestRecord(
+        ProductWorkspaceState failedState,
+        ProductWorkspaceState restoredState)
+    {
+        ArgumentNullException.ThrowIfNull(failedState);
+        ArgumentNullException.ThrowIfNull(restoredState);
+        RecordRollback? rollback = pendingRecordRollback;
+        if (rollback is null
+            || !TryFingerprint(failedState, out string failedFingerprint)
+            || !TryFingerprint(restoredState, out string restoredFingerprint)
+            || !string.Equals(
+                failedFingerprint,
+                rollback.AfterFingerprint,
+                StringComparison.Ordinal)
+            || !string.Equals(
+                restoredFingerprint,
+                rollback.BeforeFingerprint,
+                StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        entries.Clear();
+        entries.AddRange(rollback.PreviousEntries);
+        cursor = rollback.PreviousCursor;
+        unavailableReason = rollback.PreviousUnavailableReason;
+        pendingRecordRollback = null;
         return true;
     }
 
@@ -370,4 +420,11 @@ internal sealed class ProductWorkspaceSessionHistory
         ProductWorkspaceState After,
         string BeforeFingerprint,
         string AfterFingerprint);
+
+    private sealed record RecordRollback(
+        string BeforeFingerprint,
+        string AfterFingerprint,
+        IReadOnlyList<Entry> PreviousEntries,
+        int PreviousCursor,
+        string? PreviousUnavailableReason);
 }

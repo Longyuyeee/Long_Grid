@@ -34,6 +34,47 @@ public sealed class ProductWorkspaceLayoutRecoveryCommitCoordinatorTests
             result.Document!.SchemaVersion);
         Assert.Equal(144u, result.Document.SavedDisplayTopology![0].EffectiveDpi);
         Assert.NotNull(coordinator.CurrentLayoutRecoveryUndoToken);
+        ProductWorkspaceSessionHistoryItem history = Assert.Single(
+            coordinator.GetSessionHistorySnapshot(result.State).Items);
+        Assert.Equal(
+            ProductWorkspaceSessionHistoryActionKind.LayoutRecovery,
+            history.Kind);
+        Assert.Equal("恢复工作区布局", history.ActionText);
+        Assert.Equal("工作区", history.TargetType);
+    }
+
+    [Fact]
+    public async Task UnifiedHistoryNavigatesLayoutRecoveryApplyUndoRedoUndo()
+    {
+        await using var saves = new ProductWorkspaceSaveController(
+            new FakeWorkflow(),
+            new ImmediateScheduler(),
+            TimeSpan.FromMilliseconds(1));
+        var coordinator = new ProductWorkspaceCommitCoordinator(saves);
+        (ProductWorkspaceState state, DisplayTopologyNode current) = Fixture();
+        ProductWorkspaceLayoutRecoveryCommitResult recovery = Recover(
+            coordinator, state, current);
+
+        ProductWorkspaceSessionHistoryCommitResult undo =
+            coordinator.CommitSessionHistoryNavigation(
+                recovery.State!, ProductWorkspaceSessionHistoryDirection.Undo);
+        ProductWorkspaceSessionHistoryCommitResult redo =
+            coordinator.CommitSessionHistoryNavigation(
+                undo.State!, ProductWorkspaceSessionHistoryDirection.Redo);
+        ProductWorkspaceSessionHistoryCommitResult finalUndo =
+            coordinator.CommitSessionHistoryNavigation(
+                redo.State!, ProductWorkspaceSessionHistoryDirection.Undo);
+
+        Assert.True(recovery.IsAccepted);
+        Assert.True(undo.IsAccepted);
+        Assert.True(redo.IsAccepted);
+        Assert.True(finalUndo.IsAccepted);
+        Assert.Equal(
+            ProductWorkspaceConfigurationFingerprint.Compute(
+                ProductWorkspaceConfigurationProjector.Project(state).Document!),
+            ProductWorkspaceConfigurationFingerprint.Compute(
+                ProductWorkspaceConfigurationProjector.Project(
+                    finalUndo.State!).Document!));
     }
 
     [Fact]

@@ -176,6 +176,9 @@ public sealed class ProductWorkspaceContainerCommitCoordinatorTests
         Assert.True(moved.IsAccepted);
         Assert.Equal(ProductWorkspaceSaveFailure.IoFailure, workflow.FirstFailure);
         Assert.True(compensation.IsAccepted);
+        Assert.Empty(coordinator
+            .GetSessionHistorySnapshot(compensation.State)
+            .Items);
         Assert.Equal(
             ["item-1", "item-2", "item-3"],
             compensation.State!.Containers[0].Items.Select(item => item.Id));

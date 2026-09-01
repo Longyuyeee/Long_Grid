@@ -855,6 +855,14 @@ public sealed class ProductWorkspaceCommitCoordinator
             }
 
             editRevision = checked(editRevision + 1);
+            RecordSessionHistoryAction(
+                state,
+                edit.State!,
+                ProductWorkspaceSessionHistoryActionKind.Placement,
+                "拖动或缩放方格",
+                "方格",
+                target.Name,
+                targetCount: 1);
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = null;
             pendingReferenceReassignmentUndo = null;
@@ -1009,6 +1017,10 @@ public sealed class ProductWorkspaceCommitCoordinator
                     submission.Status,
                     save.Failure);
             }
+
+            _ = sessionHistory.RollbackLatestRecord(
+                state,
+                edit.State!);
 
             editRevision = checked(editRevision + 1);
             pendingLayoutRecoveryUndo = null;
@@ -1342,6 +1354,7 @@ public sealed class ProductWorkspaceCommitCoordinator
                     edit.State!,
                     historyKind,
                     historyActionText,
+                    "方格",
                     historyTargetName,
                     targetCount: 1,
                     DateTimeOffset.UtcNow,
@@ -1409,6 +1422,8 @@ public sealed class ProductWorkspaceCommitCoordinator
                 ? editedState.Containers.Count == 0
                     ? null
                     : editedState.Containers[^1]
+                : request.Action == ProductWorkspaceContainerCommitAction.Remove
+                    ? previousTarget
                 : previousTarget is null
                     ? null
                     : editedState.Containers.FirstOrDefault(container =>
@@ -1436,13 +1451,53 @@ public sealed class ProductWorkspaceCommitCoordinator
                     request.StateValue == true ? "折叠方格" : "展开方格"),
             ProductWorkspaceContainerCommitAction.SetAppearancePreset =>
                 (ProductWorkspaceSessionHistoryActionKind.Appearance, "调整方格外观"),
+            ProductWorkspaceContainerCommitAction.Remove =>
+                (ProductWorkspaceSessionHistoryActionKind.Delete, "删除方格"),
+            ProductWorkspaceContainerCommitAction.SetPlacementPreset =>
+                (ProductWorkspaceSessionHistoryActionKind.Placement, "调整方格布局"),
+            ProductWorkspaceContainerCommitAction.BindFolder =>
+                (ProductWorkspaceSessionHistoryActionKind.FolderBinding, "绑定文件夹"),
+            ProductWorkspaceContainerCommitAction.UnbindFolder =>
+                (ProductWorkspaceSessionHistoryActionKind.FolderBinding, "解除文件夹绑定"),
+            ProductWorkspaceContainerCommitAction.MoveReferenceEarlier =>
+                (ProductWorkspaceSessionHistoryActionKind.ReferenceOrder, "上移项目"),
+            ProductWorkspaceContainerCommitAction.MoveReferenceLater =>
+                (ProductWorkspaceSessionHistoryActionKind.ReferenceOrder, "下移项目"),
             _ => default,
         };
         return request.Action is ProductWorkspaceContainerCommitAction.Create
             or ProductWorkspaceContainerCommitAction.Rename
             or ProductWorkspaceContainerCommitAction.SetLocked
             or ProductWorkspaceContainerCommitAction.SetCollapsed
-            or ProductWorkspaceContainerCommitAction.SetAppearancePreset;
+            or ProductWorkspaceContainerCommitAction.SetAppearancePreset
+            or ProductWorkspaceContainerCommitAction.Remove
+            or ProductWorkspaceContainerCommitAction.SetPlacementPreset
+            or ProductWorkspaceContainerCommitAction.BindFolder
+            or ProductWorkspaceContainerCommitAction.UnbindFolder
+            or ProductWorkspaceContainerCommitAction.MoveReferenceEarlier
+            or ProductWorkspaceContainerCommitAction.MoveReferenceLater;
+    }
+
+    private void RecordSessionHistoryAction(
+        ProductWorkspaceState before,
+        ProductWorkspaceState after,
+        ProductWorkspaceSessionHistoryActionKind kind,
+        string actionText,
+        string targetType,
+        string targetName,
+        int targetCount)
+    {
+        _ = sessionHistory.Record(
+            before,
+            after,
+            kind,
+            actionText,
+            targetType,
+            targetName,
+            targetCount,
+            DateTimeOffset.UtcNow,
+            Guid.NewGuid());
+        pendingSessionHistoryNavigation = null;
     }
 
     public ProductWorkspaceSessionHistoryCommitResult CommitSessionHistoryNavigation(
@@ -1584,6 +1639,8 @@ public sealed class ProductWorkspaceCommitCoordinator
 
         lock (gate)
         {
+            bool compensatingFailedSave =
+                saves.Snapshot.Status == ProductWorkspaceSaveStatus.Failed;
             PendingContainerRemovalUndo? pending = pendingContainerRemovalUndo;
             if (pending is null)
             {
@@ -1627,6 +1684,12 @@ public sealed class ProductWorkspaceCommitCoordinator
                     submission.Status);
             }
 
+            if (compensatingFailedSave)
+            {
+                _ = sessionHistory.RollbackLatestRecord(
+                    state,
+                    undo.Edit.State!);
+            }
             editRevision = nextEditRevision;
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = null;
@@ -1655,6 +1718,8 @@ public sealed class ProductWorkspaceCommitCoordinator
 
         lock (gate)
         {
+            bool compensatingFailedSave =
+                saves.Snapshot.Status == ProductWorkspaceSaveStatus.Failed;
             PendingContainerEditUndo? pending = pendingContainerEditUndo;
             if (pending is null)
             {
@@ -1697,6 +1762,12 @@ public sealed class ProductWorkspaceCommitCoordinator
                     submission.Status);
             }
 
+            if (compensatingFailedSave)
+            {
+                _ = sessionHistory.RollbackLatestRecord(
+                    state,
+                    undo.Edit.State!);
+            }
             editRevision = checked(editRevision + 1);
             pendingLayoutRecoveryUndo = null;
             pendingReferenceRemovalUndo = null;
@@ -1802,6 +1873,14 @@ public sealed class ProductWorkspaceCommitCoordinator
                 undoToken,
                 state,
                 CreatesContainer: true);
+            RecordSessionHistoryAction(
+                state,
+                edit.State!,
+                ProductWorkspaceSessionHistoryActionKind.ReferenceReassignment,
+                "使用所选项目创建方格",
+                "项目",
+                request.NewContainer.Name,
+                itemIds.Length);
             return new(
                 ProductWorkspaceSelectedReferenceContainerCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -1904,6 +1983,14 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingContainerRemovalUndo = null;
             pendingContainerEditUndo = null;
             pendingReferenceBatchAdditionUndo = null;
+            RecordSessionHistoryAction(
+                state,
+                edit.State!,
+                ProductWorkspaceSessionHistoryActionKind.ReferenceAddition,
+                "加入项目",
+                "项目",
+                container.Name,
+                targetCount: 1);
             return new(
                 ProductWorkspaceResolvedReferenceCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -2025,6 +2112,14 @@ public sealed class ProductWorkspaceCommitCoordinator
                 undoToken,
                 state,
                 CreatesContainer: false);
+            RecordSessionHistoryAction(
+                state,
+                edit.State!,
+                ProductWorkspaceSessionHistoryActionKind.ReferenceAddition,
+                "批量加入项目",
+                "项目",
+                container.Name,
+                items.Length);
             return new(
                 ProductWorkspaceResolvedReferenceBatchCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -2053,6 +2148,9 @@ public sealed class ProductWorkspaceCommitCoordinator
                     ProductWorkspaceReferenceBatchAdditionUndoCommitStatus.GateRejected,
                     ProductWorkspaceReferenceBatchAdditionUndoStatus.Unavailable);
             }
+
+            bool compensatingFailedSave =
+                saves.Snapshot.Status == ProductWorkspaceSaveStatus.Failed;
 
             ProductWorkspaceReferenceBatchAdditionUndoResult undo =
                 ProductWorkspaceReferenceBatchAdditionUndo.Confirm(
@@ -2087,6 +2185,13 @@ public sealed class ProductWorkspaceCommitCoordinator
                     ProductWorkspaceReferenceBatchAdditionUndoCommitStatus.SaveRejected,
                     undo.Status,
                     submission.Status);
+            }
+
+            if (compensatingFailedSave)
+            {
+                _ = sessionHistory.RollbackLatestRecord(
+                    state,
+                    edit.State!);
             }
 
             editRevision = checked(editRevision + 1);
@@ -2201,6 +2306,14 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingContainerRemovalUndo = null;
             pendingContainerEditUndo = null;
             pendingReferenceBatchAdditionUndo = null;
+            RecordSessionHistoryAction(
+                state,
+                edit.State!,
+                ProductWorkspaceSessionHistoryActionKind.ReferenceRemoval,
+                "批量移除项目",
+                "项目",
+                container.Name,
+                ordinals.Length);
             return new(
                 ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -2296,6 +2409,14 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingContainerRemovalUndo = null;
             pendingContainerEditUndo = null;
             pendingReferenceBatchAdditionUndo = null;
+            RecordSessionHistoryAction(
+                state,
+                edit.State!,
+                ProductWorkspaceSessionHistoryActionKind.ReferenceRemoval,
+                "移除项目",
+                "项目",
+                container.Name,
+                targetCount: 1);
             return new(
                 ProductWorkspaceResolvedReferenceRemovalCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -2324,6 +2445,9 @@ public sealed class ProductWorkspaceCommitCoordinator
                     ProductWorkspaceReferenceRemovalUndoCommitStatus.GateRejected,
                     ProductWorkspaceReferenceRemovalUndoStatus.Unavailable);
             }
+
+            bool compensatingFailedSave =
+                saves.Snapshot.Status == ProductWorkspaceSaveStatus.Failed;
 
             ProductWorkspaceReferenceRemovalUndoResult undo =
                 ProductWorkspaceReferenceRemovalUndo.Confirm(
@@ -2358,6 +2482,13 @@ public sealed class ProductWorkspaceCommitCoordinator
                     ProductWorkspaceReferenceRemovalUndoCommitStatus.SaveRejected,
                     undo.Status,
                     submission.Status);
+            }
+
+            if (compensatingFailedSave)
+            {
+                _ = sessionHistory.RollbackLatestRecord(
+                    state,
+                    edit.State!);
             }
 
             editRevision = checked(editRevision + 1);
@@ -2479,6 +2610,14 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingContainerRemovalUndo = null;
             pendingContainerEditUndo = null;
             pendingReferenceBatchAdditionUndo = null;
+            RecordSessionHistoryAction(
+                state,
+                edit.State!,
+                ProductWorkspaceSessionHistoryActionKind.ReferenceReassignment,
+                "批量移动项目",
+                "项目",
+                target.Name,
+                ordinals.Length);
             return new(
                 ProductWorkspaceResolvedReferenceReassignmentCommitStatus.Accepted,
                 ProductWorkspaceEditError.None,
@@ -2507,6 +2646,9 @@ public sealed class ProductWorkspaceCommitCoordinator
                     ProductWorkspaceReferenceReassignmentUndoCommitStatus.GateRejected,
                     ProductWorkspaceReferenceReassignmentUndoStatus.Unavailable);
             }
+
+            bool compensatingFailedSave =
+                saves.Snapshot.Status == ProductWorkspaceSaveStatus.Failed;
 
             ProductWorkspaceReferenceReassignmentUndoResult undo =
                 ProductWorkspaceReferenceReassignmentUndo.Confirm(
@@ -2541,6 +2683,13 @@ public sealed class ProductWorkspaceCommitCoordinator
                     ProductWorkspaceReferenceReassignmentUndoCommitStatus.SaveRejected,
                     undo.Status,
                     submission.Status);
+            }
+
+            if (compensatingFailedSave)
+            {
+                _ = sessionHistory.RollbackLatestRecord(
+                    state,
+                    edit.State!);
             }
 
             editRevision = checked(editRevision + 1);
@@ -2644,6 +2793,14 @@ public sealed class ProductWorkspaceCommitCoordinator
             pendingContainerRemovalUndo = null;
             pendingContainerEditUndo = null;
             pendingReferenceBatchAdditionUndo = null;
+            RecordSessionHistoryAction(
+                state,
+                edit.State!,
+                ProductWorkspaceSessionHistoryActionKind.LayoutRecovery,
+                "恢复工作区布局",
+                "工作区",
+                state.ProfileId,
+                state.Containers.Count);
             return new(
                 ProductWorkspaceLayoutRecoveryCommitStatus.Accepted,
                 confirmation.Status,
@@ -2671,6 +2828,9 @@ public sealed class ProductWorkspaceCommitCoordinator
                     ProductWorkspaceLayoutRecoveryUndoCommitStatus.GateRejected,
                     ProductWorkspaceLayoutRecoveryUndoStatus.Unavailable);
             }
+
+            bool compensatingFailedSave =
+                saves.Snapshot.Status == ProductWorkspaceSaveStatus.Failed;
 
             ProductWorkspaceLayoutRecoveryUndoResult undo =
                 ProductWorkspaceLayoutRecoveryUndo.Confirm(
@@ -2705,6 +2865,13 @@ public sealed class ProductWorkspaceCommitCoordinator
                     ProductWorkspaceLayoutRecoveryUndoCommitStatus.SaveRejected,
                     undo.Status,
                     submission.Status);
+            }
+
+            if (compensatingFailedSave)
+            {
+                _ = sessionHistory.RollbackLatestRecord(
+                    state,
+                    edit.State!);
             }
 
             editRevision = checked(editRevision + 1);

@@ -158,6 +158,11 @@ public sealed class ProductWorkspaceContainerLayoutCompensationTests
 
             Assert.True(committed.IsAccepted);
             Assert.NotNull(committed.PublicationToken);
+            Assert.Equal(
+                "拖动或缩放方格",
+                Assert.Single(coordinator
+                    .GetSessionHistorySnapshot(committed.State)
+                    .Items).ActionText);
             Assert.Equal(200, committed.State!.Containers[0].Placement.XDip);
             Assert.Equal(150, committed.State.Containers[0].Placement.YDip);
             Assert.Equal(
@@ -190,6 +195,9 @@ public sealed class ProductWorkspaceContainerLayoutCompensationTests
             ProductConfigurationLoadResult diskWhileBlocked = await store.LoadAsync();
 
             Assert.True(compensation.IsAccepted);
+            Assert.Empty(coordinator
+                .GetSessionHistorySnapshot(compensation.State)
+                .Items);
             Assert.Equal(
                 ProductWorkspaceSaveFailure.WriteLeaseUnavailable,
                 compensation.SourceFailure);
