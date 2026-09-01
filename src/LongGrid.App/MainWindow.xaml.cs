@@ -2004,33 +2004,6 @@ public sealed partial class MainWindow : Window
     {
         ArgumentNullException.ThrowIfNull(presentation);
         _latestUndo = presentation;
-        ProductWorkspaceLatestUndoButton.Content = presentation.ButtonText;
-        ProductWorkspaceLatestUndoButton.IsEnabled = presentation.CanUndo;
-        ProductWorkspaceLatestUndoButton.Visibility = presentation.CanUndo
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-        OverviewLatestUndoButton.Content = presentation.ButtonText;
-        OverviewLatestUndoButton.IsEnabled = presentation.CanUndo;
-        OverviewLatestUndoButton.Visibility = Visibility.Collapsed;
-        AutomationProperties.SetName(
-            ProductWorkspaceLatestUndoButton,
-            presentation.AccessibilityName);
-        AutomationProperties.SetItemStatus(
-            ProductWorkspaceLatestUndoButton,
-            presentation.MachineStatus);
-        AutomationProperties.SetName(
-            OverviewLatestUndoButton,
-            presentation.AccessibilityName);
-        AutomationProperties.SetItemStatus(
-            OverviewLatestUndoButton,
-            presentation.MachineStatus);
-    }
-
-    private void ProductWorkspaceLatestUndoButton_Click(
-        object sender,
-        RoutedEventArgs e)
-    {
-        _ = ExecuteProductWorkspaceLatestUndo();
     }
 
     internal ProductWorkspaceLatestUndoKind
@@ -2117,6 +2090,20 @@ public sealed partial class MainWindow : Window
         UpdateProductWorkspaceContainerEditButtons();
     }
 
+    private static string DescribeContainerRemovalUndoFailure(
+        ProductWorkspaceContainerRemovalUndoStatus status) => status switch
+        {
+            ProductWorkspaceContainerRemovalUndoStatus.EditRevisionChanged =>
+                "工作区已发生其他编辑，本次方格删除撤销已失效。",
+            ProductWorkspaceContainerRemovalUndoStatus.TokenMismatch =>
+                "撤销证据与最近一次方格删除不一致；配置未改变。",
+            ProductWorkspaceContainerRemovalUndoStatus.CurrentConfigurationChanged =>
+                "当前配置已不再是删除后的状态；未执行覆盖。",
+            ProductWorkspaceContainerRemovalUndoStatus.Unavailable =>
+                "最近一次方格删除已撤销或已被后续编辑取代。",
+            _ => "方格删除撤销当前不可用；配置与桌面文件均未改变。",
+        };
+
     private void UndoLatestReferenceBatchAddition(
         ProductWorkspaceReferenceBatchAdditionUndoToken token,
         bool selectedCreate)
@@ -2187,9 +2174,6 @@ public sealed partial class MainWindow : Window
             presentation.CanConfirm;
         ProductWorkspaceLayoutRecoveryConfirmButton.Visibility =
             presentation.CanConfirm ? Visibility.Visible : Visibility.Collapsed;
-        ProductWorkspaceLayoutRecoveryUndoButton.IsEnabled = presentation.CanUndo;
-        ProductWorkspaceLayoutRecoveryUndoButton.Visibility =
-            presentation.CanUndo ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async void ProductWorkspaceLayoutRecoveryConfirmButton_Click(
@@ -2254,54 +2238,6 @@ public sealed partial class MainWindow : Window
                 "显示器无法唯一映射；没有执行部分恢复。",
             _ => "恢复预览已不可用；没有修改配置，请重新检查当前状态。",
         };
-
-    private async void ProductWorkspaceLayoutRecoveryUndoButton_Click(
-        object sender,
-        RoutedEventArgs e)
-    {
-        ProductWorkspaceLayoutRecoveryUndoToken? token =
-            _layoutRecovery.UndoToken;
-        if (!_layoutRecovery.CanUndo || token is null)
-        {
-            return;
-        }
-
-        ProductWorkspaceLayoutRecoveryUndoButton.IsEnabled = false;
-        try
-        {
-            ContentDialog confirmation = new()
-            {
-                XamlRoot = RootLayout.XamlRoot,
-                Title = "撤销本次 Long方格配置恢复？",
-                Content =
-                    "确认后只会恢复本次布局恢复前的 Long方格配置，并进入现有安全保存队列；" +
-                    "不会移动、隐藏或创建任何真实桌面窗口，也不会修改桌面文件。",
-                PrimaryButtonText = "确认撤销配置恢复",
-                CloseButtonText = "取消",
-                DefaultButton = ContentDialogButton.Close,
-            };
-            if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
-            {
-                return;
-            }
-
-            ProductWorkspaceLayoutRecoveryUndoCommitResult result =
-                _commitProductWorkspaceLayoutRecoveryUndo(token, true);
-            if (!result.IsAccepted)
-            {
-                ProductWorkspaceLayoutRecoveryDetail.Text =
-                    DescribeLayoutRecoveryUndoFailure(result.UndoStatus);
-                AutomationProperties.SetItemStatus(
-                    ProductWorkspaceLayoutRecoveryDetail,
-                    $"LayoutRecoveryUndoRejected:{result.UndoStatus}:DesktopWindowsChanged=False");
-            }
-        }
-        finally
-        {
-            ProductWorkspaceLayoutRecoveryUndoButton.IsEnabled =
-                _layoutRecovery.CanUndo;
-        }
-    }
 
     private static string DescribeLayoutRecoveryUndoFailure(
         ProductWorkspaceLayoutRecoveryUndoStatus status) => status switch
@@ -2787,8 +2723,6 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceContainerRemoveButton.IsEnabled =
             _containerEditor.CanRemove
             && selected is { IsLocked: false };
-        ProductWorkspaceContainerRemovalUndoButton.IsEnabled =
-            _containerEditor.RemovalUndoToken is not null;
         ProductWorkspaceContainerLockButton.Content = selected?.IsLocked == true
             ? "解锁并保存"
             : "锁定并保存";
@@ -3226,58 +3160,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async void ProductWorkspaceContainerRemovalUndoButton_Click(
-        object sender,
-        RoutedEventArgs e)
-    {
-        ProductWorkspaceContainerRemovalUndoToken? token =
-            _containerEditor.RemovalUndoToken;
-        if (token is null)
-        {
-            return;
-        }
-
-        var dialog = new ContentDialog
-        {
-            Title = "撤销删除方格",
-            Content = "确认恢复最近删除的方格配置及其引用。该操作仍不会修改任何真实桌面文件。",
-            PrimaryButtonText = "确认撤销",
-            CloseButtonText = "取消",
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = RootLayout.XamlRoot,
-        };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
-        {
-            return;
-        }
-
-        ProductWorkspaceContainerRemovalUndoCommitResult result =
-            _commitProductWorkspaceContainerRemovalUndo(token, true);
-        ProductWorkspaceContainerEditStatus.Text = result.IsAccepted
-            ? "最近删除的方格配置及其引用已恢复并进入安全保存队列；桌面文件未改变。"
-            : DescribeContainerRemovalUndoFailure(result.UndoStatus);
-        AutomationProperties.SetItemStatus(
-            ProductWorkspaceContainerEditStatus,
-            $"WorkspaceContainerRemovalUndo:{result.Status}:" +
-                $"Undo={result.UndoStatus}:Revision={result.EditRevision}:" +
-                $"Changed={result.IsAccepted}:DesktopFilesChanged=False");
-        UpdateProductWorkspaceContainerEditButtons();
-    }
-
-    private static string DescribeContainerRemovalUndoFailure(
-        ProductWorkspaceContainerRemovalUndoStatus status) => status switch
-        {
-            ProductWorkspaceContainerRemovalUndoStatus.EditRevisionChanged =>
-                "工作区已发生其他编辑，本次方格删除撤销已失效。",
-            ProductWorkspaceContainerRemovalUndoStatus.TokenMismatch =>
-                "撤销证据与最近一次方格删除不一致；配置未改变。",
-            ProductWorkspaceContainerRemovalUndoStatus.CurrentConfigurationChanged =>
-                "当前配置已不再是删除后的状态；未执行覆盖。",
-            ProductWorkspaceContainerRemovalUndoStatus.Unavailable =>
-                "最近一次方格删除已撤销或已被后续编辑取代。",
-            _ => "方格删除撤销当前不可用；配置与桌面文件均未改变。",
-        };
-
     private ProductWorkspaceContainerCommitResult RunProductWorkspaceContainerCommit(
         ProductWorkspaceContainerCommitAction action,
         int containerOrdinal,
@@ -3325,7 +3207,7 @@ public sealed partial class MainWindow : Window
                                     ? "正式方格外观预设已更新并进入安全保存队列；桌面文件未改变。"
                                     : action == ProductWorkspaceContainerCommitAction.SetPlacementPreset
                                         ? "正式方格布局预设已更新并进入安全保存队列；尚未移动真实窗口或桌面文件。"
-                                        : "正式方格配置及其中引用已删除并进入安全保存队列；真实桌面文件未改变，可撤销一次。",
+                                        : "正式方格配置及其中引用已删除并进入安全保存队列；真实桌面文件未改变，可在操作历史中撤销或重做。",
             ProductWorkspaceContainerCommitStatus.NoChange =>
                 action == ProductWorkspaceContainerCommitAction.Rename
                     ? "名称没有变化，因此没有提交保存。"
@@ -3402,8 +3284,6 @@ public sealed partial class MainWindow : Window
                 $"Candidates={presentation.Candidates.Count}:" +
                 $"CanAdd={presentation.CanAdd}:Changed=False:" +
                 "DesktopFilesChanged=False");
-        ProductWorkspaceReferenceBatchAdditionUndoButton.IsEnabled =
-            presentation.BatchUndoToken is not null;
         UpdateProductWorkspaceResolvedReferenceAddButton();
     }
 
@@ -3535,7 +3415,7 @@ public sealed partial class MainWindow : Window
         {
             XamlRoot = RootLayout.XamlRoot,
             Title = $"批量加入 {candidates.Length} 个桌面项目？",
-            Content = "操作将作为一次配置编辑提交，可整批撤销。不会移动、删除或重命名桌面文件。",
+            Content = "操作将作为一次配置编辑进入统一历史，可整批撤销或重做。不会移动、删除或重命名桌面文件。",
             PrimaryButtonText = "批量加入",
             CloseButtonText = "取消",
             DefaultButton = ContentDialogButton.Close,
@@ -3554,7 +3434,7 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceResolvedReferenceAddStatus.Text = result.Status switch
         {
             ProductWorkspaceResolvedReferenceBatchCommitStatus.Accepted =>
-                $"已将 {candidates.Length} 个引用作为一个原子批次加入并保存；可整批撤销，桌面文件未改变。",
+                $"已将 {candidates.Length} 个引用作为一个原子批次加入并保存；可在操作历史中整批撤销或重做，桌面文件未改变。",
             ProductWorkspaceResolvedReferenceBatchCommitStatus.StaleEditRevision =>
                 "工作区已经更新，请按当前方格和项目列表重新选择。",
             ProductWorkspaceResolvedReferenceBatchCommitStatus.StaleCatalogGeneration =>
@@ -3574,42 +3454,6 @@ public sealed partial class MainWindow : Window
             ProductWorkspaceResolvedReferenceAddStatus,
             $"ResolvedReferenceBatchAdd:{result.Status}:Count={candidates.Length}:" +
                 $"Revision={result.EditRevision}:Atomic=True:Changed={changed}:" +
-                "DesktopFilesChanged=False");
-        UpdateProductWorkspaceResolvedReferenceAddButton();
-    }
-
-    private async void ProductWorkspaceReferenceBatchAdditionUndoButton_Click(
-        object sender,
-        RoutedEventArgs e)
-    {
-        if (_resolvedReferenceAdd.BatchUndoToken is not { } token)
-        {
-            return;
-        }
-
-        ContentDialog confirmation = new()
-        {
-            XamlRoot = RootLayout.XamlRoot,
-            Title = "撤销最近一次批量加入？",
-            Content = "只恢复 Long方格配置引用，不会移动、删除或重命名桌面文件。",
-            PrimaryButtonText = "撤销批量加入",
-            CloseButtonText = "取消",
-            DefaultButton = ContentDialogButton.Close,
-        };
-        if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
-        {
-            return;
-        }
-
-        ProductWorkspaceReferenceBatchAdditionUndoCommitResult result =
-            _commitProductWorkspaceReferenceBatchAdditionUndo(token, true);
-        ProductWorkspaceResolvedReferenceAddStatus.Text = result.IsAccepted
-            ? "最近一次批量加入已整体撤销并保存；桌面文件未改变。"
-            : "批量撤销令牌已失效或保存不可用；配置与桌面文件均未改变。";
-        AutomationProperties.SetItemStatus(
-            ProductWorkspaceResolvedReferenceAddStatus,
-            $"ResolvedReferenceBatchAddUndo:{result.Status}:Undo={result.UndoStatus}:" +
-                $"Revision={result.EditRevision}:Changed={result.IsAccepted}:" +
                 "DesktopFilesChanged=False");
         UpdateProductWorkspaceResolvedReferenceAddButton();
     }
@@ -3841,9 +3685,6 @@ public sealed partial class MainWindow : Window
                 : sources.Length > 0
                     ? $"批量改归属 {sources.Length} 项并保存"
                     : "选择项目后批量改归属";
-        ProductWorkspaceResolvedReferenceRemovalUndoButton.IsEnabled =
-            _resolvedReferenceRemoval.UndoToken is not null
-            || _resolvedReferenceReassignment.UndoToken is not null;
     }
 
     internal IReadOnlyList<ProductWorkspaceResolvedReferenceRemovalCandidatePresentation>
@@ -3915,7 +3756,7 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceResolvedReferenceRemovalStatus.Text = result.Status switch
         {
             ProductWorkspaceContainerCommitStatus.Accepted =>
-                $"已将引用{(moveEarlier ? "上移" : "下移")}一位并进入原子保存队列；桌面文件未改变，可撤销一次。",
+                $"已将引用{(moveEarlier ? "上移" : "下移")}一位并进入原子保存队列；桌面文件未改变，可在操作历史中撤销或重做。",
             ProductWorkspaceContainerCommitStatus.StaleEditRevision =>
                 "工作区已经更新，请按最新引用顺序重新选择。",
             ProductWorkspaceContainerCommitStatus.ReducerRejected
@@ -4030,7 +3871,7 @@ public sealed partial class MainWindow : Window
         {
             XamlRoot = RootLayout.XamlRoot,
             Title = $"从方格配置移除 {candidates.Length} 个引用？",
-            Content = "整批将作为一次配置编辑提交并可整体撤销。不会移动、删除或重命名桌面文件。",
+            Content = "整批将作为一次配置编辑进入统一历史，可整体撤销或重做。不会移动、删除或重命名桌面文件。",
             PrimaryButtonText = "批量移除",
             CloseButtonText = "取消",
             DefaultButton = ContentDialogButton.Close,
@@ -4047,7 +3888,7 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceResolvedReferenceRemovalStatus.Text = result.Status switch
         {
             ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus.Accepted =>
-                $"已从同一方格原子移除 {candidates.Length} 个引用；桌面文件未改变，可整批撤销一次。",
+                $"已从同一方格原子移除 {candidates.Length} 个引用；桌面文件未改变，可在操作历史中整批撤销或重做。",
             ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus.StaleEditRevision =>
                 "工作区已经更新，请按最新引用列表重新选择。",
             ProductWorkspaceResolvedReferenceBatchRemovalCommitStatus.ReducerRejected
@@ -4063,63 +3904,6 @@ public sealed partial class MainWindow : Window
                 $"Count={candidates.Length}:Revision={result.EditRevision}:" +
                 $"Atomic=True:Changed={result.IsAccepted}:" +
                 "DesktopFilesChanged=False");
-        UpdateProductWorkspaceResolvedReferenceRemovalButtons();
-    }
-
-    private void ProductWorkspaceResolvedReferenceRemovalUndoButton_Click(
-        object sender,
-        RoutedEventArgs e)
-    {
-        ProductWorkspaceReferenceReassignmentUndoToken? reassignmentToken =
-            _resolvedReferenceReassignment.UndoToken;
-        if (reassignmentToken is not null)
-        {
-            ProductWorkspaceReferenceReassignmentUndoCommitResult reassignmentUndo =
-                _commitProductWorkspaceReferenceReassignmentUndo(
-                    reassignmentToken,
-                    true);
-            ProductWorkspaceResolvedReferenceRemovalStatus.Text =
-                reassignmentUndo.Status switch
-                {
-                    ProductWorkspaceReferenceReassignmentUndoCommitStatus.Accepted =>
-                        "上一次批量引用改归属已整体撤销并进入安全保存队列；桌面文件未改变。",
-                    ProductWorkspaceReferenceReassignmentUndoCommitStatus.SaveRejected =>
-                        "撤销尚未保存；配置与桌面文件均未改变。",
-                    _ => "撤销凭据已经失效，请按当前配置继续操作。",
-                };
-            AutomationProperties.SetItemStatus(
-                ProductWorkspaceResolvedReferenceRemovalStatus,
-                $"ResolvedReferenceReassignmentUndo:{reassignmentUndo.Status}:" +
-                    $"Gate={reassignmentUndo.UndoStatus}:" +
-                    $"Revision={reassignmentUndo.EditRevision}:" +
-                    $"Changed={reassignmentUndo.IsAccepted}:" +
-                    "DesktopFilesChanged=False");
-            UpdateProductWorkspaceResolvedReferenceRemovalButtons();
-            return;
-        }
-
-        ProductWorkspaceReferenceRemovalUndoToken? removalToken =
-            _resolvedReferenceRemoval.UndoToken;
-        if (removalToken is null)
-        {
-            return;
-        }
-
-        ProductWorkspaceReferenceRemovalUndoCommitResult result =
-            _commitProductWorkspaceReferenceRemovalUndo(removalToken, true);
-        ProductWorkspaceResolvedReferenceRemovalStatus.Text = result.Status switch
-        {
-            ProductWorkspaceReferenceRemovalUndoCommitStatus.Accepted =>
-                "上一次引用移除已撤销并进入安全保存队列；桌面文件未改变。",
-            ProductWorkspaceReferenceRemovalUndoCommitStatus.SaveRejected =>
-                "撤销尚未保存；配置与桌面文件均未改变。",
-            _ => "撤销凭据已经失效，请按当前配置继续操作。",
-        };
-        AutomationProperties.SetItemStatus(
-            ProductWorkspaceResolvedReferenceRemovalStatus,
-            $"ResolvedReferenceRemovalUndo:{result.Status}:" +
-                $"Gate={result.UndoStatus}:Revision={result.EditRevision}:" +
-                $"Changed={result.IsAccepted}:DesktopFilesChanged=False");
         UpdateProductWorkspaceResolvedReferenceRemovalButtons();
     }
 
@@ -4147,7 +3931,7 @@ public sealed partial class MainWindow : Window
         {
             XamlRoot = RootLayout.XamlRoot,
             Title = $"把 {sources.Length} 个引用改归属到“{target.DisplayName}”？",
-            Content = "整批将作为一次配置编辑提交并可整体撤销。不会移动、删除或重命名桌面文件。",
+            Content = "整批将作为一次配置编辑进入统一历史，可整体撤销或重做。不会移动、删除或重命名桌面文件。",
             PrimaryButtonText = "批量改归属",
             CloseButtonText = "取消",
             DefaultButton = ContentDialogButton.Close,
@@ -4165,7 +3949,7 @@ public sealed partial class MainWindow : Window
         ProductWorkspaceResolvedReferenceRemovalStatus.Text = result.Status switch
         {
             ProductWorkspaceResolvedReferenceReassignmentCommitStatus.Accepted =>
-                $"已将同一源方格内 {sources.Length} 个引用原子改归属；桌面文件未改变，可整批撤销一次。",
+                $"已将同一源方格内 {sources.Length} 个引用原子改归属；桌面文件未改变，可在操作历史中整批撤销或重做。",
             ProductWorkspaceResolvedReferenceReassignmentCommitStatus
                 .StaleEditRevision =>
                 "工作区已经更新，请按最新引用和目标方格列表重新选择。",

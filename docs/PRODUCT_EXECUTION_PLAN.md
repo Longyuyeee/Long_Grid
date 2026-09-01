@@ -1,12 +1,12 @@
 # Long方格产品重对齐与统一开发计划
 
-版本：3.9
+版本：4.0
 
 状态：Required / 当前唯一执行计划
 
 更新日期：2026-09-01
 
-代码审计输入基线：PF-010B2 基于 `origin/main@330aee2` 完成重启后最近安全恢复点；真实 Store 证据、完成边界与 PF-010B3 唯一接续点见 [Stage 267](267-pf010b2-restart-safe-recovery-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
+代码审计输入基线：PF-010B3 基于 `origin/main@bc74a5b` 完成单一用户撤销语义和规则依赖纠偏；真实回归、完成边界与 PF-011A 唯一接续点见 [Stage 268](268-pf010b3-undo-semantics-convergence-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -267,7 +267,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**PF-010B3 规则应用统一历史与旧撤销入口收敛（FunctionFirst / InProgress）**。PF-010B2 已完成最近一次已保存安全恢复点，复用 backup、4 KiB 无路径 sidecar 双指纹绑定、正式 App 显式确认、一次消费、成功后工作区重载；真实 Unicode 文件零修改和失败门禁通过。PF-010 尚未整体完成，下一步只把真实规则应用纳入统一历史并收敛旧 LatestUndo 用户语义；物理证据继续如实 Pending。BOX-R1-C/D 与 TASKBAR-R2B1-B 作为并行外部门禁，不冻结 PF-010B3。最新精确基准见 [Stage 267](267-pf010b2-restart-safe-recovery-audit.md)。
+当前执行项：**PF-011A Quick Start 真实只读建议预览与原子提交（FunctionFirst / InProgress）**。PF-010A～B3 已完成统一 50 步历史、动作广度、重启安全恢复点和单一用户撤销语义；六个旧单步撤销按钮已移除，内部 token 只保留失败补偿。代码确认规则系统尚未开发，正式规则应用的原子历史按 PF-021 交付，不制造假能力。PF-010 为 `EngineeringComplete / ProductEvidencePending`。BOX-R1-C/D 与 TASKBAR-R2B1-B 作为并行外部门禁，不冻结 PF-011A。最新精确基准见 [Stage 268](268-pf010b3-undo-semantics-convergence-audit.md)。
 
 严格按下列顺序交付，不再插入非当前队列的相邻探针或功能：
 
@@ -281,7 +281,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 8. **PF-007A2 / PF-007B（EngineeringComplete / RealHwndPass / ProductEvidencePending）**：A2 已完成正式 HWND OLE DropTarget 和安全 Link 引用提交；B 已完成盒子间改归属、无效目标、失败补偿和一次撤销。
 9. **PF-008（A～C EngineeringComplete / ProductEvidencePending）**：两档密度、连续滚动、类型/时间排序和配置引用自定义顺序已通过真实 HWND/文件系统、保存失败补偿和一次撤销；物理鼠标、键盘、Narrator、触控和截图证据待集中完成。
 10. **PF-009（A/B EngineeringComplete / ProductEvidencePending）**：共用查询、类型/健康/显示器筛选、正式结果、桌面浮层、临时展开/滚动/高亮与打开/定位均已完成；查询不读取文件内容。
-11. **PF-010（A/B1/B2 EngineeringComplete / B3 当前主队列）/ PF-011（Queued）**：PF-010A 已完成统一会话历史；PF-010B1 已扩展删除、布局、文件夹与引用动作；PF-010B2 已补重启安全恢复点；PF-010B3 收敛规则应用和旧撤销用户入口，PF-010 未收口前不并行 PF-011。
+11. **PF-010（A～B3 EngineeringComplete / ProductEvidencePending）/ PF-011A（当前主队列）**：PF-010 已完成统一会话历史、现有动作广度、重启安全恢复点和旧撤销用户入口收敛；规则应用随 PF-020/021 交付并强制复用同一历史。PF-011A 先把匿名首次整理升级为真实只读建议预览与确认后原子提交。
 12. **M1 产品证据冲刺（ExternalEnvironmentBlocked / ParallelGate）**：等待安全 WinUI 运行时、专用账户和可安装签名条件；条件具备时优先执行完整两分钟旅程，不降低出口。
 13. **TASKBAR-R1～R4（R2B1-B EnvironmentBlocked / ParallelGate）**：R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵；宿主禁止试写，但不阻塞 PF 主队列。
 
@@ -932,3 +932,7 @@ Core 查询模型同时覆盖盒子和项目，支持目标、类型、健康状
 ### 13.45 Stage 267：PF-010B2 重启后最近安全恢复点
 
 复用既有 backup 作为最近一次已保存配置，新增最大 4 KiB 无路径 sidecar 绑定当前/备份 SHA-256；正式 App 只在已保存状态显示恢复提示，显式确认后于写租约内复核、一次消费并重新加载工作区。初始反射红测 Expected 为正式发现/恢复 API、Actual 为 null；修正后专项 `13/13`、相关 `65/65`、完整 Release `1,460/1,460`。真实中文文件 SHA-256 不变，6 场景恢复预检、Release 0 warning/error 和 213-ID UI 合同通过。PF-010B2 工程收口但 PF-010 整体仍 InProgress；唯一接续点为 PF-010B3，详见 [Stage 267](267-pf010b2-restart-safe-recovery-audit.md)。
+
+### 13.46 Stage 268：PF-010B3 统一撤销用户语义与规则依赖纠偏
+
+真实 XAML 合同初始失败证明两个 LatestUndo 与四个深层单步撤销按钮仍存在；修正后正式用户只通过统一 50 步历史 Undo/Redo 与 Ctrl+Z/Ctrl+Y 导航，旧 token 仅供内部失败补偿。首次 Release 构建又发现内部共用失败文案映射被误删，恢复纯映射后 0 warning/error；相关 `36/36`、完整 `1,460/1,460`、207-ID 合同通过。代码确认正式规则系统为零，PF-010 提前要求规则接线属于 PF-020/021 依赖倒置；PF-021 保持“一次应用=一个事务和一个统一历史项”的强制门槛，不制造假 API。PF-010 工程范围收口、物理证据 Pending；唯一接续点为 PF-011A，详见 [Stage 268](268-pf010b3-undo-semantics-convergence-audit.md)。
