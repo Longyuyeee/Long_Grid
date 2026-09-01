@@ -9,6 +9,8 @@ public sealed record ProductWorkspaceState
 
     public required IReadOnlyList<ProductContainerState> Containers { get; init; }
 
+    public IReadOnlyList<ProductAutomationRuleState> Rules { get; init; } = [];
+
     public IReadOnlyList<SavedDisplayConfiguration>? SavedDisplayTopology { get; init; }
 
     public IDictionary<string, JsonElement>? ExtensionData { get; init; }

@@ -18,6 +18,7 @@ public enum ProductWorkspaceSessionHistoryActionKind
     ReferenceOrder,
     LayoutRecovery,
     QuickStart,
+    RuleApplication,
 }
 
 public enum ProductWorkspaceSessionHistoryDirection

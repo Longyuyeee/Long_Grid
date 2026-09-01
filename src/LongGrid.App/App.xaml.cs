@@ -262,6 +262,8 @@ public partial class App : Application
             CommitProductWorkspaceLayoutRecovery,
             CommitProductWorkspaceLayoutRecoveryUndo,
             CommitProductQuickStart,
+            PrepareProductAutomationRulePreview,
+            CommitProductAutomationRule,
             ChangeProductFirstRunJourneyAsync);
         productWorkspaceSaves.SnapshotChanged += ProductWorkspaceSaves_SnapshotChanged;
         productDesktopCatalog.SnapshotChanged += ProductDesktopCatalog_SnapshotChanged;
@@ -4122,6 +4124,79 @@ public partial class App : Application
             catalog.Generation,
             catalog.Entries,
             new(preview, container));
+        if (result.IsAccepted)
+        {
+            ApplyAcceptedProductWorkspaceDocument(result.Document!, catalog);
+        }
+        else
+        {
+            ApplyProductWorkspaceSessionViews();
+        }
+        return result;
+    }
+
+    private ProductAutomationRulePreviewSnapshot PrepareProductAutomationRulePreview(
+        int targetContainerOrdinal,
+        string name,
+        bool enabled,
+        int priority,
+        ProductAutomationRuleConditionKind conditionKind,
+        string conditionValue)
+    {
+        ProductWorkspaceState? state = ResolveDesktopWorkspaceCreateState();
+        ProductDesktopCatalogSnapshot catalog = productDesktopCatalog.Snapshot;
+        state ??= ProductWorkspaceConfigurationResolver.Resolve(
+            ProductConfigurationDefaults.CreateEmpty(),
+            Array.Empty<DesktopCatalogEntry>()).State!;
+        string targetId = targetContainerOrdinal > 0
+            && targetContainerOrdinal <= state.Containers.Count
+                ? state.Containers[targetContainerOrdinal - 1].Id
+                : "missing-target";
+        var rule = new ProductAutomationRuleState
+        {
+            Id = $"rule-{Guid.NewGuid():N}",
+            Name = name,
+            Enabled = enabled,
+            Priority = priority,
+            TargetContainerId = targetId,
+            MatchMode = ProductAutomationRuleMatchMode.All,
+            Action = ProductAutomationRuleActionKind.AssignSafeReference,
+            Conditions = [new()
+            {
+                Kind = conditionKind,
+                Value = conditionValue,
+            }],
+        };
+        return ProductAutomationRulePreviewPlanner.Create(
+            state,
+            workspaceCommits.CurrentEditRevision,
+            catalog.Generation,
+            catalog.IsAuthoritative,
+            catalog.Entries,
+            rule);
+    }
+
+    private ProductAutomationRuleCommitResult CommitProductAutomationRule(
+        ProductAutomationRulePreviewSnapshot preview)
+    {
+        ProductWorkspaceState? state = ResolveDesktopWorkspaceCreateState();
+        ProductDesktopCatalogSnapshot catalog = productDesktopCatalog.Snapshot;
+        if (state is null || productWorkspaceSession.IsReadOnly)
+        {
+            return new(
+                ProductAutomationRuleCommitStatus.InvalidRequest,
+                ProductWorkspaceEditError.InvalidState,
+                null,
+                workspaceCommits.CurrentEditRevision,
+                null,
+                null);
+        }
+        ProductAutomationRuleCommitResult result =
+            workspaceCommits.CommitAutomationRule(
+                state,
+                catalog.Generation,
+                catalog.Entries,
+                preview);
         if (result.IsAccepted)
         {
             ApplyAcceptedProductWorkspaceDocument(result.Document!, catalog);

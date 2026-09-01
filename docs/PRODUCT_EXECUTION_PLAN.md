@@ -6,7 +6,7 @@
 
 更新日期：2026-09-01
 
-代码审计输入基线：PF-011A/B 基于 `origin/main@850a63c` 完成真实 Quick Start、正式 Customize、跳过/返回/重跑、保存后完成态和匿名遗留退出；真实回归、未关闭证据与 PF-020A 唯一接续点见 [Stage 270](270-pf011b-formal-first-run-journey-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
+代码审计输入基线：PF-020A 基于 `origin/main@a006e76` 完成 schema v6 规则、真实 Catalog 解释性预览、一次原子安全引用分配和统一历史项；真实回归、未关闭证据与 PF-020B 唯一接续点见 [Stage 271](271-pf020a-versioned-rule-preview-safe-assignment-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -267,7 +267,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**PF-020A 规则模型、解释性预览与安全引用分配（FunctionFirst / InProgress）**。PF-011A/B 已完成真实 Quick Start、正式 Customize、跳过/返回/重新运行、保存成功后完成态和匿名练习退出；状态为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`。PF-020A 只实现可解释规则与安全引用分配，不移动文件；PF-011 真人旅程、BOX-R1-C/D 与 TASKBAR-R2B1-B 作为并行外部门禁，不冻结 PF-020A。最新精确基准见 [Stage 270](270-pf011b-formal-first-run-journey-audit.md)。
+当前执行项：**PF-020B 规则生命周期管理与条件/性能收口（FunctionFirst / InProgress）**。PF-020A 已完成 schema v6 规则、真实 Catalog 解释性预览、一次原子安全引用分配和统一历史项；状态为 `EngineeringComplete / RealFilesystemPass / ProductEvidencePending`。PF-020B 继续实现现有规则编辑、复制、启停、删除、排序、时间条件、修复和 500×100 性能门，不移动文件；PF-011 真人旅程、BOX-R1-C/D 与 TASKBAR-R2B1-B 作为并行外部门禁，不冻结 PF-020B。最新精确基准见 [Stage 271](271-pf020a-versioned-rule-preview-safe-assignment-audit.md)。
 
 严格按下列顺序交付，不再插入非当前队列的相邻探针或功能：
 
@@ -282,9 +282,10 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 9. **PF-008（A～C EngineeringComplete / ProductEvidencePending）**：两档密度、连续滚动、类型/时间排序和配置引用自定义顺序已通过真实 HWND/文件系统、保存失败补偿和一次撤销；物理鼠标、键盘、Narrator、触控和截图证据待集中完成。
 10. **PF-009（A/B EngineeringComplete / ProductEvidencePending）**：共用查询、类型/健康/显示器筛选、正式结果、桌面浮层、临时展开/滚动/高亮与打开/定位均已完成；查询不读取文件内容。
 11. **PF-010 / PF-011（EngineeringComplete / ProductEvidencePending）**：PF-010 已完成统一会话历史；PF-011 已把匿名首次整理升级为真实只读建议预览、确认后原子提交、正式 Customize、跳过/返回/重新运行和保存后完成态，并删除隐藏匿名练习遗留。真人、物理键盘/Narrator、DPI 与 5 人任务证据保持并行 Pending。
-12. **PF-020A（当前主队列）**：建立版本化规则模型、真实 Catalog 解释性预览和只分配安全引用的一次原子应用；不读取正文，不移动或删除文件。
-13. **M1 产品证据冲刺（ExternalEnvironmentBlocked / ParallelGate）**：等待安全 WinUI 运行时、专用账户和可安装签名条件；条件具备时优先执行完整两分钟旅程，不降低出口。
-14. **TASKBAR-R1～R4（R2B1-B EnvironmentBlocked / ParallelGate）**：R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵；宿主禁止试写，但不阻塞 PF 主队列。
+12. **PF-020A（EngineeringComplete / RealFilesystemPass / ProductEvidencePending）**：schema v6 规则模型、真实 Catalog 解释性预览、只分配安全引用的一次原子应用和统一历史项已完成；不读取正文，不移动或删除文件。
+13. **PF-020B（当前主队列）**：完成现有规则编辑/复制/启停/删除/排序、时间条件、目标修复、保存失败补偿和 500 项×100 条规则性能门。
+14. **M1 产品证据冲刺（ExternalEnvironmentBlocked / ParallelGate）**：等待安全 WinUI 运行时、专用账户和可安装签名条件；条件具备时优先执行完整两分钟旅程，不降低出口。
+15. **TASKBAR-R1～R4（R2B1-B EnvironmentBlocked / ParallelGate）**：R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵；宿主禁止试写，但不阻塞 PF 主队列。
 
 UI-R1 允许重构产品壳层，但不得重写已经验证的 Core、配置事务和 DesktopHost 安全边界。
 
@@ -945,3 +946,9 @@ Core 查询模型同时覆盖盒子和项目，支持目标、类型、健康状
 ### 13.48 Stage 270：PF-011B 正式首次旅程与恢复
 
 首次旅程状态现由既有设置 Store 原子持久化为 `NotStarted / CustomizeInProgress / Skipped / Completed`。Customize 直接进入正式方格创建，自定义进度、跳过与重新运行跨重启恢复；预览返回零提交；第一个真实方格必须保存成功后才进入完成态，已有持久化方格的旧用户直接迁移。隐藏匿名方格、三引用和拖放练习 XAML/code-behind 已删除。初始红测为状态属性和变更方法 `null`；真实 Store 多重启、重复写、失败回滚、旧 v1、损坏配置专项 `4/4`，中文旁路文件 SHA-256 不变，最终完整 `1,469/1,469`、Release 0 warning/error、194-ID 合同通过。首轮既有真实缩略图 worker/HWND 3 秒失败与独立 Pass/Fail/Pass 波动被保留，未在本阶段放宽。PF-011 工程范围收口、物理/真人证据 Pending；唯一接续点为 PF-020A，详见 [Stage 270](270-pf011b-formal-first-run-journey-audit.md)。
+
+### 13.49 Stage 271：PF-020A 版本化规则、真实预览与安全引用分配
+
+配置 schema v6 已持久化规则名称、启用、优先级、目标、All/Any 条件组与安全引用动作；旧 v5 迁移为空规则，不能夹带新字段。正式盒子页可创建规则草稿并查看真实 Catalog 匹配、冲突、目标和样本；草稿变化会使预览失效，提交再次核对工作区/Catalog/规则三组指纹。一次应用只形成一个 reducer 编辑、一次保存提交和一个统一历史项，目标删除自动禁用关联规则。
+
+初始模型红测 `0/1`；最终真实 Unicode、持久化重启、取消/过期零提交、Undo/Redo、旧 schema 与目标删除专项 `6/6`，完整 Release `1,475/1,475`，Release 0 warning/error，205-ID 合同通过，文件 SHA-256 不变。PF-020A 工程范围收口、产品证据 Pending；唯一接续点为 PF-020B，详见 [Stage 271](271-pf020a-versioned-rule-preview-safe-assignment-audit.md)。

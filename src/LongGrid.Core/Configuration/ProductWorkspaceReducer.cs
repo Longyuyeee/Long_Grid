@@ -127,10 +127,23 @@ public static class ProductWorkspaceReducer
                 ProductWorkspaceEditError.UnresolvedReferenceRequiresConfirmation);
         }
 
+        string removedContainerId = container.Id;
         ProductContainerState[] containers = snapshot.Containers
             .Where((_, containerIndex) => containerIndex != index)
             .ToArray();
-        return Validate(snapshot with { Containers = containers }, changed: true);
+        ProductAutomationRuleState[] rules = snapshot.Rules
+            .Select(rule => string.Equals(
+                rule.TargetContainerId,
+                removedContainerId,
+                StringComparison.Ordinal)
+                    ? rule with { Enabled = false }
+                    : rule)
+            .ToArray();
+        return Validate(snapshot with
+        {
+            Containers = containers,
+            Rules = rules,
+        }, changed: true);
     }
 
     public static ProductWorkspaceEditResult AddResolvedReference(
@@ -173,6 +186,68 @@ public static class ProductWorkspaceReducer
             {
                 Items = [.. container.Items, .. items.Select(Clone)],
             });
+    }
+
+    public static ProductWorkspaceEditResult ApplyAutomationRule(
+        ProductWorkspaceState state,
+        ProductAutomationRuleState rule,
+        IReadOnlyList<ProductItemReferenceState> items)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(rule);
+        ArgumentNullException.ThrowIfNull(items);
+        if (!ProductAutomationRulePolicy.IsValid(rule)
+            || !rule.Enabled
+            || items.Count == 0
+            || items.Any(item => item is null
+                || item.Resolution != ProductItemReferenceResolution.Resolved)
+            || items.Select(item => item.Id).Distinct(StringComparer.Ordinal).Count()
+                != items.Count
+            || items.Select(item => item.PersistedTarget)
+                .Distinct(StringComparer.OrdinalIgnoreCase).Count() != items.Count)
+        {
+            return Failure(ProductWorkspaceEditError.InvalidState);
+        }
+
+        ProductWorkspaceEditResult? preparation = Prepare(state, out var snapshot);
+        if (preparation is not null)
+        {
+            return preparation;
+        }
+        if (snapshot!.Rules.Any(existing => string.Equals(
+            existing.Id, rule.Id, StringComparison.Ordinal)))
+        {
+            return Failure(ProductWorkspaceEditError.InvalidState);
+        }
+        int targetIndex = FindContainer(snapshot, rule.TargetContainerId);
+        if (targetIndex < 0)
+        {
+            return Failure(ProductWorkspaceEditError.ContainerNotFound);
+        }
+        ProductContainerState target = snapshot.Containers[targetIndex];
+        if (target.IsLocked)
+        {
+            return Failure(ProductWorkspaceEditError.ContainerLocked);
+        }
+        HashSet<string> existingTargets = snapshot.Containers
+            .SelectMany(container => container.Items)
+            .Select(item => item.PersistedTarget)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (items.Any(item => existingTargets.Contains(item.PersistedTarget)))
+        {
+            return Failure(ProductWorkspaceEditError.InvalidState);
+        }
+
+        ProductContainerState[] containers = snapshot.Containers.ToArray();
+        containers[targetIndex] = target with
+        {
+            Items = [.. target.Items, .. items.Select(Clone)],
+        };
+        return Validate(snapshot with
+        {
+            Containers = containers,
+            Rules = [.. snapshot.Rules, Clone(rule)],
+        }, changed: true);
     }
 
     public static ProductWorkspaceEditResult MoveReference(
@@ -657,7 +732,18 @@ public static class ProductWorkspaceReducer
         state with
         {
             Containers = state.Containers.Select(Clone).ToArray(),
+            Rules = state.Rules.Select(Clone).ToArray(),
             ExtensionData = CloneExtensions(state.ExtensionData),
+        };
+
+    private static ProductAutomationRuleState Clone(ProductAutomationRuleState rule) =>
+        rule with
+        {
+            Conditions = rule.Conditions.Select(condition => condition with
+            {
+                ExtensionData = CloneExtensions(condition.ExtensionData),
+            }).ToArray(),
+            ExtensionData = CloneExtensions(rule.ExtensionData),
         };
 
     private static ProductContainerState Clone(ProductContainerState container) =>

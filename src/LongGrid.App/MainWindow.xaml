@@ -1160,6 +1160,102 @@
                                             TextWrapping="Wrap" />
                                             </StackPanel>
                                         </Expander>
+                                        <Expander
+                                            AutomationProperties.AutomationId="ProductAutomationRuleSettingsExpander"
+                                            Header="自动整理规则"
+                                            IsExpanded="False">
+                                            <StackPanel Spacing="8">
+                                                <TextBlock
+                                                    Text="规则只读取桌面目录元数据，并向目标盒子添加安全引用；预览和取消不会修改配置或真实文件。"
+                                                    TextWrapping="Wrap" />
+                                                <TextBox
+                                                    x:Name="ProductAutomationRuleNameEditor"
+                                                    AutomationProperties.AutomationId="ProductAutomationRuleNameEditor"
+                                                    Header="规则名称"
+                                                    MaxLength="256"
+                                                    PlaceholderText="例如：文本资料"
+                                                    TextChanged="ProductAutomationRuleDraftChanged" />
+                                                <ComboBox
+                                                    x:Name="ProductAutomationRuleTargetSelector"
+                                                    AutomationProperties.AutomationId="ProductAutomationRuleTargetSelector"
+                                                    DisplayMemberPath="DisplayName"
+                                                    Header="目标盒子"
+                                                    SelectionChanged="ProductAutomationRuleDraftSelectionChanged" />
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <ComboBox
+                                                        x:Name="ProductAutomationRuleConditionSelector"
+                                                        AutomationProperties.AutomationId="ProductAutomationRuleConditionSelector"
+                                                        Header="匹配条件"
+                                                        SelectedIndex="0"
+                                                        SelectionChanged="ProductAutomationRuleDraftSelectionChanged">
+                                                        <ComboBoxItem Content="扩展名" />
+                                                        <ComboBoxItem Content="名称包含" />
+                                                        <ComboBoxItem Content="名称开头" />
+                                                        <ComboBoxItem Content="名称结尾" />
+                                                        <ComboBoxItem Content="名称完全等于" />
+                                                        <ComboBoxItem Content="项目类型" />
+                                                    </ComboBox>
+                                                    <TextBox
+                                                        x:Name="ProductAutomationRuleValueEditor"
+                                                        Grid.Column="1"
+                                                        AutomationProperties.AutomationId="ProductAutomationRuleValueEditor"
+                                                        Header="条件值"
+                                                        MaxLength="256"
+                                                        PlaceholderText="例如：.txt"
+                                                        TextChanged="ProductAutomationRuleDraftChanged" />
+                                                </Grid>
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <ToggleSwitch
+                                                        x:Name="ProductAutomationRuleEnabledToggle"
+                                                        AutomationProperties.AutomationId="ProductAutomationRuleEnabledToggle"
+                                                        Header="启用规则"
+                                                        IsOn="True"
+                                                        Toggled="ProductAutomationRuleDraftToggled" />
+                                                    <NumberBox
+                                                        x:Name="ProductAutomationRulePriorityEditor"
+                                                        Grid.Column="1"
+                                                        AutomationProperties.AutomationId="ProductAutomationRulePriorityEditor"
+                                                        Header="优先级"
+                                                        Minimum="0"
+                                                        Maximum="10000"
+                                                        Value="100"
+                                                        ValueChanged="ProductAutomationRuleDraftValueChanged" />
+                                                </Grid>
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <Button
+                                                        x:Name="ProductAutomationRulePreviewButton"
+                                                        AutomationProperties.AutomationId="ProductAutomationRulePreviewButton"
+                                                        Click="ProductAutomationRulePreviewButton_Click"
+                                                        Content="预览匹配" />
+                                                    <Button
+                                                        x:Name="ProductAutomationRuleApplyButton"
+                                                        AutomationProperties.AutomationId="ProductAutomationRuleApplyButton"
+                                                        Click="ProductAutomationRuleApplyButton_Click"
+                                                        Content="应用规则并保存"
+                                                        IsEnabled="False" />
+                                                </StackPanel>
+                                                <TextBlock
+                                                    x:Name="ProductAutomationRulePreviewMessage"
+                                                    AutomationProperties.AutomationId="ProductAutomationRulePreviewStatus"
+                                                    AutomationProperties.LiveSetting="Polite"
+                                                    Text="尚未预览；桌面文件未改变。"
+                                                    TextWrapping="Wrap" />
+                                                <ListView
+                                                    x:Name="ProductAutomationRulePreviewList"
+                                                    AutomationProperties.AutomationId="ProductAutomationRulePreviewList"
+                                                    DisplayMemberPath="DisplayName"
+                                                    MaxHeight="160"
+                                                    SelectionMode="None" />
+                                            </StackPanel>
+                                        </Expander>
                                         <TextBlock
                                             x:Name="ProductWorkspaceContainerEditStatus"
                                             AutomationProperties.AutomationId="ProductWorkspaceContainerEditStatus"

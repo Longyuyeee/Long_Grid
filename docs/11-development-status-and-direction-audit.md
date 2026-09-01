@@ -546,3 +546,7 @@ PF-011A 已将正式首次整理接入真实桌面 Catalog、空工作区、统�
 ## 35. 2026-09-01 PF-011B 当前开发状态
 
 PF-011B 已将首次旅程四态写入既有设置 Store；Customize 复用正式方格管理，自定义进度、跳过与重新运行跨重启恢复，预览返回零提交，第一个真实方格等待保存成功后完成。匿名方格、三引用和拖放练习的 XAML/code-behind/UIA 遗留已删除。真实 Store 专项 `4/4`、最终完整 `1,469/1,469`、Release 0 warning/error、194-ID 合同通过，中文旁路文件 SHA-256 不变；首轮既有 worker/HWND 3 秒用例波动与本机 Runtime 阻断均如实保留。PF-011 工程范围收口但真人、物理键盘/Narrator、DPI 和 5 人旅程仍 Pending；当前唯一接续点为 PF-020A 规则模型、解释性预览与安全引用分配，详见 [Stage 270](270-pf011b-formal-first-run-journey-audit.md)。
+
+## 36. 2026-09-01 PF-020A 当前开发状态
+
+PF-020A 已把正式规则能力从零推进到 schema v6 持久化、真实 Catalog 解释性预览、一次原子安全引用分配和统一历史。初始模型红测 `0/1`；最终真实 Unicode/持久化/重启/取消与过期零提交/Undo/Redo/旧 schema/目标删除专项 `6/6`，完整 Release `1,475/1,475`、Release 0 warning/error、205-ID 合同通过，真实文件 SHA-256 不变。PF-020A 工程范围收口但物理键盘/Narrator、DPI 和真人证据仍 Pending；当前唯一接续点为 PF-020B 规则生命周期、时间条件、修复和性能收口，详见 [Stage 271](271-pf020a-versioned-rule-preview-safe-assignment-audit.md)。
