@@ -6,7 +6,7 @@
 
 更新日期：2026-09-03
 
-代码审计输入基线：PF-020A 已完成 schema v6 规则、真实 Catalog 解释性预览、一次原子安全引用分配和统一历史项；PF-020B1 已在 `origin/main@3daf110` 上完成规则生命周期核心事务与统一历史接入。最新回归、未关闭证据与唯一接续点见 [Stage 272](272-pf020b1-rule-lifecycle-core-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
+代码审计输入基线：PF-020B1 核心事务已合入 `origin/main@a9e378c`，规则生命周期复用统一保存与历史；合并后 CI/CodeQL、全量完成度、未关闭证据与唯一接续点见 [Stage 273](273-current-development-status-and-continuation-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -267,7 +267,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**PF-020B 规则生命周期管理与条件/性能收口（FunctionFirst / InProgress）**。PF-020B1 已完成现有规则编辑、复制、启停、删除和排序的核心事务、一次保存与统一历史；当前继续规则列表 UI 和保存失败自动补偿，随后实现时间/多条件、NeedsRepair 修复和 500×100 性能门，不移动文件。PF-011 真人旅程、BOX-R1-C/D 与 TASKBAR-R2B1-B 作为并行外部门禁，不冻结 PF-020B。最新精确基准见 [Stage 272](272-pf020b1-rule-lifecycle-core-audit.md)。
+当前执行项：**PF-020B 规则生命周期管理与条件/性能收口（FunctionFirst / InProgress）**。PF-020B1 已完成核心事务；当前只继续规则列表 UI 和保存失败自动补偿，随后实现时间/多条件、NeedsRepair 修复和 500×100 性能门，不移动文件。PF-011 真人旅程、BOX-R1-C/D 与 TASKBAR-R2B1-B 作为并行外部门禁，不冻结 PF-020B。最新精确基准见 [Stage 273](273-current-development-status-and-continuation-audit.md)。
 
 严格按下列顺序交付，不再插入非当前队列的相邻探针或功能：
 
