@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：PF 功能详细 backlog 与历史验收账本；当前状态、执行顺序和里程碑以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
 - 当前开发项：**PF-020B 规则生命周期管理与条件/性能收口**；顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 当前接续输入基线：PF-020A 基于 `origin/main@a006e76` 完成 schema v6 规则、真实 Catalog 预览、一次原子安全引用分配与统一历史；真实测试、未关闭证据和 PF-020B 唯一接续点见 [Stage 271](271-pf020a-versioned-rule-preview-safe-assignment-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
+- 当前接续输入基线：PF-020B1 基于 `origin/main@3daf110` 完成规则生命周期核心事务、统一保存与 50 步历史接入；真实测试、未关闭证据和规则列表 UI/保存失败补偿接续点见 [Stage 272](272-pf020b1-rule-lifecycle-core-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 - 最新功能工程审计：PF-007A2 已完成正式 OLE Link 拖入；PF-007B 已完成已选正式引用在盒子间的原生有限拖动、冻结权威准入、原子保存/补偿和一次撤销。真实 STA/HWND/隔离文件路径与 SHA-256 零变化通过，物理鼠标与屏幕证据仍 Pending。PF-007 为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
@@ -353,7 +353,7 @@
 - 删除方格的撤销只恢复 Long方格配置，不恢复真实文件；
 - 批量动作必须作为一个历史单元。
 
-**当前工程进度（2026-09-01）**：PF-020A 已完成 schema v6 规则、真实 Catalog 解释性预览、过期拒绝、一次原子安全引用分配和统一历史项。真实 Unicode/持久化/重启/撤销专项 `6/6`、完整 Release `1,475/1,475`、205-ID 合同和文件零变化通过；物理键盘/Narrator、DPI 与真人证据 Pending，不标为产品 Complete。下一步进入 PF-020B，详见 [Stage 271](271-pf020a-versioned-rule-preview-safe-assignment-audit.md)。
+**当前工程进度（2026-09-01）**：PF-010A～B3 已完成统一 50 步会话历史、动作广度、重启安全恢复点与单一撤销语义收敛；相关自动审计通过，物理键盘/Narrator 与真人证据 Pending，因此 PF-010 不标为产品 Complete。详见 [Stage 268](268-pf010b3-undo-semantics-convergence-audit.md)。
 
 **验收目标**：
 
