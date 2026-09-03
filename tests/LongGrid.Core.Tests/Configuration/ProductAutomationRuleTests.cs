@@ -194,6 +194,140 @@ public sealed class ProductAutomationRuleTests
         Assert.True(ProductWorkspaceConfigurationProjector.Project(removed.State).IsSuccess);
     }
 
+    [Fact]
+    public void LifecycleReducerEditsCopiesTogglesRemovesAndOrdersRules()
+    {
+        ProductAutomationRuleState first = Rule(id: "first");
+        ProductAutomationRuleState second = Rule(id: "second") with
+        {
+            Name = "第二条",
+            Enabled = false,
+        };
+        ProductWorkspaceState state = State() with { Rules = [first, second] };
+
+        ProductWorkspaceEditResult updated = ProductWorkspaceReducer.EditAutomationRule(
+            state,
+            new(ProductAutomationRuleLifecycleAction.Update, first.Id,
+                first with { Name = "已编辑", Priority = 20 }));
+        Assert.True(updated.IsSuccess);
+        Assert.Equal("已编辑", updated.State!.Rules[0].Name);
+
+        ProductAutomationRuleState copy = second with
+        {
+            Id = "copy",
+            Name = "第二条 副本",
+            Enabled = false,
+        };
+        ProductWorkspaceEditResult copied = ProductWorkspaceReducer.EditAutomationRule(
+            updated.State,
+            new(ProductAutomationRuleLifecycleAction.Duplicate, second.Id, copy));
+        Assert.Equal(3, copied.State!.Rules.Count);
+        Assert.False(copied.State.Rules[2].Enabled);
+
+        ProductWorkspaceEditResult enabled = ProductWorkspaceReducer.EditAutomationRule(
+            copied.State,
+            new(ProductAutomationRuleLifecycleAction.SetEnabled, second.Id,
+                Enabled: true));
+        Assert.True(enabled.State!.Rules[1].Enabled);
+
+        ProductWorkspaceEditResult moved = ProductWorkspaceReducer.EditAutomationRule(
+            enabled.State,
+            new(ProductAutomationRuleLifecycleAction.MoveEarlier, "copy"));
+        Assert.Equal("copy", moved.State!.Rules[1].Id);
+
+        ProductWorkspaceEditResult removed = ProductWorkspaceReducer.EditAutomationRule(
+            moved.State,
+            new(ProductAutomationRuleLifecycleAction.Remove, first.Id));
+        Assert.Equal(["copy", "second"], removed.State!.Rules.Select(rule => rule.Id));
+    }
+
+    [Fact]
+    public async Task LifecycleCommitPersistsOneRevisionAndSupportsUnifiedUndoRedo()
+    {
+        var workflow = new CountingWorkflow();
+        await using var saves = new ProductWorkspaceSaveController(
+            workflow, new ImmediateScheduler(), TimeSpan.FromMilliseconds(1));
+        var commits = new ProductWorkspaceCommitCoordinator(saves);
+        ProductWorkspaceState state = State() with { Rules = [Rule()] };
+        long revision = commits.AdvanceExternalRevision();
+        ProductAutomationRuleState replacement = state.Rules[0] with
+        {
+            Name = "重命名规则",
+            Priority = 99,
+        };
+
+        ProductAutomationRuleLifecycleCommitResult committed =
+            commits.CommitAutomationRuleLifecycle(
+                state,
+                new(revision, new(ProductAutomationRuleLifecycleAction.Update,
+                    replacement.Id, replacement)));
+
+        Assert.True(committed.IsAccepted);
+        Assert.Equal(revision + 1, committed.EditRevision);
+        Assert.Equal("重命名规则", committed.State!.Rules[0].Name);
+        Assert.Equal(1, workflow.SaveCalls);
+        ProductWorkspaceSessionHistorySnapshot history =
+            commits.GetSessionHistorySnapshot(committed.State);
+        Assert.Equal(ProductWorkspaceSessionHistoryActionKind.RuleEdit,
+            Assert.Single(history.Items).Kind);
+        ProductWorkspaceSessionHistoryCommitResult undone =
+            commits.CommitSessionHistoryNavigation(
+                committed.State, ProductWorkspaceSessionHistoryDirection.Undo);
+        Assert.True(undone.IsAccepted);
+        Assert.Equal("文本资料", undone.State!.Rules[0].Name);
+        ProductWorkspaceSessionHistoryCommitResult redone =
+            commits.CommitSessionHistoryNavigation(
+                undone.State, ProductWorkspaceSessionHistoryDirection.Redo);
+        Assert.True(redone.IsAccepted);
+        Assert.Equal("重命名规则", redone.State!.Rules[0].Name);
+    }
+
+    [Fact]
+    public async Task LifecycleRejectsStaleBoundaryAndUnsafeEnableWithoutSaving()
+    {
+        var workflow = new CountingWorkflow();
+        await using var saves = new ProductWorkspaceSaveController(
+            workflow, new ImmediateScheduler(), TimeSpan.FromMilliseconds(1));
+        var commits = new ProductWorkspaceCommitCoordinator(saves);
+        ProductAutomationRuleState disabled = Rule(target: "missing") with
+        {
+            Enabled = false,
+        };
+        ProductWorkspaceState state = State() with { Rules = [disabled] };
+        long revision = commits.AdvanceExternalRevision();
+
+        Assert.Equal(ProductAutomationRuleLifecycleCommitStatus.StaleEditRevision,
+            commits.CommitAutomationRuleLifecycle(state,
+                new(revision - 1, new(ProductAutomationRuleLifecycleAction.Remove,
+                    disabled.Id))).Status);
+        Assert.Equal(ProductAutomationRuleLifecycleCommitStatus.ReducerRejected,
+            commits.CommitAutomationRuleLifecycle(state,
+                new(revision, new(ProductAutomationRuleLifecycleAction.SetEnabled,
+                    disabled.Id, Enabled: true))).Status);
+        Assert.Equal(ProductAutomationRuleLifecycleCommitStatus.ReducerRejected,
+            commits.CommitAutomationRuleLifecycle(state,
+                new(revision, new(ProductAutomationRuleLifecycleAction.MoveEarlier,
+                    disabled.Id))).Status);
+        ProductWorkspaceState full = State() with
+        {
+            Rules = Enumerable.Range(0, ProductConfigurationLimits.MaximumRules)
+                .Select(index => Rule(id: $"rule-{index}") with { Enabled = false })
+                .ToArray(),
+        };
+        ProductWorkspaceEditResult overflow = ProductWorkspaceReducer.EditAutomationRule(
+            full,
+            new(ProductAutomationRuleLifecycleAction.Duplicate, "rule-0",
+                Rule(id: "overflow") with { Enabled = false }));
+        Assert.False(overflow.IsSuccess);
+        ProductWorkspaceEditResult duplicateId =
+            ProductWorkspaceReducer.EditAutomationRule(
+                state,
+                new(ProductAutomationRuleLifecycleAction.Duplicate, disabled.Id,
+                    disabled));
+        Assert.False(duplicateId.IsSuccess);
+        Assert.Equal(0, workflow.SaveCalls);
+    }
+
     private static ProductWorkspaceState State() => new()
     {
         ProfileId = "default",

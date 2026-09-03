@@ -19,6 +19,11 @@ public enum ProductWorkspaceSessionHistoryActionKind
     LayoutRecovery,
     QuickStart,
     RuleApplication,
+    RuleEdit,
+    RuleCopy,
+    RuleEnabled,
+    RuleDelete,
+    RuleOrder,
 }
 
 public enum ProductWorkspaceSessionHistoryDirection
