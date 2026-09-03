@@ -250,6 +250,143 @@ public static class ProductWorkspaceReducer
         }, changed: true);
     }
 
+    public static ProductWorkspaceEditResult EditAutomationRule(
+        ProductWorkspaceState state,
+        ProductAutomationRuleLifecycleRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(request);
+        if (!Enum.IsDefined(request.Action)
+            || string.IsNullOrWhiteSpace(request.RuleId))
+        {
+            return Failure(ProductWorkspaceEditError.InvalidState);
+        }
+
+        ProductWorkspaceEditResult? preparation = Prepare(state, out var snapshot);
+        if (preparation is not null)
+        {
+            return preparation;
+        }
+        int index = snapshot!.Rules
+            .Select((rule, ruleIndex) => (rule, ruleIndex))
+            .Where(candidate => string.Equals(
+                candidate.rule.Id, request.RuleId, StringComparison.Ordinal))
+            .Select(candidate => candidate.ruleIndex)
+            .DefaultIfEmpty(-1)
+            .First();
+        if (index < 0)
+        {
+            return Failure(ProductWorkspaceEditError.InvalidState);
+        }
+
+        ProductAutomationRuleState current = snapshot.Rules[index];
+        ProductAutomationRuleState[] rules = snapshot.Rules.ToArray();
+        bool changed;
+        switch (request.Action)
+        {
+            case ProductAutomationRuleLifecycleAction.Update:
+                if (request.Rule is null
+                    || request.Enabled is not null
+                    || !string.Equals(request.Rule.Id, current.Id, StringComparison.Ordinal)
+                    || !ProductAutomationRulePolicy.IsValid(request.Rule))
+                {
+                    return Failure(ProductWorkspaceEditError.InvalidState);
+                }
+                ProductWorkspaceEditResult? targetFailure = ValidateRuleTarget(
+                    snapshot, request.Rule);
+                if (targetFailure is not null)
+                {
+                    return targetFailure;
+                }
+                rules[index] = Clone(request.Rule);
+                changed = !string.Equals(
+                    ProductAutomationRulePreviewPlanner.ComputeRuleFingerprint(
+                        rules[index]),
+                    ProductAutomationRulePreviewPlanner.ComputeRuleFingerprint(
+                        current),
+                    StringComparison.Ordinal);
+                break;
+            case ProductAutomationRuleLifecycleAction.Duplicate:
+                if (request.Rule is null
+                    || request.Enabled is not null
+                    || request.Rule.Enabled
+                    || !ProductAutomationRulePolicy.IsValid(request.Rule)
+                    || snapshot.Rules.Any(existing => string.Equals(
+                        existing.Id, request.Rule.Id, StringComparison.Ordinal)))
+                {
+                    return Failure(ProductWorkspaceEditError.InvalidState);
+                }
+                rules = [.. rules, Clone(request.Rule)];
+                changed = true;
+                break;
+            case ProductAutomationRuleLifecycleAction.SetEnabled:
+                if (request.Rule is not null || request.Enabled is null)
+                {
+                    return Failure(ProductWorkspaceEditError.InvalidState);
+                }
+                ProductAutomationRuleState toggled = current with
+                {
+                    Enabled = request.Enabled.Value,
+                };
+                ProductWorkspaceEditResult? enabledTargetFailure = ValidateRuleTarget(
+                    snapshot, toggled);
+                if (enabledTargetFailure is not null)
+                {
+                    return enabledTargetFailure;
+                }
+                rules[index] = toggled;
+                changed = toggled != current;
+                break;
+            case ProductAutomationRuleLifecycleAction.Remove:
+                if (request.Rule is not null || request.Enabled is not null)
+                {
+                    return Failure(ProductWorkspaceEditError.InvalidState);
+                }
+                rules = rules.Where((_, ruleIndex) => ruleIndex != index).ToArray();
+                changed = true;
+                break;
+            case ProductAutomationRuleLifecycleAction.MoveEarlier:
+            case ProductAutomationRuleLifecycleAction.MoveLater:
+                if (request.Rule is not null || request.Enabled is not null)
+                {
+                    return Failure(ProductWorkspaceEditError.InvalidState);
+                }
+                int destination = request.Action ==
+                    ProductAutomationRuleLifecycleAction.MoveEarlier
+                        ? index - 1
+                        : index + 1;
+                if (destination < 0 || destination >= rules.Length)
+                {
+                    return Validate(snapshot, changed: false);
+                }
+                (rules[index], rules[destination]) = (rules[destination], rules[index]);
+                changed = true;
+                break;
+            default:
+                return Failure(ProductWorkspaceEditError.InvalidState);
+        }
+
+        return Validate(snapshot with { Rules = rules }, changed);
+    }
+
+    private static ProductWorkspaceEditResult? ValidateRuleTarget(
+        ProductWorkspaceState state,
+        ProductAutomationRuleState rule)
+    {
+        if (!rule.Enabled)
+        {
+            return null;
+        }
+        int targetIndex = FindContainer(state, rule.TargetContainerId);
+        if (targetIndex < 0)
+        {
+            return Failure(ProductWorkspaceEditError.ContainerNotFound);
+        }
+        return state.Containers[targetIndex].IsLocked
+            ? Failure(ProductWorkspaceEditError.ContainerLocked)
+            : null;
+    }
+
     public static ProductWorkspaceEditResult MoveReference(
         ProductWorkspaceState state,
         string containerId,
