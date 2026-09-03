@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：PF-020A 已工程收口；PF-020B1 已完成规则编辑、复制、启停、删除、排序的核心事务、统一保存与 50 步历史接入，完整 Release `1,478/1,478`。PF-020 整体仍 InProgress，M1/M2 仍为 `0/2 Complete`、30 项 PF 仍为 `0 Complete`。唯一接续点是规则列表正式 UI 与保存失败自动补偿，随后进入多条件、时间条件、NeedsRepair 和性能收口，详见 [Stage 272](docs/272-pf020b1-rule-lifecycle-core-audit.md)。
+> 当前状态：PF-020A 已工程收口；PF-020B1 已完成规则生命周期核心事务，但正式规则列表 UI 与保存失败自动补偿仍未开发。主线 `a9e378c` 的 CI 为 `1,478/1,478`、CodeQL 双语言通过。PF-020 整体仍 InProgress，M1/M2 仍为 `0/2 Complete`、30 项 PF 仍为 `0 Complete`。当前事实、全量完成度与唯一接续点见 [Stage 273](docs/273-current-development-status-and-continuation-audit.md)。
 
 ## 产品原则
 
@@ -27,6 +27,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 - [PF-011B 正式首次旅程、恢复与匿名遗留退出审计（Stage 270）](docs/270-pf011b-formal-first-run-journey-audit.md)
 - [PF-020A 版本化规则、真实预览与安全引用分配审计（Stage 271）](docs/271-pf020a-versioned-rule-preview-safe-assignment-audit.md)
 - [PF-020B1 规则生命周期核心事务审计（Stage 272）](docs/272-pf020b1-rule-lifecycle-core-audit.md)
+- [当前开发状态与唯一接续点审计（Stage 273）](docs/273-current-development-status-and-continuation-audit.md)
 - [PF-009B 桌面搜索浮层与结果导航审计（Stage 264）](docs/264-pf009b-desktop-search-navigation-audit.md)
 - [PF-008B 类型与修改时间稳定排序审计（Stage 261）](docs/261-pf008b-type-modified-sort-audit.md)
 - [PF-008A 视图密度与连续滚动审计（Stage 260）](docs/260-pf008a-view-density-continuous-scroll-audit.md)
@@ -300,7 +301,7 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 272](docs/272-pf020b1-rule-lifecycle-core-audit.md)的**功能优先（FunctionFirst）**基准，PF-008A～C、PF-009A/B、PF-010A～B3、PF-011A/B、PF-020A 已工程收口；PF-020B1 核心事务已完成，当前唯一主开发项是 **规则列表 UI 与生命周期保存失败补偿**。BOX-R1-C/D、PF-011 真人旅程与 M1 的 #23/#274、完整 Runtime 和独占可丢弃会话，以及 TASKBAR-R2B1-B 的 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) Guest 准入继续作为并行外部门禁；未准入只阻止对应物理证据、系统写入和 Complete 声明，不冻结 PF-020B。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 273](docs/273-current-development-status-and-continuation-audit.md)的**功能优先（FunctionFirst）**基准，PF-008A～C、PF-009A/B、PF-010A～B3、PF-011A/B、PF-020A 已工程收口；PF-020B1 核心事务已完成，当前唯一主开发项是 **规则列表 UI 与生命周期保存失败补偿**。BOX-R1-C/D、PF-011 真人旅程与 M1 的 #23/#274、完整 Runtime 和独占可丢弃会话，以及 TASKBAR-R2B1-B 的 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) Guest 准入继续作为并行外部门禁；未准入只阻止对应物理证据、系统写入和 Complete 声明，不冻结 PF-020B。
 
 ## 开发启动
 

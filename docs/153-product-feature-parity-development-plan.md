@@ -6,7 +6,7 @@
 - 补充对标：Nimi Places、Portals、Microsoft PowerToys Workspaces
 - 文档性质：PF 功能详细 backlog 与历史验收账本；当前状态、执行顺序和里程碑以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
 - 当前开发项：**PF-020B 规则生命周期管理与条件/性能收口**；顺序以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为准
-- 当前接续输入基线：PF-020B1 基于 `origin/main@3daf110` 完成规则生命周期核心事务、统一保存与 50 步历史接入；真实测试、未关闭证据和规则列表 UI/保存失败补偿接续点见 [Stage 272](272-pf020b1-rule-lifecycle-core-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
+- 当前接续输入基线：PF-020B1 核心事务已合入 `origin/main@a9e378c`；合并后真实测试、未关闭证据和规则列表 UI/保存失败补偿接续点见 [Stage 273](273-current-development-status-and-continuation-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 - 最新功能工程审计：PF-007A2 已完成正式 OLE Link 拖入；PF-007B 已完成已选正式引用在盒子间的原生有限拖动、冻结权威准入、原子保存/补偿和一次撤销。真实 STA/HWND/隔离文件路径与 SHA-256 零变化通过，物理鼠标与屏幕证据仍 Pending。PF-007 为 `EngineeringComplete / ProductEvidencePending`，30 个 PF 项仍为 `0 Complete`
 
 ## 1. 本文解决什么问题
@@ -71,9 +71,9 @@
 | 7 | PF-007 | Explorer 拖入与方格间拖放 | `EngineeringComplete / ProductEvidencePending`：A1/A2/B 工程链完成；真实 Explorer 指针、盒子间物理拖动和撤销证据待 M1 | iTop/Fences 直接拖放 |
 | 8 | PF-008 | 方格内视图、排序、滚动与间距 | A～C `EngineeringComplete / ProductEvidencePending`：密度、连续滚动、扩展排序、自定义引用顺序、真实失败补偿与一次撤销已完成 | Nimi/Fences 视图控制 |
 | 9 | PF-009 | 桌面搜索、筛选与快速定位 | A/B `EngineeringComplete / ProductEvidencePending`：共用盒子/项目查询、组合筛选、正式结果、桌面浮层、键盘导航、临时展开/滚动/高亮及既有打开/定位复用已完成 | iTop Search |
-| 10 | PF-010 | 统一撤销、重做与操作历史 | 最近动作撤销 | iTop Snapshot/安全恢复 |
-| 11 | PF-011 | 首次启动 Quick Start/Customize | 匿名练习存在 | iTop 首次启动 |
-| 12 | PF-020 | 规则模型与规则编辑器 | 文件规划器原型 | iTop/Fences Organization |
+| 10 | PF-010 | 统一撤销、重做与操作历史 | `EngineeringComplete / ProductEvidencePending`：统一 50 步历史、Undo/Redo、分支截断、失效原因和保存失败补偿已完成 | iTop Snapshot/安全恢复 |
+| 11 | PF-011 | 首次启动 Quick Start/Customize | `EngineeringComplete / ProductEvidencePending`：真实建议、Customize、跳过/返回/重跑和保存后完成态已完成，匿名练习已删除 | iTop 首次启动 |
+| 12 | PF-020 | 规则模型与规则编辑器 | `InProgress`：PF-020A 与 B1 核心事务完成；规则列表 UI、生命周期失败补偿、时间/多条件、修复和性能仍待开发 | iTop/Fences Organization |
 | 13 | PF-021 | 规则预览、应用与撤销 | 原型级建议 | 竞品自动整理 |
 | 14 | PF-022 | 新项目自动归类与冲突处理 | 未实现 | Fences automation |
 | 15 | PF-030 | Roll-up 卷起与自动展开 | 折叠布尔值 | Fences Roll-up |

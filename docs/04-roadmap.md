@@ -8,7 +8,7 @@
 
 Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Phase 0 出口执行手册](12-phase-0-exit-runbook.md)，未执行的场景保持 Pending/Inconclusive。
 
-当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源。PF-020B1 的规则生命周期核心事务、统一保存和历史接入见 [Stage 272](272-pf020b1-rule-lifecycle-core-audit.md)，换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)。当前唯一主开发项为规则列表 UI 与保存失败补偿；#23/#274、完整 Runtime、签名包、独占可丢弃 Windows 会话和 Stage 216 Guest 准入作为 BOX/M1/TASKBAR/PF-011 真人证据并行门禁，不再冻结安全边界内的产品功能开发。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
+当前功能顺序和验收目标以 [Stage 153 功能对标总文档](153-product-feature-parity-development-plan.md)为准；当前执行队列以[统一开发计划](PRODUCT_EXECUTION_PLAN.md)为唯一来源。`main@a9e378c` 的合并后检查、PF-020B1 实际边界和全量完成度见 [Stage 273](273-current-development-status-and-continuation-audit.md)，换电脑接续见 [Stage 251](251-current-development-computer-handoff.md)。当前唯一主开发项为规则列表 UI 与保存失败补偿；#23/#274、完整 Runtime、签名包、独占可丢弃 Windows 会话和 Stage 216 Guest 准入作为 BOX/M1/TASKBAR/PF-011 真人证据并行门禁，不再冻结安全边界内的产品功能开发。路线图中的勾选表示对应子问题已有代码和报告，不表示完整产品能力已经完成。
 
 2026-09-01 Stage 265 PF-010A 统一会话历史：创建、重命名、锁定、折叠与外观进入统一 50 步 cursor 历史，支持 Ctrl+Z/Ctrl+Y、redo 分支截断、外部变化失效原因和保存失败补偿。初始连续编辑精确失败为 Rename token 被 Collapsed token 覆盖；修正后五类动作分别完成 apply→undo→redo→undo，51 步只淘汰最旧项。真实 Store 重载与 Unicode 文件 SHA-256 不变；专项 `12/12`、完整 `1,438/1,438`、Release 0 warning/error、211-ID 合同通过。PF-010A 工程收口但物理产品证据 Pending，唯一接续点为 PF-010B，详见 [Stage 265](265-pf010a-unified-session-history-audit.md)。
 
@@ -25,6 +25,8 @@ Phase 0 剩余实机矩阵、专用环境验证和负责人签字统一使用[Ph
 2026-09-01 Stage 271 PF-020A：schema v6 持久化规则与 v5 空迁移、真实 Catalog 元数据解释性预览、三组 SHA-256 过期门、一次 reducer/SaveController 原子安全引用分配和统一历史项已接入正式规则编辑器。初始模型红测 `0/1`，最终真实 Unicode/重启/Undo/Redo/旧 schema/目标删除专项 `6/6`，完整 Release `1,475/1,475`、Release 0 warning/error、205-ID 合同通过，文件 SHA-256 不变。PF-020A 工程收口、产品证据 Pending；唯一接续点为 PF-020B，详见 [Stage 271](271-pf020a-versioned-rule-preview-safe-assignment-audit.md)。
 
 2026-09-03 Stage 272 PF-020B1 核心事务：已保存规则的编辑、禁用复制、启停、删除和稳定排序进入正式 reducer、共享 revision/SaveController 与 PF-010 同一 50 步历史；旧 revision、排序边界、不安全启用、重复 ID 和容量超限失败关闭。规则专项 `9/9`、完整 Release `1,478/1,478`、格式、205-ID 合同和漏洞门通过。唯一接续点为规则列表 UI 与生命周期保存失败补偿，详见 [Stage 272](272-pf020b1-rule-lifecycle-core-audit.md)。
+
+2026-09-03 Stage 273 当前状态审计：`main@a9e378c` 与远端一致且无 Open PR；合并后 CI `1,478/1,478`、coverage `90.16%/75.38%`、205-ID 合同、内部 unsigned RC 与双语言 CodeQL 全部通过。PF-020B1 仍缺规则列表 UI 和保存失败补偿；严格口径 M1/M2 `0/2 Complete`、30 PF `0 Complete`。详见 [Stage 273](273-current-development-status-and-continuation-audit.md)。
 
 2026-09-01 Stage 264 PF-009B 桌面搜索导航：控制中心或主显示器桌面“搜”按钮可打开独立浮层，以键盘输入、上下移动、Enter 显示、Escape 关闭，并可复用既有打开/资源管理器定位链。第 20 个真实 Unicode 文件的初始投影精确失败为折叠未展开；修正后 viewport start=8、临时展开四秒并高亮 `item:20`，真实 HWND 接受投影且 20 个文件 SHA-256 不变。专项 `5/5`、完整 `1,426/1,426`、Release 0 warning/error、208-ID 合同通过；PF-009 工程收口但产品物理证据 Pending，唯一接续点为 PF-010A，详见 [Stage 264](264-pf009b-desktop-search-navigation-audit.md)。
 
