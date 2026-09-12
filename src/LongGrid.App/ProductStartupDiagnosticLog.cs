@@ -39,6 +39,12 @@ internal sealed class ProductStartupDiagnosticLog
 
     internal ProductStartupDiagnosticLog(string directory) => this.directory = directory;
 
+    internal static bool IsRedirected(bool exists, FileAttributes attributes, string? linkTarget) =>
+        linkTarget is not null || (exists && (attributes & FileAttributes.ReparsePoint) != 0);
+
+    private static bool IsRedirected(FileSystemInfo entry) =>
+        IsRedirected(entry.Exists, entry.Attributes, entry.LinkTarget);
+
     internal void RecordStage(ProductStartupStage value)
     {
         lock (gate)
@@ -80,11 +86,11 @@ internal sealed class ProductStartupDiagnosticLog
             if (payload.Length > 4096) return;
             for (DirectoryInfo? ancestor = new(directory); ancestor is not null; ancestor = ancestor.Parent)
             {
-                if (ancestor.Exists && (ancestor.Attributes & FileAttributes.ReparsePoint) != 0) return;
+                if (IsRedirected(ancestor)) return;
             }
             Directory.CreateDirectory(directory);
             string path = Path.Combine(directory, name);
-            if (File.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) return;
+            if (IsRedirected(new FileInfo(path))) return;
             using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read);
             stream.Write(payload);
             stream.Flush(flushToDisk: true);

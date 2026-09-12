@@ -54,6 +54,18 @@ public sealed class ProductStartupDiagnosticLogTests
         Assert.Equal("keep", File.ReadAllText(file));
     }
 
+    [Theory]
+    [InlineData(false, FileAttributes.Normal, "missing-target", true)]
+    [InlineData(true, FileAttributes.Normal, "existing-target", true)]
+    [InlineData(true, FileAttributes.ReparsePoint, null, true)]
+    [InlineData(false, (FileAttributes)(-1), null, false)]
+    [InlineData(true, FileAttributes.Normal, null, false)]
+    public void LinkMetadataIsRejectedEvenWhenTargetDoesNotExist(
+        bool exists, FileAttributes attributes, string? target, bool expected)
+    {
+        Assert.Equal(expected, ProductStartupDiagnosticLog.IsRedirected(exists, attributes, target));
+    }
+
     private sealed class Sandbox : IDisposable
     {
         public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
