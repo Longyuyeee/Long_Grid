@@ -3170,11 +3170,14 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private readonly ProductFolderPickerOperation productFolderPicker = new();
+
     private async void ProductWorkspaceFolderBindButton_Click(
         object sender,
         RoutedEventArgs e)
     {
-        if (ProductWorkspaceContainerEditSelector.SelectedItem is not
+        if (productFolderPicker.IsActive
+            || ProductWorkspaceContainerEditSelector.SelectedItem is not
                 ProductWorkspaceContainerEditCandidatePresentation selected
             || selected.IsLocked
             || !_containerEditor.CanUpdateFolderBinding)
@@ -3187,15 +3190,29 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetItemStatus(
             ProductWorkspaceFolderBindingStatus,
             "FolderBindingPickerOpen:Changed=False:DesktopFilesChanged=False");
-        var picker = new FolderPicker
+        ProductFolderPickerResult selection = await productFolderPicker.PickAsync(async () =>
         {
-            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
-        };
-        picker.FileTypeFilter.Add("*");
-        nint windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, windowHandle);
-        StorageFolder? folder = await picker.PickSingleFolderAsync();
-        if (folder is null)
+            var picker = new FolderPicker
+            {
+                SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+            };
+            picker.FileTypeFilter.Add("*");
+            nint windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, windowHandle);
+            StorageFolder? folder = await picker.PickSingleFolderAsync();
+            return folder?.Path;
+        });
+        if (selection.Status == ProductFolderPickerStatus.Busy) return;
+        if (selection.Status == ProductFolderPickerStatus.Unavailable)
+        {
+            ProductWorkspaceFolderBindingStatus.Text =
+                "系统文件夹选择器暂时不可用，请稍后重试；绑定配置和用户文件均未改变。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceFolderBindingStatus,
+                "FolderBindingPickerUnavailable:Changed=False:DesktopFilesChanged=False");
+            return;
+        }
+        if (selection.Status == ProductFolderPickerStatus.Cancelled)
         {
             ProductWorkspaceFolderBindingStatus.Text =
                 "已取消文件夹选择；绑定配置和用户文件均未改变。";
@@ -3207,7 +3224,7 @@ public sealed partial class MainWindow : Window
         }
 
         ProductContainerFolderBindingProbeResult probe =
-            WindowsProductContainerFolderBinding.Probe(folder.Path);
+            WindowsProductContainerFolderBinding.Probe(selection.Path!);
         if (!probe.IsSuccess)
         {
             ProductWorkspaceFolderBindingStatus.Text = probe.Error switch

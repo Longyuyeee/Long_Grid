@@ -1485,9 +1485,14 @@ function Test-SourceContract {
         $folderPickerCode -match 'FolderPicker' -and
         $folderPickerCode -match 'InitializeWithWindow' -and
         $folderPickerCode -match 'PickSingleFolderAsync' -and
-        $folderPickerCode -match 'folder\s+is\s+null' -and
-        $folderPickerCode.IndexOf('folder is null') -lt `
+        $folderPickerCode -match 'productFolderPicker\.PickAsync' -and
+        $folderPickerCode -match '(?s)if \(selection.Status == ProductFolderPickerStatus.Cancelled\).*?return;' -and
+        $folderPickerCode -match '(?s)if \(selection.Status == ProductFolderPickerStatus.Unavailable\).*?return;' -and
+        $folderPickerCode.IndexOf('selection.Status == ProductFolderPickerStatus.Cancelled') -lt `
             $folderPickerCode.IndexOf('_commitProductWorkspaceContainerFolderBinding') -and
+        $folderPickerCode.IndexOf('selection.Status == ProductFolderPickerStatus.Unavailable') -lt `
+            $folderPickerCode.IndexOf('_commitProductWorkspaceContainerFolderBinding') -and
+        $folderPickerCode -match 'FolderBindingPickerUnavailable:Changed=False' -and
         $folderPickerCode -match 'FolderBindingPickerCancelled:Changed=False' -and
         $folderPickerCode -match 'WindowsProductContainerFolderBinding\.Probe' -and
         $folderPickerCode -match 'CreateResolved'
