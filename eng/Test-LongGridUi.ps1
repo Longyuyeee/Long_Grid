@@ -2916,6 +2916,10 @@ function Test-SourceContract {
         'The control center must distinguish default-off from enabled-but-awaiting-host state.'
     Assert-Condition ($codeBehind -match 'RealCatalogPreview') `
         'Quick Start must expose a real-catalog preview state.'
+    Assert-Condition (
+        $codeBehind -match 'ProductQuickStartPreviewContinuity\.CanRetain' -and
+        $codeBehind -match '(?s)_quickStartSuggestion = suggestion;\s*RefreshProductFirstRunJourneySurface\(\);\s*if \(retainPreview\) return;\s*ProductQuickStartSuggestionList.ItemsSource'
+    ) 'Equivalent Quick Start refreshes must preserve an explicitly opened preview before rebuilding the list.'
     Assert-Condition ($codeBehind -match 'SuggestedStartSelected') `
         'The first-run prototype must expose the suggested-preview start path.'
     Assert-Condition ($codeBehind -match 'ProductFirstRunJourneyState\.CustomizeInProgress') `

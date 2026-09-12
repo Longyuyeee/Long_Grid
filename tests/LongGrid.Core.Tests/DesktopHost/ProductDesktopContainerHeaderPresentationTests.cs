@@ -10,6 +10,24 @@ namespace LongGrid.Core.Tests.DesktopHost;
 public sealed class ProductDesktopContainerHeaderPresentationTests(
     ITestOutputHelper output)
 {
+    [Theory]
+    [InlineData(false, "▾")]
+    [InlineData(true, "▸")]
+    public void CollapseButtonGlyphMatchesHeaderState(bool isCollapsed, string glyph)
+    {
+        ProductDesktopContainerHeaderPresentation header =
+            ProductDesktopContainerHeaderPresentation.Create(
+                "工作资料", 1, isLocked: false, isCollapsed: isCollapsed);
+
+        string button = WindowsProductDesktopInteractionActivationSource.ButtonText(
+            ProductDesktopActivationRegionKind.ToggleCollapsed,
+            isCollapsed,
+            isLocked: false);
+
+        Assert.Equal(glyph, button);
+        Assert.StartsWith(button + " ", header.VisualTitle);
+    }
+
     [Fact]
     public void CreateExposesFiniteVisualAndAccessibilityState()
     {
