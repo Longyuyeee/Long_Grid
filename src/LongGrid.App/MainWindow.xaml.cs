@@ -4620,6 +4620,17 @@ public sealed partial class MainWindow : Window
             automationStatus);
     }
 
+    internal void ApplyProductQuickStartSaveRollbackState(
+        ProductWorkspaceSaveFailure failure,
+        long revision)
+    {
+        ApplyProductWorkspaceCreateSaveRollbackState(failure, revision);
+        OrganizationPreviewStatus.Text =
+            "首次整理保存失败，已撤回本次方格和引用；原始文件未改变，请重新预览后重试。";
+        AutomationProperties.SetItemStatus(OrganizationPreviewStatus,
+            "QuickStartSaveRolledBack:DesktopFilesChanged=False");
+    }
+
     internal void ApplyProductWorkspaceCreateSaveRollbackState(
         ProductWorkspaceSaveFailure failure,
         long rollbackRevision)

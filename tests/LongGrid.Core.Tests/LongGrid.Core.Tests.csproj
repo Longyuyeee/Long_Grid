@@ -32,6 +32,8 @@
              Link="Runtime\ProductWorkspaceCreateAdmission.cs" />
     <Compile Include="..\..\src\LongGrid.App\ProductFolderPickerOperation.cs"
              Link="Runtime\ProductFolderPickerOperation.cs" />
+    <Compile Include="..\..\src\LongGrid.App\ProductQuickStartSaveCompensation.cs"
+             Link="Runtime\ProductQuickStartSaveCompensation.cs" />
     <Compile Include="..\..\src\LongGrid.App\ProductM1ManualEvidenceSession.cs"
              Link="Runtime\ProductM1ManualEvidenceSession.cs" />
   </ItemGroup>

@@ -167,11 +167,15 @@ public sealed class ProductQuickStartSuggestionTests
             ProductQuickStartSuggestionPlanner.Create(empty, revision, 5, true, catalog);
         ProductQuickStartCommitResult committed = commits.CommitQuickStart(
             empty, 5, catalog, new(preview, Container("quick", "桌面项目")));
+        var observer = new ProductQuickStartSaveCompensation();
+        observer.Track(committed, saves.Snapshot.CurrentRevision);
         await WaitForStatusAsync(saves, ProductWorkspaceSaveStatus.Failed);
 
-        ProductWorkspaceReferenceBatchAdditionUndoCommitResult compensated =
-            commits.CommitReferenceBatchAdditionUndo(
-                committed.State!, committed.CompensationToken!, true);
+        ProductWorkspaceSaveSnapshot failed = saves.Snapshot;
+        ProductWorkspaceReferenceBatchAdditionUndoCommitResult compensated = Assert.IsType<
+            ProductWorkspaceReferenceBatchAdditionUndoCommitResult>(
+                observer.Observe(committed.State!, failed, commits));
+        Assert.Null(observer.Observe(committed.State!, failed, commits));
         await saves.CompleteAsync();
 
         Assert.True(compensated.IsAccepted);
@@ -179,6 +183,47 @@ public sealed class ProductQuickStartSuggestionTests
         Assert.Empty(commits.GetSessionHistorySnapshot(compensated.State).Items);
         Assert.Equal(2, workflow.SaveCalls);
         Assert.Equal(before, Hash(file));
+    }
+
+    [Theory]
+    [InlineData("edit")]
+    [InlineData("save")]
+    [InlineData("saved")]
+    public async Task ObsoleteOrSavedQuickStartIsNeverCompensated(string transition)
+    {
+        using var sandbox = new TemporaryDirectory();
+        string file = CreateFile(sandbox.Path, "保留.txt", "内容不变");
+        var workflow = new FailOnceWorkflow();
+        await using var saves = new ProductWorkspaceSaveController(
+            workflow, new ImmediateScheduler(), TimeSpan.FromMilliseconds(1));
+        var commits = new ProductWorkspaceCommitCoordinator(saves);
+        ProductWorkspaceState empty = EmptyState();
+        var catalog = Catalog(file);
+        var preview = ProductQuickStartSuggestionPlanner.Create(
+            empty, commits.AdvanceExternalRevision(), 1, true, catalog);
+        var committed = commits.CommitQuickStart(empty, 1, catalog,
+            new(preview, Container("quick", "桌面项目")));
+        var observer = new ProductQuickStartSaveCompensation();
+        observer.Track(committed, saves.Snapshot.CurrentRevision);
+        await WaitForStatusAsync(saves, ProductWorkspaceSaveStatus.Failed);
+        var failure = saves.Snapshot;
+        var notification = failure;
+        if (transition == "edit") commits.AdvanceExternalRevision();
+        if (transition == "save") notification = failure with { CurrentRevision = failure.CurrentRevision + 1 };
+        if (transition == "saved") notification = failure with
+        {
+            Status = ProductWorkspaceSaveStatus.Saved,
+            SavedRevision = failure.CurrentRevision,
+        };
+        Assert.Null(observer.Observe(committed.State, notification, commits));
+        Assert.Null(observer.Observe(committed.State, failure, commits));
+        Assert.Equal(1, workflow.SaveCalls);
+        Assert.Single(committed.State!.Containers);
+        // Close the deliberately failed fake workflow without discarding its pending state.
+        saves.Submit(new(ProductWorkspaceEditError.None,
+            ProductWorkspaceProjectionError.None, ProductConfigurationError.None,
+            committed.State, Changed: true));
+        await WaitForStatusAsync(saves, ProductWorkspaceSaveStatus.Saved);
     }
 
     private static ProductWorkspaceState EmptyState() => new()

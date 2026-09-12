@@ -62,6 +62,7 @@ public partial class App : Application
     private PendingControlCenterContainerEdit? pendingControlCenterContainerEdit;
     private PendingSessionHistorySave? pendingSessionHistorySave;
     private long? pendingFirstRunCompletionSaveRevision;
+    private readonly ProductQuickStartSaveCompensation quickStartSaveCompensation = new();
     private MainWindow? window;
     private bool closeAfterDrain;
     private bool closingDrainInProgress;
@@ -4101,7 +4102,14 @@ public partial class App : Application
             new(preview, container));
         if (result.IsAccepted)
         {
+            quickStartSaveCompensation.Track(result, productWorkspaceSaves.Snapshot.CurrentRevision);
             ApplyAcceptedProductWorkspaceDocument(result.Document!, catalog);
+            // Observe again after the click handler finishes, including fast save failures.
+            if (window is { } currentWindow)
+            {
+                _ = currentWindow.DispatcherQueue.TryEnqueue(() =>
+                    ApplyProductWorkspaceSaveSnapshot(currentWindow, productWorkspaceSaves.Snapshot));
+            }
         }
         else
         {
@@ -4425,6 +4433,18 @@ public partial class App : Application
         MainWindow currentWindow,
         ProductWorkspaceSaveSnapshot snapshot)
     {
+        ProductWorkspaceSaveSnapshot quickStartSaveSnapshot = productWorkspaceSaves.Snapshot;
+        ProductWorkspaceReferenceBatchAdditionUndoCommitResult? quickStartRollback =
+            quickStartSaveCompensation.Observe(productWorkspaceSession.State, quickStartSaveSnapshot, workspaceCommits);
+        if (quickStartRollback?.IsAccepted == true)
+        {
+            pendingFirstRunCompletionSaveRevision = null;
+            ApplyAcceptedProductWorkspaceDocument(quickStartRollback.Document!, productDesktopCatalog.Snapshot);
+            currentWindow.ApplyProductQuickStartSaveRollbackState(
+                quickStartSaveSnapshot.Failure, productWorkspaceSaves.Snapshot.CurrentRevision);
+            return;
+        }
+
         if (pendingFirstRunCompletionSaveRevision is long firstRunRevision
             && snapshot.Status == ProductWorkspaceSaveStatus.Saved
             && snapshot.SavedRevision >= firstRunRevision
