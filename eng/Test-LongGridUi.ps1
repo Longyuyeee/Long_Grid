@@ -1288,6 +1288,7 @@ function Test-SourceContract {
         $appCode.Contains('ApplyProductWorkspaceCreateSaveRollbackState(') -and
         $appCode -match '(?s)private void ApplyProductWorkspaceSaveSnapshot\([^)]*\)\s*\{\s*//[^\r\n]*\r?\n\s*snapshot = productWorkspaceSaves.Snapshot;' -and
         $codeBehind -match '(?s)internal void ApplyProductQuickStartSaveRollbackState\(\s*ProductWorkspaceSaveSnapshot snapshot\)\s*\{\s*//[^\r\n]*\r?\n\s*ApplyProductWorkspaceSaveState\(snapshot\);' -and
+        $codeBehind -match '(?s)internal void ApplyProductWorkspaceCreateSaveRollbackState\(\s*ProductWorkspaceSaveFailure failure,\s*ProductWorkspaceSaveSnapshot snapshot\)\s*\{\s*ApplyProductWorkspaceSaveState\(snapshot\);\s*if \(snapshot.Status is not \(ProductWorkspaceSaveStatus.WaitingForDebounce\s*or ProductWorkspaceSaveStatus.Saving\)\)\s*\{\s*return;' -and
         $codeBehind.Contains('WorkspaceCreateRolledBack:')
     ) 'Desktop create publication must bind workspace/save revisions, compensate matching failures, and expose a finite rollback state.'
     Assert-Condition (

@@ -4611,8 +4611,7 @@ public partial class App : Application
                     if (restore.IsAccepted)
                     {
                         currentWindow.ApplyProductWorkspaceCreateSaveRollbackState(
-                            snapshot.Failure,
-                            productWorkspaceSaves.Snapshot.CurrentRevision);
+                            snapshot.Failure, productWorkspaceSaves.Snapshot);
                         return;
                     }
                     currentWindow.ApplyProductWorkspaceSaveState(snapshot);
@@ -4636,8 +4635,7 @@ public partial class App : Application
                 if (rollback.IsAccepted)
                 {
                     currentWindow.ApplyProductWorkspaceCreateSaveRollbackState(
-                        snapshot.Failure,
-                        productWorkspaceSaves.Snapshot.CurrentRevision);
+                        snapshot.Failure, productWorkspaceSaves.Snapshot);
                     return;
                 }
             }
