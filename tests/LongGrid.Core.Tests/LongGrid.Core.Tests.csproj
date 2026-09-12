@@ -28,6 +28,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\src\LongGrid.App\ProductQuickStartPreviewContinuity.cs"
+             Link="Runtime\ProductQuickStartPreviewContinuity.cs" />
     <Compile Include="..\..\src\LongGrid.App\ProductWorkspaceCreateAdmission.cs"
              Link="Runtime\ProductWorkspaceCreateAdmission.cs" />
     <Compile Include="..\..\src\LongGrid.App\ProductFolderPickerOperation.cs"

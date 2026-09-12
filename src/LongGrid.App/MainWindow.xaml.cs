@@ -872,8 +872,13 @@ public sealed partial class MainWindow : Window
         ProductQuickStartSuggestionSnapshot suggestion)
     {
         ArgumentNullException.ThrowIfNull(suggestion);
+        bool retainPreview = ProductQuickStartPreviewContinuity.CanRetain(
+            ProductQuickStartCommitButton.IsEnabled
+                && ProductQuickStartSuggestionList.Visibility == Visibility.Visible,
+            _quickStartSuggestion, suggestion);
         _quickStartSuggestion = suggestion;
         RefreshProductFirstRunJourneySurface();
+        if (retainPreview) return;
 
         ProductQuickStartSuggestionList.ItemsSource = suggestion.Items
             .Select(item => item.DisplayName)
