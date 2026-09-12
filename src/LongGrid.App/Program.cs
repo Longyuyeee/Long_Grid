@@ -18,6 +18,30 @@ public static class Program
     [STAThread]
     public static async Task<int> Main(string[] args)
     {
+        ProductStartupDiagnosticLog.Current.RecordStage(ProductStartupStage.ProcessStarting);
+        System.UnhandledExceptionEventHandler handler = (_, eventArgs) =>
+            ProductStartupDiagnosticLog.Current.RecordFailure(
+                ProductStartupFailureOrigin.ManagedUnhandled, eventArgs.ExceptionObject as Exception);
+        AppDomain.CurrentDomain.UnhandledException += handler;
+        try
+        {
+            int result = await RunAsync(args);
+            ProductStartupDiagnosticLog.Current.RecordStage(ProductStartupStage.Exited);
+            return result;
+        }
+        catch (Exception exception)
+        {
+            ProductStartupDiagnosticLog.Current.RecordFailure(ProductStartupFailureOrigin.EntryPoint, exception);
+            throw;
+        }
+        finally
+        {
+            AppDomain.CurrentDomain.UnhandledException -= handler;
+        }
+    }
+
+    private static async Task<int> RunAsync(string[] args)
+    {
         WinRT.ComWrappersSupport.InitializeComWrappers();
 
         AppActivationArguments activation = AppInstance
@@ -31,6 +55,7 @@ public static class Program
                             ProductPf002AppEvidenceSession.ResolveInstanceKey(
                                 MainInstanceKey))))));
         AppInstance mainInstance = AppInstance.FindOrRegisterForKey(instanceKey);
+        ProductStartupDiagnosticLog.Current.RecordStage(ProductStartupStage.InstanceResolved);
         ProductM1ManualEvidenceSession.TryRecordStage(
             mainInstance.IsCurrent
                 ? "AppInstanceCurrent"
@@ -44,8 +69,9 @@ public static class Program
                 TryBringToForeground(mainInstance.ProcessId);
                 return 0;
             }
-            catch
+            catch (Exception exception)
             {
+                ProductStartupDiagnosticLog.Current.RecordFailure(ProductStartupFailureOrigin.ActivationRedirect, exception);
                 // A failed redirect must not create a competing desktop owner.
                 return 1;
             }
@@ -61,7 +87,9 @@ public static class Program
                 SynchronizationContext.SetSynchronizationContext(
                     new DispatcherQueueSynchronizationContext(dispatcher));
 
+                ProductStartupDiagnosticLog.Current.RecordStage(ProductStartupStage.AppConstructing);
                 App app = new();
+                ProductStartupDiagnosticLog.Current.RecordStage(ProductStartupStage.AppConstructed);
                 ProductM1ManualEvidenceSession.TryRecordStage("AppConstructed");
                 Attach(app);
             });

@@ -86,6 +86,8 @@ public partial class App : Application
 
     public App()
     {
+        UnhandledException += (_, eventArgs) => ProductStartupDiagnosticLog.Current.RecordFailure(
+            ProductStartupFailureOrigin.XamlUnhandled, eventArgs.Exception);
         InitializeComponent();
         string[] commandLineArguments = Environment.GetCommandLineArgs();
         ProductExplorerCreateActivationDecision explorerCreateActivation =
@@ -230,6 +232,7 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        ProductStartupDiagnosticLog.Current.RecordStage(ProductStartupStage.WindowCreating);
         window = new MainWindow(
             RecoverConfigurationAsync,
             RestoreRestartRecoveryPointAsync,
@@ -318,6 +321,7 @@ public partial class App : Application
             productDesktopHostLifecycle.CanRequestKeyboardInteraction);
         ApplyProductWorkspaceSessionViews();
         window.AppWindow.Closing += AppWindow_Closing;
+        ProductStartupDiagnosticLog.Current.RecordStage(ProductStartupStage.WindowCreated);
         if (pf002AppEvidenceSession is not null)
         {
             window.Activate();
@@ -404,6 +408,7 @@ public partial class App : Application
 
     private async Task InitializeDesktopFirstStartupAsync()
     {
+        ProductStartupDiagnosticLog.Current.RecordStage(ProductStartupStage.WorkspaceInitializing);
         try
         {
             await TaskbarAppearanceRecoveryClient.RecoverAtStartupAsync(
@@ -444,6 +449,7 @@ public partial class App : Application
             }
 
             _ = TryDispatchExplorerCreateActivation();
+            ProductStartupDiagnosticLog.Current.RecordStage(ProductStartupStage.WorkspaceInitialized);
         }
         catch (Exception exception) when (
             exception is IOException
@@ -451,7 +457,13 @@ public partial class App : Application
                 or InvalidDataException
                 or InvalidOperationException)
         {
+            ProductStartupDiagnosticLog.Current.RecordFailure(ProductStartupFailureOrigin.WorkspaceInitialization, exception);
             ActivateMainWindow();
+        }
+        catch (Exception exception)
+        {
+            ProductStartupDiagnosticLog.Current.RecordFailure(ProductStartupFailureOrigin.WorkspaceInitialization, exception);
+            throw;
         }
     }
 
