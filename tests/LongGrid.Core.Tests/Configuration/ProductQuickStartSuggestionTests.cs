@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using LongGrid.App;
 using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopItems;
 using LongGrid.Infrastructure.Configuration;
@@ -68,7 +69,13 @@ public sealed class ProductQuickStartSuggestionTests
         await using var saves = new ProductWorkspaceSaveController(
             workflow, new ImmediateScheduler(), TimeSpan.FromMilliseconds(1));
         var commits = new ProductWorkspaceCommitCoordinator(saves);
-        ProductWorkspaceState empty = EmptyState();
+        ProductConfigurationLoadResult initialLoad = await store.LoadAsync();
+        Assert.Equal(ProductConfigurationLoadStatus.Missing, initialLoad.Status);
+        ProductWorkspaceSessionSnapshot initialSession = ProductWorkspaceSessionLoader.Load(
+            initialLoad, ProductWorkspaceCatalogSnapshot.Available(catalog));
+        Assert.True(initialSession.IsReadOnly);
+        ProductWorkspaceState empty = Assert.IsType<ProductWorkspaceState>(
+            ProductWorkspaceCreateAdmission.Resolve(initialSession, initialLoad.Status));
         long revision = commits.AdvanceExternalRevision();
         ProductQuickStartSuggestionSnapshot preview =
             ProductQuickStartSuggestionPlanner.Create(empty, revision, 9, true, catalog);
@@ -83,6 +90,11 @@ public sealed class ProductQuickStartSuggestionTests
         ProductConfigurationLoadResult persisted = await store.LoadAsync();
         Assert.Equal(ProductConfigurationLoadStatus.LoadedPrimary, persisted.Status);
         Assert.Equal(2, persisted.Document!.Containers[0].Items.Count);
+        ProductWorkspaceSessionSnapshot restarted = ProductWorkspaceSessionLoader.Load(
+            persisted, ProductWorkspaceCatalogSnapshot.Available(catalog));
+        Assert.Equal(ProductWorkspaceSessionStatus.Ready, restarted.Status);
+        Assert.False(restarted.IsReadOnly);
+        Assert.Equal(2, restarted.State!.Containers[0].Items.Count);
         ProductWorkspaceSessionHistorySnapshot history =
             commits.GetSessionHistorySnapshot(committed.State);
         Assert.Single(history.Items);

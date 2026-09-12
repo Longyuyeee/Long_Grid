@@ -2,7 +2,7 @@
 
 Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作空间管理工具。项目当前处于产品功能逐项开发与工程预览阶段，目标不是简单复刻某个竞品，而是把“桌面收纳、快速访问、工作空间恢复、自动整理”做成稳定、轻量、可信赖的系统级体验。
 
-> 当前状态：PF-020A 已工程收口；PF-020B1 已完成规则生命周期核心事务，但正式规则列表 UI 与保存失败自动补偿仍未开发。主线 `a9e378c` 的 CI 为 `1,478/1,478`、CodeQL 双语言通过。PF-020 整体仍 InProgress，M1/M2 仍为 `0/2 Complete`、30 项 PF 仍为 `0 Complete`。当前事实、全量完成度与唯一接续点见 [Stage 273](docs/273-current-development-status-and-continuation-audit.md)。
+> 当前状态（2026-09-12）：基础创建、默认桌面交互和稳定性尚未验收，暂停 PF-020B，先修复基础用户旅程。首次整理首建被重复只读判断拦截的代码缺陷已修正，物理 UI 与闪退仍待验证。主线 `a9e378c` 的历史测试为 `1,478/1,478`，不代表产品可用。M1/M2 仍为 `0/2 Complete`、30 项 PF 仍为 `0 Complete`。历史快照见 [Stage 273](docs/273-current-development-status-and-continuation-audit.md)，本次纠偏和实测以[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md#9-当前唯一执行队列)为准。
 
 ## 产品原则
 
@@ -301,7 +301,9 @@ Long方格（Long Grid）是一款面向 Windows 10/11 的桌面整理与工作�
 
 ## 建议的下一步
 
-按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md)和[Stage 273](docs/273-current-development-status-and-continuation-audit.md)的**功能优先（FunctionFirst）**基准，PF-008A～C、PF-009A/B、PF-010A～B3、PF-011A/B、PF-020A 已工程收口；PF-020B1 核心事务已完成，当前唯一主开发项是 **规则列表 UI 与生命周期保存失败补偿**。BOX-R1-C/D、PF-011 真人旅程与 M1 的 #23/#274、完整 Runtime 和独占可丢弃会话，以及 TASKBAR-R2B1-B 的 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) Guest 准入继续作为并行外部门禁；未准入只阻止对应物理证据、系统写入和 Complete 声明，不冻结 PF-020B。
+按[统一开发计划](docs/PRODUCT_EXECUTION_PLAN.md#9-当前唯一执行队列)的**功能优先（FunctionFirst）**要求，当前唯一主开发项是 **基础可用性修复与默认启动旅程验收**。PF-008 等已有局部工程资产不等于默认交互可用；[Stage 273](docs/273-current-development-status-and-continuation-audit.md) 的 PF-020B 接续顺序已经暂停。先验收首次创建、保存/重启、选择/打开/移动/缩放并定位闪退；BOX-R1-C/D 与 TASKBAR-R2B1-B 仍须取得真实安装和隔离环境证据，不放宽安全门槛。
+
+换机前还须检查完整 Runtime、#23/#274 的当前环境证据，以及 [Stage 216](docs/216-taskbar-r2b1a-disposable-environment-admission-audit.md) Guest 准入；不把机器环境等待当作产品代码已可用的证明。
 
 ## 开发启动
 

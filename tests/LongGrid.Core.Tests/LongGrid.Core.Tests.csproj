@@ -28,6 +28,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\src\LongGrid.App\ProductWorkspaceCreateAdmission.cs"
+             Link="Runtime\ProductWorkspaceCreateAdmission.cs" />
     <Compile Include="..\..\src\LongGrid.App\ProductM1ManualEvidenceSession.cs"
              Link="Runtime\ProductM1ManualEvidenceSession.cs" />
   </ItemGroup>

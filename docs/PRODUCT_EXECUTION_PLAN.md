@@ -4,7 +4,7 @@
 
 状态：Required / 当前唯一执行计划
 
-更新日期：2026-09-03
+更新日期：2026-09-12
 
 代码审计输入基线：PF-020B1 核心事务已合入 `origin/main@a9e378c`，规则生命周期复用统一保存与历史；合并后 CI/CodeQL、全量完成度、未关闭证据与唯一接续点见 [Stage 273](273-current-development-status-and-continuation-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
 
@@ -267,7 +267,16 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 ## 9. 当前唯一执行队列
 
-当前执行项：**PF-020B 规则生命周期管理与条件/性能收口（FunctionFirst / InProgress）**。PF-020B1 已完成核心事务；当前只继续规则列表 UI 和保存失败自动补偿，随后实现时间/多条件、NeedsRepair 修复和 500×100 性能门，不移动文件。PF-011 真人旅程、BOX-R1-C/D 与 TASKBAR-R2B1-B 作为并行外部门禁，不冻结 PF-020B。最新精确基准见 [Stage 273](273-current-development-status-and-continuation-audit.md)。
+当前执行项：**基础可用性修复与默认启动旅程验收（FunctionFirst / InProgress）**。暂停 PF-020B 外围扩展，先完成首次创建、保存/重启、默认桌面选择/打开/移动/缩放及闪退定位。PF-008 等既有工程资产不等于默认入口可用；BOX-R1-C/D 与 TASKBAR-R2B1-B 的安装和平台门禁仍须保留。历史基准见 [Stage 273](273-current-development-status-and-continuation-audit.md)，本次纠偏与验证以本节为准。
+
+2026-09-12 代码复核（输入 `main@5181ade`）：
+
+- **已确认缺陷**：`NoSavedConfiguration` 会话为只读但允许首建；Quick Start 预览使用首建例外，提交却再次以原会话只读状态拒绝。现将普通创建、桌面创建和 Quick Start 的状态准入统一到 App 的 `ProductWorkspaceCreateAdmission`，移除 Quick Start 重复拦截；恢复备份、安全模式和未加载仍不准入。
+- **验证范围**：新增测试链接实际 App 准入源码；真实缺失配置 → 首次建议 → 提交 → 保存 → 重载恢复 Ready，并确认真实文件内容不变。它覆盖准入与持久化，不是 WinUI 点击验收；不得据此宣称“所有无法创建已修复”。
+- **默认交互缺口**：桌面内容命中/选择依赖显式交互事务，而其激活链仍有开发环境开关；标题操作有独立处理器，不能笼统声称所有操作禁用。下一步必须先确认正式用户如何进入/退出显式交互，再修入口及对应回归，不得直接全开实验开关。
+- **闪退未定因**：本机 Runtime 预检返回 `BlockedByIncompleteRuntime`，存在 Framework 2.4.0.0 / XAML 3.2.3.0 已知风险组合，Main.2/DDLM 组件不完整；普通启动脚本并不执行此预检。没有本次产品崩溃堆栈，不能把环境风险冒充已复现根因，更不能标记已修复。后续需要隔离配置的启动日志/崩溃证据，禁止动用户配置或关闭异常掩盖故障。
+- **执行偏移**：Stage 273 的“继续规则 UI”顺序被本节取代。三根支柱未形成默认启动的可操作闭环前，不再推进 PF-020B；此前 EngineeringComplete 仅代表局部实现，不构成整项可用承诺。M1/M2 仍未完成。
+- **本切片实测**：首启/Quick Start 专项 15/15；完整 Release 测试 1,488/1,488（18 秒），App Release 构建 0 warning / 0 error；格式检查和 205-ID UI 合同通过。文档新鲜度初测发现 README 遗漏换机门禁索引，已补回 Runtime/#23/#274/Stage 216 并重跑。物理鼠标、键盘、安装右键和闪退复现仍待验证。
 
 严格按下列顺序交付，不再插入非当前队列的相邻探针或功能：
 
@@ -283,7 +292,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 10. **PF-009（A/B EngineeringComplete / ProductEvidencePending）**：共用查询、类型/健康/显示器筛选、正式结果、桌面浮层、临时展开/滚动/高亮与打开/定位均已完成；查询不读取文件内容。
 11. **PF-010 / PF-011（EngineeringComplete / ProductEvidencePending）**：PF-010 已完成统一会话历史；PF-011 已把匿名首次整理升级为真实只读建议预览、确认后原子提交、正式 Customize、跳过/返回/重新运行和保存后完成态，并删除隐藏匿名练习遗留。真人、物理键盘/Narrator、DPI 与 5 人任务证据保持并行 Pending。
 12. **PF-020A（EngineeringComplete / RealFilesystemPass / ProductEvidencePending）**：schema v6 规则模型、真实 Catalog 解释性预览、只分配安全引用的一次原子应用和统一历史项已完成；不读取正文，不移动或删除文件。
-13. **PF-020B（当前主队列）**：完成现有规则编辑/复制/启停/删除/排序、时间条件、目标修复、保存失败补偿和 500 项×100 条规则性能门。
+13. **PF-020B（暂停，基础旅程修复后恢复）**：完成现有规则编辑/复制/启停/删除/排序、时间条件、目标修复、保存失败补偿和 500 项×100 条规则性能门。
 14. **M1 产品证据冲刺（ExternalEnvironmentBlocked / ParallelGate）**：等待安全 WinUI 运行时、专用账户和可安装签名条件；条件具备时优先执行完整两分钟旅程，不降低出口。
 15. **TASKBAR-R1～R4（R2B1-B EnvironmentBlocked / ParallelGate）**：R2B1-B 只能在准入 Guest 验证 Clear/SystemDefault 原生效果，R3 完成 Explorer 重启/禁用/卸载恢复，R4 取得逐 build 真实兼容矩阵；宿主禁止试写，但不阻塞 PF 主队列。
 

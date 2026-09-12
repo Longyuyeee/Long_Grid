@@ -2719,27 +2719,17 @@ public partial class App : Application
             ProductContainerContentDensity? contentDensity = null,
             int itemOrdinal = 0)
     {
-        ProductWorkspaceState? state = productWorkspaceSession.State;
-        bool creatingFirstConfiguration =
-            action == ProductWorkspaceContainerCommitAction.Create
-            && productWorkspaceSession.Status ==
-                ProductWorkspaceSessionStatus.NoSavedConfiguration
-            && currentConfigurationLoadResult?.Status ==
-                ProductConfigurationLoadStatus.Missing;
-        if (creatingFirstConfiguration)
-        {
-            state = ProductWorkspaceConfigurationResolver.Resolve(
-                ProductConfigurationDefaults.CreateEmpty(),
-                Array.Empty<DesktopCatalogEntry>()).State;
-        }
+        ProductWorkspaceState? state = action == ProductWorkspaceContainerCommitAction.Create
+            ? ProductWorkspaceCreateAdmission.Resolve(
+                productWorkspaceSession, currentConfigurationLoadResult?.Status)
+            : productWorkspaceSession.IsReadOnly ? null : productWorkspaceSession.State;
 
         if (state is not null)
         {
             state = StampAuthoritativeDisplayTopology(state);
         }
 
-        if (state is null
-            || (productWorkspaceSession.IsReadOnly && !creatingFirstConfiguration))
+        if (state is null)
         {
             return new(
                 ProductWorkspaceContainerCommitStatus.InvalidRequest,
@@ -3636,24 +3626,9 @@ public partial class App : Application
 
     private ProductWorkspaceState? ResolveDesktopWorkspaceCreateState()
     {
-        ProductWorkspaceState? state = productWorkspaceSession.State;
-        bool creatingFirstConfiguration =
-            productWorkspaceSession.Status ==
-                ProductWorkspaceSessionStatus.NoSavedConfiguration
-            && currentConfigurationLoadResult?.Status ==
-                ProductConfigurationLoadStatus.Missing;
-        if (creatingFirstConfiguration)
-        {
-            state = ProductWorkspaceConfigurationResolver.Resolve(
-                ProductConfigurationDefaults.CreateEmpty(),
-                Array.Empty<DesktopCatalogEntry>()).State;
-        }
-        if (state is null
-            || (productWorkspaceSession.IsReadOnly && !creatingFirstConfiguration))
-        {
-            return null;
-        }
-        return StampAuthoritativeDisplayTopology(state);
+        ProductWorkspaceState? state = ProductWorkspaceCreateAdmission.Resolve(
+            productWorkspaceSession, currentConfigurationLoadResult?.Status);
+        return state is null ? null : StampAuthoritativeDisplayTopology(state);
     }
 
     private void CancelDesktopWorkspaceCreatePreviewIfHostUnavailable(
@@ -4107,7 +4082,7 @@ public partial class App : Application
                 preview.ContainerName,
                 requestedDisplayId: null,
                 requestedBoundsPixels: null);
-        if (state is null || container is null || productWorkspaceSession.IsReadOnly)
+        if (state is null || container is null)
         {
             return new(
                 ProductQuickStartCommitStatus.InvalidRequest,
