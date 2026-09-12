@@ -6,17 +6,31 @@ public enum ProductDesktopInteractionFeatureStatus
     DisabledByInteractionSafetyPolicy,
     DisabledByEmergencyPolicy,
     EnabledForDevelopment,
+    EnabledForProduct,
 }
 
 public sealed record ProductDesktopInteractionFeatureDecision(
     ProductDesktopInteractionFeatureStatus Status)
 {
     public bool IsEnabled =>
-        Status == ProductDesktopInteractionFeatureStatus.EnabledForDevelopment;
+        Status is ProductDesktopInteractionFeatureStatus.EnabledForDevelopment
+            or ProductDesktopInteractionFeatureStatus.EnabledForProduct;
 }
 
 public static class ProductDesktopInteractionFeaturePolicy
 {
+    public static ProductDesktopInteractionFeatureDecision EvaluateForProduct(
+        ProductDesktopHostFeatureDecision desktopHost,
+        string? legacyValue,
+        string? emergencyDisableValue = null)
+    {
+        ArgumentNullException.ThrowIfNull(desktopHost);
+        return desktopHost.IsEnabled && legacyValue is null
+            && !string.Equals(emergencyDisableValue, "1", StringComparison.Ordinal)
+            ? new(ProductDesktopInteractionFeatureStatus.EnabledForProduct)
+            : Evaluate(desktopHost, legacyValue, emergencyDisableValue);
+    }
+
     public const string EnvironmentVariableName =
         "LONGGRID_ENABLE_DESKTOP_INTERACTION";
     public const string EmergencyDisableEnvironmentVariableName =

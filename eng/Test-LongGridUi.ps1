@@ -2191,7 +2191,7 @@ function Test-SourceContract {
             $appCode,
             'ProductDesktopInteractionDevelopmentController\s+\r?\n?\s*productDesktopInteraction')).Count -eq 1 -and
         $appCode -match `
-            'ProductDesktopInteractionFeaturePolicy\.Evaluate' -and
+            'ProductDesktopInteractionFeaturePolicy\.EvaluateForProduct\(' -and
         $appCode -match `
             'EmergencyDisableEnvironmentVariableName' -and
         $appCode -match `
@@ -2292,7 +2292,7 @@ function Test-SourceContract {
         $desktopHostLifecycleControllerCode -match `
             'intentPreparation\?\.Complete' -and
         $appCode -match `
-            'ProductDesktopInteractionIntentBridgePolicy\.Evaluate' -and
+            'ProductDesktopInteractionIntentBridgePolicy\.EvaluateForProduct\(' -and
         $appCode -match `
             'ProductDesktopInteractionIntentPreparationBridge' -and
         -not ($appCode -match `
@@ -2341,7 +2341,7 @@ function Test-SourceContract {
         $desktopHostLifecycleControllerCode -match `
             'inputForwarding\.Complete' -and
         $appCode -match `
-            'ProductDesktopInteractionInputForwardingPolicy\.Evaluate' -and
+            'ProductDesktopInteractionInputForwardingPolicy\.EvaluateForProduct\(' -and
         $appCode -match `
             'ProductDesktopInteractionInputForwardingAdapter' -and
         -not ($appCode -match 'ForwardInteractionInput') -and

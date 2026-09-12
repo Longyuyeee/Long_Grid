@@ -160,7 +160,7 @@ public partial class App : Application
                     ProductDesktopHostFeaturePolicy
                         .EmergencyDisableEnvironmentVariableName));
         ProductDesktopInteractionFeatureDecision interactionFeature =
-            ProductDesktopInteractionFeaturePolicy.Evaluate(
+            ProductDesktopInteractionFeaturePolicy.EvaluateForProduct(
                 desktopHostFeature,
                 Environment.GetEnvironmentVariable(
                     ProductDesktopInteractionFeaturePolicy
@@ -170,7 +170,7 @@ public partial class App : Application
                         .EmergencyDisableEnvironmentVariableName));
         productDesktopInteraction = new(interactionFeature);
         ProductDesktopInteractionIntentBridgeFeatureDecision intentBridgeFeature =
-            ProductDesktopInteractionIntentBridgePolicy.Evaluate(
+            ProductDesktopInteractionIntentBridgePolicy.EvaluateForProduct(
                 interactionFeature,
                 Environment.GetEnvironmentVariable(
                     ProductDesktopInteractionIntentBridgePolicy
@@ -183,7 +183,7 @@ public partial class App : Application
                 intentBridgeFeature);
         ProductDesktopInteractionInputForwardingFeatureDecision
             inputForwardingFeature =
-                ProductDesktopInteractionInputForwardingPolicy.Evaluate(
+                ProductDesktopInteractionInputForwardingPolicy.EvaluateForProduct(
                     intentBridgeFeature,
                     Environment.GetEnvironmentVariable(
                         ProductDesktopInteractionInputForwardingPolicy
