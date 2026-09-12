@@ -4621,10 +4621,10 @@ public sealed partial class MainWindow : Window
     }
 
     internal void ApplyProductQuickStartSaveRollbackState(
-        ProductWorkspaceSaveFailure failure,
-        long revision)
+        ProductWorkspaceSaveSnapshot snapshot)
     {
-        ApplyProductWorkspaceCreateSaveRollbackState(failure, revision);
+        // Compensation is itself a save: preserve its current failure/retry controls.
+        ApplyProductWorkspaceSaveState(snapshot);
         OrganizationPreviewStatus.Text =
             "首次整理保存失败，已撤回本次方格和引用；原始文件未改变，请重新预览后重试。";
         AutomationProperties.SetItemStatus(OrganizationPreviewStatus,

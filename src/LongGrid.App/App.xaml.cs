@@ -4433,15 +4433,16 @@ public partial class App : Application
         MainWindow currentWindow,
         ProductWorkspaceSaveSnapshot snapshot)
     {
-        ProductWorkspaceSaveSnapshot quickStartSaveSnapshot = productWorkspaceSaves.Snapshot;
+        // Dispatcher notifications may arrive after a retry or a newer edit completed.
+        snapshot = productWorkspaceSaves.Snapshot;
         ProductWorkspaceReferenceBatchAdditionUndoCommitResult? quickStartRollback =
-            quickStartSaveCompensation.Observe(productWorkspaceSession.State, quickStartSaveSnapshot, workspaceCommits);
+            quickStartSaveCompensation.Observe(productWorkspaceSession.State, snapshot, workspaceCommits);
         if (quickStartRollback?.IsAccepted == true)
         {
             pendingFirstRunCompletionSaveRevision = null;
             ApplyAcceptedProductWorkspaceDocument(quickStartRollback.Document!, productDesktopCatalog.Snapshot);
             currentWindow.ApplyProductQuickStartSaveRollbackState(
-                quickStartSaveSnapshot.Failure, productWorkspaceSaves.Snapshot.CurrentRevision);
+                productWorkspaceSaves.Snapshot);
             return;
         }
 

@@ -150,13 +150,15 @@ public sealed class ProductQuickStartSuggestionTests
         Assert.Equal("不可修改", await File.ReadAllTextAsync(file));
     }
 
-    [Fact]
-    public async Task FailedSaveCompensatesWholeQuickStartWithoutChangingFiles()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task FailedSaveCompensatesWholeQuickStartWithoutChangingFiles(int failures)
     {
         using var sandbox = new TemporaryDirectory();
         string file = CreateFile(sandbox.Path, "真实项目.txt", "补偿后保持");
         string before = Hash(file);
-        var workflow = new FailOnceWorkflow();
+        var workflow = new FailOnceWorkflow(failures);
         await using var saves = new ProductWorkspaceSaveController(
             workflow, new ImmediateScheduler(), TimeSpan.FromMilliseconds(1));
         var commits = new ProductWorkspaceCommitCoordinator(saves);
@@ -176,12 +178,22 @@ public sealed class ProductQuickStartSuggestionTests
             ProductWorkspaceReferenceBatchAdditionUndoCommitResult>(
                 observer.Observe(committed.State!, failed, commits));
         Assert.Null(observer.Observe(committed.State!, failed, commits));
+        if (failures == 2)
+        {
+            await WaitForStatusAsync(saves, ProductWorkspaceSaveStatus.Failed);
+            Assert.True(saves.Snapshot.CanRetry);
+            Assert.Equal(2, saves.Snapshot.CurrentRevision);
+            Assert.Null(observer.Observe(compensated.State!, saves.Snapshot, commits));
+            Assert.Equal(ProductWorkspaceSaveRetryStatus.Accepted, saves.Retry().Status);
+        }
         await saves.CompleteAsync();
 
         Assert.True(compensated.IsAccepted);
         Assert.Empty(compensated.State!.Containers);
         Assert.Empty(commits.GetSessionHistorySnapshot(compensated.State).Items);
-        Assert.Equal(2, workflow.SaveCalls);
+        Assert.Equal(failures + 1, workflow.SaveCalls);
+        Assert.Equal(ProductWorkspaceSaveStatus.Saved, saves.Snapshot.Status);
+        Assert.Equal(2, saves.Snapshot.SavedRevision);
         Assert.Equal(before, Hash(file));
     }
 
@@ -297,7 +309,7 @@ public sealed class ProductQuickStartSuggestionTests
                 ProductConfigurationSaveAttemptStatus.Saved, null, false));
         }
         protected void Count() => Interlocked.Increment(ref calls);
-        public Task<ProductConfigurationSaveAttemptResult> RetryAsync(
+        public virtual Task<ProductConfigurationSaveAttemptResult> RetryAsync(
             CancellationToken cancellationToken = default) => Task.FromResult(
                 new ProductConfigurationSaveAttemptResult(
                     ProductConfigurationSaveAttemptStatus.NoRetryAvailable, null, false));
@@ -308,12 +320,24 @@ public sealed class ProductQuickStartSuggestionTests
 
     private sealed class FailOnceWorkflow : CountingWorkflow
     {
+        private readonly int failures;
+
+        public FailOnceWorkflow(int failures = 1) => this.failures = failures;
+
+        public override Task<ProductConfigurationSaveAttemptResult> RetryAsync(
+            CancellationToken cancellationToken = default)
+        {
+            Count();
+            return Task.FromResult(new ProductConfigurationSaveAttemptResult(
+                ProductConfigurationSaveAttemptStatus.Saved, null, false));
+        }
+
         public override Task<ProductConfigurationSaveAttemptResult> SaveAsync(
             ProductConfigurationDocument document,
             CancellationToken cancellationToken = default)
         {
             Count();
-            return Task.FromResult(SaveCalls == 1
+            return Task.FromResult(SaveCalls <= failures
                 ? new ProductConfigurationSaveAttemptResult(
                     ProductConfigurationSaveAttemptStatus.Failed,
                     ProductConfigurationSaveError.IoFailure, true)
