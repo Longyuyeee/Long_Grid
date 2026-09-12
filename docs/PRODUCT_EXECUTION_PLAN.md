@@ -6,7 +6,7 @@
 
 更新日期：2026-09-12
 
-代码审计输入基线：PF-020B1 核心事务已合入 `origin/main@a9e378c`，规则生命周期复用统一保存与历史；合并后 CI/CodeQL、全量完成度、未关闭证据与唯一接续点见 [Stage 273](273-current-development-status-and-continuation-audit.md)，换电脑接续手册见 [Stage 251](251-current-development-computer-handoff.md)
+历史工程基线：PF-020B1 核心事务已合入 `origin/main@a9e378c`，历史检查见 [Stage 273](273-current-development-status-and-continuation-audit.md)。2026-09-12 复核输入为 `main@5181ade`，当前缺陷与唯一接续点以第 9 节为准，已经暂停该历史快照的 PF-020B 顺序。换电脑环境手册见 [Stage 251](251-current-development-computer-handoff.md)。
 
 界面参考基线：`Longyuyeee/long_Decompress@0362211af9f93e64149cf5574ad03cf3e4f7c2b6`
 
@@ -274,6 +274,7 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 - **已确认缺陷**：`NoSavedConfiguration` 会话为只读但允许首建；Quick Start 预览使用首建例外，提交却再次以原会话只读状态拒绝。现将普通创建、桌面创建和 Quick Start 的状态准入统一到 App 的 `ProductWorkspaceCreateAdmission`，移除 Quick Start 重复拦截；恢复备份、安全模式和未加载仍不准入。
 - **验证范围**：新增测试链接实际 App 准入源码；真实缺失配置 → 首次建议 → 提交 → 保存 → 重载恢复 Ready，并确认真实文件内容不变。它覆盖准入与持久化，不是 WinUI 点击验收；不得据此宣称“所有无法创建已修复”。
 - **默认交互缺口**：桌面内容命中/选择依赖显式交互事务，而其激活链仍有开发环境开关；标题操作有独立处理器，不能笼统声称所有操作禁用。下一步必须先确认正式用户如何进入/退出显式交互，再修入口及对应回归，不得直接全开实验开关。
+- **接续代码定位**：`App` 构造函数依次读取 Interaction、IntentBridge、InputForwarding 的启用/人工会话环境变量；默认均无值。`ProductDesktopHostLifecycleController.EnsureSurface` 仅在输入桥和消费控制器启用时创建 `ProductDesktopInteractionActivationSource`，因此默认启动没有该显式激活按钮。修复须覆盖默认组合入口、激活/ESC 退出、锁定/失焦/Explorer 切换与保存恢复，不得只改测试传入的 enabled decision。当前切片没有改动这些门禁，不能宣称已修复“无法操作”。
 - **闪退未定因**：本机 Runtime 预检返回 `BlockedByIncompleteRuntime`，存在 Framework 2.4.0.0 / XAML 3.2.3.0 已知风险组合，Main.2/DDLM 组件不完整；普通启动脚本并不执行此预检。没有本次产品崩溃堆栈，不能把环境风险冒充已复现根因，更不能标记已修复。后续需要隔离配置的启动日志/崩溃证据，禁止动用户配置或关闭异常掩盖故障。
 - **执行偏移**：Stage 273 的“继续规则 UI”顺序被本节取代。三根支柱未形成默认启动的可操作闭环前，不再推进 PF-020B；此前 EngineeringComplete 仅代表局部实现，不构成整项可用承诺。M1/M2 仍未完成。
 - **本切片实测**：首启/Quick Start 专项 15/15；完整 Release 测试 1,488/1,488（18 秒），App Release 构建 0 warning / 0 error；格式检查和 205-ID UI 合同通过。文档新鲜度初测发现 README 遗漏换机门禁索引，已补回 Runtime/#23/#274/Stage 216 并重跑。物理鼠标、键盘、安装右键和闪退复现仍待验证。
