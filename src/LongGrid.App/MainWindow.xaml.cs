@@ -3170,11 +3170,14 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private readonly ProductFolderPickerOperation productFolderPicker = new();
+
     private async void ProductWorkspaceFolderBindButton_Click(
         object sender,
         RoutedEventArgs e)
     {
-        if (ProductWorkspaceContainerEditSelector.SelectedItem is not
+        if (productFolderPicker.IsActive
+            || ProductWorkspaceContainerEditSelector.SelectedItem is not
                 ProductWorkspaceContainerEditCandidatePresentation selected
             || selected.IsLocked
             || !_containerEditor.CanUpdateFolderBinding)
@@ -3187,15 +3190,29 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetItemStatus(
             ProductWorkspaceFolderBindingStatus,
             "FolderBindingPickerOpen:Changed=False:DesktopFilesChanged=False");
-        var picker = new FolderPicker
+        ProductFolderPickerResult selection = await productFolderPicker.PickAsync(async () =>
         {
-            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
-        };
-        picker.FileTypeFilter.Add("*");
-        nint windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, windowHandle);
-        StorageFolder? folder = await picker.PickSingleFolderAsync();
-        if (folder is null)
+            var picker = new FolderPicker
+            {
+                SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+            };
+            picker.FileTypeFilter.Add("*");
+            nint windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, windowHandle);
+            StorageFolder? folder = await picker.PickSingleFolderAsync();
+            return folder?.Path;
+        });
+        if (selection.Status == ProductFolderPickerStatus.Busy) return;
+        if (selection.Status == ProductFolderPickerStatus.Unavailable)
+        {
+            ProductWorkspaceFolderBindingStatus.Text =
+                "系统文件夹选择器暂时不可用，请稍后重试；绑定配置和用户文件均未改变。";
+            AutomationProperties.SetItemStatus(
+                ProductWorkspaceFolderBindingStatus,
+                "FolderBindingPickerUnavailable:Changed=False:DesktopFilesChanged=False");
+            return;
+        }
+        if (selection.Status == ProductFolderPickerStatus.Cancelled)
         {
             ProductWorkspaceFolderBindingStatus.Text =
                 "已取消文件夹选择；绑定配置和用户文件均未改变。";
@@ -3207,7 +3224,7 @@ public sealed partial class MainWindow : Window
         }
 
         ProductContainerFolderBindingProbeResult probe =
-            WindowsProductContainerFolderBinding.Probe(folder.Path);
+            WindowsProductContainerFolderBinding.Probe(selection.Path!);
         if (!probe.IsSuccess)
         {
             ProductWorkspaceFolderBindingStatus.Text = probe.Error switch
@@ -4603,21 +4620,35 @@ public sealed partial class MainWindow : Window
             automationStatus);
     }
 
+    internal void ApplyProductQuickStartSaveRollbackState(
+        ProductWorkspaceSaveSnapshot snapshot)
+    {
+        // Compensation is itself a save: preserve its current failure/retry controls.
+        ApplyProductWorkspaceSaveState(snapshot);
+        OrganizationPreviewStatus.Text =
+            "首次整理保存失败，已撤回本次方格和引用；原始文件未改变，请重新预览后重试。";
+        AutomationProperties.SetItemStatus(OrganizationPreviewStatus,
+            "QuickStartSaveRolledBack:DesktopFilesChanged=False");
+    }
+
     internal void ApplyProductWorkspaceCreateSaveRollbackState(
         ProductWorkspaceSaveFailure failure,
-        long rollbackRevision)
+        ProductWorkspaceSaveSnapshot snapshot)
     {
+        ApplyProductWorkspaceSaveState(snapshot);
+        if (snapshot.Status is not (ProductWorkspaceSaveStatus.WaitingForDebounce
+            or ProductWorkspaceSaveStatus.Saving))
+        {
+            return;
+        }
+
         ProductSaveStatusTitle.Text = "新方格未保存，已撤回";
         ProductSaveStatusDetail.Text =
             "创建结果未能安全写入配置，桌面投影已撤回；正在保存撤回后的安全状态。";
         ProductSaveStatusIcon.Symbol = Symbol.Important;
-        ProductSaveRetryButton.Visibility = Visibility.Collapsed;
-        ProductSaveRetryButton.IsEnabled = false;
-        ImportConfigurationButton.IsEnabled = false;
-        ExportConfigurationButton.IsEnabled = false;
         AutomationProperties.SetItemStatus(
             ProductSaveStatusDetail,
-            $"WorkspaceCreateRolledBack:{failure}:Revision={rollbackRevision}:Motion=Static");
+            $"WorkspaceCreateRolledBack:{failure}:Revision={snapshot.CurrentRevision}:Motion=Static");
     }
 
     private static (

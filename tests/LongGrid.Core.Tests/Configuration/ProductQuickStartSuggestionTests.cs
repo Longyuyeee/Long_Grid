@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using LongGrid.App;
 using LongGrid.Core.Configuration;
 using LongGrid.Core.DesktopItems;
 using LongGrid.Infrastructure.Configuration;
@@ -68,7 +69,13 @@ public sealed class ProductQuickStartSuggestionTests
         await using var saves = new ProductWorkspaceSaveController(
             workflow, new ImmediateScheduler(), TimeSpan.FromMilliseconds(1));
         var commits = new ProductWorkspaceCommitCoordinator(saves);
-        ProductWorkspaceState empty = EmptyState();
+        ProductConfigurationLoadResult initialLoad = await store.LoadAsync();
+        Assert.Equal(ProductConfigurationLoadStatus.Missing, initialLoad.Status);
+        ProductWorkspaceSessionSnapshot initialSession = ProductWorkspaceSessionLoader.Load(
+            initialLoad, ProductWorkspaceCatalogSnapshot.Available(catalog));
+        Assert.True(initialSession.IsReadOnly);
+        ProductWorkspaceState empty = Assert.IsType<ProductWorkspaceState>(
+            ProductWorkspaceCreateAdmission.Resolve(initialSession, initialLoad.Status));
         long revision = commits.AdvanceExternalRevision();
         ProductQuickStartSuggestionSnapshot preview =
             ProductQuickStartSuggestionPlanner.Create(empty, revision, 9, true, catalog);
@@ -83,6 +90,11 @@ public sealed class ProductQuickStartSuggestionTests
         ProductConfigurationLoadResult persisted = await store.LoadAsync();
         Assert.Equal(ProductConfigurationLoadStatus.LoadedPrimary, persisted.Status);
         Assert.Equal(2, persisted.Document!.Containers[0].Items.Count);
+        ProductWorkspaceSessionSnapshot restarted = ProductWorkspaceSessionLoader.Load(
+            persisted, ProductWorkspaceCatalogSnapshot.Available(catalog));
+        Assert.Equal(ProductWorkspaceSessionStatus.Ready, restarted.Status);
+        Assert.False(restarted.IsReadOnly);
+        Assert.Equal(2, restarted.State!.Containers[0].Items.Count);
         ProductWorkspaceSessionHistorySnapshot history =
             commits.GetSessionHistorySnapshot(committed.State);
         Assert.Single(history.Items);
@@ -138,13 +150,15 @@ public sealed class ProductQuickStartSuggestionTests
         Assert.Equal("不可修改", await File.ReadAllTextAsync(file));
     }
 
-    [Fact]
-    public async Task FailedSaveCompensatesWholeQuickStartWithoutChangingFiles()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task FailedSaveCompensatesWholeQuickStartWithoutChangingFiles(int failures)
     {
         using var sandbox = new TemporaryDirectory();
         string file = CreateFile(sandbox.Path, "真实项目.txt", "补偿后保持");
         string before = Hash(file);
-        var workflow = new FailOnceWorkflow();
+        var workflow = new FailOnceWorkflow(failures);
         await using var saves = new ProductWorkspaceSaveController(
             workflow, new ImmediateScheduler(), TimeSpan.FromMilliseconds(1));
         var commits = new ProductWorkspaceCommitCoordinator(saves);
@@ -155,18 +169,73 @@ public sealed class ProductQuickStartSuggestionTests
             ProductQuickStartSuggestionPlanner.Create(empty, revision, 5, true, catalog);
         ProductQuickStartCommitResult committed = commits.CommitQuickStart(
             empty, 5, catalog, new(preview, Container("quick", "桌面项目")));
+        var observer = new ProductQuickStartSaveCompensation();
+        observer.Track(committed, saves.Snapshot.CurrentRevision);
         await WaitForStatusAsync(saves, ProductWorkspaceSaveStatus.Failed);
 
-        ProductWorkspaceReferenceBatchAdditionUndoCommitResult compensated =
-            commits.CommitReferenceBatchAdditionUndo(
-                committed.State!, committed.CompensationToken!, true);
+        ProductWorkspaceSaveSnapshot failed = saves.Snapshot;
+        ProductWorkspaceReferenceBatchAdditionUndoCommitResult compensated = Assert.IsType<
+            ProductWorkspaceReferenceBatchAdditionUndoCommitResult>(
+                observer.Observe(committed.State!, failed, commits));
+        Assert.Null(observer.Observe(committed.State!, failed, commits));
+        if (failures == 2)
+        {
+            await WaitForStatusAsync(saves, ProductWorkspaceSaveStatus.Failed);
+            Assert.True(saves.Snapshot.CanRetry);
+            Assert.Equal(2, saves.Snapshot.CurrentRevision);
+            Assert.Null(observer.Observe(compensated.State!, saves.Snapshot, commits));
+            Assert.Equal(ProductWorkspaceSaveRetryStatus.Accepted, saves.Retry().Status);
+        }
         await saves.CompleteAsync();
 
         Assert.True(compensated.IsAccepted);
         Assert.Empty(compensated.State!.Containers);
         Assert.Empty(commits.GetSessionHistorySnapshot(compensated.State).Items);
-        Assert.Equal(2, workflow.SaveCalls);
+        Assert.Equal(failures + 1, workflow.SaveCalls);
+        Assert.Equal(ProductWorkspaceSaveStatus.Saved, saves.Snapshot.Status);
+        Assert.Equal(2, saves.Snapshot.SavedRevision);
         Assert.Equal(before, Hash(file));
+    }
+
+    [Theory]
+    [InlineData("edit")]
+    [InlineData("save")]
+    [InlineData("saved")]
+    public async Task ObsoleteOrSavedQuickStartIsNeverCompensated(string transition)
+    {
+        using var sandbox = new TemporaryDirectory();
+        string file = CreateFile(sandbox.Path, "保留.txt", "内容不变");
+        var workflow = new FailOnceWorkflow();
+        await using var saves = new ProductWorkspaceSaveController(
+            workflow, new ImmediateScheduler(), TimeSpan.FromMilliseconds(1));
+        var commits = new ProductWorkspaceCommitCoordinator(saves);
+        ProductWorkspaceState empty = EmptyState();
+        var catalog = Catalog(file);
+        var preview = ProductQuickStartSuggestionPlanner.Create(
+            empty, commits.AdvanceExternalRevision(), 1, true, catalog);
+        var committed = commits.CommitQuickStart(empty, 1, catalog,
+            new(preview, Container("quick", "桌面项目")));
+        var observer = new ProductQuickStartSaveCompensation();
+        observer.Track(committed, saves.Snapshot.CurrentRevision);
+        await WaitForStatusAsync(saves, ProductWorkspaceSaveStatus.Failed);
+        var failure = saves.Snapshot;
+        var notification = failure;
+        if (transition == "edit") commits.AdvanceExternalRevision();
+        if (transition == "save") notification = failure with { CurrentRevision = failure.CurrentRevision + 1 };
+        if (transition == "saved") notification = failure with
+        {
+            Status = ProductWorkspaceSaveStatus.Saved,
+            SavedRevision = failure.CurrentRevision,
+        };
+        Assert.Null(observer.Observe(committed.State, notification, commits));
+        Assert.Null(observer.Observe(committed.State, failure, commits));
+        Assert.Equal(1, workflow.SaveCalls);
+        Assert.Single(committed.State!.Containers);
+        // Close the deliberately failed fake workflow without discarding its pending state.
+        saves.Submit(new(ProductWorkspaceEditError.None,
+            ProductWorkspaceProjectionError.None, ProductConfigurationError.None,
+            committed.State, Changed: true));
+        await WaitForStatusAsync(saves, ProductWorkspaceSaveStatus.Saved);
     }
 
     private static ProductWorkspaceState EmptyState() => new()
@@ -240,7 +309,7 @@ public sealed class ProductQuickStartSuggestionTests
                 ProductConfigurationSaveAttemptStatus.Saved, null, false));
         }
         protected void Count() => Interlocked.Increment(ref calls);
-        public Task<ProductConfigurationSaveAttemptResult> RetryAsync(
+        public virtual Task<ProductConfigurationSaveAttemptResult> RetryAsync(
             CancellationToken cancellationToken = default) => Task.FromResult(
                 new ProductConfigurationSaveAttemptResult(
                     ProductConfigurationSaveAttemptStatus.NoRetryAvailable, null, false));
@@ -251,12 +320,24 @@ public sealed class ProductQuickStartSuggestionTests
 
     private sealed class FailOnceWorkflow : CountingWorkflow
     {
+        private readonly int failures;
+
+        public FailOnceWorkflow(int failures = 1) => this.failures = failures;
+
+        public override Task<ProductConfigurationSaveAttemptResult> RetryAsync(
+            CancellationToken cancellationToken = default)
+        {
+            Count();
+            return Task.FromResult(new ProductConfigurationSaveAttemptResult(
+                ProductConfigurationSaveAttemptStatus.Saved, null, false));
+        }
+
         public override Task<ProductConfigurationSaveAttemptResult> SaveAsync(
             ProductConfigurationDocument document,
             CancellationToken cancellationToken = default)
         {
             Count();
-            return Task.FromResult(SaveCalls == 1
+            return Task.FromResult(SaveCalls <= failures
                 ? new ProductConfigurationSaveAttemptResult(
                     ProductConfigurationSaveAttemptStatus.Failed,
                     ProductConfigurationSaveError.IoFailure, true)

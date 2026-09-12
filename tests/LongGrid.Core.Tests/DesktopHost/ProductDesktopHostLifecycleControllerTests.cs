@@ -467,6 +467,30 @@ public sealed class ProductDesktopHostLifecycleControllerTests
     }
 
     [Fact]
+    public async Task WindowsProductDefaultsPublishRealPassiveActivationEntry()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var host = ProductDesktopHostFeaturePolicy.Evaluate(null);
+        var feature = ProductDesktopInteractionFeaturePolicy.EvaluateForProduct(host, null);
+        var bridgeFeature = ProductDesktopInteractionIntentBridgePolicy.EvaluateForProduct(feature, null, null);
+        var forwardingFeature = ProductDesktopInteractionInputForwardingPolicy.EvaluateForProduct(bridgeFeature, null, null);
+        var interaction = new ProductDesktopInteractionDevelopmentController(feature);
+        var bridge = new ProductDesktopInteractionIntentPreparationBridge(bridgeFeature);
+        var forwarding = new ProductDesktopInteractionInputForwardingAdapter(forwardingFeature, bridge);
+        var consumption = new ProductDesktopInteractionIntentConsumptionController(feature, forwardingFeature, bridge);
+        await using var controller = new ProductDesktopHostLifecycleController(
+            host, interaction, bridge, forwarding, consumption);
+
+        var ready = controller.ApplyProjectionBatch(CreateBatch());
+
+        Assert.Equal(ProductDesktopHostLifecycleStatus.ReadyReadOnly, ready.Status);
+        Assert.True(ready.PassiveWindowContractAttested);
+        Assert.True(controller.CanRequestKeyboardInteraction);
+        Assert.False(ready.ExplicitInteractionActive);
+        Assert.True(interaction.Snapshot.Surface!.IsPassiveContract);
+    }
+
+    [Fact]
     public async Task WindowsDoubleOptInAttestsHiddenRegionBeforePassivePublish()
     {
         if (!OperatingSystem.IsWindows())
@@ -710,36 +734,34 @@ public sealed class ProductDesktopHostLifecycleControllerTests
             bridge.Snapshot.Status);
     }
 
-    [Fact]
-    public async Task PreparedInputIsConsumedOnceIntoExplicitSelectionAndCancelled()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PreparedInputIsConsumedOnceIntoExplicitSelectionAndCancelled(bool productDefaults)
     {
         var factory = new RecordingSurfaceFactory();
         ProductDesktopHostFeatureDecision host =
             ProductDesktopHostFeaturePolicy.Evaluate("1");
-        ProductDesktopInteractionFeatureDecision interactionFeature =
-            ProductDesktopInteractionFeaturePolicy.Evaluate(host, "1");
+        ProductDesktopInteractionFeatureDecision interactionFeature = productDefaults
+            ? ProductDesktopInteractionFeaturePolicy.EvaluateForProduct(host, null)
+            : ProductDesktopInteractionFeaturePolicy.Evaluate(host, "1");
         var interaction = new ProductDesktopInteractionDevelopmentController(
             interactionFeature);
-        ProductDesktopInteractionIntentBridgeFeatureDecision bridgeFeature =
-            ProductDesktopInteractionIntentBridgePolicy.Evaluate(
-                interactionFeature,
-                "1",
-                "1");
+        ProductDesktopInteractionIntentBridgeFeatureDecision bridgeFeature = productDefaults
+            ? ProductDesktopInteractionIntentBridgePolicy.EvaluateForProduct(interactionFeature, null, null)
+            : ProductDesktopInteractionIntentBridgePolicy.Evaluate(interactionFeature, "1", "1");
+        ProductDesktopInteractionInputForwardingFeatureDecision forwardingFeature = productDefaults
+            ? ProductDesktopInteractionInputForwardingPolicy.EvaluateForProduct(bridgeFeature, null, null)
+            : ProductDesktopInteractionInputForwardingPolicy.Evaluate(bridgeFeature, "1", "1");
         var bridge = new ProductDesktopInteractionIntentPreparationBridge(
             bridgeFeature);
         var forwarding = new ProductDesktopInteractionInputForwardingAdapter(
-            ProductDesktopInteractionInputForwardingPolicy.Evaluate(
-                bridgeFeature,
-                "1",
-                "1"),
+            forwardingFeature,
             bridge);
         var consumption =
             new ProductDesktopInteractionIntentConsumptionController(
                 interactionFeature,
-                ProductDesktopInteractionInputForwardingPolicy.Evaluate(
-                    bridgeFeature,
-                    "1",
-                    "1"),
+                forwardingFeature,
                 bridge);
         var activationFactory = new RecordingActivationSourceFactory();
         var controller = new ProductDesktopHostLifecycleController(

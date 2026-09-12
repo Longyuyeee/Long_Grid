@@ -6,18 +6,32 @@ public enum ProductDesktopInteractionInputForwardingFeatureStatus
     DisabledByInputForwardingPolicy,
     DisabledByManualSessionPolicy,
     EnabledForControlledManualSession,
+    EnabledForProduct,
 }
 
 public sealed record ProductDesktopInteractionInputForwardingFeatureDecision(
     ProductDesktopInteractionInputForwardingFeatureStatus Status)
 {
     public bool IsEnabled =>
-        Status == ProductDesktopInteractionInputForwardingFeatureStatus
-            .EnabledForControlledManualSession;
+        Status is ProductDesktopInteractionInputForwardingFeatureStatus
+            .EnabledForControlledManualSession
+            or ProductDesktopInteractionInputForwardingFeatureStatus.EnabledForProduct;
 }
 
 public static class ProductDesktopInteractionInputForwardingPolicy
 {
+    public static ProductDesktopInteractionInputForwardingFeatureDecision EvaluateForProduct(
+        ProductDesktopInteractionIntentBridgeFeatureDecision intentBridge,
+        string? forwardingValue,
+        string? manualSessionValue)
+    {
+        ArgumentNullException.ThrowIfNull(intentBridge);
+        return intentBridge.Status == ProductDesktopInteractionIntentBridgeFeatureStatus.EnabledForProduct
+            && forwardingValue is null && manualSessionValue is null
+            ? new(ProductDesktopInteractionInputForwardingFeatureStatus.EnabledForProduct)
+            : Evaluate(intentBridge, forwardingValue, manualSessionValue);
+    }
+
     public const string EnvironmentVariableName =
         "LONGGRID_ENABLE_DESKTOP_INPUT_FORWARDING";
     public const string ManualSessionEnvironmentVariableName =

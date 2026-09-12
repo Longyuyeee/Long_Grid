@@ -62,6 +62,7 @@ public partial class App : Application
     private PendingControlCenterContainerEdit? pendingControlCenterContainerEdit;
     private PendingSessionHistorySave? pendingSessionHistorySave;
     private long? pendingFirstRunCompletionSaveRevision;
+    private readonly ProductQuickStartSaveCompensation quickStartSaveCompensation = new();
     private MainWindow? window;
     private bool closeAfterDrain;
     private bool closingDrainInProgress;
@@ -160,7 +161,7 @@ public partial class App : Application
                     ProductDesktopHostFeaturePolicy
                         .EmergencyDisableEnvironmentVariableName));
         ProductDesktopInteractionFeatureDecision interactionFeature =
-            ProductDesktopInteractionFeaturePolicy.Evaluate(
+            ProductDesktopInteractionFeaturePolicy.EvaluateForProduct(
                 desktopHostFeature,
                 Environment.GetEnvironmentVariable(
                     ProductDesktopInteractionFeaturePolicy
@@ -170,7 +171,7 @@ public partial class App : Application
                         .EmergencyDisableEnvironmentVariableName));
         productDesktopInteraction = new(interactionFeature);
         ProductDesktopInteractionIntentBridgeFeatureDecision intentBridgeFeature =
-            ProductDesktopInteractionIntentBridgePolicy.Evaluate(
+            ProductDesktopInteractionIntentBridgePolicy.EvaluateForProduct(
                 interactionFeature,
                 Environment.GetEnvironmentVariable(
                     ProductDesktopInteractionIntentBridgePolicy
@@ -183,7 +184,7 @@ public partial class App : Application
                 intentBridgeFeature);
         ProductDesktopInteractionInputForwardingFeatureDecision
             inputForwardingFeature =
-                ProductDesktopInteractionInputForwardingPolicy.Evaluate(
+                ProductDesktopInteractionInputForwardingPolicy.EvaluateForProduct(
                     intentBridgeFeature,
                     Environment.GetEnvironmentVariable(
                         ProductDesktopInteractionInputForwardingPolicy
@@ -2719,27 +2720,17 @@ public partial class App : Application
             ProductContainerContentDensity? contentDensity = null,
             int itemOrdinal = 0)
     {
-        ProductWorkspaceState? state = productWorkspaceSession.State;
-        bool creatingFirstConfiguration =
-            action == ProductWorkspaceContainerCommitAction.Create
-            && productWorkspaceSession.Status ==
-                ProductWorkspaceSessionStatus.NoSavedConfiguration
-            && currentConfigurationLoadResult?.Status ==
-                ProductConfigurationLoadStatus.Missing;
-        if (creatingFirstConfiguration)
-        {
-            state = ProductWorkspaceConfigurationResolver.Resolve(
-                ProductConfigurationDefaults.CreateEmpty(),
-                Array.Empty<DesktopCatalogEntry>()).State;
-        }
+        ProductWorkspaceState? state = action == ProductWorkspaceContainerCommitAction.Create
+            ? ProductWorkspaceCreateAdmission.Resolve(
+                productWorkspaceSession, currentConfigurationLoadResult?.Status)
+            : productWorkspaceSession.IsReadOnly ? null : productWorkspaceSession.State;
 
         if (state is not null)
         {
             state = StampAuthoritativeDisplayTopology(state);
         }
 
-        if (state is null
-            || (productWorkspaceSession.IsReadOnly && !creatingFirstConfiguration))
+        if (state is null)
         {
             return new(
                 ProductWorkspaceContainerCommitStatus.InvalidRequest,
@@ -3636,24 +3627,9 @@ public partial class App : Application
 
     private ProductWorkspaceState? ResolveDesktopWorkspaceCreateState()
     {
-        ProductWorkspaceState? state = productWorkspaceSession.State;
-        bool creatingFirstConfiguration =
-            productWorkspaceSession.Status ==
-                ProductWorkspaceSessionStatus.NoSavedConfiguration
-            && currentConfigurationLoadResult?.Status ==
-                ProductConfigurationLoadStatus.Missing;
-        if (creatingFirstConfiguration)
-        {
-            state = ProductWorkspaceConfigurationResolver.Resolve(
-                ProductConfigurationDefaults.CreateEmpty(),
-                Array.Empty<DesktopCatalogEntry>()).State;
-        }
-        if (state is null
-            || (productWorkspaceSession.IsReadOnly && !creatingFirstConfiguration))
-        {
-            return null;
-        }
-        return StampAuthoritativeDisplayTopology(state);
+        ProductWorkspaceState? state = ProductWorkspaceCreateAdmission.Resolve(
+            productWorkspaceSession, currentConfigurationLoadResult?.Status);
+        return state is null ? null : StampAuthoritativeDisplayTopology(state);
     }
 
     private void CancelDesktopWorkspaceCreatePreviewIfHostUnavailable(
@@ -4107,7 +4083,7 @@ public partial class App : Application
                 preview.ContainerName,
                 requestedDisplayId: null,
                 requestedBoundsPixels: null);
-        if (state is null || container is null || productWorkspaceSession.IsReadOnly)
+        if (state is null || container is null)
         {
             return new(
                 ProductQuickStartCommitStatus.InvalidRequest,
@@ -4126,7 +4102,14 @@ public partial class App : Application
             new(preview, container));
         if (result.IsAccepted)
         {
+            quickStartSaveCompensation.Track(result, productWorkspaceSaves.Snapshot.CurrentRevision);
             ApplyAcceptedProductWorkspaceDocument(result.Document!, catalog);
+            // Observe again after the click handler finishes, including fast save failures.
+            if (window is { } currentWindow)
+            {
+                _ = currentWindow.DispatcherQueue.TryEnqueue(() =>
+                    ApplyProductWorkspaceSaveSnapshot(currentWindow, productWorkspaceSaves.Snapshot));
+            }
         }
         else
         {
@@ -4450,6 +4433,19 @@ public partial class App : Application
         MainWindow currentWindow,
         ProductWorkspaceSaveSnapshot snapshot)
     {
+        // Dispatcher notifications may arrive after a retry or a newer edit completed.
+        snapshot = productWorkspaceSaves.Snapshot;
+        ProductWorkspaceReferenceBatchAdditionUndoCommitResult? quickStartRollback =
+            quickStartSaveCompensation.Observe(productWorkspaceSession.State, snapshot, workspaceCommits);
+        if (quickStartRollback?.IsAccepted == true)
+        {
+            pendingFirstRunCompletionSaveRevision = null;
+            ApplyAcceptedProductWorkspaceDocument(quickStartRollback.Document!, productDesktopCatalog.Snapshot);
+            currentWindow.ApplyProductQuickStartSaveRollbackState(
+                productWorkspaceSaves.Snapshot);
+            return;
+        }
+
         if (pendingFirstRunCompletionSaveRevision is long firstRunRevision
             && snapshot.Status == ProductWorkspaceSaveStatus.Saved
             && snapshot.SavedRevision >= firstRunRevision
@@ -4615,8 +4611,7 @@ public partial class App : Application
                     if (restore.IsAccepted)
                     {
                         currentWindow.ApplyProductWorkspaceCreateSaveRollbackState(
-                            snapshot.Failure,
-                            productWorkspaceSaves.Snapshot.CurrentRevision);
+                            snapshot.Failure, productWorkspaceSaves.Snapshot);
                         return;
                     }
                     currentWindow.ApplyProductWorkspaceSaveState(snapshot);
@@ -4640,8 +4635,7 @@ public partial class App : Application
                 if (rollback.IsAccepted)
                 {
                     currentWindow.ApplyProductWorkspaceCreateSaveRollbackState(
-                        snapshot.Failure,
-                        productWorkspaceSaves.Snapshot.CurrentRevision);
+                        snapshot.Failure, productWorkspaceSaves.Snapshot);
                     return;
                 }
             }

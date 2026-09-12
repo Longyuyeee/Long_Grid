@@ -1286,6 +1286,9 @@ function Test-SourceContract {
             'save.CurrentRevision != token.SaveRevision') -and
         $appCode.Contains('desktopWorkspaceCreatePublication = new(') -and
         $appCode.Contains('ApplyProductWorkspaceCreateSaveRollbackState(') -and
+        $appCode -match '(?s)private void ApplyProductWorkspaceSaveSnapshot\([^)]*\)\s*\{\s*//[^\r\n]*\r?\n\s*snapshot = productWorkspaceSaves.Snapshot;' -and
+        $codeBehind -match '(?s)internal void ApplyProductQuickStartSaveRollbackState\(\s*ProductWorkspaceSaveSnapshot snapshot\)\s*\{\s*//[^\r\n]*\r?\n\s*ApplyProductWorkspaceSaveState\(snapshot\);' -and
+        $codeBehind -match '(?s)internal void ApplyProductWorkspaceCreateSaveRollbackState\(\s*ProductWorkspaceSaveFailure failure,\s*ProductWorkspaceSaveSnapshot snapshot\)\s*\{\s*ApplyProductWorkspaceSaveState\(snapshot\);\s*if \(snapshot.Status is not \(ProductWorkspaceSaveStatus.WaitingForDebounce\s*or ProductWorkspaceSaveStatus.Saving\)\)\s*\{\s*return;' -and
         $codeBehind.Contains('WorkspaceCreateRolledBack:')
     ) 'Desktop create publication must bind workspace/save revisions, compensate matching failures, and expose a finite rollback state.'
     Assert-Condition (
@@ -1485,9 +1488,14 @@ function Test-SourceContract {
         $folderPickerCode -match 'FolderPicker' -and
         $folderPickerCode -match 'InitializeWithWindow' -and
         $folderPickerCode -match 'PickSingleFolderAsync' -and
-        $folderPickerCode -match 'folder\s+is\s+null' -and
-        $folderPickerCode.IndexOf('folder is null') -lt `
+        $folderPickerCode -match 'productFolderPicker\.PickAsync' -and
+        $folderPickerCode -match '(?s)if \(selection.Status == ProductFolderPickerStatus.Cancelled\).*?return;' -and
+        $folderPickerCode -match '(?s)if \(selection.Status == ProductFolderPickerStatus.Unavailable\).*?return;' -and
+        $folderPickerCode.IndexOf('selection.Status == ProductFolderPickerStatus.Cancelled') -lt `
             $folderPickerCode.IndexOf('_commitProductWorkspaceContainerFolderBinding') -and
+        $folderPickerCode.IndexOf('selection.Status == ProductFolderPickerStatus.Unavailable') -lt `
+            $folderPickerCode.IndexOf('_commitProductWorkspaceContainerFolderBinding') -and
+        $folderPickerCode -match 'FolderBindingPickerUnavailable:Changed=False' -and
         $folderPickerCode -match 'FolderBindingPickerCancelled:Changed=False' -and
         $folderPickerCode -match 'WindowsProductContainerFolderBinding\.Probe' -and
         $folderPickerCode -match 'CreateResolved'
@@ -2191,7 +2199,7 @@ function Test-SourceContract {
             $appCode,
             'ProductDesktopInteractionDevelopmentController\s+\r?\n?\s*productDesktopInteraction')).Count -eq 1 -and
         $appCode -match `
-            'ProductDesktopInteractionFeaturePolicy\.Evaluate' -and
+            'ProductDesktopInteractionFeaturePolicy\.EvaluateForProduct\(' -and
         $appCode -match `
             'EmergencyDisableEnvironmentVariableName' -and
         $appCode -match `
@@ -2292,7 +2300,7 @@ function Test-SourceContract {
         $desktopHostLifecycleControllerCode -match `
             'intentPreparation\?\.Complete' -and
         $appCode -match `
-            'ProductDesktopInteractionIntentBridgePolicy\.Evaluate' -and
+            'ProductDesktopInteractionIntentBridgePolicy\.EvaluateForProduct\(' -and
         $appCode -match `
             'ProductDesktopInteractionIntentPreparationBridge' -and
         -not ($appCode -match `
@@ -2341,7 +2349,7 @@ function Test-SourceContract {
         $desktopHostLifecycleControllerCode -match `
             'inputForwarding\.Complete' -and
         $appCode -match `
-            'ProductDesktopInteractionInputForwardingPolicy\.Evaluate' -and
+            'ProductDesktopInteractionInputForwardingPolicy\.EvaluateForProduct\(' -and
         $appCode -match `
             'ProductDesktopInteractionInputForwardingAdapter' -and
         -not ($appCode -match 'ForwardInteractionInput') -and
