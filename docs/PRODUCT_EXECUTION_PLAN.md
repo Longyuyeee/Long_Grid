@@ -271,6 +271,10 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 #### 用户确认的主路径纠偏：桌面右键优先
 
+2026-09-22 隔离环境接续检查：用户同意按顺序继续，按“内部可回滚 VM 验收”的方向做只读发现，不将此视为允许修改宿主系统或重启。当前系统为 Windows 11 Pro x64、10.0.22621；Win32_OptionalFeature 报告 VirtualMachinePlatform 已启用（InstallState=1），Hyper-V 全部相关项及 Containers-DisposableClientVM 未启用（InstallState=2）。Get-VM/VBoxManage/vmrun/WindowsSandbox 命令不可发现，常用安装路径也未发现对应 VMware/VirtualBox 启动工具；vmcompute 存在但停止，未发现 vmms。HypervisorPresent=true、VirtualizationFirmwareEnabled=true，而 SLAT 查询为 false；不能据单项查询断言硬件不支持，也不能将已有 hypervisor 当成已有可用测试 VM。
+
+因此尚无已确认可用的隔离安装目标，未创建证书、未加入信任、未安装 LongGrid、未启用 Windows 功能或启动/重启服务。接续需要用户指定现有的可丢弃 Windows 11 x64 VM/测试电脑，或明确允许在本机评估并启用 Hyper-V、准备测试 VM（可能需要管理员操作、合法 Windows 镜像和重启；重启时机另行确认）。在此之前停止实际安装，不再反复重建相同产物或扩大单元测试以替代 A1。上一条所列 MSIX/源码/哈希仍是交接输入；正式签名与分发限制不变。
+
 2026-09-22 最新修正载荷复验（A0，输入 `42488d5048ce6ff1973b7e28f9b426df558c9f7b`）：完整执行 `eng/Pack-LongGridMsix.ps1 -PackageVersion 0.1.0.2 -PortableVersion 0.1.0-activation-20260922`，未跳过质量门禁。1,525/1,525 测试通过（18 秒、零跳过），托管/原生构建零警告和错误，格式、漏洞、原生身份及 200 次菜单回调检查通过。覆盖率输出聚合了历史结果，不作为本次独立覆盖率。Portable 805 文件，SHA-256 `90d21b0f5bfdffdfc87579ec8636a9219915e41ecf81e8edcc1bb2eb4eba50e0`；MSIX `LongGrid-0.1.0.2-win-x64-unsigned.msix` 的 SHA-256 为 `3ecd379b0c22d568bb75fe955aa05033f2b3f9dfcfd958b90640bb31ac40182a`。两次解包布局一致，但字节不一致。
 
 独立只读检查最终 MSIX：PRI 为 2,239,608 字节，coreclr/hostfxr/hostpolicy/XAML 存在；主程序及两个 Worker 均包含 .NET 8.0.29，无外部 framework 声明。包内右键 DLL 为 153,088 字节，SHA-256 `830b6c751e0393d56ddfe789ba915c9b81f4bea8372b6dfb5e17c77d0ffae7dd` 与本次 native build manifest 一致，包含 AUMID 修正。首次 ZIP 检查因大小写敏感 GetEntry 将 `Microsoft.ui.xaml.dll` 误判缺失，改为 Windows 文件名语义的唯一、不区分大小写匹配后通过；不是产品文件缺失。最终产物留在本机 artifacts，不提交二进制；打包脚本只清理自有临时目录。
