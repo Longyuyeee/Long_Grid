@@ -273,6 +273,8 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 #### 审计事实与纠偏
 
+2026-09-22 A0 实施：#360 已合入 `main@957e3bf`。从干净提交 `ea1da59` 完整打包得到 `LongGrid-0.1.0-a0-20260922-win-x64.zip`（SHA-256 `d3cc525f377852e15b149832d536dc2f5883769e7eaff08ab61d02bdcbfaaefc`，802 文件），全量 1,521/1,521、构建/格式/漏洞检查通过；本次单份覆盖率 lines 90.50%、branches 75.60%，原聚合脚本另含历史结果，不作为本次独立覆盖率。实际解包发现两个 Worker 的 runtimeconfig 仍有 `framework: Microsoft.NETCore.App 8.0.0`，而原预检仅校验哈希/清单，错误地放行“全包自包含”。新增载荷检查对该真实旧包明确失败于 TaskbarWorker；发布流程改为分别自包含发布两个 Worker，再核对三个入口的文件与 runtimeconfig。该缺陷属于无预装 .NET 环境的交付风险，尚未在干净机复现，不等同用户闪退根因；A0/A1 仍未通过，修正包结果待复测。Portable README 同步纠正“宿主不会启用”的旧说法，内部未签名包仍不得当作正式点击即用交付。
+
 - 当前工作树基线 `688a38e`，主线 `ba02e4a`；PR #360 的 CI [34676504162](https://github.com/Longyuyeee/Long_Grid/actions/runs/34676504162) 与 CodeQL [34676504165](https://github.com/Longyuyeee/Long_Grid/actions/runs/34676504165) 全部通过，但尚未合并。9 月 22 日本地完整测试 1,521/1,521、App Release 构建零警告/错误、205-ID 源码合同通过，不等于点击验收。
 - `LongGrid.App.csproj` 默认是 unpackaged、WindowsAppSDKSelfContained=false；但 `eng/Pack-LongGrid.ps1` 发布时已明确使用 `--self-contained true` 与 `WindowsAppSDKSelfContained=true`，`Pack-LongGridMsix.ps1` 复用并检查该自包含载荷。不是“完全没有自包含方案”，而是尚未证明当前提交产物在干净机器可用。
 - 本机共享运行时预检选中 Framework 2.5.1.0，仍因 Main.2/目标 DDLM 缺失阻断，旧风险组合不再命中。**不能据此断言自包含发布产物也不可运行，不能把修复共享 Runtime 作为所有发布验收的先决条件。** 发布产物需核对实际 DLL、加载来源、额外 API 依赖与自身安全条件，不得直接删除或绕过旧自动化门禁。

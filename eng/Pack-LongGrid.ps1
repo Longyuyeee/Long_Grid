@@ -286,6 +286,21 @@ try {
     )
     Invoke-CheckedCommand 'Self-contained publish' { & $dotnetHostPath @publishArguments }
 
+    # Project-reference build outputs can retain framework-dependent runtimeconfig files.
+    # Publish each executable explicitly so every entry point carries its runtime contract.
+    foreach ($worker in @('LongGrid.TaskbarWorker', 'LongGrid.ThumbnailWorker')) {
+        $workerProject = Join-Path $projectRoot "src\$worker\$worker.csproj"
+        Invoke-CheckedCommand "Self-contained publish: $worker" {
+            & $dotnetHostPath publish $workerProject --configuration Release `
+                --runtime $runtimeIdentifier --self-contained true `
+                --output $publishRoot --no-restore
+        }
+    }
+
+    $payloadCheck = Join-Path $projectRoot 'packaging\Test-SelfContainedPayload.ps1'
+    & $payloadCheck -PackageRoot $publishRoot
+    Copy-Item -LiteralPath $payloadCheck -Destination $publishRoot
+
     Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\Install-Preflight.ps1') -Destination $publishRoot
     Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\PORTABLE-README.txt') -Destination $publishRoot
 

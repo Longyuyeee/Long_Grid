@@ -96,6 +96,8 @@ if ($verifiedFiles -eq 0) {
     throw 'SHA256SUMS.txt did not contain any payload entries.'
 }
 
+& (Join-Path $resolvedPackageRoot 'Test-SelfContainedPayload.ps1') -PackageRoot $resolvedPackageRoot | Out-Null
+
 [ordered]@{
     outcome = 'Pass'
     product = 'Long Grid'
