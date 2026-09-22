@@ -271,6 +271,22 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 #### 用户确认的主路径纠偏：桌面右键优先
 
+2026-09-22 最新修正载荷复验（A0，输入 `42488d5048ce6ff1973b7e28f9b426df558c9f7b`）：完整执行 `eng/Pack-LongGridMsix.ps1 -PackageVersion 0.1.0.2 -PortableVersion 0.1.0-activation-20260922`，未跳过质量门禁。1,525/1,525 测试通过（18 秒、零跳过），托管/原生构建零警告和错误，格式、漏洞、原生身份及 200 次菜单回调检查通过。覆盖率输出聚合了历史结果，不作为本次独立覆盖率。Portable 805 文件，SHA-256 `90d21b0f5bfdffdfc87579ec8636a9219915e41ecf81e8edcc1bb2eb4eba50e0`；MSIX `LongGrid-0.1.0.2-win-x64-unsigned.msix` 的 SHA-256 为 `3ecd379b0c22d568bb75fe955aa05033f2b3f9dfcfd958b90640bb31ac40182a`。两次解包布局一致，但字节不一致。
+
+独立只读检查最终 MSIX：PRI 为 2,239,608 字节，coreclr/hostfxr/hostpolicy/XAML 存在；主程序及两个 Worker 均包含 .NET 8.0.29，无外部 framework 声明。包内右键 DLL 为 153,088 字节，SHA-256 `830b6c751e0393d56ddfe789ba915c9b81f4bea8372b6dfb5e17c77d0ffae7dd` 与本次 native build manifest 一致，包含 AUMID 修正。首次 ZIP 检查因大小写敏感 GetEntry 将 `Microsoft.ui.xaml.dll` 误判缺失，改为 Windows 文件名语义的唯一、不区分大小写匹配后通过；不是产品文件缺失。最终产物留在本机 artifacts，不提交二进制；打包脚本只清理自有临时目录。
+
+当前仍 `signed=false / installable=false / distributionApproved=false`，本机 Get-AppxPackage 未发现 LongGrid；#274 没有新的签名/测试环境批准，WindowsSandbox.exe 不可发现。**停止在真实安装前，不再把重建或只读审计当作 A1 推进。** 原有正式发布门禁保持不变。为避免把内部功能试验一直绑在商业发布证书上，提出待负责人明确批准的替代方案：只在有快照、可丢弃的 Windows 11 x64 虚拟机中使用限定测试证书，证书信任仅在该 VM，测试包不分发、不进入宿主信任库，测试后回滚。此方案尚未批准、未实现、未安装；须批准后另行修改内部测试合同，不能放宽正式 signing-contract 或绕过现有脚本。若不采用此方案，继续由 #274 提供正式受信签名与安装环境。
+
+获准环境的 A1 用户验收顺序（以下均未执行）：
+
+1. 记录源码提交、包哈希、OS/显示缩放、包签名与初始桌面状态；从安装文件完成安装，不要求用户运行 PowerShell、手装 Runtime 或打开控制中心创建。
+2. App 未运行时，在真正的桌面空白处右键；记录命令位于首层还是“显示更多选项”，选择“新建 Long方格盒子”，应出现桌面命名预览而非控制中心。
+3. 先取消，桌面与保存配置均零新增；再次创建，输入中文名称并确认，应恰好出现一个可见盒子，不闪退、不改变原始桌面文件。
+4. App 已运行时重复取消和创建，检查无第二个控制中心、无重复实例/重复盒子；记录焦点和预览是否可操作，不能只检查进程存在。
+5. 正常退出并重新启动，已创建盒子的名称和布局保留；记录保存失败提示、崩溃阶段和复现步骤。任一步失败即停止 A2，先修复并重跑原步骤。
+
+证据至少包含每步 Expected/Actual、准确失败步骤、提交/产物哈希和非敏感录屏或截图；原始日志本地保管并脱敏后交接，不上传私人桌面文件、证书或密钥。内部 VM 通过也不等于正式点击即用交付通过。
+
 2026-09-22 本轮 A0/右键启动链审计：从 `ebc1ec17895a8a36bccbddf9f14d40e67dc77bf8` 完整生成未签名 MSIX `0.1.0.1`，SHA-256 `f0d1d93dfddad24b29d203197a92d2be83d9bfa29a4e57caa525385f5b4f9d80`；对应 Portable `0.1.0-desktop-20260922` 为 805 文件，SHA-256 `8a42599ebc5f3905cd542926cba21f23b63ec8fdf8166156b0d4f0367612385a`。全量 1,525/1,525（15 秒、零跳过），构建零警告/错误、格式/漏洞/打包门禁通过。MSIX 两次解包内容指纹一致，但字节不一致；不得宣称字节可重现。载荷包括真实原生 DLL，其菜单回调 200 次测试通过，但不调用 ActivateApplication，不是点击证据。打包临时目录由脚本正常清理，产物保留 artifacts；没有安装包、重启 Explorer 或修改信任。
 
 实际代码发现更直接的创建阻断：`ExplorerCommandContract.h` 将 `Longyuyeee.LongGrid.DeveloperPreview!LongGrid.App` 当成 AUMID，漏掉包家族名的 PublisherId。旧源码合同反而要求这个错误字面量，现有菜单测试因此会假覆盖用户的启动动作。按 [Windows 包查询 API 合同](https://learn.microsoft.com/en-us/windows/win32/appxpkg/functions)，修正为 Invoke 时 GetCurrentPackageFamilyName → FormatApplicationUserModelId → ActivateApplication；缺少包身份时返回错误，不猜测其他安装包或退回控制中心。原生测试使用明确的合成包家族（不是正式 Publisher）覆盖完整目标、缓冲区不足、无包身份，真实 Windows 格式化 API 与 DLL 回调测试通过。初次测试使用 VerifyApplicationUserModelId 出现链接失败，移除多余调用后以真实 Format API 和精确结果断言验证；最终原生构建零警告/错误。
