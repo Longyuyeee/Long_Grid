@@ -271,6 +271,10 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 #### 用户确认的主路径纠偏：桌面右键优先
 
+2026-09-22 Hyper-V 环境准备最新结果：在明确询问“是否允许启用本机 Hyper-V”后，用户确认继续。通过 Windows RunAs 管理员授权启动限定本机辅助脚本，执行 `Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -All -NoRestart`；2026-09-22 15:22:50 UTC 返回 `Enabled / restartNeeded=true / automaticRestart=false`。该操作已改变宿主 Windows 可选功能，不再描述为全程只读；没有自动重启、创建 VM、安装 LongGrid、生成证书或加入证书信任。辅助脚本与原始结果留在忽略的 artifacts，不作为产品交付或跨机执行入口。
+
+当前接续：用户先保存所有工作并手动重启，随后重新核对 Hyper-V 服务和 VM 创建能力；启用成功不代表重启后的虚拟机可用。Windows 11 x64 合法安装 ISO 的来源/路径尚待用户提供，不能假设已有镜像或系统授权。隔离 VM 建成并确认快照/回滚之后，才进入内部测试证书与安装路径；正式发布签名门禁不变，A1 仍未执行。不要再次运行启用脚本、自动重启、在宿主安装测试证书，或把当前环境准备计为用户功能通过。
+
 2026-09-22 隔离环境接续检查：用户同意按顺序继续，按“内部可回滚 VM 验收”的方向做只读发现，不将此视为允许修改宿主系统或重启。当前系统为 Windows 11 Pro x64、10.0.22621；Win32_OptionalFeature 报告 VirtualMachinePlatform 已启用（InstallState=1），Hyper-V 全部相关项及 Containers-DisposableClientVM 未启用（InstallState=2）。Get-VM/VBoxManage/vmrun/WindowsSandbox 命令不可发现，常用安装路径也未发现对应 VMware/VirtualBox 启动工具；vmcompute 存在但停止，未发现 vmms。HypervisorPresent=true、VirtualizationFirmwareEnabled=true，而 SLAT 查询为 false；不能据单项查询断言硬件不支持，也不能将已有 hypervisor 当成已有可用测试 VM。
 
 因此尚无已确认可用的隔离安装目标，未创建证书、未加入信任、未安装 LongGrid、未启用 Windows 功能或启动/重启服务。接续需要用户指定现有的可丢弃 Windows 11 x64 VM/测试电脑，或明确允许在本机评估并启用 Hyper-V、准备测试 VM（可能需要管理员操作、合法 Windows 镜像和重启；重启时机另行确认）。在此之前停止实际安装，不再反复重建相同产物或扩大单元测试以替代 A1。上一条所列 MSIX/源码/哈希仍是交接输入；正式签名与分发限制不变。
