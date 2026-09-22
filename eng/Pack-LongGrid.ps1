@@ -286,6 +286,15 @@ try {
     )
     Invoke-CheckedCommand 'Self-contained publish' { & $dotnetHostPath @publishArguments }
 
+    # The WinUI resource index is generated in build output but is not reliably
+    # included by dotnet publish for this unpackaged project.
+    $appResourceIndex = Join-Path $projectRoot `
+        "src\LongGrid.App\bin\Release\net8.0-windows10.0.19041.0\$runtimeIdentifier\LongGrid.App.pri"
+    if (-not (Test-Path -LiteralPath $appResourceIndex -PathType Leaf)) {
+        throw 'The generated LongGrid.App.pri resource index is missing.'
+    }
+    Copy-Item -LiteralPath $appResourceIndex -Destination $publishRoot
+
     # Project-reference build outputs can retain framework-dependent runtimeconfig files.
     # Publish each executable explicitly so every entry point carries its runtime contract.
     foreach ($worker in @('LongGrid.TaskbarWorker', 'LongGrid.ThumbnailWorker')) {

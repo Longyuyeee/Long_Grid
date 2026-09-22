@@ -5,7 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-foreach ($file in @('coreclr.dll', 'hostfxr.dll', 'hostpolicy.dll', 'Microsoft.UI.Xaml.dll')) {
+foreach ($file in @('coreclr.dll', 'hostfxr.dll', 'hostpolicy.dll', 'Microsoft.UI.Xaml.dll', 'LongGrid.App.pri')) {
     if (-not (Test-Path -LiteralPath (Join-Path $PackageRoot $file) -PathType Leaf)) {
         throw "Self-contained payload is missing: $file"
     }
