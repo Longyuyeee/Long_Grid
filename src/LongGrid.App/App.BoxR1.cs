@@ -157,7 +157,7 @@ public partial class App
         ActivateMainWindow();
     }
 
-    private static string[] GetLaunchActivationArguments(
+    internal static string[] GetLaunchActivationArguments(
         AppActivationArguments activation)
     {
         if (activation.Data is not
