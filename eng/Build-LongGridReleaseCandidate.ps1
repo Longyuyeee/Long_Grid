@@ -367,7 +367,10 @@ try {
         installable = $false
         distributionApproved = $false
         licenseStatus = 'Deferred'
-        desktopHostExecutionEnabled = $false
+        # Product default, not an observation of this machine or user acceptance.
+        desktopHostExecutionEnabled = $true
+        desktopHostExecutionScope = 'ProductDefaultSubjectToSafetyPolicy'
+        desktopHostUserAcceptance = 'Pending'
     }
     $candidateManifest | ConvertTo-Json -Depth 8 |
         Set-Content -LiteralPath $candidateManifestPath -Encoding utf8

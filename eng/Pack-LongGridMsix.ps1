@@ -543,7 +543,10 @@ try {
         installable = $false
         distributionApproved = $false
         licenseStatus = 'Deferred'
-        desktopHostExecutionEnabled = $false
+        # Product default, not an observation of this machine or user acceptance.
+        desktopHostExecutionEnabled = $true
+        desktopHostExecutionScope = 'ProductDefaultSubjectToSafetyPolicy'
+        desktopHostUserAcceptance = 'Pending'
         explorerCommand = [ordered]@{
             clsid = '78A940C1-2E65-4A03-9D09-3AC62CEF30BB'
             itemType = 'Directory\Background'

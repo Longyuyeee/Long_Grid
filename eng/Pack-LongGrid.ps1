@@ -329,7 +329,10 @@ try {
         installer = $false
         distributionApproved = $false
         licenseStatus = 'Deferred'
-        desktopHostExecutionEnabled = $false
+        # Product default, not an observation of this machine or user acceptance.
+        desktopHostExecutionEnabled = $true
+        desktopHostExecutionScope = 'ProductDefaultSubjectToSafetyPolicy'
+        desktopHostUserAcceptance = 'Pending'
     }
     $artifactManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $publishRoot 'artifact-manifest.json') -Encoding utf8
 

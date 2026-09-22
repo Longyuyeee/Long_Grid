@@ -271,6 +271,12 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 #### 用户确认的主路径纠偏：桌面右键优先
 
+2026-09-22 用户暂不能重启：只读复核启用结果仍为 restartNeeded=true，未发现 vmms 服务、Get-VM 命令或 Hyper-V PowerShell 模块；只有停止的 vmcompute。未发现可确认可靠的免重启 VM 路径，不尝试重启、强行启动服务或修改启动配置。按用户“先做其他的”要求，将隔离安装暂停到可重启时，不重复申请重启，也不把宿主变成测试证书安装环境。
+
+同轮处理既有 A0 元数据偏差：实际 ProductDesktopHostFeaturePolicy 默认 EnabledForProduct，但 Portable/MSIX/RC 三种清单仍输出 desktopHostExecutionEnabled=false。现统一为 true，并明确 desktopHostExecutionScope=ProductDefaultSubjectToSafetyPolicy、desktopHostUserAcceptance=Pending；表示产品默认策略，不表示当前机器已运行、用户验收通过或安全禁用开关失效。保留原布尔字段以兼容已有内部读取，新增字段解释其范围；仓库未发现产品运行时消费此清单字段，运行策略本身未改。
+
+新增三种清单源码合同回归并对照真实 Core 默认策略：修正前 0/3（旧 false），修正后完整 Release 1,528/1,528（24 秒、零跳过）、格式检查、MSIX ValidateOnly、正式签名限制检查通过。这些是源码/策略验证，不是三个新产物的生成验收；既有 0.1.0.2 安装包未修改，其旧清单仍含 false，必须按记录的源码和产物哈希区分。没有新增用户功能、没有重跑 A1，也不改变 signed/installable/distributionApproved；后续正常打包时生成新清单，不原地修改旧包或覆盖旧哈希。文档与本次修改照常审计、提交和推送。
+
 2026-09-22 Hyper-V 环境准备最新结果：在明确询问“是否允许启用本机 Hyper-V”后，用户确认继续。通过 Windows RunAs 管理员授权启动限定本机辅助脚本，执行 `Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -All -NoRestart`；2026-09-22 15:22:50 UTC 返回 `Enabled / restartNeeded=true / automaticRestart=false`。该操作已改变宿主 Windows 可选功能，不再描述为全程只读；没有自动重启、创建 VM、安装 LongGrid、生成证书或加入证书信任。辅助脚本与原始结果留在忽略的 artifacts，不作为产品交付或跨机执行入口。
 
 当前接续：用户先保存所有工作并手动重启，随后重新核对 Hyper-V 服务和 VM 创建能力；启用成功不代表重启后的虚拟机可用。Windows 11 x64 合法安装 ISO 的来源/路径尚待用户提供，不能假设已有镜像或系统授权。隔离 VM 建成并确认快照/回滚之后，才进入内部测试证书与安装路径；正式发布签名门禁不变，A1 仍未执行。不要再次运行启用脚本、自动重启、在宿主安装测试证书，或把当前环境准备计为用户功能通过。
