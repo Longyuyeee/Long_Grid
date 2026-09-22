@@ -663,7 +663,7 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
                 _ = NativeMethods.FillRect(deviceContext, ref bounds, brush);
                 _ = NativeMethods.DrawText(
                     deviceContext,
-                    ButtonText(region),
+                    ButtonText(region.Kind, region.IsCollapsed, region.IsLocked),
                     -1,
                     ref bounds,
                     NativeMethods.DtCenter
@@ -744,17 +744,20 @@ internal sealed class WindowsProductDesktopInteractionActivationSource
             _ => true,
         });
 
-    private static string ButtonText(ActivationRegion region) => region.Kind switch
-    {
-        ProductDesktopActivationRegionKind.EnterInteraction => "↗",
-        ProductDesktopActivationRegionKind.ToggleCollapsed =>
-            region.IsCollapsed ? "▾" : "▸",
-        ProductDesktopActivationRegionKind.ToggleLocked =>
-            region.IsLocked ? "解" : "锁",
-        ProductDesktopActivationRegionKind.OpenMoreMenu => "⋯",
-        ProductDesktopActivationRegionKind.OpenSearch => "搜",
-        _ => string.Empty,
-    };
+    internal static string ButtonText(
+        ProductDesktopActivationRegionKind kind,
+        bool isCollapsed,
+        bool isLocked) => kind switch
+        {
+            ProductDesktopActivationRegionKind.EnterInteraction => "↗",
+            ProductDesktopActivationRegionKind.ToggleCollapsed =>
+                isCollapsed ? "▸" : "▾",
+            ProductDesktopActivationRegionKind.ToggleLocked =>
+                isLocked ? "解" : "锁",
+            ProductDesktopActivationRegionKind.OpenMoreMenu => "⋯",
+            ProductDesktopActivationRegionKind.OpenSearch => "搜",
+            _ => string.Empty,
+        };
 
     private bool MenuHasAvailableAction(string containerId)
     {
