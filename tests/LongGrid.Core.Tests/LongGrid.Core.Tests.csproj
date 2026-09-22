@@ -30,6 +30,8 @@
   <ItemGroup>
     <Compile Include="..\..\src\LongGrid.App\ProductQuickStartPreviewContinuity.cs"
              Link="Runtime\ProductQuickStartPreviewContinuity.cs" />
+    <Compile Include="..\..\src\LongGrid.App\ProductDesktopPreviewContinuation.cs"
+             Link="Runtime\ProductDesktopPreviewContinuation.cs" />
     <Compile Include="..\..\src\LongGrid.App\ProductDesktopCreateFallback.cs"
              Link="Runtime\ProductDesktopCreateFallback.cs" />
     <Compile Include="..\..\src\LongGrid.App\ProductStartupDiagnosticLog.cs"
