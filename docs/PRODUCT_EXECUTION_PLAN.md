@@ -271,6 +271,20 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 #### 用户确认的主路径纠偏：桌面右键优先
 
+2026-09-23 完整内部 RC 材料检查通过：在干净 `40361035068f3425a531e9e08cd1134974f22d36` 执行 `eng/Build-LongGridReleaseCandidate.ps1 -PackageVersion 0.1.0.5 -PortableVersion 0.1.0-rcaudit-20260923`，顶层未跳过质量门禁，execution=local / qualityGateMode=packaging-default-executed。真实 pack-tests.trx 1,536/1,536、零失败/跳过，构建与原生 DLL 检查通过。SBOM 工具 4.1.5 生成 SPDX-2.2 并校验 808 个包内文件；最终还原状态的许可证报告覆盖 20 个项目、30 个依赖包，metadataComplete=true。RC 检查确认源码一致、文件哈希一致、SBOM subject 与 MSIX 哈希一致；清理的只是脚本自有 staging，保留最终材料。未改产品代码，也不是新功能版本。
+
+本机 artifacts 下本轮材料索引（源码及哈希可跨机传递，二进制不提交 Git）：
+
+| 材料 | SHA-256 |
+|---|---|
+| LongGrid-0.1.0-rcaudit-20260923-win-x64.zip | `2bf1257b59ba280628cd4faa461b4b10efc1b2b58dc15452346e62b7a79083aa` |
+| LongGrid-0.1.0.5-win-x64-unsigned.msix | `7942ef534f938be1940bf8306caf52853c7689b9443442349dd433a2e0b3d65b` |
+| LongGrid-0.1.0.5-win-x64-unsigned.spdx.json | `e95853c215759220cdbed56d49734929c0dec24958662e3edd64ccc2f5fad0ba` |
+| LongGrid-0.1.0.5-dependency-licenses.json | `7d7d7aab174784568171ff9ebcf3b012f20573e9da8ceaff42882925330cacfb` |
+| LongGrid-0.1.0.5-win-x64-internal-rc-evidence.json | `d64ce1aa2d2cad363065ac28ab6e7eda54cc729c6d0df1bc0ef1268d40553415` |
+
+结论：0.1.0.5 仅为材料更完整的内部未签名候选。licenseClearance 仍 PendingOwnerReviewAndNotice，不代表许可证获批；lifecycleEvidence 仍 PendingSignedPackageAndDisposableWindowsProfile；正式 signingState 仍阻断。signed/installable/distributionApproved 均 false，未上传公开 Release。当前可安全完成的该批工程/发布材料检查已收口，暂停重复打包和新增检查数量；下一实质接续是具备可用隔离环境后执行 A1，再按 A2～A6 关闭缺陷。用户暂不能重启时不强制重启、不将宿主改为证书信任测试机。后续版本规划已在下方列明，实际发布后按真实缺陷/用户反馈重新排序；现在不宣称发布完成或已有发布后反馈。
+
 2026-09-23 最新内部候选为 **0.1.0.4（不是正式发布）**：从 `c605764006bcd8dd99d104af568cf760b5c19d2b` 完整重建，未跳过质量门禁。本次 pack-tests.trx 为 total=1,536 / passed=1,536 / failed=0 / notExecuted=0，托管及原生构建、格式、漏洞、自包含载荷、原生身份/菜单检查均通过。Portable `LongGrid-0.1.0-namefix-20260923-win-x64.zip` SHA-256 `51d8e17c04a89be3402749645a74304973ac2e99078f7365fbfe5ef98eeb6e13`；MSIX `LongGrid-0.1.0.4-win-x64-unsigned.msix` SHA-256 `acf9b1cf3f92519aaf6fdd9d655c0747b3830236664c0da5d0a8861e39a31ced`。直接读 ZIP 内 JSON 并逐字符断言 displayName=Long方格，通过；默认桌面宿主 true、用户验收 Pending 也已进入包内。MSIX 两次解包内容一致，不声明字节可重现。两个包和旁路 manifest/hash 保留本机 artifacts；源码/证据索引推送 GitHub，旧缺陷包不覆盖，不公开分发。
 
 该候选整合右键启动身份、取消后延迟操作、异常预览清理、默认策略元数据及中文名修正。当前仍 signed=false / installable=false / distributionApproved=false，没有实际安装或物理点击验收，也未完成该候选的完整 SBOM/许可证/正式签名与生命周期证据。后续只要修改产品代码或打包脚本，应重新生成候选，不能沿用此哈希声称覆盖新改动。正式发布仍按 A1～A6 出口逐项关闭；下一版本沿下方优先级清单，在实际发布后以用户问题复盘取舍，不能把未兑现的当前版基础功能挪成“下个版本优化”。
