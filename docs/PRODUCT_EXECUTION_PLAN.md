@@ -271,6 +271,10 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 #### 用户确认的主路径纠偏：桌面右键优先
 
+2026-09-23 最新内部候选为 **0.1.0.4（不是正式发布）**：从 `c605764006bcd8dd99d104af568cf760b5c19d2b` 完整重建，未跳过质量门禁。本次 pack-tests.trx 为 total=1,536 / passed=1,536 / failed=0 / notExecuted=0，托管及原生构建、格式、漏洞、自包含载荷、原生身份/菜单检查均通过。Portable `LongGrid-0.1.0-namefix-20260923-win-x64.zip` SHA-256 `51d8e17c04a89be3402749645a74304973ac2e99078f7365fbfe5ef98eeb6e13`；MSIX `LongGrid-0.1.0.4-win-x64-unsigned.msix` SHA-256 `acf9b1cf3f92519aaf6fdd9d655c0747b3830236664c0da5d0a8861e39a31ced`。直接读 ZIP 内 JSON 并逐字符断言 displayName=Long方格，通过；默认桌面宿主 true、用户验收 Pending 也已进入包内。MSIX 两次解包内容一致，不声明字节可重现。两个包和旁路 manifest/hash 保留本机 artifacts；源码/证据索引推送 GitHub，旧缺陷包不覆盖，不公开分发。
+
+该候选整合右键启动身份、取消后延迟操作、异常预览清理、默认策略元数据及中文名修正。当前仍 signed=false / installable=false / distributionApproved=false，没有实际安装或物理点击验收，也未完成该候选的完整 SBOM/许可证/正式签名与生命周期证据。后续只要修改产品代码或打包脚本，应重新生成候选，不能沿用此哈希声称覆盖新改动。正式发布仍按 A1～A6 出口逐项关闭；下一版本沿下方优先级清单，在实际发布后以用户问题复盘取舍，不能把未兑现的当前版基础功能挪成“下个版本优化”。
+
 2026-09-23 合并修正候选与中文元数据缺陷：从 `f050052f017c7cf7e8b1fc094cba685fb48fd19a` 完整打包内部 MSIX 0.1.0.3，SHA-256 `c1f6929c6436cbf6518dba891f5f0bf30353a6b5cbd2cfa9b95c2897ae2c5840`；Portable `0.1.0-previewfix-20260923` 的 SHA-256 为 `b73ccd773b3dedbfca154ea58db77493a455ddff34a2682dfe9fd3f725ac4f37`。质量门禁未跳过，1,535/1,535（14 秒）、构建零警告/错误、原生菜单/身份检查通过，MSIX 解包布局一致但字节不一致。清单已真实输出 default=true / acceptance=Pending，未签名、不可安装、未批准分发。
 
 最终产物复读发现 Portable displayName 的中文乱码；从 ZIP 读取 JSON 后按 Unicode 比较确认为错误，不是终端显示问题。原因是 Windows PowerShell 5.1 默认读取无 BOM 的 UTF-8 脚本，将内嵌中文按本地代码页解释。Pack-LongGrid 中该值改为 ASCII 源码拼接明确 Unicode 字符；新增真实 Windows PowerShell 子进程回归，按默认编码读取正式脚本并执行该字段表达式，要求精确 Long方格。首次新测试编译因正则字符串转义错误失败，改为逐字字符串后完整 1,536/1,536（15 秒）、格式通过。0.1.0.3 标记为内部审计发现缺陷的产物，不作为新验收基线；旧包和旧哈希不修改。修正后的新候选尚待重建复验，A1/签名/许可证等发布门槛仍未通过，未创建 GitHub Release。
