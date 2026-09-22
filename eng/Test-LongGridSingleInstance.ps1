@@ -73,6 +73,9 @@ Assert-Condition (
 Assert-Condition (Test-Path -LiteralPath $desktopFirstScript -PathType Leaf) `
     'The real desktop-first single-instance evidence script is missing.'
 
+Assert-Condition ($appCode -match '(?s)if \(\(singleWindowSafetyRequired \|\| useFallbackPreview\) && evidenceSession is null\)\s*\{\s*confirmedName = session.Snapshot.CanSubmit\s*\? ProductDesktopCreateFallback.Confirm\(session.Snapshot.Name\)\s*: null;\s*\}\s*else if \(singleWindowSafetyRequired\)') `
+    'Product desktop fallback must precede evidence-only control-center fallbacks.'
+
 if ($ContractOnly) {
     Write-Output 'Long Grid single-instance source contract passed.'
     exit 0

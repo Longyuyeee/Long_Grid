@@ -3340,7 +3340,13 @@ public partial class App : Application
             }
         }
 
-        if (singleWindowSafetyRequired)
+        if ((singleWindowSafetyRequired || useFallbackPreview) && evidenceSession is null)
+        {
+            confirmedName = session.Snapshot.CanSubmit
+                ? ProductDesktopCreateFallback.Confirm(session.Snapshot.Name)
+                : null;
+        }
+        else if (singleWindowSafetyRequired)
         {
             bool showBoxR1Evidence = boxR1ActivationEvidenceSession is not null;
             if (showBoxR1Evidence)
