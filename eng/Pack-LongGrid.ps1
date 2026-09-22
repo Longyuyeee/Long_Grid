@@ -316,7 +316,8 @@ try {
     $artifactManifest = [ordered]@{
         schemaVersion = 1
         product = 'Long Grid'
-        displayName = 'Long方格'
+        # ASCII source also works when Windows PowerShell 5.1 reads UTF-8 without BOM.
+        displayName = ('Long' + [char]0x65B9 + [char]0x683C)
         version = $Version
         sourceCommit = $commit
         configuration = 'Release'

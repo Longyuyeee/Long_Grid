@@ -271,6 +271,10 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 #### 用户确认的主路径纠偏：桌面右键优先
 
+2026-09-23 合并修正候选与中文元数据缺陷：从 `f050052f017c7cf7e8b1fc094cba685fb48fd19a` 完整打包内部 MSIX 0.1.0.3，SHA-256 `c1f6929c6436cbf6518dba891f5f0bf30353a6b5cbd2cfa9b95c2897ae2c5840`；Portable `0.1.0-previewfix-20260923` 的 SHA-256 为 `b73ccd773b3dedbfca154ea58db77493a455ddff34a2682dfe9fd3f725ac4f37`。质量门禁未跳过，1,535/1,535（14 秒）、构建零警告/错误、原生菜单/身份检查通过，MSIX 解包布局一致但字节不一致。清单已真实输出 default=true / acceptance=Pending，未签名、不可安装、未批准分发。
+
+最终产物复读发现 Portable displayName 的中文乱码；从 ZIP 读取 JSON 后按 Unicode 比较确认为错误，不是终端显示问题。原因是 Windows PowerShell 5.1 默认读取无 BOM 的 UTF-8 脚本，将内嵌中文按本地代码页解释。Pack-LongGrid 中该值改为 ASCII 源码拼接明确 Unicode 字符；新增真实 Windows PowerShell 子进程回归，按默认编码读取正式脚本并执行该字段表达式，要求精确 Long方格。首次新测试编译因正则字符串转义错误失败，改为逐字字符串后完整 1,536/1,536（15 秒）、格式通过。0.1.0.3 标记为内部审计发现缺陷的产物，不作为新验收基线；旧包和旧哈希不修改。修正后的新候选尚待重建复验，A1/签名/许可证等发布门槛仍未通过，未创建 GitHub Release。
+
 2026-09-23 预览异常清理补齐：App 原来在预览显示/定位异常时直接进入 fallback，finally 仅清空窗口字段，没有主动关闭已创建的预览。现在普通产品和内部 evidence 两条显示路径都通过 RunWithCleanupAsync，在返回或异常传播前调用该预览实例的 Cancel；正常确认/取消已完成时原 Complete 的幂等保护保持原结果，显示异常时先尝试关闭原窗口再进入既有回退。新增 4 项真实 App helper 回归覆盖确认、取消、异步呈现失败和任务取消；不冒充真实 WinUI 异常注入或屏幕残窗验收。A1 实测增加“呈现失败后只保留一个可操作提示、无旧预览残留”，清理本身抛出异常的系统故障仍不能以 helper 通过证明恢复成功。
 
 本轮完整测试首次 1,534/1,535，失败于既有 LifecycleCommitPersistsOneRevisionAndSupportsUnifiedUndoRedo：提交后立即读取异步 SaveCalls，Expected=1/Actual=0。测试改为复用现有有界 WaitForStatusAsync 等待 Saved 后再断言单次保存，未改产品保存调度、超时或一次保存要求。最终完整 Release 1,535/1,535（15 秒、零跳过），App 构建零警告/错误、格式、205-ID UI 源码合同通过。未重启、未安装、未新建发布包，当前修正仍待同源候选和 A1 实机回归。版本提升候选沿下方收口规划管理，不提前标记正式发布或启动新功能扩张。
