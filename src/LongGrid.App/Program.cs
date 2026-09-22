@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using LongGrid.Core.DesktopHost;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
@@ -66,7 +67,12 @@ public static class Program
             try
             {
                 await mainInstance.RedirectActivationToAsync(activation);
-                TryBringToForeground(mainInstance.ProcessId);
+                if (ProductExplorerCreateActivation.Parse(
+                        App.GetLaunchActivationArguments(activation),
+                        DateTimeOffset.UtcNow).ShouldForegroundControlCenter)
+                {
+                    TryBringToForeground(mainInstance.ProcessId);
+                }
                 return 0;
             }
             catch (Exception exception)

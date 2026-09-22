@@ -14,8 +14,11 @@ Before launching:
 
 3. Only after the preflight reports "outcome": "Pass", launch LongGrid.App.exe.
 
-The package is self-contained for .NET and Windows App SDK. It does not elevate,
-install a service or driver, alter Explorer, or enable the guarded DesktopHost
-execution path. License selection, code signing, MSIX installation, upgrade,
+The package must include .NET for the app and both workers, and Windows App SDK
+for the app. The preflight checks payload structure, not successful user operation.
+Desktop boxes are enabled by product defaults, subject to saved settings and safety
+policies; this is not a claim that physical user acceptance has passed. This ZIP
+does not install the Explorer context-menu registration or a service/driver.
+License selection, code signing, MSIX installation, upgrade,
 uninstall, multi-user behavior, SmartScreen reputation, and public distribution
 remain release blockers and require separate approval and evidence.

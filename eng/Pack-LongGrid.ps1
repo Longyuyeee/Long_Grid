@@ -286,13 +286,38 @@ try {
     )
     Invoke-CheckedCommand 'Self-contained publish' { & $dotnetHostPath @publishArguments }
 
+    # The WinUI resource index is generated in build output but is not reliably
+    # included by dotnet publish for this unpackaged project.
+    $appResourceIndex = Join-Path $projectRoot `
+        "src\LongGrid.App\bin\Release\net8.0-windows10.0.19041.0\$runtimeIdentifier\LongGrid.App.pri"
+    if (-not (Test-Path -LiteralPath $appResourceIndex -PathType Leaf)) {
+        throw 'The generated LongGrid.App.pri resource index is missing.'
+    }
+    Copy-Item -LiteralPath $appResourceIndex -Destination $publishRoot
+
+    # Project-reference build outputs can retain framework-dependent runtimeconfig files.
+    # Publish each executable explicitly so every entry point carries its runtime contract.
+    foreach ($worker in @('LongGrid.TaskbarWorker', 'LongGrid.ThumbnailWorker')) {
+        $workerProject = Join-Path $projectRoot "src\$worker\$worker.csproj"
+        Invoke-CheckedCommand "Self-contained publish: $worker" {
+            & $dotnetHostPath publish $workerProject --configuration Release `
+                --runtime $runtimeIdentifier --self-contained true `
+                --output $publishRoot --no-restore
+        }
+    }
+
+    $payloadCheck = Join-Path $projectRoot 'packaging\Test-SelfContainedPayload.ps1'
+    & $payloadCheck -PackageRoot $publishRoot
+    Copy-Item -LiteralPath $payloadCheck -Destination $publishRoot
+
     Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\Install-Preflight.ps1') -Destination $publishRoot
     Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\PORTABLE-README.txt') -Destination $publishRoot
 
     $artifactManifest = [ordered]@{
         schemaVersion = 1
         product = 'Long Grid'
-        displayName = 'Long方格'
+        # ASCII source also works when Windows PowerShell 5.1 reads UTF-8 without BOM.
+        displayName = ('Long' + [char]0x65B9 + [char]0x683C)
         version = $Version
         sourceCommit = $commit
         configuration = 'Release'
@@ -305,7 +330,10 @@ try {
         installer = $false
         distributionApproved = $false
         licenseStatus = 'Deferred'
-        desktopHostExecutionEnabled = $false
+        # Product default, not an observation of this machine or user acceptance.
+        desktopHostExecutionEnabled = $true
+        desktopHostExecutionScope = 'ProductDefaultSubjectToSafetyPolicy'
+        desktopHostUserAcceptance = 'Pending'
     }
     $artifactManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $publishRoot 'artifact-manifest.json') -Encoding utf8
 

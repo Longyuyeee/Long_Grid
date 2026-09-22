@@ -265,6 +265,7 @@ public sealed class ProductAutomationRuleTests
         Assert.True(committed.IsAccepted);
         Assert.Equal(revision + 1, committed.EditRevision);
         Assert.Equal("重命名规则", committed.State!.Rules[0].Name);
+        await WaitForStatusAsync(saves, ProductWorkspaceSaveStatus.Saved);
         Assert.Equal(1, workflow.SaveCalls);
         ProductWorkspaceSessionHistorySnapshot history =
             commits.GetSessionHistorySnapshot(committed.State);

@@ -173,7 +173,8 @@ internal sealed class DesktopWorkspaceCreatePreviewWindow : Window
     {
         Activate();
         await Task.Delay(150);
-        ApplyWindowPresentation();
+        _ = ProductDesktopPreviewContinuation.TryRun(
+            completion.Task, () => ApplyWindowPresentation());
         return await completion.Task;
     }
 
@@ -184,8 +185,16 @@ internal sealed class DesktopWorkspaceCreatePreviewWindow : Window
         Activate();
         recordStage?.Invoke("InlinePreviewActivated");
         await Task.Delay(150);
-        ApplyWindowPresentation(recordStage);
+        if (!ProductDesktopPreviewContinuation.TryRun(
+            completion.Task, () => ApplyWindowPresentation(recordStage)))
+        {
+            return await completion.Task;
+        }
         await Task.Delay(100);
+        if (completion.Task.IsCompleted)
+        {
+            return await completion.Task;
+        }
         if (submittedName is null)
         {
             Cancel();

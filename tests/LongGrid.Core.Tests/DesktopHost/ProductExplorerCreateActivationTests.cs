@@ -26,6 +26,7 @@ public sealed class ProductExplorerCreateActivationTests
         Assert.Equal(intent, decision.Intent);
         Assert.True(decision.IsCommand);
         Assert.True(decision.CanActivate);
+        Assert.False(decision.ShouldForegroundControlCenter);
     }
 
     [Fact]
@@ -38,6 +39,7 @@ public sealed class ProductExplorerCreateActivationTests
             ProductExplorerCreateActivationStatus.NotPresent,
             decision.Status);
         Assert.False(decision.IsCommand);
+        Assert.True(decision.ShouldForegroundControlCenter);
         Assert.False(decision.CanActivate);
     }
 
@@ -55,6 +57,7 @@ public sealed class ProductExplorerCreateActivationTests
             ProductExplorerCreateActivation.Parse([argument], Now);
 
         Assert.Equal(expected, decision.Status);
+        Assert.False(decision.ShouldForegroundControlCenter);
         Assert.Null(decision.Intent);
         Assert.True(decision.IsCommand);
         Assert.False(decision.CanActivate);
@@ -71,6 +74,7 @@ public sealed class ProductExplorerCreateActivationTests
             ProductExplorerCreateActivation.Parse([argument], Now);
 
         Assert.Equal(ProductExplorerCreateActivationStatus.Stale, decision.Status);
+        Assert.False(decision.ShouldForegroundControlCenter);
     }
 
     [Fact]

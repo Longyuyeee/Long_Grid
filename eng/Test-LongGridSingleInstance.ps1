@@ -40,6 +40,8 @@ Assert-Condition ($programCode.Contains('FindOrRegisterForKey(instanceKey)')) `
     'The custom entry point must register the resolved app-instance key.'
 Assert-Condition ($programCode.Contains('RedirectActivationToAsync(activation)')) `
     'A secondary process must forward its complete activation arguments.'
+Assert-Condition ($programCode -match '(?s)if \(ProductExplorerCreateActivation\.Parse\(\s*App\.GetLaunchActivationArguments\(activation\),\s*DateTimeOffset\.UtcNow\)\.ShouldForegroundControlCenter\)\s*\{\s*TryBringToForeground\(mainInstance\.ProcessId\);\s*\}') `
+    'Only ordinary redirected launches may foreground the control center; desktop creation owns its preview focus.'
 Assert-Condition ($programCode.Contains('mainInstance.Activated += MainInstance_Activated')) `
     'The primary process must subscribe before starting XAML.'
 Assert-Condition ($programCode.Contains('PendingActivations.Enqueue(activation)')) `
@@ -70,6 +72,9 @@ Assert-Condition (
     'Desktop-first evidence must opt into the background startup path.'
 Assert-Condition (Test-Path -LiteralPath $desktopFirstScript -PathType Leaf) `
     'The real desktop-first single-instance evidence script is missing.'
+
+Assert-Condition ($appCode -match '(?s)if \(\(singleWindowSafetyRequired \|\| useFallbackPreview\) && evidenceSession is null\)\s*\{\s*confirmedName = session.Snapshot.CanSubmit\s*\? ProductDesktopCreateFallback.Confirm\(session.Snapshot.Name\)\s*: null;\s*\}\s*else if \(singleWindowSafetyRequired\)') `
+    'Product desktop fallback must precede evidence-only control-center fallbacks.'
 
 if ($ContractOnly) {
     Write-Output 'Long Grid single-instance source contract passed.'

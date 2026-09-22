@@ -30,6 +30,9 @@ public sealed record ProductExplorerCreateActivationDecision(
     public bool IsCommand =>
         Status != ProductExplorerCreateActivationStatus.NotPresent;
 
+    // Desktop creation owns its own preview/focus, even when the command is rejected.
+    public bool ShouldForegroundControlCenter => !IsCommand;
+
     public bool CanActivate =>
         Status == ProductExplorerCreateActivationStatus.Ready
         && Intent is not null;

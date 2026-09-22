@@ -220,6 +220,15 @@ namespace
 
         IFACEMETHODIMP Invoke(IShellItemArray*, IBindCtx*) noexcept override
         {
+            wchar_t applicationUserModelId[APPLICATION_USER_MODEL_ID_MAX_LENGTH + 1]{};
+            UINT32 identityLength = static_cast<UINT32>(std::size(applicationUserModelId));
+            const LONG identityResult = BuildLongGridApplicationUserModelId(
+                &identityLength, applicationUserModelId);
+            if (identityResult != ERROR_SUCCESS)
+            {
+                return HRESULT_FROM_WIN32(identityResult);
+            }
+
             wchar_t arguments[257]{};
             HRESULT result = BuildActivationArguments(arguments);
             if (FAILED(result))
@@ -240,7 +249,7 @@ namespace
 
             DWORD processId = 0;
             result = activationManager->ActivateApplication(
-                LongGridApplicationUserModelId,
+                applicationUserModelId,
                 arguments,
                 AO_NONE,
                 &processId);

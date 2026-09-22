@@ -8,6 +8,8 @@ param(
     [switch]$EnableDesktopHost,
     [switch]$ExternalAutomation,
 
+    [string]$PublishedPackageRoot,
+
     [string]$CleanupSessionId
 )
 
@@ -178,8 +180,31 @@ if ($ValidateOnly) {
     exit 0
 }
 
-if ($ExternalAutomation) {
-    $runtimePreflight = & $runtimePreflightPath | ConvertFrom-Json
+if ($ExternalAutomation -or -not [string]::IsNullOrWhiteSpace($PublishedPackageRoot)) {
+    if (-not [string]::IsNullOrWhiteSpace($PublishedPackageRoot)) {
+        Assert-Condition ([bool]$NoBuild) 'Published package validation requires NoBuild.'
+        $outputDirectory = [IO.Path]::GetFullPath($PublishedPackageRoot)
+        $appPath = Join-Path $outputDirectory 'LongGrid.App.exe'
+        $payloadResult = & (Join-Path $projectRoot 'packaging\Install-Preflight.ps1') `
+            -PackageRoot $outputDirectory | ConvertFrom-Json
+        Assert-Condition ($payloadResult.outcome -eq 'Pass') 'Published payload validation failed.'
+        $xamlInfo = (Get-Item -LiteralPath (Join-Path $outputDirectory 'Microsoft.UI.Xaml.dll')).VersionInfo
+        $xamlVersion = [version]::new($xamlInfo.FileMajorPart, $xamlInfo.FileMinorPart,
+            $xamlInfo.FileBuildPart, $xamlInfo.FilePrivatePart)
+        if ($ExternalAutomation) {
+            Assert-Condition ($xamlVersion -gt [version]'0.0.0.0' -and $xamlVersion -ne [version]'3.2.3.0') `
+                'Published XAML version is unknown or requires separate external automation safety verification.'
+        }
+        $runtimePreflight = [pscustomobject]@{
+            outcome = 'Pass'
+            deployment = 'self-contained-published-payload'
+            xamlFileVersion = $xamlVersion.ToString()
+            difference = 'PayloadValidated;ExternalAutomationAndLiveAcceptanceNotCertified'
+        }
+    }
+    else {
+        $runtimePreflight = & $runtimePreflightPath | ConvertFrom-Json
+    }
     $safeForExternalAutomation = $runtimePreflight.outcome -eq 'Pass'
     if (-not $safeForExternalAutomation) {
         [ordered]@{
@@ -196,6 +221,7 @@ if ($ExternalAutomation) {
     }
 }
 
+
 if (-not [string]::IsNullOrWhiteSpace($CleanupSessionId)) {
     Remove-EvidenceDirectory $CleanupSessionId
     [ordered]@{
@@ -208,7 +234,7 @@ if (-not [string]::IsNullOrWhiteSpace($CleanupSessionId)) {
     exit 0
 }
 
-if (-not $NoBuild) {
+if (-not $NoBuild -and [string]::IsNullOrWhiteSpace($PublishedPackageRoot)) {
     $dotnetHostPath = Resolve-LongGridDotNetHost $projectRoot
     & $dotnetHostPath build (Join-Path $projectRoot 'src\LongGrid.App\LongGrid.App.csproj') `
         --configuration $Configuration `
@@ -398,7 +424,7 @@ catch {
     expectedActualPath = Join-Path $evidenceDirectory 'journey.json'
     drivesUserInput = $false
     externalAutomation = [bool]$ExternalAutomation
-    runtimePreflight = if ($ExternalAutomation) { $runtimePreflight } else { $null }
+    runtimePreflight = if ($ExternalAutomation -or $PublishedPackageRoot) { $runtimePreflight } else { $null }
     desktopHostDisabledForIsolation = -not $EnableDesktopHost
     managedLaunchReady = $managedLaunchReady
     productWindowActivated = $productWindowActivated

@@ -3314,14 +3314,18 @@ public partial class App : Application
                 if (hasEvidenceResponse)
                 {
                     evidenceSession!.RecordStage("DrivingInlinePreview");
-                    confirmedName = await previewWindow.ShowForEvidenceAsync(
-                        evidenceResponse,
-                        evidenceSession.RecordStage);
+                    confirmedName = await ProductDesktopPreviewContinuation.RunWithCleanupAsync(
+                        () => previewWindow.ShowForEvidenceAsync(
+                            evidenceResponse,
+                            evidenceSession.RecordStage),
+                        previewWindow.Cancel);
                     evidenceSession.ObservePreview(previewWindow);
                 }
                 else
                 {
-                    confirmedName = await previewWindow.ShowAsync();
+                    confirmedName = await ProductDesktopPreviewContinuation.RunWithCleanupAsync(
+                        previewWindow.ShowAsync,
+                        previewWindow.Cancel);
                 }
             }
             catch (Exception exception) when (
@@ -3340,7 +3344,13 @@ public partial class App : Application
             }
         }
 
-        if (singleWindowSafetyRequired)
+        if ((singleWindowSafetyRequired || useFallbackPreview) && evidenceSession is null)
+        {
+            confirmedName = session.Snapshot.CanSubmit
+                ? ProductDesktopCreateFallback.Confirm(session.Snapshot.Name)
+                : null;
+        }
+        else if (singleWindowSafetyRequired)
         {
             bool showBoxR1Evidence = boxR1ActivationEvidenceSession is not null;
             if (showBoxR1Evidence)
