@@ -117,7 +117,9 @@ $contractCode = Get-Content -LiteralPath $contractHeader -Raw -Encoding UTF8
 $commandCode = Get-Content -LiteralPath $commandSource -Raw -Encoding UTF8
 foreach ($requiredContract in @(
     '78a940c1',
-    'Longyuyeee.LongGrid.DeveloperPreview!LongGrid.App',
+    'BuildLongGridApplicationUserModelId',
+    'GetCurrentPackageFamilyName',
+    'FormatApplicationUserModelId',
     'LongGridExplorerCommandTitle',
     '--long-grid-create-box=v1,',
     'IApplicationActivationManager',
@@ -139,7 +141,7 @@ if ($ValidateOnly) {
         Architecture = $Architecture
         Clsid = '78A940C1-2E65-4A03-9D09-3AC62CEF30BB'
         ApplicationUserModelId = `
-            'Longyuyeee.LongGrid.DeveloperPreview!LongGrid.App'
+            'RuntimePackageFamilyName!LongGrid.App'
         MSBuildAvailable = $null -ne $msbuild
         BuildsOrStartsProcess = $false
         ChangesPackageState = $false

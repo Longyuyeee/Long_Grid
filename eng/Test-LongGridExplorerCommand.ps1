@@ -119,6 +119,7 @@ Assert-Condition ($LASTEXITCODE -eq 0) `
     "Explorer command native probe failed: $probeJson"
 $probe = $probeJson | ConvertFrom-Json
 $passed = $probe.Outcome -eq 'Pass' `
+    -and $probe.ActivationIdentityPassed `
     -and $probe.Iterations -eq 200 `
     -and $probe.ElapsedMilliseconds -le 1000 `
     -and $probe.TitlePassed `
@@ -148,6 +149,7 @@ $evidence = [ordered]@{
         Iterations = $probe.Iterations
         ElapsedMilliseconds = $probe.ElapsedMilliseconds
         TitlePassed = $probe.TitlePassed
+        ActivationIdentityPassed = $probe.ActivationIdentityPassed
         IconPassed = $probe.IconPassed
         StatePassed = $probe.StatePassed
         CanonicalNamePassed = $probe.CanonicalNamePassed

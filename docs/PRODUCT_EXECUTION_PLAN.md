@@ -271,6 +271,12 @@ M1 和 M2 同时完成，才可以称为“Long方格核心功能完成”。
 
 #### 用户确认的主路径纠偏：桌面右键优先
 
+2026-09-22 本轮 A0/右键启动链审计：从 `ebc1ec17895a8a36bccbddf9f14d40e67dc77bf8` 完整生成未签名 MSIX `0.1.0.1`，SHA-256 `f0d1d93dfddad24b29d203197a92d2be83d9bfa29a4e57caa525385f5b4f9d80`；对应 Portable `0.1.0-desktop-20260922` 为 805 文件，SHA-256 `8a42599ebc5f3905cd542926cba21f23b63ec8fdf8166156b0d4f0367612385a`。全量 1,525/1,525（15 秒、零跳过），构建零警告/错误、格式/漏洞/打包门禁通过。MSIX 两次解包内容指纹一致，但字节不一致；不得宣称字节可重现。载荷包括真实原生 DLL，其菜单回调 200 次测试通过，但不调用 ActivateApplication，不是点击证据。打包临时目录由脚本正常清理，产物保留 artifacts；没有安装包、重启 Explorer 或修改信任。
+
+实际代码发现更直接的创建阻断：`ExplorerCommandContract.h` 将 `Longyuyeee.LongGrid.DeveloperPreview!LongGrid.App` 当成 AUMID，漏掉包家族名的 PublisherId。旧源码合同反而要求这个错误字面量，现有菜单测试因此会假覆盖用户的启动动作。按 [Windows 包查询 API 合同](https://learn.microsoft.com/en-us/windows/win32/appxpkg/functions)，修正为 Invoke 时 GetCurrentPackageFamilyName → FormatApplicationUserModelId → ActivateApplication；缺少包身份时返回错误，不猜测其他安装包或退回控制中心。原生测试使用明确的合成包家族（不是正式 Publisher）覆盖完整目标、缓冲区不足、无包身份，真实 Windows 格式化 API 与 DLL 回调测试通过。初次测试使用 VerifyApplicationUserModelId 出现链接失败，移除多余调用后以真实 Format API 和精确结果断言验证；最终原生构建零警告/错误。
+
+**上述 MSIX 是修正前基线，不包含本轮 AUMID 修正，不能拿它验收修正效果。** 本轮只完成启动目标代码与原生回归；安装后的 COM surrogate 是否取得正确包身份、真实 ActivateApplication、冷热启动、桌面命名/取消/保存仍未验证。下一步先从本轮提交重建载荷，再在获准环境跑 A1；#274 签名身份与可丢弃安装环境尚未提供，ValidateOnly 的 Pass 只说明禁止未授权安装的合同有效。A0 的旧 `desktopHostExecutionEnabled=false` 元数据也仍待校准；不推进 A2、不把上述结果换算产品完成度。
+
 2026-09-22 桌面预览异常降级：正常桌面预览保持可编辑名称；仅在预览不可用/既有单窗口安全分支时，普通产品会话改用不依赖 WinUI 的 Win32 系统确认框，不激活控制中心。提示默认盒子名、原始文件不变和取消零创建；默认按钮为取消，只有 OK 返回名称，Cancel/窗口关闭/原生失败均不进入创建。确认后继续原事务的会话、显示器、revision 等复核，消息循环期间过期的会话不能提交。降级框不提供改名编辑，成功后在桌面重命名；这是明确的异常降级，不替代正常桌面交互设计。旧控制中心预览仅保留给显式内部 evidence session，不能当产品主路径验收。
 
 实测：链接真实 App 回退源码，以注入响应覆盖确认/取消/原生失败/无效名称 4 项；完整 Release 1,525/1,525（18 秒），App 构建零警告/错误、205-ID UI 合同通过。测试没有打开系统确认框，不是物理点击证据；单实例源码合同检查正式分支优先于 evidence-only 控制中心回退，格式与文档检查提交前完成。未修改安装注册或共享 Runtime，真实安装菜单/冷热启动/默认名确认/取消仍待验收，A1 未通过。

@@ -9,6 +9,25 @@
 
 namespace
 {
+    LONG WINAPI TestPackageFamily(UINT32* length, PWSTR family)
+    {
+        constexpr wchar_t value[] = L"Longyuyeee.LongGrid.DeveloperPreview_8wekyb3d8bbwe";
+        constexpr UINT32 required = static_cast<UINT32>(sizeof(value) / sizeof(value[0]));
+        if (*length < required)
+        {
+            *length = required;
+            return ERROR_INSUFFICIENT_BUFFER;
+        }
+        wcscpy_s(family, *length, value);
+        *length = required;
+        return ERROR_SUCCESS;
+    }
+
+    LONG WINAPI NoPackageFamily(UINT32*, PWSTR)
+    {
+        return APPMODEL_ERROR_NO_PACKAGE;
+    }
+
     using DllGetClassObjectFunction = HRESULT(__stdcall*)(
         REFCLSID,
         REFIID,
@@ -23,6 +42,22 @@ namespace
 
 int wmain(int argumentCount, wchar_t** arguments)
 {
+    wchar_t identity[APPLICATION_USER_MODEL_ID_MAX_LENGTH + 1]{};
+    UINT32 identityLength = static_cast<UINT32>(sizeof(identity) / sizeof(identity[0]));
+    const bool identityPassed = BuildLongGridApplicationUserModelId(
+        &identityLength, identity, TestPackageFamily) == ERROR_SUCCESS
+        && std::wstring(identity) == L"Longyuyeee.LongGrid.DeveloperPreview_8wekyb3d8bbwe!LongGrid.App";
+    identityLength = 1;
+    const bool boundedIdentity = BuildLongGridApplicationUserModelId(
+        &identityLength, identity, TestPackageFamily) == ERROR_INSUFFICIENT_BUFFER;
+    const bool missingIdentity = BuildLongGridApplicationUserModelId(
+        &identityLength, identity, NoPackageFamily) == APPMODEL_ERROR_NO_PACKAGE;
+    if (!identityPassed || !boundedIdentity || !missingIdentity)
+    {
+        std::cerr << "Package activation identity contract failed." << std::endl;
+        return 9;
+    }
+
     if (argumentCount != 2)
     {
         std::cerr << "Expected the Explorer command DLL path." << std::endl;
@@ -156,6 +191,7 @@ int wmain(int argumentCount, wchar_t** arguments)
         << "{\n"
         << "  \"SchemaVersion\": 1,\n"
         << "  \"Purpose\": \"BoxR1ExplorerCommandNativeProbe\",\n"
+        << "  \"ActivationIdentityPassed\": true,\n"
         << "  \"Iterations\": " << iterations << ",\n"
         << "  \"ElapsedMilliseconds\": " << elapsedMilliseconds << ",\n"
         << "  \"TitlePassed\": " << (titlePassed ? "true" : "false") << ",\n"
